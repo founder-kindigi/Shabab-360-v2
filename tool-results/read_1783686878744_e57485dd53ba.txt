@@ -1,0 +1,902 @@
+     1→# Shabab360 - Master Implementation Plan
+     2→
+     3→> **Last Updated:** July 2025
+     4→> **Status:** Ready for implementation
+     5→> **Build Approach:** Modular, one module at a time, multiple agents can work in parallel on independent modules
+     6→
+     7→---
+     8→
+     9→## 1. Project Overview
+    10→
+    11→Shabab360 is a browser-based, multi-role program operations platform for managing Shabab (youth) activities across cities in Pakistan. The organization runs regular sessions at local venues called "parks," organized into batches (time-bound cycles) and groups (participant cohorts).
+    12→
+    13→### Core Organizational Hierarchy
+    14→
+    15→```
+    16→National HQ (Markazi)
+    17→  └── City (City Masoul)
+    18→        └── Park (local venue)
+    19→              └── Batch (program cycle, e.g., Jan-Jun 2025)
+    20→                    └── Group (15-20 participants + 1 Murabbi/mentor)
+    21→                          └── Participant (Shabab - the youth)
+    22→```
+    23→
+    24→### Roles
+    25→
+    26→| Role | Code | Landing Workspace | Primary Job |
+    27→|------|------|-------------------|-------------|
+    28→| Super Admin | `super_admin` | Admin | Technical recovery, full access |
+    29→| Program Admin | `program_admin` | Admin | National oversight, city governance |
+    30→| City Head | `city_head` | Admin | City-level ops: parks, batches, people, events, fees |
+    31→| Park Admin | `park_admin` | Park | Daily attendance marking, mobile-first |
+    32→| Park Lead | `park_lead` | Park | Park attendance with broader privileges |
+    33→| Murabbi | `murabbi` | Park | Mentor, tied to one group |
+    34→| Guardian | `guardian` | Guardian | Read-only view of linked children |
+    35→| Student | `student` | Student | Read-only view of own data |
+    36→
+    37→---
+    38→
+    39→## 2. Architecture
+    40→
+    41→### 2.1 Technology Stack
+    42→
+    43→| Layer | Technology |
+    44→|-------|-----------|
+    45→| Framework | Next.js 16 (App Router) |
+    46→| Language | TypeScript 5 |
+    47→| Styling | Tailwind CSS 4 + shadcn/ui (New York style) |
+    48→| Database | Prisma ORM + SQLite |
+    49→| Auth | NextAuth.js v4 (Credentials provider, JWT sessions) |
+    50→| Client State | Zustand |
+    51→| Server State | TanStack Query |
+    52→| Icons | Lucide React |
+    53→| Animations | Framer Motion |
+    54→| Excel Exports | exceljs |
+    55→| Offline Queue | Dexie / IndexedDB (for attendance) |
+    56→| Timezone | UTC storage, Asia/Karachi (PKT) display |
+    57→
+    58→### 2.2 Critical Architecture Constraint
+    59→
+    60→**All UI must be served from the `/` route (single `page.tsx`).** The application uses a **Single Page Application (SPA) pattern** with client-side navigation managed by Zustand.
+    61→
+    62→```tsx
+    63→// src/app/page.tsx - The ONLY user-visible route
+    64→export default function Home() {
+    65→  return (
+    66→    <SessionProvider>
+    67→      <AppRouter />
+    68→    </SessionProvider>
+    69→  );
+    70→}
+    71→
+    72→// AppRouter renders different workspaces based on auth state + navigation state
+    73→function AppRouter() {
+    74→  const { status } = useSession();
+    75→  const currentPage = useAppStore(s => s.currentPage);
+    76→
+    77→  if (status === 'loading') return <LoadingScreen />;
+    78→  if (status === 'unauthenticated') return <LoginPage />;
+    79→
+    80→  return (
+    81→    <AppShell>
+    82→      <PageRenderer page={currentPage} />
+    83→    </AppShell>
+    84→  );
+    85→}
+    86→```
+    87→
+    88→### 2.3 API Routes
+    89→
+    90→Backend API routes ARE allowed at `/api/*` — these are server-side and not user-visible routes.
+    91→
+    92→```
+    93→src/app/api/
+    94→  ├── auth/[...nextauth]/route.ts
+    95→  ├── admin/
+    96→  │   ├── cities/route.ts
+    97→  │   ├── parks/route.ts
+    98→  │   ├── batches/route.ts
+    99→  │   ├── groups/route.ts
+   100→  │   ├── people/route.ts
+   101→  │   ├── attendance-events/route.ts
+   102→  │   ├── fees/route.ts
+   103→  │   ├── users/route.ts
+   104→  │   ├── admissions/route.ts
+   105→  │   ├── announcements/route.ts
+   106→  │   └── reports/route.ts
+   107→  ├── park/
+   108→  │   ├── attendance/route.ts
+   109→  │   ├── attendance/sync/route.ts
+   110→  │   └── dashboard/route.ts
+   111→  └── guardian/
+   112→      └── data/route.ts
+   113→```
+   114→
+   115→### 2.4 State Management
+   116→
+   117→**Zustand Stores** (in `src/stores/`):
+   118→
+   119→| Store | Purpose |
+   120→|-------|---------|
+   121→| `useAppStore` | Global app state: currentPage, selectedParkId, selectedBatchId, etc. |
+   122→| `useAuthStore` | Auth state wrapper around NextAuth session |
+   123→| `useOfflineStore` | Offline attendance queue management |
+   124→
+   125→### 2.5 Navigation System
+   126→
+   127→Client-side navigation is handled entirely by Zustand. No Next.js file-based routing for pages.
+   128→
+   129→```typescript
+   130→// src/stores/useAppStore.ts
+   131→interface AppState {
+   132→  // Navigation
+   133→  currentPage: string;
+   134→  previousPage: string | null;
+   135→  navigateTo: (page: string) => void;
+   136→  goBack: () => void;
+   137→
+   138→  // Context selection
+   139→  selectedCityId: string | null;
+   140→  selectedParkId: string | null;
+   141→  selectedBatchId: string | null;
+   142→  selectedGroupId: string | null;
+   143→  setSelectedCity: (id: string | null) => void;
+   144→  setSelectedPark: (id: string | null) => void;
+   145→  setSelectedBatch: (id: string | null) => void;
+   146→  setSelectedGroup: (id: string | null) => void;
+   147→
+   148→  // UI state
+   149→  sidebarOpen: boolean;
+   150→  toggleSidebar: () => void;
+   151→}
+   152→```
+   153→
+   154→### 2.6 Authorization Pattern
+   155→
+   156→All authorization is enforced in API routes (server-side), never in the client.
+   157→
+   158→```typescript
+   159→// src/lib/auth/authorize.ts
+   160→export function requireRole(allowedRoles: string[]) {
+   161→  return async (request: NextRequest) => {
+   162→    const session = await getServerSession(authOptions);
+   163→    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+   164→    const userRole = session.user.role;
+   165→    if (!allowedRoles.includes(userRole)) {
+   166→      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+   167→    }
+   168→    return null; // Authorized
+   169→  };
+   170→}
+   171→
+   172→// Scope helpers
+   173→export function requireCityScope(session: Session, cityId: string) { ... }
+   174→export function requireParkScope(session: Session, parkId: string) { ... }
+   175→```
+   176→
+   177→---
+   178→
+   179→## 3. Complete Database Schema
+   180→
+   181→### 3.1 Full Prisma Schema
+   182→
+   183→```prisma
+   184→// prisma/schema.prisma
+   185→
+   186→datasource db {
+   187→  provider = "sqlite"
+   188→  url      = "file:../db/custom.db"
+   189→}
+   190→
+   191→generator client {
+   192→  provider = "prisma-client-js"
+   193→}
+   194→
+   195→// ============================================================
+   196→// AUTH & USERS
+   197→// ============================================================
+   198→
+   199→model User {
+   200→  id            String    @id @default(cuid())
+   201→  email         String    @unique
+   202→  passwordHash  String
+   203→  name          String?
+   204→  phone         String?
+   205→  mustResetPwd  Boolean   @default(true)
+   206→  isActive      Boolean   @default(true)
+   207→  createdAt     DateTime  @default(now())
+   208→  updatedAt     DateTime  @updatedAt
+   209→
+   210→  staffMeta     StaffMeta?
+   211→  guardian      Guardian?
+   212→  participant   Participant?
+   213→  auditLogs     AuditLog[]
+   214→
+   215→  @@map("users")
+   216→}
+   217→
+   218→// ============================================================
+   219→// ORGANIZATIONAL HIERARCHY
+   220→// ============================================================
+   221→
+   222→model City {
+   223→  id          String          @id @default(cuid())
+   224→  name        String
+   225→  code        String          @unique
+   226→  isActive    Boolean         @default(true)
+   227→  createdAt   DateTime        @default(now())
+   228→  updatedAt   DateTime        @updatedAt
+   229→
+   230→  parks           Park[]
+   231→  cityHeads       StaffMeta[]    @relation("CityHeadAssignment")
+   232→  announcements   Announcement[]
+   233→
+   234→  @@map("cities")
+   235→}
+   236→
+   237→model Park {
+   238→  id          String          @id @default(cuid())
+   239→  name        String
+   240→  cityId      String
+   241→  address     String?
+   242→  isActive    Boolean         @default(true)
+   243→  createdAt   DateTime        @default(now())
+   244→  updatedAt   DateTime        @updatedAt
+   245→
+   246→  city            City           @relation(fields: [cityId], references: [id])
+   247→  batches         Batch[]
+   248→  parkStaff       StaffMeta[]    @relation("ParkStaffAssignment")
+   249→  announcements   Announcement[]
+   250→  allocations     ParkAllocation[]
+   251→
+   252→  @@map("parks")
+   253→}
+   254→
+   255→model Batch {
+   256→  id          String                    @id @default(cuid())
+   257→  name        String
+   258→  parkId      String
+   259→  startDate   DateTime
+   260→  endDate     DateTime?
+   261→  isActive    Boolean                   @default(true)
+   262→  createdAt   DateTime                  @default(now())
+   263→  updatedAt   DateTime                  @updatedAt
+   264→
+   265→  park                    Park                    @relation(fields: [parkId], references: [id])
+   266→  groups                  Group[]
+   267→  settings                BatchSettings?
+   268→  feeEvents               FeeEvent[]
+   269→  admissionApplications   AdmissionApplication[]
+   270→
+   271→  @@map("batches")
+   272→}
+   273→
+   274→model Group {
+   275→  id          String          @id @default(cuid())
+   276→  name        String
+   277→  batchId     String
+   278→  isActive    Boolean         @default(true)
+   279→  createdAt   DateTime        @default(now())
+   280→  updatedAt   DateTime        @updatedAt
+   281→
+   282→  batch            Batch               @relation(fields: [batchId], references: [id])
+   283→  participants     Participant[]
+   284→  murabbis         StaffMeta[]         @relation("MurabbiAssignment")
+   285→  attendanceEvents AttendanceEvent[]
+   286→
+   287→  @@map("groups")
+   288→}
+   289→
+   290→// ============================================================
+   291→// PEOPLE
+   292→// ============================================================
+   293→
+   294→model StaffMeta {
+   295→  id              String    @id @default(cuid())
+   296→  userId          String    @unique
+   297→  role            String    // super_admin, program_admin, city_head, park_admin, park_lead, murabbi
+   298→  assignedCityId  String?
+   299→  assignedParkId  String?
+   300→  assignedGroupId String?
+   301→  isActive        Boolean   @default(true)
+   302→  createdAt       DateTime  @default(now())
+   303→  updatedAt       DateTime  @updatedAt
+   304→
+   305→  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+   306→  assignedCity    City?     @relation("CityHeadAssignment", fields: [assignedCityId], references: [id])
+   307→  assignedPark    Park?     @relation("ParkStaffAssignment", fields: [assignedParkId], references: [id])
+   308→  assignedGroup   Group?    @relation("MurabbiAssignment", fields: [assignedGroupId], references: [id])
+   309→
+   310→  closedEvents       AttendanceEvent[]  @relation("EventCloser")
+   311→  attendanceRecords  AttendanceRecord[] @relation("AttendanceMarker")
+   312→  recordedPayments   Payment[]          @relation("PaymentRecorder")
+   313→  publishedAnnouncements Announcement[] @relation("AnnouncementPublisher")
+   314→
+   315→  @@map("staff_meta")
+   316→}
+   317→
+   318→model Guardian {
+   319→  id          String          @id @default(cuid())
+   320→  userId      String?         @unique
+   321→  name        String
+   322→  phone       String
+   323→  cnic        String?
+   324→  address     String?
+   325→  isActive    Boolean         @default(true)
+   326→  createdAt   DateTime        @default(now())
+   327→  updatedAt   DateTime        @updatedAt
+   328→
+   329→  user        User?           @relation(fields: [userId], references: [id])
+   330→  children    GuardianChild[]
+   331→
+   332→  @@map("guardians")
+   333→}
+   334→
+   335→model GuardianChild {
+   336→  id            String      @id @default(cuid())
+   337→  guardianId    String
+   338→  participantId String
+   339→  relation      String?     // father, mother, uncle, etc.
+   340→  createdAt     DateTime    @default(now())
+   341→
+   342→  guardian      Guardian    @relation(fields: [guardianId], references: [id], onDelete: Cascade)
+   343→  participant   Participant @relation(fields: [participantId], references: [id])
+   344→
+   345→  @@unique([guardianId, participantId])
+   346→  @@map("guardian_children")
+   347→}
+   348→
+   349→model Participant {
+   350→  id          String            @id @default(cuid())
+   351→  userId      String?           @unique
+   352→  name        String
+   353→  phone       String?
+   354→  dateOfBirth DateTime?
+   355→  gender      String?           // male, female
+   356→  address     String?
+   357→  groupId     String
+   358→  state       String            @default("active") // active, warning, dropout, graduated, inactive
+   359→  joinedAt    DateTime          @default(now())
+   360→  createdAt   DateTime          @default(now())
+   361→  updatedAt   DateTime          @updatedAt
+   362→
+   363→  user                User                @relation(fields: [userId], references: [id])
+   364→  group               Group               @relation(fields: [groupId], references: [id])
+   365→  guardianLinks       GuardianChild[]
+   366→  attendanceRecords   AttendanceRecord[]
+   367→  payments            Payment[]
+   368→  convertedFromApp    AdmissionApplication? @relation("ConvertedFrom")
+   369→
+   370→  @@map("participants")
+   371→}
+   372→
+   373→// ============================================================
+   374→// ATTENDANCE
+   375→// ============================================================
+   376→
+   377→model BatchSettings {
+   378→  id              String    @id @default(cuid())
+   379→  batchId         String    @unique
+   380→  warningAbsents  Int       @default(3)
+   381→  dropoutAbsents  Int       @default(6)
+   382→  createdAt       DateTime  @default(now())
+   383→  updatedAt       DateTime  @updatedAt
+   384→
+   385→  batch           Batch     @relation(fields: [batchId], references: [id])
+   386→
+   387→  @@map("batch_settings")
+   388→}
+   389→
+   390→model AttendanceEvent {
+   391→  id          String              @id @default(cuid())
+   392→  groupId     String
+   393→  title       String
+   394→  eventDate   DateTime            // stored UTC, displayed PKT
+   395→  isClosed    Boolean             @default(false)
+   396→  closedAt    DateTime?
+   397→  closedBy    String?
+   398→  createdAt   DateTime            @default(now())
+   399→  updatedAt   DateTime            @updatedAt
+   400→
+   401→  group       Group               @relation(fields: [groupId], references: [id])
+   402→  records     AttendanceRecord[]
+   403→  closer      StaffMeta?          @relation("EventCloser", fields: [closedBy], references: [id])
+   404→
+   405→  @@map("attendance_events")
+   406→}
+   407→
+   408→model AttendanceRecord {
+   409→  id            String           @id @default(cuid())
+   410→  eventId       String
+   411→  participantId String
+   412→  status        String           // present, absent, late, excused
+   413→  markedBy      String?
+   414→  markedAt      DateTime         @default(now())
+   415→  editReason    String?
+   416→  createdAt     DateTime         @default(now())
+   417→  updatedAt     DateTime         @updatedAt
+   418→
+   419→  event         AttendanceEvent  @relation(fields: [eventId], references: [id])
+   420→  participant   Participant      @relation(fields: [participantId], references: [id])
+   421→  marker        StaffMeta?       @relation("AttendanceMarker", fields: [markedBy], references: [id])
+   422→
+   423→  @@unique([eventId, participantId])
+   424→  @@map("attendance_records")
+   425→}
+   426→
+   427→// ============================================================
+   428→// FEES
+   429→// ============================================================
+   430→
+   431→model FeeEvent {
+   432→  id          String      @id @default(cuid())
+   433→  batchId     String
+   434→  title       String      // e.g., "Admission Fee", "Monthly Fee - Jan"
+   435→  feeType     String      // admission, monthly, event
+   436→  amount      Float
+   437→  dueDate     DateTime?
+   438→  isActive    Boolean     @default(true)
+   439→  createdAt   DateTime    @default(now())
+   440→  updatedAt   DateTime    @updatedAt
+   441→
+   442→  batch       Batch       @relation(fields: [batchId], references: [id])
+   443→  payments    Payment[]
+   444→
+   445→  @@map("fee_events")
+   446→}
+   447→
+   448→model Payment {
+   449→  id              String       @id @default(cuid())
+   450→  feeEventId      String
+   451→  participantId   String
+   452→  amount          Float
+   453→  method          String       // cash, bank_transfer, online
+   454→  receiptNo       String?      @unique
+   455→  recordedBy      String?
+   456→  notes           String?
+   457→  createdAt       DateTime     @default(now())
+   458→  updatedAt       DateTime     @updatedAt
+   459→
+   460→  feeEvent        FeeEvent     @relation(fields: [feeEventId], references: [id])
+   461→  participant     Participant  @relation(fields: [participantId], references: [id])
+   462→  recorder        StaffMeta?   @relation("PaymentRecorder", fields: [recordedBy], references: [id])
+   463→
+   464→  @@map("payments")
+   465→}
+   466→
+   467→model ReceiptSequence {
+   468→  id        String    @id @default(cuid())
+   469→  prefix    String    // e.g., "RCPT"
+   470→  year      Int
+   471→  counter   Int       @default(0)
+   472→  updatedAt DateTime  @updatedAt
+   473→
+   474→  @@unique([prefix, year])
+   475→  @@map("receipt_sequences")
+   476→}
+   477→
+   478→// ============================================================
+   479→// ADMISSIONS
+   480→// ============================================================
+   481→
+   482→model AdmissionApplication {
+   483→  id                     String                  @id @default(cuid())
+   484→  trackingCode           String                  @unique
+   485→  applicantName          String
+   486→  applicantDOB           DateTime?
+   487→  gender                 String?
+   488→  guardianName           String
+   489→  guardianPhone          String
+   490→  guardianRelation       String?
+   491→  cityId                 String?
+   492→  preferredParkId        String?
+   493→  status                 String                  @default("submitted")
+   494→  notes                  String?
+   495→  convertedParticipantId String?
+   496→  createdAt              DateTime                @default(now())
+   497→  updatedAt              DateTime                @updatedAt
+   498→
+   499→  city                   City?                   @relation(fields: [cityId], references: [id])
+   500→  preferredPark          Park?                   @relation(fields: [preferredParkId], references: [id])
+   501→  interviews             AdmissionInterview[]
+   502→  convertedParticipant   Participant?             @relation("ConvertedFrom")
+   503→
+   504→  @@map("admission_applications")
+   505→}
+   506→
+   507→model AdmissionInterview {
+   508→  id              String                @id @default(cuid())
+   509→  applicationId   String
+   510→  scheduledDate   DateTime?
+   511→  scheduledTime   String?
+   512→  status          String                @default("scheduled") // scheduled, completed, cancelled
+   513→  score1          Int?                   // interview score fields
+   514→  score2          Int?
+   515→  score3          Int?
+   516→  totalScore      Int?
+   517→  notes           String?
+   518→  conductedBy     String?
+   519→  createdAt       DateTime               @default(now())
+   520→  updatedAt       DateTime               @updatedAt
+   521→
+   522→  application     AdmissionApplication  @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+   523→
+   524→  @@map("admission_interviews")
+   525→}
+   526→
+   527→// ============================================================
+   528→// ANNOUNCEMENTS
+   529→// ============================================================
+   530→
+   531→model Announcement {
+   532→  id          String        @id @default(cuid())
+   533→  title       String
+   534→  body        String
+   535→  audience    String        // all, staff, city_heads, park_staff, guardians, students
+   536→  cityId      String?
+   537→  parkId      String?
+   538→  publishedBy String?
+   539→  isActive    Boolean       @default(true)
+   540→  createdAt   DateTime      @default(now())
+   541→  updatedAt   DateTime      @updatedAt
+   542→
+   543→  city        City?         @relation(fields: [cityId], references: [id])
+   544→  park        Park?         @relation(fields: [parkId], references: [id])
+   545→  publisher   StaffMeta?    @relation("AnnouncementPublisher", fields: [publishedBy], references: [id])
+   546→
+   547→  @@map("announcements")
+   548→}
+   549→
+   550→// ============================================================
+   551→// AUDIT
+   552→// ============================================================
+   553→
+   554→model AuditLog {
+   555→  id          String    @id @default(cuid())
+   556→  userId      String?
+   557→  action      String
+   558→  entityType  String
+   559→  entityId    String?
+   560→  oldValues   String?   // JSON string
+   561→  newValues   String?   // JSON string
+   562→  reason      String?
+   563→  createdAt   DateTime  @default(now())
+   564→
+   565→  user        User?     @relation(fields: [userId], references: [id])
+   566→
+   567→  @@map("audit_log")
+   568→}
+   569→
+   570→// ============================================================
+   571→// REPORT PRESETS
+   572→// ============================================================
+   573→
+   574→model ReportPreset {
+   575→  id          String    @id @default(cuid())
+   576→  userId      String
+   577→  name        String
+   578→  reportType  String
+   579→  filters     String    // JSON string
+   580→  createdAt   DateTime  @default(now())
+   581→  updatedAt   DateTime  @updatedAt
+   582→
+   583→  @@map("report_presets")
+   584→}
+   585→```
+   586→
+   587→### 3.2 Schema Growth by Module
+   588→
+   589→| Module | New Tables |
+   590→|--------|-----------|
+   591→| 1. Auth & Foundation | `users`, `staff_meta`, `audit_log` |
+   592→| 2. City Operations | `cities`, `parks`, `batches`, `groups`, `batch_settings`, `guardians`, `guardian_children`, `participants` |
+   593→| 3. Park Attendance | `attendance_events`, `attendance_records` |
+   594→| 4. Dashboards | (reads existing tables, no new tables) |
+   595→| 5. Access Provisioning | (uses existing `users` table) |
+   596→| 6. Fees & Payments | `fee_events`, `payments`, `receipt_sequences` |
+   597→| 7. Admissions | `admission_applications`, `admission_interviews` |
+   598→| 8. Announcements | `announcements` |
+   599→| 9. Reports & Exports | `report_presets` |
+   600→| 10. Family Portals | (reads existing tables, no new tables) |
+   601→
+   602→---
+   603→
+   604→## 4. Module Dependency Graph
+   605→
+   606→```
+   607→Module 1: Auth & Foundation
+   608→  └── Module 2: City Operations (depends on 1)
+   609→        ├── Module 3: Park Attendance (depends on 2)
+   610→        ├── Module 5: Access Provisioning (depends on 2)
+   611→        ├── Module 6: Fees & Payments (depends on 2)
+   612→        └── Module 7: Admissions (depends on 2)
+   613→  └── Module 4: Dashboards (depends on 1, can start after 2)
+   614→  └── Module 8: Announcements (depends on 1)
+   615→  └── Module 9: Reports & Exports (depends on 2, 3, 6)
+   616→  └── Module 10: Family Portals (depends on 2, 3, 6)
+   617→
+   618→Parallelism:
+   619→  After Module 1 + 2 are done:
+   620→    - Module 3, 5, 7, 8 can be built IN PARALLEL
+   621→    - Module 4 can start (basic version)
+   622→  After Module 3 is done:
+   623→    - Module 9 can start
+   624→    - Module 10 can start
+   625→```
+   626→
+   627→### Parallel Build Matrix
+   628→
+   629→| Phase | Modules | Can Run In Parallel |
+   630→|-------|---------|-------------------|
+   631→| Phase 1 | Module 1 (Auth) | No - foundation |
+   632→| Phase 2 | Module 2 (City Ops) | No - needs auth |
+   633→| Phase 3 | Module 3 (Attendance), Module 5 (Access), Module 7 (Admissions), Module 8 (Announcements) | YES - all 4 parallel |
+   634→| Phase 4 | Module 4 (Dashboards), Module 6 (Fees), Module 9 (Reports), Module 10 (Portals) | YES - all 4 parallel |
+   635→
+   636→---
+   637→
+   638→## 5. Shared Components Library
+   639→
+   640→These components are built in Module 1 and reused across all modules:
+   641→
+   642→### 5.1 Layout Components (`src/components/layout/`)
+   643→
+   644→| Component | Purpose |
+   645→|-----------|---------|
+   646→| `AppShell` | Main layout with sidebar + content area |
+   647→| `Sidebar` | Role-aware collapsible navigation sidebar |
+   648→| `PageHeader` | Consistent page title + breadcrumb + actions |
+   649→| `EmptyState` | Illustrated empty states |
+   650→| `LoadingState` | Skeleton/spinner loading states |
+   651→| `ErrorState` | Error display with retry |
+   652→| `ConfirmDialog` | Reusable confirmation modal |
+   653→| `DataCard` | Metric card for dashboards |
+   654→
+   655→### 5.2 Form Components (`src/components/forms/`)
+   656→
+   657→| Component | Purpose |
+   658→|-----------|---------|
+   659→| `SearchInput` | Debounced search with icon |
+   660→| `FilterBar` | Collapsible filter row with chips |
+   661→| `FormActions` | Save/Cancel/Delete action bar |
+   662→| `FormField` | Label + input + error wrapper |
+   663→
+   664→### 5.3 Data Display (`src/components/data/`)
+   665→
+   666→| Component | Purpose |
+   667→|-----------|---------|
+   668→| `DataTable` | Sortable, filterable table with pagination |
+   669→| `StatusBadge` | Colored status indicator |
+   670→| `Avatar` | User avatar with fallback |
+   671→| `DetailRow` | Key-value detail display |
+   672→
+   673→### 5.4 Business Components (`src/components/business/`)
+   674→
+   675→| Component | Purpose |
+   676→|-----------|---------|
+   677→| `RoleBadge` | Shows user role with color |
+   678→| `ScopeSelector` | City/Park/Batch/Group cascading selector |
+   679→| `EntityLink` | Clickable entity name that navigates to detail |
+   680→| `AttendanceStatusIcon` | Present/Absent/Late icons |
+   681→| `WhatsAppLink` | Phone number to WhatsApp link |
+   682→
+   683→---
+   684→
+   685→## 6. File/Folder Structure Convention
+   686→
+   687→```
+   688→src/
+   689→  app/
+   690→    page.tsx                          # ONLY user-visible route
+   691→    layout.tsx                        # Root layout with providers
+   692→    globals.css                       # Global styles
+   693→    api/
+   694→      auth/[...nextauth]/route.ts     # NextAuth API
+   695→      admin/
+   696→        cities/route.ts               # City CRUD
+   697→        parks/route.ts                # Park CRUD
+   698→        batches/route.ts              # Batch CRUD
+   699→        groups/route.ts               # Group CRUD
+   700→        people/route.ts               # People CRUD
+   701→        attendance-events/route.ts    # Attendance event CRUD
+   702→        fees/route.ts                 # Fee operations
+   703→        users/route.ts                # Access provisioning
+   704→        admissions/route.ts           # Admissions pipeline
+   705→        announcements/route.ts        # Announcements CRUD
+   706→        reports/route.ts              # Report generation
+   707→      park/
+   708→        attendance/route.ts           # Mark attendance
+   709→        attendance/sync/route.ts      # Offline sync
+   710→        dashboard/route.ts            # Park dashboard data
+   711→      guardian/
+   712→        data/route.ts                 # Guardian read-only data
+   713→  components/
+   714→    ui/                               # shadcn/ui components (pre-installed)
+   715→    layout/                           # AppShell, Sidebar, PageHeader, etc.
+   716→    forms/                            # SearchInput, FilterBar, etc.
+   717→    data/                             # DataTable, StatusBadge, etc.
+   718→    business/                         # Domain-specific components
+   719→    modules/                          # Module-specific page components
+   720→      auth/                           # LoginPage, ResetPasswordPage
+   721→      admin/                          # Admin workspace pages
+   722→      park/                           # Park workspace pages
+   723→      guardian/                       # Guardian portal pages
+   724→      student/                        # Student portal pages
+   725→  stores/
+   726→    useAppStore.ts                    # Global navigation & UI state
+   727→    useOfflineStore.ts               # Offline attendance queue
+   728→  lib/
+   729→    db.ts                             # Prisma client singleton
+   730→    auth.ts                           # NextAuth configuration
+   731→    utils.ts                          # Utility functions
+   732→    auth/
+   733→      authorize.ts                    # Role & scope authorization helpers
+   734→      session.ts                      # Session helpers
+   735→    timezone.ts                       # PKT timezone utilities
+   736→    audit.ts                          # Audit logging helper
+   737→    receipts.ts                       # Receipt number generation
+   738→  types/
+   739→    index.ts                          # Shared TypeScript types
+   740→    api.ts                            # API response types
+   741→prisma/
+   742→  schema.prisma                       # Database schema
+   743→db/
+   744→  custom.db                           # SQLite database file
+   745→```
+   746→
+   747→---
+   748→
+   749→## 7. Coding Standards
+   750→
+   751→### 7.1 Naming Conventions
+   752→
+   753→- **Files:** kebab-case (`attendance-roster.tsx`)
+   754→- **Components:** PascalCase (`AttendanceRoster`)
+   755→- **Stores:** camelCase with `use` prefix (`useAppStore`)
+   756→- **API routes:** kebab-case (`/api/admin/attendance-events`)
+   757→- **DB tables:** snake_case (`attendance_records`)
+   758→- **DB columns:** snake_case (`participant_id`)
+   759→- **Types/Interfaces:** PascalCase (`AttendanceRecord`)
+   760→- **Constants:** UPPER_SNAKE_CASE (`ATTENDANCE_STATUS`)
+   761→
+   762→### 7.2 Component Pattern
+   763→
+   764→```tsx
+   765→// Every page component follows this pattern:
+   766→"use client";
+   767→
+   768→import { useAppStore } from "@/stores/useAppStore";
+   769→import { useQuery } from "@tanstack/react-query";
+   770→import { PageHeader } from "@/components/layout/page-header";
+   771→import { LoadingState } from "@/components/layout/loading-state";
+   772→
+   773→interface SomePageProps {
+   774→  // props from parent
+   775→}
+   776→
+   777→export function SomePage({}: SomePageProps) {
+   778→  const { selectedParkId } = useAppStore();
+   779→
+   780→  const { data, isLoading, error } = useQuery({
+   781→    queryKey: ["some-data", selectedParkId],
+   782→    queryFn: () => fetch(`/api/park/dashboard?parkId=${selectedParkId}`).then(r => r.json()),
+   783→    enabled: !!selectedParkId,
+   784→  });
+   785→
+   786→  if (isLoading) return <LoadingState />;
+   787→  if (error) return <ErrorState error={error} />;
+   788→
+   789→  return (
+   790→    <div className="space-y-6">
+   791→      <PageHeader title="Page Title" description="Page description" />
+   792→      {/* Page content */}
+   793→    </div>
+   794→  );
+   795→}
+   796→```
+   797→
+   798→### 7.3 API Route Pattern
+   799→
+   800→```typescript
+   801→// src/app/api/some/route.ts
+   802→import { NextRequest, NextResponse } from "next/server";
+   803→import { getServerSession } from "next-auth";
+   804→import { authorize } from "@/lib/auth/authorize";
+   805→import { db } from "@/lib/db";
+   806→import { z } from "zod";
+   807→
+   808→const schema = z.object({ /* validation */ });
+   809→
+   810→export async function GET(request: NextRequest) {
+   811→  const authError = await authorize(["city_head", "program_admin"]);
+   812→  if (authError) return authError;
+   813→
+   814→  const { searchParams } = new URL(request.url);
+   815→  // ... query logic
+   816→}
+   817→```
+   818→
+   819→### 7.4 Styling Rules
+   820→
+   821→- Use Tailwind CSS 4 utility classes
+   822→- Use shadcn/ui components (never build from scratch)
+   823→- Use `bg-background`, `text-primary` theme variables
+   824→- **NO indigo or blue** unless explicitly requested
+   825→- Mobile-first responsive design
+   826→- Sticky footer where applicable
+   827→- `min-h-screen flex flex-col` for root layouts
+   828→
+   829→---
+   830→
+   831→## 8. Module Summary
+   832→
+   833→| # | Module | Priority | Depends On | Parallel Group |
+   834→|---|--------|----------|------------|----------------|
+   835→| 1 | Auth & Foundation | P0 | None | Solo |
+   836→| 2 | City Operations | P0 | Module 1 | Solo |
+   837→| 3 | Park Attendance | P0 | Module 2 | Group A |
+   838→| 4 | Dashboards | P1 | Module 1, 2 | Group B |
+   839→| 5 | Access Provisioning | P1 | Module 2 | Group A |
+   840→| 6 | Fees & Payments | P1 | Module 2 | Group B |
+   841→| 7 | Admissions | P2 | Module 2 | Group A |
+   842→| 8 | Announcements | P2 | Module 1 | Group A |
+   843→| 9 | Reports & Exports | P2 | Module 2, 3, 6 | Group B |
+   844→| 10 | Family Portals | P2 | Module 2, 3, 6 | Group B |
+   845→
+   846→### Detailed module documents
+   847→
+   848→Each module has its own detailed document in `docs/modules/MODULE_XX_*.md` containing:
+   849→- Module overview and business context
+   850→- Database tables (specific to this module)
+   851→- API endpoints to implement
+   852→- UI components and screens
+   853→- Complete task breakdown
+   854→- Dependencies and integration points
+   855→- Acceptance criteria
+   856→- Files to create/modify
+   857→
+   858→---
+   859→
+   860→## 9. Phase-Based Build Order
+   861→
+   862→### Phase 1: Foundation (Sequential)
+   863→1. **Module 1** - Auth & Foundation
+   864→
+   865→### Phase 2: Core Data (Sequential)
+   866→2. **Module 2** - City Operations
+   867→
+   868→### Phase 3: Core Operations (Parallel - 4 agents)
+   869→3. **Module 3** - Park Attendance
+   870→4. **Module 5** - Access Provisioning
+   871→5. **Module 7** - Admissions
+   872→6. **Module 8** - Announcements
+   873→
+   874→### Phase 4: Support Systems (Parallel - 4 agents)
+   875→7. **Module 4** - Dashboards
+   876→8. **Module 6** - Fees & Payments
+   877→9. **Module 9** - Reports & Exports
+   878→10. **Module 10** - Family Portals
+   879→
+   880→---
+   881→
+   882→## 10. Testing & Verification
+   883→
+   884→After each module:
+   885→1. Run `bun run lint` to check code quality
+   886→2. Check `/home/z/my-project/dev.log` for runtime errors
+   887→3. Use agent-browser to verify the UI renders and works
+   888→4. Test with different role accounts
+   889→5. Verify scope enforcement (city-scoped, park-scoped)
+   890→6. Update `/home/z/my-project/worklog.md` with completion status
+   891→
+   892→---
+   893→
+   894→## 11. Agent Coordination Protocol
+   895→
+   896→When multiple agents work in parallel:
+   897→1. Each agent reads `/home/z/my-project/worklog.md` before starting
+   898→2. Each agent reads `docs/MASTER_PLAN.md` for shared context
+   899→3. Each agent reads their specific module doc
+   900→4. Each agent appends to `worklog.md` when done
+   901→5. Shared files (schema.prisma, shared components) should be modified carefully - document conflicts in worklog
+   902→6. Each agent works in its own domain folder (`src/components/modules/`, `src/app/api/`)
