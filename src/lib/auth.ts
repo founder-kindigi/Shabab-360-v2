@@ -39,6 +39,7 @@ declare module "next-auth/jwt" {
 }
 
 export const authOptions: NextAuthOptions = {
+  url: process.env.NEXTAUTH_URL || "http://localhost:3000",
   providers: [
     CredentialsProvider({
       name: "credentials",

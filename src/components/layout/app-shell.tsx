@@ -5,6 +5,7 @@ import { useSession, signOut } from "next-auth/react";
 import { useAppStore, type PageId } from "@/stores/useAppStore";
 import { Sidebar } from "@/components/layout/sidebar";
 import { PageHeader } from "@/components/layout/page-header";
+import { EmptyState } from "@/components/layout/empty-state";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -13,7 +14,21 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Menu, LogOut, User, ChevronDown } from "lucide-react";
+import { Menu, LogOut, User, ChevronDown, Construction } from "lucide-react";
+
+// Page components
+import { AdminDashboard } from "@/components/modules/admin/admin-dashboard";
+import { CitiesPage } from "@/components/modules/admin/cities-page";
+import { ParkDashboard } from "@/components/modules/park/park-dashboard";
+import { GuardianDashboard } from "@/components/modules/guardian/guardian-dashboard";
+import { StudentDashboard } from "@/components/modules/student/student-dashboard";
+
+// Icons for coming-soon pages
+import {
+  TreePine, Users, GraduationCap, ShieldCheck, CalendarCheck,
+  Settings, UserCog, DollarSign, FileText, Megaphone,
+  BarChart3, ScrollText, ClipboardList, Clock,
+} from "lucide-react";
 
 const pageTitles: Record<PageId, string> = {
   login: "Sign In",
@@ -51,9 +66,68 @@ const pageTitles: Record<PageId, string> = {
   "student-announcements": "Announcements",
 };
 
+const comingSoonIcons: Record<string, typeof TreePine> = {
+  "admin-parks": TreePine,
+  "admin-batches": CalendarCheck,
+  "admin-groups": Users,
+  "admin-people": Users,
+  "admin-students": GraduationCap,
+  "admin-guardians": ShieldCheck,
+  "admin-attendance-events": CalendarCheck,
+  "admin-settings": Settings,
+  "admin-users": UserCog,
+  "admin-admissions": FileText,
+  "admin-fees": DollarSign,
+  "admin-announcements": Megaphone,
+  "admin-reports": BarChart3,
+  "admin-audit-log": ScrollText,
+  "park-attendance": CalendarCheck,
+  "park-roster": ClipboardList,
+  "park-participants": GraduationCap,
+  "park-guardians": ShieldCheck,
+  "park-schedule": Clock,
+  "guardian-history": ClipboardList,
+  "guardian-schedule": Clock,
+  "guardian-announcements": Megaphone,
+  "student-history": ClipboardList,
+  "student-schedule": Clock,
+  "student-announcements": Megaphone,
+};
+
+function ComingSoonPage({ pageId }: { pageId: PageId }) {
+  const Icon = comingSoonIcons[pageId] || Construction;
+  return (
+    <EmptyState
+      icon={Icon}
+      title="Coming Soon"
+      description="This module is under development. Check back later for updates."
+    />
+  );
+}
+
+function PageContent({ pageId }: { pageId: PageId }) {
+  switch (pageId) {
+    // Built pages
+    case "admin-dashboard":
+      return <AdminDashboard />;
+    case "admin-cities":
+      return <CitiesPage />;
+    case "park-dashboard":
+      return <ParkDashboard />;
+    case "guardian-dashboard":
+      return <GuardianDashboard />;
+    case "student-dashboard":
+      return <StudentDashboard />;
+
+    // Everything else: coming soon
+    default:
+      return <ComingSoonPage pageId={pageId} />;
+  }
+}
+
 export function AppShell() {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const { currentPage } = useAppStore();
+  const { currentPage, navigateTo } = useAppStore();
   const { data: session } = useSession();
   const user = session?.user as {
     name?: string;
@@ -62,6 +136,7 @@ export function AppShell() {
   } | undefined;
 
   const pageTitle = pageTitles[currentPage] || "Dashboard";
+  const showPageHeader = !["admin-dashboard", "park-dashboard", "guardian-dashboard", "student-dashboard", "admin-cities"].includes(currentPage);
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
@@ -83,8 +158,13 @@ export function AppShell() {
             <span className="sr-only">Toggle menu</span>
           </Button>
 
+          {/* Page title on mobile */}
+          <h2 className="lg:hidden text-sm font-medium truncate">
+            {pageTitle}
+          </h2>
+
           {/* Spacer */}
-          <div className="flex-1" />
+          <div className="flex-1 hidden lg:block" />
 
           {/* User menu */}
           <DropdownMenu>
@@ -128,13 +208,10 @@ export function AppShell() {
 
         {/* Page content */}
         <main className="flex-1 overflow-y-auto">
-          <div className="p-6">
-            <PageHeader title={pageTitle} />
-            <div className="mt-6 flex items-center justify-center min-h-[40vh]">
-              <p className="text-muted-foreground text-sm">
-                Module not yet built
-              </p>
-            </div>
+          <div className="p-4 md:p-6">
+            {showPageHeader && <PageHeader title={pageTitle} />}
+            {!showPageHeader && <div className="mb-6" />}
+            <PageContent pageId={currentPage} />
           </div>
         </main>
       </div>

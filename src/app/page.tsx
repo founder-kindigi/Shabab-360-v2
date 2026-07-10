@@ -1,11 +1,14 @@
 "use client";
 
 import { SessionProvider, useSession } from "next-auth/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useAppStore } from "@/stores/useAppStore";
 import { useEffect } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { PageRouter } from "@/components/layout/page-router";
 import { LoadingState } from "@/components/layout/loading-state";
+
+const queryClient = new QueryClient();
 
 function AuthenticatedApp() {
   const { data: session, status } = useSession();
@@ -14,9 +17,10 @@ function AuthenticatedApp() {
   useEffect(() => {
     if (session?.user) {
       const user = session.user as any;
+
       setUserRole(user.role);
 
-      // Only navigate to dashboard if we're still on an auth page
+      // Only navigate if still on an auth page
       if (
         currentPage === "login" ||
         currentPage === "reset-password" ||
@@ -26,20 +30,15 @@ function AuthenticatedApp() {
           navigateTo("reset-password");
           return;
         }
-
         if (!user.role) {
           navigateTo("access-pending");
           return;
         }
 
         // Navigate to default page based on role
-        if (
-          ["super_admin", "program_admin", "city_head"].includes(user.role)
-        ) {
+        if (["super_admin", "program_admin", "city_head"].includes(user.role)) {
           navigateTo("admin-dashboard");
-        } else if (
-          ["park_admin", "park_lead", "murabbi"].includes(user.role)
-        ) {
+        } else if (["park_admin", "park_lead", "murabbi"].includes(user.role)) {
           navigateTo("park-dashboard");
         } else if (user.role === "guardian") {
           navigateTo("guardian-dashboard");
@@ -49,6 +48,13 @@ function AuthenticatedApp() {
       }
     }
   }, [session?.user, setUserRole, navigateTo, currentPage]);
+
+  // When session is cleared (sign out), force page reload
+  useEffect(() => {
+    if (!session && status !== "loading") {
+      window.location.reload();
+    }
+  }, [session, status]);
 
   if (status === "loading") return <LoadingState message="Loading..." />;
   if (!session) return <PageRouter />;
@@ -62,9 +68,11 @@ function AuthenticatedApp() {
 
 export default function Home() {
   return (
-    <SessionProvider>
-      <AuthenticatedApp />
-      <Toaster position="top-right" />
-    </SessionProvider>
+    <QueryClientProvider client={queryClient}>
+      <SessionProvider>
+        <AuthenticatedApp />
+        <Toaster position="top-right" />
+      </SessionProvider>
+    </QueryClientProvider>
   );
 }
