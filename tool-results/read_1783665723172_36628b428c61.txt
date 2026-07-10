@@ -1,0 +1,955 @@
+     1→     1→# Shabab360 User Stories
+     2→     2→
+     3→     3→Version: 0.1 draft  
+     4→     4→Date: 2026-07-04  
+     5→     5→Status: Refinement baseline  
+     6→     6→Related documents:
+     7→     7→
+     8→     8→- `docs/project-working-refinement-guide.md`
+     9→     9→- `docs/software-requirements-specification.md`
+    10→    10→
+    11→    11→## 1. Purpose
+    12→    12→
+    13→    13→This document captures user stories for the Shabab360 project. It is organized by epics and concrete roles so the project can be refined into a smaller, clearer product.
+    14→    14→
+    15→    15→The stories include existing functionality and refinement stories. Each story should be reviewed and marked as:
+    16→    16→
+    17→    17→- Keep
+    18→    18→- Change
+    19→    19→- Merge
+    20→    20→- Remove
+    21→    21→- Phase 2
+    22→    22→
+    23→    23→## 2. Story format
+    24→    24→
+    25→    25→Each story uses:
+    26→    26→
+    27→    27→```text
+    28→    28→As a [specific role],
+    29→    29→I want [capability],
+    30→    30→so that [business outcome].
+    31→    31→```
+    32→    32→
+    33→    33→Acceptance criteria use Given/When/Then.
+    34→    34→
+    35→    35→Priority labels:
+    36→    36→
+    37→    37→| Priority | Meaning |
+    38→    38→|---|---|
+    39→    39→| P0 | Essential for first usable release |
+    40→    40→| P1 | Important for daily operations |
+    41→    41→| P2 | Useful but can wait |
+    42→    42→| P3 | Optional or likely phase 2 |
+    43→    43→
+    44→    44→Status labels:
+    45→    45→
+    46→    46→| Status | Meaning |
+    47→    47→|---|---|
+    48→    48→| Implemented | Exists in current product |
+    49→    49→| Needs Refinement | Exists but must be simplified or clarified |
+    50→    50→| Proposed | Needed for refinement but not necessarily implemented |
+    51→    51→| To Confirm | Business decision required |
+    52→    52→
+    53→    53→## 3. Personas
+    54→    54→
+    55→    55→| Persona | Description |
+    56→    56→|---|---|
+    57→    57→| Public Family Applicant | Family member applying for admission |
+    58→    58→| Super Admin | Technical recovery/full-access administrator |
+    59→    59→| Program Admin | HQ or Markazi Masoul operator |
+    60→    60→| City Head | City Masoul operator |
+    61→    61→| Park Admin | Park-level operations user |
+    62→    62→| Park Lead | Park-level lead with attendance responsibility |
+    63→    63→| Murabbi | Mentor working with one group or park |
+    64→    64→| Guardian | Parent/guardian linked to Shabab |
+    65→    65→| Student | Shabab participant |
+    66→    66→
+    67→    67→## 4. Epic 1: Authentication and Role Access
+    68→    68→
+    69→    69→### US-AUTH-001: Login With Issued Credentials
+    70→    70→
+    71→    71→As an internal user, I want to log in using credentials issued by an administrator, so that I can access my assigned workspace.
+    72→    72→
+    73→    73→Priority: P0  
+    74→    74→Status: Implemented
+    75→    75→
+    76→    76→Acceptance criteria:
+    77→    77→
+    78→    78→- Given I have a valid auth account, when I enter my email and password, then I am signed in.
+    79→    79→- Given my credentials are invalid, when I submit the form, then I see a login error.
+    80→    80→- Given I am not authenticated, when I open a protected route, then I am redirected to `/login`.
+    81→    81→
+    82→    82→### US-AUTH-002: Role-Based Landing
+    83→    83→
+    84→    84→As an authenticated user, I want the system to send me to the correct workspace, so that I do not need to choose my role manually.
+    85→    85→
+    86→    86→Priority: P0  
+    87→    87→Status: Implemented
+    88→    88→
+    89→    89→Acceptance criteria:
+    90→    90→
+    91→    91→- Given I am a Program Admin, when I sign in, then I land on `/admin`.
+    92→    92→- Given I am a City Head, when I sign in, then I land on `/admin`.
+    93→    93→- Given I am a Park Admin, Park Lead, or Murabbi, when I sign in, then I land on `/park`.
+    94→    94→- Given I am a Guardian, when I sign in, then I land on `/guardian`.
+    95→    95→- Given I am a Student, when I sign in, then I land on `/student`.
+    96→    96→
+    97→    97→### US-AUTH-003: First Login Password Reset
+    98→    98→
+    99→    99→As a newly provisioned user, I want to be asked to reset my temporary password, so that my account is not left with a shared temporary password.
+   100→   100→
+   101→   101→Priority: P1  
+   102→   102→Status: Implemented
+   103→   103→
+   104→   104→Acceptance criteria:
+   105→   105→
+   106→   106→- Given my account is marked `must_reset_password`, when I log in, then I am redirected to `/reset-password`.
+   107→   107→- Given I submit matching valid passwords, when reset succeeds, then the reset flag is cleared.
+   108→   108→- Given my new password and confirmation do not match, when I submit, then I see a validation error.
+   109→   109→
+   110→   110→### US-AUTH-004: Access Pending State
+   111→   111→
+   112→   112→As an authenticated but unlinked user, I want to see an access pending page, so that I know my account exists but is not ready.
+   113→   113→
+   114→   114→Priority: P1  
+   115→   115→Status: Implemented
+   116→   116→
+   117→   117→Acceptance criteria:
+   118→   118→
+   119→   119→- Given my auth account has no linked role/profile, when I sign in, then I land on `/access-pending`.
+   120→   120→- Given I am on access pending, when I sign out, then I return to login.
+   121→   121→
+   122→   122→### US-AUTH-005: Finalize Unlinked Account Policy
+   123→   123→
+   124→   124→As a project owner, I want a clear policy for unlinked auth accounts, so that the system is not confusing or insecure.
+   125→   125→
+   126→   126→Priority: P0  
+   127→   127→Status: Proposed
+   128→   128→
+   129→   129→Acceptance criteria:
+   130→   130→
+   131→   131→- Given an auth account is unlinked, when it signs in, then the expected behavior is documented.
+   132→   132→- Given unlinked accounts are not allowed, when one exists, then admins can identify and resolve it.
+   133→   133→- Given the policy is approved, then the access workspace and UAT checklist reflect it.
+   134→   134→
+   135→   135→## 5. Epic 2: Public Admissions
+   136→   136→
+   137→   137→### US-PUB-001: Submit Admission Application
+   138→   138→
+   139→   139→As a public family applicant, I want to submit an admission application, so that my child can be considered for the Shabab program.
+   140→   140→
+   141→   141→Priority: P1 if admissions remain  
+   142→   142→Status: Implemented, To Confirm
+   143→   143→
+   144→   144→Acceptance criteria:
+   145→   145→
+   146→   146→- Given I fill required application fields, when I submit, then the application is created.
+   147→   147→- Given submission succeeds, then I receive a tracking code.
+   148→   148→- Given required fields are missing, when I submit, then I see validation errors.
+   149→   149→
+   150→   150→### US-PUB-002: Check Application Status
+   151→   151→
+   152→   152→As a public family applicant, I want to check application status using a tracking code and guardian phone, so that I can follow progress without contacting staff.
+   153→   153→
+   154→   154→Priority: P2  
+   155→   155→Status: Implemented, To Confirm
+   156→   156→
+   157→   157→Acceptance criteria:
+   158→   158→
+   159→   159→- Given I enter valid tracking code and guardian phone, when I search, then I see public-safe status information.
+   160→   160→- Given I enter invalid details, when I search, then I do not see private application data.
+   161→   161→- Given internal notes exist, when public status loads, then internal notes are hidden.
+   162→   162→
+   163→   163→### US-PUB-003: Decide Admission Scope
+   164→   164→
+   165→   165→As a project owner, I want to decide whether public admissions are part of the first release, so that the product does not include unnecessary workflow.
+   166→   166→
+   167→   167→Priority: P0  
+   168→   168→Status: Proposed
+   169→   169→
+   170→   170→Acceptance criteria:
+   171→   171→
+   172→   172→- Given admissions are required, then application, review, interview, and conversion stories remain active.
+   173→   173→- Given admissions are not required, then public apply routes are hidden or removed from main flows.
+   174→   174→
+   175→   175→## 6. Epic 3: HQ and City Administration
+   176→   176→
+   177→   177→### US-ADM-001: View Admin Dashboard
+   178→   178→
+   179→   179→As a Program Admin or City Head, I want to view an operations dashboard, so that I can quickly understand current work.
+   180→   180→
+   181→   181→Priority: P0  
+   182→   182→Status: Implemented, Needs Refinement
+   183→   183→
+   184→   184→Acceptance criteria:
+   185→   185→
+   186→   186→- Given I am authorized, when I open `/admin`, then dashboard data loads.
+   187→   187→- Given I am a Program Admin, then I see HQ-oriented context.
+   188→   188→- Given I am a City Head, then I see city operations context.
+   189→   189→
+   190→   190→### US-ADM-002: Manage Cities
+   191→   191→
+   192→   192→As a Program Admin, I want to create and manage cities, so that the program network is structured correctly.
+   193→   193→
+   194→   194→Priority: P1  
+   195→   195→Status: Implemented
+   196→   196→
+   197→   197→Acceptance criteria:
+   198→   198→
+   199→   199→- Given I enter a valid city name and code, when I save, then the city is created.
+   200→   200→- Given a city exists, when I edit it, then updates are persisted.
+   201→   201→- Given I am not authorized, when I attempt city management, then access is denied.
+   202→   202→
+   203→   203→### US-ADM-003: Assign City Heads
+   204→   204→
+   205→   205→As a Program Admin, I want to assign a City Head to a city, so that city operations are owned by the right person.
+   206→   206→
+   207→   207→Priority: P1  
+   208→   208→Status: Implemented
+   209→   209→
+   210→   210→Acceptance criteria:
+   211→   211→
+   212→   212→- Given a staff record exists, when I assign it as City Head, then the city scope is updated.
+   213→   213→- Given a City Head signs in, then their data is scoped to the assigned city.
+   214→   214→
+   215→   215→### US-ADM-004: Manage Parks, Batches, and Groups
+   216→   216→
+   217→   217→As a City Head, I want to manage parks, batches, and groups, so that Shabab can be organized for attendance and reporting.
+   218→   218→
+   219→   219→Priority: P0  
+   220→   220→Status: Implemented
+   221→   221→
+   222→   222→Acceptance criteria:
+   223→   223→
+   224→   224→- Given I create a park under my city, then it is available for batches.
+   225→   225→- Given I create a batch under a park, then it is available for groups.
+   226→   226→- Given I create a group under a batch, then participants can be assigned to it.
+   227→   227→- Given I am city-scoped, then I cannot manage another city's parks.
+   228→   228→
+   229→   229→### US-ADM-005: Simplify Admin Navigation
+   230→   230→
+   231→   231→As a project owner, I want admin navigation to show fewer top-level pages, so that staff can understand the system quickly.
+   232→   232→
+   233→   233→Priority: P0  
+   234→   234→Status: Proposed
+   235→   235→
+   236→   236→Acceptance criteria:
+   237→   237→
+   238→   238→- Given the route inventory is reviewed, then every route is marked keep, merge, hide, remove, or phase 2.
+   239→   239→- Given a page overlaps another page, then the preferred primary location is documented.
+   240→   240→- Given the new navigation is approved, then users see only the simplified top-level items.
+   241→   241→
+   242→   242→## 7. Epic 4: People, Students, Murabbis, and Guardians
+   243→   243→
+   244→   244→### US-PEOPLE-001: Create Shabab Record
+   245→   245→
+   246→   246→As a City Head, I want to create a Shabab record and assign it to a group, so that the participant appears in attendance and reports.
+   247→   247→
+   248→   248→Priority: P0  
+   249→   249→Status: Implemented
+   250→   250→
+   251→   251→Acceptance criteria:
+   252→   252→
+   253→   253→- Given I enter valid participant details and group, when I save, then the Shabab record is created.
+   254→   254→- Given no group is selected, when I save, then the system rejects the record.
+   255→   255→- Given the record is created, then it can appear in rosters and reports.
+   256→   256→
+   257→   257→### US-PEOPLE-002: Create Murabbi Record
+   258→   258→
+   259→   259→As a City Head, I want to create a Murabbi record and assign it to a group or park, so that mentorship responsibility is visible.
+   260→   260→
+   261→   261→Priority: P1  
+   262→   262→Status: Implemented
+   263→   263→
+   264→   264→Acceptance criteria:
+   265→   265→
+   266→   266→- Given valid staff details and assignment, when I save, then a staff record and role metadata are created.
+   267→   267→- Given assignment is invalid, when I save, then the system rejects the record.
+   268→   268→
+   269→   269→### US-PEOPLE-003: Reassign Shabab Between Groups
+   270→   270→
+   271→   271→As a City Head, I want to reassign Shabab between groups, so that roster membership stays accurate.
+   272→   272→
+   273→   273→Priority: P1  
+   274→   274→Status: Implemented
+   275→   275→
+   276→   276→Acceptance criteria:
+   277→   277→
+   278→   278→- Given a participant exists, when I select a new group and save, then the participant moves to that group.
+   279→   279→- Given the new group is outside my scope, then the update is denied.
+   280→   280→
+   281→   281→### US-PEOPLE-004: Create Guardian and Link Child
+   282→   282→
+   283→   283→As a City Head, I want to create a guardian and link them to a Shabab, so that family follow-up and guardian access work.
+   284→   284→
+   285→   285→Priority: P0  
+   286→   286→Status: Implemented
+   287→   287→
+   288→   288→Acceptance criteria:
+   289→   289→
+   290→   290→- Given I enter guardian details and select a child, when I save, then the guardian is created and linked.
+   291→   291→- Given a guardian already exists, when I link another visible child, then the additional link is saved.
+   292→   292→- Given a child is outside my scope, then I cannot link it.
+   293→   293→
+   294→   294→### US-PEOPLE-005: Consolidate People Views
+   295→   295→
+   296→   296→As a project owner, I want to decide whether People, Students, Guardians, and Student Progress should be separate pages, so that users do not chase the same record across many modules.
+   297→   297→
+   298→   298→Priority: P0  
+   299→   299→Status: Proposed
+   300→   300→
+   301→   301→Acceptance criteria:
+   302→   302→
+   303→   303→- Given a student appears in multiple pages, then the primary owner page is selected.
+   304→   304→- Given duplicate actions exist, then they are merged or turned into secondary links.
+   305→   305→- Given the decision is approved, then navigation and user stories are updated.
+   306→   306→
+   307→   307→## 8. Epic 5: Access Provisioning
+   308→   308→
+   309→   309→### US-ACCESS-001: Create Login for a Person
+   310→   310→
+   311→   311→As an admin, I want to create a login for a staff member or Shabab, so that the person can access their assigned workspace.
+   312→   312→
+   313→   313→Priority: P0  
+   314→   314→Status: Implemented
+   315→   315→
+   316→   316→Acceptance criteria:
+   317→   317→
+   318→   318→- Given a valid person target, email, password, and role, when I save, then an auth account is created or updated.
+   319→   319→- Given the person target already has access, then the form makes clear that I am updating access.
+   320→   320→- Given save succeeds, then the person is linked to the auth account.
+   321→   321→
+   322→   322→### US-ACCESS-002: Create Login for a Guardian
+   323→   323→
+   324→   324→As an admin, I want to create a login for a guardian, so that they can access linked child information.
+   325→   325→
+   326→   326→Priority: P1 if guardian portal remains  
+   327→   327→Status: Implemented
+   328→   328→
+   329→   329→Acceptance criteria:
+   330→   330→
+   331→   331→- Given a valid guardian target, email, and password, when I save, then the guardian is linked to an auth account.
+   332→   332→- Given guardian mode is active, then role is locked to `guardian`.
+   333→   333→- Given the guardian has no visible child link, then the system blocks or warns according to final policy.
+   334→   334→
+   335→   335→### US-ACCESS-003: Bulk Import Access Accounts
+   336→   336→
+   337→   337→As an admin, I want to import access accounts from Excel, so that many accounts can be provisioned quickly.
+   338→   338→
+   339→   339→Priority: P2  
+   340→   340→Status: Implemented, To Confirm
+   341→   341→
+   342→   342→Acceptance criteria:
+   343→   343→
+   344→   344→- Given an Excel file has required columns, when I upload it, then accounts are created or updated.
+   345→   345→- Given a row is invalid, then the system reports the issue.
+   346→   346→- Given bulk import is out of scope, then the page should hide or remove this option.
+   347→   347→
+   348→   348→### US-ACCESS-004: Review Access Alerts
+   349→   349→
+   350→   350→As an admin, I want to see missing login and reset-required accounts, so that onboarding gaps can be resolved.
+   351→   351→
+   352→   352→Priority: P1  
+   353→   353→Status: Implemented, Candidate For Merge
+   354→   354→
+   355→   355→Acceptance criteria:
+   356→   356→
+   357→   357→- Given a person or guardian has no login, then they appear as missing login.
+   358→   358→- Given an account requires reset, then it appears as reset required.
+   359→   359→- Given I open an item, then I can jump to targeted access setup.
+   360→   360→
+   361→   361→## 9. Epic 6: Attendance Operations
+   362→   362→
+   363→   363→### US-ATT-001: Create Attendance Event
+   364→   364→
+   365→   365→As a City Head or authorized admin, I want to create attendance events for groups, so that park teams can mark attendance.
+   366→   366→
+   367→   367→Priority: P0  
+   368→   368→Status: Implemented
+   369→   369→
+   370→   370→Acceptance criteria:
+   371→   371→
+   372→   372→- Given I select valid park, batch, group, date, and title, when I save, then the event is created.
+   373→   373→- Given required fields are missing, then the system shows validation errors.
+   374→   374→- Given my role lacks access, then event creation is denied.
+   375→   375→
+   376→   376→### US-ATT-002: View Today's Events
+   377→   377→
+   378→   378→As a park user, I want to see today's attendance events, so that I can quickly start marking attendance.
+   379→   379→
+   380→   380→Priority: P0  
+   381→   381→Status: Implemented
+   382→   382→
+   383→   383→Acceptance criteria:
+   384→   384→
+   385→   385→- Given events exist for today, when I open `/park/attendance`, then the events are listed.
+   386→   386→- Given no event exists, then I see an empty state or setup guidance.
+   387→   387→- Given I am offline and cached data exists, then I can see an offline snapshot.
+   388→   388→
+   389→   389→### US-ATT-003: Mark Attendance
+   390→   390→
+   391→   391→As a Park Admin or Park Lead, I want to mark attendance from the roster, so that attendance records are accurate.
+   392→   392→
+   393→   393→Priority: P0  
+   394→   394→Status: Implemented
+   395→   395→
+   396→   396→Acceptance criteria:
+   397→   397→
+   398→   398→- Given an open event and visible roster, when I mark a participant present, absent, late, or other allowed status, then the record is saved.
+   399→   399→- Given the event is closed, when I try to edit without permission, then the system rejects the change.
+   400→   400→- Given the mark succeeds, then the roster shows updated status.
+   401→   401→
+   402→   402→### US-ATT-004: Mark Attendance Offline
+   403→   403→
+   404→   404→As a park user, I want attendance marks to work offline, so that poor connectivity does not stop session operations.
+   405→   405→
+   406→   406→Priority: P0 if offline remains required  
+   407→   407→Status: Implemented
+   408→   408→
+   409→   409→Acceptance criteria:
+   410→   410→
+   411→   411→- Given I am offline, when I mark attendance, then the mark is added to local queue.
+   412→   412→- Given multiple marks are made for the same participant and event, then the latest local mark wins.
+   413→   413→- Given the browser reconnects, then queued marks sync to the server.
+   414→   414→- Given a sync item fails, then it remains visible or retryable.
+   415→   415→
+   416→   416→### US-ATT-005: Review Attendance Alerts
+   417→   417→
+   418→   418→As a city or park operator, I want to review warning and dropout cases, so that families can be contacted quickly.
+   419→   419→
+   420→   420→Priority: P1  
+   421→   421→Status: Implemented, Candidate For Merge
+   422→   422→
+   423→   423→Acceptance criteria:
+   424→   424→
+   425→   425→- Given a participant is in warning or dropout state, then they appear in the attention list.
+   426→   426→- Given guardian contact exists, then I can start a WhatsApp handoff where supported.
+   427→   427→- Given attendance alert pages are merged, then the same follow-up data remains reachable.
+   428→   428→
+   429→   429→### US-ATT-006: Decide Murabbi Attendance Rights
+   430→   430→
+   431→   431→As a project owner, I want to decide whether Murabbis can mark attendance, so that permissions match the real operating model.
+   432→   432→
+   433→   433→Priority: P0  
+   434→   434→Status: Proposed
+   435→   435→
+   436→   436→Acceptance criteria:
+   437→   437→
+   438→   438→- Given Murabbis should mark attendance, then their allowed scope and closed-event rights are documented.
+   439→   439→- Given Murabbis should not mark attendance, then UI and guards prevent it.
+   440→   440→
+   441→   441→## 10. Epic 7: Family Follow-up
+   442→   442→
+   443→   443→### US-FAM-001: View Family Follow-up Queue
+   444→   444→
+   445→   445→As an admin or park operator, I want a family follow-up queue, so that attendance, fee, access, and admissions issues are not missed.
+   446→   446→
+   447→   447→Priority: P1  
+   448→   448→Status: Implemented, Candidate For Merge
+   449→   449→
+   450→   450→Acceptance criteria:
+   451→   451→
+   452→   452→- Given follow-up items exist, then they are grouped by issue type.
+   453→   453→- Given a guardian phone exists, then a contact action is available.
+   454→   454→- Given duplicate family queues exist, then the primary queue is selected for the refined product.
+   455→   455→
+   456→   456→### US-FAM-002: Contact Guardian From Follow-up
+   457→   457→
+   458→   458→As a park or city operator, I want to open a guardian WhatsApp message handoff, so that I can contact families quickly.
+   459→   459→
+   460→   460→Priority: P1  
+   461→   461→Status: Implemented
+   462→   462→
+   463→   463→Acceptance criteria:
+   464→   464→
+   465→   465→- Given a guardian has a phone number, then a WhatsApp handoff link can be generated.
+   466→   466→- Given no phone number exists, then the UI does not show a broken contact action.
+   467→   467→
+   468→   468→### US-FAM-003: Consolidate Family Pages
+   469→   469→
+   470→   470→As a project owner, I want family follow-up to live in one clear place, so that staff do not inspect multiple pages for the same issue.
+   471→   471→
+   472→   472→Priority: P0  
+   473→   473→Status: Proposed
+   474→   474→
+   475→   475→Acceptance criteria:
+   476→   476→
+   477→   477→- Given family-related pages are reviewed, then each is marked keep, merge, hide, or remove.
+   478→   478→- Given the primary page is selected, then related modules link to it consistently.
+   479→   479→
+   480→   480→## 11. Epic 8: Fees and Payments
+   481→   481→
+   482→   482→### US-FEE-001: Configure Batch Fees
+   483→   483→
+   484→   484→As a City Head, I want to configure admission and event fee rules for a batch, so that expected dues are known.
+   485→   485→
+   486→   486→Priority: P1 if fees remain  
+   487→   487→Status: Implemented, To Confirm
+   488→   488→
+   489→   489→Acceptance criteria:
+   490→   490→
+   491→   491→- Given a batch exists, when I set fee rules, then settings are saved.
+   492→   492→- Given fee rules are invalid, then validation prevents saving.
+   493→   493→
+   494→   494→### US-FEE-002: Record Payment
+   495→   495→
+   496→   496→As an authorized operator, I want to record payments, so that dues and receipts are accurate.
+   497→   497→
+   498→   498→Priority: P1 if fees remain  
+   499→   499→Status: Implemented, To Confirm
+   500→   500→
+   501→   501→Acceptance criteria:
+   502→   502→
+   503→   503→- Given valid participant, payment type, amount, and method, when I save, then the payment is recorded.
+   504→   504→- Given the payment is recorded, then a unique receipt number is generated.
+   505→   505→- Given amount is invalid, then save is rejected.
+   506→   506→
+   507→   507→### US-FEE-003: Review Unpaid Dues
+   508→   508→
+   509→   509→As an admin or park operator, I want to see unpaid dues, so that families can be reminded.
+   510→   510→
+   511→   511→Priority: P1 if fees remain  
+   512→   512→Status: Implemented, Candidate For Merge
+   513→   513→
+   514→   514→Acceptance criteria:
+   515→   515→
+   516→   516→- Given participants have outstanding dues, then they appear in fee alerts.
+   517→   517→- Given guardian contact exists, then a reminder handoff is available.
+   518→   518→- Given fees are out of scope, then fee alerts are hidden from navigation.
+   519→   519→
+   520→   520→### US-FEE-004: Decide Fee Scope
+   521→   521→
+   522→   522→As a project owner, I want to decide whether fees belong in the next version, so that the product stays focused.
+   523→   523→
+   524→   524→Priority: P0  
+   525→   525→Status: Proposed
+   526→   526→
+   527→   527→Acceptance criteria:
+   528→   528→
+   529→   529→- Given fees are required, then payment, dues, receipts, and fee reports remain in scope.
+   530→   530→- Given fees are phase 2, then fee modules are hidden and no core workflow depends on them.
+   531→   531→
+   532→   532→## 12. Epic 9: Guardian Portal
+   533→   533→
+   534→   534→### US-GUARD-001: View Linked Children
+   535→   535→
+   536→   536→As a guardian, I want to see only my linked children, so that my portal is private and relevant.
+   537→   537→
+   538→   538→Priority: P1 if guardian portal remains  
+   539→   539→Status: Implemented
+   540→   540→
+   541→   541→Acceptance criteria:
+   542→   542→
+   543→   543→- Given I am linked to one child, when I open `/guardian`, then only that child appears.
+   544→   544→- Given I am not linked to a child, then no unrelated participant appears.
+   545→   545→
+   546→   546→### US-GUARD-002: View Child History
+   547→   547→
+   548→   548→As a guardian, I want to view child attendance and fee history, so that I can understand program participation and dues.
+   549→   549→
+   550→   550→Priority: P2  
+   551→   551→Status: Implemented, To Confirm
+   552→   552→
+   553→   553→Acceptance criteria:
+   554→   554→
+   555→   555→- Given child attendance exists, then I can view attendance history.
+   556→   556→- Given fee data exists and fees are in scope, then I can view fee history.
+   557→   557→- Given fees are not in scope, then fee history is hidden or removed.
+   558→   558→
+   559→   559→### US-GUARD-003: View Schedule and Announcements
+   560→   560→
+   561→   561→As a guardian, I want to see schedule and announcements, so that I know upcoming sessions and updates.
+   562→   562→
+   563→   563→Priority: P2  
+   564→   564→Status: Implemented, To Confirm
+   565→   565→
+   566→   566→Acceptance criteria:
+   567→   567→
+   568→   568→- Given upcoming events exist, then I can view them in schedule.
+   569→   569→- Given announcements target my audience/scope, then I can read them.
+   570→   570→
+   571→   571→### US-GUARD-004: Decide Guardian Portal Scope
+   572→   572→
+   573→   573→As a project owner, I want to decide whether guardians need login access, so that the product does not include an unused portal.
+   574→   574→
+   575→   575→Priority: P0  
+   576→   576→Status: Proposed
+   577→   577→
+   578→   578→Acceptance criteria:
+   579→   579→
+   580→   580→- Given guardian login is required, then guardian stories remain active.
+   581→   581→- Given guardian login is not required, then guardian portal is hidden or moved to phase 2.
+   582→   582→
+   583→   583→## 13. Epic 10: Student Portal
+   584→   584→
+   585→   585→### US-STU-001: View Own Dashboard
+   586→   586→
+   587→   587→As a student, I want to see my own dashboard, so that I can track my participation.
+   588→   588→
+   589→   589→Priority: P2 if student portal remains  
+   590→   590→Status: Implemented, To Confirm
+   591→   591→
+   592→   592→Acceptance criteria:
+   593→   593→
+   594→   594→- Given I am linked to a participant record, when I open `/student`, then I see only my own data.
+   595→   595→- Given I try to access another participant's data, then access is denied.
+   596→   596→
+   597→   597→### US-STU-002: View Own History and Schedule
+   598→   598→
+   599→   599→As a student, I want to view my attendance history and schedule, so that I know my progress and upcoming sessions.
+   600→   600→
+   601→   601→Priority: P2  
+   602→   602→Status: Implemented, To Confirm
+   603→   603→
+   604→   604→Acceptance criteria:
+   605→   605→
+   606→   606→- Given attendance history exists, then I can view it.
+   607→   607→- Given upcoming events exist, then I can view schedule.
+   608→   608→- Given announcements target students, then I can read them.
+   609→   609→
+   610→   610→### US-STU-003: Decide Student Portal Scope
+   611→   611→
+   612→   612→As a project owner, I want to decide whether students need login access, so that the system matches real-world usage.
+   613→   613→
+   614→   614→Priority: P0  
+   615→   615→Status: Proposed
+   616→   616→
+   617→   617→Acceptance criteria:
+   618→   618→
+   619→   619→- Given student login is required, then student stories remain active.
+   620→   620→- Given student login is phase 2, then student portal is hidden without breaking admin/park workflows.
+   621→   621→
+   622→   622→## 14. Epic 11: Announcements and Resources
+   623→   623→
+   624→   624→### US-COMM-001: Publish Announcement
+   625→   625→
+   626→   626→As an admin, I want to publish announcements to selected audiences, so that staff, guardians, or students receive relevant updates.
+   627→   627→
+   628→   628→Priority: P2  
+   629→   629→Status: Implemented, To Confirm
+   630→   630→
+   631→   631→Acceptance criteria:
+   632→   632→
+   633→   633→- Given I select title, body, audience, and scope, when I publish, then the announcement is saved.
+   634→   634→- Given an audience is not selected, then validation prevents unclear publishing.
+   635→   635→- Given a user is outside target scope, then they do not see the announcement.
+   636→   636→
+   637→   637→### US-COMM-002: Read Announcements
+   638→   638→
+   639→   639→As a park, guardian, or student user, I want to read announcements relevant to me, so that I stay updated.
+   640→   640→
+   641→   641→Priority: P2  
+   642→   642→Status: Implemented, To Confirm
+   643→   643→
+   644→   644→Acceptance criteria:
+   645→   645→
+   646→   646→- Given announcements target my role and scope, then I can see them.
+   647→   647→- Given an announcement does not target me, then I cannot see it.
+   648→   648→
+   649→   649→### US-COMM-003: Manage Resource Library
+   650→   650→
+   651→   651→As an admin, I want to publish resources by audience, so that users can access useful content.
+   652→   652→
+   653→   653→Priority: P3  
+   654→   654→Status: Implemented, Candidate For Removal
+   655→   655→
+   656→   656→Acceptance criteria:
+   657→   657→
+   658→   658→- Given a resource is published to my audience, then it appears in my resources page.
+   659→   659→- Given a resource is unpublished, then it does not appear.
+   660→   660→- Given resources are out of scope, then content library is hidden or removed.
+   661→   661→
+   662→   662→## 15. Epic 12: Procurement
+   663→   663→
+   664→   664→### US-PROC-001: Manage Inventory
+   665→   665→
+   666→   666→As an HQ operator, I want to manage inventory items and stock levels, so that program supplies are tracked.
+   667→   667→
+   668→   668→Priority: P3  
+   669→   669→Status: Implemented, Candidate For Removal
+   670→   670→
+   671→   671→Acceptance criteria:
+   672→   672→
+   673→   673→- Given an inventory item is created, then it appears in inventory.
+   674→   674→- Given stock is adjusted, then adjustment history is recorded.
+   675→   675→
+   676→   676→### US-PROC-002: Request Supplies
+   677→   677→
+   678→   678→As a park operator, I want to request supplies, so that HQ or city teams can respond.
+   679→   679→
+   680→   680→Priority: P3  
+   681→   681→Status: Implemented, Candidate For Removal
+   682→   682→
+   683→   683→Acceptance criteria:
+   684→   684→
+   685→   685→- Given I submit a valid request, then it appears for review.
+   686→   686→- Given the request is approved or rejected, then status updates.
+   687→   687→
+   688→   688→### US-PROC-003: Decide Procurement Scope
+   689→   689→
+   690→   690→As a project owner, I want to decide whether procurement belongs in the current release, so that the product is not overloaded.
+   691→   691→
+   692→   692→Priority: P0  
+   693→   693→Status: Proposed
+   694→   694→
+   695→   695→Acceptance criteria:
+   696→   696→
+   697→   697→- Given procurement is required, then inventory and request stories remain active.
+   698→   698→- Given procurement is not required, then procurement routes are hidden or removed.
+   699→   699→
+   700→   700→## 16. Epic 13: Reports and Audit
+   701→   701→
+   702→   702→### US-REP-001: Export Attendance Report
+   703→   703→
+   704→   704→As an admin, I want to export attendance reports, so that offline Excel review and sharing are possible.
+   705→   705→
+   706→   706→Priority: P0 or P1 depending on launch needs  
+   707→   707→Status: Implemented
+   708→   708→
+   709→   709→Acceptance criteria:
+   710→   710→
+   711→   711→- Given I select report filters, when I export, then the Excel file uses those filters.
+   712→   712→- Given I am city-scoped, then the export contains only visible data.
+   713→   713→- Given no data matches filters, then the export handles empty results clearly.
+   714→   714→
+   715→   715→### US-REP-002: Save Report Preset
+   716→   716→
+   717→   717→As an admin, I want to save report filters as presets, so that repeated reporting is faster.
+   718→   718→
+   719→   719→Priority: P2  
+   720→   720→Status: Implemented, To Confirm
+   721→   721→
+   722→   722→Acceptance criteria:
+   723→   723→
+   724→   724→- Given I save a valid preset name and filters, then the preset is available later.
+   725→   725→- Given I rename a preset, then the updated name is saved.
+   726→   726→- Given presets are not required, then this feature can be hidden without removing export.
+   727→   727→
+   728→   728→### US-REP-003: Review Audit Log
+   729→   729→
+   730→   730→As a privileged admin, I want to review audit entries, so that important data changes can be traced.
+   731→   731→
+   732→   732→Priority: P1  
+   733→   733→Status: Implemented
+   734→   734→
+   735→   735→Acceptance criteria:
+   736→   736→
+   737→   737→- Given audit entries exist, when I open audit log, then I can view key metadata.
+   738→   738→- Given I am not privileged, then I cannot read audit logs.
+   739→   739→
+   740→   740→### US-REP-004: Confirm Final Report Formats
+   741→   741→
+   742→   742→As a project owner, I want to confirm exact report formats, so that exports match operational expectations.
+   743→   743→
+   744→   744→Priority: P0  
+   745→   745→Status: Proposed
+   746→   746→
+   747→   747→Acceptance criteria:
+   748→   748→
+   749→   749→- Given each required report is listed, then its columns, grouping, filters, and filename pattern are documented.
+   750→   750→- Given formats are approved, then implementation and tests are updated.
+   751→   751→
+   752→   752→## 17. Epic 14: Product Simplification
+   753→   753→
+   754→   754→### US-SIMP-001: Route Decision Inventory
+   755→   755→
+   756→   756→As a project owner, I want every route marked as keep, merge, hide, remove, or phase 2, so that the codebase can be refined intentionally.
+   757→   757→
+   758→   758→Priority: P0  
+   759→   759→Status: Proposed
+   760→   760→
+   761→   761→Acceptance criteria:
+   762→   762→
+   763→   763→- Given the current route map, then every route has a decision.
+   764→   764→- Given a route is marked merge, then its destination route is documented.
+   765→   765→- Given a route is marked remove, then dependent workflows are identified first.
+   766→   766→
+   767→   767→### US-SIMP-002: Simplified Admin Navigation
+   768→   768→
+   769→   769→As an admin user, I want fewer top-level navigation items, so that I can find the correct workflow faster.
+   770→   770→
+   771→   771→Priority: P0  
+   772→   772→Status: Proposed
+   773→   773→
+   774→   774→Acceptance criteria:
+   775→   775→
+   776→   776→- Given simplified navigation is approved, then admin top-level nav contains only core modules.
+   777→   777→- Given secondary modules remain, then they are reachable from relevant primary pages.
+   778→   778→- Given a module is phase 2, then it is hidden from normal navigation.
+   779→   779→
+   780→   780→### US-SIMP-003: Simplified Park Navigation
+   781→   781→
+   782→   782→As a park user, I want a smaller mobile-friendly workspace, so that attendance and follow-up are fast during field operations.
+   783→   783→
+   784→   784→Priority: P0  
+   785→   785→Status: Proposed
+   786→   786→
+   787→   787→Acceptance criteria:
+   788→   788→
+   789→   789→- Given I am a park user, then top-level navigation focuses on attendance, participants, families, schedule, and resources only if approved.
+   790→   790→- Given analytics remain, then they are secondary links rather than daily-work blockers.
+   791→   791→
+   792→   792→### US-SIMP-004: Rename Modules to Business Language
+   793→   793→
+   794→   794→As a non-technical operator, I want labels that match my real work, so that I understand pages without training.
+   795→   795→
+   796→   796→Priority: P1  
+   797→   797→Status: Proposed
+   798→   798→
+   799→   799→Acceptance criteria:
+   800→   800→
+   801→   801→- Given a label is unclear, then a business-language replacement is proposed.
+   802→   802→- Given replacements are approved, then navigation, headings, and docs use the same terms.
+   803→   803→
+   804→   804→## 18. Epic 15: Security and Data Isolation
+   805→   805→
+   806→   806→### US-SEC-001: Guardian Data Isolation
+   807→   807→
+   808→   808→As a guardian, I want only my linked children to be visible, so that family privacy is protected.
+   809→   809→
+   810→   810→Priority: P0  
+   811→   811→Status: Implemented, Must Test
+   812→   812→
+   813→   813→Acceptance criteria:
+   814→   814→
+   815→   815→- Given I am Guardian A, then I can see only children linked to Guardian A.
+   816→   816→- Given I try to access another guardian's child data, then access is denied.
+   817→   817→
+   818→   818→### US-SEC-002: Student Data Isolation
+   819→   819→
+   820→   820→As a student, I want only my own record to be visible, so that participant privacy is protected.
+   821→   821→
+   822→   822→Priority: P0 if student portal remains  
+   823→   823→Status: Implemented, Must Test
+   824→   824→
+   825→   825→Acceptance criteria:
+   826→   826→
+   827→   827→- Given I am Student A, then I can see only Student A data.
+   828→   828→- Given I try to access Student B data, then access is denied.
+   829→   829→
+   830→   830→### US-SEC-003: Park Scope Enforcement
+   831→   831→
+   832→   832→As a program owner, I want park users restricted to their assigned scope, so that one park cannot edit another park's data.
+   833→   833→
+   834→   834→Priority: P0  
+   835→   835→Status: Implemented, Must Test
+   836→   836→
+   837→   837→Acceptance criteria:
+   838→   838→
+   839→   839→- Given I am assigned to Park A, then I cannot write Park B attendance.
+   840→   840→- Given I am scoped to a city, then I cannot access another city's operational data unless my role allows it.
+   841→   841→
+   842→   842→### US-SEC-004: Password and Secret Handling
+   843→   843→
+   844→   844→As a project owner, I want passwords and secrets kept out of committed docs, so that operational security is not weakened.
+   845→   845→
+   846→   846→Priority: P0  
+   847→   847→Status: Proposed
+   848→   848→
+   849→   849→Acceptance criteria:
+   850→   850→
+   851→   851→- Given documentation is committed, then it does not include plaintext production passwords or service role keys.
+   852→   852→- Given test passwords are needed, then they are shared operationally or reset through admin tooling.
+   853→   853→
+   854→   854→## 19. Epic 16: Testing and UAT
+   855→   855→
+   856→   856→### US-UAT-001: Role-Based Smoke Test
+   857→   857→
+   858→   858→As a QA tester, I want a smoke test for every role, so that login and core routes are verified.
+   859→   859→
+   860→   860→Priority: P0  
+   861→   861→Status: Proposed
+   862→   862→
+   863→   863→Acceptance criteria:
+   864→   864→
+   865→   865→- Given each role has a test account, when I log in, then the role lands in the correct workspace.
+   866→   866→- Given I open unauthorized routes, then the system redirects or denies access.
+   867→   867→
+   868→   868→### US-UAT-002: Attendance UAT
+   869→   869→
+   870→   870→As a QA tester, I want to test attendance online and offline, so that the core workflow is reliable.
+   871→   871→
+   872→   872→Priority: P0  
+   873→   873→Status: Proposed
+   874→   874→
+   875→   875→Acceptance criteria:
+   876→   876→
+   877→   877→- Given a park event exists, then attendance marking works online.
+   878→   878→- Given the browser is offline, then marks queue locally.
+   879→   879→- Given the browser reconnects, then queued marks sync.
+   880→   880→
+   881→   881→### US-UAT-003: Refinement Acceptance Test
+   882→   882→
+   883→   883→As a project owner, I want UAT to verify the simplified product shape, so that the refined system matches requirements.
+   884→   884→
+   885→   885→Priority: P0  
+   886→   886→Status: Proposed
+   887→   887→
+   888→   888→Acceptance criteria:
+   889→   889→
+   890→   890→- Given simplified navigation is implemented, then users can complete core workflows without using hidden/removed pages.
+   891→   891→- Given a phase-2 module is hidden, then core workflows still pass.
+   892→   892→
+   893→   893→## 20. Story Prioritization Summary
+   894→   894→
+   895→   895→### P0 stories
+   896→   896→
+   897→   897→- US-AUTH-001 Login With Issued Credentials
+   898→   898→- US-AUTH-002 Role-Based Landing
+   899→   899→- US-AUTH-005 Finalize Unlinked Account Policy
+   900→   900→- US-PUB-003 Decide Admission Scope
+   901→   901→- US-ADM-001 View Admin Dashboard
+   902→   902→- US-ADM-004 Manage Parks, Batches, and Groups
+   903→   903→- US-ADM-005 Simplify Admin Navigation
+   904→   904→- US-PEOPLE-001 Create Shabab Record
+   905→   905→- US-PEOPLE-004 Create Guardian and Link Child
+   906→   906→- US-PEOPLE-005 Consolidate People Views
+   907→   907→- US-ACCESS-001 Create Login for a Person
+   908→   908→- US-ATT-001 Create Attendance Event
+   909→   909→- US-ATT-002 View Today's Events
+   910→   910→- US-ATT-003 Mark Attendance
+   911→   911→- US-ATT-006 Decide Murabbi Attendance Rights
+   912→   912→- US-FEE-004 Decide Fee Scope
+   913→   913→- US-GUARD-004 Decide Guardian Portal Scope
+   914→   914→- US-STU-003 Decide Student Portal Scope
+   915→   915→- US-PROC-003 Decide Procurement Scope
+   916→   916→- US-REP-004 Confirm Final Report Formats
+   917→   917→- US-SIMP-001 Route Decision Inventory
+   918→   918→- US-SIMP-002 Simplified Admin Navigation
+   919→   919→- US-SIMP-003 Simplified Park Navigation
+   920→   920→- US-SEC-001 Guardian Data Isolation
+   921→   921→- US-SEC-003 Park Scope Enforcement
+   922→   922→- US-SEC-004 Password and Secret Handling
+   923→   923→- US-UAT-001 Role-Based Smoke Test
+   924→   924→- US-UAT-002 Attendance UAT
+   925→   925→- US-UAT-003 Refinement Acceptance Test
+   926→   926→
+   927→   927→### Likely phase 2 candidates
+   928→   928→
+   929→   929→- procurement
+   930→   930→- content library
+   931→   931→- report presets
+   932→   932→- detailed attendance insights
+   933→   933→- batch health and park health dashboards
+   934→   934→- student portal if not required
+   935→   935→- guardian portal if not required
+   936→   936→- detailed admissions scoring
+   937→   937→
+   938→   938→## 21. Recommended Next Action
+   939→   939→
+   940→   940→Before coding, review these story groups and mark each one:
+   941→   941→
+   942→   942→- Keep
+   943→   943→- Change
+   944→   944→- Merge
+   945→   945→- Remove
+   946→   946→- Phase 2
+   947→   947→
+   948→   948→The fastest refinement path is:
+   949→   949→
+   950→   950→1. approve or reject admissions, fees, procurement, content, guardian portal, and student portal
+   951→   951→2. approve final admin and park navigation
+   952→   952→3. confirm role permissions
+   953→   953→4. confirm required reports
+   954→   954→5. convert approved P0 stories into implementation tasks
+   955→   955→

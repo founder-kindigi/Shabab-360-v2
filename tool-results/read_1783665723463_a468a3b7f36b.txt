@@ -1,0 +1,1025 @@
+     1→     1→# Shabab360 Project Working and Refinement Guide
+     2→     2→
+     3→     3→Last reviewed: 2026-07-04
+     4→     4→
+     5→     5→## 1. Purpose of this document
+     6→     6→
+     7→     7→This document explains how the current Shabab360 project works today. It is meant to help refine the project because the current system is broader than the desired requirements and contains overlapping workspaces.
+     8→     8→
+     9→     9→Use this document as a baseline. For every module, decide whether it should be kept, simplified, merged, hidden, or removed.
+    10→    10→
+    11→    11→This document does not store passwords, API keys, or service role secrets. Login credentials should be managed through Supabase Auth or the admin access workspace, not committed into project documentation.
+    12→    12→
+    13→    13→## 2. One-page summary
+    14→    14→
+    15→    15→Shabab360 is a browser-based program operations platform for managing Shabab activities across cities, parks, batches, groups, attendance, admissions, fees, content, procurement, and family follow-up.
+    16→    16→
+    17→    17→The project currently has five main surfaces:
+    18→    18→
+    19→    19→| Surface | Main routes | Primary users | Current purpose |
+    20→    20→|---|---|---|---|
+    21→    21→| Public site | `/`, `/apply`, `/apply/status` | Public families | Program entry, admissions application, application status tracking |
+    22→    22→| Auth | `/login`, `/reset-password`, `/access-pending`, `/auth/callback` | All users | Email/password login, first-login reset, magic link callback, pending-access state |
+    23→    23→| Admin | `/admin/*` | `super_admin`, `program_admin`, `city_head` | HQ and city operations |
+    24→    24→| Park | `/park/*` | `park_admin`, `park_lead`, `murabbi` | Park-level attendance and family operations |
+    25→    25→| Family portals | `/guardian/*`, `/student/*` | Guardians and students | Read-only personal progress, fees, schedule, announcements, resources |
+    26→    26→
+    27→    27→The current system is functionally rich but not lean. The biggest product problem is not missing functionality. The bigger problem is that similar work appears across too many pages:
+    28→    28→
+    29→    29→- Ops Center
+    30→    30→- Family Ops
+    31→    31→- Attendance Command
+    32→    32→- Attendance Alerts
+    33→    33→- Attendance Insights
+    34→    34→- Fee Alerts
+    35→    35→- Access Alerts
+    36→    36→- Student Progress
+    37→    37→- Park Health
+    38→    38→- Batch Health
+    39→    39→- Onboarding Center
+    40→    40→
+    41→    41→For refinement, the main decision is how simple the product should become and which workflows matter most.
+    42→    42→
+    43→    43→## 3. Technology stack
+    44→    44→
+    45→    45→| Layer | Current implementation |
+    46→    46→|---|---|
+    47→    47→| Frontend framework | Next.js App Router |
+    48→    48→| Language | TypeScript |
+    49→    49→| UI | Tailwind CSS, local shadcn-style components, lucide-react icons |
+    50→    50→| Backend | Next.js API routes and server components |
+    51→    51→| Auth | Supabase Auth |
+    52→    52→| Database | Supabase Postgres |
+    53→    53→| Authorization | Supabase RLS plus server-side role guards |
+    54→    54→| Offline attendance | Dexie and IndexedDB queue |
+    55→    55→| Reports | Excel exports using `exceljs` |
+    56→    56→| Deployment | Vercel |
+    57→    57→| Timezone behavior | UTC storage, Asia/Karachi display/date logic |
+    58→    58→
+    59→    59→Important scripts:
+    60→    60→
+    61→    61→| Command | Purpose |
+    62→    62→|---|---|
+    63→    63→| `npm run dev` | Start local app |
+    64→    64→| `npm run build` | Build production app |
+    65→    65→| `npm run lint` | Run linting |
+    66→    66→| `npm run typecheck` | Run TypeScript check |
+    67→    67→| `npm run test` | Run node test suite |
+    68→    68→| `npm run db:seed:demo` | Seed demo data using script |
+    69→    69→| `npm run demo:link-user` | Link an existing auth user to a seeded role |
+    70→    70→| `npm run uat:provision-users` | Create UAT auth users and print magic links |
+    71→    71→| `npm run deploy:check` | Validate deploy readiness |
+    72→    72→| `npm run uat:check` | Print UAT checks and validate critical files |
+    73→    73→
+    74→    74→## 4. Current architecture
+    75→    75→
+    76→    76→The project follows this shape:
+    77→    77→
+    78→    78→```text
+    79→    79→Browser / PWA
+    80→    80→  |
+    81→    81→  | Next.js pages, forms, client components
+    82→    82→  v
+    83→    83→Next.js App Router
+    84→    84→  |
+    85→    85→  | Server components load scoped data
+    86→    86→  | API routes handle writes, imports, sync, exports
+    87→    87→  v
+    88→    88→Supabase
+    89→    89→  |
+    90→    90→  | Auth users
+    91→    91→  | Postgres tables
+    92→    92→  | RLS policies
+    93→    93→  | triggers and helper functions
+    94→    94→  v
+    95→    95→Role-scoped data access
+    96→    96→```
+    97→    97→
+    98→    98→Key local folders:
+    99→    99→
+   100→   100→| Folder | Purpose |
+   101→   101→|---|---|
+   102→   102→| `src/app` | Routes, layouts, pages, and API route handlers |
+   103→   103→| `src/components` | UI clients and shared layout/components |
+   104→   104→| `src/features` | Data loaders and domain logic by feature area |
+   105→   105→| `src/lib` | Auth, Supabase clients, validation, time, HTTP, errors, utilities |
+   106→   106→| `src/domain` | Domain rules such as attendance rules |
+   107→   107→| `supabase/migrations` | Database schema, RLS, triggers, schema extensions |
+   108→   108→| `supabase/seed.sql` | Demo database seed records |
+   109→   109→| `scripts` | Seeding, UAT provisioning, release checks |
+   110→   110→| `tests` | Node test suite |
+   111→   111→| `docs` | Project documentation and planning notes |
+   112→   112→
+   113→   113→## 5. Role model
+   114→   114→
+   115→   115→Current implemented roles:
+   116→   116→
+   117→   117→| Role | Type | Landing route | Current meaning |
+   118→   118→|---|---|---|---|
+   119→   119→| `super_admin` | Staff | `/admin` | Technical full-access or recovery role |
+   120→   120→| `program_admin` | Staff | `/admin` | HQ / Markazi Masoul role |
+   121→   121→| `city_head` | Staff | `/admin` | City Masoul role, city-scoped operations |
+   122→   122→| `park_admin` | Staff | `/park` | Park operations and attendance |
+   123→   123→| `park_lead` | Staff | `/park` | Park operations with broader attendance privileges |
+   124→   124→| `murabbi` | Staff | `/park` | Mentor role tied to group/park context |
+   125→   125→| `guardian` | Family | `/guardian` | Parent/guardian linked to children |
+   126→   126→| `student` | Participant | `/student` | Participant personal portal |
+   127→   127→
+   128→   128→Server-side guards enforce role access:
+   129→   129→
+   130→   130→| Guard | Allows |
+   131→   131→|---|---|
+   132→   132→| `requireAdminAccess` | `super_admin`, `program_admin`, `city_head` |
+   133→   133→| `requireParkAccess` | `super_admin`, `program_admin`, `city_head`, `park_admin`, `park_lead`, `murabbi` |
+   134→   134→| `requireGuardianAccess` | Users linked to a guardian record |
+   135→   135→| `requireStudentAccess` | Users linked to a participant record |
+   136→   136→| `requirePasswordResetAccess` | Users with `must_reset_password` |
+   137→   137→
+   138→   138→Post-login routing:
+   139→   139→
+   140→   140→```text
+   141→   141→must reset password -> /reset-password
+   142→   142→HQ or city role     -> /admin
+   143→   143→park role           -> /park
+   144→   144→guardian link       -> /guardian
+   145→   145→student link        -> /student
+   146→   146→otherwise           -> /access-pending
+   147→   147→```
+   148→   148→
+   149→   149→## 6. Authentication and access provisioning
+   150→   150→
+   151→   151→Internal users do not self-register. Accounts are created by admins or scripts.
+   152→   152→
+   153→   153→Current access model:
+   154→   154→
+   155→   155→1. A real person or guardian record must exist.
+   156→   156→2. Admin opens `/admin/users`.
+   157→   157→3. Admin creates or updates an auth account.
+   158→   158→4. The account is linked to one of:
+   159→   159→   - `people.user_id`
+   160→   160→   - `guardians.user_id`
+   161→   161→   - legacy `app_users` fallback in some older schema paths
+   162→   162→5. Optional first-login password reset is controlled by `user_access.must_reset_password`.
+   163→   163→6. User logs in at `/login`.
+   164→   164→7. User is routed by role/link state.
+   165→   165→
+   166→   166→Important current files:
+   167→   167→
+   168→   168→| File | Purpose |
+   169→   169→|---|---|
+   170→   170→| `src/lib/auth/guards.ts` | Role landing and server-side guards |
+   171→   171→| `src/lib/auth/user-access.ts` | Reads first-login reset/access state |
+   172→   172→| `src/features/user-access/data.ts` | User provisioning logic |
+   173→   173→| `src/app/api/admin/users/single/route.ts` | Single account create/update API |
+   174→   174→| `src/app/api/admin/users/import/route.ts` | Excel import API |
+   175→   175→| `src/app/api/admin/users/status/route.ts` | Target access status API |
+   176→   176→| `src/app/(admin)/admin/users/page.tsx` | Access management page |
+   177→   177→
+   178→   178→Refinement concern:
+   179→   179→
+   180→   180→The system supports both linked target accounts and unlinked accounts. This is flexible but can create confusion. Decide whether unlinked access should remain allowed.
+   181→   181→
+   182→   182→## 7. Database model
+   183→   183→
+   184→   184→Core hierarchy:
+   185→   185→
+   186→   186→```text
+   187→   187→city
+   188→   188→  park
+   189→   189→    batch
+   190→   190→      group
+   191→   191→        participant
+   192→   192→```
+   193→   193→
+   194→   194→Key database tables:
+   195→   195→
+   196→   196→| Table | Purpose |
+   197→   197→|---|---|
+   198→   198→| `cities` | Cities in the network |
+   199→   199→| `parks` | Parks under cities |
+   200→   200→| `batches` | Program batches under parks |
+   201→   201→| `groups` | Participant groups under batches |
+   202→   202→| `people` | Staff and participants |
+   203→   203→| `staff_meta` | Staff role, park assignment, group assignment, city scope |
+   204→   204→| `guardians` | Guardian profiles |
+   205→   205→| `guardian_children` | Guardian to participant links |
+   206→   206→| `batch_settings` | Attendance, fee, and participant-state rules |
+   207→   207→| `attendance_events` | Scheduled attendance events |
+   208→   208→| `attendance_records` | Per-participant attendance marks |
+   209→   209→| `fee_events` | Event-based fee definitions |
+   210→   210→| `payments` | Admission/event payments |
+   211→   211→| `receipt_sequences` | Receipt number generation |
+   212→   212→| `announcements` | Staff, city-head, guardian, and student announcements |
+   213→   213→| `report_presets` | Saved report filters |
+   214→   214→| `user_access` | Login email and reset-required state |
+   215→   215→| `admission_applications` | Public admission submissions |
+   216→   216→| `admission_interviews` | Interview schedule and scoring |
+   217→   217→| `content_categories` | Resource/content categories |
+   218→   218→| `content_items` | Published resources |
+   219→   219→| `inventory_items` | Procurement stock catalog |
+   220→   220→| `park_allocations` | Inventory allocated to parks |
+   221→   221→| `inventory_adjustments` | HQ stock changes |
+   222→   222→| `procurement_requests` | Park supply requests |
+   223→   223→| `push_subscriptions` | PWA push subscription placeholder |
+   224→   224→| `audit_log` | Attendance/payment/auditable changes |
+   225→   225→
+   226→   226→Important DB behavior:
+   227→   227→
+   228→   228→- RLS is enabled on operational tables.
+   229→   229→- `auth_staff_role()` resolves staff role from the current Supabase user.
+   230→   230→- `can_access_park()` scopes data by role and park.
+   231→   231→- `guardian_has_child()` limits guardian access to linked children.
+   232→   232→- Payment receipt numbers are generated in the database.
+   233→   233→- Participant state can be recomputed from attendance streaks.
+   234→   234→- Closed attendance events have write restrictions.
+   235→   235→- Audit logs record important updates.
+   236→   236→
+   237→   237→Refinement concern:
+   238→   238→
+   239→   239→The data model is already broad. Before adding new fields or tables, confirm whether existing modules should be simplified or removed.
+   240→   240→
+   241→   241→## 8. Current route map
+   242→   242→
+   243→   243→### Public and auth routes
+   244→   244→
+   245→   245→| Route | Purpose |
+   246→   246→|---|---|
+   247→   247→| `/` | Public homepage |
+   248→   248→| `/portal` | Auth-aware portal redirect |
+   249→   249→| `/login` | Login form |
+   250→   250→| `/reset-password` | First-login password change |
+   251→   251→| `/access-pending` | Logged-in but not linked to a usable role/profile |
+   252→   252→| `/auth/callback` | Supabase callback for magic links |
+   253→   253→| `/apply` | Public admission application |
+   254→   254→| `/apply/status` | Public application status lookup |
+   255→   255→
+   256→   256→### Admin routes
+   257→   257→
+   258→   258→| Route | Purpose |
+   259→   259→|---|---|
+   260→   260→| `/admin` | Admin dashboard |
+   261→   261→| `/admin/ops-center` | Combined admin action queue |
+   262→   262→| `/admin/family-ops` | Family follow-up across admissions, attendance, fees, access |
+   263→   263→| `/admin/schedule` | Date-focused admin schedule |
+   264→   264→| `/admin/cities` | City and city-head management |
+   265→   265→| `/admin/admissions` | Admissions pipeline |
+   266→   266→| `/admin/onboarding-center` | Approved application onboarding follow-up |
+   267→   267→| `/admin/park-health` | Per-park health board |
+   268→   268→| `/admin/attendance-command` | Attendance coverage command center |
+   269→   269→| `/admin/batch-health` | Per-batch setup and health board |
+   270→   270→| `/admin/attendance-alerts` | Warning/dropout follow-up |
+   271→   271→| `/admin/attendance-insights` | Attendance trends and hotspots |
+   272→   272→| `/admin/access-alerts` | Missing login/reset-required access queue |
+   273→   273→| `/admin/fee-alerts` | Unpaid dues follow-up |
+   274→   274→| `/admin/parks` | Parks, batches, groups |
+   275→   275→| `/admin/people` | Shabab and murabbis |
+   276→   276→| `/admin/students` | Student directory and access handoff |
+   277→   277→| `/admin/student-progress` | Unified student follow-up |
+   278→   278→| `/admin/content` | Content and resources |
+   279→   279→| `/admin/procurement` | Inventory, allocations, requests |
+   280→   280→| `/admin/guardians` | Guardian directory and links |
+   281→   281→| `/admin/attendance-events` | Attendance event creation/management |
+   282→   282→| `/admin/settings` | Batch rules/settings |
+   283→   283→| `/admin/fees` | Fee event and payment operations |
+   284→   284→| `/admin/users` | Access provisioning |
+   285→   285→| `/admin/announcements` | Announcement publishing |
+   286→   286→| `/admin/audit-log` | Audit review |
+   287→   287→| `/admin/reports` | Reports and Excel exports |
+   288→   288→| `/admin/test-center` | Manual QA checklist center |
+   289→   289→
+   290→   290→### Park routes
+   291→   291→
+   292→   292→| Route | Purpose |
+   293→   293→|---|---|
+   294→   294→| `/park` | Park dashboard |
+   295→   295→| `/park/ops-center` | Combined park action queue |
+   296→   296→| `/park/family-ops` | Park-side family follow-up |
+   297→   297→| `/park/schedule` | Date-focused park schedule |
+   298→   298→| `/park/attendance-command` | Park attendance coverage |
+   299→   299→| `/park/attendance` | Today's attendance events |
+   300→   300→| `/park/attendance/[eventId]` | Attendance roster marking |
+   301→   301→| `/park/roster` | Participant and guardian follow-up |
+   302→   302→| `/park/student-progress` | Park-scoped student progress |
+   303→   303→| `/park/guardians` | Guardian contact center |
+   304→   304→| `/park/alerts` | Attendance warning/dropout follow-up |
+   305→   305→| `/park/fee-alerts` | Unpaid dues follow-up |
+   306→   306→| `/park/attendance-insights` | Park attendance trends |
+   307→   307→| `/park/announcements` | Park announcement feed |
+   308→   308→| `/park/resources` | Resource library |
+   309→   309→| `/park/procurement` | Park supply allocations and requests |
+   310→   310→
+   311→   311→### Guardian routes
+   312→   312→
+   313→   313→| Route | Purpose |
+   314→   314→|---|---|
+   315→   315→| `/guardian` | Guardian dashboard |
+   316→   316→| `/guardian/action-center` | Guardian action queue |
+   317→   317→| `/guardian/history` | Attendance and fee history |
+   318→   318→| `/guardian/schedule` | Child schedule |
+   319→   319→| `/guardian/announcements` | Announcements |
+   320→   320→| `/guardian/resources` | Resources |
+   321→   321→
+   322→   322→### Student routes
+   323→   323→
+   324→   324→| Route | Purpose |
+   325→   325→|---|---|
+   326→   326→| `/student` | Student dashboard |
+   327→   327→| `/student/action-center` | Student action queue |
+   328→   328→| `/student/history` | Attendance and fee history |
+   329→   329→| `/student/schedule` | Schedule |
+   330→   330→| `/student/announcements` | Announcements |
+   331→   331→| `/student/resources` | Resources |
+   332→   332→
+   333→   333→## 9. Public admissions workflow
+   334→   334→
+   335→   335→Current flow:
+   336→   336→
+   337→   337→1. Family opens `/apply`.
+   338→   338→2. Family submits applicant, guardian, city, preferred park, and related information.
+   339→   339→3. System creates an `admission_applications` row.
+   340→   340→4. A tracking code is generated.
+   341→   341→5. Family can check status at `/apply/status`.
+   342→   342→6. Admin reviews applications at `/admin/admissions`.
+   343→   343→7. Admin can schedule an interview.
+   344→   344→8. Admin can record interview status and scores.
+   345→   345→9. Admin can approve, waitlist, or reject.
+   346→   346→10. Approved applications can be converted into participant and guardian records.
+   347→   347→11. Onboarding follow-up appears in `/admin/onboarding-center` and related access/family boards.
+   348→   348→
+   349→   349→Refinement questions:
+   350→   350→
+   351→   351→- Is public admission required for the real product?
+   352→   352→- Should admissions be a full pipeline or only a simple registration form?
+   353→   353→- Is interview scoring required?
+   354→   354→- Who approves admission: HQ, city head, or park team?
+   355→   355→- Should conversion create both student and guardian accounts automatically?
+   356→   356→
+   357→   357→## 10. Admin workflow
+   358→   358→
+   359→   359→The admin workspace currently combines HQ and city operations under `/admin`.
+   360→   360→
+   361→   361→HQ roles currently see a navigation focused on:
+   362→   362→
+   363→   363→- dashboard
+   364→   364→- ops center
+   365→   365→- family ops
+   366→   366→- cities and city heads
+   367→   367→- admissions and onboarding
+   368→   368→- operational health boards
+   369→   369→- alerts and insights
+   370→   370→- content
+   371→   371→- procurement
+   372→   372→- announcements
+   373→   373→- audit
+   374→   374→- reports
+   375→   375→- test center
+   376→   376→- park view
+   377→   377→
+   378→   378→City Head currently sees a navigation focused on:
+   379→   379→
+   380→   380→- city dashboard
+   381→   381→- parks, batches, groups
+   382→   382→- people, students, guardians
+   383→   383→- attendance events and settings
+   384→   384→- fees
+   385→   385→- content
+   386→   386→- procurement
+   387→   387→- access
+   388→   388→- announcements
+   389→   389→- reports
+   390→   390→- test center
+   391→   391→- park view
+   392→   392→
+   393→   393→Refinement concern:
+   394→   394→
+   395→   395→The same operational issue can appear in multiple admin pages. For example, a student with unpaid fees and missing guardian access may appear in:
+   396→   396→
+   397→   397→- `/admin/students`
+   398→   398→- `/admin/student-progress`
+   399→   399→- `/admin/fee-alerts`
+   400→   400→- `/admin/access-alerts`
+   401→   401→- `/admin/family-ops`
+   402→   402→- `/admin/onboarding-center`
+   403→   403→- `/admin/ops-center`
+   404→   404→
+   405→   405→This is useful for dashboards but confusing for daily users.
+   406→   406→
+   407→   407→## 11. Park workflow
+   408→   408→
+   409→   409→Park roles currently use `/park`.
+   410→   410→
+   411→   411→Main attendance flow:
+   412→   412→
+   413→   413→1. Park user logs in.
+   414→   414→2. User lands at `/park`.
+   415→   415→3. Dashboard shows current events and queue health.
+   416→   416→4. User opens `/park/attendance`.
+   417→   417→5. User selects an event.
+   418→   418→6. Roster opens at `/park/attendance/[eventId]`.
+   419→   419→7. User marks attendance.
+   420→   420→8. If offline, marks are stored locally.
+   421→   421→9. When online, queued marks sync to the API.
+   422→   422→
+   423→   423→Other park operations:
+   424→   424→
+   425→   425→- track family follow-up
+   426→   426→- review participants and guardians
+   427→   427→- monitor attendance alerts
+   428→   428→- monitor fee alerts
+   429→   429→- inspect attendance insights
+   430→   430→- view resources
+   431→   431→- view procurement allocations
+   432→   432→- create supply requests
+   433→   433→
+   434→   434→Refinement concern:
+   435→   435→
+   436→   436→Park users likely need a smaller, action-first interface. Current park navigation has many entries and may be too much for mobile field use.
+   437→   437→
+   438→   438→## 12. Guardian and student workflows
+   439→   439→
+   440→   440→Guardian portal:
+   441→   441→
+   442→   442→- shows linked child or children
+   443→   443→- shows attendance
+   444→   444→- shows fee status and outstanding items
+   445→   445→- shows schedule
+   446→   446→- shows announcements
+   447→   447→- shows resources
+   448→   448→- provides action center and history views
+   449→   449→
+   450→   450→Student portal:
+   451→   451→
+   452→   452→- shows own attendance
+   453→   453→- shows own fee status
+   454→   454→- shows schedule
+   455→   455→- shows announcements
+   456→   456→- shows resources
+   457→   457→- provides action center and history views
+   458→   458→
+   459→   459→Refinement concern:
+   460→   460→
+   461→   461→Family portals are already simpler than admin/park areas. They may only need copy, layout, and content refinement unless the business model changes.
+   462→   462→
+   463→   463→## 13. Attendance workflow and offline behavior
+   464→   464→
+   465→   465→Attendance is the strongest specialized workflow in the app.
+   466→   466→
+   467→   467→Online behavior:
+   468→   468→
+   469→   469→1. User marks attendance from roster.
+   470→   470→2. API validates request.
+   471→   471→3. Database upserts attendance record.
+   472→   472→4. Participant state can be recomputed.
+   473→   473→5. Audit log records important changes.
+   474→   474→6. UI refreshes roster.
+   475→   475→
+   476→   476→Offline behavior:
+   477→   477→
+   478→   478→1. User marks attendance while offline.
+   479→   479→2. Mutation is written to IndexedDB through Dexie.
+   480→   480→3. Queue stores event, participant, status, timestamp, mutation ID, and retry state.
+   481→   481→4. Auto-sync or manual sync sends mutations to `/api/park/attendance/sync`.
+   482→   482→5. API returns processed and failed mutation IDs.
+   483→   483→6. Processed items are removed from queue.
+   484→   484→7. Failed items remain for retry.
+   485→   485→8. Cached event and roster snapshots help keep the screen usable offline.
+   486→   486→
+   487→   487→Attendance role behavior:
+   488→   488→
+   489→   489→| Role | Current attendance behavior |
+   490→   490→|---|---|
+   491→   491→| `park_admin` | Can mark attendance while event is open |
+   492→   492→| `park_lead` | Can mark attendance and has more privileged after-close ability |
+   493→   493→| `program_admin` / `super_admin` | Can manage broader attendance operations |
+   494→   494→| `murabbi` | Park/group-scoped operational access |
+   495→   495→
+   496→   496→Refinement questions:
+   497→   497→
+   498→   498→- Should attendance be once per day, or multiple sessions per day?
+   499→   499→- Should murabbi be allowed to mark attendance directly?
+   500→   500→- Should park admin edit closed attendance?
+   501→   501→- Is offline support required for all park roles or only attendance takers?
+   502→   502→- What exact statuses are required: present, absent, late, excused?
+   503→   503→
+   504→   504→## 14. Fees workflow
+   505→   505→
+   506→   506→Current fee system supports:
+   507→   507→
+   508→   508→- admission fee rules through batch settings
+   509→   509→- event fee definitions
+   510→   510→- fixed event fees
+   511→   511→- participant-type fee amounts
+   512→   512→- payment recording
+   513→   513→- receipt number generation
+   514→   514→- fee alerts for outstanding dues
+   515→   515→- guardian/student fee summaries
+   516→   516→- report/export visibility
+   517→   517→
+   518→   518→Current related routes:
+   519→   519→
+   520→   520→- `/admin/fees`
+   521→   521→- `/admin/fee-alerts`
+   522→   522→- `/park/fee-alerts`
+   523→   523→- `/guardian/history`
+   524→   524→- `/student/history`
+   525→   525→
+   526→   526→Refinement questions:
+   527→   527→
+   528→   528→- Is fee tracking required in phase 1?
+   529→   529→- Should payments be recorded by HQ, city, or park?
+   530→   530→- Are partial payments required?
+   531→   531→- Are discounts, waivers, refunds, or arrears required?
+   532→   532→- Is receipt printing required?
+   533→   533→- Should guardians see fees, or only admins?
+   534→   534→
+   535→   535→## 15. Content and announcements
+   536→   536→
+   537→   537→Current content system:
+   538→   538→
+   539→   539→- content categories
+   540→   540→- content items as link, video, or document
+   541→   541→- audience roles
+   542→   542→- published/featured state
+   543→   543→- read-only resource workspaces for staff, students, guardians
+   544→   544→
+   545→   545→Current announcement system:
+   546→   546→
+   547→   547→- global, park, and batch scoped announcements
+   548→   548→- audiences for staff, city heads, guardians, and students
+   549→   549→- announcement centers for admin, park, guardian, and student users
+   550→   550→- copy/share actions
+   551→   551→
+   552→   552→Refinement questions:
+   553→   553→
+   554→   554→- Is content library required, or should it be removed for MVP?
+   555→   555→- Who creates resources?
+   556→   556→- Should announcements be one-way only?
+   557→   557→- Should WhatsApp/SMS be integrated, or is manual copy enough?
+   558→   558→- Do guardians and students need separate announcement views?
+   559→   559→
+   560→   560→## 16. Procurement workflow
+   561→   561→
+   562→   562→Current procurement system supports:
+   563→   563→
+   564→   564→- inventory item catalog
+   565→   565→- total quantity and low-stock threshold
+   566→   566→- park allocations
+   567→   567→- HQ stock adjustments
+   568→   568→- adjustment ledger
+   569→   569→- park-side procurement view
+   570→   570→- park supply requests
+   571→   571→- HQ/city request review
+   572→   572→
+   573→   573→Current routes:
+   574→   574→
+   575→   575→- `/admin/procurement`
+   576→   576→- `/park/procurement`
+   577→   577→
+   578→   578→Refinement questions:
+   579→   579→
+   580→   580→- Is procurement part of the real requirement?
+   581→   581→- Is this needed now or later?
+   582→   582→- Who owns stock: HQ, city, or park?
+   583→   583→- Should park teams request supplies through the app?
+   584→   584→- Are approvals required?
+   585→   585→
+   586→   586→## 17. Reporting and audit
+   587→   587→
+   588→   588→Current reporting:
+   589→   589→
+   590→   590→- `/admin/reports`
+   591→   591→- saved report presets
+   592→   592→- shareable filtered URLs
+   593→   593→- Excel exports
+   594→   594→- group attendance export
+   595→   595→- team attendance export
+   596→   596→- summary dashboard export
+   597→   597→
+   598→   598→Current audit:
+   599→   599→
+   600→   600→- `/admin/audit-log`
+   601→   601→- audit rows for selected DB updates
+   602→   602→- old/new JSON values
+   603→   603→- actor context where available
+   604→   604→
+   605→   605→Refinement questions:
+   606→   606→
+   607→   607→- What are the exact required reports?
+   608→   608→- Are current Excel formats acceptable?
+   609→   609→- Who should access reports?
+   610→   610→- Should reports be city-scoped, park-scoped, or national?
+   611→   611→- Which user actions must be auditable?
+   612→   612→
+   613→   613→## 18. Current feature inventory
+   614→   614→
+   615→   615→Use this table to decide what stays.
+   616→   616→
+   617→   617→| Area | Current status | Refinement decision |
+   618→   618→|---|---|---|
+   619→   619→| Public homepage | Implemented | Keep / Change / Remove |
+   620→   620→| Public admissions | Implemented | Keep / Change / Remove |
+   621→   621→| Public application status | Implemented | Keep / Change / Remove |
+   622→   622→| Login and password reset | Implemented | Keep / Change |
+   623→   623→| Admin dashboard | Implemented | Keep / Simplify |
+   624→   624→| City management | Implemented | Keep / Change |
+   625→   625→| Parks, batches, groups | Implemented | Keep / Change |
+   626→   626→| People/Shabab management | Implemented | Keep / Change |
+   627→   627→| Student directory | Implemented | Keep / Merge |
+   628→   628→| Guardian directory | Implemented | Keep / Merge |
+   629→   629→| Access provisioning | Implemented | Keep / Simplify |
+   630→   630→| Admissions pipeline | Implemented | Keep / Simplify / Remove |
+   631→   631→| Onboarding center | Implemented | Keep / Merge / Remove |
+   632→   632→| Attendance events | Implemented | Keep / Change |
+   633→   633→| Park attendance | Implemented | Keep / Priority |
+   634→   634→| Offline attendance | Implemented | Keep / Change |
+   635→   635→| Attendance alerts | Implemented | Keep / Merge |
+   636→   636→| Attendance command | Implemented | Keep / Merge |
+   637→   637→| Attendance insights | Implemented | Keep / Merge / Remove |
+   638→   638→| Family ops | Implemented | Keep / Merge |
+   639→   639→| Ops center | Implemented | Keep / Merge |
+   640→   640→| Student progress | Implemented | Keep / Merge |
+   641→   641→| Park roster | Implemented | Keep / Merge |
+   642→   642→| Fee operations | Implemented | Keep / Simplify / Remove |
+   643→   643→| Fee alerts | Implemented | Keep / Merge |
+   644→   644→| Reports and Excel exports | Implemented | Keep / Change |
+   645→   645→| Announcements | Implemented | Keep / Simplify |
+   646→   646→| Content library | Implemented | Keep / Remove |
+   647→   647→| Procurement | Implemented | Keep / Remove |
+   648→   648→| Audit log | Implemented | Keep |
+   649→   649→| Test center | Implemented | Keep internal only |
+   650→   650→| Guardian portal | Implemented | Keep / Simplify |
+   651→   651→| Student portal | Implemented | Keep / Simplify |
+   652→   652→
+   653→   653→## 19. Current problems likely causing requirement mismatch
+   654→   654→
+   655→   655→### 19.1 Too many dashboards
+   656→   656→
+   657→   657→The app has many dashboard-like pages. This gives many ways to view the same work, but it makes the product hard to explain.
+   658→   658→
+   659→   659→Likely fix:
+   660→   660→
+   661→   661→- choose one main action center per role
+   662→   662→- convert secondary boards into filters or tabs
+   663→   663→- hide low-priority boards from navigation
+   664→   664→
+   665→   665→### 19.2 Admin and city workflows are mixed
+   666→   666→
+   667→   667→HQ and city users both live under `/admin`. This is technically fine, but product language may be confusing.
+   668→   668→
+   669→   669→Likely fix:
+   670→   670→
+   671→   671→- clearly define HQ vs city duties
+   672→   672→- rename nav items to business terms
+   673→   673→- remove HQ-only concepts from city navigation
+   674→   674→
+   675→   675→### 19.3 Student and people modules overlap
+   676→   676→
+   677→   677→`people` manages Shabab and murabbis. `students` is a student-only view. `student-progress` is another student follow-up view.
+   678→   678→
+   679→   679→Likely fix:
+   680→   680→
+   681→   681→- decide whether "People" is the master module
+   682→   682→- decide whether "Students" is only a filtered people view
+   683→   683→- decide whether "Student Progress" should be a tab inside Students
+   684→   684→
+   685→   685→### 19.4 Family follow-up is fragmented
+   686→   686→
+   687→   687→Family concerns appear in guardians, students, access alerts, fee alerts, attendance alerts, family ops, onboarding, and progress pages.
+   688→   688→
+   689→   689→Likely fix:
+   690→   690→
+   691→   691→- create one family follow-up workflow
+   692→   692→- route all family issues through one page with tabs or filters
+   693→   693→
+   694→   694→### 19.5 Park workspace may be too complex
+   695→   695→
+   696→   696→Park users likely need fast attendance and participant follow-up, not a large operations suite.
+   697→   697→
+   698→   698→Likely fix:
+   699→   699→
+   700→   700→- reduce park navigation to 4 to 6 top-level items
+   701→   701→- place secondary analytics under dashboard or reports
+   702→   702→
+   703→   703→### 19.6 Some modules may be beyond current requirement
+   704→   704→
+   705→   705→Procurement, content library, detailed admissions, and many health boards may not be required in the current version.
+   706→   706→
+   707→   707→Likely fix:
+   708→   708→
+   709→   709→- mark nonessential modules as phase 2
+   710→   710→- hide them until business process is confirmed
+   711→   711→
+   712→   712→## 20. Suggested simplified target navigation
+   713→   713→
+   714→   714→This is not a final recommendation. It is a simpler starting point for discussion.
+   715→   715→
+   716→   716→### Admin / HQ
+   717→   717→
+   718→   718→| Proposed nav | Could include |
+   719→   719→|---|---|
+   720→   720→| Dashboard | KPIs, urgent actions |
+   721→   721→| Cities & Parks | Cities, parks, batches, groups |
+   722→   722→| Admissions | Applications, interviews, conversion, onboarding |
+   723→   723→| People | Staff, students, guardians, access |
+   724→   724→| Attendance | Events, command, alerts, insights |
+   725→   725→| Fees | Fee setup, payments, dues follow-up |
+   726→   726→| Communications | Announcements, content/resources |
+   727→   727→| Reports | Exports, presets, audit |
+   728→   728→| Settings | Batch settings and admin configuration |
+   729→   729→
+   730→   730→### Park
+   731→   731→
+   732→   732→| Proposed nav | Could include |
+   733→   733→|---|---|
+   734→   734→| Dashboard | Today's actions |
+   735→   735→| Attendance | Today's events, roster marking, offline queue |
+   736→   736→| Participants | Roster, student progress |
+   737→   737→| Families | Guardians, family follow-up, fee reminders |
+   738→   738→| Schedule | Upcoming events |
+   739→   739→| Resources | Announcements, resources, procurement if needed |
+   740→   740→
+   741→   741→### Guardian
+   742→   742→
+   743→   743→| Proposed nav | Could include |
+   744→   744→|---|---|
+   745→   745→| Dashboard | Summary and next actions |
+   746→   746→| History | Attendance and fees |
+   747→   747→| Schedule | Upcoming sessions |
+   748→   748→| Announcements | Program messages |
+   749→   749→| Resources | Shared content |
+   750→   750→
+   751→   751→### Student
+   752→   752→
+   753→   753→| Proposed nav | Could include |
+   754→   754→|---|---|
+   755→   755→| Dashboard | Summary and next actions |
+   756→   756→| History | Attendance and fees |
+   757→   757→| Schedule | Upcoming sessions |
+   758→   758→| Announcements | Program messages |
+   759→   759→| Resources | Shared content |
+   760→   760→
+   761→   761→## 21. Refinement worksheet
+   762→   762→
+   763→   763→Answer these before changing code.
+   764→   764→
+   765→   765→### 21.1 Product scope
+   766→   766→
+   767→   767→| Question | Your answer |
+   768→   768→|---|---|
+   769→   769→| What is the main purpose of the app in one sentence? |  |
+   770→   770→| Is this primarily for attendance, full operations, or family engagement? |  |
+   771→   771→| What must be ready for first real use? |  |
+   772→   772→| What can wait for phase 2? |  |
+   773→   773→| Which modules should be hidden now? |  |
+   774→   774→
+   775→   775→### 21.2 Roles
+   776→   776→
+   777→   777→| Question | Your answer |
+   778→   778→|---|---|
+   779→   779→| Do you need all current roles? |  |
+   780→   780→| Should `super_admin` be used only for recovery? |  |
+   781→   781→| What exactly can `program_admin` do? |  |
+   782→   782→| What exactly can `city_head` do? |  |
+   783→   783→| What exactly can `park_admin` do? |  |
+   784→   784→| What exactly can `park_lead` do? |  |
+   785→   785→| What exactly can `murabbi` do? |  |
+   786→   786→| Should students log in? |  |
+   787→   787→| Should guardians log in? |  |
+   788→   788→
+   789→   789→### 21.3 Attendance
+   790→   790→
+   791→   791→| Question | Your answer |
+   792→   792→|---|---|
+   793→   793→| Who creates attendance events? |  |
+   794→   794→| Who marks attendance? |  |
+   795→   795→| Can attendance be edited after close? |  |
+   796→   796→| What statuses are required? |  |
+   797→   797→| Is offline attendance mandatory? |  |
+   798→   798→| Should attendance affect warning/dropout automatically? |  |
+   799→   799→
+   800→   800→### 21.4 Admissions
+   801→   801→
+   802→   802→| Question | Your answer |
+   803→   803→|---|---|
+   804→   804→| Is public application required? |  |
+   805→   805→| Is interview scheduling required? |  |
+   806→   806→| Is scoring required? |  |
+   807→   807→| Who approves admission? |  |
+   808→   808→| Should conversion create records automatically? |  |
+   809→   809→
+   810→   810→### 21.5 Fees
+   811→   811→
+   812→   812→| Question | Your answer |
+   813→   813→|---|---|
+   814→   814→| Are fees required in the current version? |  |
+   815→   815→| Who records payments? |  |
+   816→   816→| Are receipts required? |  |
+   817→   817→| Should guardians/students see dues? |  |
+   818→   818→| Are fee events needed, or only admission fees? |  |
+   819→   819→
+   820→   820→### 21.6 Reports
+   821→   821→
+   822→   822→| Question | Your answer |
+   823→   823→|---|---|
+   824→   824→| Which reports are mandatory? |  |
+   825→   825→| What Excel format is expected? |  |
+   826→   826→| Who can export reports? |  |
+   827→   827→| What filters are required? |  |
+   828→   828→
+   829→   829→### 21.7 Navigation
+   830→   830→
+   831→   831→| Question | Your answer |
+   832→   832→|---|---|
+   833→   833→| Which 5 admin pages should be top-level? |  |
+   834→   834→| Which 5 park pages should be top-level? |  |
+   835→   835→| Which pages are confusing or unnecessary? |  |
+   836→   836→| Which pages should be merged? |  |
+   837→   837→
+   838→   838→## 22. Recommended refinement process
+   839→   839→
+   840→   840→### Step 1: Freeze new feature work
+   841→   841→
+   842→   842→Do not add new modules until the target product shape is confirmed.
+   843→   843→
+   844→   844→### Step 2: Mark every route
+   845→   845→
+   846→   846→For each route, mark:
+   847→   847→
+   848→   848→- keep
+   849→   849→- rename
+   850→   850→- merge
+   851→   851→- hide
+   852→   852→- remove
+   853→   853→
+   854→   854→### Step 3: Define the main workflow for each role
+   855→   855→
+   856→   856→Example:
+   857→   857→
+   858→   858→```text
+   859→   859→Park Admin:
+   860→   860→login -> dashboard -> today's attendance -> roster -> sync -> family follow-up
+   861→   861→```
+   862→   862→
+   863→   863→If a route does not support a main workflow, move it to secondary navigation or phase 2.
+   864→   864→
+   865→   865→### Step 4: Collapse duplicate boards
+   866→   866→
+   867→   867→Start with these candidates:
+   868→   868→
+   869→   869→- merge `Ops Center`, `Family Ops`, `Access Alerts`, `Fee Alerts`, and `Attendance Alerts` into fewer action queues
+   870→   870→- merge `Students`, `People`, and `Student Progress` into a cleaner people workflow
+   871→   871→- merge `Attendance Command` and `Attendance Insights` into attendance operations or reports
+   872→   872→- move `Park Health` and `Batch Health` into dashboard summaries unless deeply needed
+   873→   873→
+   874→   874→### Step 5: Rename modules to business language
+   875→   875→
+   876→   876→Avoid internal names if users do not understand them.
+   877→   877→
+   878→   878→Examples:
+   879→   879→
+   880→   880→| Current | Possible replacement |
+   881→   881→|---|---|
+   882→   882→| Ops Center | Action Center |
+   883→   883→| Access Alerts | Login Access |
+   884→   884→| Attendance Command | Attendance Coverage |
+   885→   885→| Batch Health | Batch Setup |
+   886→   886→| Park Health | Park Overview |
+   887→   887→| Student Progress | Shabab Follow-up |
+   888→   888→
+   889→   889→### Step 6: Re-test role journeys
+   890→   890→
+   891→   891→After simplification, run UAT for:
+   892→   892→
+   893→   893→- HQ admin
+   894→   894→- city head
+   895→   895→- park admin
+   896→   896→- park lead
+   897→   897→- murabbi
+   898→   898→- guardian
+   899→   899→- student
+   900→   900→
+   901→   901→## 23. UAT checklist
+   902→   902→
+   903→   903→### Public
+   904→   904→
+   905→   905→- Public homepage loads.
+   906→   906→- Application form submits.
+   907→   907→- Tracking code is generated.
+   908→   908→- Public status lookup works.
+   909→   909→
+   910→   910→### Admin
+   911→   911→
+   912→   912→- Login redirects admin to `/admin`.
+   913→   913→- Dashboard loads.
+   914→   914→- City/park/batch/group setup works.
+   915→   915→- Student and guardian records can be created.
+   916→   916→- Access account can be created and linked.
+   917→   917→- Attendance event can be created.
+   918→   918→- Fee payment can be recorded if fees remain in scope.
+   919→   919→- Reports export correctly.
+   920→   920→
+   921→   921→### Park
+   922→   922→
+   923→   923→- Login redirects park role to `/park`.
+   924→   924→- Today's event list loads.
+   925→   925→- Attendance roster loads.
+   926→   926→- Attendance can be marked online.
+   927→   927→- Attendance can be queued offline.
+   928→   928→- Queue syncs after reconnect.
+   929→   929→- Park family follow-up is understandable.
+   930→   930→
+   931→   931→### Guardian
+   932→   932→
+   933→   933→- Login redirects guardian to `/guardian`.
+   934→   934→- Guardian only sees linked children.
+   935→   935→- Attendance history is correct.
+   936→   936→- Fee status is correct if fees remain in scope.
+   937→   937→- Announcements and resources load.
+   938→   938→
+   939→   939→### Student
+   940→   940→
+   941→   941→- Login redirects student to `/student`.
+   942→   942→- Student only sees own data.
+   943→   943→- Attendance history is correct.
+   944→   944→- Fee status is correct if fees remain in scope.
+   945→   945→- Announcements and resources load.
+   946→   946→
+   947→   947→### Security
+   948→   948→
+   949→   949→- Unknown users cannot self-register into internal roles.
+   950→   950→- Unlinked users land on `/access-pending`.
+   951→   951→- Non-admin users cannot access admin pages.
+   952→   952→- Guardians cannot see unrelated children.
+   953→   953→- Students cannot see other students.
+   954→   954→- Park users cannot access unrelated parks.
+   955→   955→
+   956→   956→## 24. Proposed next deliverables
+   957→   957→
+   958→   958→To refine the project properly, the next documents should be:
+   959→   959→
+   960→   960→1. Product Requirements Document
+   961→   961→   - what the product should do
+   962→   962→   - target users
+   963→   963→   - must-have vs later
+   964→   964→   - acceptance criteria
+   965→   965→
+   966→   966→2. Route Simplification Map
+   967→   967→   - current route
+   968→   968→   - keep/merge/remove decision
+   969→   969→   - new route if changed
+   970→   970→
+   971→   971→3. Role Permission Matrix
+   972→   972→   - role
+   973→   973→   - allowed pages
+   974→   974→   - allowed actions
+   975→   975→   - data scope
+   976→   976→
+   977→   977→4. UAT Test Script
+   978→   978→   - step-by-step testing by role
+   979→   979→   - expected result for each workflow
+   980→   980→
+   981→   981→5. Migration/cleanup plan
+   982→   982→   - navigation changes
+   983→   983→   - code modules to remove or hide
+   984→   984→   - schema changes if any
+   985→   985→   - test updates
+   986→   986→
+   987→   987→## 25. Immediate decision list
+   988→   988→
+   989→   989→These are the fastest decisions that will clarify the project:
+   990→   990→
+   991→   991→1. Should the project be attendance-first or full operations?
+   992→   992→2. Should admissions stay in this version?
+   993→   993→3. Should fees stay in this version?
+   994→   994→4. Should procurement stay in this version?
+   995→   995→5. Should content/resources stay in this version?
+   996→   996→6. Should guardians and students log in, or is this internal-only for now?
+   997→   997→7. Should park users see only attendance and roster, or full park operations?
+   998→   998→8. Should HQ and city users share `/admin`, or should the UI clearly separate them?
+   999→   999→9. Which pages should be removed from the sidebar immediately?
+  1000→  1000→10. What is the exact real-world workflow from enrollment to attendance to reporting?
+  1001→  1001→
+  1002→  1002→## 26. Bottom-line recommendation
+  1003→  1003→
+  1004→  1004→Do not rebuild the project from scratch yet. The current codebase has useful foundations:
+  1005→  1005→
+  1006→  1006→- role-based routing
+  1007→  1007→- Supabase RLS
+  1008→  1008→- offline attendance
+  1009→  1009→- admissions
+  1010→  1010→- access provisioning
+  1011→  1011→- city/park/group hierarchy
+  1012→  1012→- guardian/student portals
+  1013→  1013→- reports
+  1014→  1014→
+  1015→  1015→The right next move is controlled simplification:
+  1016→  1016→
+  1017→  1017→1. define the real target requirements
+  1018→  1018→2. reduce navigation
+  1019→  1019→3. merge duplicate operational boards
+  1020→  1020→4. hide phase-2 modules
+  1021→  1021→5. run role-based UAT
+  1022→  1022→6. then patch the code according to confirmed requirements
+  1023→  1023→
+  1024→  1024→The current system is too broad, but it is not wasted work. It should become a smaller, clearer product.
+  1025→  1025→

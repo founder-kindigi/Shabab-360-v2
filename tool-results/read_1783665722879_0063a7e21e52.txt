@@ -1,0 +1,746 @@
+     1→     1→# Shabab360 Software Requirements Specification
+     2→     2→
+     3→     3→Version: 0.1 draft  
+     4→     4→Date: 2026-07-04  
+     5→     5→Status: Refinement baseline  
+     6→     6→Related document: `docs/project-working-refinement-guide.md`
+     7→     7→
+     8→     8→## 1. Introduction
+     9→     9→
+    10→    10→### 1.1 Purpose
+    11→    11→
+    12→    12→This Software Requirements Specification describes the expected behavior, users, modules, data, constraints, and quality requirements for Shabab360.
+    13→    13→
+    14→    14→The document is written as a refinement baseline. It reflects the current implemented project and identifies requirements that must be confirmed because the existing product is broader than the desired final system.
+    15→    15→
+    16→    16→### 1.2 Scope
+    17→    17→
+    18→    18→Shabab360 is a web-based program operations system for managing Shabab activities across cities, parks, batches, groups, attendance, admissions, fees, communications, reports, and family follow-up.
+    19→    19→
+    20→    20→The current product includes:
+    21→    21→
+    22→    22→- public homepage and admissions
+    23→    23→- internal admin workspace
+    24→    24→- park operations workspace
+    25→    25→- guardian portal
+    26→    26→- student portal
+    27→    27→- role-based login and routing
+    28→    28→- Supabase-backed data model
+    29→    29→- offline attendance support
+    30→    30→- Excel reports
+    31→    31→
+    32→    32→The target refinement should decide which implemented modules remain in scope for the next usable version.
+    33→    33→
+    34→    34→### 1.3 Intended audience
+    35→    35→
+    36→    36→This document is for:
+    37→    37→
+    38→    38→- project owner
+    39→    39→- product decision makers
+    40→    40→- developers
+    41→    41→- UI/UX designers
+    42→    42→- QA testers
+    43→    43→- future maintainers
+    44→    44→
+    45→    45→### 1.4 Definitions
+    46→    46→
+    47→    47→| Term | Meaning |
+    48→    48→|---|---|
+    49→    49→| HQ | National program operations level |
+    50→    50→| Program Admin | HQ business role, also described as Program Head or Markazi Masoul |
+    51→    51→| City Head | City-level business owner, also described as City Masoul |
+    52→    52→| Park | Local operating unit where groups and sessions happen |
+    53→    53→| Batch | Time-bounded program cycle under a park |
+    54→    54→| Group | Participant grouping under a batch |
+    55→    55→| Shabab | Student or participant |
+    56→    56→| Murabbi | Mentor assigned to a group or park |
+    57→    57→| Guardian | Parent or guardian linked to one or more Shabab |
+    58→    58→| Attendance Event | A scheduled session for attendance marking |
+    59→    59→| RLS | Supabase Row Level Security |
+    60→    60→| UAT | User Acceptance Testing |
+    61→    61→
+    62→    62→### 1.5 Requirement status labels
+    63→    63→
+    64→    64→| Status | Meaning |
+    65→    65→|---|---|
+    66→    66→| Implemented | Exists in the current codebase |
+    67→    67→| Required | Should remain part of the refined product |
+    68→    68→| To Confirm | Business decision needed |
+    69→    69→| Candidate For Merge | Exists but overlaps other modules |
+    70→    70→| Candidate For Removal | Exists but may be outside the desired scope |
+    71→    71→
+    72→    72→## 2. Overall Description
+    73→    73→
+    74→    74→### 2.1 Product perspective
+    75→    75→
+    76→    76→Shabab360 is a role-based operations portal built on Next.js and Supabase. It is not a public social platform. It is an internal and family-facing program management system.
+    77→    77→
+    78→    78→The system currently supports a broad operational suite. The refined version should become simpler, with fewer overlapping boards and clearer workflows.
+    79→    79→
+    80→    80→### 2.2 Product functions
+    81→    81→
+    82→    82→The system currently provides these top-level functions:
+    83→    83→
+    84→    84→- authenticate users
+    85→    85→- route users by role
+    86→    86→- manage cities, parks, batches, and groups
+    87→    87→- manage staff, Shabab, and guardians
+    88→    88→- create and manage access accounts
+    89→    89→- accept public admission applications
+    90→    90→- review, interview, approve, and convert admissions
+    91→    91→- create attendance events
+    92→    92→- mark attendance online and offline
+    93→    93→- monitor attendance alerts and insights
+    94→    94→- configure batch rules
+    95→    95→- track fees and payments
+    96→    96→- publish announcements and resources
+    97→    97→- manage procurement items and park requests
+    98→    98→- show guardian and student portals
+    99→    99→- export reports
+   100→   100→- review audit logs
+   101→   101→
+   102→   102→### 2.3 User classes
+   103→   103→
+   104→   104→| User class | Description | Current access surface |
+   105→   105→|---|---|---|
+   106→   106→| Super Admin | Technical full-access recovery role | `/admin` |
+   107→   107→| Program Admin | HQ program operator | `/admin` |
+   108→   108→| City Head | City-scoped operator | `/admin` |
+   109→   109→| Park Admin | Park operations user | `/park` |
+   110→   110→| Park Lead | Park operations lead | `/park` |
+   111→   111→| Murabbi | Mentor tied to park/group work | `/park` |
+   112→   112→| Guardian | Parent/guardian linked to child records | `/guardian` |
+   113→   113→| Student | Participant with personal portal | `/student` |
+   114→   114→| Public Family | Unauthenticated admissions applicant | `/apply`, `/apply/status` |
+   115→   115→
+   116→   116→### 2.4 Operating environment
+   117→   117→
+   118→   118→| Area | Requirement |
+   119→   119→|---|---|
+   120→   120→| Browser | Must support current Chrome, Edge, Safari, and common mobile browsers |
+   121→   121→| Device | Must support desktop and mobile layouts |
+   122→   122→| Hosting | Current deployment target is Vercel |
+   123→   123→| Database/Auth | Current backend is Supabase |
+   124→   124→| Offline | Attendance marking should work offline where required |
+   125→   125→| Timezone | Pakistan date behavior should use Asia/Karachi |
+   126→   126→
+   127→   127→### 2.5 Design and implementation constraints
+   128→   128→
+   129→   129→- The frontend uses Next.js App Router and TypeScript.
+   130→   130→- Supabase Auth is the identity provider.
+   131→   131→- Supabase Postgres is the system of record.
+   132→   132→- Authorization must be enforced server-side and by RLS where applicable.
+   133→   133→- Service role keys must not be exposed to client code.
+   134→   134→- Internal users must not self-register into privileged roles.
+   135→   135→- Attendance offline state is stored locally in IndexedDB.
+   136→   136→- Reports are currently Excel based.
+   137→   137→
+   138→   138→### 2.6 Assumptions
+   139→   139→
+   140→   140→- The program structure remains city -> park -> batch -> group -> participant.
+   141→   141→- Each participant belongs to one group at a time.
+   142→   142→- Each guardian can be linked to one or more participants.
+   143→   143→- Park attendance is a core workflow.
+   144→   144→- Role-based access is required.
+   145→   145→- Some current modules may be hidden or removed after requirements confirmation.
+   146→   146→
+   147→   147→### 2.7 Dependencies
+   148→   148→
+   149→   149→- Supabase project availability
+   150→   150→- Vercel deployment environment
+   151→   151→- Valid Supabase keys in environment variables
+   152→   152→- Browser local storage and IndexedDB for offline attendance
+   153→   153→- Email/password or magic-link access flows through Supabase Auth
+   154→   154→
+   155→   155→## 3. System Features and Functional Requirements
+   156→   156→
+   157→   157→### 3.1 Authentication and Role Routing
+   158→   158→
+   159→   159→| ID | Requirement | Priority | Status |
+   160→   160→|---|---|---|---|
+   161→   161→| FR-AUTH-001 | The system shall allow internal users to log in using email and password. | Must | Implemented |
+   162→   162→| FR-AUTH-002 | The system shall prevent unknown public users from self-registering into internal roles. | Must | Implemented |
+   163→   163→| FR-AUTH-003 | The system shall redirect users to the correct landing route after login. | Must | Implemented |
+   164→   164→| FR-AUTH-004 | The system shall redirect users requiring password reset to `/reset-password`. | Must | Implemented |
+   165→   165→| FR-AUTH-005 | The system shall redirect users without a usable linked role/profile to `/access-pending`. | Must | Implemented |
+   166→   166→| FR-AUTH-006 | The system shall support admin-created access accounts for staff, students, and guardians. | Must | Implemented |
+   167→   167→| FR-AUTH-007 | The system shall allow admins to update existing auth account passwords. | Should | Implemented |
+   168→   168→| FR-AUTH-008 | The system shall require a confirmed access policy for unlinked accounts. | Must | To Confirm |
+   169→   169→
+   170→   170→Acceptance criteria:
+   171→   171→
+   172→   172→- Given an unauthenticated user, when they open a protected route, then the system redirects to `/login`.
+   173→   173→- Given a Program Admin signs in, when their session is valid, then they land on `/admin`.
+   174→   174→- Given a Park Admin signs in, when their session is valid, then they land on `/park`.
+   175→   175→- Given a Guardian signs in, when linked to a guardian record, then they land on `/guardian`.
+   176→   176→- Given a Student signs in, when linked to a participant record, then they land on `/student`.
+   177→   177→- Given a user has no role or link, when they sign in, then they land on `/access-pending`.
+   178→   178→
+   179→   179→### 3.2 Public Site and Admissions
+   180→   180→
+   181→   181→| ID | Requirement | Priority | Status |
+   182→   182→|---|---|---|---|
+   183→   183→| FR-PUB-001 | The system shall provide a public homepage. | Should | Implemented |
+   184→   184→| FR-PUB-002 | The system shall provide a public admission application form. | Must If Admissions Remain | Implemented |
+   185→   185→| FR-PUB-003 | The system shall generate a tracking code for submitted applications. | Must If Admissions Remain | Implemented |
+   186→   186→| FR-PUB-004 | The system shall allow applicants to check status using tracking code and guardian phone. | Should | Implemented |
+   187→   187→| FR-PUB-005 | The system shall hide internal review notes from public status results. | Must | Implemented |
+   188→   188→| FR-PUB-006 | The system shall define whether public admissions are part of the refined MVP. | Must | To Confirm |
+   189→   189→
+   190→   190→Acceptance criteria:
+   191→   191→
+   192→   192→- Given a family submits a valid application, when the request succeeds, then the system returns a tracking code.
+   193→   193→- Given a family has a tracking code and guardian phone, when they check status, then the system returns only public-safe status fields.
+   194→   194→- Given invalid lookup data, when the family checks status, then the system returns no private application details.
+   195→   195→
+   196→   196→### 3.3 Admin Dashboard and Navigation
+   197→   197→
+   198→   198→| ID | Requirement | Priority | Status |
+   199→   199→|---|---|---|---|
+   200→   200→| FR-ADM-001 | The system shall provide an admin dashboard for HQ and city operations. | Must | Implemented |
+   201→   201→| FR-ADM-002 | The system shall show different admin navigation for HQ roles and city roles. | Must | Implemented |
+   202→   202→| FR-ADM-003 | The system shall make current workspace context visible. | Should | Implemented |
+   203→   203→| FR-ADM-004 | The system shall reduce duplicate admin top-level navigation entries. | Must | To Confirm |
+   204→   204→| FR-ADM-005 | The system shall define a final admin navigation structure. | Must | To Confirm |
+   205→   205→
+   206→   206→Acceptance criteria:
+   207→   207→
+   208→   208→- Given a Program Admin opens `/admin`, then the interface shows HQ-oriented navigation.
+   209→   209→- Given a City Head opens `/admin`, then the interface shows city operations navigation.
+   210→   210→- Given the refined navigation is approved, then redundant top-level pages are hidden, merged, or renamed.
+   211→   211→
+   212→   212→### 3.4 City, Park, Batch, and Group Setup
+   213→   213→
+   214→   214→| ID | Requirement | Priority | Status |
+   215→   215→|---|---|---|---|
+   216→   216→| FR-ORG-001 | The system shall allow authorized admins to manage cities. | Must | Implemented |
+   217→   217→| FR-ORG-002 | The system shall allow authorized admins to manage parks under cities. | Must | Implemented |
+   218→   218→| FR-ORG-003 | The system shall allow authorized admins to manage batches under parks. | Must | Implemented |
+   219→   219→| FR-ORG-004 | The system shall allow authorized admins to manage groups under batches. | Must | Implemented |
+   220→   220→| FR-ORG-005 | The system shall support city-scoped access for City Head users. | Must | Implemented |
+   221→   221→| FR-ORG-006 | The system shall define whether HQ and City Head can both create parks and batches. | Must | To Confirm |
+   222→   222→
+   223→   223→Acceptance criteria:
+   224→   224→
+   225→   225→- Given an authorized admin creates a park, when city scope is valid, then the park is saved under that city.
+   226→   226→- Given a City Head views organization setup, then only visible city-scoped data is shown.
+   227→   227→- Given a park has batches and groups, then participant assignment can use those groups.
+   228→   228→
+   229→   229→### 3.5 People, Students, Murabbis, and Guardians
+   230→   230→
+   231→   231→| ID | Requirement | Priority | Status |
+   232→   232→|---|---|---|---|
+   233→   233→| FR-PEOPLE-001 | The system shall store staff and participant records in `people`. | Must | Implemented |
+   234→   234→| FR-PEOPLE-002 | The system shall store staff role metadata in `staff_meta`. | Must | Implemented |
+   235→   235→| FR-PEOPLE-003 | The system shall allow authorized admins to create and edit Shabab records. | Must | Implemented |
+   236→   236→| FR-PEOPLE-004 | The system shall allow authorized admins to create and edit Murabbi records. | Must | Implemented |
+   237→   237→| FR-PEOPLE-005 | The system shall allow authorized admins to create guardians and link children. | Must | Implemented |
+   238→   238→| FR-PEOPLE-006 | The system shall allow one guardian to be linked to multiple children. | Should | Implemented |
+   239→   239→| FR-PEOPLE-007 | The system shall decide whether Students, People, and Student Progress remain separate modules. | Must | To Confirm |
+   240→   240→
+   241→   241→Acceptance criteria:
+   242→   242→
+   243→   243→- Given a Shabab is created, then the record must be assigned to exactly one group.
+   244→   244→- Given a Murabbi is created, then the record must have valid role metadata.
+   245→   245→- Given a guardian is linked to a child, then the guardian portal can display that child and no unrelated children.
+   246→   246→
+   247→   247→### 3.6 Access Provisioning
+   248→   248→
+   249→   249→| ID | Requirement | Priority | Status |
+   250→   250→|---|---|---|---|
+   251→   251→| FR-ACCESS-001 | The system shall allow admins to create one linked login account. | Must | Implemented |
+   252→   252→| FR-ACCESS-002 | The system shall allow admins to update an existing linked login account. | Must | Implemented |
+   253→   253→| FR-ACCESS-003 | The system shall allow bulk account import from Excel. | Should | Implemented |
+   254→   254→| FR-ACCESS-004 | The system shall show linked access status for selected people or guardians. | Must | Implemented |
+   255→   255→| FR-ACCESS-005 | The system shall support first-login password reset state. | Should | Implemented |
+   256→   256→| FR-ACCESS-006 | The system shall define whether bulk import remains in the refined product. | Should | To Confirm |
+   257→   257→| FR-ACCESS-007 | The system shall log or expose enough information for admins to see who still needs login access. | Should | Implemented |
+   258→   258→
+   259→   259→Acceptance criteria:
+   260→   260→
+   261→   261→- Given an admin selects a student target, when saving a login account, then the auth user is linked to that participant record.
+   262→   262→- Given an admin selects a guardian target, when saving a login account, then the auth user is linked to that guardian record.
+   263→   263→- Given an account already exists, when admin saves a new password, then the auth account is updated.
+   264→   264→
+   265→   265→### 3.7 Attendance Events and Marking
+   266→   266→
+   267→   267→| ID | Requirement | Priority | Status |
+   268→   268→|---|---|---|---|
+   269→   269→| FR-ATT-001 | The system shall allow authorized users to create attendance events. | Must | Implemented |
+   270→   270→| FR-ATT-002 | The system shall display today's attendance events to park users. | Must | Implemented |
+   271→   271→| FR-ATT-003 | The system shall display a roster for each attendance event. | Must | Implemented |
+   272→   272→| FR-ATT-004 | The system shall allow authorized park users to mark attendance. | Must | Implemented |
+   273→   273→| FR-ATT-005 | The system shall enforce closed-event edit rules. | Must | Implemented |
+   274→   274→| FR-ATT-006 | The system shall support participant warning/dropout state logic. | Should | Implemented |
+   275→   275→| FR-ATT-007 | The system shall define final attendance statuses. | Must | To Confirm |
+   276→   276→| FR-ATT-008 | The system shall define whether Murabbis can mark attendance. | Must | To Confirm |
+   277→   277→| FR-ATT-009 | The system shall define whether attendance is once per day or multi-session. | Must | To Confirm |
+   278→   278→
+   279→   279→Acceptance criteria:
+   280→   280→
+   281→   281→- Given an open attendance event, when an authorized park user marks a participant, then the attendance record is saved.
+   282→   282→- Given a closed attendance event, when a Park Admin tries an unauthorized edit, then the write is rejected.
+   283→   283→- Given a participant accumulates absence patterns, when state recomputation runs, then participant state follows configured batch rules.
+   284→   284→
+   285→   285→### 3.8 Offline Attendance
+   286→   286→
+   287→   287→| ID | Requirement | Priority | Status |
+   288→   288→|---|---|---|---|
+   289→   289→| FR-OFF-001 | The system shall queue attendance marks locally when offline. | Must If Offline Required | Implemented |
+   290→   290→| FR-OFF-002 | The system shall keep one latest queued mutation per event and participant. | Must If Offline Required | Implemented |
+   291→   291→| FR-OFF-003 | The system shall sync queued attendance marks when online. | Must If Offline Required | Implemented |
+   292→   292→| FR-OFF-004 | The system shall keep failed sync items for retry. | Must If Offline Required | Implemented |
+   293→   293→| FR-OFF-005 | The system shall show queue health to park users. | Should | Implemented |
+   294→   294→| FR-OFF-006 | The system shall define whether offline attendance is mandatory in the refined MVP. | Must | To Confirm |
+   295→   295→
+   296→   296→Acceptance criteria:
+   297→   297→
+   298→   298→- Given the browser is offline, when the user marks attendance, then the mark is stored locally.
+   299→   299→- Given the browser reconnects, when sync runs, then processed mutations are removed from queue.
+   300→   300→- Given a sync item fails, then the item remains visible or retryable.
+   301→   301→
+   302→   302→### 3.9 Attendance Monitoring and Follow-up
+   303→   303→
+   304→   304→| ID | Requirement | Priority | Status |
+   305→   305→|---|---|---|---|
+   306→   306→| FR-ATTMON-001 | The system shall provide attendance alerts for warning/dropout follow-up. | Should | Implemented |
+   307→   307→| FR-ATTMON-002 | The system shall provide attendance insights and trend summaries. | Could | Implemented |
+   308→   308→| FR-ATTMON-003 | The system shall provide attendance coverage command views. | Could | Implemented |
+   309→   309→| FR-ATTMON-004 | The system shall define which attendance monitoring pages remain top-level. | Must | To Confirm |
+   310→   310→| FR-ATTMON-005 | The system shall merge duplicate attendance monitoring pages where possible. | Should | To Confirm |
+   311→   311→
+   312→   312→Acceptance criteria:
+   313→   313→
+   314→   314→- Given participants have warning/dropout states, then authorized users can find them for follow-up.
+   315→   315→- Given a selected date, then attendance coverage can show missing or open events if this module remains.
+   316→   316→- Given attendance insights are removed from top-level nav, then required reporting must still be available elsewhere.
+   317→   317→
+   318→   318→### 3.10 Fees and Payments
+   319→   319→
+   320→   320→| ID | Requirement | Priority | Status |
+   321→   321→|---|---|---|---|
+   322→   322→| FR-FEE-001 | The system shall support admission fee configuration. | Should | Implemented |
+   323→   323→| FR-FEE-002 | The system shall support fee event creation. | Should | Implemented |
+   324→   324→| FR-FEE-003 | The system shall record payments. | Should | Implemented |
+   325→   325→| FR-FEE-004 | The system shall generate receipt numbers. | Should | Implemented |
+   326→   326→| FR-FEE-005 | The system shall show outstanding dues to authorized users. | Should | Implemented |
+   327→   327→| FR-FEE-006 | The system shall define whether fees are required in the refined MVP. | Must | To Confirm |
+   328→   328→| FR-FEE-007 | The system shall define whether guardians/students should see fee information. | Must | To Confirm |
+   329→   329→
+   330→   330→Acceptance criteria:
+   331→   331→
+   332→   332→- Given a payment is recorded, then a unique receipt number is generated.
+   333→   333→- Given a participant has outstanding dues, then authorized admin or park users can identify the due amount.
+   334→   334→- Given fees are removed from MVP scope, then fee-related navigation is hidden without breaking other workflows.
+   335→   335→
+   336→   336→### 3.11 Family Follow-up
+   337→   337→
+   338→   338→| ID | Requirement | Priority | Status |
+   339→   339→|---|---|---|---|
+   340→   340→| FR-FAMILY-001 | The system shall support guardian contact and child linkage. | Must | Implemented |
+   341→   341→| FR-FAMILY-002 | The system shall provide family follow-up queues for attendance, fees, access, and admissions. | Should | Implemented |
+   342→   342→| FR-FAMILY-003 | The system shall allow WhatsApp handoff through generated links where available. | Should | Implemented |
+   343→   343→| FR-FAMILY-004 | The system shall define one primary family follow-up workflow. | Must | To Confirm |
+   344→   344→| FR-FAMILY-005 | The system shall merge duplicate family follow-up boards where possible. | Should | To Confirm |
+   345→   345→
+   346→   346→Acceptance criteria:
+   347→   347→
+   348→   348→- Given a participant has linked guardians, then authorized users can see guardian contact information.
+   349→   349→- Given a family follow-up item exists, then the user can see the next action.
+   350→   350→- Given the refined workflow is approved, then duplicate family pages are consolidated.
+   351→   351→
+   352→   352→### 3.12 Guardian Portal
+   353→   353→
+   354→   354→| ID | Requirement | Priority | Status |
+   355→   355→|---|---|---|---|
+   356→   356→| FR-GUARD-001 | The system shall show guardians only their linked children. | Must | Implemented |
+   357→   357→| FR-GUARD-002 | The system shall show child attendance history. | Should | Implemented |
+   358→   358→| FR-GUARD-003 | The system shall show fee status if fees remain in scope. | Should | Implemented |
+   359→   359→| FR-GUARD-004 | The system shall show schedule, announcements, and resources. | Could | Implemented |
+   360→   360→| FR-GUARD-005 | The system shall define whether guardians need login access in the refined MVP. | Must | To Confirm |
+   361→   361→
+   362→   362→Acceptance criteria:
+   363→   363→
+   364→   364→- Given a guardian is linked to Child A only, when they open the portal, then they cannot view Child B.
+   365→   365→- Given guardian access is disabled in the refined scope, then no guardian-only workflow should be required for core operations.
+   366→   366→
+   367→   367→### 3.13 Student Portal
+   368→   368→
+   369→   369→| ID | Requirement | Priority | Status |
+   370→   370→|---|---|---|---|
+   371→   371→| FR-STU-001 | The system shall show students only their own data. | Must If Student Portal Remains | Implemented |
+   372→   372→| FR-STU-002 | The system shall show own attendance history. | Should | Implemented |
+   373→   373→| FR-STU-003 | The system shall show fee status if fees remain in scope. | Should | Implemented |
+   374→   374→| FR-STU-004 | The system shall show schedule, announcements, and resources. | Could | Implemented |
+   375→   375→| FR-STU-005 | The system shall define whether students need login access in the refined MVP. | Must | To Confirm |
+   376→   376→
+   377→   377→Acceptance criteria:
+   378→   378→
+   379→   379→- Given a student logs in, then they see only their own participant record.
+   380→   380→- Given student portal is removed from MVP scope, then internal workflows still support attendance and reports.
+   381→   381→
+   382→   382→### 3.14 Announcements and Content
+   383→   383→
+   384→   384→| ID | Requirement | Priority | Status |
+   385→   385→|---|---|---|---|
+   386→   386→| FR-COMM-001 | The system shall allow authorized admins to publish announcements. | Should | Implemented |
+   387→   387→| FR-COMM-002 | The system shall target announcements by audience and scope. | Should | Implemented |
+   388→   388→| FR-COMM-003 | The system shall provide read-only announcement centers. | Could | Implemented |
+   389→   389→| FR-COMM-004 | The system shall provide a content/resource library. | Could | Implemented |
+   390→   390→| FR-COMM-005 | The system shall define whether content library remains in scope. | Must | To Confirm |
+   391→   391→
+   392→   392→Acceptance criteria:
+   393→   393→
+   394→   394→- Given an announcement targets guardians, then guardian users can see it if in scope.
+   395→   395→- Given content is unpublished, then it should not be visible in consumption portals.
+   396→   396→- Given communications are simplified, then essential announcements remain available to required users.
+   397→   397→
+   398→   398→### 3.15 Procurement
+   399→   399→
+   400→   400→| ID | Requirement | Priority | Status |
+   401→   401→|---|---|---|---|
+   402→   402→| FR-PROC-001 | The system shall manage inventory items. | Could | Implemented |
+   403→   403→| FR-PROC-002 | The system shall manage park allocations. | Could | Implemented |
+   404→   404→| FR-PROC-003 | The system shall allow park supply requests. | Could | Implemented |
+   405→   405→| FR-PROC-004 | The system shall allow request review and fulfillment. | Could | Implemented |
+   406→   406→| FR-PROC-005 | The system shall define whether procurement remains in the refined MVP. | Must | To Confirm |
+   407→   407→
+   408→   408→Acceptance criteria:
+   409→   409→
+   410→   410→- Given procurement remains in scope, then park users can request supplies and admin users can review requests.
+   411→   411→- Given procurement is out of scope, then procurement routes should be hidden or removed from navigation.
+   412→   412→
+   413→   413→### 3.16 Reports and Exports
+   414→   414→
+   415→   415→| ID | Requirement | Priority | Status |
+   416→   416→|---|---|---|---|
+   417→   417→| FR-REP-001 | The system shall provide admin reports. | Must | Implemented |
+   418→   418→| FR-REP-002 | The system shall export group attendance to Excel. | Must If Report Required | Implemented |
+   419→   419→| FR-REP-003 | The system shall export team attendance to Excel. | Should | Implemented |
+   420→   420→| FR-REP-004 | The system shall export summary dashboard data to Excel. | Should | Implemented |
+   421→   421→| FR-REP-005 | The system shall support saved report presets. | Could | Implemented |
+   422→   422→| FR-REP-006 | The system shall define final required report formats. | Must | To Confirm |
+   423→   423→
+   424→   424→Acceptance criteria:
+   425→   425→
+   426→   426→- Given an admin selects report filters, when they export, then the Excel file reflects those filters.
+   427→   427→- Given a City Head exports reports, then data is city-scoped.
+   428→   428→- Given final report formats are approved, then exports match expected headers and grouping.
+   429→   429→
+   430→   430→### 3.17 Audit Log
+   431→   431→
+   432→   432→| ID | Requirement | Priority | Status |
+   433→   433→|---|---|---|---|
+   434→   434→| FR-AUD-001 | The system shall record auditable changes for important operational tables. | Must | Implemented |
+   435→   435→| FR-AUD-002 | The system shall allow privileged users to review audit log entries. | Should | Implemented |
+   436→   436→| FR-AUD-003 | The system shall define which actions require audit coverage. | Must | To Confirm |
+   437→   437→
+   438→   438→Acceptance criteria:
+   439→   439→
+   440→   440→- Given an attendance record changes, then audit metadata is stored where configured.
+   441→   441→- Given an unauthorized user tries to read audit log, then access is denied.
+   442→   442→
+   443→   443→### 3.18 Test Center and UAT
+   444→   444→
+   445→   445→| ID | Requirement | Priority | Status |
+   446→   446→|---|---|---|---|
+   447→   447→| FR-UAT-001 | The system shall provide a manual test center for internal QA. | Could | Implemented |
+   448→   448→| FR-UAT-002 | The system shall define whether the test center appears in production navigation. | Must | To Confirm |
+   449→   449→| FR-UAT-003 | The project shall maintain role-based UAT scripts. | Must | Proposed |
+   450→   450→
+   451→   451→Acceptance criteria:
+   452→   452→
+   453→   453→- Given test center remains, then it is visible only to internal admin roles.
+   454→   454→- Given production simplification is approved, then test center may be hidden from normal navigation.
+   455→   455→
+   456→   456→## 4. External Interface Requirements
+   457→   457→
+   458→   458→### 4.1 User interface requirements
+   459→   459→
+   460→   460→| ID | Requirement |
+   461→   461→|---|---|
+   462→   462→| UI-001 | The UI shall be role-aware and show only relevant navigation. |
+   463→   463→| UI-002 | The UI shall be usable on desktop and mobile. |
+   464→   464→| UI-003 | The UI shall clearly indicate current workspace and viewer context. |
+   465→   465→| UI-004 | Forms shall validate required fields before submission. |
+   466→   466→| UI-005 | Operational pages shall make filters and current scope visible. |
+   467→   467→| UI-006 | The refined UI shall reduce overlapping top-level navigation entries. |
+   468→   468→
+   469→   469→### 4.2 API requirements
+   470→   470→
+   471→   471→| ID | Requirement |
+   472→   472→|---|---|
+   473→   473→| API-001 | Write operations shall use authenticated server/API routes. |
+   474→   474→| API-002 | API errors shall return structured error messages. |
+   475→   475→| API-003 | API responses shall include request IDs where implemented. |
+   476→   476→| API-004 | High-write routes shall enforce rate limits where implemented. |
+   477→   477→| API-005 | Attendance sync API shall return per-mutation success/failure. |
+   478→   478→
+   479→   479→### 4.3 Database requirements
+   480→   480→
+   481→   481→| ID | Requirement |
+   482→   482→|---|---|
+   483→   483→| DB-001 | The database shall enforce row-level security on scoped operational tables. |
+   484→   484→| DB-002 | The database shall preserve relational integrity between cities, parks, batches, groups, participants, and guardians. |
+   485→   485→| DB-003 | Attendance and payment rules shall use database constraints/triggers where appropriate. |
+   486→   486→| DB-004 | The database shall store timestamps in UTC. |
+   487→   487→
+   488→   488→### 4.4 Authentication requirements
+   489→   489→
+   490→   490→| ID | Requirement |
+   491→   491→|---|---|
+   492→   492→| SEC-001 | Supabase Auth shall identify users. |
+   493→   493→| SEC-002 | Unknown users shall not gain internal access by signing up. |
+   494→   494→| SEC-003 | Role and profile links shall determine landing route and permissions. |
+   495→   495→| SEC-004 | Passwords shall not be stored in documentation or application tables as plaintext. |
+   496→   496→
+   497→   497→### 4.5 Export requirements
+   498→   498→
+   499→   499→| ID | Requirement |
+   500→   500→|---|---|
+   501→   501→| EXP-001 | Reports shall export as Excel files. |
+   502→   502→| EXP-002 | Exported reports shall apply selected filters. |
+   503→   503→| EXP-003 | Final report layouts shall be confirmed by project owner. |
+   504→   504→
+   505→   505→## 5. Data Requirements
+   506→   506→
+   507→   507→### 5.1 Core entities
+   508→   508→
+   509→   509→| Entity | Key properties |
+   510→   510→|---|---|
+   511→   511→| City | id, name, code |
+   512→   512→| Park | id, city, name, code |
+   513→   513→| Batch | id, park, name, start date, end date |
+   514→   514→| Group | id, batch, name, participant type |
+   515→   515→| Person | id, name, phone, type, group, park, auth user |
+   516→   516→| Staff Meta | staff id, role, assigned park, assigned group, city scope |
+   517→   517→| Guardian | id, name, phone, auth user |
+   518→   518→| Guardian Child | guardian id, participant id |
+   519→   519→| Attendance Event | park, batch, group, date, type, title, closed state |
+   520→   520→| Attendance Record | event, participant, status, marked at, source |
+   521→   521→| Payment | participant, park, batch, fee event, type, amount, receipt |
+   522→   522→| Admission Application | tracking code, applicant, guardian, city, status |
+   523→   523→| Content Item | category, title, type, URL, audience, published state |
+   524→   524→| Procurement Request | item, park, quantity, urgency, status |
+   525→   525→
+   526→   526→### 5.2 Data visibility
+   527→   527→
+   528→   528→| User type | Data visibility |
+   529→   529→|---|---|
+   530→   530→| Super Admin | Broad system data |
+   531→   531→| Program Admin | National/HQ operational data |
+   532→   532→| City Head | City-scoped operational data |
+   533→   533→| Park Admin | Park-scoped operational data |
+   534→   534→| Park Lead | Park-scoped operational data with attendance privileges |
+   535→   535→| Murabbi | Park/group-scoped operational data |
+   536→   536→| Guardian | Linked children only |
+   537→   537→| Student | Own participant record only |
+   538→   538→
+   539→   539→### 5.3 Data quality requirements
+   540→   540→
+   541→   541→- Participant records must have a valid group.
+   542→   542→- Murabbi assignment must be consistent with group/park scope.
+   543→   543→- Guardian-child links must refer to existing records.
+   544→   544→- Attendance records must refer to valid events and participants.
+   545→   545→- Payment records must have valid amount and receipt metadata.
+   546→   546→- Public admission status must not expose internal notes.
+   547→   547→
+   548→   548→## 6. Non-Functional Requirements
+   549→   549→
+   550→   550→### 6.1 Security
+   551→   551→
+   552→   552→| ID | Requirement |
+   553→   553→|---|---|
+   554→   554→| NFR-SEC-001 | The system shall deny unauthorized access by default. |
+   555→   555→| NFR-SEC-002 | Authorization shall be enforced server-side. |
+   556→   556→| NFR-SEC-003 | Client-side navigation hiding shall not be treated as security. |
+   557→   557→| NFR-SEC-004 | Service role keys shall never be used in client code. |
+   558→   558→| NFR-SEC-005 | Guardian and student data isolation shall be tested. |
+   559→   559→| NFR-SEC-006 | Access changes shall be auditable where required. |
+   560→   560→
+   561→   561→### 6.2 Usability
+   562→   562→
+   563→   563→| ID | Requirement |
+   564→   564→|---|---|
+   565→   565→| NFR-USE-001 | Daily workflows shall be understandable without developer explanation. |
+   566→   566→| NFR-USE-002 | Park attendance marking shall be fast on mobile. |
+   567→   567→| NFR-USE-003 | Top-level navigation shall avoid duplicate operational concepts. |
+   568→   568→| NFR-USE-004 | Search/filter heavy pages shall preserve clear scope and reset controls. |
+   569→   569→| NFR-USE-005 | The refined product shall use business language understood by staff. |
+   570→   570→
+   571→   571→### 6.3 Reliability
+   572→   572→
+   573→   573→| ID | Requirement |
+   574→   574→|---|---|
+   575→   575→| NFR-REL-001 | Attendance queue shall preserve unsynced marks until success or manual resolution. |
+   576→   576→| NFR-REL-002 | Failed sync items shall not be silently dropped. |
+   577→   577→| NFR-REL-003 | Database rules shall protect critical attendance/payment integrity. |
+   578→   578→| NFR-REL-004 | Public admissions shall not lose submitted data on valid submission. |
+   579→   579→
+   580→   580→### 6.4 Performance
+   581→   581→
+   582→   582→| ID | Requirement |
+   583→   583→|---|---|
+   584→   584→| NFR-PERF-001 | Dashboard pages should load within acceptable operational time for normal data sizes. |
+   585→   585→| NFR-PERF-002 | Attendance roster interactions should feel immediate on mobile. |
+   586→   586→| NFR-PERF-003 | Reports should generate within a practical wait time for filtered ranges. |
+   587→   587→| NFR-PERF-004 | Data loaders should batch access-status lookups where possible. |
+   588→   588→
+   589→   589→### 6.5 Maintainability
+   590→   590→
+   591→   591→| ID | Requirement |
+   592→   592→|---|---|
+   593→   593→| NFR-MAINT-001 | Feature data loading should remain grouped under `src/features`. |
+   594→   594→| NFR-MAINT-002 | Shared UI boards should avoid duplicating business rules. |
+   595→   595→| NFR-MAINT-003 | Schema migrations should remain versioned under `supabase/migrations`. |
+   596→   596→| NFR-MAINT-004 | Requirements docs should evolve with product decisions. |
+   597→   597→
+   598→   598→### 6.6 Compatibility
+   599→   599→
+   600→   600→| ID | Requirement |
+   601→   601→|---|---|
+   602→   602→| NFR-COMP-001 | The app shall support current desktop browsers. |
+   603→   603→| NFR-COMP-002 | The app shall support common mobile browsers. |
+   604→   604→| NFR-COMP-003 | PWA/offline attendance behavior shall not depend on unsupported browser features without fallback. |
+   605→   605→
+   606→   606→## 7. Access Control Requirements
+   607→   607→
+   608→   608→### 7.1 Role permission matrix
+   609→   609→
+   610→   610→| Capability | Super Admin | Program Admin | City Head | Park Admin | Park Lead | Murabbi | Guardian | Student |
+   611→   611→|---|---|---|---|---|---|---|---|---|
+   612→   612→| Access `/admin` | Yes | Yes | Yes | No | No | No | No | No |
+   613→   613→| Access `/park` | Yes | Yes | Yes | Yes | Yes | Yes | No | No |
+   614→   614→| Access guardian portal | No | No | No | No | No | No | Yes | No |
+   615→   615→| Access student portal | No | No | No | No | No | No | No | Yes |
+   616→   616→| Manage cities | Yes | Yes | Limited or No | No | No | No | No | No |
+   617→   617→| Manage parks/batches/groups | Yes | Yes | City scoped | No | No | No | No | No |
+   618→   618→| Manage people | Yes | Yes | City scoped | Limited | Limited | Limited | No | No |
+   619→   619→| Manage access accounts | Yes | Yes | Scoped | No | No | No | No | No |
+   620→   620→| Create attendance events | Yes | Yes | City scoped | Park scoped | Park scoped | To Confirm | No | No |
+   621→   621→| Mark attendance | Yes | Yes | City scoped | Park scoped | Park scoped | To Confirm | No | No |
+   622→   622→| View own linked child data | No | No | No | No | No | No | Yes | No |
+   623→   623→| View own student data | No | No | No | No | No | No | No | Yes |
+   624→   624→| Export reports | Yes | Yes | City scoped | To Confirm | To Confirm | No | No | No |
+   625→   625→
+   626→   626→This matrix needs final approval before refactoring navigation and guards.
+   627→   627→
+   628→   628→### 7.2 Access rules
+   629→   629→
+   630→   630→- The system shall deny by default.
+   631→   631→- The system shall enforce role checks in server-side route guards.
+   632→   632→- The system shall use RLS for scoped database access where applicable.
+   633→   633→- The system shall separate UI visibility from true authorization.
+   634→   634→- The system shall prevent guardians from reading unrelated child data.
+   635→   635→- The system shall prevent students from reading other student data.
+   636→   636→- The system shall prevent park users from writing outside their allowed scope.
+   637→   637→
+   638→   638→## 8. Workflow Requirements
+   639→   639→
+   640→   640→### 8.1 Core workflow candidates
+   641→   641→
+   642→   642→The refined product should define the final core workflows.
+   643→   643→
+   644→   644→Recommended workflow candidates:
+   645→   645→
+   646→   646→1. Admin setup workflow
+   647→   647→   - city -> park -> batch -> group -> staff/student/guardian -> access
+   648→   648→2. Admissions workflow
+   649→   649→   - apply -> review -> interview -> approve -> convert -> onboard
+   650→   650→3. Attendance workflow
+   651→   651→   - create event -> mark attendance -> sync offline queue -> monitor alerts -> report
+   652→   652→4. Family follow-up workflow
+   653→   653→   - detect issue -> contact guardian -> update status -> review progress
+   654→   654→5. Fee workflow
+   655→   655→   - configure fee -> record payment -> monitor outstanding dues -> export report
+   656→   656→6. Reporting workflow
+   657→   657→   - select filters -> preview scope -> export Excel
+   658→   658→
+   659→   659→### 8.2 Required refinement decision
+   660→   660→
+   661→   661→The project owner must confirm which workflow is primary:
+   662→   662→
+   663→   663→- attendance-first
+   664→   664→- admissions-first
+   665→   665→- full operations
+   666→   666→- family engagement
+   667→   667→- reporting/compliance
+   668→   668→
+   669→   669→This decision controls which modules should remain top-level.
+   670→   670→
+   671→   671→## 9. Out of Scope Unless Confirmed
+   672→   672→
+   673→   673→These exist or are implied but should not be treated as required unless explicitly approved:
+   674→   674→
+   675→   675→- procurement
+   676→   676→- content library
+   677→   677→- detailed admissions scoring
+   678→   678→- student portal
+   679→   679→- guardian portal
+   680→   680→- multiple operational health dashboards
+   681→   681→- advanced fee accounting
+   682→   682→- WhatsApp/SMS gateway integration
+   683→   683→- biometric attendance
+   684→   684→- AI predictions
+   685→   685→- custom report designer
+   686→   686→- real-time push notifications
+   687→   687→- multi-country timezone support
+   688→   688→
+   689→   689→## 10. Open Questions
+   690→   690→
+   691→   691→| ID | Question |
+   692→   692→|---|---|
+   693→   693→| OQ-001 | What is the single most important workflow for the next usable release? |
+   694→   694→| OQ-002 | Should admissions remain in scope? |
+   695→   695→| OQ-003 | Should fees remain in scope? |
+   696→   696→| OQ-004 | Should procurement remain in scope? |
+   697→   697→| OQ-005 | Should content/resources remain in scope? |
+   698→   698→| OQ-006 | Should guardians log in? |
+   699→   699→| OQ-007 | Should students log in? |
+   700→   700→| OQ-008 | What are the exact final role permissions? |
+   701→   701→| OQ-009 | What are the exact final reports and Excel formats? |
+   702→   702→| OQ-010 | Which routes should be hidden immediately from navigation? |
+   703→   703→
+   704→   704→## 11. Acceptance and UAT Summary
+   705→   705→
+   706→   706→The refined product should not be accepted until these checks pass:
+   707→   707→
+   708→   708→- role login and redirects work
+   709→   709→- each role sees only permitted navigation
+   710→   710→- each role can complete its primary workflow
+   711→   711→- unauthorized routes redirect or deny correctly
+   712→   712→- guardian and student isolation is verified
+   713→   713→- park attendance works on mobile
+   714→   714→- offline queue stores and syncs attendance correctly
+   715→   715→- required reports export correctly
+   716→   716→- final navigation matches approved workflow map
+   717→   717→- phase-2 modules are hidden or clearly marked
+   718→   718→
+   719→   719→## 12. Traceability
+   720→   720→
+   721→   721→| Requirement area | Related current modules |
+   722→   722→|---|---|
+   723→   723→| Authentication | `src/lib/auth`, `/login`, `/reset-password`, `/admin/users` |
+   724→   724→| Organization setup | `/admin/cities`, `/admin/parks`, `/admin/settings` |
+   725→   725→| People and access | `/admin/people`, `/admin/students`, `/admin/guardians`, `/admin/users` |
+   726→   726→| Admissions | `/apply`, `/apply/status`, `/admin/admissions`, `/admin/onboarding-center` |
+   727→   727→| Attendance | `/park/attendance`, `/admin/attendance-events`, attendance API routes |
+   728→   728→| Offline sync | `src/lib/offline`, `/api/park/attendance/sync` |
+   729→   729→| Fees | `/admin/fees`, `/admin/fee-alerts`, `/park/fee-alerts` |
+   730→   730→| Reports | `/admin/reports`, `src/features/reports` |
+   731→   731→| Family portals | `/guardian`, `/student` |
+   732→   732→| Security | Supabase RLS migrations, auth guards |
+   733→   733→
+   734→   734→## 13. Change Control
+   735→   735→
+   736→   736→Any refinement should update:
+   737→   737→
+   738→   738→1. this SRS
+   739→   739→2. user stories document
+   740→   740→3. route simplification map
+   741→   741→4. role permission matrix
+   742→   742→5. UAT checklist
+   743→   743→6. implementation plan
+   744→   744→
+   745→   745→No major module should be added until the open questions in this document are answered.
+   746→   746→

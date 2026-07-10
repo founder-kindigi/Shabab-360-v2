@@ -1,0 +1,958 @@
+     1→     1→﻿# Current Implementation Plan
+     2→     2→
+     3→     3→This document reflects the system as currently implemented and deployed. It is based on the active Next.js codebase and the production build at `https://shabab360.vercel.app`.
+     4→     4→
+     5→     5→## 1. Foundation
+     6→     6→
+     7→     7→**Status:** Implemented
+     8→     8→
+     9→     9→- Stack:
+    10→    10→  - Next.js (App Router)
+    11→    11→  - TypeScript
+    12→    12→  - Tailwind CSS
+    13→    13→  - Supabase (Auth, Postgres, RLS)
+    14→    14→  - Dexie / IndexedDB for offline attendance queue
+    15→    15→  - exceljs for Excel exports
+    16→    16→- Core infrastructure:
+    17→    17→  - role-based routing
+    18→    18→  - server/client/admin Supabase access layers
+    19→    19→  - protected route guards
+    20→    20→  - Vercel deployment pipeline
+    21→    21→
+    22→    22→## 2. Authentication and Access
+    23→    23→
+    24→    24→**Status:** Implemented
+    25→    25→
+    26→    26→- Email/password login for internal users
+    27→    27→- No public self-registration for internal roles
+    28→    28→- First-login password reset flow
+    29→    29→- Role-aware post-login routing:
+    30→    30→  - HQ roles -> `/admin`
+    31→    31→  - Park roles -> `/park`
+    32→    32→  - Guardian -> `/guardian`
+    33→    33→  - Student -> `/student`
+    34→    34→- Access provisioning:
+    35→    35→  - bulk Excel import
+    36→    36→  - single-account create/update
+    37→    37→  - target status lookup before save
+    38→    38→  - guardian precedence rules
+    39→    39→  - effective target and effective role summary
+    40→    40→  - save blocked when effective role is missing
+    41→    41→
+    42→    42→## 3. Role Structure
+    43→    43→
+    44→    44→**Status:** Implemented
+    45→    45→
+    46→    46→Supported role flows:
+    47→    47→
+    48→    48→- `super_admin`
+    49→    49→- `program_admin`
+    50→    50→- `city_head`
+    51→    51→- `park_admin`
+    52→    52→- `park_lead`
+    53→    53→- `murabbi`
+    54→    54→- `guardian`
+    55→    55→- `student`
+    56→    56→
+    57→    57→Role split:
+    58→    58→
+    59→    59→- HQ roles use the national oversight workspace
+    60→    60→- `city_head` uses the city operations workspace
+    61→    61→- Park roles use the park operations workspace
+    62→    62→- Guardian and student use read-only personal portals
+    63→    63→
+    64→    64→## 4. HQ / Program Head Workspace
+    65→    65→
+    66→    66→**Status:** Implemented
+    67→    67→
+    68→    68→Primary routes:
+    69→    69→
+    70→    70→- `/admin`
+    71→    71→- `/admin/cities`
+    72→    72→- `/admin/reports`
+    73→    73→- `/admin/announcements`
+    74→    74→- `/admin/fee-alerts`
+    75→    75→- `/admin/schedule`
+    76→    76→- `/admin/users`
+    77→    77→- `/admin/audit-log`
+    78→    78→
+    79→    79→Capabilities:
+    80→    80→
+    81→    81→- national dashboard metrics
+    82→    82→- HQ exception board
+    83→    83→- city creation and editing
+    84→    84→- city-head assignment and reassignment
+    85→    85→- city-head-targeted announcements
+    86→    86→- fee-attention queue for unpaid cases and guardian follow-up
+    87→    87→- national reports and exports
+    88→    88→- access administration
+    89→    89→
+    90→    90→## 5. City Head / City Operations Workspace
+    91→    91→
+    92→    92→**Status:** Implemented
+    93→    93→
+    94→    94→Primary routes:
+    95→    95→
+    96→    96→- `/admin`
+    97→    97→- `/admin/admissions`
+    98→    98→- `/admin/attendance-alerts`
+    99→    99→- `/admin/fee-alerts`
+   100→   100→- `/admin/schedule`
+   101→   101→- `/admin/parks`
+   102→   102→- `/admin/people`
+   103→   103→- `/admin/students`
+   104→   104→- `/admin/guardians`
+   105→   105→- `/admin/attendance-events`
+   106→   106→- `/admin/settings`
+   107→   107→- `/admin/fees`
+   108→   108→- `/admin/content`
+   109→   109→- `/admin/procurement`
+   110→   110→- `/admin/announcements`
+   111→   111→- `/admin/reports`
+   112→   112→- `/admin/users`
+   113→   113→- `/admin/test-center`
+   114→   114→
+   115→   115→Capabilities:
+   116→   116→
+   117→   117→- manage parks, batches, and groups
+   118→   118→- manage admissions pipeline, interview follow-up, and placement decisions
+   119→   119→- manage attendance attention cases and guardian follow-up for warning/dropout participants
+   120→   120→- manage unpaid-fee attention cases and guardian payment reminders
+   121→   121→- manage attendance events
+   122→   122→- manage participants and murabbis
+   123→   123→- manage students
+   124→   124→- manage guardians
+   125→   125→- manage batch rules
+   126→   126→- manage fees, receipts, and ledger filters
+   127→   127→- manage content publishing and featured resources
+   128→   128→- manage procurement inventory, allocations, stock adjustments, and park request review
+   129→   129→- create announcements
+   130→   130→- operate entirely inside city scope
+   131→   131→
+   132→   132→## 6. People Operations
+   133→   133→
+   134→   134→**Status:** Implemented
+   135→   135→
+   136→   136→Route: `/admin/people`
+   137→   137→
+   138→   138→Features:
+   139→   139→
+   140→   140→- create Shabab and assign to a group
+   141→   141→- create Murabbis and assign to a group
+   142→   142→- reassign Shabab between groups
+   143→   143→- reassign Murabbis between groups
+   144→   144→- edit name, phone, and active status
+   145→   145→- bulk move Shabab
+   146→   146→- bulk activate/deactivate Shabab
+   147→   147→- bulk activate/deactivate Murabbis
+   148→   148→- filter by park, batch, and activity
+   149→   149→- coverage-gap view
+   150→   150→- attention queue
+   151→   151→- row-level login visibility
+   152→   152→- selected-record access status
+   153→   153→- direct handoff into `/admin/users`
+   154→   154→
+   155→   155→## 7. Student Operations
+   156→   156→
+   157→   157→**Status:** Implemented
+   158→   158→
+   159→   159→Route: `/admin/students`
+   160→   160→
+   161→   161→Features:
+   162→   162→
+   163→   163→- student-only directory
+   164→   164→- search by text
+   165→   165→- filter by park, batch, and activity
+   166→   166→- URL-persistent filter state
+   167→   167→- copy filtered URL
+   168→   168→- reset view
+   169→   169→- row-level `Open Access`
+   170→   170→- selected student access status
+   171→   171→- direct handoff into `/admin/users`
+   172→   172→
+   173→   173→## 8. Guardian Operations
+   174→   174→
+   175→   175→**Status:** Implemented
+   176→   176→
+   177→   177→Route: `/admin/guardians`
+   178→   178→
+   179→   179→Features:
+   180→   180→
+   181→   181→- create guardian linked to a visible child
+   182→   182→- link existing guardian to another visible child
+   183→   183→- guardian directory
+   184→   184→- search and park filter
+   185→   185→- URL-persistent filter state
+   186→   186→- copy filtered URL
+   187→   187→- reset view
+   188→   188→- row-level `Open Access`
+   189→   189→- selected guardian access status
+   190→   190→- direct handoff into `/admin/users`
+   191→   191→
+   192→   192→## 9. Access Management Workspace
+   193→   193→
+   194→   194→**Status:** Implemented
+   195→   195→
+   196→   196→Route: `/admin/users`
+   197→   197→
+   198→   198→Features:
+   199→   199→
+   200→   200→- Excel template download
+   201→   201→- bulk import
+   202→   202→- single-account create
+   203→   203→- single-account update
+   204→   204→- existing access lookup for person or guardian target
+   205→   205→- contextual target handoff from people, students, and guardians
+   206→   206→
+   207→   207→Current form safeguards:
+   208→   208→
+   209→   209→- create vs update wording
+   210→   210→- email autofill for existing linked accounts
+   211→   211→- role autofill with manual override preservation
+   212→   212→- guardian target precedence
+   213→   213→- `personId` disabled in guardian mode
+   214→   214→- role locked to `guardian` in guardian mode
+   215→   215→- explicit effective target type
+   216→   216→- explicit effective role
+   217→   217→- disabled save when effective role is blank
+   218→   218→- explicit warning for unlinked account creation
+   219→   219→
+   220→   220→## 10. Park Operations
+   221→   221→
+   222→   222→**Status:** Implemented
+   223→   223→
+   224→   224→Routes:
+   225→   225→
+   226→   226→- `/park`
+   227→   227→- `/park/schedule`
+   228→   228→- `/park/attendance`
+   229→   229→- `/park/attendance/[eventId]`
+   230→   230→- `/park/alerts`
+   231→   231→- `/park/procurement`
+   232→   232→- `/park/resources`
+   233→   233→
+   234→   234→Park dashboard (`/park`) features:
+   235→   235→
+   236→   236→- live attendance-event counts for today
+   237→   237→- open vs closed counts
+   238→   238→- park attention queue
+   239→   239→- offline queue health
+   240→   240→- next urgent action
+   241→   241→- direct jump into first failed queue event or first live event
+   242→   242→- attendance alert workspace for warning/dropout follow-up with guardian communication
+   243→   243→
+   244→   244→Attendance workflow:
+   245→   245→
+   246→   246→- today event board
+   247→   247→- attendance roster
+   248→   248→- offline-first marking
+   249→   249→- local queueing in Dexie
+   250→   250→- sync and retry handling
+   251→   251→
+   252→   252→Additional park operations:
+   253→   253→
+   254→   254→- park resources library
+   255→   255→- park procurement visibility for allocations and low-stock review
+   256→   256→- park-side supply request creation and request-history tracking
+   257→   257→
+   258→   258→## 11. Guardian Portal
+   259→   259→
+   260→   260→**Status:** Implemented
+   261→   261→
+   262→   262→Route: `/guardian`
+   263→   263→
+   264→   264→Features:
+   265→   265→
+   266→   266→- linked child visibility
+   267→   267→- attendance view
+   268→   268→- fees view with outstanding summary, outstanding items, and receipt method visibility
+   269→   269→- announcements feed
+   270→   270→- dedicated guardian resources workspace via `/guardian/resources`
+   271→   271→
+   272→   272→## 12. Student Portal
+   273→   273→
+   274→   274→**Status:** Implemented
+   275→   275→
+   276→   276→Route: `/student`
+   277→   277→
+   278→   278→Features:
+   279→   279→
+   280→   280→- own attendance
+   281→   281→- own fee status with outstanding summary, outstanding items, and receipt method visibility
+   282→   282→- announcements
+   283→   283→
+   284→   284→## 12A. Admissions Operations
+   285→   285→
+   286→   286→**Status:** Implemented
+   287→   287→
+   288→   288→Route: `/admin/admissions`
+   289→   289→
+   290→   290→Features:
+   291→   291→
+   292→   292→- public intake form at `/apply`
+   293→   293→- city-scoped admissions pipeline
+   294→   294→- interview scheduling
+   295→   295→- interview completion with panel scores
+   296→   296→- placement decision workflow
+   297→   297→- approved-application conversion into live participant and guardian records
+   298→   298→- guardian WhatsApp handoff for interview scheduling and decision updates
+   299→   299→- action queue for overdue interviews, upcoming interviews, pending decisions, and ready-to-notify records
+   300→   300→
+   301→   301→## 12B. Content and Resources
+   302→   302→
+   303→   303→**Status:** Implemented
+   304→   304→
+   305→   305→Routes:
+   306→   306→
+   307→   307→- `/admin/content`
+   308→   308→- `/guardian/resources`
+   309→   309→- `/park/resources`
+   310→   310→- `/student/resources`
+   311→   311→
+   312→   312→Features:
+   313→   313→
+   314→   314→- content categories
+   315→   315→- link, video, and document publishing
+   316→   316→- audience targeting for staff, students, and guardians
+   317→   317→- featured-resource control
+   318→   318→- read-only consumption workspaces for guardians, students, and park roles
+   319→   319→
+   320→   320→## 12C. Procurement Operations
+   321→   321→
+   322→   322→**Status:** Implemented
+   323→   323→
+   324→   324→Routes:
+   325→   325→
+   326→   326→- `/admin/procurement`
+   327→   327→- `/park/procurement`
+   328→   328→
+   329→   329→Features:
+   330→   330→
+   331→   331→- inventory item catalog
+   332→   332→- park allocations
+   333→   333→- low-stock review
+   334→   334→- HQ stock adjustments and adjustment ledger
+   335→   335→- park-side allocation visibility
+   336→   336→
+   337→   337→## 12D. Fee Attention Operations
+   338→   338→
+   339→   339→**Status:** Implemented
+   340→   340→
+   341→   341→Route: `/admin/fee-alerts`
+   342→   342→
+   343→   343→Features:
+   344→   344→
+   345→   345→- shared unpaid-fee attention queue for HQ and city roles
+   346→   346→- search by participant, guardian, park, batch, and group
+   347→   347→- park filter
+   348→   348→- balance-type filter for admission vs event dues
+   349→   349→- guardian WhatsApp reminder handoff
+   350→   350→- direct jump into fee operations
+   351→   351→- outstanding amount summaries and due-item previews
+   352→   352→
+   353→   353→## 13. Reports and Exports
+   354→   354→
+   355→   355→**Status:** Implemented
+   356→   356→
+   357→   357→Route: `/admin/reports`
+   358→   358→
+   359→   359→Features:
+   360→   360→
+   361→   361→- filterable report workspace
+   362→   362→- saved report presets
+   363→   363→- URL-persistent filter state
+   364→   364→- city-focused report scope
+   365→   365→- copy filtered URL
+   366→   366→
+   367→   367→Exports:
+   368→   368→
+   369→   369→- Group Attendance
+   370→   370→- Team Attendance
+   371→   371→- Summary Dashboard
+   372→   372→
+   373→   373→## 14. UI / UX System
+   374→   374→
+   375→   375→**Status:** Implemented
+   376→   376→
+   377→   377→- unified branded UI
+   378→   378→- role-aware app shell
+   379→   379→- sticky dashboard surfaces
+   380→   380→- filter-heavy operational pages with:
+   381→   381→  - URL persistence
+   382→   382→  - visible active scope
+   383→   383→  - copy filtered URL
+   384→   384→  - reset view
+   385→   385→- improved mobile layouts on key admin pages
+   386→   386→- branded public homepage and login
+   387→   387→
+   388→   388→## 15. Security and Data Access Model
+   389→   389→
+   390→   390→**Status:** Implemented
+   391→   391→
+   392→   392→- session is used for identity
+   393→   393→- server-side admin client is used for complex reads and writes
+   394→   394→- explicit scope checks are enforced in code
+   395→   395→- route-level auth guards are active
+   396→   396→- protected routes redirect correctly when unauthenticated
+   397→   397→
+   398→   398→## 16. Testing and Verification
+   399→   399→
+   400→   400→**Status:** Implemented
+   401→   401→
+   402→   402→Current verification state:
+   403→   403→
+   404→   404→- `npm run lint` passed
+   405→   405→- `npm run typecheck` passed
+   406→   406→- `npm run test` passed
+   407→   407→- Test suite: `113/113` passing
+   408→   408→
+   409→   409→## 17. Deployment
+   410→   410→
+   411→   411→**Status:** Implemented
+   412→   412→
+   413→   413→- Production deployment completed successfully
+   414→   414→- Live URL: `https://shabab360.vercel.app`
+   415→   415→
+   416→   416→## 18. Current Remaining Work
+   417→   417→
+   418→   418→**Status:** Pending / Next phase
+   419→   419→
+   420→   420→Primary remaining items:
+   421→   421→
+   422→   422→- full browser UAT with real role accounts
+   423→   423→- live authenticated smoke tests for all main workflows
+   424→   424→- validation against real production data
+   425→   425→- bug fixes found during UAT
+   426→   426→- optional migration from deprecated Next.js `middleware` convention to `proxy`
+   427→   427→
+   428→   428→## 19. Recommended Immediate Next Steps
+   429→   429→
+   430→   430→1. Run browser UAT on:
+   431→   431→   - `/admin/students`
+   432→   432→   - `/admin/guardians`
+   433→   433→   - `/admin/users`
+   434→   434→   - `/park`
+   435→   435→   - `/park/attendance`
+   436→   436→   - `/park/attendance/[eventId]`
+   437→   437→2. Validate:
+   438→   438→   - student access creation
+   439→   439→   - guardian access creation
+   440→   440→   - park queue health and urgent action behavior
+   441→   441→3. Log issues found in live use
+   442→   442→4. Patch only confirmed defects next
+   443→   443→
+   444→   444→## 20. Next Five Sprint Roadmap
+   445→   445→
+   446→   446→### Sprint 1. Visual System Refresh
+   447→   447→
+   448→   448→**Goal:** Lift the visual quality of the product shell so every role workspace inherits a stronger identity.
+   449→   449→
+   450→   450→- strengthen the shared visual system in `globals.css`
+   451→   451→- add richer hero, spotlight, and KPI surface styles
+   452→   452→- reduce flat white-card repetition
+   453→   453→- improve perceived hierarchy across dashboards
+   454→   454→
+   455→   455→**Execution state:** Core visual-system uplift implemented in this pass.
+   456→   456→
+   457→   457→### Sprint 2. Shell and Navigation Upgrade
+   458→   458→
+   459→   459→**Goal:** Make the application shell feel like a modern operations workspace instead of a basic sidebar layout.
+   460→   460→
+   461→   461→- redesign sidebar branding and active-state treatment
+   462→   462→- improve topbar controls and workspace context
+   463→   463→- add mobile shortcut navigation
+   464→   464→- surface current view and viewer context more clearly
+   465→   465→
+   466→   466→**Execution state:** Shared app shell upgraded in this pass.
+   467→   467→
+   468→   468→### Sprint 3. Dashboard Experience Upgrade
+   469→   469→
+   470→   470→**Goal:** Turn primary dashboards into stronger command surfaces with clearer hierarchy and urgency.
+   471→   471→
+   472→   472→- redesign admin dashboard hero and KPI cards
+   473→   473→- strengthen HQ vs city-ops visual distinction
+   474→   474→- improve park dashboard hero and urgent-action focus
+   475→   475→- keep operational shortcuts prominent above secondary content
+   476→   476→
+   477→   477→**Execution state:** Admin and park dashboards upgraded in this pass.
+   478→   478→
+   479→   479→### Sprint 4. Operational Workspace Polish
+   480→   480→
+   481→   481→**Goal:** Extend the stronger UX language into the main operational screens users touch every day.
+   482→   482→
+   483→   483→- align students, guardians, people, access, and reporting pages with the new shell language
+   484→   484→- tighten dense forms and control bars for mobile
+   485→   485→- improve page-level empty states, filters, and action prominence
+   486→   486→- remove remaining visually flat sections
+   487→   487→
+   488→   488→**Execution state:** Planned next implementation wave.
+   489→   489→
+   490→   490→### Sprint 5. Go-Live Readiness and UAT Closure
+   491→   491→
+   492→   492→**Goal:** Finish the UI with production-quality validation and close remaining workflow gaps.
+   493→   493→
+   494→   494→- run browser UAT against the refreshed UI
+   495→   495→- fix issues found in live role workflows
+   496→   496→- polish remaining copy and spacing inconsistencies
+   497→   497→- complete go-live checklist and stabilization work
+   498→   498→
+   499→   499→**Execution state:** Planned after Sprint 4 work lands.
+   500→   500→
+   501→   501→## 21. Latest Sprint Snapshot
+   502→   502→
+   503→   503→**Status:** Implemented
+   504→   504→
+   505→   505→- Added `/admin/ops-center` as a unified admin action queue
+   506→   506→- Combined action lanes:
+   507→   507→  - admissions
+   508→   508→  - attendance alerts
+   509→   509→  - fee alerts
+   510→   510→  - procurement requests
+   511→   511→  - todayâ€™s attendance event coverage
+   512→   512→- Added admin navigation, dashboard entry, and Test Center coverage for the new workspace
+   513→   513→
+   514→   514→## 22. Latest Sprint Snapshot
+   515→   515→
+   516→   516→**Status:** Implemented
+   517→   517→
+   518→   518→- Added `/park/ops-center` as a unified park action queue
+   519→   519→- Combined park action lanes:
+   520→   520→  - todayâ€™s live attendance events
+   521→   521→  - attendance alerts
+   522→   522→  - supply request follow-up
+   523→   523→  - local offline queue pressure
+   524→   524→- Added park navigation, dashboard entry, and Test Center coverage for the new workspace
+   525→   525→
+   526→   526→## 23. Latest Sprint Snapshot
+   527→   527→
+   528→   528→**Status:** Implemented
+   529→   529→
+   530→   530→- Added `/admin/schedule` as a date-focused admin schedule center
+   531→   531→- Added `/park/schedule` as a date-focused park schedule center
+   532→   532→- Reused existing admissions, attendance, and procurement data to build schedule queues without new schema
+   533→   533→- Added schedule navigation, dashboard entry points, and Test Center coverage for both admin and park roles
+   534→   534→
+   535→   535→## 24. Latest Sprint Snapshot
+   536→   536→
+   537→   537→**Status:** Implemented
+   538→   538→
+   539→   539→- Added `/apply/status` as a public admissions tracking page
+   540→   540→- Added `/api/public/admissions/status` for tracking-code plus guardian-phone lookups
+   541→   541→- Extended the admissions form success state with:
+   542→   542→  - tracking code
+   543→   543→  - copy tracking code
+   544→   544→  - copy public status link
+   545→   545→- Extended admin admissions review with:
+   546→   546→  - visible tracking code
+   547→   547→  - copy tracking code
+   548→   548→  - copy public status link
+   549→   549→- Tightened public admissions privacy by removing internal review notes from the public lookup response
+   550→   550→
+   551→   551→## 25. Latest Sprint Snapshot
+   552→   552→
+   553→   553→**Status:** Implemented
+   554→   554→
+   555→   555→- Added `/guardian/schedule` as a family schedule workspace for linked children
+   556→   556→- Added `/student/schedule` as a student schedule workspace for upcoming attendance events
+   557→   557→- Added shared family schedule data and UI with:
+   558→   558→  - search
+   559→   559→  - participant filter
+   560→   560→  - event-state filter
+   561→   561→  - copy filtered URL
+   562→   562→  - reset view
+   563→   563→- Added guardian and student dashboard entry points into the new schedule routes
+   564→   564→- Migrated deprecated `middleware.ts` to `proxy.ts` to remove the Next.js build warning
+   565→   565→
+   566→   566→## 26. Latest Sprint Snapshot
+   567→   567→
+   568→   568→**Status:** Implemented
+   569→   569→
+   570→   570→- Added dedicated announcement centers for:
+   571→   571→  - `/guardian/announcements`
+   572→   572→  - `/student/announcements`
+   573→   573→  - `/park/announcements`
+   574→   574→- Added shared audience-announcement feed UI with:
+   575→   575→  - search
+   576→   576→  - scope filter
+   577→   577→  - copy filtered URL
+   578→   578→  - reset view
+   579→   579→  - open/copy/share message actions
+   580→   580→- Fixed student announcement targeting by adding a real student audience to the announcements schema
+   581→   581→- Updated admin announcement publishing so HQ and city teams can target students explicitly
+   582→   582→- Added guardian, student, and park dashboard/nav entry points to the new announcement centers
+   583→   583→- Added Test Center coverage for the new announcement routes
+   584→   584→
+   585→   585→## 27. Latest Sprint Snapshot
+   586→   586→
+   587→   587→**Status:** Implemented
+   588→   588→
+   589→   589→- Added `/admin/access-alerts` as a unified onboarding and access-follow-up workspace for HQ and city operations
+   590→   590→- Added a shared access-attention data layer and board with:
+   591→   591→  - search
+   592→   592→  - target filter
+   593→   593→  - status filter
+   594→   594→  - park filter
+   595→   595→  - copy filtered URL
+   596→   596→  - reset view
+   597→   597→- The new queue surfaces:
+   598→   598→  - missing login access
+   599→   599→  - forced password reset accounts
+   600→   600→  - ready accounts when broader inspection is needed
+   601→   601→- Included students, guardians, murabbis, park admins, park leads, and city heads within the appropriate admin scope
+   602→   602→- Added direct action links from each row into `/admin/users`
+   603→   603→- Fixed `/admin/users` context handling so guardian-targeted access handoffs now load correctly end to end
+   604→   604→- Added navigation, dashboard links, and Test Center coverage for the new access-alerts route
+   605→   605→
+   606→   606→## 28. Latest Sprint Snapshot
+   607→   607→
+   608→   608→**Status:** Implemented
+   609→   609→
+   610→   610→- Extended `/admin/admissions` so converted applications now surface onboarding follow-up state directly
+   611→   611→- Admissions applications now carry:
+   612→   612→  - participant access status
+   613→   613→  - guardian access status
+   614→   614→  - reset-required visibility
+   615→   615→- Added batched linked-access loading in the access data layer to avoid one-by-one status lookups
+   616→   616→- Added admissions onboarding actions:
+   617→   617→  - open student ops
+   618→   618→  - open guardian ops
+   619→   619→  - open targeted access setup
+   620→   620→  - open access alerts
+   621→   621→- Added an `Onboarding Incomplete` KPI to the admissions workspace
+   622→   622→- Updated the Test Center admissions checklist to include onboarding handoff
+   623→   623→
+   624→   624→## 29. Latest Sprint Snapshot
+   625→   625→
+   626→   626→**Status:** Implemented
+   627→   627→
+   628→   628→- Added scoped attendance insight workspaces for:
+   629→   629→  - `/admin/attendance-insights`
+   630→   630→  - `/park/attendance-insights`
+   631→   631→- Added one shared attendance-insights data layer and client UI with:
+   632→   632→  - date-range filtering
+   633→   633→  - park filtering
+   634→   634→  - local search
+   635→   635→  - copy filtered URL
+   636→   636→  - reset view
+   637→   637→- The new insight center surfaces:
+   638→   638→  - attendance rate
+   639→   639→  - open vs closed events
+   640→   640→  - warning/dropout pressure
+   641→   641→  - daily trend rows
+   642→   642→  - park summaries
+   643→   643→  - hotspot groups with direct event follow-up links
+   644→   644→- Added admin and park navigation, dashboard links, and Test Center coverage for the new attendance-insights routes
+   645→   645→- Included a small sprint cleanup to keep dashboard copy and route wiring aligned with the new insight workflow
+   646→   646→
+   647→   647→## 30. Latest Sprint Snapshot
+   648→   648→
+   649→   649→**Status:** Implemented
+   650→   650→
+   651→   651→- Added `/park/roster` as a dedicated participant and guardian follow-up workspace for park roles
+   652→   652→- Added a shared park-roster data layer that reuses:
+   653→   653→  - participants
+   654→   654→  - guardian links
+   655→   655→  - login access state
+   656→   656→  - latest attendance context
+   657→   657→- The new roster page includes:
+   658→   658→  - park filtering
+   659→   659→  - participant-state filtering
+   660→   660→  - access/guardian-linkage filtering
+   661→   661→  - local search
+   662→   662→  - copy filtered URL
+   663→   663→  - reset view
+   664→   664→- Added direct park actions for:
+   665→   665→  - opening attendance alerts
+   666→   666→  - messaging the first linked guardian on WhatsApp
+   667→   667→- Added park navigation, dashboard links, ops-center entry points, and Test Center coverage for the new roster route
+   668→   668→
+   669→   669→## 31. Latest Sprint Snapshot
+   670→   670→
+   671→   671→**Status:** Implemented
+   672→   672→
+   673→   673→- Added `/park/fee-alerts` as a dedicated unpaid-dues follow-up workspace for park roles
+   674→   674→- Extended the shared fee-attention board so it can be reused safely by:
+   675→   675→  - admin roles
+   676→   676→  - park roles
+   677→   677→- Park fee alerts now support:
+   678→   678→  - unpaid participant review
+   679→   679→  - guardian WhatsApp reminder handoff
+   680→   680→  - direct park-roster follow-up
+   681→   681→- Added a fee lane into `/park/ops-center` so park roles can see unpaid-dues pressure in the unified action queue
+   682→   682→- Added park navigation, dashboard links, and Test Center coverage for the new park fee-alert workflow
+   683→   683→- No schema migration was required for this sprint
+   684→   684→
+   685→   685→## 32. Latest Sprint Snapshot
+   686→   686→
+   687→   687→**Status:** Implemented
+   688→   688→
+   689→   689→- Added `/admin/family-ops` as a unified family follow-up workspace for HQ and city roles
+   690→   690→- Built one shared family-ops data layer that combines:
+   691→   691→  - admissions follow-up
+   692→   692→  - attendance family outreach
+   693→   693→  - fee reminders
+   694→   694→  - access onboarding actions
+   695→   695→- Added one reusable client workspace with:
+   696→   696→  - lane summaries
+   697→   697→  - severity filtering
+   698→   698→  - park filtering
+   699→   699→  - search
+   700→   700→  - copy filtered URL
+   701→   701→  - reset view
+   702→   702→- Added guardian WhatsApp handoff directly from family-facing attendance, fee, and admissions rows
+   703→   703→- Added direct next-step links into:
+   704→   704→  - admissions
+   705→   705→  - students
+   706→   706→  - guardians
+   707→   707→  - access alerts
+   708→   708→  - targeted access setup
+   709→   709→- Added admin navigation, dashboard links, and Test Center coverage for the new family-ops route
+   710→   710→- No schema migration was required for this sprint
+   711→   711→
+   712→   712→## 33. Latest Sprint Snapshot
+   713→   713→
+   714→   714→**Status:** Implemented
+   715→   715→
+   716→   716→- Added `/admin/attendance-command` as a date-based attendance coverage workspace for HQ and city roles
+   717→   717→- Built one shared attendance-command data layer that combines:
+   718→   718→  - missing group coverage for the selected date
+   719→   719→  - open and closed event follow-up
+   720→   720→  - park-by-park coverage summaries
+   721→   721→- Added one reusable client workspace with:
+   722→   722→  - date filter
+   723→   723→  - park filter
+   724→   724→  - batch filter
+   725→   725→  - severity filter
+   726→   726→  - search
+   727→   727→  - copy filtered URL
+   728→   728→  - reset view
+   729→   729→- Added admin navigation, dashboard entry points, and Test Center coverage for the new attendance-command route
+   730→   730→- Fixed `/admin/attendance-events` local filter updates so they use client-side URL replacement instead of unnecessary Next.js server navigation
+   731→   731→- No schema migration was required for this sprint
+   732→   732→
+   733→   733→## 34. Latest Sprint Snapshot
+   734→   734→
+   735→   735→**Status:** Implemented
+   736→   736→
+   737→   737→- Added `/guardian/action-center` and `/student/action-center` as unified family follow-up workspaces
+   738→   738→- Built one shared family-action data layer that combines:
+   739→   739→  - attendance progress attention
+   740→   740→  - upcoming schedule follow-up
+   741→   741→  - fee follow-up
+   742→   742→  - latest announcement follow-up
+   743→   743→- Added one reusable client workspace with:
+   744→   744→  - search
+   745→   745→  - participant filter
+   746→   746→  - lane filter
+   747→   747→  - copy filtered URL
+   748→   748→  - reset view
+   749→   749→- Added guardian and student navigation, dashboard entry points, and Test Center coverage for the new action-center routes
+   750→   750→- Fixed `/guardian/schedule` and `/student/schedule` local filter updates so they use client-side URL replacement instead of unnecessary Next.js server navigation
+   751→   751→- No schema migration was required for this sprint
+   752→   752→
+   753→   753→## 35. Latest Sprint Snapshot
+   754→   754→
+   755→   755→**Status:** Implemented
+   756→   756→
+   757→   757→- Added `/guardian/history` and `/student/history` as dedicated history centers for family users
+   758→   758→- Built one shared family-history data layer and client workspace that combines:
+   759→   759→  - attendance history
+   760→   760→  - fee history
+   761→   761→  - per-participant fee summary
+   762→   762→- Added shareable, URL-persistent filters for:
+   763→   763→  - search
+   764→   764→  - participant selection
+   765→   765→  - attendance date range
+   766→   766→  - fee date range
+   767→   767→  - focused view (`attendance`, `fees`, or both)
+   768→   768→- Added guardian and student navigation entries for the new history routes
+   769→   769→- Updated guardian and student dashboard quick actions so attendance and fee follow-up can open the new history centers directly instead of relying only on deep dashboard scrolling
+   770→   770→- Added Test Center coverage for the new family history routes
+   771→   771→- No schema migration was required for this sprint
+   772→   772→
+   773→   773→## 36. Latest Sprint Snapshot
+   774→   774→
+   775→   775→**Status:** Implemented
+   776→   776→
+   777→   777→- Added `/park/guardians` as a dedicated guardian contact center for park roles
+   778→   778→- Built one shared park-guardian data layer by reusing:
+   779→   779→  - park roster visibility
+   780→   780→  - guardian linkage
+   781→   781→  - participant state
+   782→   782→  - latest attendance context
+   783→   783→- Added one park guardian workspace with:
+   784→   784→  - search
+   785→   785→  - park filter
+   786→   786→  - attention filter
+   787→   787→  - access filter
+   788→   788→  - copy filtered URL
+   789→   789→  - reset view
+   790→   790→- Added direct guardian follow-up actions:
+   791→   791→  - WhatsApp contact
+   792→   792→  - park roster handoff
+   793→   793→  - attendance alerts handoff
+   794→   794→  - fee alerts handoff
+   795→   795→- Added park navigation, dashboard links, ops-center links, and Test Center coverage for the new guardian-contact route
+   796→   796→- No schema migration was required for this sprint
+   797→   797→
+   798→   798→## 37. Latest Sprint Snapshot
+   799→   799→
+   800→   800→**Status:** Implemented
+   801→   801→
+   802→   802→- Added `/admin/onboarding-center` as a dedicated admissions onboarding workspace for HQ and city roles
+   803→   803→- Built one shared admissions-onboarding data layer that reuses:
+   804→   804→  - approved admissions placement state
+   805→   805→  - admissions conversion state
+   806→   806→  - linked student access state
+   807→   807→  - linked guardian access state
+   808→   808→- Added one onboarding center with:
+   809→   809→  - search
+   810→   810→  - lane filter
+   811→   811→  - status filter
+   812→   812→  - severity filter
+   813→   813→  - park filter
+   814→   814→  - copy filtered URL
+   815→   815→  - reset view
+   816→   816→- Added direct next-step actions into:
+   817→   817→  - admissions
+   818→   818→  - student access setup
+   819→   819→  - guardian access setup
+   820→   820→  - student ops
+   821→   821→  - guardian ops
+   822→   822→- Fixed `/admin/admissions` local query and stage filters so they persist in the browser URL instead of resetting on refresh
+   823→   823→- Added admin navigation, dashboard links, and Test Center coverage for the new onboarding-center route
+   824→   824→- No schema migration was required for this sprint
+   825→   825→
+   826→   826→## 38. Latest Sprint Snapshot
+   827→   827→
+   828→   828→**Status:** Implemented
+   829→   829→
+   830→   830→- Added `/park/family-ops` as a dedicated park-side family follow-up workspace
+   831→   831→- Built one shared park-family-ops data layer that reuses:
+   832→   832→  - park roster visibility
+   833→   833→  - guardian linkage
+   834→   834→  - attendance attention
+   835→   835→  - fee attention
+   836→   836→- Added one park family operations center with:
+   837→   837→  - search
+   838→   838→  - lane filter
+   839→   839→  - severity filter
+   840→   840→  - park filter
+   841→   841→  - copy filtered URL
+   842→   842→  - reset view
+   843→   843→- Added direct next-step actions into:
+   844→   844→  - guardians
+   845→   845→  - roster
+   846→   846→  - attendance alerts
+   847→   847→  - fee alerts
+   848→   848→  - guardian WhatsApp follow-up
+   849→   849→- Fixed `/admin/students` and `/admin/guardians` local filter updates so they use browser URL replacement instead of unnecessary Next.js router navigation
+   850→   850→- Added park navigation, dashboard links, ops-center links, and Test Center coverage for the new park-family-ops route
+   851→   851→- No schema migration was required for this sprint
+   852→   852→
+   853→   853→## 39. Latest Sprint Snapshot
+   854→   854→
+   855→   855→**Status:** Implemented
+   856→   856→
+   857→   857→- Added `/park/attendance-command` as a dedicated date-focused attendance coverage workspace for park roles
+   858→   858→- Refactored the attendance-command feature into one shared admin/park implementation instead of keeping it admin-only
+   859→   859→- Added park-scoped attendance-command data loading that reuses:
+   860→   860→  - accessible park ids
+   861→   861→  - active batches
+   862→   862→  - active groups
+   863→   863→  - attendance events for the selected date
+   864→   864→- Added direct park links into:
+   865→   865→  - attendance board
+   866→   866→  - attendance insights
+   867→   867→  - park dashboard
+   868→   868→  - park ops center
+   869→   869→- Fixed shared announcement-center local filters so they update the browser URL without unnecessary Next.js router navigation
+   870→   870→- Fixed shared content-library local filters so they update the browser URL without unnecessary Next.js router navigation
+   871→   871→- Added Test Center coverage for the new park attendance-command route
+   872→   872→- No schema migration was required for this sprint
+   873→   873→
+   874→   874→## 40. Latest Sprint Snapshot
+   875→   875→
+   876→   876→**Status:** Implemented
+   877→   877→
+   878→   878→- Added `/admin/student-progress` and `/park/student-progress` as unified student follow-up workspaces for admin and park roles
+   879→   879→- Built one shared student-progress data layer that combines:
+   880→   880→  - participant state
+   881→   881→  - guardian linkage
+   882→   882→  - access status
+   883→   883→  - latest attendance context
+   884→   884→  - outstanding dues
+   885→   885→- Added one shared student-progress center with:
+   886→   886→  - search
+   887→   887→  - park filter
+   888→   888→  - state filter
+   889→   889→  - access filter
+   890→   890→  - dues filter
+   891→   891→  - copy filtered URL
+   892→   892→  - reset view
+   893→   893→- Added direct next-step actions into:
+   894→   894→  - students or roster
+   895→   895→  - attendance alerts
+   896→   896→  - fee alerts
+   897→   897→  - access or guardians follow-up
+   898→   898→- Fixed `/admin/people`, `/admin/parks`, and `/admin/reports` local filter updates so they update the browser URL without unnecessary Next.js router navigation
+   899→   899→- Added navigation, dashboard links, and Test Center coverage for the new admin and park student-progress routes
+   900→   900→- No schema migration was required for this sprint
+   901→   901→
+   902→   902→## 41. Latest Sprint Snapshot
+   903→   903→
+   904→   904→**Status:** Implemented
+   905→   905→
+   906→   906→- Added `/admin/park-health` as a dedicated per-park operational health workspace for HQ and city roles
+   907→   907→- Built a shared park-health data layer that combines:
+   908→   908→  - active batch coverage
+   909→   909→  - group coverage
+   910→   910→  - participant counts
+   911→   911→  - warning and dropout pressure
+   912→   912→  - today's open and closed attendance events
+   913→   913→  - groups missing today's event
+   914→   914→  - outstanding dues pressure
+   915→   915→  - pending procurement requests
+   916→   916→- Added a park health board with:
+   917→   917→  - search
+   918→   918→  - park filter
+   919→   919→  - health-state filter
+   920→   920→  - copy filtered URL
+   921→   921→  - reset view
+   922→   922→- Added direct next-step actions into:
+   923→   923→  - attendance command
+   924→   924→  - fee alerts
+   925→   925→  - procurement
+   926→   926→- Fixed `/admin/procurement` local filter updates so request and inventory filters now persist in the browser URL without unnecessary Next.js router navigation
+   927→   927→- Fixed `/admin/content` local filter updates so content search and audience/category/state filters now persist in the browser URL without unnecessary Next.js router navigation
+   928→   928→- Added admin navigation, dashboard links, and Test Center coverage for the new park-health route
+   929→   929→- No schema migration was required for this sprint
+   930→   930→
+   931→   931→## 42. Latest Sprint Snapshot
+   932→   932→
+   933→   933→**Status:** Implemented
+   934→   934→
+   935→   935→- Added `/admin/batch-health` as a dedicated per-batch operational health workspace for HQ and city roles
+   936→   936→- Built a shared batch-health data layer that combines:
+   937→   937→  - batch rule configuration coverage
+   938→   938→  - group and participant counts
+   939→   939→  - murabbi coverage gaps
+   940→   940→  - today's open and closed attendance events
+   941→   941→  - groups missing today's event
+   942→   942→  - outstanding dues pressure
+   943→   943→- Added a batch health board with:
+   944→   944→  - search
+   945→   945→  - park filter
+   946→   946→  - health-state filter
+   947→   947→  - copy filtered URL
+   948→   948→  - reset view
+   949→   949→- Added direct next-step actions into:
+   950→   950→  - batch settings
+   951→   951→  - parks and groups setup
+   952→   952→  - attendance command
+   953→   953→- Fixed `/admin/settings` so focused `batchId` selection is URL-driven and reload-safe
+   954→   954→- Fixed `/admin/cities` local focus changes so they update the browser URL without unnecessary Next.js router navigation
+   955→   955→- Fixed `/admin/attendance-insights` park filtering so local scope changes no longer trigger avoidable server navigation
+   956→   956→- Added admin navigation, dashboard links, and Test Center coverage for the new batch-health route
+   957→   957→- No schema migration was required for this sprint
+   958→   958→
