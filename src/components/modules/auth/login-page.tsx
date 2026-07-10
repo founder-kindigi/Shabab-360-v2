@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Loader2, Eye, EyeOff } from "lucide-react";
+import { Loader2, Eye, EyeOff, Shield, Lock, Mail } from "lucide-react";
 
 export function LoginPage() {
   const [email, setEmail] = useState("");
@@ -39,9 +39,6 @@ export function LoginPage() {
         setError("Invalid email or password");
         return;
       }
-
-      // The session will be available via the AuthenticatedApp useEffect
-      // which will handle the role-based navigation
     } catch {
       setError("Something went wrong. Please try again.");
     } finally {
@@ -51,6 +48,13 @@ export function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-emerald-50 via-white to-teal-50 dark:from-emerald-950 dark:via-background dark:to-teal-950 relative overflow-hidden">
+      {/* Background decorations */}
+      <div className="absolute top-0 left-0 w-full h-full pointer-events-none overflow-hidden">
+        <div className="absolute -top-40 -right-40 w-80 h-80 rounded-full bg-emerald-200/30 dark:bg-emerald-800/20 blur-3xl" />
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 rounded-full bg-teal-200/30 dark:bg-teal-800/20 blur-3xl" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-emerald-100/20 dark:bg-emerald-900/10 blur-3xl" />
+      </div>
+
       {/* Subtle geometric pattern overlay */}
       <div
         className="absolute inset-0 opacity-[0.03] dark:opacity-[0.05] pointer-events-none"
@@ -63,26 +67,30 @@ export function LoginPage() {
         {/* Logo / Branding */}
         <div className="flex flex-col items-center mb-8">
           <motion.div
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ duration: 0.4, ease: "easeOut" }}
-            className="flex items-center justify-center size-14 rounded-2xl bg-emerald-600 text-white font-bold text-xl mb-4 shadow-lg shadow-emerald-600/25"
+            initial={{ scale: 0.8, opacity: 0, rotate: -10 }}
+            animate={{ scale: 1, opacity: 1, rotate: 0 }}
+            transition={{ duration: 0.5, ease: "easeOut" }}
+            className="relative"
           >
-            S
+            <div className="flex items-center justify-center size-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-700 text-white font-bold text-2xl mb-4 shadow-xl shadow-emerald-600/30">
+              S
+            </div>
+            {/* Glow effect */}
+            <div className="absolute inset-0 rounded-2xl bg-emerald-500/20 blur-xl -z-10" />
           </motion.div>
           <motion.h1
-            initial={{ opacity: 0, y: 8 }}
+            initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1, duration: 0.4 }}
-            className="text-2xl font-bold text-foreground"
+            className="text-2xl font-bold tracking-tight text-foreground"
           >
             Shabab360
           </motion.h1>
           <motion.p
-            initial={{ opacity: 0, y: 8 }}
+            initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.15, duration: 0.4 }}
-            className="text-sm text-muted-foreground mt-1"
+            className="text-sm text-muted-foreground mt-1.5"
           >
             Program Operations Platform
           </motion.p>
@@ -90,36 +98,46 @@ export function LoginPage() {
 
         {/* Login Card */}
         <motion.div
-          initial={{ opacity: 0, y: 12 }}
+          initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2, duration: 0.4 }}
+          transition={{ delay: 0.2, duration: 0.5, ease: "easeOut" }}
         >
-          <Card className="border-0 shadow-xl ring-1 ring-emerald-200/50 dark:ring-emerald-800/50">
-            <CardHeader className="pb-2">
-              <h2 className="text-lg font-semibold text-center">Sign In</h2>
-              <p className="text-sm text-muted-foreground text-center">
-                Enter your credentials to access your account
-              </p>
+          <Card className="border-0 shadow-xl shadow-black/5 dark:shadow-black/20 ring-1 ring-black/5 dark:ring-white/5 backdrop-blur-sm bg-card/80">
+            <CardHeader className="pb-2 pt-6">
+              <div className="flex flex-col items-center text-center">
+                <div className="rounded-xl bg-emerald-50 dark:bg-emerald-950/50 p-2.5 mb-3">
+                  <Shield className="size-5 text-emerald-600 dark:text-emerald-400" />
+                </div>
+                <h2 className="text-lg font-semibold">Welcome Back</h2>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Enter your credentials to access your account
+                </p>
+              </div>
             </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-4">
+            <CardContent className="px-6 pb-6">
+              <form onSubmit={handleSubmit} className="space-y-5">
                 <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="you@shabab360.pk"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    disabled={loading}
-                    autoComplete="email"
-                    autoFocus
-                  />
+                  <Label htmlFor="email" className="text-sm font-medium">Email Address</Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="you@shabab360.pk"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      disabled={loading}
+                      autoComplete="email"
+                      autoFocus
+                      className="pl-9 h-11"
+                    />
+                  </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="password">Password</Label>
+                  <Label htmlFor="password" className="text-sm font-medium">Password</Label>
                   <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
                     <Input
                       id="password"
                       type={showPassword ? "text" : "password"}
@@ -128,7 +146,7 @@ export function LoginPage() {
                       onChange={(e) => setPassword(e.target.value)}
                       disabled={loading}
                       autoComplete="current-password"
-                      className="pr-10"
+                      className="pl-9 pr-10 h-11"
                     />
                     <button
                       type="button"
@@ -146,14 +164,18 @@ export function LoginPage() {
                 </div>
 
                 {error && (
-                  <div className="rounded-lg bg-destructive/10 border border-destructive/20 px-3 py-2">
+                  <motion.div
+                    initial={{ opacity: 0, y: -4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="rounded-lg bg-destructive/10 border border-destructive/20 px-3.5 py-2.5"
+                  >
                     <p className="text-sm text-destructive">{error}</p>
-                  </div>
+                  </motion.div>
                 )}
 
                 <Button
                   type="submit"
-                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
+                  className="w-full h-11 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-700 hover:to-emerald-600 text-white font-medium shadow-md shadow-emerald-600/20 transition-all duration-200"
                   disabled={loading}
                 >
                   {loading && <Loader2 className="size-4 animate-spin" />}
@@ -164,9 +186,14 @@ export function LoginPage() {
           </Card>
         </motion.div>
 
-        <p className="text-center text-xs text-muted-foreground mt-6">
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.5 }}
+          className="text-center text-xs text-muted-foreground/60 mt-8"
+        >
           Shabab360 v2 &middot; Built for the Shabab program
-        </p>
+        </motion.p>
       </div>
     </div>
   );

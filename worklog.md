@@ -64,3 +64,49 @@ Stage Summary:
 - Scope Selector ready for use across all admin pages
 - QA verified: login→dashboard→cities→parks→batches→groups all working
 - Next: Module 3 (Park Attendance) or continue Module 2 (People management, search/filter)
+
+---
+Task ID: 3-c/3-d
+Agent: Main
+Task: Audit Log Page + Settings Page
+
+Work Log:
+- **API Route `/api/admin/audit-log` (GET)**: Created with `requireRole(["super_admin", "program_admin"])` auth. Supports query params: `action`, `entityType`, `userId`, `from`, `to`, `limit`, `offset`. Returns `{ data: AuditLog[], total: number }`. Uses `fromPKT` for date range conversion.
+- **AuditLogPage Component**: Built with PageHeader, filter bar (action type dropdown, entity type dropdown, date range pickers using shadcn Calendar/Popover). Responsive design: desktop table + mobile cards. Color-coded action badges (green=CREATE, sky=UPDATE, red=DELETE, gray=auth). Metadata JSON with expand/collapse. TanStack Query with "Load More" pagination. Framer Motion animations. Loading skeletons.
+- **SettingsPage Component**: Three tabs using shadcn Tabs: (1) Profile - displays user info from `/api/user/profile`, inline edit for name/phone, change password with current/new/confirm fields calling `/api/auth/reset-password`; (2) Organization - read-only org stats from dashboard API, quick links to cities/parks/users; (3) Preferences - theme toggle (light/dark/system) using next-themes, sidebar collapsed/expanded toggle using Zustand.
+- **User Profile API** (`/api/user/profile`): GET returns user profile (name, email, phone). PATCH updates name/phone with `requireAuth()`.
+- **Enhanced `/api/auth/reset-password`**: Added optional `currentPassword` field with bcrypt verification. Backward compatible (skips check if not provided).
+- **ThemeProvider**: Added `next-themes` ThemeProvider to `layout.tsx` with class attribute, system default, no transitions.
+- **AppShell Registration**: Added `AuditLogPage` and `SettingsPage` imports, switch cases, removed from `comingSoonIcons`, excluded from scope selector and page header.
+
+Stage Summary:
+- 5 files created, 3 files modified
+- Audit Log page: full filter/search/pagination with responsive table+cards
+- Settings page: profile editing, password change, theme toggle, sidebar preference
+- All pages registered in AppShell with proper routing
+- Lint passes with no errors
+
+---
+Task ID: 3-b
+Agent: Main
+Task: Build Users Management Module
+
+Work Log:
+- Created `/api/admin/users` (GET + POST): GET returns all users with staffMeta joined, city/park/group names via selects, supports query params `?role=&status=&search=`. POST creates user + staffMeta in transaction with bcryptjs password hashing, validates email uniqueness, password min 8 chars, role enum, and role-based assignment requirements.
+- Created `/api/admin/users/[id]` (PATCH + DELETE): PATCH updates user fields and/or staffMeta fields (upsert pattern for staffMeta), prevents self-deactivation, validates role-based assignments. DELETE soft-deletes (sets isActive=false on user + staffMeta). Both fire audit logs.
+- Built `UsersPage` frontend component following exact `CitiesPage` pattern: PageHeader with "Create User" button, search input, role filter dropdown (6 roles), status filter (All/Active/Inactive), responsive table (desktop) + Framer Motion cards (mobile), color-coded role badges (emerald for admin, sky for city, amber for park, purple for murabbi), avatar circles with initials, assignment display (city/park/group), "Must Reset Password" warning badge, actions dropdown (Edit, Reset Password, Deactivate/Activate).
+- Create User Dialog: name, email, password (show/hide toggle), phone (optional), role select, cascading city→park→group selects (conditional on role), full validation.
+- Edit User Dialog: same fields minus password, detects changed fields only.
+- Reset Password confirmation dialog (sets mustResetPwd=true).
+- Deactivate/Activate with AlertDialog confirmation.
+- TanStack Query (useQuery, useMutation, useQueryClient) for data fetching + cache invalidation.
+- Toast notifications via sonner for all operations.
+- Loading skeletons during data fetch.
+- Registered `UsersPage` in AppShell PageContent switch, removed `"admin-users"` from comingSoonIcons, added `"admin-users"` to showPageHeader exclusion list.
+- Lint passes clean.
+
+Stage Summary:
+- Users Management Module COMPLETE
+- 3 files created: 2 API routes + 1 frontend component, 1 file modified (app-shell)
+- All CRUD operations working with proper auth, validation, and audit logging
+- Ready for QA testing: login→dashboard→Users sidebar item

@@ -14,7 +14,8 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { newPassword, confirmPassword } = body as {
+    const { currentPassword, newPassword, confirmPassword } = body as {
+      currentPassword?: string;
       newPassword?: string;
       confirmPassword?: string;
     };
@@ -39,6 +40,24 @@ export async function POST(request: Request) {
         { error: "Passwords do not match" },
         { status: 400 }
       );
+    }
+
+    // If currentPassword is provided (authenticated change), verify it
+    if (currentPassword) {
+      const existingUser = await db.user.findUnique({
+        where: { id: user.id },
+        select: { passwordHash: true },
+      });
+      if (!existingUser) {
+        return NextResponse.json({ error: "User not found" }, { status: 404 });
+      }
+      const valid = await bcrypt.compare(currentPassword, existingUser.passwordHash);
+      if (!valid) {
+        return NextResponse.json(
+          { error: "Current password is incorrect" },
+          { status: 400 }
+        );
+      }
     }
 
     // Hash and update

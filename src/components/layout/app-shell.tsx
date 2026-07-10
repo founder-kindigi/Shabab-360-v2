@@ -14,7 +14,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Menu, LogOut, User, ChevronDown, Construction } from "lucide-react";
+import { Menu, LogOut, User, ChevronDown, Construction, Settings } from "lucide-react";
 
 // Page components
 import { AdminDashboard } from "@/components/modules/admin/admin-dashboard";
@@ -22,6 +22,9 @@ import { CitiesPage } from "@/components/modules/admin/cities-page";
 import { BatchesPage } from "@/components/modules/admin/batches-page";
 import { GroupsPage } from "@/components/modules/admin/groups-page";
 import { ParksPage } from "@/components/modules/admin/parks-page";
+import { UsersPage } from "@/components/modules/admin/users-page";
+import { AuditLogPage } from "@/components/modules/admin/audit-log-page";
+import { SettingsPage } from "@/components/modules/admin/settings-page";
 import { ParkDashboard } from "@/components/modules/park/park-dashboard";
 import { GuardianDashboard } from "@/components/modules/guardian/guardian-dashboard";
 import { StudentDashboard } from "@/components/modules/student/student-dashboard";
@@ -32,8 +35,8 @@ import { ScopeSelector } from "@/components/shared/scope-selector";
 // Icons for coming-soon pages
 import {
   TreePine, Users, GraduationCap, ShieldCheck, CalendarCheck,
-  Settings, UserCog, DollarSign, FileText, Megaphone,
-  BarChart3, ScrollText, ClipboardList, Clock,
+  DollarSign, FileText, Megaphone,
+  BarChart3, ClipboardList, Clock,
 } from "lucide-react";
 
 const pageTitles: Record<PageId, string> = {
@@ -72,41 +75,40 @@ const pageTitles: Record<PageId, string> = {
   "student-announcements": "Announcements",
 };
 
-const comingSoonIcons: Record<string, typeof TreePine> = {
-  "admin-parks": TreePine,
-  "admin-batches": CalendarCheck,
-  "admin-groups": Users,
-  "admin-people": Users,
-  "admin-students": GraduationCap,
-  "admin-guardians": ShieldCheck,
-  "admin-attendance-events": CalendarCheck,
-  "admin-settings": Settings,
-  "admin-users": UserCog,
-  "admin-admissions": FileText,
-  "admin-fees": DollarSign,
-  "admin-announcements": Megaphone,
-  "admin-reports": BarChart3,
-  "admin-audit-log": ScrollText,
-  "park-attendance": CalendarCheck,
-  "park-roster": ClipboardList,
-  "park-participants": GraduationCap,
-  "park-guardians": ShieldCheck,
-  "park-schedule": Clock,
-  "guardian-history": ClipboardList,
-  "guardian-schedule": Clock,
-  "guardian-announcements": Megaphone,
-  "student-history": ClipboardList,
-  "student-schedule": Clock,
-  "student-announcements": Megaphone,
+const comingSoonConfig: Record<string, { icon: typeof TreePine; module: string; phase: string; description: string }> = {
+  "admin-people": { icon: Users, module: "People Directory", phase: "phase-2", description: "A comprehensive staff and people directory with search, filtering, and role-based views." },
+  "admin-students": { icon: GraduationCap, module: "Students", phase: "phase-4", description: "Student profiles, academic progress tracking, and batch assignments." },
+  "admin-guardians": { icon: ShieldCheck, module: "Guardians", phase: "phase-4", description: "Guardian profiles, family linking, and contact management." },
+  "admin-attendance-events": { icon: CalendarCheck, module: "Attendance", phase: "phase-3", description: "Attendance event management, session tracking, and offline-first marking." },
+  "admin-admissions": { icon: FileText, module: "Admissions", phase: "phase-4", description: "Student admission workflow, form management, and approval pipeline." },
+  "admin-fees": { icon: DollarSign, module: "Fee Management", phase: "phase-4", description: "Fee collection, payment tracking, installments, and financial reports." },
+  "admin-announcements": { icon: Megaphone, module: "Announcements", phase: "phase-3", description: "Organization-wide and targeted announcements with read tracking." },
+  "admin-reports": { icon: BarChart3, module: "Reports & Analytics", phase: "phase-4", description: "Comprehensive dashboards, attendance analytics, and exportable reports." },
+  "park-attendance": { icon: CalendarCheck, module: "Park Attendance", phase: "phase-3", description: "Mark attendance for your park groups with offline support." },
+  "park-roster": { icon: ClipboardList, module: "Roster", phase: "phase-3", description: "View and manage group rosters with participant details." },
+  "park-participants": { icon: GraduationCap, module: "Participants", phase: "phase-3", description: "Participant profiles, contact info, and group assignments." },
+  "park-guardians": { icon: ShieldCheck, module: "Families", phase: "phase-3", description: "Family contacts and guardian-linked participant views." },
+  "park-schedule": { icon: Clock, module: "Schedule", phase: "phase-3", description: "Weekly schedule view and session planning for your park." },
+  "guardian-history": { icon: ClipboardList, module: "Attendance History", phase: "phase-3", description: "View your children's attendance history and trends." },
+  "guardian-schedule": { icon: Clock, module: "Schedule", phase: "phase-3", description: "View upcoming sessions and schedules for your children." },
+  "guardian-announcements": { icon: Megaphone, module: "Announcements", phase: "phase-3", description: "View announcements from your park and city." },
+  "student-history": { icon: ClipboardList, module: "My Attendance", phase: "phase-3", description: "View your attendance history and streaks." },
+  "student-schedule": { icon: Clock, module: "Schedule", phase: "phase-3", description: "View your upcoming sessions and batch schedule." },
+  "student-announcements": { icon: Megaphone, module: "Announcements", phase: "phase-3", description: "View the latest announcements from your group." },
 };
 
 function ComingSoonPage({ pageId }: { pageId: PageId }) {
-  const Icon = comingSoonIcons[pageId] || Construction;
+  const config = comingSoonConfig[pageId];
+  const Icon = config?.icon || Construction;
   return (
     <EmptyState
       icon={Icon}
-      title="Coming Soon"
-      description="This module is under development. Check back later for updates."
+      title={config?.module || "Coming Soon"}
+      description={config?.description || "This module is under development."}
+      isComingSoon
+      moduleName={config?.module}
+      modulePhase={config?.phase || "phase-2"}
+      targetPage="admin-dashboard"
     />
   );
 }
@@ -124,6 +126,12 @@ function PageContent({ pageId }: { pageId: PageId }) {
       return <BatchesPage />;
     case "admin-groups":
       return <GroupsPage />;
+    case "admin-users":
+      return <UsersPage />;
+    case "admin-audit-log":
+      return <AuditLogPage />;
+    case "admin-settings":
+      return <SettingsPage />;
     case "park-dashboard":
       return <ParkDashboard />;
     case "guardian-dashboard":
@@ -148,10 +156,10 @@ export function AppShell() {
   } | undefined;
 
   const pageTitle = pageTitles[currentPage] || "Dashboard";
-  const showPageHeader = !["admin-dashboard", "park-dashboard", "guardian-dashboard", "student-dashboard", "admin-cities", "admin-parks", "admin-batches", "admin-groups"].includes(currentPage);
+  const showPageHeader = !["admin-dashboard", "park-dashboard", "guardian-dashboard", "student-dashboard", "admin-cities", "admin-parks", "admin-batches", "admin-groups", "admin-users", "admin-audit-log", "admin-settings"].includes(currentPage);
 
-  // Show scope selector on admin pages (not dashboard or auth pages)
-  const showScopeSelector = currentPage.startsWith("admin-") && currentPage !== "admin-dashboard";
+  // Show scope selector on admin pages (not dashboard, settings, or audit-log)
+  const showScopeSelector = currentPage.startsWith("admin-") && !(["admin-dashboard", "admin-settings", "admin-audit-log"] as const).includes(currentPage as any);
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
@@ -209,6 +217,14 @@ export function AppShell() {
                   {user?.email}
                 </p>
               </div>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => navigateTo("admin-settings")}
+                className="cursor-pointer"
+              >
+                <Settings className="size-4 mr-2" />
+                Settings
+              </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={() => signOut({ callbackUrl: "/" })}
