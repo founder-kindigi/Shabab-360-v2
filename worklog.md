@@ -157,8 +157,111 @@ Stage Summary:
 - Zod v4 API differences - subagent used v4-compatible patterns but edge cases may need testing
 
 ### Priority Recommendations for Next Phase
-1. **Module 3: Park Attendance** (next planned module) - Offline queue, attendance marking, sync
-2. **People/Staff Directory** (admin-people page) - Complete Module 2 remaining task
-3. **Dashboard API stability** - Verify all dashboard queries work correctly after .next cache clear
-4. **End-to-end testing** - Test full user flows for all 8 built pages via manual browser testing
-5. **Mobile responsiveness testing** - Verify all pages work correctly on mobile viewports
+1. **People/Staff Directory** (admin-people page) - Complete Module 2 remaining task
+2. **Dashboard API stability** - Verify all dashboard queries work correctly after .next cache clear
+3. **End-to-end testing** - Test full user flows for all 8 built pages via manual browser testing
+4. **Mobile responsiveness testing** - Verify all pages work correctly on mobile viewports
+
+---
+Task ID: 4-d
+Agent: full-stack-developer
+Task: Build the Park Attendance frontend components for Shabab360
+
+Work Log:
+- Read existing worklog, API routes, hooks, store, and component patterns to understand codebase conventions
+- Updated Zustand store (`src/stores/useAppStore.ts`): Added `selectedEventId: string | null` and `setSelectedEventId` to state; Added `"park-attendance-roster"` to `PageId` union type
+- Created `src/components/modules/park/park-attendance-page.tsx` (Today's Events Board):
+  - Fetches events from `GET /api/park/attendance` with TanStack Query, polls every 30s
+  - PKT date header display, filter chips (All/Open/Closed) with counts
+  - Event cards with status indicator (green dot/lock icon), group name, participant/marked counts
+  - Animated progress bar (green ≥80%, amber 50-79%, red <50%)
+  - Status breakdown mini badges (P/A/L/E)
+  - "Mark Attendance" button for open events, "View Summary" for closed
+  - "Create New Event" dialog with group select + title input
+  - Framer Motion staggered card entrance animations
+  - Mobile-first responsive grid (1/2/3 cols)
+  - Navigation to roster page via store's selectedEventId
+- Created `src/components/modules/park/attendance-roster.tsx` (Key Roster Screen):
+  - Fetches roster from `GET /api/park/attendance/[eventId]` with 15s refetch
+  - Event info header with group/batch name, open/closed badge
+  - Live 5-column summary bar (Present/Late/Absent/Excused/Unmarked) with color coding
+  - Search bar with clear button, "Show unmarked only" filter toggle
+  - Roster rows with 48px min height, 44px status buttons
+  - Status cycling: null → present → absent → late → excused → null
+  - Color-coded status buttons with icons (CheckCircle2, XCircle, Clock, ShieldCheck, Circle)
+  - Processing spinner (RefreshCw) on each button during mark
+  - Optimistic local status overrides via useRef map
+  - Offline indicator bar (amber, shows queued mark count)
+  - Read-only mode when event is closed (no tap interaction)
+  - Close Event button (park_admin/park_lead only) with reason dialog
+  - Back button navigation to park-attendance page
+- Created `src/components/modules/park/offline-queue-panel.tsx`:
+  - Collapsible panel using shadcn Collapsible component
+  - Pending count (green badge) and failed count (red badge)
+  - "Sync Now" button (calls syncNow), "Retry Failed" button
+  - Expanded view shows failed items with error messages
+  - Auto-expands when failed items exist
+  - Hidden when queue is empty
+- Rebuilt `src/components/modules/park/park-dashboard.tsx` with real data:
+  - Fetches from `/api/park/dashboard` with 30s refetch
+  - Gradient greeting banner with park name, city name, PKT date
+  - 4 metric cards (2x2 grid): Today's Events, Open Events, Total Shabab, 7-Day Rate
+  - Attention Items section (warning/info banners for unclosed/unmarked events)
+  - "Next Action" card with first open incomplete event + tappable Mark button
+  - Today's Events compact list with progress bars and action buttons
+  - Offline Queue Panel at bottom
+  - Framer Motion staggered entrance animations throughout
+  - Mobile-first responsive design
+- Updated `src/components/layout/app-shell.tsx`:
+  - Imported ParkAttendancePage and AttendanceRoster
+  - Added pageTitles entry for "park-attendance-roster"
+  - Added PageContent cases for "park-attendance" and "park-attendance-roster"
+  - Removed "park-attendance" from coming-soon config
+  - Added "park-attendance-roster" to showPageHeader exclusion
+- ESLint passes with zero errors and zero warnings
+
+Stage Summary:
+- Park Attendance frontend module COMPLETE (4 new components + 1 rebuilt + 2 files modified)
+- Pages registered: park-attendance (Today's Events Board), park-attendance-roster (Roster/Mark Attendance)
+- All components use: "use client", shadcn/ui, Lucide icons, Framer Motion, TanStack Query, emerald color system, dark mode support
+- Offline-first attendance marking with Dexie queue integration
+- Role-aware close event permission (park_admin, park_lead)
+- 6 files created/modified total, 0 lint errors
+
+---
+Task ID: 4-e
+Agent: full-stack-developer
+Task: Build the Admin Attendance Events page for Shabab360
+
+Work Log:
+- Created `src/components/modules/admin/admin-attendance-events.tsx`:
+  - "use client" component with TanStack Query fetching from `/api/admin/attendance-events`
+  - PageHeader with title "Attendance Events" and description "Monitor attendance across all parks"
+  - 4 summary metric cards (Total Events, Open, Closed, Overall Marked) with emerald/amber/slate/sky color coding
+  - Filter bar in a rounded card: City select (fetched from `/api/admin/cities`), Park select (fetched from `/api/admin/parks?cityId=X`, disabled until city selected), Status select (All/Open/Closed), Date from/to with Popover+Calendar pickers, Clear all button
+  - Desktop table view (hidden on mobile): columns for Date (PKT formatted "dd MMM yyyy"), City, Park, Group (with batch name), Status (emerald "Open" / slate "Closed" badges), Marked/Total with P/A/L/E breakdown, Progress (custom MiniProgressBar with green ≥80%/amber ≥50%/red <50%), Closed By with timestamp
+  - Mobile card view (hidden on desktop): same data in card layout with CalendarCheck icon, location chain, progress bar, status breakdown, and closed-by footer
+  - Load more pagination using increasing limit (resets on filter change)
+  - Empty state with contextual message (different for filtered vs unfiltered)
+  - Error state handling
+  - Loading skeleton state (5 skeleton rows)
+  - Loading more spinner indicator
+  - Framer Motion entrance animations on filter bar, summary cards, table/cards, and load more button
+  - Emerald color system throughout, dark mode support
+  - date-fns-tz PKT timezone for all date formatting
+- Updated `src/components/layout/app-shell.tsx`:
+  - Added import for `AdminAttendanceEvents` component
+  - Added `case "admin-attendance-events"` to PageContent switch returning `<AdminAttendanceEvents />`
+  - Removed `"admin-attendance-events"` from `comingSoonConfig` (built page now)
+  - Removed `"park-attendance-roster"` from `comingSoonConfig` (was already registered in previous task)
+  - Added `"admin-attendance-events"` to `showPageHeader` exclusion list (page has its own PageHeader)
+- ESLint passes with zero errors
+
+Stage Summary:
+- Admin Attendance Events page COMPLETE
+- 1 new file created, 1 file modified
+- Responsive design: table on desktop, cards on mobile
+- Filter system with cascading city→park selects, status filter, date range
+- Summary statistics cards with color-coded metrics
+- Custom progress bar component with threshold-based coloring
+- 0 lint errors

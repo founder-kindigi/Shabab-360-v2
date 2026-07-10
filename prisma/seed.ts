@@ -30,7 +30,7 @@ async function main() {
   });
   console.log(`Created parks: ${northPark.name}, ${southPark.name}`);
 
-  // 3. Create batch under North Park
+  // 3. Create batches
   const batch1 = await db.batch.create({
     data: {
       name: "Batch 2024-A",
@@ -39,193 +39,215 @@ async function main() {
       isActive: true,
     },
   });
-  console.log(`Created batch: ${batch1.name}`);
-
-  // 4. Create group under the batch
-  const group1 = await db.group.create({
+  const batch2 = await db.batch.create({
     data: {
-      name: "Group Alpha",
-      batchId: batch1.id,
+      name: "Batch 2024-B",
+      parkId: northPark.id,
+      startDate: new Date("2024-06-01"),
       isActive: true,
     },
   });
-  console.log(`Created group: ${group1.name}`);
+  const batch3 = await db.batch.create({
+    data: {
+      name: "Batch 2024-C",
+      parkId: southPark.id,
+      startDate: new Date("2024-03-01"),
+      isActive: true,
+    },
+  });
+  console.log(`Created batches: ${batch1.name}, ${batch2.name}, ${batch3.name}`);
+
+  // 4. Create groups
+  const groupAlpha = await db.group.create({
+    data: { name: "Group Alpha", batchId: batch1.id, isActive: true },
+  });
+  const groupBeta = await db.group.create({
+    data: { name: "Group Beta", batchId: batch1.id, isActive: true },
+  });
+  const groupGamma = await db.group.create({
+    data: { name: "Group Gamma", batchId: batch2.id, isActive: true },
+  });
+  const groupDelta = await db.group.create({
+    data: { name: "Group Delta", batchId: batch3.id, isActive: true },
+  });
+  console.log(`Created groups: ${groupAlpha.name}, ${groupBeta.name}, ${groupGamma.name}, ${groupDelta.name}`);
 
   // 5. Create users with staff_meta (one per role)
-
-  // Super Admin
   const superAdminUser = await db.user.create({
-    data: {
-      email: "super_admin@shabab360.pk",
-      passwordHash,
-      name: "Super Admin",
-      mustResetPwd: false,
-      isActive: true,
-    },
+    data: { email: "super_admin@shabab360.pk", passwordHash, name: "Super Admin", mustResetPwd: false, isActive: true },
   });
-  await db.staffMeta.create({
-    data: {
-      userId: superAdminUser.id,
-      role: "super_admin",
-      isActive: true,
-    },
-  });
+  await db.staffMeta.create({ data: { userId: superAdminUser.id, role: "super_admin", isActive: true } });
   console.log(`Created user: ${superAdminUser.email} (super_admin)`);
 
-  // Program Admin
   const programAdminUser = await db.user.create({
-    data: {
-      email: "program_admin@shabab360.pk",
-      passwordHash,
-      name: "Program Admin",
-      mustResetPwd: false,
-      isActive: true,
-    },
+    data: { email: "program_admin@shabab360.pk", passwordHash, name: "Program Admin", mustResetPwd: false, isActive: true },
   });
-  await db.staffMeta.create({
-    data: {
-      userId: programAdminUser.id,
-      role: "program_admin",
-      isActive: true,
-    },
-  });
+  await db.staffMeta.create({ data: { userId: programAdminUser.id, role: "program_admin", isActive: true } });
   console.log(`Created user: ${programAdminUser.email} (program_admin)`);
 
-  // City Head (assigned to Karachi)
   const cityHeadUser = await db.user.create({
-    data: {
-      email: "city_head@shabab360.pk",
-      passwordHash,
-      name: "City Head",
-      mustResetPwd: false,
-      isActive: true,
-    },
+    data: { email: "city_head@shabab360.pk", passwordHash, name: "City Head", mustResetPwd: false, isActive: true },
   });
-  await db.staffMeta.create({
-    data: {
-      userId: cityHeadUser.id,
-      role: "city_head",
-      assignedCityId: karachi.id,
-      isActive: true,
-    },
-  });
+  await db.staffMeta.create({ data: { userId: cityHeadUser.id, role: "city_head", assignedCityId: karachi.id, isActive: true } });
   console.log(`Created user: ${cityHeadUser.email} (city_head) -> ${karachi.name}`);
 
-  // Park Admin (assigned to North Park)
   const parkAdminUser = await db.user.create({
-    data: {
-      email: "park_admin@shabab360.pk",
-      passwordHash,
-      name: "Park Admin",
-      mustResetPwd: false,
-      isActive: true,
-    },
+    data: { email: "park_admin@shabab360.pk", passwordHash, name: "Park Admin", mustResetPwd: false, isActive: true },
   });
-  await db.staffMeta.create({
-    data: {
-      userId: parkAdminUser.id,
-      role: "park_admin",
-      assignedCityId: karachi.id,
-      assignedParkId: northPark.id,
-      isActive: true,
-    },
+  const parkAdminMeta = await db.staffMeta.create({
+    data: { userId: parkAdminUser.id, role: "park_admin", assignedCityId: karachi.id, assignedParkId: northPark.id, isActive: true },
   });
   console.log(`Created user: ${parkAdminUser.email} (park_admin) -> ${northPark.name}`);
 
-  // Park Lead (assigned to North Park)
   const parkLeadUser = await db.user.create({
-    data: {
-      email: "park_lead@shabab360.pk",
-      passwordHash,
-      name: "Park Lead",
-      mustResetPwd: false,
-      isActive: true,
-    },
+    data: { email: "park_lead@shabab360.pk", passwordHash, name: "Park Lead", mustResetPwd: false, isActive: true },
   });
-  await db.staffMeta.create({
-    data: {
-      userId: parkLeadUser.id,
-      role: "park_lead",
-      assignedCityId: karachi.id,
-      assignedParkId: northPark.id,
-      isActive: true,
-    },
+  const parkLeadMeta = await db.staffMeta.create({
+    data: { userId: parkLeadUser.id, role: "park_lead", assignedCityId: karachi.id, assignedParkId: northPark.id, isActive: true },
   });
   console.log(`Created user: ${parkLeadUser.email} (park_lead) -> ${northPark.name}`);
 
-  // Murabbi (assigned to the group)
   const murabbiUser = await db.user.create({
-    data: {
-      email: "murabbi@shabab360.pk",
-      passwordHash,
-      name: "Murabbi Ahmad",
-      mustResetPwd: false,
-      isActive: true,
-    },
+    data: { email: "murabbi@shabab360.pk", passwordHash, name: "Murabbi Ahmad", mustResetPwd: false, isActive: true },
   });
-  await db.staffMeta.create({
-    data: {
-      userId: murabbiUser.id,
-      role: "murabbi",
-      assignedCityId: karachi.id,
-      assignedParkId: northPark.id,
-      assignedGroupId: group1.id,
-      isActive: true,
-    },
+  const murabbiMeta = await db.staffMeta.create({
+    data: { userId: murabbiUser.id, role: "murabbi", assignedCityId: karachi.id, assignedParkId: northPark.id, assignedGroupId: groupAlpha.id, isActive: true },
   });
-  console.log(`Created user: ${murabbiUser.email} (murabbi) -> ${group1.name}`);
+  console.log(`Created user: ${murabbiUser.email} (murabbi) -> ${groupAlpha.name}`);
 
-  // Guardian
+  // 6. Create Guardian
   const guardianUser = await db.user.create({
-    data: {
-      email: "guardian@shabab360.pk",
-      passwordHash,
-      name: "Guardian Ali",
-      mustResetPwd: false,
-      isActive: true,
-    },
+    data: { email: "guardian@shabab360.pk", passwordHash, name: "Guardian Ali", mustResetPwd: false, isActive: true },
   });
   const guardian = await db.guardian.create({
-    data: {
-      userId: guardianUser.id,
-      name: "Guardian Ali",
-      phone: "0300-1234567",
-      address: "Karachi",
-      isActive: true,
-    },
+    data: { userId: guardianUser.id, name: "Guardian Ali", phone: "0300-1234567", address: "Karachi", isActive: true },
   });
   console.log(`Created user: ${guardianUser.email} (guardian)`);
 
-  // Student/Participant
+  // 7. Create participants (18 in Group Alpha, 12 in Group Beta, 15 in Group Gamma, 10 in Group Delta)
+  const participantNamesAlpha = [
+    "Ahmed Ali", "Bilal Hassan", "Daniyal Khan", "Farhan Siddiqui", "Hamza Tariq",
+    "Irfan Ahmed", "Junaid Raza", "Khizar Hussain", "Luqman Shah", "Muhammad Usman",
+    "Nauman Ali", "Omar Farooq", "Pakistan Zindabad", "Qasim Raza", "Rizwan Ahmed",
+    "Saad Malik", "Taha Hussain", "Usman Ali",
+  ];
+  const participantNamesBeta = [
+    "Abdullah Shah", "Burhan Khan", "Fahad Raza", "Ghulam Mustafa", "Hassan Ali",
+    "Imran Siddiqui", "Jawad Ahmed", "Kamran Yousuf", "Liaquat Hussain", "Majid Khan",
+    "Naveed Akhtar", "Owais Raza",
+  ];
+  const participantNamesGamma = [
+    "Adnan Ali", "Babar Khan", "Danish Raza", "Ehsan Ahmed", "Faisal Shah",
+    "Ghulam Ali", "Hammad Khan", "Ibrahim Siddiqui", "Jamshed Ahmed", "Kashif Hussain",
+    "Latif Malik", "Mehmood Raza", "Nasir Ali", "Pervez Khan", "Rashid Ahmed",
+  ];
+  const participantNamesDelta = [
+    "Ali Asghar", "Baqar Hussain", "Hasnain Raza", "Jafar Ali", "Kazim Shah",
+    "Murtaza Khan", "Naqi Ahmed", "Qamar Raza", "Sajjad Ali", "Taqi Hussain",
+  ];
+
   const studentUser = await db.user.create({
-    data: {
-      email: "student@shabab360.pk",
-      passwordHash,
-      name: "Student Ahmad",
-      mustResetPwd: false,
-      isActive: true,
-    },
+    data: { email: "student@shabab360.pk", passwordHash, name: "Student Ahmad", mustResetPwd: false, isActive: true },
   });
-  const participant = await db.participant.create({
+  const studentParticipant = await db.participant.create({
+    data: { userId: studentUser.id, name: "Student Ahmad", phone: "0312-9876543", gender: "male", groupId: groupAlpha.id, state: "active" },
+  });
+
+  // Create remaining participants for Group Alpha (skip first one which is the student)
+  for (const name of participantNamesAlpha.slice(1)) {
+    await db.participant.create({
+      data: { name, phone: `03${Math.floor(Math.random() * 100000000).toString().padStart(8, "0")}`, gender: "male", groupId: groupAlpha.id, state: "active" },
+    });
+  }
+
+  // Group Beta participants
+  for (const name of participantNamesBeta) {
+    await db.participant.create({
+      data: { name, phone: `03${Math.floor(Math.random() * 100000000).toString().padStart(8, "0")}`, gender: "male", groupId: groupBeta.id, state: "active" },
+    });
+  }
+
+  // Group Gamma participants
+  for (const name of participantNamesGamma) {
+    await db.participant.create({
+      data: { name, phone: `03${Math.floor(Math.random() * 100000000).toString().padStart(8, "0")}`, gender: "male", groupId: groupGamma.id, state: "active" },
+    });
+  }
+
+  // Group Delta participants
+  for (const name of participantNamesDelta) {
+    await db.participant.create({
+      data: { name, phone: `03${Math.floor(Math.random() * 100000000).toString().padStart(8, "0")}`, gender: "male", groupId: groupDelta.id, state: "active" },
+    });
+  }
+
+  // Guardian-child link
+  await db.guardianChild.create({
+    data: { guardianId: guardian.id, participantId: studentParticipant.id, relation: "father" },
+  });
+
+  // 8. Create a sample attendance event for Group Alpha (today PKT)
+  const now = new Date();
+  const pktOffset = 5 * 60; // PKT = UTC+5
+  const pktNow = new Date(now.getTime() + pktOffset * 60000);
+  const todayPKTStr = pktNow.toISOString().split("T")[0]; // YYYY-MM-DD
+
+  const sampleEvent = await db.attendanceEvent.create({
     data: {
-      userId: studentUser.id,
-      name: "Student Ahmad",
-      phone: "0312-9876543",
-      gender: "male",
-      groupId: group1.id,
-      state: "active",
+      groupId: groupAlpha.id,
+      title: `Regular Session - Group Alpha`,
+      eventDate: new Date(`${todayPKTStr}T00:00:00.000Z`), // Stored as UTC midnight of PKT date
+      isClosed: false,
     },
   });
 
-  // Create guardian-child link
-  await db.guardianChild.create({
+  // Create another event for Group Beta (today, already closed)
+  const allGroupBetaParticipants = await db.participant.findMany({
+    where: { groupId: groupBeta.id, state: "active" },
+  });
+  const closedEvent = await db.attendanceEvent.create({
     data: {
-      guardianId: guardian.id,
-      participantId: participant.id,
-      relation: "father",
+      groupId: groupBeta.id,
+      title: `Regular Session - Group Beta`,
+      eventDate: new Date(`${todayPKTStr}T00:00:00.000Z`),
+      isClosed: true,
+      closedAt: new Date(),
+      closedBy: parkAdminMeta.id,
     },
   });
-  console.log(`Created user: ${studentUser.email} (student) -> ${group1.name}`);
+
+  // Mark all Group Beta participants as present in the closed event
+  for (const p of allGroupBetaParticipants) {
+    await db.attendanceRecord.create({
+      data: {
+        eventId: closedEvent.id,
+        participantId: p.id,
+        status: "present",
+        markedBy: parkAdminMeta.id,
+      },
+    });
+  }
+
+  // Mark some Group Alpha participants in the open event
+  const alphaParticipants = await db.participant.findMany({
+    where: { groupId: groupAlpha.id, state: "active" },
+  });
+  for (let i = 0; i < Math.min(10, alphaParticipants.length); i++) {
+    await db.attendanceRecord.create({
+      data: {
+        eventId: sampleEvent.id,
+        participantId: alphaParticipants[i].id,
+        status: i < 7 ? "present" : i < 9 ? "late" : "absent",
+        markedBy: murabbiMeta.id,
+      },
+    });
+  }
+
+  console.log(`Created ${participantNamesAlpha.length} participants in Group Alpha`);
+  console.log(`Created ${participantNamesBeta.length} participants in Group Beta`);
+  console.log(`Created ${participantNamesGamma.length} participants in Group Gamma`);
+  console.log(`Created ${participantNamesDelta.length} participants in Group Delta`);
+  console.log(`Created 2 sample attendance events for today`);
 
   console.log("\nSeed completed successfully!");
   console.log("─".repeat(50));

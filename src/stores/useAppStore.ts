@@ -30,6 +30,7 @@ export type PageId =
   | "park-participants"
   | "park-guardians"
   | "park-schedule"
+  | "park-attendance-roster"
   // Guardian pages
   | "guardian-dashboard"
   | "guardian-history"
@@ -63,6 +64,10 @@ interface AppState {
   // Auth state
   userRole: UserRole | null;
   setUserRole: (role: UserRole | null) => void;
+
+  // Attendance
+  selectedEventId: string | null;
+  setSelectedEventId: (id: string | null) => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -98,4 +103,7 @@ export const useAppStore = create<AppState>((set) => ({
 
   userRole: null,
   setUserRole: (role) => set({ userRole: role }),
+
+  selectedEventId: null,
+  setSelectedEventId: (id) => set({ selectedEventId: id }),
 }));
