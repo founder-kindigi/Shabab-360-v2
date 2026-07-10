@@ -424,3 +424,68 @@ Stage Summary:
 - 0 lint errors, clean compilation verified
 - API returns all existing fields plus: attendanceTrend, groupBreakdown, topPerformers, needsAttention, openUncompletedCount, unclosedYesterdayCount, userName, prevWeekAttendanceRate
 - Frontend: Enhanced from basic 4-card layout to feature-rich admin dashboard with chart, group grid, top performers, and contextual attention items
+
+---
+Task ID: 5
+Agent: Main (cron review round)
+Task: QA assessment, bug fixes, new dashboards, notifications, styling improvements
+
+Work Log:
+- **QA Assessment**: Tested login → admin dashboard → parks → users → attendance via agent-browser
+- **Bug Fix 1**: Admin Attendance Events API used invalid `closer` Prisma relation (closedBy is a plain String field). Fixed by resolving StaffMeta names via manual lookup.
+- **Bug Fix 2**: Admin Attendance Event Detail API had same `closer` and `marker` relation issue. Fixed both.
+- **Bug Fix 3**: 4 Park API routes (dashboard, attendance list, attendance detail, event close) all had same `closer`/`marker` relation bugs. Fixed all via subagent.
+- **Bug Fix 4**: Admin Dashboard API tried to count `groups` on Park model (groups are nested under batches). Fixed.
+- **Bug Fix 5**: page.tsx routed city_head to "admin-dashboard" and murabbi to "park-dashboard" instead of their dedicated dashboards. Fixed routing logic.
+- **Bug Fix 6**: Admin Attendance Events API didn't return status breakdown (presentCount, absentCount, etc.) needed by frontend. Added `attendanceRecord.groupBy` query.
+- **Built City Head Dashboard** (API + frontend): Greeting banner, 4 metric cards, My Parks section, Today's Sessions, Recent Activity timeline. Role-gated API with city-scoped data.
+- **Built Murabbi Dashboard** (API + frontend): Group-focused view, Mark Attendance CTA with pulse animation, weekly CSS bar chart, needs-attention absentees list. Role-gated API with group-scoped data.
+- **Enhanced Park Dashboard**: Added 7-day attendance trend chart (CSS bars), group performance grid, top 5 performers, enhanced attention items (low rate + unclosed yesterday).
+- **Built Notification Bell**: Role-scoped activity feed from audit_log, unread badge (red), 60s polling, Popover dropdown with relative timestamps, "View Audit Log" footer.
+- **Built Keyboard Shortcuts**: Ctrl+/ help dialog, Ctrl+1-9 nav, Ctrl+K search focus, useKeyboardShortcuts hook.
+- **Styling Improvements**: DataCard border-l accent + pulse prop, PageHeader scope breadcrumb, Login shake animation + logo hover + forgot password link.
+- Verified all 3 role dashboards (admin, city_head, murabbi) via agent-browser — all render correctly with real data.
+- Committed: 86 files changed, 4,155 insertions, 411 deletions. Pushed to GitHub (commit b89b6ab).
+
+Stage Summary:
+- 6 critical bugs fixed (5 Prisma relation bugs + 1 routing bug + 1 missing data bug)
+- 3 new role-specific dashboards built (city_head, murabbi, enhanced park)
+- 2 new features (notification bell, keyboard shortcuts)
+- 4 styling improvements across shared components
+- ESLint: 0 errors
+- All changes pushed to GitHub
+
+## Current Project Status
+
+### Assessment
+- **Modules 1-4**: SUBSTANTIALLY COMPLETE (Auth, City Operations, Park Attendance, Dashboards)
+- **16 built pages**: Admin Dashboard, Cities, Parks, Batches, Groups, Users, Audit Log, Settings, Attendance Events, City Head Dashboard, Murabbi Dashboard, Park Dashboard (enhanced), Park Attendance Events, Attendance Roster, Guardian Dashboard, Student Dashboard
+- **14 coming-soon pages** with informative descriptions and phase indicators
+- **All APIs** enforce server-side auth with role checks and audit logging
+- **ESLint**: Clean (zero errors)
+- **Git**: Pushed to GitHub (commit b89b6ab)
+- **Notification system**: Working with 60s polling, role-scoped
+- **Keyboard shortcuts**: Ctrl+/ help, Ctrl+1-9 nav, Ctrl+K search
+
+### Completed Modifications (This Round)
+- Fixed 6 critical Prisma relation bugs across 8 API routes
+- Built City Head Dashboard with city-scoped metrics and session tracking
+- Built Murabbi Dashboard with group-focused attendance view and weekly chart
+- Enhanced Park Dashboard with trend chart, group grid, top performers
+- Added Notification Bell with role-scoped activity feed
+- Added Keyboard Shortcuts system with help dialog
+- Improved DataCard, PageHeader (breadcrumb), LoginPage (shake, hover, forgot link)
+- Fixed page.tsx routing for city_head and murabbi roles
+
+### Unresolved Issues / Risks
+- Dev server memory constraints in sandbox (not a code bug)
+- Guardian and Student dashboards are placeholder/coming-soon level
+- No end-to-end test for full attendance flow (login → events → roster → mark → close) in browser
+- Keyboard shortcuts Ctrl+/ may not trigger in all browsers due to browser default behavior
+
+### Priority Recommendations for Next Phase
+1. **Module 5: Access Provisioning** — User assignment workflow, role management UI
+2. **Module 7: Announcements** — Organization-wide and targeted announcements
+3. **People/Staff Directory** (admin-people page) — Complete Module 2 remaining task
+4. **Guardian/Student Portal Enhancement** — Attendance history views, schedule pages
+5. **End-to-end attendance testing** — Test full flow: create event → mark attendance → close event → verify records
