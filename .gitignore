@@ -52,3 +52,11 @@ prompt
 server.log
 # Skills directory
 /skills/
+# Shabab360 specific
+tool-results/
+download/
+examples/
+db/*.db-journal
+db/*.db-wal
+shabab360-v2/
+

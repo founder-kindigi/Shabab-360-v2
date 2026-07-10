@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -13,20 +7,364 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ========== AUTH & USERS ==========
+
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            String    @id @default(cuid())
+  email         String    @unique
+  passwordHash  String
+  name          String?
+  phone         String?
+  mustResetPwd  Boolean   @default(true)
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  staffMeta     StaffMeta?
+  guardian      Guardian?
+  participant   Participant?
+  auditLogs     AuditLog[]
+
+  @@map("users")
 }
 
-model Post {
-  id        String   @id @default(cuid())
-  title     String
-  content   String?
-  published Boolean  @default(false)
-  authorId  String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+model AuditLog {
+  id          String    @id @default(cuid())
+  userId      String?
+  action      String
+  entityType  String
+  entityId    String?
+  oldValues   String?
+  newValues   String?
+  reason      String?
+  createdAt   DateTime  @default(now())
+
+  user        User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@map("audit_log")
+}
+
+// ========== ORGANIZATIONAL HIERARCHY ==========
+
+model City {
+  id          String          @id @default(cuid())
+  name        String
+  code        String          @unique
+  isActive    Boolean         @default(true)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  parks                  Park[]
+  cityHeads              StaffMeta[]    @relation("CityHeadAssignment")
+  announcements          Announcement[]
+  admissionApplications  AdmissionApplication[]
+
+  @@map("cities")
+}
+
+model Park {
+  id          String          @id @default(cuid())
+  name        String
+  cityId      String
+  address     String?
+  isActive    Boolean         @default(true)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  city            City           @relation(fields: [cityId], references: [id], onDelete: Cascade)
+  batches                Batch[]
+  parkStaff              StaffMeta[]    @relation("ParkStaffAssignment")
+  announcements          Announcement[]
+  admissionApplications  AdmissionApplication[]
+
+  @@map("parks")
+}
+
+model Batch {
+  id          String                    @id @default(cuid())
+  name        String
+  parkId      String
+  startDate   DateTime
+  endDate     DateTime?
+  isActive    Boolean                   @default(true)
+  createdAt   DateTime                  @default(now())
+  updatedAt   DateTime                  @updatedAt
+
+  park                    Park                    @relation(fields: [parkId], references: [id], onDelete: Cascade)
+  groups                  Group[]
+  settings                BatchSettings?
+  feeEvents               FeeEvent[]
+
+  @@map("batches")
+}
+
+model Group {
+  id          String          @id @default(cuid())
+  name        String
+  batchId     String
+  isActive    Boolean         @default(true)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  batch            Batch               @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  participants     Participant[]
+  murabbis         StaffMeta[]         @relation("MurabbiAssignment")
+  attendanceEvents AttendanceEvent[]
+
+  @@map("groups")
+}
+
+// ========== PEOPLE ==========
+
+model StaffMeta {
+  id              String    @id @default(cuid())
+  userId          String    @unique
+  role            String
+  assignedCityId  String?
+  assignedParkId  String?
+  assignedGroupId String?
+  isActive        Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assignedCity    City?     @relation("CityHeadAssignment", fields: [assignedCityId], references: [id], onDelete: SetNull)
+  assignedPark    Park?     @relation("ParkStaffAssignment", fields: [assignedParkId], references: [id], onDelete: SetNull)
+  assignedGroup   Group?    @relation("MurabbiAssignment", fields: [assignedGroupId], references: [id], onDelete: SetNull)
+
+  @@map("staff_meta")
+}
+
+model Guardian {
+  id          String          @id @default(cuid())
+  userId      String?         @unique
+  name        String
+  phone       String
+  cnic        String?
+  address     String?
+  isActive    Boolean         @default(true)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  user        User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
+  children    GuardianChild[]
+
+  @@map("guardians")
+}
+
+model GuardianChild {
+  id            String      @id @default(cuid())
+  guardianId    String
+  participantId String
+  relation      String?
+  createdAt     DateTime    @default(now())
+
+  guardian      Guardian    @relation(fields: [guardianId], references: [id], onDelete: Cascade)
+  participant   Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+
+  @@unique([guardianId, participantId])
+  @@map("guardian_children")
+}
+
+model Participant {
+  id          String            @id @default(cuid())
+  userId      String?           @unique
+  name        String
+  phone       String?
+  dateOfBirth DateTime?
+  gender      String?
+  address     String?
+  groupId     String
+  state       String            @default("active")
+  joinedAt    DateTime          @default(now())
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  user                User?               @relation(fields: [userId], references: [id], onDelete: SetNull)
+  group               Group               @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  guardianLinks       GuardianChild[]
+  attendanceRecords   AttendanceRecord[]
+  payments            Payment[]
+  convertedFromApp    AdmissionApplication? @relation("ConvertedFrom")
+
+  @@map("participants")
+}
+
+// ========== ATTENDANCE ==========
+
+model BatchSettings {
+  id              String    @id @default(cuid())
+  batchId         String    @unique
+  warningAbsents  Int       @default(3)
+  dropoutAbsents  Int       @default(6)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  batch           Batch     @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  @@map("batch_settings")
+}
+
+model AttendanceEvent {
+  id          String              @id @default(cuid())
+  groupId     String
+  title       String
+  eventDate   DateTime
+  isClosed    Boolean             @default(false)
+  closedAt    DateTime?
+  closedBy    String?
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  group       Group               @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  records     AttendanceRecord[]
+
+  @@map("attendance_events")
+}
+
+model AttendanceRecord {
+  id            String           @id @default(cuid())
+  eventId       String
+  participantId String
+  status        String
+  markedBy      String?
+  markedAt      DateTime         @default(now())
+  editReason    String?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  event         AttendanceEvent  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  participant   Participant      @relation(fields: [participantId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, participantId])
+  @@map("attendance_records")
+}
+
+// ========== FEES ==========
+
+model FeeEvent {
+  id          String      @id @default(cuid())
+  batchId     String
+  title       String
+  feeType     String
+  amount      Float
+  dueDate     DateTime?
+  isActive    Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  batch       Batch       @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  payments    Payment[]
+
+  @@map("fee_events")
+}
+
+model Payment {
+  id              String       @id @default(cuid())
+  feeEventId      String
+  participantId   String
+  amount          Float
+  method          String
+  receiptNo       String?      @unique
+  recordedBy      String?
+  notes           String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  feeEvent        FeeEvent     @relation(fields: [feeEventId], references: [id], onDelete: Cascade)
+  participant     Participant  @relation(fields: [participantId], references: [id], onDelete: Cascade)
+
+  @@map("payments")
+}
+
+model ReceiptSequence {
+  id        String    @id @default(cuid())
+  prefix    String
+  year      Int
+  counter   Int       @default(0)
+  updatedAt DateTime  @updatedAt
+
+  @@unique([prefix, year])
+  @@map("receipt_sequences")
+}
+
+// ========== ADMISSIONS ==========
+
+model AdmissionApplication {
+  id                     String                  @id @default(cuid())
+  trackingCode           String                  @unique
+  applicantName          String
+  applicantDOB           DateTime?
+  gender                 String?
+  guardianName           String
+  guardianPhone          String
+  guardianRelation       String?
+  cityId                 String?
+  preferredParkId        String?
+  status                 String                  @default("submitted")
+  notes                  String?
+  convertedParticipantId String?  @unique
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+
+  city                   City?                   @relation(fields: [cityId], references: [id], onDelete: SetNull)
+  preferredPark          Park?                   @relation(fields: [preferredParkId], references: [id], onDelete: SetNull)
+  interviews             AdmissionInterview[]
+  convertedParticipant   Participant?             @relation("ConvertedFrom", fields: [convertedParticipantId], references: [id])
+
+  @@map("admission_applications")
+}
+
+model AdmissionInterview {
+  id              String                @id @default(cuid())
+  applicationId   String
+  scheduledDate   DateTime?
+  scheduledTime   String?
+  status          String                @default("scheduled")
+  score1          Int?
+  score2          Int?
+  score3          Int?
+  totalScore      Int?
+  notes           String?
+  conductedBy     String?
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+
+  application     AdmissionApplication  @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@map("admission_interviews")
+}
+
+// ========== ANNOUNCEMENTS ==========
+
+model Announcement {
+  id          String        @id @default(cuid())
+  title       String
+  body        String
+  audience    String
+  cityId      String?
+  parkId      String?
+  publishedBy String?
+  isActive    Boolean       @default(true)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  city        City?         @relation(fields: [cityId], references: [id], onDelete: SetNull)
+  park        Park?         @relation(fields: [parkId], references: [id], onDelete: SetNull)
+
+  @@map("announcements")
+}
+
+// ========== REPORT PRESETS ==========
+
+model ReportPreset {
+  id          String    @id @default(cuid())
+  userId      String
+  name        String
+  reportType  String
+  filters     String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("report_presets")
 }
