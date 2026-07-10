@@ -1,9 +1,9 @@
 "use client";
 
-import { SessionProvider, useSession } from "next-auth/react";
+import { SessionProvider, useSession, signOut } from "next-auth/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useAppStore } from "@/stores/useAppStore";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { PageRouter } from "@/components/layout/page-router";
 import { LoadingState } from "@/components/layout/loading-state";
@@ -12,10 +12,12 @@ const queryClient = new QueryClient();
 
 function AuthenticatedApp() {
   const { data: session, status } = useSession();
-  const { setUserRole, navigateTo, currentPage } = useAppStore();
+  const { setUserRole, navigateTo, currentPage, userRole } = useAppStore();
+  const wasAuthenticated = useRef(false);
 
   useEffect(() => {
     if (session?.user) {
+      wasAuthenticated.current = true;
       const user = session.user as any;
 
       setUserRole(user.role);
@@ -49,10 +51,11 @@ function AuthenticatedApp() {
     }
   }, [session?.user, setUserRole, navigateTo, currentPage]);
 
-  // When session is cleared (sign out), force page reload
+  // When session is cleared AFTER being authenticated (sign out), reload
   useEffect(() => {
-    if (!session && status !== "loading") {
-      window.location.reload();
+    if (!session && status !== "loading" && wasAuthenticated.current) {
+      // Clear client state and reload to reset
+      window.location.href = "/";
     }
   }, [session, status]);
 

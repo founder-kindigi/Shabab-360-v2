@@ -19,9 +19,15 @@ import { Menu, LogOut, User, ChevronDown, Construction } from "lucide-react";
 // Page components
 import { AdminDashboard } from "@/components/modules/admin/admin-dashboard";
 import { CitiesPage } from "@/components/modules/admin/cities-page";
+import { BatchesPage } from "@/components/modules/admin/batches-page";
+import { GroupsPage } from "@/components/modules/admin/groups-page";
+import { ParksPage } from "@/components/modules/admin/parks-page";
 import { ParkDashboard } from "@/components/modules/park/park-dashboard";
 import { GuardianDashboard } from "@/components/modules/guardian/guardian-dashboard";
 import { StudentDashboard } from "@/components/modules/student/student-dashboard";
+
+// Shared components
+import { ScopeSelector } from "@/components/shared/scope-selector";
 
 // Icons for coming-soon pages
 import {
@@ -112,6 +118,12 @@ function PageContent({ pageId }: { pageId: PageId }) {
       return <AdminDashboard />;
     case "admin-cities":
       return <CitiesPage />;
+    case "admin-parks":
+      return <ParksPage />;
+    case "admin-batches":
+      return <BatchesPage />;
+    case "admin-groups":
+      return <GroupsPage />;
     case "park-dashboard":
       return <ParkDashboard />;
     case "guardian-dashboard":
@@ -136,7 +148,10 @@ export function AppShell() {
   } | undefined;
 
   const pageTitle = pageTitles[currentPage] || "Dashboard";
-  const showPageHeader = !["admin-dashboard", "park-dashboard", "guardian-dashboard", "student-dashboard", "admin-cities"].includes(currentPage);
+  const showPageHeader = !["admin-dashboard", "park-dashboard", "guardian-dashboard", "student-dashboard", "admin-cities", "admin-parks", "admin-batches", "admin-groups"].includes(currentPage);
+
+  // Show scope selector on admin pages (not dashboard or auth pages)
+  const showScopeSelector = currentPage.startsWith("admin-") && currentPage !== "admin-dashboard";
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
@@ -208,9 +223,10 @@ export function AppShell() {
 
         {/* Page content */}
         <main className="flex-1 overflow-y-auto">
-          <div className="p-4 md:p-6">
+          <div className="p-4 md:p-6 space-y-4">
+            {showScopeSelector && <ScopeSelector />}
             {showPageHeader && <PageHeader title={pageTitle} />}
-            {!showPageHeader && <div className="mb-6" />}
+            {!showPageHeader && !showScopeSelector && <div className="mb-6" />}
             <PageContent pageId={currentPage} />
           </div>
         </main>

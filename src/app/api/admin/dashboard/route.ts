@@ -20,6 +20,56 @@ export async function GET(request: NextRequest) {
       db.staffMeta.count({ where: { isActive: true } }),
     ]);
 
+    const now = new Date();
+
+    const [recentActivity, activeBatches, cityStaff] = await Promise.all([
+      db.auditLog.findMany({
+        take: 10,
+        orderBy: { createdAt: "desc" },
+        select: {
+          action: true,
+          entityType: true,
+          entityId: true,
+          createdAt: true,
+          user: { select: { name: true } },
+        },
+      }),
+      db.batch.count({
+        where: {
+          isActive: true,
+          OR: [{ endDate: null }, { endDate: { gte: now } }],
+        },
+      }),
+      db.staffMeta.groupBy({
+        by: ["role"],
+        where: { isActive: true },
+        _count: { role: true },
+      }),
+    ]);
+
+    const cityBreakdown = await db.city.findMany({
+      where: { isActive: true },
+      include: {
+        _count: { select: { parks: true } },
+      },
+      orderBy: { name: "asc" },
+    });
+
+    // Count staff per city via park assignments
+    const allCityStaff = await db.staffMeta.findMany({
+      where: { isActive: true, assignedCityId: { not: null } },
+      select: { assignedCityId: true, id: true },
+    });
+    const staffByCity = allCityStaff.reduce<Record<string, number>>((acc, s) => {
+      if (s.assignedCityId) acc[s.assignedCityId] = (acc[s.assignedCityId] || 0) + 1;
+    return acc;
+    }, {});
+
+    const cityBreakdownWithStaff = cityBreakdown.map((city) => ({
+      ...city,
+      _count: { ...city._count, staff: staffByCity[city.id] || 0 },
+    }));
+
     return NextResponse.json({
       cities,
       parks,
@@ -27,11 +77,13 @@ export async function GET(request: NextRequest) {
       groups,
       participants,
       staff,
-      cityBreakdown: await db.city.findMany({
-        where: { isActive: true },
-        include: { _count: { select: { parks: true } } },
-        orderBy: { name: "asc" },
-      }),
+      activeBatches,
+      cityStaff: cityStaff.map((cs) => ({
+        role: cs.role,
+        count: cs._count.role,
+      })),
+      recentActivity,
+      cityBreakdown: cityBreakdownWithStaff,
     });
   }
 
@@ -63,12 +115,39 @@ export async function GET(request: NextRequest) {
         }),
       ]);
 
+    // Get park IDs for this city to filter activity
+    const cityParkIds = (
+      await db.park.findMany({
+        where: { cityId: user.assignedCityId, isActive: true },
+        select: { id: true },
+      })
+    ).map((p) => p.id);
+
+    const recentActivity = cityParkIds.length
+      ? await db.auditLog.findMany({
+          take: 10,
+          orderBy: { createdAt: "desc" },
+          select: {
+            action: true,
+            entityType: true,
+            entityId: true,
+            createdAt: true,
+            user: { select: { name: true } },
+          },
+          where: {
+            entityType: { in: ["park", "batch", "group", "participant"] },
+            entityId: { in: cityParkIds },
+          },
+        })
+      : [];
+
     return NextResponse.json({
       parks,
       batches,
       groups,
       participants,
       attendanceEvents,
+      recentActivity,
       cityParks: await db.park.findMany({
         where: { cityId: user.assignedCityId, isActive: true },
         include: { _count: { select: { batches: true, groups: true } } },
