@@ -67,7 +67,7 @@ function getNavItems(role: string | undefined): NavItem[] {
   // City Head — city-scoped admin
   if (role === "city_head") {
     return [
-      { id: "admin-dashboard", label: "Dashboard", icon: LayoutDashboard },
+      { id: "city-head-dashboard", label: "Dashboard", icon: LayoutDashboard },
       { id: "admin-cities", label: "My City", icon: Building2 },
       { id: "admin-parks", label: "Parks", icon: TreePine },
       { id: "admin-batches", label: "Batches", icon: CalendarCheck },
@@ -95,7 +95,7 @@ function getNavItems(role: string | undefined): NavItem[] {
   // Murabbi — group-scoped
   if (role === "murabbi") {
     return [
-      { id: "park-dashboard", label: "Dashboard", icon: LayoutDashboard },
+      { id: "murabbi-dashboard", label: "Dashboard", icon: LayoutDashboard },
       { id: "park-attendance", label: "Attendance", icon: CalendarCheck },
       { id: "park-roster", label: "Roster", icon: ClipboardList },
       { id: "park-participants", label: "My Group", icon: GraduationCap },

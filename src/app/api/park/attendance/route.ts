@@ -103,7 +103,6 @@ export async function GET(req: Request) {
       where,
       include: {
         group: true,
-        closer: { include: { user: { select: { name: true } } } },
         records: { select: { id: true, status: true } },
       },
       orderBy: { eventDate: "desc" },
@@ -116,6 +115,20 @@ export async function GET(req: Request) {
       _count: true,
     });
     const pCountMap = new Map(groupPCounts.map((g) => [g.groupId, g._count]));
+
+    // Resolve closedBy names from StaffMeta
+    const closedByIds = events
+      .map((e) => e.closedBy)
+      .filter((id): id is string => !!id);
+    const closedByStaff = closedByIds.length > 0
+      ? await db.staffMeta.findMany({
+          where: { id: { in: closedByIds } },
+          include: { user: { select: { name: true } } },
+        })
+      : [];
+    const closedByNameMap = new Map(
+      closedByStaff.map((s) => [s.id, s.user.name])
+    );
 
     const eventList = events.map((e) => {
       const pCount = pCountMap.get(e.groupId) || 0;
@@ -140,7 +153,7 @@ export async function GET(req: Request) {
         excusedCount,
         progress: pCount > 0 ? Math.round((mCount / pCount) * 100) : 0,
         closedAt: e.closedAt?.toISOString() || null,
-        closedByName: e.closer?.user.name || null,
+        closedByName: e.closedBy ? closedByNameMap.get(e.closedBy) || null : null,
       };
     });
 

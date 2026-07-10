@@ -3,12 +3,21 @@
 import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { useAppStore } from "@/stores/useAppStore";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Loader2, Eye, EyeOff, Shield, Lock, Mail } from "lucide-react";
+
+// Shake animation keyframes
+const shakeVariants = {
+  initial: { x: 0 },
+  shake: {
+    x: [0, -8, 8, -6, 6, -3, 3, 0],
+    transition: { duration: 0.5, ease: "easeInOut" },
+  },
+};
 
 export function LoginPage() {
   const [email, setEmail] = useState("");
@@ -16,6 +25,7 @@ export function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [shaking, setShaking] = useState(false);
   const { setUserRole, navigateTo } = useAppStore();
 
   async function handleSubmit(e: React.FormEvent) {
@@ -24,6 +34,7 @@ export function LoginPage() {
 
     if (!email.trim() || !password.trim()) {
       setError("Please enter both email and password.");
+      triggerShake();
       return;
     }
 
@@ -37,13 +48,20 @@ export function LoginPage() {
 
       if (result?.error) {
         setError("Invalid email or password");
+        triggerShake();
         return;
       }
     } catch {
       setError("Something went wrong. Please try again.");
+      triggerShake();
     } finally {
       setLoading(false);
     }
+  }
+
+  function triggerShake() {
+    setShaking(true);
+    setTimeout(() => setShaking(false), 600);
   }
 
   return (
@@ -70,13 +88,14 @@ export function LoginPage() {
             initial={{ scale: 0.8, opacity: 0, rotate: -10 }}
             animate={{ scale: 1, opacity: 1, rotate: 0 }}
             transition={{ duration: 0.5, ease: "easeOut" }}
-            className="relative"
+            whileHover={{ scale: 1.05 }}
+            className="relative cursor-default"
           >
-            <div className="flex items-center justify-center size-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-700 text-white font-bold text-2xl mb-4 shadow-xl shadow-emerald-600/30">
+            <div className="flex items-center justify-center size-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-700 text-white font-bold text-2xl mb-4 shadow-xl shadow-emerald-600/30 transition-shadow duration-300 hover:shadow-emerald-500/50 hover:shadow-2xl">
               S
             </div>
             {/* Glow effect */}
-            <div className="absolute inset-0 rounded-2xl bg-emerald-500/20 blur-xl -z-10" />
+            <div className="absolute inset-0 rounded-2xl bg-emerald-500/20 blur-xl -z-10 transition-opacity duration-300 group-hover:opacity-100" />
           </motion.div>
           <motion.h1
             initial={{ opacity: 0, y: 10 }}
@@ -102,88 +121,110 @@ export function LoginPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2, duration: 0.5, ease: "easeOut" }}
         >
-          <Card className="border-0 shadow-xl shadow-black/5 dark:shadow-black/20 ring-1 ring-black/5 dark:ring-white/5 backdrop-blur-sm bg-card/80">
-            <CardHeader className="pb-2 pt-6">
-              <div className="flex flex-col items-center text-center">
-                <div className="rounded-xl bg-emerald-50 dark:bg-emerald-950/50 p-2.5 mb-3">
-                  <Shield className="size-5 text-emerald-600 dark:text-emerald-400" />
-                </div>
-                <h2 className="text-lg font-semibold">Welcome Back</h2>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Enter your credentials to access your account
-                </p>
-              </div>
-            </CardHeader>
-            <CardContent className="px-6 pb-6">
-              <form onSubmit={handleSubmit} className="space-y-5">
-                <div className="space-y-2">
-                  <Label htmlFor="email" className="text-sm font-medium">Email Address</Label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-                    <Input
-                      id="email"
-                      type="email"
-                      placeholder="you@shabab360.pk"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      disabled={loading}
-                      autoComplete="email"
-                      autoFocus
-                      className="pl-9 h-11"
-                    />
+          <motion.div
+            variants={shakeVariants}
+            animate={shaking ? "shake" : "initial"}
+          >
+            <Card className="border-0 shadow-xl shadow-black/5 dark:shadow-black/20 ring-1 ring-black/5 dark:ring-white/5 backdrop-blur-sm bg-card/80">
+              <CardHeader className="pb-2 pt-6">
+                <div className="flex flex-col items-center text-center">
+                  <div className="rounded-xl bg-emerald-50 dark:bg-emerald-950/50 p-2.5 mb-3">
+                    <Shield className="size-5 text-emerald-600 dark:text-emerald-400" />
                   </div>
+                  <h2 className="text-lg font-semibold">Welcome Back</h2>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Enter your credentials to access your account
+                  </p>
                 </div>
+              </CardHeader>
+              <CardContent className="px-6 pb-6">
+                <form onSubmit={handleSubmit} className="space-y-5">
+                  <div className="space-y-2">
+                    <Label htmlFor="email" className="text-sm font-medium">Email Address</Label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+                      <Input
+                        id="email"
+                        type="email"
+                        placeholder="you@shabab360.pk"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        disabled={loading}
+                        autoComplete="email"
+                        autoFocus
+                        className="pl-9 h-11"
+                      />
+                    </div>
+                  </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="password" className="text-sm font-medium">Password</Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-                    <Input
-                      id="password"
-                      type={showPassword ? "text" : "password"}
-                      placeholder="Enter your password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      disabled={loading}
-                      autoComplete="current-password"
-                      className="pl-9 pr-10 h-11"
-                    />
+                  <div className="space-y-2">
+                    <Label htmlFor="password" className="text-sm font-medium">Password</Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+                      <Input
+                        id="password"
+                        type={showPassword ? "text" : "password"}
+                        placeholder="Enter your password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        disabled={loading}
+                        autoComplete="current-password"
+                        className="pl-9 pr-10 h-11"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                        tabIndex={-1}
+                      >
+                        {showPassword ? (
+                          <EyeOff className="size-4" />
+                        ) : (
+                          <Eye className="size-4" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  <AnimatePresence>
+                    {error && (
+                      <motion.div
+                        key="error"
+                        initial={{ opacity: 0, height: 0, y: -8 }}
+                        animate={{ opacity: 1, height: "auto", y: 0 }}
+                        exit={{ opacity: 0, height: 0, y: -8 }}
+                        transition={{ duration: 0.25, ease: "easeOut" }}
+                        className="overflow-hidden"
+                      >
+                        <div className="rounded-lg bg-destructive/10 border border-destructive/20 px-3.5 py-2.5">
+                          <p className="text-sm text-destructive">{error}</p>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  <Button
+                    type="submit"
+                    className="w-full h-11 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-700 hover:to-emerald-600 text-white font-medium shadow-md shadow-emerald-600/20 transition-all duration-200"
+                    disabled={loading}
+                  >
+                    {loading && <Loader2 className="size-4 animate-spin" />}
+                    {loading ? "Signing in..." : "Sign In"}
+                  </Button>
+
+                  <div className="text-center pt-1">
                     <button
                       type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                      tabIndex={-1}
+                      onClick={() => navigateTo("reset-password")}
+                      className="text-xs text-muted-foreground hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
                     >
-                      {showPassword ? (
-                        <EyeOff className="size-4" />
-                      ) : (
-                        <Eye className="size-4" />
-                      )}
+                      Forgot password?
                     </button>
                   </div>
-                </div>
-
-                {error && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -4 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="rounded-lg bg-destructive/10 border border-destructive/20 px-3.5 py-2.5"
-                  >
-                    <p className="text-sm text-destructive">{error}</p>
-                  </motion.div>
-                )}
-
-                <Button
-                  type="submit"
-                  className="w-full h-11 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-700 hover:to-emerald-600 text-white font-medium shadow-md shadow-emerald-600/20 transition-all duration-200"
-                  disabled={loading}
-                >
-                  {loading && <Loader2 className="size-4 animate-spin" />}
-                  {loading ? "Signing in..." : "Sign In"}
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
+                </form>
+              </CardContent>
+            </Card>
+          </motion.div>
         </motion.div>
 
         <motion.p

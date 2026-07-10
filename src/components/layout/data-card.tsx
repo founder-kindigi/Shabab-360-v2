@@ -13,6 +13,7 @@ interface DataCardProps {
   trendValue?: string;
   className?: string;
   variant?: "emerald" | "amber" | "sky" | "violet" | "rose" | "slate";
+  pulse?: boolean;
 }
 
 const variantStyles = {
@@ -24,6 +25,8 @@ const variantStyles = {
     titleColor: "text-emerald-100",
     border: "border-emerald-200 dark:border-emerald-800",
     shadow: "shadow-emerald-200/50 dark:shadow-emerald-900/30",
+    accent: "border-l-emerald-300",
+    accentDark: "dark:border-l-emerald-700",
   },
   amber: {
     bg: "bg-gradient-to-br from-amber-500 to-orange-500",
@@ -33,6 +36,8 @@ const variantStyles = {
     titleColor: "text-amber-100",
     border: "border-amber-200 dark:border-amber-800",
     shadow: "shadow-amber-200/50 dark:shadow-amber-900/30",
+    accent: "border-l-amber-300",
+    accentDark: "dark:border-l-amber-700",
   },
   sky: {
     bg: "bg-gradient-to-br from-sky-500 to-blue-500",
@@ -42,6 +47,8 @@ const variantStyles = {
     titleColor: "text-sky-100",
     border: "border-sky-200 dark:border-sky-800",
     shadow: "shadow-sky-200/50 dark:shadow-sky-900/30",
+    accent: "border-l-sky-300",
+    accentDark: "dark:border-l-sky-700",
   },
   violet: {
     bg: "bg-gradient-to-br from-violet-500 to-purple-500",
@@ -51,6 +58,8 @@ const variantStyles = {
     titleColor: "text-violet-100",
     border: "border-violet-200 dark:border-violet-800",
     shadow: "shadow-violet-200/50 dark:shadow-violet-900/30",
+    accent: "border-l-violet-300",
+    accentDark: "dark:border-l-violet-700",
   },
   rose: {
     bg: "bg-gradient-to-br from-rose-500 to-pink-500",
@@ -60,6 +69,8 @@ const variantStyles = {
     titleColor: "text-rose-100",
     border: "border-rose-200 dark:border-rose-800",
     shadow: "shadow-rose-200/50 dark:shadow-rose-900/30",
+    accent: "border-l-rose-300",
+    accentDark: "dark:border-l-rose-700",
   },
   slate: {
     bg: "bg-gradient-to-br from-slate-600 to-slate-700",
@@ -69,6 +80,8 @@ const variantStyles = {
     titleColor: "text-slate-300",
     border: "border-slate-300 dark:border-slate-600",
     shadow: "shadow-slate-200/50 dark:shadow-slate-900/30",
+    accent: "border-l-slate-400",
+    accentDark: "dark:border-l-slate-500",
   },
 };
 
@@ -80,6 +93,7 @@ export function DataCard({
   trendValue,
   className,
   variant = "emerald",
+  pulse = false,
 }: DataCardProps) {
   const style = variantStyles[variant];
 
@@ -90,7 +104,10 @@ export function DataCard({
     >
       <Card
         className={cn(
-          "border-0 shadow-md hover:shadow-lg transition-shadow duration-300 overflow-hidden",
+          "border-0 shadow-md hover:shadow-lg hover:shadow-inner transition-shadow duration-300 overflow-hidden",
+          "border-l-[3px]",
+          style.accent,
+          style.accentDark,
           style.shadow,
           className
         )}
@@ -110,15 +127,18 @@ export function DataCard({
                   {value}
                 </p>
               </div>
-              <div className={cn("rounded-xl p-2.5", style.iconBg)}>
+              <div className={cn("rounded-xl p-2.5 transition-all duration-300", style.iconBg, pulse && "animate-pulse")}>
                 <Icon className={cn("size-5", style.iconColor)} />
               </div>
             </div>
             {trend && trendValue && (
               <div className="mt-3 flex items-center gap-1.5">
-                <span
+                <motion.span
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.3, ease: "easeOut" }}
                   className={cn(
-                    "flex items-center gap-0.5 text-xs font-semibold px-2 py-0.5 rounded-full",
+                    "flex items-center gap-0.5 text-xs font-semibold px-2 py-0.5 rounded-full transition-all duration-200",
                     trend === "up" && "bg-white/25 text-white",
                     trend === "down" && "bg-white/25 text-white",
                     trend === "neutral" && "bg-white/15 text-white/70"
@@ -128,7 +148,7 @@ export function DataCard({
                   {trend === "down" && <TrendingDown className="size-3" />}
                   {trend === "neutral" && <Minus className="size-3" />}
                   {trendValue}
-                </span>
+                </motion.span>
               </div>
             )}
           </CardContent>

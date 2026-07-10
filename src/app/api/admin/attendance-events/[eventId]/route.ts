@@ -32,11 +32,9 @@ export async function GET(
             batch: { include: { park: { include: { city: true } } } },
           },
         },
-        closer: { include: { user: { select: { name: true } } } },
         records: {
           include: {
             participant: true,
-            marker: { include: { user: { select: { name: true } } } },
           },
           orderBy: { participant: { name: "asc" } },
         },
@@ -58,6 +56,26 @@ export async function GET(
       where: { groupId: event.groupId, state: "active" },
     });
 
+    // Resolve closer name
+    let closedByName: string | null = null;
+    if (event.closedBy) {
+      const closer = await db.staffMeta.findUnique({
+        where: { id: event.closedBy },
+        include: { user: { select: { name: true } } },
+      });
+      closedByName = closer?.user.name || null;
+    }
+
+    // Resolve marker names
+    const markerIds = [...new Set(event.records.map((r) => r.markedBy).filter(Boolean))] as string[];
+    const markers = markerIds.length > 0
+      ? await db.staffMeta.findMany({
+          where: { id: { in: markerIds } },
+          include: { user: { select: { name: true } } },
+        })
+      : [];
+    const markerMap = new Map(markers.map((m) => [m.id, m.user.name]));
+
     return NextResponse.json({
       event: {
         id: event.id,
@@ -71,7 +89,7 @@ export async function GET(
         participantCount,
         markedCount: event.records.length,
         closedAt: event.closedAt?.toISOString() || null,
-        closedByName: event.closer?.user.name || null,
+        closedByName,
         ...statusCounts,
       },
       records: event.records.map((r) => ({
@@ -79,7 +97,7 @@ export async function GET(
         participantName: r.participant.name,
         status: r.status,
         markedAt: r.markedAt.toISOString(),
-        markedByName: r.marker?.user.name || null,
+        markedByName: r.markedBy ? (markerMap.get(r.markedBy) || null) : null,
       })),
     });
   } catch (error) {

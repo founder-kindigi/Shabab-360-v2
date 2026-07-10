@@ -273,3 +273,154 @@ Stage Summary:
 - Summary statistics cards with color-coded metrics
 - Custom progress bar component with threshold-based coloring
 - 0 lint errors
+
+---
+Task ID: 2-b
+Agent: Subagent
+Task: Fix closer/marker relation bugs in park API routes
+
+Work Log:
+- Identified invalid Prisma includes: `closer` on AttendanceEvent and `marker` on AttendanceRecord are not relations — `closedBy` and `markedBy` are plain `String?` fields storing StaffMeta IDs
+- Fixed `src/app/api/park/dashboard/route.ts`: Removed `closer: { include: { user: ... } }` from event query, added manual StaffMeta name resolution via `db.staffMeta.findMany` + Map, replaced `e.closer?.user.name` with map lookup
+- Fixed `src/app/api/park/attendance/route.ts`: Same pattern — removed `closer` include, added manual resolution for `closedBy` IDs
+- Fixed `src/app/api/park/attendance/[eventId]/route.ts`: Removed both `closer` include from event query and `marker` include from records query, combined `markedBy` + `closedBy` IDs into a single StaffMeta query, built unified `staffNameMap`, replaced both `r.marker?.user.name` and `event.closer?.user.name` with map lookups
+- Fixed `src/app/api/park/attendance/[eventId]/close/route.ts`: Removed unused `closer` include (response already used separately-queried `staffMeta?.user?.name`)
+- Ran `bun run lint` — zero errors, zero warnings
+
+Stage Summary:
+- 4 files fixed, 0 lint errors
+- All `closer` and `marker` relation includes removed from Prisma queries
+- Names resolved manually via `db.staffMeta.findMany` with user include + Map pattern
+- No functional behavior change — same data returned, just correct query approach
+
+---
+Task ID: 5
+Agent: Subagent (full-stack-developer)
+Task: Build notification bell with activity feed
+
+Work Log:
+- Created `/api/notifications` GET route: server-side auth via `requireAuth()`, role-scoped audit log filtering (super_admin/program_admin see all; city_head sees entries for their city scope; park_admin/park_lead/murabbi see entries for their park scope; guardian/student get empty). Returns 15 most recent entries with auto-generated descriptions (actor name + action verb + entity label + target name from newValues). Also returns `unreadCount` (entries from last 24 hours).
+- Created `notification-bell.tsx` component: Bell icon with red badge (shows count, "99+" if >99), shadcn Popover dropdown with Framer Motion animation (scale+fade+slide). Activity feed uses ScrollArea (max-h-96), shows max 10 items with action-type icons (Plus/Pencil/Trash2/CheckCircle2/Clock) in color-coded circles (emerald/amber/red/slate). Relative time helper (just now / X min ago / X hours ago / X days ago / formatted date). Empty state with XCircle icon. "View All" link and "View Audit Log" footer button navigate to admin-audit-log (only shown for roles with access). TanStack Query with `refetchInterval: 60000` (60s polling) and `staleTime: 30000`.
+- Modified `app-shell.tsx`: imported NotificationBell, placed it between the spacer div and the user dropdown menu in the top bar header.
+- ESLint passes with zero errors.
+
+Stage Summary:
+- Notification bell with dropdown activity feed COMPLETE
+- 2 new files created, 1 file modified
+- Role-scoped API (5 role tiers handled)
+- 60s auto-refresh polling via TanStack Query
+- Framer Motion open animation, dark mode support
+- 0 lint errors
+
+---
+Task ID: 3-b
+Agent: Subagent (full-stack-developer)
+Task: Build Murabbi Dashboard
+
+Work Log:
+- Created `/api/murabbi/dashboard` (GET): Requires `murabbi` role, gets assigned group from session with full hierarchy (group→batch→park→city). Returns group name, batch name, park name, city name, total active participants, today's event with P/A/L/E breakdown counts and progress percentage, today's attendance rate, 7-day attendance trend (daily rate for each of last 7 days with day labels and hasEvent flag), this week vs last week attendance rates, and top absentees (participants with 3+ absences in last 7 days, sorted by count desc). Fires audit log on access (fire-and-forget).
+- Created `src/components/modules/murabbi/murabbi-dashboard.tsx`:
+  - "use client" component with TanStack Query fetching from `/api/murabbi/dashboard` with 30s refetch
+  - Gradient greeting banner (`bg-gradient-to-r from-emerald-600 to-teal-500`) with "Assalamu Alaikum, {name}", group name, batch, park/city info, decorative shapes
+  - Quick action card: "Mark Today's Attendance" button (gradient, prominent, h-11 min touch target) with pulse animation dot when unmarked. Shows "No session today" badge when no event exists, "Closed" when event is done.
+  - 4 metric cards (2×2 grid): Total Shabab (sky), Today's Rate (emerald/amber/red based on threshold), This Week Rate (violet with trend diff badge), Last Week Rate (amber with trend diff badge)
+  - "Today's Session" card: if event exists, shows progress bar with P/A/L/E breakdown using StatusPill sub-components (color-coded with icons: CheckCircle2, XCircle, Clock, ShieldCheck). Links to park-attendance-roster via setSelectedEventId.
+  - "Weekly Trend" section: 7-day CSS bar chart using Framer Motion animated vertical bars. Emerald/amber/red color based on rate threshold (≥80/≥50/<50). Day labels below, rate labels above. Today highlighted in emerald.
+  - "Needs Attention" section: list of participants with 3+ absences. Amber left border for 3 absences, red for 4+. Avatar initial, name, absence count badge. Max height with scroll.
+  - Loading skeleton, error state, Framer Motion staggered entrance animations
+  - Mobile-first responsive design (grid-cols-2 metric cards, touch-friendly 44px targets)
+  - Dark mode support throughout
+- Updated `src/stores/useAppStore.ts`: Added `"murabbi-dashboard"` to PageId union type
+- Updated `src/components/layout/sidebar.tsx`: Changed murabbi role's first nav item from `"park-dashboard"` to `"murabbi-dashboard"`
+- Updated `src/components/layout/app-shell.tsx`: Added MurabbiDashboard import, added `"murabbi-dashboard"` to pageTitles, added case in PageContent switch, added to showPageHeader exclusion list
+- ESLint passes with zero errors and zero warnings
+
+Stage Summary:
+- Murabbi Dashboard module COMPLETE
+- 2 new files created, 3 files modified
+- API: role-scoped (murabbi only), group-hierarchy resolution, 7-day trend, week comparison, absentee tracking
+- Frontend: 6 sections (greeting banner, quick action, 4 metrics, session progress, weekly trend bar chart, needs attention list)
+- Mobile-first responsive, touch-friendly, dark mode, Framer Motion animations
+- 0 lint errors
+
+---
+Task ID: 3-a
+Agent: Subagent (full-stack-developer)
+Task: Build City Head Dashboard
+
+Work Log:
+- Created `/api/city-head/dashboard` (GET): Requires `city_head` role, gets assigned city from session. Returns city info (id, name, code), metrics (parkCount, batchCount, groupCount, totalParticipants, totalStaff, attendanceRate7Day), today's events across all parks (with group name, park name, isClosed, participant/marked counts, progress %), park-level breakdown (name, participants, groups, 7-day attendance rate), and last 10 recent activity entries. Fires audit log on access (fire-and-forget). Uses PKT timezone helpers for date range calculations (todayStart, todayEnd, 7-day lookback). Resolves closedBy staff names via manual StaffMeta query + Map pattern.
+
+- Created `src/components/modules/city-head/city-head-dashboard.tsx`:
+  - "use client" component with TanStack Query fetching from `/api/city-head/dashboard` with 30s refetch
+  - Gradient greeting banner (`bg-gradient-to-r from-emerald-600 to-teal-600`) with "Assalamu Alaikum, {name}", city name, city code badge, PKT date, decorative background shapes
+  - 4 metric cards (2×2 grid): Parks (emerald), Active Batches (sky), Total Shabab (violet), 7-Day Attendance (color-coded: emerald ≥80%, amber ≥50%, rose <50%)
+  - "My Parks" section: responsive grid (1/2/3 cols) of park cards showing park name with emerald icon, participant count, group count, and 7-day attendance rate with color-coded progress bar
+  - "Today's Sessions" section: scrollable list (max-h-96) of event cards showing title, Open/Closed badge (emerald/slate), park and group names with MapPin icon, progress bar with marked/total counts and percentage. Mobile progress bar shown on small screens, desktop progress inline
+  - "Recent Activity" section: timeline-style feed with connecting vertical lines, color-coded icon circles (emerald for create, amber for update, red for delete, slate for close, sky for view), actor name, action text, entity type, relative time + PKT formatted timestamp
+  - Loading skeleton state, error state with EmptyState
+  - Framer Motion staggered entrance animations (stagger + fadeUp variants)
+  - Mobile-first responsive design, dark mode support throughout
+  - Empty states for sections with no data
+
+- Updated `src/stores/useAppStore.ts`: Added `"city-head-dashboard"` to PageId union type
+- Updated `src/components/layout/sidebar.tsx`: Changed city_head role's first nav item from `"admin-dashboard"` to `"city-head-dashboard"`
+- Updated `src/components/layout/app-shell.tsx`: Added `"city-head-dashboard"` to showPageHeader exclusion list (import and PageContent case already existed from prior work)
+
+Stage Summary:
+- City Head Dashboard module COMPLETE
+- 2 new files created, 3 files modified
+- API: role-scoped (city_head only), city-level aggregation, per-park 7-day rates, today's sessions across all parks, recent activity timeline
+- Frontend: 5 sections (greeting banner, 4 metrics, My Parks grid, Today's Sessions list, Recent Activity timeline)
+- Mobile-first responsive, dark mode, Framer Motion animations
+- 0 lint errors
+---
+Task ID: 4
+Agent: Subagent (full-stack-developer)
+Task: Style polish + keyboard shortcuts feature
+
+Work Log:
+- Enhanced DataCard component: added `hover:shadow-inner`, 3px border-left accent matching variant color, `pulse` prop for icon container pulsing animation, smoother Framer Motion entrance animation on trend badge with `transition-all duration-200`
+- Enhanced PageHeader component: converted to `"use client"`, added scope breadcrumb trail using shadcn Breadcrumb component showing City > Park > Batch > Group when selected, uses TanStack Query to fetch names, mobile horizontally scrollable with `overflow-x-auto`, added `border-border/50` on separator
+- Enhanced LoginPage component: added shake animation on card when login fails (Framer Motion variants with multi-step x translation), improved error message with AnimatePresence for slide-in/slide-out with height animation, added logo hover effect (scale 1.05 + brighter shadow glow), added "Forgot password?" link below submit button navigating via `navigateTo("reset-password")`
+- Created `/src/hooks/use-keyboard-shortcuts.ts`: client-side hook with `useShortcutsDialogStore` (tiny zustand store for dialog open state), listens for Ctrl/Cmd+K (focus search), Ctrl/Cmd+/ (open shortcuts dialog), Escape (close dialogs via custom event), Ctrl/Cmd+1-9 (navigate to first 9 sidebar items based on role). Only fires when NOT in input/textarea/select
+- Created `/src/components/shared/keyboard-shortcuts-dialog.tsx`: shadcn Dialog with role-aware shortcut groups (General, Navigation), kbd-styled key badges, Framer Motion entrance animations, clean footer hint
+- Integrated into AppShell: imported and called `useKeyboardShortcuts()` hook, rendered `<KeyboardShortcutsDialog />`, added Escape key listener to close mobile sidebar
+
+Stage Summary:
+- 2 new files created (use-keyboard-shortcuts.ts, keyboard-shortcuts-dialog.tsx)
+- 4 existing files modified (data-card.tsx, page-header.tsx, login-page.tsx, app-shell.tsx)
+- 0 lint errors, clean compilation
+- All styling improvements applied with proper emerald theme consistency
+- Keyboard shortcuts system fully functional with role-aware navigation
+---
+Task ID: 3-c
+Agent: Subagent (full-stack-developer)
+Task: Enhanced Park Admin/Lead Dashboard
+
+Work Log:
+- Read existing worklog.md, park-dashboard.tsx, API route, Prisma schema, app store, and data-card component
+- Enhanced `/api/park/dashboard/route.ts` with 4 new data sections:
+  - **Attendance rate trend**: Queries 7 individual days for daily rate/marked/total
+  - **Group breakdown**: Per-group today's progress, P/A/L/E status counts, event status (open/closed/none)
+  - **Top performers**: Aggregates attendance records for last 7 days, ranks participants by attendance rate, returns top 5
+  - **Needs attention**: Groups below 50% today + unclosed yesterday events with full details
+  - Added `userName` from session for greeting, `prevWeekAttendanceRate` for trend comparison
+  - Added `openUncompletedCount` and `unclosedYesterdayCount` summary fields
+  - Removed unused imports (`toPKT`, `logAudit`) and dead code from top performers section
+- Enhanced `park-dashboard.tsx` with:
+  - **Greeting banner**: "Assalamu Alaikum, {name}" with park name, city, decorative circles, attention badge for open uncompleted sessions
+  - **6 metric cards** in 2x3 grid (desktop) / 2x2 (mobile): Today's Events, Open Events, Total Shabab, 7-Day Rate (with trend arrow vs prev week), Active Groups, Unclosed Yesterday (conditional)
+  - **Group Performance Grid**: Cards per group with progress bar, P/A/L/E badges, "No session today" state, click-to-navigate
+  - **Weekly Attendance Chart**: Pure CSS bar chart with 7 animated bars, color-coded (emerald ≥80%, amber ≥50%, red <50%), day labels, percentage labels, legend
+  - **Top Performers section**: Ranked list with gold/silver/bronze styling, attendance rate
+  - **Enhanced Attention Items**: Separate cards for low attendance (amber) and unclosed yesterday (red) with close button for unclosed events
+  - Framer Motion staggered animations throughout, dark mode support, mobile-first responsive
+- Removed unused imports (`TrendingDown`, `UserX`, `Activity`)
+- Fixed close event mutation to use PATCH method with required `reason` body field
+
+Stage Summary:
+- 2 files modified (API route + dashboard component)
+- 0 lint errors, clean compilation verified
+- API returns all existing fields plus: attendanceTrend, groupBreakdown, topPerformers, needsAttention, openUncompletedCount, unclosedYesterdayCount, userName, prevWeekAttendanceRate
+- Frontend: Enhanced from basic 4-card layout to feature-rich admin dashboard with chart, group grid, top performers, and contextual attention items

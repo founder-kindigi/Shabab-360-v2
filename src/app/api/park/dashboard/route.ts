@@ -2,12 +2,12 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { todayPKT, endOfTodayPKT, formatPKT, toPKT } from "@/lib/timezone";
-import { logAudit } from "@/lib/audit";
+import { todayPKT, endOfTodayPKT, formatPKT } from "@/lib/timezone";
 
 type SessionUser = {
   id?: string;
   role?: string;
+  name?: string | null;
   assignedCityId?: string | null;
   assignedParkId?: string | null;
   assignedGroupId?: string | null;
@@ -76,7 +76,6 @@ export async function GET() {
       },
       include: {
         group: true,
-        closer: { include: { user: { select: { name: true } } } },
         _count: { select: { records: true } },
       },
       orderBy: { eventDate: "desc" },
@@ -128,11 +127,287 @@ export async function GET() {
         ? totalMarksLast7Days / totalCapacityLast7Days
         : 0;
 
+    // Previous 7 days (day -14 to day -7) for comparison
+    const fourteenDaysAgo = new Date(todayStart.getTime() - 14 * 24 * 60 * 60 * 1000);
+    const prev7DaysEvents = await db.attendanceEvent.findMany({
+      where: {
+        groupId: { in: groupIds },
+        eventDate: { gte: fourteenDaysAgo, lt: sevenDaysAgo },
+        isClosed: true,
+      },
+      include: {
+        _count: { select: { records: true } },
+      },
+    });
+    const prevTotalMarks = prev7DaysEvents.reduce(
+      (sum, e) => sum + e._count.records,
+      0
+    );
+    const prevTotalCapacity = prev7DaysEvents.reduce((sum, e) => {
+      return sum + (participantCountMap.get(e.groupId) || 0);
+    }, 0);
+    const prevAttendanceRate =
+      prevTotalCapacity > 0 ? prevTotalMarks / prevTotalCapacity : 0;
+
+    // ==================== NEW DATA: Attendance Rate Trend (last 7 days) ====================
+    const attendanceTrend: Array<{
+      date: string;
+      rate: number;
+      marked: number;
+      total: number;
+    }> = [];
+
+    for (let i = 6; i >= 0; i--) {
+      const dayStart = new Date(todayStart.getTime() - i * 24 * 60 * 60 * 1000);
+      const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000 - 1);
+
+      const dayEvents = await db.attendanceEvent.findMany({
+        where: {
+          groupId: { in: groupIds },
+          eventDate: { gte: dayStart, lte: dayEnd },
+          isClosed: true,
+        },
+        include: { _count: { select: { records: true } } },
+      });
+
+      const dayMarked = dayEvents.reduce((s, e) => s + e._count.records, 0);
+      const dayTotal = dayEvents.reduce(
+        (s, e) => s + (participantCountMap.get(e.groupId) || 0),
+        0
+      );
+      const dayRate = dayTotal > 0 ? Math.round((dayMarked / dayTotal) * 100) : 0;
+
+      attendanceTrend.push({
+        date: formatPKT(dayStart, "yyyy-MM-dd"),
+        rate: dayRate,
+        marked: dayMarked,
+        total: dayTotal,
+      });
+    }
+
+    // ==================== NEW DATA: Group Breakdown ====================
+    const allGroups = await db.group.findMany({
+      where: { id: { in: groupIds }, isActive: true },
+      select: { id: true, name: true },
+    });
+
+    // Get today's event records with status breakdown for each group
+    const todayEventsWithRecords = await db.attendanceEvent.findMany({
+      where: {
+        groupId: { in: groupIds },
+        eventDate: { gte: todayStart, lte: todayEnd },
+      },
+      include: {
+        records: { select: { status: true } },
+      },
+    });
+
+    const groupEventMap = new Map<string, (typeof todayEventsWithRecords)[number][]>();
+    for (const ev of todayEventsWithRecords) {
+      const arr = groupEventMap.get(ev.groupId) || [];
+      arr.push(ev);
+      groupEventMap.set(ev.groupId, arr);
+    }
+
+    const groupBreakdown = allGroups.map((g) => {
+      const events = groupEventMap.get(g.id) || [];
+      const totalParts = participantCountMap.get(g.id) || 0;
+
+      let markedCount = 0;
+      let presentCount = 0;
+      let absentCount = 0;
+      let lateCount = 0;
+      let excusedCount = 0;
+
+      for (const ev of events) {
+        for (const rec of ev.records) {
+          markedCount++;
+          if (rec.status === "present") presentCount++;
+          else if (rec.status === "absent") absentCount++;
+          else if (rec.status === "late") lateCount++;
+          else if (rec.status === "excused") excusedCount++;
+        }
+      }
+
+      let eventStatus: "open" | "closed" | "none" = "none";
+      if (events.length > 0) {
+        eventStatus = events.every((e) => e.isClosed) ? "closed" : "open";
+      }
+
+      return {
+        id: g.id,
+        name: g.name,
+        totalParticipants: totalParts,
+        todayMarkedCount: markedCount,
+        todayPresent: presentCount,
+        todayAbsent: absentCount,
+        todayLate: lateCount,
+        todayExcused: excusedCount,
+        todayEventStatus: eventStatus,
+        todayProgress: totalParts > 0 ? Math.round((markedCount / totalParts) * 100) : 0,
+      };
+    });
+
+    // ==================== NEW DATA: Top Performers ====================
+    // Participants with best attendance in last 7 days
+    const last7DaysClosedEvents = await db.attendanceEvent.findMany({
+      where: {
+        groupId: { in: groupIds },
+        eventDate: { gte: sevenDaysAgo, lte: todayEnd },
+        isClosed: true,
+      },
+      select: { id: true },
+    });
+
+    const last7EventIds = last7DaysClosedEvents.map((e) => e.id);
+
+    let topPerformers: Array<{
+      id: string;
+      name: string;
+      groupName: string;
+      attended: number;
+      total: number;
+      rate: number;
+    }> = [];
+
+    if (last7EventIds.length > 0) {
+      // Get attendance records for last 7 days
+      const recentRecords = await db.attendanceRecord.findMany({
+        where: {
+          eventId: { in: last7EventIds },
+          status: { in: ["present", "late"] },
+        },
+        select: {
+          participantId: true,
+          eventId: true,
+          participant: {
+            select: { id: true, name: true, group: { select: { id: true, name: true } } },
+          },
+        },
+      });
+
+      // Count per participant
+      const participantAttendance = new Map<
+        string,
+        { name: string; groupId: string; groupName: string; attended: number }
+      >();
+
+      for (const rec of recentRecords) {
+        const existing = participantAttendance.get(rec.participantId);
+        if (existing) {
+          existing.attended++;
+        } else {
+          participantAttendance.set(rec.participantId, {
+            name: rec.participant.name,
+            groupId: rec.participant.group.id,
+            groupName: rec.participant.group.name,
+            attended: 1,
+          });
+        }
+      }
+
+      // Get events grouped by groupId for the 7 day period
+      const eventsByGroup7 = await db.attendanceEvent.groupBy({
+        by: ["groupId"],
+        where: {
+          groupId: { in: groupIds },
+          eventDate: { gte: sevenDaysAgo, lte: todayEnd },
+          isClosed: true,
+        },
+        _count: true,
+      });
+
+      const eventsPerGroupMap = new Map(
+        eventsByGroup7.map((g) => [g.groupId, g._count])
+      );
+
+      // Build top performers list
+      topPerformers = Array.from(participantAttendance.entries())
+        .map(([pid, data]) => {
+          const totalEvents = eventsPerGroupMap.get(data.groupId) || 0;
+          const rate = totalEvents > 0 ? Math.round((data.attended / totalEvents) * 100) : 0;
+          return {
+            id: pid,
+            name: data.name,
+            groupName: data.groupName,
+            attended: data.attended,
+            total: totalEvents,
+            rate,
+          };
+        })
+        .filter((p) => p.total > 0)
+        .sort((a, b) => b.rate - a.rate || b.attended - a.attended)
+        .slice(0, 5);
+    }
+
+    // ==================== NEW DATA: Needs Attention ====================
+    const needsAttention: Array<{
+      type: "low_attendance" | "unclosed_yesterday";
+      groupId?: string;
+      groupName?: string;
+      eventId?: string;
+      eventTitle?: string;
+      rate?: number;
+      message: string;
+    }> = [];
+
+    // Groups below 50% today
+    for (const gb of groupBreakdown) {
+      if (
+        gb.todayEventStatus !== "none" &&
+        gb.totalParticipants > 0 &&
+        gb.todayProgress < 50 &&
+        gb.todayMarkedCount > 0
+      ) {
+        needsAttention.push({
+          type: "low_attendance",
+          groupId: gb.id,
+          groupName: gb.name,
+          rate: gb.todayProgress,
+          message: `${gb.name} is at ${gb.todayProgress}% attendance today`,
+        });
+      }
+    }
+
+    // Unclosed events from yesterday
+    const yesterdayStart = new Date(todayStart.getTime() - 24 * 60 * 60 * 1000);
+    const unclosedYesterdayEvents = await db.attendanceEvent.findMany({
+      where: {
+        groupId: { in: groupIds },
+        eventDate: { gte: yesterdayStart, lt: todayStart },
+        isClosed: false,
+      },
+      include: { group: true },
+    });
+
+    for (const ev of unclosedYesterdayEvents) {
+      needsAttention.push({
+        type: "unclosed_yesterday",
+        eventId: ev.id,
+        eventTitle: ev.title,
+        groupName: ev.group.name,
+        message: `"${ev.title}" (${ev.group.name}) from yesterday is still open`,
+      });
+    }
+
+    // Resolve closedBy names from StaffMeta
+    const closedByIds = todayEvents
+      .map((e) => e.closedBy)
+      .filter((id): id is string => !!id);
+    const closedByStaff = closedByIds.length > 0
+      ? await db.staffMeta.findMany({
+          where: { id: { in: closedByIds } },
+          include: { user: { select: { name: true } } },
+        })
+      : [];
+    const closedByNameMap = new Map(
+      closedByStaff.map((s) => [s.id, s.user.name])
+    );
+
     // Build events list with counts
     const eventList = todayEvents.map((e) => {
       const pCount = participantCountMap.get(e.groupId) || 0;
       const mCount = e._count.records;
-      // Get breakdown from records
       return {
         id: e.id,
         title: e.title,
@@ -144,34 +419,24 @@ export async function GET() {
         markedCount: mCount,
         progress: pCount > 0 ? Math.round((mCount / pCount) * 100) : 0,
         closedAt: e.closedAt?.toISOString() || null,
-        closedByName: e.closer?.user.name || null,
+        closedByName: e.closedBy ? closedByNameMap.get(e.closedBy) || null : null,
       };
     });
 
     // Active groups count
     const activeGroups = groupIds.length;
 
-    // Unclosed events from yesterday
-    const yesterdayStart = new Date(todayStart.getTime() - 24 * 60 * 60 * 1000);
-    const unclosedYesterday = await db.attendanceEvent.count({
-      where: {
-        groupId: { in: groupIds },
-        eventDate: { gte: yesterdayStart, lt: todayStart },
-        isClosed: false,
-      },
-    });
-
-    // Build attention items
+    // Build attention items (legacy format kept for backward compat)
     const attentionItems: Array<{
       type: string;
       message: string;
       severity: string;
     }> = [];
 
-    if (unclosedYesterday > 0) {
+    if (unclosedYesterdayEvents.length > 0) {
       attentionItems.push({
         type: "unclosed_event",
-        message: `${unclosedYesterday} event(s) from yesterday still open`,
+        message: `${unclosedYesterdayEvents.length} event(s) from yesterday still open`,
         severity: "warning",
       });
     }
@@ -187,6 +452,11 @@ export async function GET() {
       });
     }
 
+    // Count open uncompleted events for badge
+    const openUncompleted = todayEvents.filter(
+      (e) => !e.isClosed && e._count.records < (participantCountMap.get(e.groupId) || 0)
+    ).length;
+
     return NextResponse.json({
       park: park
         ? {
@@ -195,6 +465,7 @@ export async function GET() {
             cityName: park.city?.name || "Unknown",
           }
         : null,
+      userName: user.name || null,
       todayDate: formatPKT(new Date(), "yyyy-MM-dd"),
       todayEvents: {
         total: todayEvents.length,
@@ -204,9 +475,18 @@ export async function GET() {
       recentSummary: {
         last7DaysEvents: last7DaysEvents.length,
         last7DaysAttendanceRate: Math.round(attendanceRate * 100),
+        prevWeekAttendanceRate: Math.round(prevAttendanceRate * 100),
         totalParticipants,
         activeGroups,
       },
+      // NEW fields
+      attendanceTrend,
+      groupBreakdown,
+      topPerformers,
+      needsAttention,
+      openUncompletedCount: openUncompleted,
+      unclosedYesterdayCount: unclosedYesterdayEvents.length,
+      // Existing fields
       attentionItems,
       events: eventList,
     });

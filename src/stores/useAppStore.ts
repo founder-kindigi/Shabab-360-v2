@@ -6,6 +6,8 @@ export type PageId =
   | "login"
   | "reset-password"
   | "access-pending"
+  // City Head pages
+  | "city-head-dashboard"
   // Admin pages
   | "admin-dashboard"
   | "admin-cities"
@@ -23,6 +25,8 @@ export type PageId =
   | "admin-announcements"
   | "admin-reports"
   | "admin-audit-log"
+  // Murabbi pages
+  | "murabbi-dashboard"
   // Park pages
   | "park-dashboard"
   | "park-attendance"

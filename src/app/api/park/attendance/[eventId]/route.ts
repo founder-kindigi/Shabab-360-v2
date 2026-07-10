@@ -41,7 +41,6 @@ export async function GET(
             batch: { include: { park: true } },
           },
         },
-        closer: { include: { user: { select: { name: true } } } },
       },
     });
 
@@ -76,10 +75,23 @@ export async function GET(
     // Get all records for this event
     const records = await db.attendanceRecord.findMany({
       where: { eventId },
-      include: {
-        marker: { include: { user: { select: { name: true } } } },
-      },
     });
+
+    // Resolve markedBy names from StaffMeta
+    const markedByIds = records
+      .map((r) => r.markedBy)
+      .filter((id): id is string => !!id);
+    // Also include the event's closedBy if present
+    const allStaffIds = [...new Set([...markedByIds, ...(event.closedBy ? [event.closedBy] : [])])];
+    const staffMetas = allStaffIds.length > 0
+      ? await db.staffMeta.findMany({
+          where: { id: { in: allStaffIds } },
+          include: { user: { select: { name: true } } },
+        })
+      : [];
+    const staffNameMap = new Map(
+      staffMetas.map((s) => [s.id, s.user.name])
+    );
 
     // Build a map of participantId -> record
     const recordMap = new Map(
@@ -89,7 +101,7 @@ export async function GET(
           status: r.status,
           recordId: r.id,
           markedAt: r.markedAt.toISOString(),
-          markedByName: r.marker?.user.name || null,
+          markedByName: r.markedBy ? staffNameMap.get(r.markedBy) || null : null,
         },
       ])
     );
@@ -129,7 +141,7 @@ export async function GET(
         eventDate: event.eventDate.toISOString(),
         isClosed: event.isClosed,
         closedAt: event.closedAt?.toISOString() || null,
-        closedByName: event.closer?.user.name || null,
+        closedByName: event.closedBy ? staffNameMap.get(event.closedBy) || null : null,
       },
       roster,
       summary: {

@@ -47,7 +47,6 @@ export async function PATCH(
       where: { id: eventId },
       include: {
         group: { include: { batch: true } },
-        closer: { include: { user: { select: { name: true } } } },
       },
     });
 

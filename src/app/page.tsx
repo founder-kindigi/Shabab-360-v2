@@ -38,9 +38,13 @@ function AuthenticatedApp() {
         }
 
         // Navigate to default page based on role
-        if (["super_admin", "program_admin", "city_head"].includes(user.role)) {
+        if (user.role === "city_head") {
+          navigateTo("city-head-dashboard");
+        } else if (["super_admin", "program_admin"].includes(user.role)) {
           navigateTo("admin-dashboard");
-        } else if (["park_admin", "park_lead", "murabbi"].includes(user.role)) {
+        } else if (user.role === "murabbi") {
+          navigateTo("murabbi-dashboard");
+        } else if (["park_admin", "park_lead"].includes(user.role)) {
           navigateTo("park-dashboard");
         } else if (user.role === "guardian") {
           navigateTo("guardian-dashboard");

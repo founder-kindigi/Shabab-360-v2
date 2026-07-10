@@ -97,7 +97,6 @@ export async function GET(req: Request) {
               batch: { include: { park: { include: { city: true } } } },
             },
           },
-          closer: { include: { user: { select: { name: true } } } },
           _count: { select: { records: true } },
         },
         orderBy: { eventDate: "desc" },
@@ -116,8 +115,34 @@ export async function GET(req: Request) {
     });
     const pCountMap = new Map(groupPCounts.map((g) => [g.groupId, g._count]));
 
+    // Get status breakdown per event
+    const allEventIds = events.map((e) => e.id);
+    const statusBreakdown = await db.attendanceRecord.groupBy({
+      by: ["eventId", "status"],
+      where: { eventId: { in: allEventIds } },
+      _count: true,
+    });
+    const breakdownMap = new Map<string, Map<string, number>>();
+    for (const row of statusBreakdown) {
+      if (!breakdownMap.has(row.eventId)) {
+        breakdownMap.set(row.eventId, new Map());
+      }
+      breakdownMap.get(row.eventId)!.set(row.status, row._count);
+    }
+
+    // Resolve closer names (closedBy is a staffMeta ID)
+    const closerIds = [...new Set(events.map((e) => e.closedBy).filter(Boolean))] as string[];
+    const closers = closerIds.length > 0
+      ? await db.staffMeta.findMany({
+          where: { id: { in: closerIds } },
+          include: { user: { select: { name: true } } },
+        })
+      : [];
+    const closerMap = new Map(closers.map((c) => [c.id, c.user.name]));
+
     const eventList = events.map((e) => {
       const pCount = pCountMap.get(e.groupId) || 0;
+      const breakdown = breakdownMap.get(e.id) || new Map();
       return {
         id: e.id,
         title: e.title,
@@ -130,9 +155,13 @@ export async function GET(req: Request) {
         isClosed: e.isClosed,
         participantCount: pCount,
         markedCount: e._count.records,
+        presentCount: breakdown.get("present") || 0,
+        absentCount: breakdown.get("absent") || 0,
+        lateCount: breakdown.get("late") || 0,
+        excusedCount: breakdown.get("excused") || 0,
         progress: pCount > 0 ? Math.round((e._count.records / pCount) * 100) : 0,
         closedAt: e.closedAt?.toISOString() || null,
-        closedByName: e.closer?.user.name || null,
+        closedByName: e.closedBy ? (closerMap.get(e.closedBy) || null) : null,
       };
     });
 

@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useSession, signOut } from "next-auth/react";
 import { useAppStore, type PageId } from "@/stores/useAppStore";
 import { Sidebar } from "@/components/layout/sidebar";
+import { NotificationBell } from "@/components/layout/notification-bell";
 import { PageHeader } from "@/components/layout/page-header";
 import { EmptyState } from "@/components/layout/empty-state";
 import { Button } from "@/components/ui/button";
@@ -26,14 +27,18 @@ import { UsersPage } from "@/components/modules/admin/users-page";
 import { AuditLogPage } from "@/components/modules/admin/audit-log-page";
 import { AdminAttendanceEvents } from "@/components/modules/admin/admin-attendance-events";
 import { SettingsPage } from "@/components/modules/admin/settings-page";
+import { MurabbiDashboard } from "@/components/modules/murabbi/murabbi-dashboard";
 import { ParkDashboard } from "@/components/modules/park/park-dashboard";
 import { ParkAttendancePage } from "@/components/modules/park/park-attendance-page";
 import { AttendanceRoster } from "@/components/modules/park/attendance-roster";
 import { GuardianDashboard } from "@/components/modules/guardian/guardian-dashboard";
+import { CityHeadDashboard } from "@/components/modules/city-head/city-head-dashboard";
 import { StudentDashboard } from "@/components/modules/student/student-dashboard";
 
 // Shared components
 import { ScopeSelector } from "@/components/shared/scope-selector";
+import { KeyboardShortcutsDialog } from "@/components/shared/keyboard-shortcuts-dialog";
+import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
 
 // Icons for coming-soon pages
 import {
@@ -46,6 +51,7 @@ const pageTitles: Record<PageId, string> = {
   login: "Sign In",
   "reset-password": "Reset Password",
   "access-pending": "Access Pending",
+  "city-head-dashboard": "Dashboard",
   "admin-dashboard": "Dashboard",
   "admin-cities": "Cities",
   "admin-parks": "Parks",
@@ -62,6 +68,7 @@ const pageTitles: Record<PageId, string> = {
   "admin-announcements": "Announcements",
   "admin-reports": "Reports",
   "admin-audit-log": "Audit Log",
+  "murabbi-dashboard": "Dashboard",
   "park-dashboard": "Dashboard",
   "park-attendance": "Attendance",
   "park-attendance-roster": "Mark Attendance",
@@ -118,6 +125,8 @@ function ComingSoonPage({ pageId }: { pageId: PageId }) {
 function PageContent({ pageId }: { pageId: PageId }) {
   switch (pageId) {
     // Built pages
+    case "city-head-dashboard":
+      return <CityHeadDashboard />;
     case "admin-dashboard":
       return <AdminDashboard />;
     case "admin-cities":
@@ -136,6 +145,8 @@ function PageContent({ pageId }: { pageId: PageId }) {
       return <SettingsPage />;
     case "admin-attendance-events":
       return <AdminAttendanceEvents />;
+    case "murabbi-dashboard":
+      return <MurabbiDashboard />;
     case "park-dashboard":
       return <ParkDashboard />;
     case "park-attendance":
@@ -157,6 +168,18 @@ export function AppShell() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const { currentPage, navigateTo } = useAppStore();
   const { data: session } = useSession();
+
+  // Keyboard shortcuts
+  useKeyboardShortcuts();
+
+  // Close mobile sidebar on Escape
+  useEffect(() => {
+    function handleEscape() {
+      setMobileOpen(false);
+    }
+    document.addEventListener("shortcut:escape", handleEscape);
+    return () => document.removeEventListener("shortcut:escape", handleEscape);
+  }, []);
   const user = session?.user as {
     name?: string;
     email?: string;
@@ -164,7 +187,7 @@ export function AppShell() {
   } | undefined;
 
   const pageTitle = pageTitles[currentPage] || "Dashboard";
-  const showPageHeader = !["admin-dashboard", "park-dashboard", "park-attendance-roster", "guardian-dashboard", "student-dashboard", "admin-cities", "admin-parks", "admin-batches", "admin-groups", "admin-users", "admin-audit-log", "admin-settings", "admin-attendance-events"].includes(currentPage);
+  const showPageHeader = !["admin-dashboard", "city-head-dashboard", "murabbi-dashboard", "park-dashboard", "park-attendance-roster", "guardian-dashboard", "student-dashboard", "admin-cities", "admin-parks", "admin-batches", "admin-groups", "admin-users", "admin-audit-log", "admin-settings", "admin-attendance-events"].includes(currentPage);
 
   // Show scope selector on admin pages (not dashboard, settings, or audit-log)
   const showScopeSelector = currentPage.startsWith("admin-") && !(["admin-dashboard", "admin-settings", "admin-audit-log"] as const).includes(currentPage as any);
@@ -196,6 +219,9 @@ export function AppShell() {
 
           {/* Spacer */}
           <div className="flex-1 hidden lg:block" />
+
+          {/* Notification bell */}
+          <NotificationBell />
 
           {/* User menu */}
           <DropdownMenu>
@@ -244,6 +270,9 @@ export function AppShell() {
             </DropdownMenuContent>
           </DropdownMenu>
         </header>
+
+        {/* Keyboard shortcuts dialog */}
+        <KeyboardShortcutsDialog />
 
         {/* Page content */}
         <main className="flex-1 overflow-y-auto">

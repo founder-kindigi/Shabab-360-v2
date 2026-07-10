@@ -150,7 +150,7 @@ export async function GET(request: NextRequest) {
       recentActivity,
       cityParks: await db.park.findMany({
         where: { cityId: user.assignedCityId, isActive: true },
-        include: { _count: { select: { batches: true, groups: true } } },
+        include: { _count: { select: { batches: true } } },
         orderBy: { name: "asc" },
       }),
     });
