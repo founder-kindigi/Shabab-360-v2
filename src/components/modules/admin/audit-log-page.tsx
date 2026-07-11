@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { PageHeader } from "@/components/layout/page-header";
 import { EmptyState } from "@/components/layout/empty-state";
@@ -29,11 +29,19 @@ import {
   CalendarIcon,
   ChevronDown,
   ChevronUp,
+  ChevronLeft,
+  ChevronRight,
   User,
   Clock,
   FileText,
   Loader2,
+  Minus,
+  Plus,
 } from "lucide-react";
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
 
 interface AuditLogEntry {
   id: string;
@@ -47,6 +55,20 @@ interface AuditLogEntry {
   createdAt: string;
   user: { id: string; name: string | null; email: string } | null;
 }
+
+interface AuditLogResponse {
+  data: AuditLogEntry[];
+  pagination: {
+    page: number;
+    pageSize: number;
+    totalItems: number;
+    totalPages: number;
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
 
 const ACTION_OPTIONS = [
   { value: "", label: "All Actions" },
@@ -68,7 +90,16 @@ const ENTITY_OPTIONS = [
   { value: "participant", label: "Participant" },
   { value: "guardian", label: "Guardian" },
   { value: "attendanceEvent", label: "AttendanceEvent" },
+  { value: "fee_event", label: "FeeEvent" },
+  { value: "payment", label: "Payment" },
+  { value: "announcement", label: "Announcement" },
 ];
+
+const PAGE_SIZE = 20;
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
 
 function getActionBadgeStyle(action: string) {
   switch (action.toUpperCase()) {
@@ -83,64 +114,180 @@ function getActionBadgeStyle(action: string) {
   }
 }
 
-function truncateJson(str: string | null, maxLen = 80): string {
-  if (!str) return "—";
+// ---------------------------------------------------------------------------
+// Diff Component
+// ---------------------------------------------------------------------------
+
+function DiffDisplay({
+  oldValues,
+  newValues,
+}: {
+  oldValues: string | null;
+  newValues: string | null;
+}) {
+  let oldParsed: Record<string, unknown> = {};
+  let newParsed: Record<string, unknown> = {};
+
   try {
-    const parsed = JSON.parse(str);
-    const formatted = JSON.stringify(parsed);
-    if (formatted.length <= maxLen) return formatted;
-    return formatted.slice(0, maxLen) + "…";
+    oldParsed = oldValues ? JSON.parse(oldValues) : {};
   } catch {
-    if (str.length <= maxLen) return str;
-    return str.slice(0, maxLen) + "…";
+    oldParsed = {};
   }
-}
-
-function MetadataBlock({ label, value }: { label: string; value: string | null }) {
-  const [expanded, setExpanded] = useState(false);
-
-  if (!value) return null;
-
-  let parsed: string;
   try {
-    parsed = JSON.stringify(JSON.parse(value), null, 2);
+    newParsed = newValues ? JSON.parse(newValues) : {};
   } catch {
-    parsed = value;
+    newParsed = {};
   }
 
-  const isLong = parsed.length > 80;
+  // If we have both old and new, show a field-level diff
+  if (oldValues && newValues && Object.keys(oldParsed).length > 0 && Object.keys(newParsed).length > 0) {
+    const allKeys = Array.from(
+      new Set([...Object.keys(oldParsed), ...Object.keys(newParsed)])
+    ).sort();
 
-  return (
-    <div className="space-y-1">
-      <div className="flex items-center gap-2">
-        <span className="text-xs font-medium text-muted-foreground">{label}</span>
-        {isLong && (
-          <button
-            onClick={() => setExpanded(!expanded)}
-            className="inline-flex items-center gap-0.5 text-xs text-[#4B0A8F] hover:text-[#4B0A8FCC] dark:text-[#8A40B0] dark:hover:text-[#8A40B0CC] cursor-pointer"
-          >
-            {expanded ? (
-              <>
-                <ChevronUp className="size-3" /> Collapse
-              </>
-            ) : (
-              <>
-                <ChevronDown className="size-3" /> Expand
-              </>
-            )}
-          </button>
-        )}
+    return (
+      <div className="space-y-1.5">
+        {allKeys.map((key) => {
+          const oldVal = oldParsed[key];
+          const newVal = newParsed[key];
+          const oldStr = formatValue(oldVal);
+          const newStr = formatValue(newVal);
+          const changed = oldStr !== newStr;
+          const removed = !(key in newParsed);
+          const added = !(key in oldParsed);
+
+          return (
+            <div key={key} className="text-xs">
+              <div className="flex items-center gap-1.5 mb-0.5">
+                <span className="font-medium text-muted-foreground font-mono">{key}</span>
+                {changed && !removed && !added && (
+                  <Badge variant="outline" className="text-[9px] px-1 py-0 bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-950/30 dark:text-sky-400 dark:border-sky-800">
+                    changed
+                  </Badge>
+                )}
+                {added && (
+                  <Badge variant="outline" className="text-[9px] px-1 py-0 bg-green-50 text-green-700 border-green-200 dark:bg-green-950/30 dark:text-green-400 dark:border-green-800">
+                    added
+                  </Badge>
+                )}
+                {removed && (
+                  <Badge variant="outline" className="text-[9px] px-1 py-0 bg-red-50 text-red-700 border-red-200 dark:bg-red-950/30 dark:text-red-400 dark:border-red-800">
+                    removed
+                  </Badge>
+                )}
+              </div>
+              <div className="space-y-0.5 ml-1">
+                {removed ? (
+                  <div className="flex items-start gap-1.5">
+                    <Minus className="size-3 text-red-500 dark:text-red-400 mt-0.5 shrink-0" />
+                    <code className="bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-400 rounded px-1.5 py-0.5 break-all font-mono">
+                      {oldStr}
+                    </code>
+                  </div>
+                ) : added ? (
+                  <div className="flex items-start gap-1.5">
+                    <Plus className="size-3 text-green-600 dark:text-green-400 mt-0.5 shrink-0" />
+                    <code className="bg-green-50 text-green-700 dark:bg-green-950/30 dark:text-green-400 rounded px-1.5 py-0.5 break-all font-mono">
+                      {newStr}
+                    </code>
+                  </div>
+                ) : changed ? (
+                  <>
+                    <div className="flex items-start gap-1.5">
+                      <Minus className="size-3 text-red-500 dark:text-red-400 mt-0.5 shrink-0" />
+                      <code className="bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-400 rounded px-1.5 py-0.5 break-all font-mono line-through opacity-70">
+                        {oldStr}
+                      </code>
+                    </div>
+                    <div className="flex items-start gap-1.5">
+                      <Plus className="size-3 text-green-600 dark:text-green-400 mt-0.5 shrink-0" />
+                      <code className="bg-green-50 text-green-700 dark:bg-green-950/30 dark:text-green-400 rounded px-1.5 py-0.5 break-all font-mono">
+                        {newStr}
+                      </code>
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex items-start gap-1.5">
+                    <span className="size-3 shrink-0" />
+                    <code className="bg-muted/50 rounded px-1.5 py-0.5 break-all font-mono text-muted-foreground">
+                      {oldStr}
+                    </code>
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
       </div>
-      <pre
-        className={`text-xs bg-muted/50 rounded-md p-2 overflow-x-auto font-mono whitespace-pre-wrap break-all ${
-          !expanded && isLong ? "max-h-16 overflow-hidden" : ""
-        }`}
-      >
-        {expanded || !isLong ? parsed : truncateJson(value, 80)}
+    );
+  }
+
+  // If only new values (CREATE action)
+  if (newValues && Object.keys(newParsed).length > 0) {
+    return (
+      <div className="space-y-1">
+        {Object.entries(newParsed).map(([key, value]) => (
+          <div key={key} className="text-xs flex items-start gap-1.5">
+            <Plus className="size-3 text-green-600 dark:text-green-400 mt-0.5 shrink-0" />
+            <div className="min-w-0">
+              <span className="font-medium text-muted-foreground font-mono">{key}: </span>
+              <code className="bg-green-50 text-green-700 dark:bg-green-950/30 dark:text-green-400 rounded px-1 py-0.5 break-all font-mono">
+                {formatValue(value)}
+              </code>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  // If only old values (DELETE action)
+  if (oldValues && Object.keys(oldParsed).length > 0) {
+    return (
+      <div className="space-y-1">
+        {Object.entries(oldParsed).map(([key, value]) => (
+          <div key={key} className="text-xs flex items-start gap-1.5">
+            <Minus className="size-3 text-red-500 dark:text-red-400 mt-0.5 shrink-0" />
+            <div className="min-w-0">
+              <span className="font-medium text-muted-foreground font-mono">{key}: </span>
+              <code className="bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-400 rounded px-1 py-0.5 break-all font-mono">
+                {formatValue(value)}
+              </code>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  // Fallback: raw text display
+  if (newValues) {
+    return (
+      <pre className="text-xs bg-muted/50 rounded-md p-2 overflow-x-auto font-mono whitespace-pre-wrap break-all">
+        {newValues}
       </pre>
-    </div>
-  );
+    );
+  }
+  if (oldValues) {
+    return (
+      <pre className="text-xs bg-muted/50 rounded-md p-2 overflow-x-auto font-mono whitespace-pre-wrap break-all">
+        {oldValues}
+      </pre>
+    );
+  }
+
+  return null;
 }
+
+function formatValue(val: unknown): string {
+  if (val === null || val === undefined) return "null";
+  if (typeof val === "object") return JSON.stringify(val);
+  return String(val);
+}
+
+// ---------------------------------------------------------------------------
+// Main Component
+// ---------------------------------------------------------------------------
 
 export function AuditLogPage() {
   const [actionFilter, setActionFilter] = useState("");
@@ -149,7 +296,9 @@ export function AuditLogPage() {
   const [toDate, setToDate] = useState<Date | undefined>();
   const [fromOpen, setFromOpen] = useState(false);
   const [toOpen, setToOpen] = useState(false);
-  const [visibleCount, setVisibleCount] = useState(50);
+  const [page, setPage] = useState(1);
+
+  const hasActiveFilters = !!(actionFilter || entityFilter || fromDate || toDate);
 
   const buildQueryParams = useCallback(() => {
     const params = new URLSearchParams();
@@ -157,16 +306,13 @@ export function AuditLogPage() {
     if (entityFilter) params.set("entityType", entityFilter);
     if (fromDate) params.set("from", format(fromDate, "yyyy-MM-dd"));
     if (toDate) params.set("to", format(toDate, "yyyy-MM-dd"));
-    params.set("limit", String(visibleCount));
-    params.set("offset", "0");
+    params.set("page", String(page));
+    params.set("pageSize", String(PAGE_SIZE));
     return params.toString();
-  }, [actionFilter, entityFilter, fromDate, toDate, visibleCount]);
+  }, [actionFilter, entityFilter, fromDate, toDate, page]);
 
-  const { data, isLoading, isFetching } = useQuery<{
-    data: AuditLogEntry[];
-    total: number;
-  }>({
-    queryKey: ["audit-log", actionFilter, entityFilter, fromDate, toDate, visibleCount],
+  const { data, isLoading, isFetching } = useQuery<AuditLogResponse>({
+    queryKey: ["audit-log", actionFilter, entityFilter, fromDate, toDate, page],
     queryFn: () => {
       const qs = buildQueryParams();
       return fetch(`/api/admin/audit-log?${qs}`).then((r) => r.json());
@@ -175,13 +321,39 @@ export function AuditLogPage() {
   });
 
   const logs = data?.data || [];
-  const total = data?.total || 0;
-  const hasMore = logs.length < total;
+  const totalItems = data?.pagination?.totalItems || 0;
+  const totalPages = data?.pagination?.totalPages || 1;
+  const showFrom = totalItems === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
+  const showTo = Math.min(page * PAGE_SIZE, totalItems);
 
-  // Reset visible count when filters change
   function handleFilterChange() {
-    setVisibleCount(50);
+    setPage(1);
   }
+
+  function clearAllFilters() {
+    setActionFilter("");
+    setEntityFilter("");
+    setFromDate(undefined);
+    setToDate(undefined);
+    setPage(1);
+  }
+
+  // Generate page numbers to show
+  const pageNumbers = useMemo(() => {
+    const pages: (number | "ellipsis")[] = [];
+    if (totalPages <= 7) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+      pages.push(1);
+      if (page > 3) pages.push("ellipsis");
+      const start = Math.max(2, page - 1);
+      const end = Math.min(totalPages - 1, page + 1);
+      for (let i = start; i <= end; i++) pages.push(i);
+      if (page < totalPages - 2) pages.push("ellipsis");
+      pages.push(totalPages);
+    }
+    return pages;
+  }, [page, totalPages]);
 
   return (
     <div className="space-y-6">
@@ -297,30 +469,20 @@ export function AuditLogPage() {
           </Popover>
         </div>
 
-        {(actionFilter || entityFilter || fromDate || toDate) && (
+        {hasActiveFilters && (
           <Button
             variant="ghost"
             size="sm"
             className="h-9 text-xs"
-            onClick={() => {
-              setActionFilter("");
-              setEntityFilter("");
-              setFromDate(undefined);
-              setToDate(undefined);
-              handleFilterChange();
-            }}
+            onClick={clearAllFilters}
           >
             Clear all
           </Button>
         )}
-
-        <div className="ml-auto text-xs text-muted-foreground">
-          {total} {total === 1 ? "entry" : "entries"}
-        </div>
       </motion.div>
 
       {/* Loading state */}
-      {(isLoading || isFetching) && logs.length === 0 && (
+      {(isLoading || (isFetching && logs.length === 0)) && (
         <div className="space-y-3">
           {Array.from({ length: 5 }).map((_, i) => (
             <Skeleton key={i} className="h-14 w-full rounded-lg" />
@@ -332,7 +494,7 @@ export function AuditLogPage() {
       {!isLoading && logs.length > 0 && (
         <AnimatePresence mode="wait">
           <motion.div
-            key={`${actionFilter}-${entityFilter}-${visibleCount}`}
+            key={`${actionFilter}-${entityFilter}-${page}`}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -374,6 +536,56 @@ export function AuditLogPage() {
                   </tbody>
                 </table>
               </div>
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between px-4 py-3 border-t bg-[#F3ECF6]/30 dark:bg-[#1F086080]/30">
+                  <p className="text-xs text-muted-foreground">
+                    Showing {showFrom}–{showTo} of {totalItems}
+                  </p>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="size-8"
+                      disabled={page <= 1 || isFetching}
+                      onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    >
+                      <ChevronLeft className="size-4" />
+                    </Button>
+                    {pageNumbers.map((p, idx) =>
+                      p === "ellipsis" ? (
+                        <span key={`e-${idx}`} className="px-1 text-xs text-muted-foreground">
+                          ...
+                        </span>
+                      ) : (
+                        <Button
+                          key={p}
+                          variant={p === page ? "default" : "outline"}
+                          size="icon"
+                          className={cn(
+                            "size-8 text-xs",
+                            p === page && "bg-[#4B0A8F] hover:bg-[#3A0870] text-white"
+                          )}
+                          onClick={() => setPage(p)}
+                          disabled={isFetching}
+                        >
+                          {p}
+                        </Button>
+                      )
+                    )}
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="size-8"
+                      disabled={page >= totalPages || isFetching}
+                      onClick={() => setPage((p) => p + 1)}
+                    >
+                      <ChevronRight className="size-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Mobile cards */}
@@ -381,6 +593,35 @@ export function AuditLogPage() {
               {logs.map((log) => (
                 <AuditLogCard key={log.id} log={log} />
               ))}
+
+              {/* Mobile pagination */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between pt-2">
+                  <p className="text-xs text-muted-foreground">
+                    {showFrom}–{showTo} of {total}
+                  </p>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="size-8"
+                      disabled={page <= 1}
+                      onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    >
+                      <ChevronLeft className="size-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="size-8"
+                      disabled={page >= totalPages}
+                      onClick={() => setPage((p) => p + 1)}
+                    >
+                      <ChevronRight className="size-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           </motion.div>
         </AnimatePresence>
@@ -390,19 +631,7 @@ export function AuditLogPage() {
       {isFetching && logs.length > 0 && (
         <div className="flex items-center justify-center gap-2 py-2">
           <Loader2 className="size-4 animate-spin text-muted-foreground" />
-          <span className="text-xs text-muted-foreground">Loading more...</span>
-        </div>
-      )}
-
-      {/* Load more button */}
-      {!isLoading && hasMore && !isFetching && (
-        <div className="flex justify-center">
-          <Button
-            variant="outline"
-            onClick={() => setVisibleCount((prev) => prev + 50)}
-          >
-            Load More
-          </Button>
+          <span className="text-xs text-muted-foreground">Loading...</span>
         </div>
       )}
 
@@ -412,7 +641,7 @@ export function AuditLogPage() {
           icon={ScrollText}
           title="No audit logs found"
           description={
-            actionFilter || entityFilter || fromDate || toDate
+            hasActiveFilters
               ? "Try adjusting your filters to see more results."
               : "Audit logs will appear here as actions are performed in the system."
           }
@@ -422,84 +651,132 @@ export function AuditLogPage() {
   );
 }
 
+// ---------------------------------------------------------------------------
+// Helpers for className
+// ---------------------------------------------------------------------------
+import { cn } from "@/lib/utils";
+
+// ---------------------------------------------------------------------------
+// Desktop Row
+// ---------------------------------------------------------------------------
+
 function AuditLogRow({ log }: { log: AuditLogEntry }) {
   const [showDetails, setShowDetails] = useState(false);
   const hasDetails = log.oldValues || log.newValues || log.reason;
+  const hasDiff = (log.oldValues && log.newValues) || log.newValues || log.oldValues;
 
   return (
-    <tr className="hover:bg-muted/30 transition-colors group">
-      <td className="px-4 py-3 align-top">
-        <div className="text-xs text-muted-foreground">
-          {formatPKT(new Date(log.createdAt), "dd MMM yyyy")}
-        </div>
-        <div className="text-xs font-mono text-muted-foreground/70">
-          {formatPKT(new Date(log.createdAt), "hh:mm a")}
-        </div>
-      </td>
-      <td className="px-4 py-3 align-top">
-        <span className="text-sm font-medium">
-          {log.user?.name || log.user?.email || "System"}
-        </span>
-      </td>
-      <td className="px-4 py-3 align-top">
-        <Badge
-          variant="outline"
-          className={`text-xs font-mono ${getActionBadgeStyle(log.action)}`}
-        >
-          {log.action}
-        </Badge>
-      </td>
-      <td className="px-4 py-3 align-top">
-        <div className="text-sm">
-          <span className="capitalize">{log.entityType.replace(/_/g, " ")}</span>
-        </div>
-        {log.entityId && (
-          <code className="text-[10px] font-mono text-muted-foreground">
-            {log.entityId.slice(0, 8)}…
-          </code>
+    <>
+      <tr
+        className={cn(
+          "hover:bg-muted/30 transition-colors group cursor-pointer",
+          showDetails && "bg-muted/20"
         )}
-      </td>
-      <td className="px-4 py-3 align-top">
-        {hasDetails ? (
-          <button
-            onClick={() => setShowDetails(!showDetails)}
-            className="text-xs text-[#4B0A8F] hover:text-[#4B0A8FCC] dark:text-[#8A40B0] dark:hover:text-[#8A40B0CC] cursor-pointer"
+        onClick={() => hasDetails && setShowDetails(!showDetails)}
+      >
+        <td className="px-4 py-3 align-top">
+          <div className="text-xs text-muted-foreground">
+            {formatPKT(new Date(log.createdAt), "dd MMM yyyy")}
+          </div>
+          <div className="text-xs font-mono text-muted-foreground/70">
+            {formatPKT(new Date(log.createdAt), "hh:mm a")}
+          </div>
+        </td>
+        <td className="px-4 py-3 align-top">
+          <span className="text-sm font-medium">
+            {log.user?.name || log.user?.email || "System"}
+          </span>
+        </td>
+        <td className="px-4 py-3 align-top">
+          <Badge
+            variant="outline"
+            className={`text-xs font-mono ${getActionBadgeStyle(log.action)}`}
           >
-            {showDetails ? "Hide details" : "View details"}
-          </button>
-        ) : (
-          <span className="text-xs text-muted-foreground">—</span>
-        )}
+            {log.action}
+          </Badge>
+        </td>
+        <td className="px-4 py-3 align-top">
+          <div className="text-sm">
+            <span className="capitalize">{log.entityType.replace(/_/g, " ")}</span>
+          </div>
+          {log.entityId && (
+            <code className="text-[10px] font-mono text-muted-foreground">
+              {log.entityId.slice(0, 8)}…
+            </code>
+          )}
+        </td>
+        <td className="px-4 py-3 align-top">
+          <div className="flex items-center gap-1.5">
+            {hasDetails && (
+              <button
+                className="text-xs text-[#4B0A8F] hover:text-[#4B0A8FCC] dark:text-[#8A40B0] dark:hover:text-[#8A40B0CC] cursor-pointer flex items-center gap-1"
+              >
+                {showDetails ? (
+                  <>
+                    <ChevronUp className="size-3" /> Hide
+                  </>
+                ) : (
+                  <>
+                    <ChevronDown className="size-3" /> View details
+                  </>
+                )}
+              </button>
+            )}
+            {log.reason && !showDetails && (
+              <span className="text-[10px] text-muted-foreground italic truncate max-w-[150px]">
+                "{log.reason}"
+              </span>
+            )}
+            {!hasDetails && (
+              <span className="text-xs text-muted-foreground">—</span>
+            )}
+          </div>
+        </td>
+      </tr>
 
+      {/* Expanded diff row */}
+      <AnimatePresence>
         {showDetails && hasDetails && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            className="mt-2 space-y-2 max-w-sm"
-          >
-            {log.oldValues && (
-              <MetadataBlock label="Old Values" value={log.oldValues} />
-            )}
-            {log.newValues && (
-              <MetadataBlock label="New Values" value={log.newValues} />
-            )}
-            {log.reason && (
-              <div className="space-y-1">
-                <span className="text-xs font-medium text-muted-foreground">Reason</span>
-                <p className="text-xs bg-muted/50 rounded-md p-2">{log.reason}</p>
-              </div>
-            )}
-          </motion.div>
+          <tr>
+            <td colSpan={5} className="px-4 pb-3 pt-0">
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.2 }}
+                className="overflow-hidden"
+              >
+                <div className="rounded-lg border bg-muted/20 p-3 space-y-3 max-w-2xl ml-4">
+                  {hasDiff && (
+                    <DiffDisplay oldValues={log.oldValues} newValues={log.newValues} />
+                  )}
+
+                  {log.reason && (
+                    <div className="space-y-1 pt-1 border-t border-border/50">
+                      <span className="text-xs font-medium text-muted-foreground">Reason</span>
+                      <p className="text-xs bg-[#F3ECF6]/50 dark:bg-[#1F086080]/50 rounded-md p-2 border border-[#D4B8E3]/30 dark:border-[#2A0C8F]/30">
+                        {log.reason}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            </td>
+          </tr>
         )}
-      </td>
-    </tr>
+      </AnimatePresence>
+    </>
   );
 }
+
+// ---------------------------------------------------------------------------
+// Mobile Card
+// ---------------------------------------------------------------------------
 
 function AuditLogCard({ log }: { log: AuditLogEntry }) {
   const [showDetails, setShowDetails] = useState(false);
   const hasDetails = log.oldValues || log.newValues || log.reason;
+  const hasDiff = (log.oldValues && log.newValues) || log.newValues || log.oldValues;
 
   return (
     <motion.div
@@ -549,9 +826,17 @@ function AuditLogCard({ log }: { log: AuditLogEntry }) {
       {hasDetails && (
         <button
           onClick={() => setShowDetails(!showDetails)}
-          className="text-xs text-[#4B0A8F] hover:text-[#4B0A8FCC] dark:text-[#8A40B0] dark:hover:text-[#8A40B0CC] cursor-pointer"
+          className="text-xs text-[#4B0A8F] hover:text-[#4B0A8FCC] dark:text-[#8A40B0] dark:hover:text-[#8A40B0CC] cursor-pointer flex items-center gap-1"
         >
-          {showDetails ? "Hide details" : "View details"}
+          {showDetails ? (
+            <>
+              <ChevronUp className="size-3" /> Hide details
+            </>
+          ) : (
+            <>
+              <ChevronDown className="size-3" /> View details
+            </>
+          )}
         </button>
       )}
 
@@ -561,18 +846,20 @@ function AuditLogCard({ log }: { log: AuditLogEntry }) {
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
-            className="space-y-2 overflow-hidden"
+            className="space-y-3 overflow-hidden"
           >
-            {log.oldValues && (
-              <MetadataBlock label="Old Values" value={log.oldValues} />
+            {hasDiff && (
+              <div className="rounded-lg border bg-muted/20 p-3">
+                <DiffDisplay oldValues={log.oldValues} newValues={log.newValues} />
+              </div>
             )}
-            {log.newValues && (
-              <MetadataBlock label="New Values" value={log.newValues} />
-            )}
+
             {log.reason && (
               <div className="space-y-1">
                 <span className="text-xs font-medium text-muted-foreground">Reason</span>
-                <p className="text-xs bg-muted/50 rounded-md p-2">{log.reason}</p>
+                <p className="text-xs bg-[#F3ECF6]/50 dark:bg-[#1F086080]/50 rounded-md p-2 border border-[#D4B8E3]/30 dark:border-[#2A0C8F]/30">
+                  {log.reason}
+                </p>
               </div>
             )}
           </motion.div>

@@ -31,6 +31,7 @@ export async function GET(req: Request) {
     const cityId = searchParams.get("cityId");
     const parkId = searchParams.get("parkId");
     const groupId = searchParams.get("groupId");
+    const search = searchParams.get("search");
     const dateFrom = searchParams.get("dateFrom");
     const dateTo = searchParams.get("dateTo");
     const isClosed = searchParams.get("isClosed");
@@ -87,6 +88,11 @@ export async function GET(req: Request) {
 
     if (isClosed === "true") eventWhere.isClosed = true;
     else if (isClosed === "false") eventWhere.isClosed = false;
+
+    // Search by event title
+    if (search) {
+      eventWhere.title = { contains: search, mode: "insensitive" };
+    }
 
     const [events, total] = await Promise.all([
       db.attendanceEvent.findMany({

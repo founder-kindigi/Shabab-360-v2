@@ -239,6 +239,29 @@ export async function GET() {
       dailyTrend.push({ date: dateKey, label, rate, hasEvent });
     }
 
+    // ── Fee summary ──
+    const batchId = participant.group.batchId;
+    const feeEvents = await db.feeEvent.findMany({
+      where: { batchId, isActive: true },
+      select: { id: true, amount: true },
+    });
+    const feeEventIds = feeEvents.map((f) => f.id);
+    const totalExpected = feeEvents.reduce((sum, f) => sum + f.amount, 0);
+
+    let totalPaid = 0;
+    if (feeEventIds.length > 0) {
+      const paymentSum = await db.payment.aggregate({
+        where: {
+          participantId: participant.id,
+          feeEventId: { in: feeEventIds },
+        },
+        _sum: { amount: true },
+      });
+      totalPaid = paymentSum._sum.amount || 0;
+    }
+
+    const outstanding = Math.max(totalExpected - totalPaid, 0);
+
     return NextResponse.json({
       participant: {
         id: participant.id,
@@ -268,6 +291,11 @@ export async function GET() {
       },
       dailyTrend,
       todayDate: formatPKT(new Date(), "EEEE, dd MMMM yyyy"),
+      feeSummary: {
+        totalExpected: Math.round(totalExpected),
+        totalPaid: Math.round(totalPaid),
+        outstanding: Math.round(outstanding),
+      },
     });
   } catch (error) {
     console.error("Student dashboard error:", error);

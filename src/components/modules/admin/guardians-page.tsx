@@ -45,6 +45,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { useDebounce } from "@/hooks/use-debounce";
 import { formatPKT } from "@/lib/timezone";
+import { ExportButton } from "@/components/shared/export-button";
 import {
   Plus,
   Search,
@@ -107,7 +108,7 @@ interface Guardian {
 interface Pagination {
   page: number;
   pageSize: number;
-  total: number;
+  totalItems: number;
   totalPages: number;
 }
 
@@ -420,13 +421,35 @@ export function GuardiansPage() {
         title="Guardians"
         description="Manage family contacts and participant links"
         actions={
-          <Button
-            onClick={openCreateDialog}
-            className="bg-[#4B0A8F] hover:bg-[#4B0A8FE6] text-white"
-          >
-            <Plus className="size-4 mr-2" />
-            Add Guardian
-          </Button>
+          <div className="flex items-center gap-2">
+            <ExportButton
+              data={guardians.map((g) => ({
+                name: g.name,
+                phone: g.phone,
+                cnic: g.cnic ?? "",
+                address: g.address ?? "",
+                childrenCount: g.children?.length ?? 0,
+                status: g.isActive ? "Active" : "Inactive",
+              }))}
+              filename="guardians"
+              columns={[
+                { key: "name", header: "Name" },
+                { key: "phone", header: "Phone" },
+                { key: "cnic", header: "CNIC" },
+                { key: "address", header: "Address" },
+                { key: "childrenCount", header: "Children Count" },
+                { key: "status", header: "Status" },
+              ]}
+              disabled={isLoading}
+            />
+            <Button
+              onClick={openCreateDialog}
+              className="bg-[#4B0A8F] hover:bg-[#4B0A8FE6] text-white"
+            >
+              <Plus className="size-4 mr-2" />
+              Add Guardian
+            </Button>
+          </div>
         }
       />
 
@@ -468,7 +491,7 @@ export function GuardiansPage() {
           </div>
           {pagination && (
             <div className="mt-3 text-xs text-muted-foreground">
-              Showing {guardians.length} of {pagination.total} guardians
+              Showing {guardians.length} of {pagination.totalItems} guardians
             </div>
           )}
         </CardContent>

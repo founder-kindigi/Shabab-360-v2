@@ -42,6 +42,7 @@ import {
   Users,
   X,
 } from "lucide-react";
+import { ExportButton } from "@/components/shared/export-button";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -248,6 +249,36 @@ export function AdminAttendanceEvents() {
       <PageHeader
         title="Attendance Events"
         description="Monitor attendance across all parks"
+        actions={
+          <ExportButton
+            data={visibleEvents.map((e) => ({
+              title: e.title,
+              group: e.groupName,
+              date: e.eventDate
+                ? new Date(e.eventDate).toLocaleDateString("en-PK", { timeZone: "Asia/Karachi" })
+                : "",
+              status: e.isClosed ? "Closed" : "Open",
+              presentCount: e.presentCount,
+              absentCount: e.absentCount,
+              total: e.participantCount,
+              rate: e.participantCount > 0
+                ? Math.round((e.presentCount / e.participantCount) * 100)
+                : 0,
+            }))}
+            filename="attendance-events"
+            columns={[
+              { key: "title", header: "Event Title" },
+              { key: "group", header: "Group" },
+              { key: "date", header: "Date" },
+              { key: "status", header: "Status" },
+              { key: "presentCount", header: "Present Count" },
+              { key: "absentCount", header: "Absent Count" },
+              { key: "total", header: "Total" },
+              { key: "rate", header: "Rate%" },
+            ]}
+            disabled={isLoading}
+          />
+        }
       />
 
       {/* Summary cards */}

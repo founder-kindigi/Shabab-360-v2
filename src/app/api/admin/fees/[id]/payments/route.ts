@@ -7,9 +7,7 @@ import { z } from "zod";
 const createPaymentSchema = z.object({
   participantId: z.string().min(1, "Participant is required"),
   amount: z.number().positive("Amount must be positive"),
-  method: z.enum(["cash", "bank", "online", "other"], {
-    errorMap: () => ({ message: "Method must be cash, bank, online, or other" }),
-  }),
+  method: z.enum(["cash", "bank", "online", "other"]),
   notes: z.string().optional(),
 });
 

@@ -21,6 +21,8 @@ import {
   XCircle,
   Clock,
   ShieldCheck,
+  Wallet,
+  AlertCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -37,6 +39,14 @@ type ChildAttendance = {
   last5: Array<{ date: string; status: string; title: string }>;
 };
 
+type ChildFees = {
+  totalExpected: number;
+  totalPaid: number;
+  outstanding: number;
+  upcomingFees: number;
+  overdueFees: number;
+};
+
 type ChildData = {
   id: string;
   name: string;
@@ -46,6 +56,7 @@ type ChildData = {
   cityName: string | null;
   groupId: string;
   attendance: ChildAttendance;
+  fees?: ChildFees;
 };
 
 type TodayEvent = {
@@ -65,6 +76,7 @@ type DashboardData = {
   todayEvents: TodayEvent[];
   unreadAnnouncements: number;
   todayDate: string;
+  feesSummary?: { totalPaidThisMonth: number; totalOutstanding: number };
 };
 
 // ─── Animation Config ────────────────────────────────────────────────
@@ -190,6 +202,13 @@ export function GuardianDashboard() {
     navigateTo("guardian-history");
   };
 
+  const handleViewChildDetails = (participantId: string) => {
+    setSelectedParticipantId(participantId);
+    navigateTo("guardian-history");
+  };
+
+  const feesSummary = data.feesSummary;
+
   return (
     <motion.div
       variants={stagger}
@@ -219,7 +238,7 @@ export function GuardianDashboard() {
       {/* ─── 2. Summary Metric Cards (2x2 → 4 cols) ───────────── */}
       <motion.div
         variants={fadeUp}
-        className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4"
+        className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-5"
       >
         {/* My Children */}
         <Card className="overflow-hidden">
@@ -282,6 +301,21 @@ export function GuardianDashboard() {
             <p className="text-xs text-muted-foreground mt-0.5">Announcements</p>
           </CardContent>
         </Card>
+
+        {/* Fees Paid This Month */}
+        {feesSummary && (
+          <Card className="overflow-hidden cursor-pointer" onClick={() => navigateTo("guardian-fees")}>
+            <CardContent className="p-4">
+              <div className="relative flex items-center justify-center size-9 rounded-lg bg-[#F3ECF6] dark:bg-[#1F086099]">
+                <Wallet className="size-4.5 text-[#4B0A8F] dark:text-[#8A40B0]" />
+              </div>
+              <p className="text-lg font-bold mt-3 tabular-nums">
+                Rs {feesSummary.totalPaidThisMonth.toLocaleString()}
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">Fees Paid</p>
+            </CardContent>
+          </Card>
+        )}
       </motion.div>
 
       {/* ─── 3. My Children Section ─────────────────────────────── */}
@@ -319,8 +353,11 @@ export function GuardianDashboard() {
               >
                 <Card className="overflow-hidden border-border h-full">
                   <CardContent className="p-4 space-y-3">
-                    {/* Child header */}
-                    <div className="flex items-center gap-3">
+                    {/* Child header - clickable */}
+                    <div
+                      className="flex items-center gap-3 cursor-pointer"
+                      onClick={() => handleViewChildDetails(child.id)}
+                    >
                       <div
                         className={cn(
                           "flex items-center justify-center size-10 rounded-full text-sm font-bold shrink-0",
@@ -408,6 +445,30 @@ export function GuardianDashboard() {
                         colorClass="bg-sky-50 text-sky-600 dark:bg-sky-950/40 dark:text-sky-400"
                       />
                     </div>
+
+                    {/* Fee status badges */}
+                    {child.fees && (
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {child.fees.overdueFees > 0 && (
+                          <Badge className="bg-red-100 text-red-700 border-0 text-[10px] font-semibold px-2 py-0.5 dark:bg-red-950/50 dark:text-red-400">
+                            <AlertCircle className="size-3 mr-1" />
+                            {child.fees.overdueFees} overdue
+                          </Badge>
+                        )}
+                        {child.fees.upcomingFees > 0 && (
+                          <Badge className="bg-amber-100 text-amber-700 border-0 text-[10px] font-semibold px-2 py-0.5 dark:bg-amber-950/50 dark:text-amber-400">
+                            <Clock className="size-3 mr-1" />
+                            {child.fees.upcomingFees} upcoming
+                          </Badge>
+                        )}
+                        {child.fees.outstanding === 0 && child.fees.totalExpected > 0 && (
+                          <Badge className="bg-[#F3ECF6] text-[#4B0A8F] border-0 text-[10px] font-semibold px-2 py-0.5 dark:bg-[#1F086080] dark:text-[#8A40B0]">
+                            <CheckCircle2 className="size-3 mr-1" />
+                            Paid
+                          </Badge>
+                        )}
+                      </div>
+                    )}
 
                     {/* View History button */}
                     <Button

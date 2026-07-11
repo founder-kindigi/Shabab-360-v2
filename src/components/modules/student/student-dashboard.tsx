@@ -26,6 +26,8 @@ import {
   AlertTriangle,
   CalendarDays,
   Megaphone,
+  Wallet,
+  User,
 } from "lucide-react";
 
 // ─── Types ───────────────────────────────────────────────────────────
@@ -82,6 +84,11 @@ type DashboardData = {
   streak: { current: number; longest: number };
   dailyTrend: DailyTrend[];
   todayDate: string;
+  feeSummary?: {
+    totalExpected: number;
+    totalPaid: number;
+    outstanding: number;
+  };
 };
 
 // ─── Animation Config ────────────────────────────────────────────────
@@ -656,6 +663,40 @@ export function StudentDashboard() {
         )}
       </motion.div>
 
+      {/* ─── 6.5. My Fees Quick Summary ────────────────────────────── */}
+      {data.feeSummary && (data.feeSummary.totalExpected > 0 || data.feeSummary.outstanding > 0) && (
+        <motion.div variants={fadeUp}>
+          <Card
+            className="overflow-hidden border-border cursor-pointer hover:border-[#D4B8E3] dark:hover:border-[#2A0C8F99] transition-colors"
+            onClick={() => navigateTo("student-fees")}
+          >
+            <CardContent className="p-4 flex items-center gap-4">
+              <div className="flex items-center justify-center size-10 rounded-xl bg-[#F3ECF6] dark:bg-[#1F086080] shrink-0">
+                <Wallet className="size-5 text-[#4B0A8F] dark:text-[#8A40B0]" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold">My Fees</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {data.feeSummary.outstanding > 0
+                    ? `Rs ${data.feeSummary.outstanding.toLocaleString()} outstanding`
+                    : "All fees paid"}
+                </p>
+              </div>
+              <div className="text-right shrink-0">
+                <p className={cn(
+                  "text-lg font-bold tabular-nums",
+                  data.feeSummary.outstanding > 0 ? "text-red-600 dark:text-red-400" : "text-[#4B0A8F] dark:text-[#8A40B0]"
+                )}>
+                  Rs {data.feeSummary.outstanding.toLocaleString()}
+                </p>
+                <p className="text-[10px] text-muted-foreground">balance</p>
+              </div>
+              <ChevronRight className="size-4 text-muted-foreground shrink-0" />
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
+
       {/* ─── 7. Quick Actions ───────────────────────────────────── */}
       <motion.div variants={fadeUp}>
         <div className="grid grid-cols-2 gap-3">
@@ -674,6 +715,22 @@ export function StudentDashboard() {
           >
             <Megaphone className="size-4 text-[#4B0A8F] dark:text-[#8A40B0]" />
             Announcements
+          </Button>
+          <Button
+            variant="outline"
+            className="h-12 justify-start gap-3 px-4 text-sm font-medium hover:border-[#D4B8E3] hover:bg-[#F3ECF6] dark:hover:border-[#2A0C8F99] dark:hover:bg-[#1F08604D]"
+            onClick={() => navigateTo("student-fees")}
+          >
+            <Wallet className="size-4 text-[#4B0A8F] dark:text-[#8A40B0]" />
+            My Fees
+          </Button>
+          <Button
+            variant="outline"
+            className="h-12 justify-start gap-3 px-4 text-sm font-medium hover:border-[#D4B8E3] hover:bg-[#F3ECF6] dark:hover:border-[#2A0C8F99] dark:hover:bg-[#1F08604D]"
+            onClick={() => navigateTo("student-profile")}
+          >
+            <User className="size-4 text-[#4B0A8F] dark:text-[#8A40B0]" />
+            My Profile
           </Button>
         </div>
       </motion.div>

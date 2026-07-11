@@ -2,9 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { motion } from "framer-motion";
 import { PageHeader } from "@/components/layout/page-header";
-import { EmptyState } from "@/components/layout/empty-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -28,43 +26,30 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import {
   Plus,
-  Search,
-  MoreHorizontal,
-  Pencil,
-  Trash2,
   KeyRound,
   UserCog,
-  Users,
   Eye,
   EyeOff,
   MapPin,
   Building2,
+  Users,
+  Trash2,
+  Pencil,
 } from "lucide-react";
 import type { StaffRole } from "@/types";
+import {
+  SortableDataTable,
+  type Column,
+} from "@/components/shared/sortable-data-table";
 
 interface UserWithMeta {
   id: string;
@@ -85,6 +70,13 @@ interface UserWithMeta {
     assignedPark: { id: string; name: string } | null;
     assignedGroup: { id: string; name: string } | null;
   } | null;
+}
+
+interface Pagination {
+  page: number;
+  pageSize: number;
+  totalItems: number;
+  totalPages: number;
 }
 
 interface CityOption {
@@ -145,6 +137,7 @@ export function UsersPage() {
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [page, setPage] = useState(1);
 
   // Dialogs
   const [createOpen, setCreateOpen] = useState(false);
@@ -166,13 +159,15 @@ export function UsersPage() {
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   // Fetch users
-  const { data: users, isLoading } = useQuery<UserWithMeta[]>({
-    queryKey: ["admin-users", roleFilter, statusFilter, search],
+  const { data, isLoading } = useQuery<{ data: UserWithMeta[]; pagination: Pagination }>({
+    queryKey: ["admin-users", roleFilter, statusFilter, search, page],
     queryFn: () => {
       const params = new URLSearchParams();
       if (roleFilter !== "all") params.set("role", roleFilter);
       if (statusFilter !== "all") params.set("status", statusFilter);
       if (search) params.set("search", search);
+      params.set("page", String(page));
+      params.set("pageSize", "20");
       const qs = params.toString();
       return fetch(`/api/admin/users${qs ? `?${qs}` : ""}`).then((r) =>
         r.json()
@@ -180,6 +175,10 @@ export function UsersPage() {
     },
     staleTime: 30000,
   });
+  const users = data?.data || [];
+  const pagination = data?.pagination;
+
+
 
   // Fetch cities for dropdowns
   const { data: cities } = useQuery<CityOption[]>({
@@ -480,6 +479,198 @@ export function UsersPage() {
     updateMutation.mutate({ id: selectedUser.id, data });
   }
 
+  // Column definitions for SortableDataTable
+  const columns: Column<UserWithMeta>[] = [
+    {
+      key: "user",
+      header: "User",
+      render: (user) => (
+        <div className="flex items-center gap-3">
+          <div className="flex items-center justify-center size-9 rounded-full bg-[#F3ECF6] dark:bg-[#1F0860] text-[#4B0A8F] dark:text-[#8A40B0] text-xs font-bold shrink-0">
+            {getInitials(user.name, user.email)}
+          </div>
+          <div className="min-w-0">
+            <p className="font-medium text-sm truncate">
+              {user.name || "No name"}
+            </p>
+            <p className="text-xs text-muted-foreground truncate">
+              {user.email}
+            </p>
+          </div>
+        </div>
+      ),
+      mobileRender: (user) => (
+        <div className="flex items-start justify-between">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="flex items-center justify-center size-10 rounded-full bg-[#F3ECF6] dark:bg-[#1F0860] text-[#4B0A8F] dark:text-[#8A40B0] text-sm font-bold shrink-0">
+              {getInitials(user.name, user.email)}
+            </div>
+            <div className="min-w-0">
+              <p className="font-medium text-sm truncate">
+                {user.name || "No name"}
+              </p>
+              <p className="text-xs text-muted-foreground truncate">
+                {user.email}
+              </p>
+            </div>
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: "role",
+      header: "Role",
+      render: (user) => (
+        <div className="flex flex-wrap items-center gap-1.5">
+          {user.staffMeta ? (
+            <Badge
+              variant="outline"
+              className={ROLE_COLORS[user.staffMeta.role] || ""}
+            >
+              {ROLE_LABELS[user.staffMeta.role] || user.staffMeta.role}
+            </Badge>
+          ) : (
+            <span className="text-xs text-muted-foreground italic">
+              No role
+            </span>
+          )}
+          {user.mustResetPwd && (
+            <Badge
+              variant="outline"
+              className="bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/50 dark:text-amber-400 dark:border-amber-800"
+            >
+              <KeyRound className="size-3 mr-1" />
+              Reset Pwd
+            </Badge>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: "assignment",
+      header: "Assignment",
+      render: (user) => (
+        <div className="text-sm space-y-0.5">
+          {user.staffMeta?.assignedCity && (
+            <div className="flex items-center gap-1.5 text-muted-foreground">
+              <MapPin className="size-3" />
+              <span className="truncate">
+                {user.staffMeta.assignedCity.name}
+              </span>
+            </div>
+          )}
+          {user.staffMeta?.assignedPark && (
+            <div className="flex items-center gap-1.5 text-muted-foreground">
+              <Building2 className="size-3" />
+              <span className="truncate">
+                {user.staffMeta.assignedPark.name}
+              </span>
+            </div>
+          )}
+          {user.staffMeta?.assignedGroup && (
+            <div className="flex items-center gap-1.5 text-muted-foreground">
+              <Users className="size-3" />
+              <span className="truncate">
+                {user.staffMeta.assignedGroup.name}
+              </span>
+            </div>
+          )}
+          {!user.staffMeta?.assignedCity &&
+            !user.staffMeta?.assignedPark &&
+            !user.staffMeta?.assignedGroup && (
+              <span className="text-xs text-muted-foreground italic">
+                No assignment
+              </span>
+            )}
+        </div>
+      ),
+    },
+    {
+      key: "status",
+      header: "Status",
+      className: "text-center",
+      render: (user) => (
+        <Badge
+          variant="outline"
+          className={
+            user.isActive
+              ? "text-[#4B0A8F] border-[#D4B8E3] bg-[#F3ECF6] dark:text-[#8A40B0] dark:border-[#2A0C8F] dark:bg-[#1F0860]"
+              : "text-red-700 border-red-200 bg-red-50 dark:text-red-400 dark:border-red-800 dark:bg-red-950/50"
+          }
+        >
+          {user.isActive ? "Active" : "Inactive"}
+        </Badge>
+      ),
+    },
+  ];
+
+  // Mobile card bottom section rendered inline (badges + assignments)
+  // We use mobileRender on the first column to render the full card header
+  // and add a second section via the assignment column mobileRender for the body
+
+  // We handle the mobile card body by overriding mobileRender on the "role" column
+  // to include badges + status + assignments in the card body
+  columns[1].mobileRender = (user) => (
+    <div className="flex flex-wrap items-center gap-1.5">
+      {user.staffMeta ? (
+        <Badge
+          variant="outline"
+          className={ROLE_COLORS[user.staffMeta.role] || ""}
+        >
+          {ROLE_LABELS[user.staffMeta.role] || user.staffMeta.role}
+        </Badge>
+      ) : (
+        <span className="text-xs text-muted-foreground italic">
+          No role
+        </span>
+      )}
+      <Badge
+        variant="outline"
+        className={
+          user.isActive
+            ? "text-[#4B0A8F] border-[#D4B8E3] bg-[#F3ECF6] dark:text-[#8A40B0] dark:border-[#2A0C8F] dark:bg-[#1F0860]"
+            : "text-red-700 border-red-200 bg-red-50 dark:text-red-400 dark:border-red-800 dark:bg-red-950/50"
+        }
+      >
+        {user.isActive ? "Active" : "Inactive"}
+      </Badge>
+      {user.mustResetPwd && (
+        <Badge
+          variant="outline"
+          className="bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/50 dark:text-amber-400 dark:border-amber-800"
+        >
+          <KeyRound className="size-3 mr-1" />
+          Reset Pwd
+        </Badge>
+      )}
+    </div>
+  );
+
+  // Mobile render for assignment column: show assignment details
+  columns[2].mobileRender = (user) =>
+    (user.staffMeta?.assignedCity || user.staffMeta?.assignedPark || user.staffMeta?.assignedGroup) ? (
+      <div className="text-sm space-y-0.5 text-muted-foreground">
+        {user.staffMeta?.assignedCity && (
+          <div className="flex items-center gap-1.5">
+            <MapPin className="size-3" />
+            <span>{user.staffMeta.assignedCity.name}</span>
+          </div>
+        )}
+        {user.staffMeta?.assignedPark && (
+          <div className="flex items-center gap-1.5">
+            <Building2 className="size-3" />
+            <span>{user.staffMeta.assignedPark.name}</span>
+          </div>
+        )}
+        {user.staffMeta?.assignedGroup && (
+          <div className="flex items-center gap-1.5">
+            <Users className="size-3" />
+            <span>{user.staffMeta.assignedGroup.name}</span>
+          </div>
+        )}
+      </div>
+    ) : null;
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -496,368 +687,85 @@ export function UsersPage() {
         }
       />
 
-      {/* Search + Filters */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-          <Input
-            placeholder="Search by name, email, or phone..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9"
-          />
-        </div>
-        <Select value={roleFilter} onValueChange={setRoleFilter}>
-          <SelectTrigger className="w-full sm:w-[180px]">
-            <SelectValue placeholder="All Roles" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Roles</SelectItem>
-            <SelectItem value="super_admin">Super Admin</SelectItem>
-            <SelectItem value="program_admin">Program Admin</SelectItem>
-            <SelectItem value="city_head">City Head</SelectItem>
-            <SelectItem value="park_admin">Park Admin</SelectItem>
-            <SelectItem value="park_lead">Park Lead</SelectItem>
-            <SelectItem value="murabbi">Murabbi</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-full sm:w-[140px]">
-            <SelectValue placeholder="All Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All</SelectItem>
-            <SelectItem value="active">Active</SelectItem>
-            <SelectItem value="inactive">Inactive</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      {/* Loading state */}
-      {isLoading && (
-        <div className="space-y-3">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-16 w-full rounded-lg" />
-          ))}
-        </div>
-      )}
-
-      {/* Desktop table */}
-      {!isLoading && users && users.length > 0 && (
-        <>
-          <div className="hidden md:block rounded-xl border bg-card overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/50 hover:bg-muted/50">
-                  <TableHead className="text-xs font-medium text-muted-foreground">
-                    User
-                  </TableHead>
-                  <TableHead className="text-xs font-medium text-muted-foreground">
-                    Role
-                  </TableHead>
-                  <TableHead className="text-xs font-medium text-muted-foreground">
-                    Assignment
-                  </TableHead>
-                  <TableHead className="text-xs font-medium text-muted-foreground text-center">
-                    Status
-                  </TableHead>
-                  <TableHead className="w-12" />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {users.map((user) => (
-                  <TableRow
-                    key={user.id}
-                    className="hover:bg-muted/30 transition-colors"
-                  >
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <div className="flex items-center justify-center size-9 rounded-full bg-[#F3ECF6] dark:bg-[#1F0860] text-[#4B0A8F] dark:text-[#8A40B0] text-xs font-bold shrink-0">
-                          {getInitials(user.name, user.email)}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="font-medium text-sm truncate">
-                            {user.name || "No name"}
-                          </p>
-                          <p className="text-xs text-muted-foreground truncate">
-                            {user.email}
-                          </p>
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        {user.staffMeta ? (
-                          <Badge
-                            variant="outline"
-                            className={ROLE_COLORS[user.staffMeta.role] || ""}
-                          >
-                            {ROLE_LABELS[user.staffMeta.role] || user.staffMeta.role}
-                          </Badge>
-                        ) : (
-                          <span className="text-xs text-muted-foreground italic">
-                            No role
-                          </span>
-                        )}
-                        {user.mustResetPwd && (
-                          <Badge
-                            variant="outline"
-                            className="bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/50 dark:text-amber-400 dark:border-amber-800"
-                          >
-                            <KeyRound className="size-3 mr-1" />
-                            Reset Pwd
-                          </Badge>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="text-sm space-y-0.5">
-                        {user.staffMeta?.assignedCity && (
-                          <div className="flex items-center gap-1.5 text-muted-foreground">
-                            <MapPin className="size-3" />
-                            <span className="truncate">
-                              {user.staffMeta.assignedCity.name}
-                            </span>
-                          </div>
-                        )}
-                        {user.staffMeta?.assignedPark && (
-                          <div className="flex items-center gap-1.5 text-muted-foreground">
-                            <Building2 className="size-3" />
-                            <span className="truncate">
-                              {user.staffMeta.assignedPark.name}
-                            </span>
-                          </div>
-                        )}
-                        {user.staffMeta?.assignedGroup && (
-                          <div className="flex items-center gap-1.5 text-muted-foreground">
-                            <Users className="size-3" />
-                            <span className="truncate">
-                              {user.staffMeta.assignedGroup.name}
-                            </span>
-                          </div>
-                        )}
-                        {!user.staffMeta?.assignedCity &&
-                          !user.staffMeta?.assignedPark &&
-                          !user.staffMeta?.assignedGroup && (
-                            <span className="text-xs text-muted-foreground italic">
-                              No assignment
-                            </span>
-                          )}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <Badge
-                        variant="outline"
-                        className={
-                          user.isActive
-                            ? "text-[#4B0A8F] border-[#D4B8E3] bg-[#F3ECF6] dark:text-[#8A40B0] dark:border-[#2A0C8F] dark:bg-[#1F0860]"
-                            : "text-red-700 border-red-200 bg-red-50 dark:text-red-400 dark:border-red-800 dark:bg-red-950/50"
-                        }
-                      >
-                        {user.isActive ? "Active" : "Inactive"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="size-8"
-                          >
-                            <MoreHorizontal className="size-4" />
-                            <span className="sr-only">Actions</span>
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem
-                            onClick={() => openEditDialog(user)}
-                            className="cursor-pointer"
-                          >
-                            <Pencil className="size-4 mr-2" />
-                            Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => openResetPwdDialog(user)}
-                            className="cursor-pointer"
-                          >
-                            <KeyRound className="size-4 mr-2" />
-                            Reset Password
-                          </DropdownMenuItem>
-                          {user.isActive ? (
-                            <DropdownMenuItem
-                              onClick={() => openDeleteDialog(user)}
-                              className="text-red-600 focus:text-red-600 cursor-pointer"
-                            >
-                              <Trash2 className="size-4 mr-2" />
-                              Deactivate
-                            </DropdownMenuItem>
-                          ) : (
-                            <DropdownMenuItem
-                              onClick={() =>
-                                toggleActiveMutation.mutate({
-                                  id: user.id,
-                                  isActive: true,
-                                })
-                              }
-                              className="cursor-pointer"
-                            >
-                              <UserCog className="size-4 mr-2" />
-                              Activate
-                            </DropdownMenuItem>
-                          )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-
-          {/* Mobile cards */}
-          <div className="md:hidden space-y-3">
-            {users.map((user) => (
-              <motion.div
-                key={user.id}
-                initial={false}
-                whileHover={{ y: -1 }}
-                transition={{ duration: 0.15 }}
-                className="rounded-xl border bg-card p-4 space-y-3"
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="flex items-center justify-center size-10 rounded-full bg-[#F3ECF6] dark:bg-[#1F0860] text-[#4B0A8F] dark:text-[#8A40B0] text-sm font-bold shrink-0">
-                      {getInitials(user.name, user.email)}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="font-medium text-sm truncate">
-                        {user.name || "No name"}
-                      </p>
-                      <p className="text-xs text-muted-foreground truncate">
-                        {user.email}
-                      </p>
-                    </div>
-                  </div>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="size-8">
-                        <MoreHorizontal className="size-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem
-                        onClick={() => openEditDialog(user)}
-                        className="cursor-pointer"
-                      >
-                        <Pencil className="size-4 mr-2" />
-                        Edit
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => openResetPwdDialog(user)}
-                        className="cursor-pointer"
-                      >
-                        <KeyRound className="size-4 mr-2" />
-                        Reset Password
-                      </DropdownMenuItem>
-                      {user.isActive ? (
-                        <DropdownMenuItem
-                          onClick={() => openDeleteDialog(user)}
-                          className="text-red-600 focus:text-red-600 cursor-pointer"
-                        >
-                          <Trash2 className="size-4 mr-2" />
-                          Deactivate
-                        </DropdownMenuItem>
-                      ) : (
-                        <DropdownMenuItem
-                          onClick={() =>
-                            toggleActiveMutation.mutate({
-                              id: user.id,
-                              isActive: true,
-                            })
-                          }
-                          className="cursor-pointer"
-                        >
-                          <UserCog className="size-4 mr-2" />
-                          Activate
-                        </DropdownMenuItem>
-                      )}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-                <div className="flex flex-wrap items-center gap-1.5">
-                  {user.staffMeta ? (
-                    <Badge
-                      variant="outline"
-                      className={ROLE_COLORS[user.staffMeta.role] || ""}
-                    >
-                      {ROLE_LABELS[user.staffMeta.role] || user.staffMeta.role}
-                    </Badge>
-                  ) : (
-                    <span className="text-xs text-muted-foreground italic">
-                      No role
-                    </span>
-                  )}
-                  <Badge
-                    variant="outline"
-                    className={
-                      user.isActive
-                        ? "text-[#4B0A8F] border-[#D4B8E3] bg-[#F3ECF6] dark:text-[#8A40B0] dark:border-[#2A0C8F] dark:bg-[#1F0860]"
-                        : "text-red-700 border-red-200 bg-red-50 dark:text-red-400 dark:border-red-800 dark:bg-red-950/50"
-                    }
-                  >
-                    {user.isActive ? "Active" : "Inactive"}
-                  </Badge>
-                  {user.mustResetPwd && (
-                    <Badge
-                      variant="outline"
-                      className="bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/50 dark:text-amber-400 dark:border-amber-800"
-                    >
-                      <KeyRound className="size-3 mr-1" />
-                      Reset Pwd
-                    </Badge>
-                  )}
-                </div>
-                {(user.staffMeta?.assignedCity || user.staffMeta?.assignedPark || user.staffMeta?.assignedGroup) && (
-                  <div className="text-sm space-y-0.5 text-muted-foreground">
-                    {user.staffMeta?.assignedCity && (
-                      <div className="flex items-center gap-1.5">
-                        <MapPin className="size-3" />
-                        <span>{user.staffMeta.assignedCity.name}</span>
-                      </div>
-                    )}
-                    {user.staffMeta?.assignedPark && (
-                      <div className="flex items-center gap-1.5">
-                        <Building2 className="size-3" />
-                        <span>{user.staffMeta.assignedPark.name}</span>
-                      </div>
-                    )}
-                    {user.staffMeta?.assignedGroup && (
-                      <div className="flex items-center gap-1.5">
-                        <Users className="size-3" />
-                        <span>{user.staffMeta.assignedGroup.name}</span>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </motion.div>
-            ))}
-          </div>
-        </>
-      )}
-
-      {/* Empty state */}
-      {!isLoading && users && users.length === 0 && (
-        <EmptyState
-          icon={UserCog}
-          title={search || roleFilter !== "all" || statusFilter !== "all" ? "No users found" : "No users yet"}
-          description={
-            search || roleFilter !== "all" || statusFilter !== "all"
-              ? "Try adjusting your search or filters."
-              : "Create your first user to get started."
+      <SortableDataTable<UserWithMeta>
+        columns={columns}
+        data={users}
+        isLoading={isLoading}
+        search={search}
+        onSearchChange={(v) => { setSearch(v); setPage(1); }}
+        searchPlaceholder="Search by name, email, or phone..."
+        filters={[
+          {
+            key: "role",
+            label: "Roles",
+            options: [
+              { value: "super_admin", label: "Super Admin" },
+              { value: "program_admin", label: "Program Admin" },
+              { value: "city_head", label: "City Head" },
+              { value: "park_admin", label: "Park Admin" },
+              { value: "park_lead", label: "Park Lead" },
+              { value: "murabbi", label: "Murabbi" },
+            ],
+            value: roleFilter,
+            onChange: (v) => { setRoleFilter(v); setPage(1); },
+          },
+          {
+            key: "status",
+            label: "Status",
+            options: [
+              { value: "active", label: "Active" },
+              { value: "inactive", label: "Inactive" },
+            ],
+            value: statusFilter,
+            onChange: (v) => { setStatusFilter(v); setPage(1); },
+          },
+        ]}
+        pagination={
+          pagination
+            ? {
+                page: pagination.page,
+                pageSize: pagination.pageSize,
+                totalItems: pagination.totalItems,
+                totalPages: pagination.totalPages,
+                onPageChange: setPage,
+              }
+            : undefined
+        }
+        actions={(user) => {
+          const items: { label: string; icon?: React.ComponentType<{ className?: string }>; onClick: () => void; destructive?: boolean }[] = [
+            { label: "Edit", icon: Pencil, onClick: () => openEditDialog(user) },
+            { label: "Reset Password", icon: KeyRound, onClick: () => openResetPwdDialog(user) },
+          ];
+          if (user.isActive) {
+            items.push({
+              label: "Deactivate",
+              icon: Trash2,
+              onClick: () => openDeleteDialog(user),
+              destructive: true,
+            });
+          } else {
+            items.push({
+              label: "Activate",
+              icon: UserCog,
+              onClick: () =>
+                toggleActiveMutation.mutate({
+                  id: user.id,
+                  isActive: true,
+                }),
+            });
           }
-        />
-      )}
+          return items;
+        }}
+        emptyIcon={UserCog}
+        emptyTitle={search || roleFilter !== "all" || statusFilter !== "all" ? "No users found" : "No users yet"}
+        emptyDescription={
+          search || roleFilter !== "all" || statusFilter !== "all"
+            ? "Try adjusting your search or filters."
+            : "Create your first user to get started."
+        }
+        getRowId={(user) => user.id}
+        skeletonRows={4}
+      />
 
       {/* Create User Dialog */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>

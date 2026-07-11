@@ -39,6 +39,7 @@ import {
   WifiOff,
   Filter,
   X,
+  Printer,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { AttendanceStatus } from "@/lib/offline/db";
@@ -350,7 +351,7 @@ export function AttendanceRoster() {
         <Button
           variant="ghost"
           size="icon"
-          className="mt-0.5 shrink-0"
+          className="mt-0.5 shrink-0 no-print"
           onClick={() => navigateTo("park-attendance")}
         >
           <ArrowLeft className="size-5" />
@@ -374,6 +375,15 @@ export function AttendanceRoster() {
             {event.groupName} &middot; {event.batchName}
           </p>
         </div>
+        <Button
+          variant="outline"
+          size="sm"
+          className="no-print shrink-0 mt-0.5"
+          onClick={() => window.print()}
+        >
+          <Printer className="size-4 mr-1.5" />
+          Print
+        </Button>
       </div>
 
       {/* Offline indicator */}

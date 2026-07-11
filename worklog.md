@@ -1859,3 +1859,636 @@ Stage Summary:
 - Note: Dev server OOM-kills in 3.9GB sandbox during browser testing (infrastructure limit, not code issue). All code passes lint and type checks.
 - New components: command-palette.tsx, attendance-chart.tsx, sparkline.tsx
 - Modified: app-shell.tsx, sidebar.tsx, notification-bell.tsx, admin-dashboard.tsx, park-dashboard.tsx, 3 API routes, keyboard-shortcuts hooks/dialog
+
+---
+Task ID: 2-c
+Agent: Main
+Task: Batch Fee Generation — API + UI
+
+Work Log:
+- Created `src/app/api/admin/fees/batch-create/route.ts` (POST endpoint)
+  - Accepts `{ batchIds[], title, feeType, amount, dueDate? }` with Zod validation
+  - Fee types: monthly, registration, exam, special, other
+  - Validates all batches exist and are active before creating
+  - Creates FeeEvent per batch in a loop, tracks created/failed counts
+  - Uses `requireAuth` for authorization, `logAudit` for audit trail
+  - Max 50 batches per request
+- Enhanced `src/components/modules/admin/fees-page.tsx` with batch generate dialog
+  - Added "Generate Fees" button (Layers icon, magenta accent) next to "New Fee"
+  - New Dialog with: Title, Fee Type (5 options), Amount, Due Date, and Target Batches
+  - Batch selection panel with City/Park cascading filters + search
+  - Checkbox list with "Select All" functionality
+  - Selected count badge, search filter, responsive layout
+  - `batchGenMutation` calls batch-create API, invalidates fee queries on success
+  - Added imports: Checkbox, Layers, Search icons
+
+---
+Task ID: 3-b
+Agent: Main
+Task: Audit Log Enhancement — API pagination + UI diff display, filters, pagination
+
+Work Log:
+- Enhanced `src/app/api/admin/audit-log/route.ts`
+  - Added `page`/`pageSize` query params alongside legacy `limit`/`offset`
+  - Default page=1, pageSize=20, max 100 per page
+  - Response now includes `pagination: { page, pageSize, totalPages }`
+  - Backward compatible with existing limit/offset callers
+  - Already supported: action, entityType, userId, from/to date filters, user include
+- Rewrote `src/components/modules/admin/audit-log-page.tsx`
+  - **Diff Display**: New `DiffDisplay` component parses oldValues/newValues JSON and renders field-level diffs:
+    - Green +Plus icon for added values, green background
+    - Red -Minus icon for removed values, red background
+    - Changed values show strikethrough old → new
+    - CREATE actions show all fields as green additions
+    - DELETE actions show all fields as red removals
+    - UPDATE shows per-field change detection with "changed"/"added"/"removed" badges
+  - **Expandable Rows**: Click any row to expand full diff details below the row (desktop) or within the card (mobile)
+    - Reason field displayed with brand-colored background when present
+  - **Proper Pagination**: Replaced "Load More" with page-based pagination
+    - Page number buttons with ellipsis for large page counts
+    - "Showing X–Y of Z" text
+    - Prev/Next navigation, active page highlighted with brand purple
+    - Both desktop and mobile pagination controls
+  - **Added Entity Types**: fee_event, payment, announcement to filter options
+  - **Filter Reset**: Page resets to 1 on any filter change
+  - 20 items per page (configurable via PAGE_SIZE constant)
+
+---
+Task ID: 2-b
+Agent: Main
+Task: Add CSV export functionality across 4 admin pages
+
+Work Log:
+- Created `src/lib/csv-export.ts` — generic CSV export utility with UTF-8 BOM prefix for Excel compatibility, proper field escaping (commas, quotes, newlines), Blob-based download trigger
+- Created `src/components/shared/export-button.tsx` — reusable ExportButton component using shadcn/ui DropdownMenu + Button with brand color `#4B0A8F`, responsive text (hidden on mobile, visible on sm+), loading spinner state, disabled when data is empty or loading
+- Integrated ExportButton into 4 pages:
+  - **Students Page**: exports Name, Phone, Gender, Group, Park, City, Status, Join Date; placed in PageHeader actions alongside "Add Student"
+  - **Guardians Page**: exports Name, Phone, CNIC, Address, Children Count, Status; placed in PageHeader actions alongside "Add Guardian"
+  - **Fees Page**: exports Fee Title, Batch, Type, Amount, Due Date, Status, Total Paid, Total Participants; placed in filter bar action area alongside "Generate Fees" and "New Fee"
+  - **Admin Attendance Events**: exports Event Title, Group, Date, Status, Present Count, Absent Count, Total, Rate%; placed in PageHeader actions
+- ESLint: clean on all changed files (pre-existing error in donut-chart.tsx is unrelated)
+- New files: csv-export.ts, export-button.tsx
+- Modified: students-page.tsx, guardians-page.tsx, fees-page.tsx, admin-attendance-events.tsx
+
+---
+Task ID: 2-a
+Agent: Main
+Task: Add 3 missing pages + API routes: student-fees, guardian-fees, student-profile
+
+Work Log:
+- Added 3 new PageIds to `src/stores/useAppStore.ts`: `"student-fees"`, `"student-profile"`, `"guardian-fees"`
+- Created student fees API route at `src/app/api/student/fees/route.ts`:
+  - Uses `requireAuth()` for auth, restricts to `student` role
+  - Finds participant via `userId`, gets batch from group
+  - Returns all fee events for batch with per-student payment status (paid/unpaid/partial)
+  - Includes payment history per fee, summary stats (total, paid, remaining, counts)
+- Created guardian fees API route at `src/app/api/guardian/fees/route.ts`:
+  - Uses `requireAuth()` for auth, restricts to `guardian` role
+  - Finds guardian via `userId`, gets all children via `GuardianChild`
+  - Collects all batch IDs, fetches fee events, maps payments per child
+  - Returns children grouped with their fee events, per-child summaries, and overall summary
+- Enhanced existing `src/app/api/user/profile/route.ts`:
+  - GET now also returns `participant` object (name, phone, DOB, gender, address, state, joinedAt, group/batch/park/city) and `attendanceSummary` (total, present, absent, late, excused, rate)
+  - PATCH now supports `address` field, syncs name/phone/address to participant record for students
+- Created `src/components/modules/student/student-fees-page.tsx`:
+  - "use client" with TanStack Query for data fetching
+  - Summary cards (total fees, paid, remaining, status count) with brand colors
+  - Animated progress bar showing payment percentage
+  - Fee list with mobile cards + desktop table view, expandable payment history per fee
+  - Status badges (paid=green, unpaid=red, partial=amber) with icons
+  - Loading skeletons, error state, empty state with EmptyState component
+  - Framer Motion animations throughout
+- Created `src/components/modules/guardian/guardian-fees-page.tsx`:
+  - "use client" with TanStack Query for data fetching
+  - Overall summary cards (total fees, paid, remaining, children count)
+  - Overall progress bar with animated fill
+  - Children grouped as expandable cards, each with avatar initials, status badges, mini progress bar
+  - Each child expands to show fee events with expandable payment history
+  - Mobile cards + desktop table view pattern, consistent with student fees page design
+- Created `src/components/modules/student/student-profile-page.tsx`:
+  - "use client" with TanStack Query + useMutation for profile updates
+  - Profile header card with gradient banner, avatar, state badge, edit button
+  - Two-column layout: Personal Information (name, email, phone, DOB, gender, address) + Organization Details (group, batch, park, city, joined, status)
+  - Attendance summary section with 6 mini stats (rate, total, present, absent, late, excused) and progress bar
+  - Edit Dialog with name, phone, address fields; saves via PATCH /api/user/profile
+  - Toast notifications on save success/failure
+  - Loading skeletons, error state
+- Updated `src/components/layout/app-shell.tsx`:
+  - Added imports for StudentFeesPage, StudentProfilePage, GuardianFeesPage
+  - Added pageTitles: "student-fees" → "Fees", "student-profile" → "My Profile", "guardian-fees" → "Fees"
+  - Added PageContent switch cases for all 3 new pages
+  - Added new page IDs to showPageHeader exclusion list (so they render their own headers)
+- Updated `src/components/layout/sidebar.tsx`:
+  - Added `UserCircle` icon import
+  - Added "guardian-fees" (Fees) to guardian nav in "tracking" section
+  - Added "student-fees" (Fees) to student nav in "tracking" section
+  - Added "student-profile" (My Profile) to student nav in "updates" section
+- ESLint: clean on all new/modified files (pre-existing error in donut-chart.tsx is unrelated)
+- Files created: 4 (2 API routes, 3 page components, 0 — 3 page components + 2 API routes = 5 new files)
+- Files modified: 4 (useAppStore.ts, app-shell.tsx, sidebar.tsx, user/profile/route.ts)
+
+---
+Task IDs: 3-a, 3-c, 3-d
+Agent: Main
+Task: Dashboard Enhancements (Gender Donut, Fee Charts), Print Styles, Settings Completion
+
+Work Log:
+
+## Part A: Dashboard Enhancements
+
+### 1. Admin Dashboard — Gender Distribution & Fee Charts
+- Created reusable `src/components/shared/donut-chart.tsx` — pure SVG donut chart component
+  - Accepts segments with label, value, color
+  - Animated arc rendering via framer-motion
+  - Center label/value overlay, legend with percentages
+  - Accessible via `role="img"` and `aria-label`
+- Added `genderDistribution` (groupBy on Participant.gender) to HQ admin dashboard API (`src/app/api/admin/dashboard/route.ts`)
+- Added `feeSummary` (totalExpected, totalCollected, collectionRate) to HQ admin dashboard API
+- Added two new cards to HQ admin dashboard (`src/components/modules/admin/admin-dashboard.tsx`):
+  - **Gender Distribution Donut Chart** — male (#4B0A8F), female (#A0006B), unknown (#D4B8E3) with total participant count in center
+  - **Fee Collection Summary Card** — expected vs collected amounts, collection rate percentage, Progress bar, "View Fees Management" link
+
+### 2. Guardian Dashboard Enhancement
+- Added per-child fee status data to guardian dashboard API (`src/app/api/guardian/dashboard/route.ts`)
+  - Queries FeeEvents for child's batch, calculates paid/upcoming/overdue counts
+  - Returns `fees` object per child + top-level `feesSummary` (totalPaidThisMonth, totalOutstanding)
+- Updated guardian dashboard types to include `ChildFees` type
+- Added "Fees Paid" summary card (5th metric card, navigates to guardian-fees)
+- Made child name clickable (navigates to guardian-history with selectedParticipantId)
+- Added fee status badges per child card:
+  - Red "X overdue" badge for overdue fees
+  - Amber "X upcoming" badge for upcoming fees
+  - Purple "Paid" badge when all fees are settled
+
+### 3. Student Dashboard Enhancement
+- Added `feeSummary` (totalExpected, totalPaid, outstanding) to student dashboard API (`src/app/api/student/dashboard/route.ts`)
+- Added "My Fees" quick summary card:
+  - Shows outstanding balance in red when > 0, brand color when 0
+  - Clickable — navigates to "student-fees" page
+- Added "My Fees" and "My Profile" buttons to Quick Actions grid (now 2x2 grid)
+  - My Fees → navigates to "student-fees"
+  - My Profile → navigates to "student-profile"
+- Added Wallet and User icon imports
+
+## Part B: Print Styles
+
+### Print CSS
+- Added comprehensive `@media print` block to `src/app/globals.css`:
+  - Hides `.no-print`, `header`, `.sidebar`, radix popper wrappers
+  - Full-width main/print-area with 0.5cm padding
+  - 10pt table font, 100% width tables
+  - 1px solid borders on th/td with 4px 8px padding
+  - `page-break-inside: avoid` on tr and .card
+  - `print-color-adjust: exact` for background colors
+
+### Print Button — Attendance Roster
+- Added Printer icon import to `src/components/modules/park/attendance-roster.tsx`
+- Added "Print" button (outline, sm) in roster header area, calls `window.print()`
+- Button and back-arrow have `no-print` class to hide during printing
+
+### Print Button — Fees Page
+- Added Printer icon import to `src/components/modules/admin/fees-page.tsx`
+- Added "Print" button (outline, sm, `no-print` class) in filter bar next to Export button
+
+## Part C: Settings Page Completion
+
+### Notification Preferences Section
+- Added `NotificationPreferencesSection` component to Preferences tab
+- Email notifications toggle (on/off) stored in localStorage key `shabab360-notif-prefs`
+- In-app notifications toggle (on/off) stored in same localStorage key
+- Uses lazy initializer for useState to avoid useEffect + setState lint error
+- Toast feedback on toggle
+
+### Danger Zone Section
+- Added `DangerZoneSection` component at bottom of Preferences tab
+- Red-bordered card with AlertTriangle icon
+- "Request Account Deletion" button with red styling
+- Button shows toast.info("Please contact your administrator to request account deletion.")
+
+### Icons Added
+- Bell, BellOff, AlertTriangle, Trash2 to settings-page.tsx imports
+
+## Technical Notes
+- ESLint: clean (0 errors, 0 warnings)
+- All new components use "use client" + TanStack Query pattern
+- Brand colors: #4B0A8F (male/primary), #A0006B (female/accent), #D4B8E3 (unknown/muted)
+- Mobile responsive throughout
+- Files created: 1 (donut-chart.tsx)
+- Files modified: 9 (admin/dashboard/route.ts, admin-dashboard.tsx, guardian/dashboard/route.ts, guardian-dashboard.tsx, student/dashboard/route.ts, student-dashboard.tsx, globals.css, attendance-roster.tsx, fees-page.tsx, settings-page.tsx)
+
+---
+Task ID: 5-d
+Agent: Main
+Task: Add registration trend and fee collection trend to admin dashboard
+
+Work Log:
+- Enhanced `src/app/api/admin/dashboard/route.ts` (HQ section) with two new data fields:
+  - `registrationTrend`: last 12 months of new participant registrations, grouped by `joined_at` month using SQLite `strftime`, with missing months filled to 0
+  - `feeCollectionTrend`: last 6 months of payment amounts, grouped by `created_at` month using SQLite `strftime`, with missing months filled to 0
+- Created `src/components/shared/bar-chart.tsx` — a reusable pure SVG bar chart component:
+  - Props: `data`, `height`, `barColor`, `showValues`, `animate`, `className`, `valueFormatter`
+  - Responsive width via ResizeObserver
+  - Vertical bars with rounded top corners (rx/ry)
+  - Framer Motion grow-from-bottom animation with staggered delays
+  - Subtle gradient fill on bars, dashed grid lines, value labels above bars
+  - Handles 0 values with a small baseline tick instead of invisible bar
+  - Smart label formatting: "2025-01" → "Jan"
+- Integrated into `src/components/modules/admin/admin-dashboard.tsx`:
+  - Added imports for `BarChart`, `UserPlus`, and `TrendingUp` icons
+  - Inserted a "Trends" section (B4) between the Attendance Trend Chart and Quick Actions
+  - 2-column responsive grid (1 col on mobile)
+  - Registration Trend card: brand color `#4B0A8F`, 12-month data, total count in header badge
+  - Fee Collection Trend card: magenta color `#A0006B`, 6-month data, PKR-formatted total in header badge, `formatPKR` value formatter on bars
+  - Card styling consistent with existing dashboard cards (bg-muted/20 header border, CardHeader/CardContent)
+- ESLint: clean (0 errors)
+- Dev log: no compilation errors
+
+Files modified:
+- `src/app/api/admin/dashboard/route.ts` (added registration + fee trend queries)
+- `src/components/shared/bar-chart.tsx` (new file)
+- `src/components/modules/admin/admin-dashboard.tsx` (added trend section + imports)
+---
+Task ID: 5-b
+Agent: Main
+Task: Create Murabbi Groups Management page
+
+Work Log:
+- Created API route `src/app/api/murabbi/groups/route.ts`:
+  - GET endpoint returning groups assigned to the authenticated murabbi
+  - Uses `requireAuth` from `@/lib/auth/authorize.ts` for authentication
+  - Role check: only `murabbi` role allowed
+  - Queries StaffMeta for `assignedGroupId`, then fetches group with batch→park→city hierarchy
+  - Includes active participants list (id, name, ordered by name)
+  - Includes `_count` for participants and attendanceEvents
+  - Enriches each group with latest attendance event date, rate, and closed status
+  - Uses `formatPKT` for date formatting
+  - Fire-and-forget audit log via `logAudit`
+  - Returns empty array if no groups assigned
+
+- Created page component `src/components/modules/murabbi/murabbi-groups-page.tsx`:
+  - "use client" with TanStack Query (`useQuery` with `murabbi-groups` key, 30s staleTime)
+  - Responsive design: Card layout on mobile, table-like row layout on desktop (md+)
+  - Summary stat cards: total assigned groups + total shabab count
+  - Each group card/row shows:
+    - Group name
+    - Batch name → Park name breadcrumb
+    - Participant count badge
+    - Park name and last session date
+    - Attendance rate with color-coded progress bar (green ≥80%, amber ≥50%, red <50%)
+    - "Mark Attendance" button → sets selectedGroupId + selectedEventId, navigates to park-attendance-roster
+    - "View" expandable section showing participant list with avatar initials
+  - Desktop rows: expandable details panel with location info, total sessions count, attendance rate bar, and participant pills
+  - Empty state using `EmptyState` component when no groups assigned
+  - Error state with AlertTriangle icon
+  - Loading skeletons for both mobile cards and desktop rows
+  - Brand colors: `#4B0A8F`, `#F3ECF6`, `#A0006B`
+  - Framer Motion staggered card entry animations + AnimatePresence for expandable sections
+  - Uses `toast` from sonner on navigation
+
+- Integration changes:
+  - Added `"murabbi-groups"` to PageId union in `src/stores/useAppStore.ts`
+  - Added `"murabbi-groups": "My Groups"` to pageTitles in `src/components/layout/app-shell.tsx`
+  - Added import for `MurabbiGroupsPage` in `src/components/layout/app-shell.tsx`
+  - Added `case "murabbi-groups"` in PageContent switch in `src/components/layout/app-shell.tsx`
+  - Added sidebar nav item `{ id: "murabbi-groups", label: "My Groups", icon: Users, section: "overview" }` in murabbi section of `src/components/layout/sidebar.tsx`
+  - Renamed existing "My Group" label to "Participants" for clarity
+
+- ESLint: clean (0 new errors; 1 pre-existing error in users-page.tsx unrelated to this change)
+- Dev log: no compilation errors
+
+Files created:
+- `src/app/api/murabbi/groups/route.ts`
+- `src/components/modules/murabbi/murabbi-groups-page.tsx`
+
+Files modified:
+- `src/stores/useAppStore.ts` (added "murabbi-groups" PageId)
+- `src/components/layout/app-shell.tsx` (import, pageTitles, PageContent case)
+- `src/components/layout/sidebar.tsx` (murabbi nav item)
+
+---
+Task ID: 5-a
+Agent: Main
+Task: Add server-side pagination, sorting, and filtering to main list API routes
+
+Work Log:
+- Enhanced 4 API routes with consistent pagination/sorting/filtering:
+
+  1. **Students API** (`src/app/api/admin/students/route.ts`):
+     - Added `sort` param (allowed: name, joinedAt, createdAt; default: createdAt)
+     - Added `order` param (asc/desc; default: desc)
+     - Added `gender` filter param
+     - Added `Math.max(1, ...)` guard on page, `Math.min(100, Math.max(1, ...))` on pageSize
+     - Renamed `total` → `totalItems` in pagination response
+
+  2. **Guardians API** (`src/app/api/admin/guardians/route.ts`):
+     - Added `sort` param (allowed: name, createdAt; default: createdAt)
+     - Added `order` param (asc/desc; default: desc)
+     - Added `cnic` to search OR clause
+     - Added robust page/pageSize parsing
+     - Renamed `total` → `totalItems` in pagination response (including empty early-return)
+
+  3. **Users API** (`src/app/api/admin/users/route.ts`):
+     - Added full pagination (page, pageSize, skip/take, parallel count)
+     - Added `sort` param (allowed: name, email, createdAt; default: createdAt)
+     - Added `order` param (asc/desc; default: desc)
+     - Changed response from raw array to `{ data, pagination: { page, pageSize, totalItems, totalPages } }`
+
+  4. **Audit Log API** (`src/app/api/admin/audit-log/route.ts`):
+     - Already had pagination (page/pageSize + legacy limit/offset)
+     - Added `sort` param (allowed: createdAt, action, entityType; default: createdAt)
+     - Added `order` param (asc/desc; default: desc)
+     - Moved `total` into `pagination.totalItems`, removed top-level `total`
+
+- Frontend updates:
+  - `students-page.tsx`: Updated Pagination interface (`total` → `totalItems`), display text
+  - `guardians-page.tsx`: Updated Pagination interface, display text
+  - `users-page.tsx`: Added Pagination interface, rewrote query to handle `{ data, pagination }` format, added page state, added pagination controls (Previous/Next with count), reset page inline on filter change
+  - `access-provisioning-page.tsx`: Updated recent users query to extract `.data` from paginated response, changed `limit=10` to `pageSize=10`
+  - `audit-log-page.tsx`: Updated AuditLogResponse interface, replaced `data?.total` with `data?.pagination?.totalItems`
+
+- All APIs now use consistent response format:
+  ```json
+  { "data": [...], "pagination": { "page": 1, "pageSize": 20, "totalItems": 150, "totalPages": 8 } }
+  ```
+
+- Verification: ESLint clean (0 errors), dev server running without errors
+
+Files modified:
+- `src/app/api/admin/students/route.ts`
+- `src/app/api/admin/guardians/route.ts`
+- `src/app/api/admin/users/route.ts`
+- `src/app/api/admin/audit-log/route.ts`
+- `src/components/modules/admin/students-page.tsx`
+- `src/components/modules/admin/guardians-page.tsx`
+- `src/components/modules/admin/users-page.tsx`
+- `src/components/modules/admin/access-provisioning-page.tsx`
+- `src/components/modules/admin/audit-log-page.tsx`
+
+---
+Task ID: 5-c
+Agent: Main
+Task: Enhance Admissions page with complete interview workflow, pipeline/kanban view (7 columns), and status badge colors
+
+Work Log:
+- Updated API status system across 3 route files:
+  - `src/app/api/admin/admissions/route.ts`: Added "screening" and "interview_scheduled" to VALID_STATUSES; added legacy "reviewing" alias for backward compatibility
+  - `src/app/api/admin/admissions/[id]/route.ts`: Updated VALID_STATUSES and STATUS_FLOW to support 7-stage pipeline (submitted → screening → interview_scheduled → interviewed → accepted → rejected → enrolled); added STATUS_ALIASES map
+  - `src/app/api/admin/admissions/[id]/interviews/route.ts`: Interview scheduling now moves app from "submitted"/"screening" to "interview_scheduled"; interview result recording moves app from "interview_scheduled" (or legacy "reviewing") to "interviewed"; supports pass/fail/conditional result statuses
+
+- Complete rewrite of `src/components/modules/admin/admissions-page.tsx` (1910 lines):
+
+  **1. Interview Management Dialog enhancements:**
+  - Detail Sheet shows: applicant name, DOB, gender, guardian info, preferred city/park, copyable tracking code (with clipboard + toast feedback), current status badge, applied date
+  - Interview Section (visible for all statuses): lists interviews with date, time, scores, result badge (Pass/Fail/Conditional/Scheduled), conducted-by, notes
+  - "Schedule Interview" button opens a Dialog with Calendar date picker (Popover + shadcn Calendar component), time input, interviewer name, and notes
+  - "Record Interview Results" button (shown when a scheduled interview exists) opens a Dialog with: Score 1/2/3 (0-10 range, number inputs), auto-calculated total score (color-coded: green ≥20, amber ≥15, red <15), Result select (Pass/Fail/Conditional with icons), Notes textarea
+  - Actions Section: "Advance to Next Stage" button (follows NEXT_STATUS_MAP: submitted→screening→interview_scheduled→interviewed→accepted→enrolled), "Reject" button (opens rejection dialog with required reason textarea), "Convert to Participant" button (when accepted, opens enrollment dialog with Group/Batch select + guardian creation checkbox)
+
+  **2. Pipeline/Kanban View:**
+  - Tabs component (shadcn) replaces button toggle for view switching between "Pipeline" and "Table"
+  - Pipeline View shows 7 columns: Submitted, Screening, Interview Scheduled, Interviewed, Accepted, Rejected, Enrolled
+  - Horizontally scrollable layout with min-w-[240px] columns, sticky column headers
+  - Kanban uses pageSize=200 for comprehensive data loading
+  - Cards show: tracking code, applicant name, guardian, location, date, interview score badge
+  - Empty state placeholder with dashed border in empty columns
+
+  **3. Status Flow Badge Colors:**
+  - submitted: gray/muted (slate)
+  - screening: amber/yellow
+  - interview_scheduled: blue
+  - interviewed: purple (#4B0A8F)
+  - accepted: green
+  - rejected: red
+  - enrolled: emerald
+  - All badges include dark mode variants
+
+  **4. New dialogs added:**
+  - Record Interview Results Dialog: scores, result status, notes
+  - Reject Application Dialog: required reason textarea, destructive action
+  - Enhanced Schedule Interview Dialog: Calendar date picker, time, interviewer, notes
+
+  **5. UI improvements:**
+  - Framer Motion animations on all cards and list items
+  - Interview result badges with contextual icons (CheckCircle2/XCircle/AlertTriangle)
+  - Status pipeline timeline in detail sheet with rejected state indicator
+  - Copyable tracking code with Check/Copy icon feedback
+  - Responsive design: mobile cards, horizontal scroll on kanban, sticky column headers
+
+- ESLint: clean (0 errors, 0 warnings)
+- Files modified:
+  - `src/app/api/admin/admissions/route.ts`
+  - `src/app/api/admin/admissions/[id]/route.ts`
+  - `src/app/api/admin/admissions/[id]/interviews/route.ts`
+  - `src/components/modules/admin/admissions-page.tsx`
+
+---
+Task ID: 6-c
+Agent: Main
+Task: Add mobile bottom navigation bar with role-based items
+
+Work Log:
+- Created `src/components/shared/bottom-nav.tsx` — a mobile-only floating pill-style bottom navigation bar
+- Implemented role-based navigation items (4 items per role):
+  - Super Admin / Program Admin: Dashboard, Attendance, Reports, Settings
+  - City Head: Dashboard, Parks, Attendance, Reports
+  - Park Admin / Park Lead: Dashboard, Attendance, Roster, Schedule
+  - Murabbi: Dashboard, My Groups, Attendance, Schedule
+  - Guardian: Dashboard, Schedule, Announcements, Fees
+  - Student: Dashboard, Attendance, Fees, Profile
+- Design: floating pill (`fixed bottom-4 left-1/2 -translate-x-1/2`), `bg-card/95 backdrop-blur-lg`, `rounded-2xl`, `shadow-lg shadow-black/10`
+- Active item: `bg-[#4B0A8F] text-white` with Framer Motion scale animation (1.15x)
+- Inactive item: `text-muted-foreground` with hover state
+- Hidden on auth pages (login, reset-password, access-pending) and when no role is set
+- Entry animation: spring-based slide-up from below with 0.2s delay
+- iOS safe area support via `env(safe-area-inset-bottom)`
+- Added `no-print` class for print exclusion
+- Integrated into `src/components/layout/app-shell.tsx`:
+  - Imported BottomNav component
+  - Added `pb-20 lg:pb-0` to `<main>` to prevent content overlap on mobile
+  - Placed `<BottomNav />` after `<main>` inside the flex column
+- ESLint: clean (no errors)
+- Files created:
+  - `src/components/shared/bottom-nav.tsx`
+- Files modified:
+  - `src/components/layout/app-shell.tsx`
+
+---
+Task ID: 6-b
+Agent: Main
+Task: Create reusable SortableDataTable component and integrate into Parks, Users, Batches pages
+
+Work Log:
+- Created `src/components/shared/sortable-data-table.tsx` — a fully generic, reusable table component with:
+  - Column definitions with `key`, `header`, `sortable`, `className`, `render` (desktop), `mobileRender` (mobile card sections)
+  - Server-side pagination via controlled props (page/pageSize/totalItems/totalPages/onPageChange)
+  - Column sorting with ArrowUp/ArrowDown indicators in brand color `#4B0A8F`
+  - Search input with magnifying glass icon
+  - Filter dropdowns next to search (desktop inline, mobile collapsible via AnimatePresence)
+  - Loading skeletons (configurable row count)
+  - Built-in empty state with customizable icon/title/description
+  - Mobile card view: renders all columns with `mobileRender` in sequence, falls back to label+value pairs
+  - Row actions via DropdownMenu (supports destructive styling)
+  - Row selection with Checkbox (select all / individual toggle, controlled via Set<string>)
+  - Smooth transitions on sort/filter changes, framer-motion animations on mobile cards
+  - All exported types: `Column<T>`, `RowAction`, `FilterDef`, `PaginationConfig`, `SortConfig`, `SortableDataTableProps<T>`
+
+- Refactored `src/components/modules/admin/parks-page.tsx`:
+  - Replaced manual Table/Desktop/Mobile/Loading/Empty sections with single `<SortableDataTable<Park>>`
+  - Defined 6 columns (Park, City, Batches, Groups, Address, Status) with custom renderers
+  - City filter passed via `filters` prop (conditionally shown when not city_head)
+  - Conditional delete action in `actions` callback (respects canDelete)
+  - mobileRender on first column for card header (icon + name + city)
+  - Preserved all dialog logic (Create/Edit/Delete) unchanged
+
+- Refactored `src/components/modules/admin/users-page.tsx`:
+  - Replaced manual Table/Desktop/Mobile/Pagination/Loading/Empty sections with `<SortableDataTable<UserWithMeta>>`
+  - Defined 4 columns (User, Role, Assignment, Status) with complex custom renderers
+  - Search + Role filter + Status filter passed via props
+  - Server-side pagination passed via `pagination` prop
+  - Actions: Edit, Reset Password, Deactivate/Activate (conditional based on user.isActive)
+  - Multiple mobileRender sections across columns: user header (avatar+name), badges (role+status+reset pwd), assignments (city/park/group)
+  - Preserved all dialog logic (Create/Edit/Deactivate/ResetPwd) unchanged
+  - Removed unused imports: EmptyState, motion, Table/DropdownMenu/etc. UI primitives (now handled by SortableDataTable)
+
+- Refactored `src/components/modules/admin/batches-page.tsx`:
+  - Replaced manual Table/Desktop/Mobile/Loading/Empty sections with `<SortableDataTable<Batch>>`
+  - Defined 6 columns (Batch, Park, Groups, Start Date, End Date, Status) with custom renderers
+  - Search passed via props, no filters (batches page had none)
+  - Actions: Edit, Deactivate for all rows
+  - mobileRender on first column for card header (icon + name + park/city)
+  - Preserved all dialog logic (Create/Edit/Delete) unchanged
+
+- ESLint: clean (no errors, no warnings)
+- Files created:
+  - `src/components/shared/sortable-data-table.tsx` (555 lines)
+- Files modified:
+  - `src/components/modules/admin/parks-page.tsx` (740 → 426 lines, -42%)
+  - `src/components/modules/admin/users-page.tsx` (1424 → 870 lines, -39%)
+  - `src/components/modules/admin/batches-page.tsx` (758 → 421 lines, -44%)
+
+---
+Task ID: 7-final
+Agent: Main (Orchestrator)
+Task: Complete all remaining Shabab360 features and modules
+
+Work Log:
+- Orchestrated 8 parallel subagent tasks across 3 waves
+- Fixed 4 TypeScript errors (zod v4 enum syntax, batch cityId access)
+- Integrated real-time notification hook into AppShell
+- Verified notification service running on port 3004
+
+## Wave 1 (4 parallel agents):
+### Task 2-a: Missing Pages + APIs
+- Created Student Fees page (`student-fees-page.tsx`) + API (`/api/student/fees`)
+- Created Guardian Fees page (`guardian-fees-page.tsx`) + API (`/api/guardian/fees`)
+- Created Student Profile page (`student-profile-page.tsx`) + enhanced profile API
+- Added 3 PageIds to useAppStore, integrated into app-shell + sidebar
+
+### Task 2-b: CSV Export
+- Created generic CSV export utility (`src/lib/csv-export.ts`) with UTF-8 BOM
+- Created reusable ExportButton component (`src/components/shared/export-button.tsx`)
+- Integrated export into: Students, Guardians, Fees, Attendance Events pages
+
+### Task 2-c + 3-b: Batch Fee Generation + Audit Log
+- Created batch fee creation API (`/api/admin/fees/batch-create`)
+- Added "Generate Fees" dialog with city→park→batch cascading filters
+- Enhanced audit log with: expandable diff rows, entity/action filters, pagination
+- Created DiffDisplay component showing old→new value changes
+
+### Task 3-a + 3-c + 3-d: Dashboard + Print + Settings
+- Created DonutChart SVG component for gender distribution
+- Added fee collection summary card to admin dashboard
+- Enhanced guardian dashboard with per-child fee badges
+- Enhanced student dashboard with fees/profile quick actions
+- Added print CSS to globals.css
+- Added print buttons to Attendance Roster and Fees page
+- Added notification preferences + danger zone to Settings
+
+## Wave 2 (4 parallel agents):
+### Task 5-a: Server-side Pagination
+- Enhanced 4 API routes with pagination, sorting, filtering:
+  - Students: sort by name/joinedAt, filter by state/gender/groupId
+  - Guardians: sort by name/createdAt, filter by cnic
+  - Users: full pagination with sort by name/email/createdAt, role filter
+  - Audit Log: sort by createdAt/action/entityType
+- Standardized response format: `{ data, pagination: { page, pageSize, totalItems, totalPages } }`
+- Updated frontend pages to use paginated responses
+
+### Task 5-b: Murabbi Groups Page
+- Created API (`/api/murabbi/groups`) returning assigned groups with attendance stats
+- Created responsive page with mobile cards + desktop table
+- Added "murabbi-groups" PageId, integrated into app-shell + sidebar
+
+### Task 5-c: Admissions Interview Workflow
+- Enhanced admissions page with full interview management:
+  - Schedule interview with calendar picker
+  - Record results with 3 score fields + pass/fail/conditional
+  - Convert to participant with group/batch selection
+- Added Pipeline/Kanban view with 7 status columns
+- Status badge colors per stage
+
+### Task 5-d: Dashboard Trend Charts
+- Created reusable BarChart SVG component with Framer Motion animations
+- Added registration trend (12 months) + fee collection trend (6 months) to admin dashboard API
+- Integrated as 2-column trend cards section in admin dashboard
+
+## Wave 3 (2 completed agents + 2 timed out → handled directly):
+### Task 6-b: SortableDataTable Component
+- Created generic SortableDataTable<T> component
+- Supports: column sorting, server-side pagination, search, filters, mobile cards, row actions, row selection
+- Refactored Parks (-42%), Users (-39%), Batches (-44%) pages to use it
+
+### Task 6-c: Mobile Bottom Navigation
+- Created floating pill-style bottom nav with role-based items
+- Brand colors, Framer Motion animations, iOS safe area support
+- Integrated into AppShell with `no-print` class
+
+### Task 6-d: Search/Filter Verification
+- Verified all list pages already have search/filter
+- Groups: search + batch filter ✅
+- Announcements: search ✅
+- Attendance Events: status + city + park + date filters ✅
+- Access Provisioning: form page (links to Users for list management)
+
+### Task 6-a: WebSocket Notification Service
+- Service already existed and was running on port 3004
+- Added `useRealtimeNotifications()` hook call to AppShell
+- Verified notification dispatch in attendance mark + sync APIs
+
+Stage Summary:
+- **Total Pages**: 38 (up from 27)
+- **Total API Routes**: 56
+- **Total Components**: 111
+- **Total Hooks**: 7
+- **Mini Services**: 1 (notification-service on port 3004)
+- **New Pages**: Student Fees, Guardian Fees, Student Profile, Murabbi Groups
+- **New Shared Components**: DonutChart, BarChart, SortableDataTable, ExportButton, BottomNav
+- **New Utilities**: CSV Export
+- **New API Features**: Batch fee generation, paginated responses, registration/fee trends
+- **ESLint**: 0 errors
+- **TypeScript**: 0 errors in src/
+- **Dev Server**: Compiles and serves successfully
+
+## Completed Features from Original Backlog:
+- ✅ Table pagination/sorting/filtering (server-side)
+- ✅ Form submission logic (all CRUD pages connected to real APIs)
+- ✅ CSV data export (4 pages)
+- ✅ Batch operations (batch fee generation)
+- ✅ Mobile bottom navigation bar
+- ✅ Print styles for attendance and fees
+- ✅ Real-time attendance notifications (WebSocket)
+- ✅ Audit log details with diff display
+- ✅ Dashboard enhancements (gender donut, fee summary, registration/fee trends)
+- ✅ Settings page completion (notifications, danger zone)
+- ✅ Admissions interview workflow + pipeline view
+- ✅ Murabbi groups management page
+- ✅ Student Profile page
+- ✅ Student/Guardian fees pages
+- ✅ SortableDataTable reusable component
+
+## Remaining Lower-Priority Items:
+- i18n (Urdu language support)
+- PDF generation (certificates, reports, receipts)
+- File upload (avatars, documents)
+- PWA/offline support
+- Performance optimization (code splitting)

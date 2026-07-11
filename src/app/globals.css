@@ -204,3 +204,41 @@
 [data-sonner-toast][data-type="error"] {
   border-left-color: #ef4444 !important;
 }
+
+/* ── Print Styles ── */
+@media print {
+  /* Hide non-printable elements */
+  .no-print, header, .sidebar, [data-radix-popper-content-wrapper] {
+    display: none !important;
+  }
+
+  /* Full width for print */
+  main, .print-area {
+    margin: 0 !important;
+    padding: 0.5cm !important;
+    max-width: 100% !important;
+  }
+
+  /* Better table printing */
+  table {
+    font-size: 10pt !important;
+    width: 100% !important;
+  }
+
+  /* Show borders */
+  th, td {
+    border: 1px solid #ccc !important;
+    padding: 4px 8px !important;
+  }
+
+  /* Avoid page breaks inside elements */
+  tr, .card {
+    page-break-inside: avoid !important;
+  }
+
+  /* Print backgrounds */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}

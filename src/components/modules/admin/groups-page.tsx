@@ -90,6 +90,7 @@ export function GroupsPage() {
   } | undefined;
 
   const [search, setSearch] = useState("");
+  const [batchFilter, setBatchFilter] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -247,13 +248,16 @@ export function GroupsPage() {
     updateMutation.mutate({ id: selectedGroup.id, data });
   }
 
-  // Filter groups by search
-  const filtered = groups?.filter(
-    (g) =>
+  // Filter groups by search and batch
+  const filtered = groups?.filter((g) => {
+    const matchesSearch =
+      !search ||
       g.name.toLowerCase().includes(search.toLowerCase()) ||
       g.batch.name.toLowerCase().includes(search.toLowerCase()) ||
-      g.batch.park.name.toLowerCase().includes(search.toLowerCase())
-  );
+      g.batch.park.name.toLowerCase().includes(search.toLowerCase());
+    const matchesBatch = !batchFilter || g.batch.id === batchFilter;
+    return matchesSearch && matchesBatch;
+  });
 
   // Determine if user can create/edit/delete groups
   const isMurabbi = user?.role === "murabbi";
@@ -285,15 +289,33 @@ export function GroupsPage() {
         }
       />
 
-      {/* Search */}
-      <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-        <Input
-          placeholder="Search groups..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="pl-9"
-        />
+      {/* Search + Batch filter */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+          <Input
+            placeholder="Search groups..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+        <Select
+          value={batchFilter || "__all__"}
+          onValueChange={(v) => setBatchFilter(v === "__all__" ? "" : v)}
+        >
+          <SelectTrigger className="w-[200px]">
+            <SelectValue placeholder="All Batches" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">All Batches</SelectItem>
+            {batchOptions?.map((b) => (
+              <SelectItem key={b.id} value={b.id}>
+                {b.name} — {b.park.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Loading state */}

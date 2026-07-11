@@ -27,6 +27,7 @@ import {
   Clock,
   X,
   UserPlus,
+  UserCircle,
 } from "lucide-react";
 import { type LucideIcon, motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -113,9 +114,10 @@ export function getNavItems(role: string | undefined): NavItem[] {
   if (role === "murabbi") {
     return [
       { id: "murabbi-dashboard", label: "Dashboard", icon: LayoutDashboard, section: "overview" },
+      { id: "murabbi-groups", label: "My Groups", icon: Users, section: "overview" },
       { id: "park-attendance", label: "Attendance", icon: CalendarCheck, section: "daily" },
       { id: "park-roster", label: "Roster", icon: ClipboardList, section: "daily" },
-      { id: "park-participants", label: "My Group", icon: GraduationCap, section: "group" },
+      { id: "park-participants", label: "Participants", icon: GraduationCap, section: "group" },
     ];
   }
 
@@ -125,6 +127,7 @@ export function getNavItems(role: string | undefined): NavItem[] {
       { id: "guardian-dashboard", label: "Dashboard", icon: LayoutDashboard, section: "overview" },
       { id: "guardian-history", label: "Attendance History", icon: ClipboardList, section: "tracking" },
       { id: "guardian-schedule", label: "Schedule", icon: Clock, section: "tracking" },
+      { id: "guardian-fees", label: "Fees", icon: DollarSign, section: "tracking" },
       { id: "guardian-announcements", label: "Announcements", icon: Megaphone, section: "updates" },
     ];
   }
@@ -135,7 +138,9 @@ export function getNavItems(role: string | undefined): NavItem[] {
       { id: "student-dashboard", label: "Dashboard", icon: LayoutDashboard, section: "overview" },
       { id: "student-history", label: "My Attendance", icon: ClipboardList, section: "tracking" },
       { id: "student-schedule", label: "Schedule", icon: Clock, section: "tracking" },
+      { id: "student-fees", label: "Fees", icon: DollarSign, section: "tracking" },
       { id: "student-announcements", label: "Announcements", icon: Megaphone, section: "updates" },
+      { id: "student-profile", label: "My Profile", icon: UserCircle, section: "updates" },
     ];
   }
 

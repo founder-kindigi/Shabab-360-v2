@@ -60,6 +60,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { useDebounce } from "@/hooks/use-debounce";
 import { formatPKT } from "@/lib/timezone";
+import { ExportButton } from "@/components/shared/export-button";
 import {
   Plus,
   Search,
@@ -133,7 +134,7 @@ interface Student {
 interface Pagination {
   page: number;
   pageSize: number;
-  total: number;
+  totalItems: number;
   totalPages: number;
 }
 
@@ -447,13 +448,39 @@ export function StudentsPage() {
         title="Students"
         description="Manage participant profiles and assignments"
         actions={
-          <Button
-            onClick={openCreateDialog}
-            className="bg-[#4B0A8F] hover:bg-[#4B0A8FE6] text-white"
-          >
-            <Plus className="size-4 mr-2" />
-            Add Student
-          </Button>
+          <div className="flex items-center gap-2">
+            <ExportButton
+              data={students.map((s) => ({
+                name: s.name,
+                phone: s.phone ?? "",
+                gender: s.gender ?? "",
+                group: s.group?.name ?? "",
+                park: s.group?.batch?.park?.name ?? "",
+                city: s.group?.batch?.park?.city?.name ?? "",
+                status: s.state,
+                joinDate: s.joinedAt ? new Date(s.joinedAt).toLocaleDateString("en-PK", { timeZone: "Asia/Karachi" }) : "",
+              }))}
+              filename="students"
+              columns={[
+                { key: "name", header: "Name" },
+                { key: "phone", header: "Phone" },
+                { key: "gender", header: "Gender" },
+                { key: "group", header: "Group" },
+                { key: "park", header: "Park" },
+                { key: "city", header: "City" },
+                { key: "status", header: "Status" },
+                { key: "joinDate", header: "Join Date" },
+              ]}
+              disabled={isLoading}
+            />
+            <Button
+              onClick={openCreateDialog}
+              className="bg-[#4B0A8F] hover:bg-[#4B0A8FE6] text-white"
+            >
+              <Plus className="size-4 mr-2" />
+              Add Student
+            </Button>
+          </div>
         }
       />
 
@@ -530,7 +557,7 @@ export function StudentsPage() {
           {/* Results count */}
           {pagination && (
             <div className="mt-3 text-xs text-muted-foreground">
-              Showing {students.length} of {pagination.total} students
+              Showing {students.length} of {pagination.totalItems} students
             </div>
           )}
         </CardContent>

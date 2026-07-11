@@ -35,6 +35,10 @@ import {
   UserCog,
   Save,
   Loader2,
+  Bell,
+  BellOff,
+  AlertTriangle,
+  Trash2,
 } from "lucide-react";
 
 interface UserProfile {
@@ -521,7 +525,138 @@ function PreferencesTab() {
           />
         </div>
       </div>
+
+      {/* Notification Preferences */}
+      <NotificationPreferencesSection />
+
+      {/* Danger Zone */}
+      <DangerZoneSection />
     </motion.div>
+  );
+}
+
+function NotificationPreferencesSection() {
+  function getStoredPrefs() {
+    if (typeof window === "undefined") return {};
+    const stored = localStorage.getItem("shabab360-notif-prefs");
+    if (stored) {
+      try {
+        return JSON.parse(stored) as Record<string, boolean>;
+      } catch {
+        // ignore parse errors
+      }
+    }
+    return {};
+  }
+
+  const [emailNotifs, setEmailNotifs] = useState(() => getStoredPrefs().email ?? true);
+  const [inAppNotifs, setInAppNotifs] = useState(() => getStoredPrefs().inApp ?? true);
+
+  function updatePref(key: "email" | "inApp", value: boolean) {
+    const prefs = getStoredPrefs();
+    prefs[key] = value;
+    localStorage.setItem("shabab360-notif-prefs", JSON.stringify(prefs));
+
+    if (key === "email") setEmailNotifs(value);
+    else setInAppNotifs(value);
+
+    toast.success(
+      value ? "Notifications enabled" : "Notifications disabled"
+    );
+  }
+
+  return (
+    <div className="rounded-xl border bg-card p-6 space-y-4">
+      <div className="flex items-center gap-2">
+        {inAppNotifs ? (
+          <Bell className="size-5 text-[#4B0A8F] dark:text-[#8A40B0]" />
+        ) : (
+          <BellOff className="size-5 text-muted-foreground" />
+        )}
+        <div>
+          <h2 className="text-lg font-semibold">Notification Preferences</h2>
+          <p className="text-xs text-muted-foreground">
+            Control how you receive notifications
+          </p>
+        </div>
+      </div>
+      <Separator />
+
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center justify-center size-9 rounded-lg bg-[#F3ECF6] dark:bg-[#1F086080]">
+              <Mail className="size-4 text-[#4B0A8F] dark:text-[#8A40B0]" />
+            </div>
+            <div>
+              <p className="text-sm font-medium">Email Notifications</p>
+              <p className="text-xs text-muted-foreground">
+                Receive updates and alerts via email
+              </p>
+            </div>
+          </div>
+          <Switch
+            checked={emailNotifs}
+            onCheckedChange={(v) => updatePref("email", v)}
+          />
+        </div>
+
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center justify-center size-9 rounded-lg bg-[#F3ECF6] dark:bg-[#1F086080]">
+              <Bell className="size-4 text-[#4B0A8F] dark:text-[#8A40B0]" />
+            </div>
+            <div>
+              <p className="text-sm font-medium">In-App Notifications</p>
+              <p className="text-xs text-muted-foreground">
+                Show notifications within the application
+              </p>
+            </div>
+          </div>
+          <Switch
+            checked={inAppNotifs}
+            onCheckedChange={(v) => updatePref("inApp", v)}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DangerZoneSection() {
+  return (
+    <div className="rounded-xl border-2 border-red-200 dark:border-red-800/50 bg-card p-6 space-y-4">
+      <div className="flex items-center gap-2">
+        <div className="flex items-center justify-center size-9 rounded-lg bg-red-100 dark:bg-red-950/50">
+          <AlertTriangle className="size-5 text-red-600 dark:text-red-400" />
+        </div>
+        <div>
+          <h2 className="text-lg font-semibold text-red-700 dark:text-red-400">Danger Zone</h2>
+          <p className="text-xs text-muted-foreground">
+            Irreversible and destructive actions
+          </p>
+        </div>
+      </div>
+      <Separator />
+
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm font-medium">Request Account Deletion</p>
+          <p className="text-xs text-muted-foreground">
+            Permanently delete your account and all associated data
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          className="border-red-200 text-red-700 hover:bg-red-50 hover:text-red-700 dark:border-red-800/50 dark:text-red-400 dark:hover:bg-red-950/50 dark:hover:text-red-400"
+          onClick={() => toast.info("Please contact your administrator to request account deletion.")}
+        >
+          <Trash2 className="size-4 mr-1.5" />
+          Delete Account
+        </Button>
+      </div>
+    </div>
   );
 }
 

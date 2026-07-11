@@ -17,6 +17,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Menu, LogOut, User, ChevronDown, Construction, Settings } from "lucide-react";
+import { useRealtimeNotifications } from "@/hooks/use-realtime-notifications";
 
 // Page components
 import { AdminDashboard } from "@/components/modules/admin/admin-dashboard";
@@ -36,6 +37,7 @@ import { ReportsPage } from "@/components/modules/admin/reports-page";
 import { AccessProvisioningPage } from "@/components/modules/admin/access-provisioning-page";
 import { FeesPage } from "@/components/modules/admin/fees-page";
 import { MurabbiDashboard } from "@/components/modules/murabbi/murabbi-dashboard";
+import { MurabbiGroupsPage } from "@/components/modules/murabbi/murabbi-groups-page";
 import { ParkDashboard } from "@/components/modules/park/park-dashboard";
 import { ParkAttendancePage } from "@/components/modules/park/park-attendance-page";
 import { ParkRosterPage } from "@/components/modules/park/park-roster-page";
@@ -52,10 +54,14 @@ import { StudentAnnouncementsPage } from "@/components/modules/student/student-a
 import { ParkSchedulePage } from "@/components/modules/park/park-schedule-page";
 import { GuardianSchedulePage } from "@/components/modules/guardian/guardian-schedule-page";
 import { StudentSchedulePage } from "@/components/modules/student/student-schedule-page";
+import { StudentFeesPage } from "@/components/modules/student/student-fees-page";
+import { StudentProfilePage } from "@/components/modules/student/student-profile-page";
+import { GuardianFeesPage } from "@/components/modules/guardian/guardian-fees-page";
 import { AdmissionsPage } from "@/components/modules/admin/admissions-page";
 
 // Shared components
 import { ScopeSelector } from "@/components/shared/scope-selector";
+import { BottomNav } from "@/components/shared/bottom-nav";
 import { KeyboardShortcutsDialog } from "@/components/shared/keyboard-shortcuts-dialog";
 import {
   CommandPalette,
@@ -94,6 +100,7 @@ const pageTitles: Record<PageId, string> = {
   "admin-reports": "Reports",
   "admin-audit-log": "Audit Log",
   "murabbi-dashboard": "Dashboard",
+  "murabbi-groups": "My Groups",
   "park-dashboard": "Dashboard",
   "park-attendance": "Attendance",
   "park-attendance-roster": "Mark Attendance",
@@ -109,6 +116,9 @@ const pageTitles: Record<PageId, string> = {
   "student-history": "History",
   "student-schedule": "Schedule",
   "student-announcements": "Announcements",
+  "student-fees": "Fees",
+  "student-profile": "My Profile",
+  "guardian-fees": "Fees",
 };
 
 const comingSoonConfig: Record<string, { icon: typeof TreePine; module: string; phase: string; description: string }> = {
@@ -172,6 +182,8 @@ function PageContent({ pageId }: { pageId: PageId }) {
       return <FeesPage />;
     case "murabbi-dashboard":
       return <MurabbiDashboard />;
+    case "murabbi-groups":
+      return <MurabbiGroupsPage />;
     case "park-dashboard":
       return <ParkDashboard />;
     case "park-attendance":
@@ -202,6 +214,12 @@ function PageContent({ pageId }: { pageId: PageId }) {
       return <GuardianSchedulePage />;
     case "student-schedule":
       return <StudentSchedulePage />;
+    case "student-fees":
+      return <StudentFeesPage />;
+    case "student-profile":
+      return <StudentProfilePage />;
+    case "guardian-fees":
+      return <GuardianFeesPage />;
 
     // Everything else: coming soon
     default:
@@ -216,6 +234,9 @@ export function AppShell() {
 
   // Keyboard shortcuts
   useKeyboardShortcuts();
+
+  // Real-time notifications (WebSocket)
+  useRealtimeNotifications();
 
   // Close mobile sidebar on Escape
   useEffect(() => {
@@ -232,7 +253,7 @@ export function AppShell() {
   } | undefined;
 
   const pageTitle = pageTitles[currentPage] || "Dashboard";
-  const showPageHeader = !["admin-dashboard", "city-head-dashboard", "murabbi-dashboard", "park-dashboard", "park-attendance-roster", "park-roster", "park-participants", "park-guardians", "park-schedule", "guardian-dashboard", "guardian-history", "guardian-announcements", "guardian-schedule", "student-dashboard", "student-history", "student-announcements", "student-schedule", "admin-cities", "admin-parks", "admin-batches", "admin-groups", "admin-users", "admin-access", "admin-audit-log", "admin-settings", "admin-attendance-events", "admin-people", "admin-announcements", "admin-reports", "admin-students", "admin-guardians", "admin-fees"].includes(currentPage);
+  const showPageHeader = !["admin-dashboard", "city-head-dashboard", "murabbi-dashboard", "park-dashboard", "park-attendance-roster", "park-roster", "park-participants", "park-guardians", "park-schedule", "guardian-dashboard", "guardian-history", "guardian-announcements", "guardian-schedule", "guardian-fees", "student-dashboard", "student-history", "student-announcements", "student-schedule", "student-fees", "student-profile", "admin-cities", "admin-parks", "admin-batches", "admin-groups", "admin-users", "admin-access", "admin-audit-log", "admin-settings", "admin-attendance-events", "admin-people", "admin-announcements", "admin-reports", "admin-students", "admin-guardians", "admin-fees"].includes(currentPage);
 
   // Show scope selector on admin pages (not dashboard, settings, or audit-log)
   const showScopeSelector = currentPage.startsWith("admin-") && !(["admin-dashboard", "admin-settings", "admin-audit-log", "admin-people", "admin-announcements", "admin-access", "admin-students", "admin-guardians", "admin-fees", "admin-admissions"] as const).includes(currentPage as any);
@@ -331,7 +352,7 @@ export function AppShell() {
         <CommandPalette />
 
         {/* Page content */}
-        <main className="flex-1 overflow-y-auto">
+        <main className="flex-1 overflow-y-auto pb-20 lg:pb-0">
           <div className="p-4 md:p-6 space-y-4">
             {showScopeSelector && <ScopeSelector />}
             {showPageHeader && <PageHeader title={pageTitle} />}
@@ -349,6 +370,9 @@ export function AppShell() {
             </AnimatePresence>
           </div>
         </main>
+
+        {/* Mobile bottom navigation */}
+        <BottomNav />
       </div>
     </div>
   );

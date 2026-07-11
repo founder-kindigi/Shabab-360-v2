@@ -196,12 +196,13 @@ export function AccessProvisioningPage() {
   });
 
   // Fetch recent invites (last 10 users)
-  const { data: recentUsers, isLoading: recentLoading } = useQuery<UserWithMeta[]>({
+  const { data: _recentData, isLoading: recentLoading } = useQuery<{ data: UserWithMeta[] }>({
     queryKey: ["admin-recent-invites"],
     queryFn: () =>
-      fetch("/api/admin/users?limit=10").then((r) => r.json()),
+      fetch("/api/admin/users?pageSize=10").then((r) => r.json()),
     staleTime: 15000,
   });
+  const recentUsers = _recentData?.data || [];
 
   // ─── Mutations ─────────────────────────────────────────────────
 

@@ -28,6 +28,7 @@ export type PageId =
   | "admin-access"
   // Murabbi pages
   | "murabbi-dashboard"
+  | "murabbi-groups"
   // Park pages
   | "park-dashboard"
   | "park-attendance"
@@ -45,7 +46,11 @@ export type PageId =
   | "student-dashboard"
   | "student-history"
   | "student-schedule"
-  | "student-announcements";
+  | "student-announcements"
+  | "student-fees"
+  | "student-profile"
+  // Guardian pages (extra)
+  | "guardian-fees";
 
 interface AppState {
   currentPage: PageId;

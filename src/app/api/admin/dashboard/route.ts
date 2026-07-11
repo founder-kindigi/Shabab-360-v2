@@ -158,6 +158,86 @@ export async function GET(request: NextRequest) {
       buildTodayAttendance({}),
     ]);
 
+    // Gender distribution
+    const genderGroups = await db.participant.groupBy({
+      by: ["gender"],
+      _count: { gender: true },
+    });
+    const genderDistribution: Record<string, number> = {};
+    for (const g of genderGroups) {
+      const key = g.gender || "unknown";
+      genderDistribution[key] = g._count.gender;
+    }
+
+    // Fee collection summary
+    const feeEvents = await db.feeEvent.findMany({
+      where: { isActive: true },
+      select: { id: true, amount: true },
+    });
+    const feeEventIds = feeEvents.map((f) => f.id);
+    const totalExpected = feeEvents.reduce((sum, f) => sum + f.amount, 0);
+
+    let totalCollected = 0;
+    if (feeEventIds.length > 0) {
+      const paymentSum = await db.payment.aggregate({
+        where: { feeEventId: { in: feeEventIds } },
+        _sum: { amount: true },
+      });
+      totalCollected = paymentSum._sum.amount || 0;
+    }
+
+    const collectionRate = totalExpected > 0 ? Math.round((totalCollected / totalExpected) * 100) : 0;
+
+    // ── Registration Trend (last 12 months) ─────────────────────────────────
+    const twelveMonthsAgo = new Date();
+    twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
+    twelveMonthsAgo.setDate(1);
+    twelveMonthsAgo.setHours(0, 0, 0, 0);
+
+    const registrationRows: { month: string; count: number }[] = await db.$queryRaw`
+      SELECT
+        strftime('%Y-%m', joined_at) as month,
+        COUNT(*) as count
+      FROM participants
+      WHERE joined_at >= ${twelveMonthsAgo.toISOString()}
+      GROUP BY strftime('%Y-%m', joined_at)
+      ORDER BY month ASC
+    `;
+
+    const registrationTrend: { month: string; count: number }[] = [];
+    const regMap = new Map(registrationRows.map((r) => [r.month, r.count]));
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date();
+      d.setMonth(d.getMonth() - i);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      registrationTrend.push({ month: key, count: regMap.get(key) || 0 });
+    }
+
+    // ── Fee Collection Trend (last 6 months) ────────────────────────────────
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+    sixMonthsAgo.setDate(1);
+    sixMonthsAgo.setHours(0, 0, 0, 0);
+
+    const feeRows: { month: string; total: number }[] = await db.$queryRaw`
+      SELECT
+        strftime('%Y-%m', p.created_at) as month,
+        SUM(p.amount) as total
+      FROM payments p
+      WHERE p.created_at >= ${sixMonthsAgo.toISOString()}
+      GROUP BY strftime('%Y-%m', p.created_at)
+      ORDER BY month ASC
+    `;
+
+    const feeCollectionTrend: { month: string; total: number }[] = [];
+    const feeMap = new Map(feeRows.map((r) => [r.month, r.total]));
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date();
+      d.setMonth(d.getMonth() - i);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      feeCollectionTrend.push({ month: key, total: feeMap.get(key) || 0 });
+    }
+
     return NextResponse.json({
       cities,
       parks,
@@ -174,6 +254,14 @@ export async function GET(request: NextRequest) {
       cityBreakdown: cityBreakdownWithStaff,
       attendanceTrend,
       todayAttendance,
+      genderDistribution,
+      feeSummary: {
+        totalExpected: Math.round(totalExpected),
+        totalCollected: Math.round(totalCollected),
+        collectionRate,
+      },
+      registrationTrend,
+      feeCollectionTrend,
     });
   }
 

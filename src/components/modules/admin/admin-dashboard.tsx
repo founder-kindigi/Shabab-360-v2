@@ -42,9 +42,14 @@ import {
   Zap,
   Shield,
   BarChart3,
+  Wallet,
+  UserPlus,
+  TrendingUp,
 } from "lucide-react";
 import { AttendanceChart } from "@/components/shared/attendance-chart";
 import { Sparkline } from "@/components/shared/sparkline";
+import { DonutChart } from "@/components/shared/donut-chart";
+import { BarChart } from "@/components/shared/bar-chart";
 import type { PageId } from "@/stores/useAppStore";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -101,6 +106,12 @@ function describeAction(item: {
 function getInitials(name: string | null | undefined): string {
   if (!name) return "??";
   return name.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
+}
+
+function formatPKR(amount: number): string {
+  if (amount >= 100000) return `Rs ${(amount / 100000).toFixed(1)}L`;
+  if (amount >= 1000) return `Rs ${(amount / 1000).toFixed(1)}K`;
+  return `Rs ${amount.toLocaleString()}`;
 }
 
 // ── Animation variants ───────────────────────────────────────────────────────
@@ -439,6 +450,56 @@ export function AdminDashboard() {
           </motion.div>
         )}
 
+        {/* B4. Trends Section — Registration & Fee Collection */}
+        {(data.registrationTrend || data.feeCollectionTrend) && (
+          <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+            {/* Registration Trend */}
+            {data.registrationTrend && data.registrationTrend.length > 0 && (
+              <Card className="overflow-hidden">
+                <CardHeader className="pb-2 bg-muted/20 border-b">
+                  <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                    <UserPlus className="size-4 text-[#4B0A8F]" />
+                    Registration Trend (12 months)
+                    <Badge variant="secondary" className="ml-auto text-[10px] h-5 px-1.5">
+                      {data.registrationTrend.reduce((s: number, d: any) => s + d.count, 0)} total
+                    </Badge>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-3 px-4 pb-4">
+                  <BarChart
+                    data={data.registrationTrend.map((d: any) => ({ label: d.month, value: d.count }))}
+                    height={160}
+                    barColor="#4B0A8F"
+                  />
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Fee Collection Trend */}
+            {data.feeCollectionTrend && data.feeCollectionTrend.length > 0 && (
+              <Card className="overflow-hidden">
+                <CardHeader className="pb-2 bg-muted/20 border-b">
+                  <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                    <TrendingUp className="size-4 text-[#A0006B]" />
+                    Fee Collection (6 months)
+                    <Badge variant="secondary" className="ml-auto text-[10px] h-5 px-1.5">
+                      {formatPKR(data.feeCollectionTrend.reduce((s: number, d: any) => s + d.total, 0))}
+                    </Badge>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-3 px-4 pb-4">
+                  <BarChart
+                    data={data.feeCollectionTrend.map((d: any) => ({ label: d.month, value: d.total }))}
+                    height={160}
+                    barColor="#A0006B"
+                    valueFormatter={(v) => formatPKR(v)}
+                  />
+                </CardContent>
+              </Card>
+            )}
+          </motion.div>
+        )}
+
         {/* C. Quick Actions */}
         <motion.div variants={itemVariants}>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
@@ -477,6 +538,86 @@ export function AdminDashboard() {
               );
             })}
           </div>
+        </motion.div>
+
+        {/* Two new charts row: Gender Distribution + Fee Summary */}
+        <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Gender Distribution Donut */}
+          <Card className="overflow-hidden">
+            <CardHeader className="pb-2 bg-muted/20 border-b">
+              <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                <Users className="size-4 text-[#4B0A8F]" />
+                Gender Distribution
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-4 flex items-center justify-center px-4 pb-4">
+              <DonutChart
+                segments={[
+                  { label: "Male", value: data.genderDistribution?.male || 0, color: "#4B0A8F" },
+                  { label: "Female", value: data.genderDistribution?.female || 0, color: "#A0006B" },
+                  { label: "Unknown", value: data.genderDistribution?.unknown || 0, color: "#D4B8E3" },
+                ]}
+                size={150}
+                strokeWidth={24}
+                centerValue={`${data.participants}`}
+                centerLabel="Total"
+              />
+            </CardContent>
+          </Card>
+
+          {/* Fee Collection Summary */}
+          <Card className="overflow-hidden">
+            <CardHeader className="pb-2 bg-muted/20 border-b">
+              <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                <Wallet className="size-4 text-[#4B0A8F]" />
+                Fee Collection Summary
+                {data.feeSummary && (
+                  <Badge variant="secondary" className="ml-auto text-[10px] h-5 px-1.5">
+                    {data.feeSummary.collectionRate}%
+                  </Badge>
+                )}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-4 px-4 pb-4 space-y-4">
+              {data.feeSummary ? (
+                <>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-[10px] text-muted-foreground font-medium">Total Expected</p>
+                      <p className="text-lg font-bold tabular-nums">{formatPKR(data.feeSummary.totalExpected)}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-muted-foreground font-medium">Total Collected</p>
+                      <p className="text-lg font-bold tabular-nums text-[#4B0A8F] dark:text-[#8A40B0]">{formatPKR(data.feeSummary.totalCollected)}</p>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground">Collection Progress</span>
+                      <span className="font-semibold">{data.feeSummary.collectionRate}%</span>
+                    </div>
+                    <Progress
+                      value={data.feeSummary.collectionRate}
+                      className="h-2.5"
+                    />
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-full text-xs text-[#4B0A8F] hover:text-[#4B0A8F] dark:text-[#8A40B0] dark:hover:text-[#8A40B0] h-8"
+                    onClick={() => navigateTo("admin-fees")}
+                  >
+                    View Fees Management
+                    <ArrowRight className="size-3.5 ml-1" />
+                  </Button>
+                </>
+              ) : (
+                <div className="py-4 text-center">
+                  <p className="text-sm text-muted-foreground">No fee data available</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </motion.div>
 
         {/* Two-column layout */}

@@ -26,6 +26,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Sheet,
   SheetContent,
@@ -83,8 +84,12 @@ import {
   ChevronRight,
   X,
   CreditCard,
+  Layers,
+  Search,
+  Printer,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ExportButton } from "@/components/shared/export-button";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -225,6 +230,18 @@ export function FeesPage() {
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
+  const [batchGenOpen, setBatchGenOpen] = useState(false);
+
+  // Batch generate state
+  const [bgTitle, setBgTitle] = useState("");
+  const [bgFeeType, setBgFeeType] = useState("");
+  const [bgAmount, setBgAmount] = useState("");
+  const [bgDueDate, setBgDueDate] = useState("");
+  const [bgSelectedIds, setBgSelectedIds] = useState<string[]>([]);
+  const [bgCityId, setBgCityId] = useState("");
+  const [bgParkId, setBgParkId] = useState("");
+  const [bgSearch, setBgSearch] = useState("");
+  const [bgErrors, setBgErrors] = useState<Record<string, string>>({});
 
   // Form state
   const [formBatchId, setFormBatchId] = useState("");
@@ -306,6 +323,51 @@ export function FeesPage() {
     staleTime: 30000,
     enabled: createOpen && !!formParkId,
   });
+
+  // Batch generate queries
+  const { data: bgParks } = useQuery<ParkOption[]>({
+    queryKey: ["batch-gen-parks", bgCityId],
+    queryFn: () => {
+      const url = bgCityId
+        ? `/api/admin/parks?cityId=${bgCityId}`
+        : "/api/admin/parks";
+      return fetch(url).then((r) => r.json());
+    },
+    staleTime: 30000,
+    enabled: batchGenOpen,
+  });
+
+  const { data: bgBatches } = useQuery<BatchOption[]>({
+    queryKey: ["batch-gen-batches", bgParkId],
+    queryFn: () => {
+      const url = bgParkId
+        ? `/api/admin/batches?parkId=${bgParkId}`
+        : "/api/admin/batches";
+      return fetch(url).then((r) => r.json());
+    },
+    staleTime: 30000,
+    enabled: batchGenOpen && !!bgParkId,
+  });
+
+  // Filtered batches for the generate dialog
+  const filteredBgBatches = useMemo(() => {
+    let list = bgBatches || [];
+    if (bgCityId && bgParks) {
+      const parkIds = new Set(bgParks.filter(p => p.cityId === bgCityId).map(p => p.id));
+      list = list.filter(b => parkIds.has(b.parkId));
+    }
+    if (bgSearch.trim()) {
+      const s = bgSearch.toLowerCase();
+      list = list.filter(b => b.name.toLowerCase().includes(s));
+    }
+    return list;
+  }, [bgBatches, bgParks, bgCityId, bgSearch]);
+
+  const filteredBgParks = useMemo(() => {
+    if (!bgParks) return [];
+    if (!bgCityId) return bgParks;
+    return bgParks.filter(p => p.cityId === bgCityId);
+  }, [bgParks, bgCityId]);
 
   // Fee events
   const queryParams = useMemo(() => {
@@ -466,6 +528,41 @@ export function FeesPage() {
     },
   });
 
+  // Batch generate mutation
+  const batchGenMutation = useMutation({
+    mutationFn: (data: {
+      batchIds: string[];
+      title: string;
+      feeType: string;
+      amount: number;
+      dueDate?: string;
+    }) =>
+      fetch("/api/admin/fees/batch-create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      }).then((r) => {
+        if (!r.ok) return r.json().then((e) => Promise.reject(e));
+        return r.json();
+      }),
+    onSuccess: (res) => {
+      queryClient.invalidateQueries({ queryKey: ["admin-fees"] });
+      toast.success(`Generated ${res.created} fee events successfully${res.failed > 0 ? ` (${res.failed} failed)` : ""}`);
+      closeBatchGenDialog();
+    },
+    onError: (err: any) => {
+      if (err.error) {
+        if (typeof err.error === "object") {
+          setBgErrors(err.error);
+        } else {
+          toast.error(err.error);
+        }
+      } else {
+        toast.error("Failed to generate fee events");
+      }
+    },
+  });
+
   // ---- Filter cascading ----
   const filteredParks = useMemo(() => {
     if (!parks) return [];
@@ -508,6 +605,52 @@ export function FeesPage() {
     setFormAmount("");
     setFormDueDate("");
     setFormErrors({});
+  }
+
+  function closeBatchGenDialog() {
+    setBatchGenOpen(false);
+    setBgTitle("");
+    setBgFeeType("");
+    setBgAmount("");
+    setBgDueDate("");
+    setBgSelectedIds([]);
+    setBgCityId("");
+    setBgParkId("");
+    setBgSearch("");
+    setBgErrors({});
+  }
+
+  function toggleBgBatch(batchId: string) {
+    setBgSelectedIds((prev) =>
+      prev.includes(batchId)
+        ? prev.filter((id) => id !== batchId)
+        : [...prev, batchId]
+    );
+  }
+
+  function toggleAllBgBatches() {
+    if (bgSelectedIds.length === filteredBgBatches.length) {
+      setBgSelectedIds([]);
+    } else {
+      setBgSelectedIds(filteredBgBatches.map((b) => b.id));
+    }
+  }
+
+  function handleBatchGenSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setBgErrors({});
+    if (bgSelectedIds.length === 0) {
+      setBgErrors({ batchIds: "Select at least one batch" });
+      return;
+    }
+    const payload: any = {
+      batchIds: bgSelectedIds,
+      title: bgTitle.trim(),
+      feeType: bgFeeType,
+      amount: parseFloat(bgAmount),
+    };
+    if (bgDueDate) payload.dueDate = bgDueDate;
+    batchGenMutation.mutate(payload);
   }
 
   function openEditDialog(fe: FeeEventItem) {
@@ -772,14 +915,60 @@ export function FeesPage() {
           </Select>
         </div>
 
-        <Button
-          size="sm"
-          className="h-9 bg-[#4B0A8F] hover:bg-[#3A0870] text-white shrink-0"
-          onClick={() => setCreateOpen(true)}
-        >
-          <Plus className="size-4 mr-1.5" />
-          New Fee
-        </Button>
+        <div className="flex items-center gap-2 ml-auto shrink-0">
+          <Button
+            variant="outline"
+            size="sm"
+            className="no-print"
+            onClick={() => window.print()}
+          >
+            <Printer className="size-4 mr-1.5" />
+            Print
+          </Button>
+          <ExportButton
+            data={feeEvents.map((f) => ({
+              title: f.title,
+              batch: f.batch?.name ?? "",
+              feeType: f.feeType,
+              amount: f.amount,
+              dueDate: f.dueDate
+                ? new Date(f.dueDate).toLocaleDateString("en-PK", { timeZone: "Asia/Karachi" })
+                : "",
+              status: f.isActive ? "Active" : "Inactive",
+              totalPaid: f.totalPaid,
+              totalParticipants: f.totalParticipants,
+            }))}
+            filename="fees"
+            columns={[
+              { key: "title", header: "Fee Title" },
+              { key: "batch", header: "Batch" },
+              { key: "feeType", header: "Type" },
+              { key: "amount", header: "Amount" },
+              { key: "dueDate", header: "Due Date" },
+              { key: "status", header: "Status" },
+              { key: "totalPaid", header: "Total Paid" },
+              { key: "totalParticipants", header: "Total Participants" },
+            ]}
+            disabled={isLoading}
+          />
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-9 border-[#A0006B]/40 text-[#A0006B] hover:bg-[#A0006B]/10 dark:text-[#E06BAF] dark:border-[#A0006B]/40 dark:hover:bg-[#A0006B]/20"
+            onClick={() => setBatchGenOpen(true)}
+          >
+            <Layers className="size-4 mr-1.5" />
+            <span className="hidden sm:inline">Generate Fees</span>
+          </Button>
+          <Button
+            size="sm"
+            className="h-9 bg-[#4B0A8F] hover:bg-[#3A0870] text-white"
+            onClick={() => setCreateOpen(true)}
+          >
+            <Plus className="size-4 mr-1.5" />
+            <span className="hidden sm:inline">New Fee</span>
+          </Button>
+        </div>
       </motion.div>
 
       {/* Fee Events Table / Cards */}
@@ -1043,6 +1232,193 @@ export function FeesPage() {
           </>
         )}
       </motion.div>
+
+      {/* ============ BATCH GENERATE FEES DIALOG ============ */}
+      <Dialog open={batchGenOpen} onOpenChange={(open) => { if (!open) closeBatchGenDialog(); }}>
+        <DialogContent className="sm:max-w-lg max-h-[85vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="text-lg flex items-center gap-2">
+              <Layers className="size-5 text-[#A0006B] dark:text-[#E06BAF]" />
+              Generate Fees for Multiple Batches
+            </DialogTitle>
+            <DialogDescription>Create a fee event for multiple batches at once.</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleBatchGenSubmit} className="flex-1 overflow-y-auto space-y-4 pr-1">
+            <div className="space-y-2">
+              <Label className="text-sm">Title</Label>
+              <Input
+                className="h-9"
+                placeholder="e.g., January 2025 Tuition"
+                value={bgTitle}
+                onChange={(e) => setBgTitle(e.target.value)}
+              />
+              {bgErrors.title && (
+                <p className="text-xs text-[#FF0015]">{bgErrors.title}</p>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label className="text-sm">Fee Type</Label>
+                <Select value={bgFeeType} onValueChange={setBgFeeType}>
+                  <SelectTrigger className="h-9">
+                    <SelectValue placeholder="Select type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="monthly">Monthly</SelectItem>
+                    <SelectItem value="registration">Registration</SelectItem>
+                    <SelectItem value="exam">Exam</SelectItem>
+                    <SelectItem value="special">Special</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+                {bgErrors.feeType && (
+                  <p className="text-xs text-[#FF0015]">{bgErrors.feeType}</p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-sm">Amount (PKR)</Label>
+                <Input
+                  type="number"
+                  className="h-9 font-mono"
+                  placeholder="0"
+                  min="1"
+                  step="1"
+                  value={bgAmount}
+                  onChange={(e) => setBgAmount(e.target.value)}
+                />
+                {bgErrors.amount && (
+                  <p className="text-xs text-[#FF0015]">{bgErrors.amount}</p>
+                )}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-sm">Due Date (optional)</Label>
+              <Input
+                type="date"
+                className="h-9"
+                value={bgDueDate}
+                onChange={(e) => setBgDueDate(e.target.value)}
+              />
+            </div>
+
+            <Separator />
+
+            {/* Batch selection */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-semibold">Target Batches</Label>
+                {bgSelectedIds.length > 0 && (
+                  <Badge variant="outline" className="text-xs font-mono border-[#4B0A8F]/30 text-[#4B0A8F] dark:text-[#B87EE0]">
+                    {bgSelectedIds.length} selected
+                  </Badge>
+                )}
+              </div>
+
+              {/* City / Park filters */}
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <Select value={bgCityId} onValueChange={(v) => { setBgCityId(v === "__all__" ? "" : v); setBgParkId(""); setBgSelectedIds([]); }}>
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue placeholder="Filter by City" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__all__">All Cities</SelectItem>
+                      {cities?.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex-1">
+                  <Select value={bgParkId} onValueChange={(v) => { setBgParkId(v === "__all__" ? "" : v); setBgSelectedIds([]); }}>
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue placeholder="Filter by Park" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__all__">All Parks</SelectItem>
+                      {filteredBgParks.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Search */}
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
+                <Input
+                  className="h-8 pl-8 text-xs"
+                  placeholder="Search batches..."
+                  value={bgSearch}
+                  onChange={(e) => setBgSearch(e.target.value)}
+                />
+              </div>
+
+              {bgErrors.batchIds && (
+                <p className="text-xs text-[#FF0015]">{bgErrors.batchIds}</p>
+              )}
+
+              {/* Batch list */}
+              <div className="rounded-lg border max-h-48 overflow-y-auto">
+                {!bgParkId ? (
+                  <div className="p-4 text-center text-xs text-muted-foreground">
+                    Select a park to see batches
+                  </div>
+                ) : filteredBgBatches.length === 0 ? (
+                  <div className="p-4 text-center text-xs text-muted-foreground">
+                    No batches found
+                  </div>
+                ) : (
+                  <>
+                    <div className="sticky top-0 bg-muted/80 backdrop-blur-sm px-3 py-2 border-b flex items-center gap-2">
+                      <Checkbox
+                        checked={bgSelectedIds.length === filteredBgBatches.length && filteredBgBatches.length > 0}
+                        onCheckedChange={toggleAllBgBatches}
+                        className="size-3.5"
+                      />
+                      <span className="text-xs font-medium text-muted-foreground">
+                        Select All ({filteredBgBatches.length})
+                      </span>
+                    </div>
+                    <div className="divide-y">
+                      {filteredBgBatches.map((b) => (
+                        <label
+                          key={b.id}
+                          className="flex items-center gap-2.5 px-3 py-2 hover:bg-muted/30 cursor-pointer transition-colors"
+                        >
+                          <Checkbox
+                            checked={bgSelectedIds.includes(b.id)}
+                            onCheckedChange={() => toggleBgBatch(b.id)}
+                            className="size-3.5"
+                          />
+                          <span className="text-xs font-medium truncate">{b.name}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+
+            <DialogFooter className="pt-2">
+              <Button type="button" variant="outline" onClick={closeBatchGenDialog}>
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={batchGenMutation.isPending || bgSelectedIds.length === 0}
+                className="bg-[#A0006B] hover:bg-[#800055] text-white"
+              >
+                {batchGenMutation.isPending ? "Generating..." : `Generate for ${bgSelectedIds.length} Batch${bgSelectedIds.length !== 1 ? "es" : ""}`}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* ============ CREATE FEE EVENT DIALOG ============ */}
       <Dialog open={createOpen} onOpenChange={(open) => { if (!open) closeCreateDialog(); }}>

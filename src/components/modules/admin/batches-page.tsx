@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import { PageHeader } from "@/components/layout/page-header";
-import { EmptyState } from "@/components/layout/empty-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -34,33 +33,19 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import {
   Plus,
-  Search,
-  MoreHorizontal,
   Pencil,
   Trash2,
   CalendarRange,
   TreePine,
-  MapPin,
   Users,
 } from "lucide-react";
+import {
+  SortableDataTable,
+  type Column,
+} from "@/components/shared/sortable-data-table";
 
 interface ParkOption {
   id: string;
@@ -307,6 +292,92 @@ export function BatchesPage() {
     user?.role === "park_admin" ||
     user?.role === "park_lead";
 
+  // Column definitions for SortableDataTable
+  const columns: Column<Batch>[] = [
+    {
+      key: "name",
+      header: "Batch",
+      render: (batch) => (
+        <div className="flex items-center gap-3">
+          <div className="rounded-lg bg-[#F3ECF6] p-2 dark:bg-[#1F0860]">
+            <CalendarRange className="size-4 text-[#4B0A8F] dark:text-[#8A40B0]" />
+          </div>
+          <span className="font-medium text-sm">
+            {batch.name}
+          </span>
+        </div>
+      ),
+      mobileRender: (batch) => (
+        <div className="flex items-start justify-between">
+          <div className="flex items-center gap-3">
+            <div className="rounded-lg bg-[#F3ECF6] p-2 dark:bg-[#1F0860]">
+              <CalendarRange className="size-4 text-[#4B0A8F] dark:text-[#8A40B0]" />
+            </div>
+            <div>
+              <p className="font-medium text-sm">{batch.name}</p>
+              <p className="text-xs text-muted-foreground">
+                {batch.park.name} · {batch.park.city.name}
+              </p>
+            </div>
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: "park",
+      header: "Park",
+      render: (batch) => (
+        <div className="text-sm">
+          <span className="font-medium">{batch.park.name}</span>
+          <span className="text-muted-foreground ml-1.5">
+            {batch.park.city.name}
+          </span>
+        </div>
+      ),
+    },
+    {
+      key: "groups",
+      header: "Groups",
+      className: "text-center",
+      render: (batch) => (
+        <span className="inline-flex items-center justify-center rounded-full bg-[#F3ECF6] px-2.5 py-0.5 text-xs font-medium text-[#4B0A8F] dark:bg-[#1F0860] dark:text-[#8A40B0]">
+          {batch._count.groups}
+        </span>
+      ),
+    },
+    {
+      key: "startDate",
+      header: "Start Date",
+      render: (batch) => (
+        <span className="text-sm text-muted-foreground">
+          {formatDate(batch.startDate)}
+        </span>
+      ),
+    },
+    {
+      key: "endDate",
+      header: "End Date",
+      render: (batch) => (
+        <span className="text-sm text-muted-foreground">
+          {formatDate(batch.endDate)}
+        </span>
+      ),
+    },
+    {
+      key: "status",
+      header: "Status",
+      className: "text-center",
+      render: () => (
+        <Badge
+          variant="outline"
+          className="text-[#4B0A8F] border-[#D4B8E3] bg-[#F3ECF6] dark:text-[#8A40B0] dark:border-[#2A0C8F] dark:bg-[#1F0860]"
+        >
+          Active
+        </Badge>
+      ),
+    },
+  ];
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -325,211 +396,32 @@ export function BatchesPage() {
         }
       />
 
-      {/* Search */}
-      <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-        <Input
-          placeholder="Search batches..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="pl-9"
-        />
-      </div>
-
-      {/* Loading state */}
-      {isLoading && (
-        <div className="space-y-3">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <Skeleton key={i} className="h-14 w-full rounded-lg" />
-          ))}
-        </div>
-      )}
-
-      {/* Desktop table + Mobile cards */}
-      {!isLoading && filtered && filtered.length > 0 && (
-        <>
-          {/* Desktop view */}
-          <div className="hidden md:block rounded-xl border bg-card overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/50 hover:bg-muted/50">
-                  <TableHead className="text-xs font-medium text-muted-foreground">
-                    Batch
-                  </TableHead>
-                  <TableHead className="text-xs font-medium text-muted-foreground">
-                    Park
-                  </TableHead>
-                  <TableHead className="text-xs font-medium text-muted-foreground text-center">
-                    Groups
-                  </TableHead>
-                  <TableHead className="text-xs font-medium text-muted-foreground">
-                    Start Date
-                  </TableHead>
-                  <TableHead className="text-xs font-medium text-muted-foreground">
-                    End Date
-                  </TableHead>
-                  <TableHead className="text-xs font-medium text-muted-foreground text-center">
-                    Status
-                  </TableHead>
-                  <TableHead className="w-12" />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filtered.map((batch) => (
-                  <TableRow
-                    key={batch.id}
-                    className="hover:bg-muted/30 transition-colors"
-                  >
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <div className="rounded-lg bg-[#F3ECF6] p-2 dark:bg-[#1F0860]">
-                          <CalendarRange className="size-4 text-[#4B0A8F] dark:text-[#8A40B0]" />
-                        </div>
-                        <span className="font-medium text-sm">
-                          {batch.name}
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="text-sm">
-                        <span className="font-medium">{batch.park.name}</span>
-                        <span className="text-muted-foreground ml-1.5">
-                          {batch.park.city.name}
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <span className="inline-flex items-center justify-center rounded-full bg-[#F3ECF6] px-2.5 py-0.5 text-xs font-medium text-[#4B0A8F] dark:bg-[#1F0860] dark:text-[#8A40B0]">
-                        {batch._count.groups}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {formatDate(batch.startDate)}
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {formatDate(batch.endDate)}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <Badge
-                        variant="outline"
-                        className="text-[#4B0A8F] border-[#D4B8E3] bg-[#F3ECF6] dark:text-[#8A40B0] dark:border-[#2A0C8F] dark:bg-[#1F0860]"
-                      >
-                        Active
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="size-8"
-                          >
-                            <MoreHorizontal className="size-4" />
-                            <span className="sr-only">Actions</span>
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem
-                            onClick={() => openEditDialog(batch)}
-                            className="cursor-pointer"
-                          >
-                            <Pencil className="size-4 mr-2" />
-                            Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => openDeleteDialog(batch)}
-                            className="text-red-600 focus:text-red-600 cursor-pointer"
-                          >
-                            <Trash2 className="size-4 mr-2" />
-                            Deactivate
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-
-          {/* Mobile cards */}
-          <div className="md:hidden space-y-3">
-            {filtered.map((batch) => (
-              <div
-                key={batch.id}
-                className="rounded-xl border bg-card p-4 space-y-3"
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="rounded-lg bg-[#F3ECF6] p-2 dark:bg-[#1F0860]">
-                      <CalendarRange className="size-4 text-[#4B0A8F] dark:text-[#8A40B0]" />
-                    </div>
-                    <div>
-                      <p className="font-medium text-sm">{batch.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {batch.park.name} · {batch.park.city.name}
-                      </p>
-                    </div>
-                  </div>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="size-8">
-                        <MoreHorizontal className="size-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem
-                        onClick={() => openEditDialog(batch)}
-                        className="cursor-pointer"
-                      >
-                        <Pencil className="size-4 mr-2" />
-                        Edit
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => openDeleteDialog(batch)}
-                        className="text-red-600 focus:text-red-600 cursor-pointer"
-                      >
-                        <Trash2 className="size-4 mr-2" />
-                        Deactivate
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-                <div className="flex items-center gap-4 text-sm">
-                  <div className="flex items-center gap-1.5 text-muted-foreground">
-                    <Users className="size-3.5" />
-                    <span>{batch._count.groups} groups</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 text-muted-foreground">
-                    <TreePine className="size-3.5" />
-                    <span>{formatDate(batch.startDate)}</span>
-                  </div>
-                  {batch.endDate && (
-                    <div className="flex items-center gap-1.5 text-muted-foreground">
-                      <CalendarRange className="size-3.5" />
-                      <span>to {formatDate(batch.endDate)}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
-
-      {/* Empty state */}
-      {!isLoading && filtered && filtered.length === 0 && (
-        <EmptyState
-          icon={CalendarRange}
-          title={search ? "No batches found" : "No batches yet"}
-          description={
-            search
-              ? "Try adjusting your search query."
-              : "Create your first batch to organize groups within a park."
-          }
-        />
-      )}
+      <SortableDataTable<Batch>
+        columns={columns}
+        data={filtered || []}
+        isLoading={isLoading}
+        search={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Search batches..."
+        actions={(batch) => [
+          { label: "Edit", icon: Pencil, onClick: () => openEditDialog(batch) },
+          {
+            label: "Deactivate",
+            icon: Trash2,
+            onClick: () => openDeleteDialog(batch),
+            destructive: true,
+          },
+        ]}
+        emptyIcon={CalendarRange}
+        emptyTitle={search ? "No batches found" : "No batches yet"}
+        emptyDescription={
+          search
+            ? "Try adjusting your search query."
+            : "Create your first batch to organize groups within a park."
+        }
+        getRowId={(batch) => batch.id}
+        skeletonRows={3}
+      />
 
       {/* Create Dialog */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>

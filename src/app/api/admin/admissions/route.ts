@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { z } from "zod";
 import { logAudit } from "@/lib/audit";
 
-const VALID_STATUSES = ["submitted", "reviewing", "interviewed", "accepted", "rejected", "enrolled"];
+const VALID_STATUSES = ["submitted", "screening", "interview_scheduled", "interviewed", "accepted", "rejected", "enrolled"];
 
 const createSchema = z.object({
   applicantName: z.string().min(2, "Applicant name must be at least 2 characters"),
@@ -42,6 +42,9 @@ export async function GET(request: NextRequest) {
 
   if (status && VALID_STATUSES.includes(status)) {
     where.status = status;
+  } else if (status === "reviewing") {
+    // Legacy alias for "screening"
+    where.status = "screening";
   }
 
   if (cityId) {
