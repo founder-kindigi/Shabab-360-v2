@@ -36,7 +36,7 @@ export function useOnlineStatus(): boolean {
 export function useConnectionStatus(): {
   isOnline: boolean;
   label: string;
-  color: "emerald" | "amber" | "red";
+  color: "brand" | "amber" | "red";
 } {
   const isOnline = useOnlineStatus();
 
@@ -44,6 +44,6 @@ export function useConnectionStatus(): {
   return {
     isOnline,
     label: isOnline ? "Online" : "Offline",
-    color: isOnline ? "emerald" : "red",
+    color: isOnline ? "brand" : "red",
   };
 }

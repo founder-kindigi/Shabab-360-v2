@@ -5,7 +5,6 @@ import { useAppStore, type PageId } from "@/stores/useAppStore";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
-import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   LayoutDashboard,
@@ -36,6 +35,22 @@ interface NavItem {
   label: string;
   icon: LucideIcon;
   badge?: string;
+  section?: string;
+}
+
+// Section groupings per role tier
+function getNavSections(items: NavItem[]): { section: string | null; items: NavItem[] }[] {
+  const sections: { section: string | null; items: NavItem[] }[] = [];
+  let current: string | null = null;
+  for (const item of items) {
+    if (item.section !== current) {
+      sections.push({ section: item.section || null, items: [item] });
+      current = item.section;
+    } else {
+      sections[sections.length - 1].items.push(item);
+    }
+  }
+  return sections;
 }
 
 // Navigation configuration per role tier
@@ -45,80 +60,80 @@ function getNavItems(role: string | undefined): NavItem[] {
   // Super Admin & Program Admin — full access
   if (["super_admin", "program_admin"].includes(role)) {
     return [
-      { id: "admin-dashboard", label: "Dashboard", icon: LayoutDashboard },
-      { id: "admin-cities", label: "Cities", icon: Building2 },
-      { id: "admin-parks", label: "Parks", icon: TreePine },
-      { id: "admin-batches", label: "Batches", icon: CalendarCheck },
-      { id: "admin-groups", label: "Groups", icon: Users },
-      { id: "admin-people", label: "People", icon: Users },
-      { id: "admin-students", label: "Students", icon: GraduationCap },
-      { id: "admin-guardians", label: "Guardians", icon: ShieldCheck },
-      { id: "admin-attendance-events", label: "Attendance", icon: CalendarCheck },
-      { id: "admin-users", label: "Users", icon: UserCog },
-      { id: "admin-admissions", label: "Admissions", icon: FileText },
-      { id: "admin-fees", label: "Fees", icon: DollarSign },
-      { id: "admin-announcements", label: "Announcements", icon: Megaphone },
-      { id: "admin-reports", label: "Reports", icon: BarChart3 },
-      { id: "admin-audit-log", label: "Audit Log", icon: ScrollText },
-      { id: "admin-settings", label: "Settings", icon: Settings },
+      { id: "admin-dashboard", label: "Dashboard", icon: LayoutDashboard, section: "overview" },
+      { id: "admin-cities", label: "Cities", icon: Building2, section: "organization" },
+      { id: "admin-parks", label: "Parks", icon: TreePine, section: "organization" },
+      { id: "admin-batches", label: "Batches", icon: CalendarCheck, section: "organization" },
+      { id: "admin-groups", label: "Groups", icon: Users, section: "organization" },
+      { id: "admin-people", label: "People", icon: Users, section: "people" },
+      { id: "admin-students", label: "Students", icon: GraduationCap, section: "people" },
+      { id: "admin-guardians", label: "Guardians", icon: ShieldCheck, section: "people" },
+      { id: "admin-attendance-events", label: "Attendance", icon: CalendarCheck, section: "operations" },
+      { id: "admin-users", label: "Users", icon: UserCog, section: "operations" },
+      { id: "admin-admissions", label: "Admissions", icon: FileText, section: "operations" },
+      { id: "admin-fees", label: "Fees", icon: DollarSign, section: "operations" },
+      { id: "admin-announcements", label: "Announcements", icon: Megaphone, section: "communication" },
+      { id: "admin-reports", label: "Reports", icon: BarChart3, section: "communication" },
+      { id: "admin-audit-log", label: "Audit Log", icon: ScrollText, section: "system" },
+      { id: "admin-settings", label: "Settings", icon: Settings, section: "system" },
     ];
   }
 
   // City Head — city-scoped admin
   if (role === "city_head") {
     return [
-      { id: "city-head-dashboard", label: "Dashboard", icon: LayoutDashboard },
-      { id: "admin-cities", label: "My City", icon: Building2 },
-      { id: "admin-parks", label: "Parks", icon: TreePine },
-      { id: "admin-batches", label: "Batches", icon: CalendarCheck },
-      { id: "admin-groups", label: "Groups", icon: Users },
-      { id: "admin-people", label: "People", icon: Users },
-      { id: "admin-students", label: "Students", icon: GraduationCap },
-      { id: "admin-attendance-events", label: "Attendance", icon: CalendarCheck },
-      { id: "admin-announcements", label: "Announcements", icon: Megaphone },
-      { id: "admin-reports", label: "Reports", icon: BarChart3 },
+      { id: "city-head-dashboard", label: "Dashboard", icon: LayoutDashboard, section: "overview" },
+      { id: "admin-cities", label: "My City", icon: Building2, section: "organization" },
+      { id: "admin-parks", label: "Parks", icon: TreePine, section: "organization" },
+      { id: "admin-batches", label: "Batches", icon: CalendarCheck, section: "organization" },
+      { id: "admin-groups", label: "Groups", icon: Users, section: "organization" },
+      { id: "admin-people", label: "People", icon: Users, section: "people" },
+      { id: "admin-students", label: "Students", icon: GraduationCap, section: "people" },
+      { id: "admin-attendance-events", label: "Attendance", icon: CalendarCheck, section: "operations" },
+      { id: "admin-announcements", label: "Announcements", icon: Megaphone, section: "communication" },
+      { id: "admin-reports", label: "Reports", icon: BarChart3, section: "communication" },
     ];
   }
 
   // Park Admin & Park Lead — park-scoped
   if (["park_admin", "park_lead"].includes(role)) {
     return [
-      { id: "park-dashboard", label: "Dashboard", icon: LayoutDashboard },
-      { id: "park-attendance", label: "Attendance", icon: CalendarCheck },
-      { id: "park-roster", label: "Roster", icon: ClipboardList },
-      { id: "park-participants", label: "Participants", icon: GraduationCap },
-      { id: "park-guardians", label: "Families", icon: ShieldCheck },
-      { id: "park-schedule", label: "Schedule", icon: Clock },
+      { id: "park-dashboard", label: "Dashboard", icon: LayoutDashboard, section: "overview" },
+      { id: "park-attendance", label: "Attendance", icon: CalendarCheck, section: "daily" },
+      { id: "park-roster", label: "Roster", icon: ClipboardList, section: "daily" },
+      { id: "park-participants", label: "Participants", icon: GraduationCap, section: "directory" },
+      { id: "park-guardians", label: "Families", icon: ShieldCheck, section: "directory" },
+      { id: "park-schedule", label: "Schedule", icon: Clock, section: "directory" },
     ];
   }
 
   // Murabbi — group-scoped
   if (role === "murabbi") {
     return [
-      { id: "murabbi-dashboard", label: "Dashboard", icon: LayoutDashboard },
-      { id: "park-attendance", label: "Attendance", icon: CalendarCheck },
-      { id: "park-roster", label: "Roster", icon: ClipboardList },
-      { id: "park-participants", label: "My Group", icon: GraduationCap },
+      { id: "murabbi-dashboard", label: "Dashboard", icon: LayoutDashboard, section: "overview" },
+      { id: "park-attendance", label: "Attendance", icon: CalendarCheck, section: "daily" },
+      { id: "park-roster", label: "Roster", icon: ClipboardList, section: "daily" },
+      { id: "park-participants", label: "My Group", icon: GraduationCap, section: "group" },
     ];
   }
 
   // Guardian
   if (role === "guardian") {
     return [
-      { id: "guardian-dashboard", label: "Dashboard", icon: LayoutDashboard },
-      { id: "guardian-history", label: "Attendance History", icon: ClipboardList },
-      { id: "guardian-schedule", label: "Schedule", icon: Clock },
-      { id: "guardian-announcements", label: "Announcements", icon: Megaphone },
+      { id: "guardian-dashboard", label: "Dashboard", icon: LayoutDashboard, section: "overview" },
+      { id: "guardian-history", label: "Attendance History", icon: ClipboardList, section: "tracking" },
+      { id: "guardian-schedule", label: "Schedule", icon: Clock, section: "tracking" },
+      { id: "guardian-announcements", label: "Announcements", icon: Megaphone, section: "updates" },
     ];
   }
 
   // Student
   if (role === "student") {
     return [
-      { id: "student-dashboard", label: "Dashboard", icon: LayoutDashboard },
-      { id: "student-history", label: "My Attendance", icon: ClipboardList },
-      { id: "student-schedule", label: "Schedule", icon: Clock },
-      { id: "student-announcements", label: "Announcements", icon: Megaphone },
+      { id: "student-dashboard", label: "Dashboard", icon: LayoutDashboard, section: "overview" },
+      { id: "student-history", label: "My Attendance", icon: ClipboardList, section: "tracking" },
+      { id: "student-schedule", label: "Schedule", icon: Clock, section: "tracking" },
+      { id: "student-announcements", label: "Announcements", icon: Megaphone, section: "updates" },
     ];
   }
 
@@ -157,10 +172,10 @@ function SidebarNavItem({
     <button
       onClick={onClick}
       className={cn(
-        "flex items-center gap-3 w-full rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
+        "flex items-center gap-3 w-full rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-300 relative",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#A0006B] focus-visible:ring-offset-1",
         isActive
-          ? "bg-[#F3ECF6] text-[#4B0A8F] dark:bg-[#1F0860] dark:text-[#8A40B0] shadow-sm"
+          ? "bg-[#F3ECF6] text-[#4B0A8F] dark:bg-[#1F086080] dark:text-[#8A40B0] shadow-sm"
           : "text-muted-foreground hover:bg-muted/80 hover:text-foreground",
         collapsed && "justify-center px-2"
       )}
@@ -168,7 +183,7 @@ function SidebarNavItem({
     >
       <div
         className={cn(
-          "flex items-center justify-center shrink-0 transition-colors",
+          "flex items-center justify-center shrink-0 transition-colors duration-300",
           isActive
             ? "text-[#4B0A8F] dark:text-[#8A40B0]"
             : "text-muted-foreground group-hover:text-foreground"
@@ -187,7 +202,7 @@ function SidebarNavItem({
       {isActive && !collapsed && (
         <motion.div
           layoutId="sidebar-active-indicator"
-          className="absolute left-0 w-0.5 h-5 bg-[#A0006B] dark:bg-[#A0006B] rounded-r-full"
+          className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-gradient-to-b from-[#2A0C8F] to-[#A0006B]"
           transition={{ type: "spring", stiffness: 350, damping: 30 }}
         />
       )}
@@ -225,8 +240,8 @@ function DesktopSidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
       className="hidden lg:flex flex-col h-screen border-r bg-card/50 backdrop-blur-sm shrink-0 overflow-hidden relative"
     >
       {/* Header / Brand */}
-      <div className="flex items-center gap-3 px-4 h-14 border-b shrink-0">
-        <div className="flex items-center justify-center size-8 rounded-lg bg-gradient-to-br from-[#2A0C8F] via-[#A0006B] to-[#FF0015] text-white font-bold text-sm shrink-0 shadow-sm">
+      <div className="group/brand flex items-center gap-3 px-4 h-14 border-b shrink-0 transition-shadow duration-500 hover:shadow-[0_0_20px_rgba(75,10,143,0.15)]">
+        <div className="flex items-center justify-center size-8 rounded-lg bg-gradient-to-br from-[#2A0C8F] via-[#A0006B] to-[#FF0015] text-white font-bold text-sm shrink-0 shadow-sm transition-transform duration-300 group-hover/brand:scale-105">
           S
         </div>
         <AnimatePresence>
@@ -238,7 +253,7 @@ function DesktopSidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
               transition={{ duration: 0.15 }}
               className="overflow-hidden"
             >
-              <p className="text-sm font-bold text-foreground whitespace-nowrap">
+              <p className="text-sm font-bold whitespace-nowrap bg-gradient-to-r from-[#4B0A8F] to-[#A0006B] bg-clip-text text-transparent">
                 Shabab360
               </p>
             </motion.div>
@@ -248,15 +263,30 @@ function DesktopSidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
 
       {/* Navigation */}
       <ScrollArea className="flex-1 py-3 px-2">
-        <nav className="flex flex-col gap-1">
-          {navItems.map((item) => (
-            <div key={item.id} className="relative">
-              <SidebarNavItem
-                item={item}
-                isActive={currentPage === item.id}
-                collapsed={collapsed}
-                onClick={() => navigateTo(item.id)}
-              />
+        <nav className="flex flex-col gap-0.5">
+          {getNavSections(navItems).map((group, gIdx) => (
+            <div key={group.section || `s-${gIdx}`}>
+              {group.section && !collapsed && (
+                <div className="flex items-center gap-2 px-3 pt-4 pb-1.5">
+                  <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-medium">
+                    {group.section}
+                  </p>
+                  <div className="flex-1 h-px bg-border/60" />
+                </div>
+              )}
+              {group.section && collapsed && gIdx > 0 && (
+                <div className="my-2 mx-2 h-px bg-border/40" />
+              )}
+              {group.items.map((item) => (
+                <div key={item.id} className="relative">
+                  <SidebarNavItem
+                    item={item}
+                    isActive={currentPage === item.id}
+                    collapsed={collapsed}
+                    onClick={() => navigateTo(item.id)}
+                  />
+                </div>
+              ))}
             </div>
           ))}
         </nav>
@@ -337,12 +367,14 @@ function MobileSidebar({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="left" className="w-72 p-0">
         {/* Header */}
-        <div className="flex items-center justify-between px-4 h-14 border-b">
+        <div className="group/brand flex items-center justify-between px-4 h-14 border-b transition-shadow duration-500 hover:shadow-[0_0_20px_rgba(75,10,143,0.15)]">
           <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center size-8 rounded-lg bg-gradient-to-br from-[#2A0C8F] via-[#A0006B] to-[#FF0015] text-white font-bold text-sm shadow-sm">
+            <div className="flex items-center justify-center size-8 rounded-lg bg-gradient-to-br from-[#2A0C8F] via-[#A0006B] to-[#FF0015] text-white font-bold text-sm shadow-sm transition-transform duration-300 group-hover/brand:scale-105">
               S
             </div>
-            <p className="text-sm font-bold text-foreground">Shabab360</p>
+            <p className="text-sm font-bold bg-gradient-to-r from-[#4B0A8F] to-[#A0006B] bg-clip-text text-transparent">
+              Shabab360
+            </p>
           </div>
           <Button
             variant="ghost"
@@ -365,32 +397,47 @@ function MobileSidebar({
 
         {/* Nav */}
         <ScrollArea className="flex-1 py-3 px-2" style={{ height: "calc(100vh - 140px)" }}>
-          <nav className="flex flex-col gap-1">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = currentPage === item.id;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => {
-                    navigateTo(item.id);
-                    onOpenChange(false);
-                  }}
-                  className={cn(
-                    "flex items-center gap-3 w-full rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200 relative",
-                    isActive
-                      ? "bg-[#F3ECF6] text-[#4B0A8F] dark:bg-[#1F0860] dark:text-[#8A40B0] shadow-sm"
-                      : "text-muted-foreground hover:bg-muted/80 hover:text-foreground"
-                  )}
-                >
-                  <Icon className="size-[18px] shrink-0" />
-                  <span className="truncate">{item.label}</span>
-                  {isActive && (
-                    <div className="absolute left-0 w-0.5 h-5 bg-[#A0006B] dark:bg-[#A0006B] rounded-r-full" />
-                  )}
-                </button>
-              );
-            })}
+          <nav className="flex flex-col gap-0.5">
+            {getNavSections(navItems).map((group, gIdx) => (
+              <div key={group.section || `ms-${gIdx}`}>
+                {group.section && (
+                  <div className="flex items-center gap-2 px-3 pt-4 pb-1.5">
+                    <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-medium">
+                      {group.section}
+                    </p>
+                    <div className="flex-1 h-px bg-border/60" />
+                  </div>
+                )}
+                {group.section && gIdx > 0 && (
+                  <div className="my-1 mx-2 h-px bg-border/40" />
+                )}
+                {group.items.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = currentPage === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => {
+                        navigateTo(item.id);
+                        onOpenChange(false);
+                      }}
+                      className={cn(
+                        "flex items-center gap-3 w-full rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-300 relative",
+                        isActive
+                          ? "bg-[#F3ECF6] text-[#4B0A8F] dark:bg-[#1F086080] dark:text-[#8A40B0] shadow-sm"
+                          : "text-muted-foreground hover:bg-muted/80 hover:text-foreground"
+                      )}
+                    >
+                      <Icon className="size-[18px] shrink-0" />
+                      <span className="truncate">{item.label}</span>
+                      {isActive && (
+                        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-gradient-to-b from-[#2A0C8F] to-[#A0006B]" />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            ))}
           </nav>
         </ScrollArea>
 

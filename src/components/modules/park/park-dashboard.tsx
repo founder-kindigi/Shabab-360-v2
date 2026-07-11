@@ -124,19 +124,19 @@ const fadeUp = {
 // ==================== HELPERS ====================
 
 function progressColor(pct: number) {
-  if (pct >= 80) return "bg-emerald-500";
+  if (pct >= 80) return "bg-[#4B0A8F]";
   if (pct >= 50) return "bg-amber-500";
   return "bg-red-500";
 }
 
 function progressTextColor(pct: number) {
-  if (pct >= 80) return "text-emerald-600 dark:text-emerald-400";
+  if (pct >= 80) return "text-[#4B0A8F] dark:text-[#8A40B0]";
   if (pct >= 50) return "text-amber-600 dark:text-amber-400";
   return "text-red-600 dark:text-red-400";
 }
 
 function barColor(pct: number) {
-  if (pct >= 80) return "bg-emerald-500 dark:bg-emerald-400";
+  if (pct >= 80) return "bg-[#4B0A8F] dark:bg-[#8A40B0]";
   if (pct >= 50) return "bg-amber-500 dark:bg-amber-400";
   return "bg-red-500 dark:bg-red-400";
 }
@@ -192,7 +192,7 @@ function WeeklyAttendanceChart({ trend }: { trend: AttendanceTrendPoint[] }) {
       {/* Legend */}
       <div className="flex items-center gap-4 mt-4 pt-3 border-t">
         <div className="flex items-center gap-1.5">
-          <div className="w-2.5 h-2.5 rounded-sm bg-emerald-500" />
+          <div className="w-2.5 h-2.5 rounded-sm bg-[#4B0A8F]" />
           <span className="text-[10px] text-muted-foreground">≥ 80%</span>
         </div>
         <div className="flex items-center gap-1.5">
@@ -353,7 +353,7 @@ function TopPerformersSection({ performers }: { performers: TopPerformer[] }) {
                 className={cn(
                   "text-sm font-bold",
                   p.rate >= 80
-                    ? "text-emerald-600 dark:text-emerald-400"
+                    ? "text-[#4B0A8F] dark:text-[#8A40B0]"
                     : p.rate >= 50
                     ? "text-amber-600 dark:text-amber-400"
                     : "text-red-600 dark:text-red-400"
@@ -535,13 +535,13 @@ export function ParkDashboard() {
             title="Today's Events"
             value={todayEvents.total}
             icon={CalendarCheck}
-            variant="emerald"
+            variant="brand"
           />
           <DataCard
             title="Open Events"
             value={todayEvents.open}
             icon={Clock}
-            variant={todayEvents.open > 0 ? "amber" : "emerald"}
+            variant={todayEvents.open > 0 ? "amber" : "brand"}
             trend={todayEvents.open === 0 ? "neutral" : undefined}
             trendValue={todayEvents.open === 0 ? "All done" : undefined}
           />

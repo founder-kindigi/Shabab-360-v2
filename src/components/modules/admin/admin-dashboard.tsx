@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import { useAppStore } from "@/stores/useAppStore";
@@ -15,6 +15,12 @@ import { Progress } from "@/components/ui/progress";
 import { toPKT, formatPKT } from "@/lib/timezone";
 import { formatDistanceToNow } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   TreePine,
   GraduationCap,
@@ -31,11 +37,9 @@ import {
   Trash2,
   MapPin,
   Users,
-  FileBarChart,
   Sparkles,
   ArrowRight,
   Zap,
-  TrendingUp,
   Shield,
   BarChart3,
 } from "lucide-react";
@@ -116,24 +120,92 @@ const scaleIn = {
 
 // ── Quick actions config ────────────────────────────────────────────────────
 
-const quickActions: { label: string; description: string; icon: typeof MapPin; page: PageId; color: string }[] = [
-  { label: "Cities", description: "Manage locations", icon: MapPin, page: "admin-cities", color: "from-[#2A0C8F] via-[#A0006B] to-[#FF0015]" },
-  { label: "Parks", description: "Park operations", icon: TreePine, page: "admin-parks", color: "from-sky-500 to-blue-500" },
-  { label: "Users", description: "Staff accounts", icon: Users, page: "admin-users", color: "from-violet-500 to-purple-500" },
-  { label: "Reports", description: "Analytics", icon: BarChart3, page: "admin-reports", color: "from-amber-500 to-orange-500" },
+const quickActions: { label: string; description: string; icon: typeof MapPin; page: PageId; color: string; pending?: number }[] = [
+  { label: "Cities", description: "Manage locations", icon: MapPin, page: "admin-cities", color: "from-[#2A0C8F] via-[#A0006B] to-[#FF0015]", pending: 0 },
+  { label: "Parks", description: "Park operations", icon: TreePine, page: "admin-parks", color: "from-sky-500 to-blue-500", pending: 0 },
+  { label: "Users", description: "Staff accounts", icon: Users, page: "admin-users", color: "from-violet-500 to-purple-500", pending: 0 },
+  { label: "Reports", description: "Analytics", icon: BarChart3, page: "admin-reports", color: "from-amber-500 to-orange-500", pending: 0 },
 ];
+
+// ── Animated gradient keyframes (injected once) ─────────────────────────────
+const gradientStyle = `
+@keyframes bannerGradientShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+@keyframes floatParticle {
+  0%, 100% { transform: translateY(0px) translateX(0px); opacity: 0.15; }
+  25% { transform: translateY(-8px) translateX(4px); opacity: 0.35; }
+  50% { transform: translateY(-3px) translateX(-6px); opacity: 0.2; }
+  75% { transform: translateY(-10px) translateX(2px); opacity: 0.3; }
+}
+@keyframes subtlePulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(42, 12, 143, 0.3); }
+  50% { box-shadow: 0 0 0 6px rgba(42, 12, 143, 0); }
+}
+.banner-gradient {
+  background: linear-gradient(135deg, #2A0C8F, #4B0A8F, #A0006B, #6B0F8F, #2A0C8F);
+  background-size: 300% 300%;
+  animation: bannerGradientShift 12s ease infinite;
+}
+.floating-dot {
+  animation: floatParticle var(--dot-duration, 6s) ease-in-out infinite;
+  animation-delay: var(--dot-delay, 0s);
+}
+.action-pulse {
+  animation: subtlePulse 3s ease-in-out infinite;
+}
+`;
+
+// Pre-generate particle positions for the greeting banner
+const bannerParticles = Array.from({ length: 12 }, (_, i) => ({
+  id: i,
+  top: `${8 + (i * 7.5) % 84}%`,
+  left: `${5 + (i * 13) % 90}%`,
+  size: i % 3 === 0 ? 4 : i % 3 === 1 ? 3 : 2,
+  duration: `${4 + (i * 1.7) % 5}s`,
+  delay: `${(i * 0.4) % 3}s`,
+}));
 
 // ── Greeting Card ────────────────────────────────────────────────────────────
 
 function GreetingCard({ name, activeBatches }: { name: string; activeBatches?: number }) {
   const greeting = useMemo(() => getGreeting(), []);
   const pktDate = useMemo(() => formatPKTDate(), []);
+  const [pktTime, setPktTime] = useState("");
+
+  useEffect(() => {
+    const tick = () => setPktTime(formatPKT(new Date(), "HH:mm:ss"));
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, []);
 
   return (
     <motion.div
       variants={itemVariants}
-      className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#2A0C8F] via-[#A0006B] to-[#FF0015] px-6 py-6 md:px-8 md:py-8"
+      className="relative overflow-hidden rounded-2xl px-6 py-6 md:px-8 md:py-8 banner-gradient"
     >
+      <style dangerouslySetInnerHTML={{ __html: gradientStyle }} />
+
+      {/* Floating particle dots */}
+      {bannerParticles.map((p) => (
+        <div
+          key={p.id}
+          className="floating-dot absolute rounded-full bg-white"
+          style={{
+            top: p.top,
+            left: p.left,
+            width: p.size,
+            height: p.size,
+            opacity: 0.2,
+            "--dot-duration": p.duration,
+            "--dot-delay": p.delay,
+          } as React.CSSProperties}
+        />
+      ))}
+
       {/* Background decorations */}
       <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/4" />
       <div className="absolute bottom-0 right-20 w-32 h-32 bg-white/5 rounded-full translate-y-1/2" />
@@ -155,7 +227,12 @@ function GreetingCard({ name, activeBatches }: { name: string; activeBatches?: n
             <h2 className="text-xl md:text-2xl font-bold text-white">
               {greeting}, {name}
             </h2>
-            <p className="text-white/80 text-sm mt-1">{pktDate}</p>
+            <p className="text-white/90 text-sm mt-1 font-medium">{pktDate}</p>
+            {pktTime && (
+              <p className="text-white/70 text-xs mt-0.5 font-mono tracking-wider">
+                PKT {pktTime}
+              </p>
+            )}
           </div>
         </div>
 
@@ -288,7 +365,7 @@ export function AdminDashboard() {
           variants={itemVariants}
           className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 md:gap-4"
         >
-          <DataCard title="Cities" value={data.cities} icon={Building2} variant="emerald" />
+          <DataCard title="Cities" value={data.cities} icon={Building2} variant="brand" />
           <DataCard title="Parks" value={data.parks} icon={TreePine} variant="sky" />
           <DataCard title="Batches" value={data.batches} icon={CalendarCheck} variant="amber" />
           <DataCard title="Groups" value={data.groups} icon={UsersRound} variant="violet" />
@@ -299,22 +376,36 @@ export function AdminDashboard() {
         {/* C. Quick Actions */}
         <motion.div variants={itemVariants}>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-            {quickActions.map((action) => {
+            {quickActions.map((action, aIdx) => {
               const ActionIcon = action.icon;
+              const isPrimary = aIdx === 0;
+              const hasPending = (action.pending ?? 0) > 0;
               return (
                 <motion.button
                   key={action.page}
                   whileHover={{ y: -3, scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={() => navigateTo(action.page)}
-                  className="group relative rounded-xl border bg-card p-4 text-left hover:shadow-lg transition-shadow duration-300 overflow-hidden"
+                  className={cn(
+                    "group relative rounded-xl border bg-card p-4 text-left hover:shadow-lg transition-all duration-300 overflow-hidden",
+                    isPrimary && "action-pulse"
+                  )}
                 >
-                  <div className={cn("absolute top-0 left-0 right-0 h-1 bg-gradient-to-r", action.color)} />
+                  {/* Default top border — replaced by gradient on hover */}
+                  <div className={cn("absolute top-0 left-0 right-0 h-1 bg-gradient-to-r opacity-0 group-hover:opacity-100 transition-opacity duration-300 from-[#2A0C8F] to-[#A0006B]")} />
+                  {/* Original color bar (visible by default, hidden on hover) */}
+                  <div className={cn("absolute top-0 left-0 right-0 h-1 bg-gradient-to-r group-hover:opacity-0 transition-opacity duration-300", action.color)} />
                   <div className={cn("rounded-lg p-2 w-fit mb-3 bg-gradient-to-br text-white shadow-sm", action.color)}>
                     <ActionIcon className="size-4" />
                   </div>
                   <p className="text-sm font-semibold">{action.label}</p>
                   <p className="text-xs text-muted-foreground mt-0.5">{action.description}</p>
+                  {/* Notification badge for pending items */}
+                  {hasPending && (
+                    <span className="absolute top-3 right-3 flex items-center justify-center size-5 rounded-full bg-red-500 text-white text-[10px] font-bold shadow-sm">
+                      {action.pending}
+                    </span>
+                  )}
                   <ArrowRight className="absolute bottom-4 right-4 size-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
                 </motion.button>
               );
@@ -335,14 +426,28 @@ export function AdminDashboard() {
                 {data.cityBreakdown.length} cities · {totalParks} parks · {totalStaff} staff
               </p>
             </div>
+            <TooltipProvider delayDuration={200}>
             <div className="p-5 space-y-4">
               {data.cityBreakdown.map((city: any, idx: number) => {
                 const parks = city._count?.parks || 0;
                 const staff = city._count?.staff || 0;
                 const pct = maxCityParks > 0 ? (parks / maxCityParks) * 100 : 0;
+                const pctRounded = Math.round(pct);
+                // Color-code: >70% brand gradient, 40-70% amber, <40% red
+                const barColor = pct > 70
+                  ? "bg-gradient-to-r from-[#2A0C8F] to-[#A0006B]"
+                  : pct >= 40
+                    ? "bg-gradient-to-r from-amber-400 to-amber-500"
+                    : "bg-gradient-to-r from-red-400 to-red-500";
+                const pctColor = pct > 70
+                  ? "text-[#4B0A8F] dark:text-[#8A40B0]"
+                  : pct >= 40
+                    ? "text-amber-600 dark:text-amber-400"
+                    : "text-red-600 dark:text-red-400";
                 return (
+                  <Tooltip key={city.id}>
+                    <TooltipTrigger asChild>
                   <motion.div
-                    key={city.id}
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: idx * 0.08 }}
@@ -366,6 +471,9 @@ export function AdminDashboard() {
                         <span className="text-xs font-semibold text-[#4B0A8F] dark:text-[#8A40B0] bg-[#F3ECF6] dark:bg-[#1F086080] px-2 py-0.5 rounded-full">
                           {parks} {parks === 1 ? "park" : "parks"}
                         </span>
+                        <span className={cn("text-xs font-bold min-w-[36px] text-right", pctColor)}>
+                          {pctRounded}%
+                        </span>
                       </div>
                     </div>
                     <div className="h-2 bg-muted rounded-full overflow-hidden">
@@ -373,10 +481,15 @@ export function AdminDashboard() {
                         initial={{ width: 0 }}
                         animate={{ width: `${pct}%` }}
                         transition={{ duration: 0.8, delay: idx * 0.1, ease: "easeOut" }}
-                        className="h-full bg-gradient-to-r from-[#4B0A8F] to-[#A0006B] rounded-full"
+                        className={cn("h-full rounded-full", barColor)}
                       />
                     </div>
                   </motion.div>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="text-xs">
+                      <span className="font-semibold">{city.name}</span>: {parks} {parks === 1 ? "park" : "parks"} · {pctRounded}% of top city
+                    </TooltipContent>
+                  </Tooltip>
                 );
               })}
               {data.cityBreakdown.length === 0 && (
@@ -392,6 +505,7 @@ export function AdminDashboard() {
                 </div>
               )}
             </div>
+            </TooltipProvider>
           </motion.div>
 
           {/* E. Right sidebar column */}
@@ -498,7 +612,7 @@ export function AdminDashboard() {
           <DataCard title="Batches" value={data.batches} icon={CalendarCheck} variant="amber" />
           <DataCard title="Groups" value={data.groups} icon={UsersRound} variant="violet" />
           <DataCard title="Shabab" value={data.participants} icon={GraduationCap} variant="rose" />
-          <DataCard title="Events" value={data.attendanceEvents} icon={Activity} variant="emerald" />
+          <DataCard title="Events" value={data.attendanceEvents} icon={Activity} variant="brand" />
         </motion.div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -595,7 +709,7 @@ export function AdminDashboard() {
         <motion.div variants={itemVariants} className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4">
           <DataCard title="Groups" value={data.groups} icon={UsersRound} variant="violet" />
           <DataCard title="Shabab" value={data.participants} icon={GraduationCap} variant="rose" />
-          <DataCard title="Today" value={data.todayEvents} icon={CalendarCheck} variant="emerald" />
+          <DataCard title="Today" value={data.todayEvents} icon={CalendarCheck} variant="brand" />
           <DataCard title="Open" value={data.openEvents} icon={Clock} variant="amber" />
           <DataCard title="Total Events" value={data.totalEvents} icon={Activity} variant="sky" />
         </motion.div>

@@ -25,7 +25,9 @@ import { GroupsPage } from "@/components/modules/admin/groups-page";
 import { ParksPage } from "@/components/modules/admin/parks-page";
 import { UsersPage } from "@/components/modules/admin/users-page";
 import { AuditLogPage } from "@/components/modules/admin/audit-log-page";
+import { PeoplePage } from "@/components/modules/admin/people-page";
 import { AdminAttendanceEvents } from "@/components/modules/admin/admin-attendance-events";
+import { AnnouncementsPage } from "@/components/modules/admin/announcements-page";
 import { SettingsPage } from "@/components/modules/admin/settings-page";
 import { MurabbiDashboard } from "@/components/modules/murabbi/murabbi-dashboard";
 import { ParkDashboard } from "@/components/modules/park/park-dashboard";
@@ -87,12 +89,10 @@ const pageTitles: Record<PageId, string> = {
 };
 
 const comingSoonConfig: Record<string, { icon: typeof TreePine; module: string; phase: string; description: string }> = {
-  "admin-people": { icon: Users, module: "People Directory", phase: "phase-2", description: "A comprehensive staff and people directory with search, filtering, and role-based views." },
   "admin-students": { icon: GraduationCap, module: "Students", phase: "phase-4", description: "Student profiles, academic progress tracking, and batch assignments." },
   "admin-guardians": { icon: ShieldCheck, module: "Guardians", phase: "phase-4", description: "Guardian profiles, family linking, and contact management." },
   "admin-admissions": { icon: FileText, module: "Admissions", phase: "phase-4", description: "Student admission workflow, form management, and approval pipeline." },
   "admin-fees": { icon: DollarSign, module: "Fee Management", phase: "phase-4", description: "Fee collection, payment tracking, installments, and financial reports." },
-  "admin-announcements": { icon: Megaphone, module: "Announcements", phase: "phase-3", description: "Organization-wide and targeted announcements with read tracking." },
   "admin-reports": { icon: BarChart3, module: "Reports & Analytics", phase: "phase-4", description: "Comprehensive dashboards, attendance analytics, and exportable reports." },
   "park-roster": { icon: ClipboardList, module: "Roster", phase: "phase-3", description: "View and manage group rosters with participant details." },
   "park-participants": { icon: GraduationCap, module: "Participants", phase: "phase-3", description: "Participant profiles, contact info, and group assignments." },
@@ -145,6 +145,10 @@ function PageContent({ pageId }: { pageId: PageId }) {
       return <SettingsPage />;
     case "admin-attendance-events":
       return <AdminAttendanceEvents />;
+    case "admin-people":
+      return <PeoplePage />;
+    case "admin-announcements":
+      return <AnnouncementsPage />;
     case "murabbi-dashboard":
       return <MurabbiDashboard />;
     case "park-dashboard":
@@ -187,10 +191,10 @@ export function AppShell() {
   } | undefined;
 
   const pageTitle = pageTitles[currentPage] || "Dashboard";
-  const showPageHeader = !["admin-dashboard", "city-head-dashboard", "murabbi-dashboard", "park-dashboard", "park-attendance-roster", "guardian-dashboard", "student-dashboard", "admin-cities", "admin-parks", "admin-batches", "admin-groups", "admin-users", "admin-audit-log", "admin-settings", "admin-attendance-events"].includes(currentPage);
+  const showPageHeader = !["admin-dashboard", "city-head-dashboard", "murabbi-dashboard", "park-dashboard", "park-attendance-roster", "guardian-dashboard", "student-dashboard", "admin-cities", "admin-parks", "admin-batches", "admin-groups", "admin-users", "admin-audit-log", "admin-settings", "admin-attendance-events", "admin-people", "admin-announcements"].includes(currentPage);
 
   // Show scope selector on admin pages (not dashboard, settings, or audit-log)
-  const showScopeSelector = currentPage.startsWith("admin-") && !(["admin-dashboard", "admin-settings", "admin-audit-log"] as const).includes(currentPage as any);
+  const showScopeSelector = currentPage.startsWith("admin-") && !(["admin-dashboard", "admin-settings", "admin-audit-log", "admin-people", "admin-announcements"] as const).includes(currentPage as any);
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
@@ -230,8 +234,8 @@ export function AppShell() {
                 variant="ghost"
                 className="flex items-center gap-2 px-2 h-9"
               >
-                <div className="flex items-center justify-center size-7 rounded-full bg-emerald-100 dark:bg-emerald-950">
-                  <User className="size-3.5 text-emerald-700 dark:text-emerald-400" />
+                <div className="flex items-center justify-center size-7 rounded-full bg-[#F3ECF6] dark:bg-[#1F086080]">
+                  <User className="size-3.5 text-[#4B0A8F] dark:text-[#8A40B0]" />
                 </div>
                 <div className="hidden sm:flex flex-col items-start text-left">
                   <span className="text-xs font-medium leading-tight truncate max-w-[120px]">

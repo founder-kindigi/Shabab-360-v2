@@ -262,7 +262,7 @@ export function AdminAttendanceEvents() {
             label="Total Events"
             value={total}
             icon={CalendarCheck}
-            color="emerald"
+            color="brand"
           />
           <SummaryCard
             label="Open"
@@ -665,10 +665,10 @@ function SummaryCard({
   label: string;
   value: number | string;
   icon: typeof CalendarCheck;
-  color: "emerald" | "amber" | "slate" | "sky";
+  color: "brand" | "amber" | "slate" | "sky";
 }) {
   const colorMap = {
-    emerald:
+    brand:
       "bg-[#F3ECF6] dark:bg-[#1F0860] text-[#4B0A8F] dark:text-[#8A40B0] border-[#D4B8E399] dark:border-[#2A0C8F66]",
     amber:
       "bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 border-amber-200/60 dark:border-amber-800/40",
@@ -678,7 +678,7 @@ function SummaryCard({
   };
 
   const iconColorMap = {
-    emerald: "text-[#4B0A8F] dark:text-[#8A40B0]",
+    brand: "text-[#4B0A8F] dark:text-[#8A40B0]",
     amber: "text-amber-600 dark:text-amber-400",
     slate: "text-slate-500 dark:text-slate-400",
     sky: "text-sky-600 dark:text-sky-400",

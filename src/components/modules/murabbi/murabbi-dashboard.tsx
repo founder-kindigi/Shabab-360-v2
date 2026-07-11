@@ -80,19 +80,19 @@ const fadeUp = {
 // ─── Helper Functions ────────────────────────────────────────────────
 
 function rateColor(rate: number) {
-  if (rate >= 80) return "text-emerald-600 dark:text-emerald-400";
+  if (rate >= 80) return "text-[#4B0A8F] dark:text-[#8A40B0]";
   if (rate >= 50) return "text-amber-600 dark:text-amber-400";
   return "text-red-600 dark:text-red-400";
 }
 
 function rateBarColor(rate: number) {
-  if (rate >= 80) return "bg-emerald-500";
+  if (rate >= 80) return "bg-[#4B0A8F]";
   if (rate >= 50) return "bg-amber-500";
   return "bg-red-500";
 }
 
 function progressColor(pct: number) {
-  if (pct >= 80) return "bg-emerald-500";
+  if (pct >= 80) return "bg-[#4B0A8F]";
   if (pct >= 50) return "bg-amber-500";
   return "bg-red-500";
 }

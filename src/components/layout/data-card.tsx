@@ -12,12 +12,12 @@ interface DataCardProps {
   trend?: "up" | "down" | "neutral";
   trendValue?: string;
   className?: string;
-  variant?: "emerald" | "amber" | "sky" | "violet" | "rose" | "slate";
+  variant?: "brand" | "amber" | "sky" | "violet" | "rose" | "slate";
   pulse?: boolean;
 }
 
 const variantStyles = {
-  emerald: {
+  brand: {
     bg: "bg-gradient-to-br from-[#2A0C8F] via-[#A0006B] to-[#FF0015]",
     iconBg: "bg-white/20",
     iconColor: "text-white",
@@ -92,7 +92,7 @@ export function DataCard({
   trend,
   trendValue,
   className,
-  variant = "emerald",
+  variant = "brand",
   pulse = false,
 }: DataCardProps) {
   const style = variantStyles[variant];

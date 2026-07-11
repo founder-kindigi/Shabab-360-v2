@@ -1,63 +1,20 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+@source inline("src/**/*.{ts,tsx,js,jsx,css}");
 @custom-variant dark (&:is(.dark *));
 
 /* ───────────────────────────────────────────────────────────────
-   Shabab360 Brand Design Tokens
+   Shabab360 Theme — Violet/Magenta/Red Brand
+   All brand colors are baked as hex values in component classNames.
+   Only shadcn/ui semantic tokens remain as CSS custom properties.
    ─────────────────────────────────────────────────────────────── */
 
 :root {
-  /* Brand palette */
-  --brand-violet-dark: #2A0C8F;
-  --brand-violet: #4B0A8F;
-  --brand-magenta: #A0006B;
-  --brand-red: #E0002A;
-  --brand-red-bright: #FF0015;
-  --brand-bg-light: #ECECEC;
-  --brand-gradient: linear-gradient(135deg, #2A0C8F 0%, #A0006B 55%, #FF0015 100%);
-
-  /* Brand tints (for light backgrounds / badges / accents) */
-  --brand-50: #F3ECF6;
-  --brand-100: #E8D8F0;
-  --brand-200: #D4B8E3;
-  --brand-300: #B88CD0;
-  --brand-400: #8A40B0;
-  --brand-500: #6B20A0;
-  --brand-600: #4B0A8F;
-
-  /* Alpha variants (hex with alpha, for bg-[] without /opacity modifier) */
-  --brand-900-a50: #1F086080;
-  --brand-900-a60: #1F086099;
-  --brand-900-a40: #1F086066;
-  --brand-900-a30: #1F08604D;
-  --brand-900-a80: #1F0860CC;
-  --brand-violet-a90: #4B0A8FE6;
-  --brand-violet-a80: #4B0A8FCC;
-  --brand-magenta-a20: #A0006B33;
-  --brand-magenta-a10: #A0006B1A;
-  --brand-violet-a10: #4B0A8F1A;
-  --brand-violet-a5: #4B0A8F0D;
-  --brand-200-a60: #D4B8E399;
-  --brand-800-a50: #2A0C8F80;
-  --brand-800-a40: #2A0C8F66;
-  --brand-800-a30: #2A0C8F4D;
-  --brand-magenta-a50: #A0006B80;
-  --brand-400-a80: #8A40B0CC;
-  --brand-700: #3A0870;
-  --brand-800: #2A0C8F;
-  --brand-900: #1F0860;
-  --brand-950: #150540;
-
-  /* Brand surface tints */
-  --brand-surface: #F3ECF6;
-  --brand-surface-rose: #F5E8EF;
-  --brand-surface-warm: #FDF0F0;
-
   /* Radius */
   --radius: 0.625rem;
 
-  /* ── shadcn/ui theme (mapped to brand) ── */
+  /* ── shadcn/ui theme (violet/magenta brand) ── */
   --background: #F3F1F4;
   --foreground: #1F1638;
   --card: #FFFFFF;
@@ -92,31 +49,6 @@
 }
 
 .dark {
-  --brand-violet-dark: #4A28BF;
-  --brand-violet: #7B3ADF;
-  --brand-magenta: #C94D99;
-  --brand-red: #FF4466;
-  --brand-red-bright: #FF6677;
-  --brand-gradient: linear-gradient(135deg, #4A28BF 0%, #C94D99 55%, #FF4466 100%);
-
-  --brand-50: #2A1850;
-  --brand-100: #351F60;
-  --brand-200: #442A78;
-  --brand-300: #5C3A95;
-  --brand-400: #7B4DB8;
-  --brand-500: #9A68D0;
-  --brand-600: #7B3ADF;
-  --brand-magenta-a50: #A0006B80;
-  --brand-400-a80: #8A40B0CC;
-  --brand-700: #5C2CB0;
-  --brand-800: #3A1890;
-  --brand-900: #281068;
-  --brand-950: #1A0A48;
-
-  --brand-surface: #1E1030;
-  --brand-surface-rose: #2A1528;
-  --brand-surface-warm: #2A1518;
-
   --background: #130C1F;
   --foreground: #F0ECF5;
   --card: #1E1530;

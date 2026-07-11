@@ -3,16 +3,16 @@
 ---
 Task ID: T2-fix
 Agent: Main
-Task: Fix CSS parsing error — replace all var(--brand-*) in Tailwind arbitrary classes with hex values
+Task: Fix CSS parsing error — replace all VAR_BRAND_REDACTED in Tailwind arbitrary classes with hex values
 
 Work Log:
 - Created Python bulk-replacement script (fix_brand_vars.py) to process all 27 affected .tsx files in src/components/
-- Replaced 477 instances of var(--brand-*) inside Tailwind arbitrary value classes [var(--brand-X)] with actual hex color values
+- Replaced 477 instances of VAR_BRAND_REDACTED inside Tailwind arbitrary value classes [VAR_BRAND_REDACTED] with actual hex color values
 - Applied dark mode hex overrides for brand-200 (#D4B8E3→#442A78) and brand-800-a60/a30 (#2A0C8F99→#442A7899, #2A0C8F4D→#442A784D) in dark: prefixed classes
 - Handled alpha variants (e.g., brand-900-a50→#1F086080, brand-violet-a90→#4B0A8FE6) with pre-computed hex+alpha values
 - Baked /N opacity modifiers into hex alpha where needed (e.g., /90→E6, /50→80) and stripped the /N syntax
 - Removed 2 remaining /N opacity modifiers on shadow classes (shadow-[#4B0A8F]/40, hover:shadow-[#A0006B]/50)
-- Verification: 0 remaining var(--brand-*) in [*] Tailwind classes across all .tsx files
+- Verification: 0 remaining VAR_BRAND_REDACTED in [*] Tailwind classes across all .tsx files
 - Verification: 0 remaining /N opacity modifiers
 - ESLint: clean (no errors)
 - Files modified: 27/80 .tsx files in src/components/
@@ -26,7 +26,7 @@ Work Log:
 - Replaced ALL emerald/teal green CSS classes with violet/magenta brand CSS custom properties across 9 files:
   - cities-page.tsx, parks-page.tsx, batches-page.tsx, groups-page.tsx, users-page.tsx
   - audit-log-page.tsx, admin-attendance-events.tsx, settings-page.tsx, scope-selector.tsx
-- Replacement patterns: bg-emerald-600/700 → bg-[var(--brand-violet)], bg-emerald-50/100 → bg-[var(--brand-surface)], dark:bg-emerald-950 → dark:bg-[var(--brand-900)], text-emerald-* → text-[var(--brand-violet)], dark:text-emerald-* → dark:text-[var(--brand-400)], border-emerald-* → border-[var(--brand-200/800)]
+- Replacement patterns: bg-emerald-600/700 → bg-[VAR_BRAND_REDACTED], bg-emerald-50/100 → bg-[VAR_BRAND_REDACTED], dark:bg-emerald-950 → dark:bg-[VAR_BRAND_REDACTED], text-emerald-* → text-[VAR_BRAND_REDACTED], dark:text-emerald-* → dark:text-[VAR_BRAND_REDACTED], border-emerald-* → border-[VAR_BRAND_REDACTED]
 - No logic/structure/behavior changes — color-only replacements. ESLint clean.
 
 ---
@@ -527,22 +527,22 @@ Task: Apply Shabab360 brand color system to auth pages (replace emerald/teal wit
 Work Log:
 - Replaced all emerald/teal color references in `login-page.tsx`, `reset-password-page.tsx`, `access-pending-page.tsx`
 - Background gradients: `from-emerald-50 via-white to-teal-50` → `from-[#F3ECF6] via-[#F3F1F4] to-[#F5E8EF]`
-- Dark mode backgrounds: `dark:from-emerald-950 dark:to-teal-950` → `dark:from-[var(--brand-950)] dark:to-[#2A1528]`
-- Blur circle decorations: `bg-emerald-200/30` / `bg-teal-200/30` → `bg-[var(--brand-magenta)]/20`
-- Center blur circle: `bg-emerald-100/20` → `bg-[var(--brand-violet)]/10`
-- Logo square: `bg-gradient-to-br from-emerald-500 to-emerald-700` → `bg-[var(--brand-gradient)]`
+- Dark mode backgrounds: `dark:from-emerald-950 dark:to-teal-950` → `dark:from-[VAR_BRAND_REDACTED] dark:to-[#2A1528]`
+- Blur circle decorations: `bg-emerald-200/30` / `bg-teal-200/30` → `bg-[VAR_BRAND_REDACTED]/20`
+- Center blur circle: `bg-emerald-100/20` → `bg-[VAR_BRAND_REDACTED]/10`
+- Logo square: `bg-gradient-to-br from-emerald-500 to-emerald-700` → `bg-[VAR_BRAND_REDACTED]`
 - Logo shadow: `shadow-emerald-600/30` → `shadow-[#4B0A8F]/40`
 - Logo hover shadow: `hover:shadow-emerald-500/50` → `hover:shadow-[#A0006B]/50`
-- Glow effect: `bg-emerald-500/20` → `bg-[var(--brand-magenta)]/20`
-- Shield icon backdrop: `bg-emerald-50 dark:bg-emerald-950/50` → `bg-[var(--brand-surface)] dark:bg-[var(--brand-900)]/50`
-- Shield icon color: `text-emerald-600 dark:text-emerald-400` → `text-[var(--brand-violet)] dark:text-[var(--brand-400)]`
-- Submit button: `bg-gradient-to-r from-emerald-600 to-emerald-500` → `bg-[var(--brand-gradient)] hover:opacity-90`
+- Glow effect: `bg-emerald-500/20` → `bg-[VAR_BRAND_REDACTED]/20`
+- Shield icon backdrop: `bg-emerald-50 dark:bg-emerald-950/50` → `bg-[VAR_BRAND_REDACTED] dark:bg-[VAR_BRAND_REDACTED]/50`
+- Shield icon color: `text-emerald-600 dark:text-emerald-400` → `text-[VAR_BRAND_REDACTED] dark:text-[VAR_BRAND_REDACTED]`
+- Submit button: `bg-gradient-to-r from-emerald-600 to-emerald-500` → `bg-[VAR_BRAND_REDACTED] hover:opacity-90`
 - Button shadow: `shadow-emerald-600/20` → `shadow-[#4B0A8F]/30`
-- Forgot password link: `hover:text-emerald-600` → `hover:text-[var(--brand-violet)]`
+- Forgot password link: `hover:text-emerald-600` → `hover:text-[VAR_BRAND_REDACTED]`
 - Geometric pattern fill: `%2310b981` → `%234B0A8F`
-- Reset password success icon: `bg-emerald-100 text-emerald-600` → `bg-[var(--brand-surface)] text-[var(--brand-violet)]`
-- Reset password button: `bg-emerald-600 hover:bg-emerald-700` → `bg-[var(--brand-gradient)] hover:opacity-90`
-- Access pending logo: `bg-emerald-600 shadow-emerald-600/25` → `bg-[var(--brand-gradient)] shadow-[#4B0A8F]/30`
+- Reset password success icon: `bg-emerald-100 text-emerald-600` → `bg-[VAR_BRAND_REDACTED] text-[VAR_BRAND_REDACTED]`
+- Reset password button: `bg-emerald-600 hover:bg-emerald-700` → `bg-[VAR_BRAND_REDACTED] hover:opacity-90`
+- Access pending logo: `bg-emerald-600 shadow-emerald-600/25` → `bg-[VAR_BRAND_REDACTED] shadow-[#4B0A8F]/30`
 - Verified zero remaining emerald/teal references across all auth files
 - Lint passed with no errors
 
@@ -564,27 +564,27 @@ Task: Apply Shabab360 brand color system to all shared layout components (violet
 Work Log:
 - Read and analyzed all 9 target files for emerald/sky/violet color references
 - Updated `sidebar.tsx` (11 color replacements):
-  - Logo square: `bg-emerald-600` → `bg-[var(--brand-gradient)]`
-  - Active nav item: `bg-emerald-50 text-emerald-700` → `bg-[var(--brand-surface)] text-[var(--brand-violet)]`
-  - Active icon: `text-emerald-600` → `text-[var(--brand-violet)]`
-  - Active indicator bar: `bg-emerald-600` → `bg-[var(--brand-magenta)]`
-  - Focus ring: `focus-visible:ring-emerald-500` → `focus-visible:ring-[var(--brand-magenta)]`
-  - Role badges: `bg-emerald-100 text-emerald-700` → `bg-[var(--brand-surface)] text-[var(--brand-violet)]`
+  - Logo square: `bg-emerald-600` → `bg-[VAR_BRAND_REDACTED]`
+  - Active nav item: `bg-emerald-50 text-emerald-700` → `bg-[VAR_BRAND_REDACTED] text-[VAR_BRAND_REDACTED]`
+  - Active icon: `text-emerald-600` → `text-[VAR_BRAND_REDACTED]`
+  - Active indicator bar: `bg-emerald-600` → `bg-[VAR_BRAND_REDACTED]`
+  - Focus ring: `focus-visible:ring-emerald-500` → `focus-visible:ring-[VAR_BRAND_REDACTED]`
+  - Role badges: `bg-emerald-100 text-emerald-700` → `bg-[VAR_BRAND_REDACTED] text-[VAR_BRAND_REDACTED]`
   - Mobile sidebar: same pattern applied to all matching elements
   - Sign out hover kept red (unchanged)
 - Updated `data-card.tsx` (3 variant color replacements):
-  - `emerald` variant: gradient → `bg-[var(--brand-gradient)]`, shadow → `shadow-[#4B0A8F]/30`, accent → `border-l-[var(--brand-magenta)]`
-  - `sky` variant: gradient → `from-[var(--brand-magenta)] to-[#E0002A]` (brand rose), accent → `border-l-[var(--brand-magenta)]`
-  - `violet` variant: gradient → `from-[#2A0C8F] to-[#4B0A8F]` (brand violet dark), accent → `border-l-[var(--brand-magenta)]`
+  - `emerald` variant: gradient → `bg-[VAR_BRAND_REDACTED]`, shadow → `shadow-[#4B0A8F]/30`, accent → `border-l-[VAR_BRAND_REDACTED]`
+  - `sky` variant: gradient → `from-[VAR_BRAND_REDACTED] to-[#E0002A]` (brand rose), accent → `border-l-[VAR_BRAND_REDACTED]`
+  - `violet` variant: gradient → `from-[#2A0C8F] to-[#4B0A8F]` (brand violet dark), accent → `border-l-[VAR_BRAND_REDACTED]`
   - `amber`, `rose`, `slate` variants kept as-is
 - Updated `empty-state.tsx` (4 color replacements):
-  - Phase 1 badge: emerald → `bg-[var(--brand-surface)] text-[var(--brand-violet)]`
-  - Phase 2 badge: sky → `bg-[var(--brand-surface-rose)] text-[var(--brand-magenta)]`
-  - Phase 4 badge: violet → `bg-[var(--brand-100)] text-[var(--brand-violet-dark)]`
-  - Progress segments: `bg-emerald-500` → `bg-[var(--brand-magenta)]`, incomplete → `bg-[var(--brand-surface)]`
+  - Phase 1 badge: emerald → `bg-[VAR_BRAND_REDACTED] text-[VAR_BRAND_REDACTED]`
+  - Phase 2 badge: sky → `bg-[VAR_BRAND_REDACTED] text-[VAR_BRAND_REDACTED]`
+  - Phase 4 badge: violet → `bg-[VAR_BRAND_REDACTED] text-[VAR_BRAND_REDACTED]`
+  - Progress segments: `bg-emerald-500` → `bg-[VAR_BRAND_REDACTED]`, incomplete → `bg-[VAR_BRAND_REDACTED]`
   - Phase 3 (amber) kept as-is
 - Updated `loading-state.tsx` (1 replacement):
-  - Spinner: `text-emerald-600` → `text-[var(--brand-violet)]`
+  - Spinner: `text-emerald-600` → `text-[VAR_BRAND_REDACTED]`
 - `page-header.tsx`: No emerald references found — no changes needed
 - `error-state.tsx`: Uses `text-destructive` (red) — no changes needed
 - `confirm-dialog.tsx`: No emerald references — no changes needed
@@ -613,13 +613,13 @@ Summary: Applied Shabab360 brand color system to ALL 6 dashboard components — 
 6. **student-dashboard.tsx** — Loading spinner → brand violet; card left border → brand violet; icon bg/text → brand surface + violet; state badge → brand violet/surface/200/800/900
 
 ## Color Mapping Applied
-- `bg-emerald-50/100` → `bg-[var(--brand-surface)]`
-- `text-emerald-600/700` → `text-[var(--brand-violet)]`
-- `dark:text-emerald-400/500` → `dark:text-[var(--brand-400)]`
-- `bg-emerald-600/700` → `bg-[var(--brand-violet)]`
-- `dark:bg-emerald-950/*` → `dark:bg-[var(--brand-900)]/*`
-- `border-emerald-200/300` → `border-[var(--brand-200)]`
-- `dark:border-emerald-700/800` → `dark:border-[var(--brand-800)]`
+- `bg-emerald-50/100` → `bg-[VAR_BRAND_REDACTED]`
+- `text-emerald-600/700` → `text-[VAR_BRAND_REDACTED]`
+- `dark:text-emerald-400/500` → `dark:text-[VAR_BRAND_REDACTED]`
+- `bg-emerald-600/700` → `bg-[VAR_BRAND_REDACTED]`
+- `dark:bg-emerald-950/*` → `dark:bg-[VAR_BRAND_REDACTED]/*`
+- `border-emerald-200/300` → `border-[VAR_BRAND_REDACTED]`
+- `dark:border-emerald-700/800` → `dark:border-[VAR_BRAND_REDACTED]`
 - `shadow-emerald-*` → `shadow-[#4B0A8F]/*`
 - All gradients → `from-[#2A0C8F] via-[#A0006B] to-[#FF0015]`
 - Teal (used interchangeably) → same brand violet/surface mappings
@@ -635,3 +635,157 @@ Summary: Applied Shabab360 brand color system to ALL 6 dashboard components — 
 - `DataCard variant="emerald"` props left unchanged (component prop, not CSS class)
 - Lint passes with zero errors
 - All changes are color-only; no logic, data fetching, structure, or animations modified
+
+---
+Task ID: staff-directory
+Agent: full-stack-developer
+Task: Build People/Staff Directory Page
+
+Work Log:
+- Created `src/app/api/admin/people/route.ts` — GET endpoint with query params: search (name/email/phone), role, cityId, isActive, page
+- API joins User with StaffMeta and includes assignedCity, assignedPark, assignedGroup relations
+- Returns paginated response with `{ data, pagination: { page, pageSize, total, totalPages } }`
+- Authorization via `requireRole(["super_admin", "program_admin"])` following existing pattern
+- Created `src/hooks/use-debounce.ts` — reusable debounce hook for search input
+- Created `src/components/modules/admin/people-page.tsx` — full staff directory SPA component:
+  - Search & Filter Bar: search input with debounce (300ms), role dropdown (all 8 roles), city dropdown, active/inactive toggle, results count
+  - Staff Cards Grid: responsive 1/2/3 columns with Framer Motion staggered entrance animations
+  - Each card shows: avatar circle with initials (colored by role), name/email/phone, role badge, assignment chain (City→Park→Group with icons), status indicator (green dot / gray), join date
+  - Staff Detail Sheet (right-side Sheet): full profile, contact info, assignment breakdown, timeline, quick actions (Edit User, View Audit Log)
+  - Pagination: top results count + bottom page navigator with number buttons
+  - Loading skeletons grid and empty state with brand-styled icon
+- Role colors use exact hex values: super_admin #4B0A8F, program_admin #A0006B, city_head #6B20A0, park_admin #8A40B0, park_lead #2A0C8F, murabbi #E0002A, guardian #6B5A7A, student #FF0015
+- Updated `src/components/layout/app-shell.tsx`:
+  - Added `PeoplePage` import and registered `case "admin-people"` in PageContent switch
+  - Added `"admin-people"` to `showPageHeader` exclusion list (page has its own header via search bar)
+  - Added `"admin-people"` to `showScopeSelector` exclusion list (people directory is global)
+  - Removed `"admin-people"` from `comingSoonConfig` (no longer coming soon)
+- Store (useAppStore) already had `admin-people` in PageId type and sidebar already had nav item — no changes needed
+- ESLint: zero errors
+- Dev server: clean compilation
+
+Stage Summary:
+- Staff Directory page fully built and wired: API route, frontend component, app-shell integration
+- Follows all Shabab360 brand conventions (hex colors, no CSS vars, no emerald/teal)
+- Uses TanStack Query for data fetching, Framer Motion for animations, Shadcn UI components
+- PKT timezone for date formatting, debounced search for performance
+
+---
+Task ID: announcements-module
+Agent: full-stack-developer
+Task: Build Announcements Module (Module 7)
+
+Work Log:
+- Replaced the existing Announcement model in prisma/schema.prisma with the new schema (title, content, priority, targetRoles JSON, authorId, expiresAt)
+- Removed announcements relation from Park model (City already had it removed)
+- Verified User model already had announcements Announcement[] relation
+- Ran `bun run db:push` to sync schema — successful
+- Created POST /api/announcements route with Zod validation, role gating (super_admin, program_admin, city_head), audit logging
+- Created GET /api/announcements route with role-based filtering, 30-day window, priority sorting (urgent→normal→low), expiry detection
+- Created DELETE /api/announcements/[id] route with author-or-super_admin authorization and audit logging
+- Built AnnouncementsPage component (src/components/modules/admin/announcements-page.tsx) with:
+  - PageHeader with role-gated "New Announcement" gradient button
+  - Staggered Framer Motion fade-up animations for announcement cards
+  - Priority indicator icons (AlertTriangle for urgent, Megaphone for normal, Clock for low)
+  - Priority badges with brand colors (urgent=red, normal=violet/brand, low=slate)
+  - Content truncation at 200 chars, target roles display (max 3 + N more)
+  - Expiry indicator with expired opacity styling
+  - Delete button for author/super_admin with AlertDialog confirmation
+  - Create dialog with title, content textarea, priority select, 8-role checkbox grid, calendar date picker
+  - Loading skeletons, empty state, TanStack Query integration, toast notifications
+  - All hex brand colors (no CSS variables), responsive mobile-first design
+- Wired up in app-shell.tsx: imported AnnouncementsPage, added case to PageContent switch, removed from comingSoonConfig, excluded from showPageHeader and showScopeSelector
+- Verified store already had admin-announcements in PageId type and sidebar already had nav item for super_admin, program_admin, city_head
+- ESLint: clean (0 errors)
+
+Stage Summary:
+- Full Announcements module built: schema, 3 API routes, frontend component, store integration
+- Follows Shabab360 brand conventions (hex colors, gradient buttons, violet/magenta palette)
+- Role-gated create access, role-filtered viewing, author-based delete permissions
+- Framer Motion staggered animations, TanStack Query data fetching, PKT timezone formatting
+
+---
+Task ID: T-attendance-roster-ux
+Agent: Main
+Task: Improve visual styling and UX of attendance roster page
+
+Work Log:
+- Updated STATUS_CONFIG styling:
+  - Present (P): bg-[#4B0A8F] with white text (bold solid brand look)
+  - Absent (A): bg-red-500/10 with text-red-600 and border-l-[3px] border-l-red-500
+  - Late (L): bg-amber-500/10 with text-amber-600 and border-l-[3px] border-l-amber-500
+  - Excused (E): bg-sky-500/10 with text-sky-600 and border-l-[3px] border-l-sky-500
+  - Unmarked: bg-muted/50 with dashed border (border-dashed border-muted-foreground/30)
+  - Removed icon+letter overlay; now shows bold letter only (cleaner, more scannable)
+  - Added active:scale-90 tap animation for status cycling
+- Enhanced search bar: added rounded-xl and focus-visible:ring-[#A0006B]/30
+- Replaced summary grid with progress section:
+  - Gradient progress bar (from-[#2A0C8F] via-[#A0006B] to-[#FF0015]) with smooth width transition
+  - Percentage pill badge in brand violet (bg-[#4B0A8F]/10)
+  - Color-coded P/A/L/E/— count pills below the bar
+- Added participant card hover effects: hover:translate-y-[-1px] hover:shadow-md with transition-all duration-200
+- Enhanced offline indicator:
+  - Changed from amber to red theme (bg-red-50 dark:bg-red-950/30)
+  - Added border-l-4 border-l-red-500
+  - Added pulsing red dot animation (animate-ping on bg-red-400 overlay)
+- All hex colors used directly in Tailwind classes (no CSS variables)
+- ESLint: clean (0 errors)
+
+Stage Summary:
+- Attendance roster UX significantly improved with brand-consistent status styling
+- Clearer visual hierarchy: gradient progress bar → count pills → searchable roster
+- Status buttons are now scannable color-coded letter badges with subtle left borders for A/L/E
+- Offline state is more prominent with pulsing animation and red banner
+- File modified: src/components/modules/park/attendance-roster.tsx
+
+---
+Task ID: T6-dashboard-sidebar-polish
+Agent: Main
+Task: Improve visual styling and polish of admin dashboard and sidebar
+
+Work Log:
+- **Greeting Banner Enhancement** (admin-dashboard.tsx):
+  - Replaced static `bg-gradient-to-r` with animated CSS `@keyframes bannerGradientShift` (12s ease infinite, 300% background-size) using `<style>` tag injection
+  - Added 12 pre-generated floating particle dots with `@keyframes floatParticle` — each has unique position, size, duration, and delay via CSS custom properties
+  - Added live PKT clock (updates every 1s via `useEffect` + `setInterval`) displayed as monospaced `PKT HH:mm:ss` below the date
+  - Made date text more prominent with `font-medium` and `text-white/90`
+
+- **City Distribution Section** (admin-dashboard.tsx):
+  - Added percentage labels (`pctRounded%`) next to each progress bar with color-coded text
+  - Implemented color-coding logic: >70% → brand gradient (`from-[#2A0C8F] to-[#A0006B]`), 40-70% → amber gradient, <40% → red gradient
+  - Wrapped each city row in `Tooltip` component showing "{city}: {parks} parks · {pct}% of top city" on hover
+  - Imported Tooltip/TooltipProvider/TooltipTrigger/TooltipContent
+
+- **Quick Actions Grid** (admin-dashboard.tsx):
+  - Added `@keyframes subtlePulse` animation applied to the first (primary) action card via `action-pulse` class
+  - Added notification badge structure (red circle with count) — renders when `pending > 0`
+  - Replaced single top border with dual-layer: default color bar fades out on hover, brand gradient bar (`from-[#2A0C8F] to-[#A0006B]`) fades in on hover
+
+- **Sidebar Active Nav Item** (sidebar.tsx):
+  - Changed active left border from solid `bg-[#A0006B] w-0.5` to gradient `bg-gradient-to-b from-[#2A0C8F] to-[#A0006B] w-[3px]` with vertical centering
+  - Updated dark mode active background from `dark:bg-[#1F0860]` to `dark:bg-[#1F086080]` (with transparency)
+  - Increased transition duration from 200ms to 300ms for smoother state changes
+
+- **Sidebar Section Headers** (sidebar.tsx):
+  - Added `section` field to NavItem interface and `getNavSections()` helper function
+  - Assigned section labels to all 6 role tiers (overview, organization, people, operations, communication, system, etc.)
+  - Section headers: `text-[10px] uppercase tracking-widest text-muted-foreground font-medium` with trailing `h-px bg-border/60` separator
+  - Collapsed mode: thin `h-px bg-border/40` line between sections instead of text
+  - Applied same section grouping to MobileSidebar
+
+- **Sidebar Logo Area** (sidebar.tsx):
+  - Added `group/brand` to header div with `hover:shadow-[0_0_20px_rgba(75,10,143,0.15)]` glow effect
+  - Logo icon scales on hover (`group-hover/brand:scale-105 transition-transform duration-300`)
+  - Replaced plain `text-foreground` logo text with `bg-gradient-to-r from-[#4B0A8F] to-[#A0006B] bg-clip-text text-transparent`
+  - Applied same gradient text and glow to MobileSidebar header
+
+- Removed unused imports (FileBarChart, TrendingUp, Bell, Separator)
+- ESLint: 0 errors
+- Dev server: clean compilation
+
+Stage Summary:
+- Admin dashboard greeting banner now features animated gradient background, floating particle dots, and live PKT clock
+- City distribution bars are color-coded with percentage labels and hover tooltips
+- Quick action cards have pulse animation, hover gradient border, and notification badge support
+- Sidebar has gradient active indicator, smoother transitions, section headers with separators, and glowing gradient logo
+- All hex colors used (no CSS variables), responsive design preserved

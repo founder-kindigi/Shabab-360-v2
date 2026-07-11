@@ -92,39 +92,44 @@ const STATUS_CONFIG: Record<
     text: string;
     icon: typeof CheckCircle2;
     iconColor: string;
+    borderClass: string;
   }
 > = {
   present: {
     label: "Present",
     letter: "P",
-    bg: "bg-[#F3ECF6] dark:bg-[#1F0860]",
-    text: "text-[#4B0A8F] dark:text-[#8A40B0]",
+    bg: "bg-[#4B0A8F]",
+    text: "text-white",
     icon: CheckCircle2,
-    iconColor: "text-[#4B0A8F] dark:text-[#8A40B0]",
+    iconColor: "text-white",
+    borderClass: "",
   },
   absent: {
     label: "Absent",
     letter: "A",
-    bg: "bg-red-100 dark:bg-red-900/30",
-    text: "text-red-700 dark:text-red-400",
+    bg: "bg-red-500/10 dark:bg-red-900/20",
+    text: "text-red-600 dark:text-red-400",
     icon: XCircle,
     iconColor: "text-red-600 dark:text-red-400",
+    borderClass: "border-l-[3px] border-l-red-500",
   },
   late: {
     label: "Late",
     letter: "L",
-    bg: "bg-amber-100 dark:bg-amber-900/30",
-    text: "text-amber-700 dark:text-amber-400",
+    bg: "bg-amber-500/10 dark:bg-amber-900/20",
+    text: "text-amber-600 dark:text-amber-400",
     icon: Clock,
     iconColor: "text-amber-600 dark:text-amber-400",
+    borderClass: "border-l-[3px] border-l-amber-500",
   },
   excused: {
     label: "Excused",
     letter: "E",
-    bg: "bg-sky-100 dark:bg-sky-900/30",
-    text: "text-sky-700 dark:text-sky-400",
+    bg: "bg-sky-500/10 dark:bg-sky-900/20",
+    text: "text-sky-600 dark:text-sky-400",
     icon: ShieldCheck,
     iconColor: "text-sky-600 dark:text-sky-400",
+    borderClass: "border-l-[3px] border-l-sky-500",
   },
 };
 
@@ -376,10 +381,13 @@ export function AttendanceRoster() {
         <motion.div
           initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex items-center gap-2.5 px-4 py-2.5 rounded-lg bg-amber-50 border border-amber-200 dark:bg-amber-950/30 dark:border-amber-800/50"
+          className="flex items-center gap-2.5 px-4 py-2.5 rounded-lg bg-red-50 border-l-4 border-l-red-500 border border-red-200 dark:bg-red-950/30 dark:border-red-800/50"
         >
-          <WifiOff className="size-4 text-amber-600 dark:text-amber-400 shrink-0" />
-          <p className="text-sm text-amber-800 dark:text-amber-300">
+          <span className="relative flex shrink-0">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" />
+            <WifiOff className="relative size-4 text-red-600 dark:text-red-400" />
+          </span>
+          <p className="text-sm text-red-700 dark:text-red-300">
             You&apos;re offline. Marks will sync automatically.
             {pendingCount > 0 && (
               <span className="font-semibold ml-1">
@@ -422,50 +430,46 @@ export function AttendanceRoster() {
         </motion.div>
       )}
 
-      {/* Summary bar */}
-      <div className="grid grid-cols-5 gap-2">
-        {(
-          [
-            {
-              label: "Present",
-              count: summary.present,
-              color: "bg-[#F3ECF6] text-[#4B0A8F] dark:bg-[#1F0860] dark:text-[#8A40B0]",
-            },
-            {
-              label: "Late",
-              count: summary.late,
-              color: "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400",
-            },
-            {
-              label: "Absent",
-              count: summary.absent,
-              color: "bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-400",
-            },
-            {
-              label: "Excused",
-              count: summary.excused,
-              color: "bg-sky-100 text-sky-700 dark:bg-sky-950/40 dark:text-sky-400",
-            },
-            {
-              label: "Unmarked",
-              count: summary.unmarked,
-              color: "bg-muted text-muted-foreground",
-            },
-          ] as const
-        ).map((s) => (
-          <div
-            key={s.label}
-            className={cn(
-              "flex flex-col items-center gap-0.5 rounded-lg px-2 py-2",
-              s.color
-            )}
-          >
-            <span className="text-lg font-bold leading-tight">{s.count}</span>
-            <span className="text-[10px] font-medium leading-tight">
-              {s.label}
+      {/* Progress section */}
+      <div className="space-y-3 rounded-xl border bg-card p-4">
+        {/* Gradient progress bar */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium text-muted-foreground">Attendance Progress</span>
+            <span className="inline-flex items-center rounded-full bg-[#4B0A8F]/10 px-2.5 py-0.5 text-xs font-semibold text-[#4B0A8F] dark:bg-[#4B0A8F]/20 dark:text-[#8A40B0]">
+              {summary.total > 0
+                ? Math.round(((summary.present + summary.late) / summary.total) * 100)
+                : 0}
+              %
             </span>
           </div>
-        ))}
+          <div className="h-2.5 w-full overflow-hidden rounded-full bg-muted/60">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-[#2A0C8F] via-[#A0006B] to-[#FF0015] transition-all duration-500 ease-out"
+              style={{
+                width: `${summary.total > 0 ? ((summary.present + summary.late) / summary.total) * 100 : 0}%`,
+              }}
+            />
+          </div>
+        </div>
+        {/* Status count pills */}
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="inline-flex items-center gap-1 rounded-full bg-[#4B0A8F]/10 px-2.5 py-1 text-xs font-semibold text-[#4B0A8F] dark:bg-[#4B0A8F]/20 dark:text-[#8A40B0]">
+            P: {summary.present}
+          </span>
+          <span className="inline-flex items-center gap-1 rounded-full bg-red-500/10 px-2.5 py-1 text-xs font-semibold text-red-600 dark:text-red-400">
+            A: {summary.absent}
+          </span>
+          <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2.5 py-1 text-xs font-semibold text-amber-600 dark:text-amber-400">
+            L: {summary.late}
+          </span>
+          <span className="inline-flex items-center gap-1 rounded-full bg-sky-500/10 px-2.5 py-1 text-xs font-semibold text-sky-600 dark:text-sky-400">
+            E: {summary.excused}
+          </span>
+          <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-xs font-semibold text-muted-foreground">
+            —: {summary.unmarked}
+          </span>
+        </div>
       </div>
 
       {/* Search + filter */}
@@ -476,7 +480,7 @@ export function AttendanceRoster() {
             placeholder="Search participant..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-9"
+            className="pl-9 rounded-xl focus-visible:ring-[#A0006B]/30"
           />
           {search && (
             <button
@@ -517,7 +521,6 @@ export function AttendanceRoster() {
               const status = getStatus(item);
               const config = status ? STATUS_CONFIG[status] : null;
               const isProcessing = processingIds.has(item.participantId);
-              const StatusIcon = config?.icon || Circle;
 
               return (
                 <motion.div
@@ -526,7 +529,8 @@ export function AttendanceRoster() {
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: Math.min(i * 0.02, 0.5), duration: 0.2 }}
                   className={cn(
-                    "flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg border transition-colors min-h-[48px]",
+                    "flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg border transition-all duration-200 min-h-[48px]",
+                    !isClosed && "hover:translate-y-[-1px] hover:shadow-md",
                     isClosed
                       ? "bg-muted/30 border-border/50"
                       : "bg-card border-border hover:bg-accent/50"
@@ -549,9 +553,12 @@ export function AttendanceRoster() {
                     disabled={isClosed || isProcessing}
                     onClick={() => handleCycleStatus(item.participantId, status)}
                     className={cn(
-                      "relative flex items-center justify-center w-11 h-11 rounded-xl transition-all shrink-0",
-                      config ? config.bg : "bg-muted",
-                      !isClosed && !isProcessing && "active:scale-95 hover:opacity-80",
+                      "relative flex items-center justify-center w-11 h-11 rounded-xl transition-all duration-150 shrink-0",
+                      config
+                        ? cn(config.bg, config.borderClass)
+                        : "bg-muted/50 border-2 border-dashed border-muted-foreground/30",
+                      !isClosed && !isProcessing && "active:scale-90 hover:opacity-90",
+                      !isClosed && !isProcessing && !config && "hover:border-muted-foreground/50",
                       isClosed && "cursor-default opacity-70"
                     )}
                     aria-label={
@@ -562,23 +569,17 @@ export function AttendanceRoster() {
                   >
                     {isProcessing ? (
                       <RefreshCw className="size-4 animate-spin text-muted-foreground" />
+                    ) : config ? (
+                      <span
+                        className={cn(
+                          "text-sm font-bold",
+                          config.text
+                        )}
+                      >
+                        {config.letter}
+                      </span>
                     ) : (
-                      <>
-                        <StatusIcon
-                          className={cn(
-                            "size-4",
-                            config ? config.iconColor : "text-muted-foreground/50"
-                          )}
-                        />
-                        <span
-                          className={cn(
-                            "absolute -bottom-0.5 -right-0.5 text-[9px] font-bold leading-none",
-                            config ? config.text : "text-muted-foreground/50"
-                          )}
-                        >
-                          {config ? config.letter : "—"}
-                        </span>
-                      </>
+                      <Circle className="size-4 text-muted-foreground/40" />
                     )}
                   </button>
                 </motion.div>
