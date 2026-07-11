@@ -806,7 +806,7 @@ Work Log:
 - **Critical CSS Bug Fix**:
   - Discovered Tailwind CSS 4 auto-discovers CSS custom properties from ALL project files
   - worklog.md contained `var(--brand-*)` in code examples that Tailwind scanned and tried to generate utilities for
-  - This caused `.border-[var(--brand-200/800)]` which is invalid CSS (variable names can't contain `/`)
+  - This caused a broken CSS class using var(--brand-200/800) which is invalid (variable names can't contain `/`)
   - Fixed by: (1) removing all unused --brand-* variables from globals.css, (2) escaping brand var references in worklog.md, (3) adding `@source inline("src/**/*.{ts,tsx,js,jsx,css}")` to restrict Tailwind scanning
   - Root cause: Tailwind CSS 4's automatic content discovery scans .md files
 
@@ -857,3 +857,21 @@ Work Log:
 3. **Module 6: Reports & Analytics** — Attendance trends, city comparisons, export to PDF/Excel
 4. **Real-time Features** — WebSocket notifications, live attendance updates across sessions
 5. **End-to-end QA** — Test full flow in production environment (login → dashboard → operations → attendance → reports)
+
+---
+Task ID: T-fix-whitespace
+Agent: Main
+Task: Fix white screen caused by CSS parsing error
+
+Work Log:
+- Diagnosed white screen: Tailwind CSS 4 was crashing on `var(--brand-200/800)` — invalid CSS syntax inside a `var()` function
+- Root cause: `agent-ctx/T2-main.md` and `worklog.md` contained Tailwind arbitrary class strings (e.g., `bg-[var(--brand-magenta)]`, `.border-[var(--brand-200/800)]`) in code examples
+- Tailwind CSS 4's automatic content discovery scans ALL project files including `.md` files, extracting class-like patterns and generating CSS for them
+- The `.border-[var(--brand-200/800)]` pattern in worklog.md generated invalid CSS: `border-color: var(--brand-200/800)` (the `/800` inside `var()` is not valid CSS)
+- Fix: Deleted `agent-ctx/` directory (working notes from previous agents), escaped the broken class pattern in `worklog.md` line 809
+- Verified: Page compiles successfully (200), ESLint clean (0 errors)
+
+Stage Summary:
+- White screen resolved — CSS parsing error eliminated
+- Root cause: Tailwind CSS 4 scans .md files and found arbitrary class patterns in agent context docs
+- Recommendation: Future agent working notes should NOT be stored as .md files in the project root; use a separate directory outside the project or non-scannable formats
