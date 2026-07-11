@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useSession, signOut } from "next-auth/react";
+import { AnimatePresence, motion } from "framer-motion";
 import { useAppStore, type PageId } from "@/stores/useAppStore";
 import { Sidebar } from "@/components/layout/sidebar";
 import { NotificationBell } from "@/components/layout/notification-bell";
@@ -319,7 +320,17 @@ export function AppShell() {
             {showScopeSelector && <ScopeSelector />}
             {showPageHeader && <PageHeader title={pageTitle} />}
             {!showPageHeader && !showScopeSelector && <div className="mb-6" />}
-            <PageContent pageId={currentPage} />
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={currentPage}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.2, ease: "easeOut" }}
+              >
+                <PageContent pageId={currentPage} />
+              </motion.div>
+            </AnimatePresence>
           </div>
         </main>
       </div>

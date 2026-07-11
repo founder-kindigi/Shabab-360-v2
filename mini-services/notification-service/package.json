@@ -1,0 +1,19 @@
+{
+  "name": "shabab360-notification-service",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "bun --hot index.ts"
+  },
+  "dependencies": {
+    "socket.io": "^4.8.1",
+    "@prisma/client": "^6.11.1",
+    "bcryptjs": "^3.0.3",
+    "jose": "^5.9.6",
+    "dotenv": "^16.4.7"
+  },
+  "devDependencies": {
+    "prisma": "^6.11.1",
+    "@types/bcryptjs": "^3.0.0"
+  }
+}

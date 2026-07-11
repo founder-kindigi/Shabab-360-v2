@@ -126,8 +126,81 @@
 @layer base {
   * {
     @apply border-border outline-ring/50;
+    -webkit-tap-highlight-color: transparent;
   }
+
   body {
     @apply bg-background text-foreground;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--muted-foreground);
+  }
+
+  /* Selection color */
+  ::selection {
+    background: #4B0A8F33;
+    color: #4B0A8F;
+  }
+  .dark ::selection {
+    background: #8A40B033;
+    color: #D4B8E3;
+  }
+
+  /* Focus visible ring for all interactive elements */
+  :focus-visible {
+    outline: 2px solid #A0006B;
+    outline-offset: 2px;
+  }
+}
+
+/* ── Shimmer skeleton keyframes ── */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* ── Button ripple effect ── */
+.btn-ripple {
+  position: relative;
+  overflow: hidden;
+}
+.btn-ripple::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle, rgba(255,255,255,0.3) 0%, transparent 70%);
+  transform: scale(0);
+  opacity: 0;
+  transition: transform 0.5s, opacity 0.3s;
+}
+.btn-ripple:active::after {
+  transform: scale(2.5);
+  opacity: 1;
+  transition: 0s;
+}
+
+/* ── Sonner toast brand styling ── */
+[data-sonner-toast] {
+  border-left: 3px solid #4B0A8F !important;
+}
+[data-sonner-toast][data-type="success"] {
+  border-left-color: #22c55e !important;
+}
+[data-sonner-toast][data-type="error"] {
+  border-left-color: #ef4444 !important;
 }

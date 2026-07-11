@@ -1536,3 +1536,110 @@ Stage Summary:
 - 3 files fixed (reports/route.ts, student-announcements-page.tsx, guardian-announcements-page.tsx)
 - Seed data enhanced from 2 events to 86 events with 30 days of history
 - 4 commits pushed: b6b3117, 5a2afd1, 8094712
+
+---
+Task ID: T-demo-quick-login
+Agent: Main
+Task: Add collapsible "Demo Accounts" quick-login section to login page
+
+Work Log:
+- Added `DEMO_ACCOUNTS` constant array with 8 accounts (super_admin through student), each with role name, email, and hex brand color
+- Added `DEMO_PASSWORD` constant ("password123")
+- Added `showDemo` state (useState) and `formRef` (useRef) to LoginPage component
+- Added `handleQuickLogin` function: sets email + password state, clears errors, calls `formRef.current.requestSubmit()` via setTimeout to ensure state flushes
+- Added `ref={formRef}` to the existing `<form>` element
+- Added collapsible "Demo Accounts ▾" toggle button below the "Forgot password?" link
+- Toggle uses Framer Motion `motion.span` with rotate animation on the ▾ chevron
+- Expanded section uses `AnimatePresence` + `motion.div` with height/opacity animation (0.25s easeInOut)
+- Grid layout: `grid-cols-1 sm:grid-cols-2 gap-1.5` (1 col mobile, 2 col desktop)
+- Each account button: `border-l-[3px]` with role-specific hex color via inline style, role name bold, email muted, hover:bg-muted/50
+- Container styled with `bg-muted/30 rounded-lg p-3 mt-3`
+- All buttons disabled during loading state
+- Dark mode supported via Tailwind theme tokens
+- No emerald/teal/green colors used
+- No auth logic modified — only UI helper added
+- ESLint: clean (no errors)
+- File modified: src/components/modules/auth/login-page.tsx
+
+---
+Task ID: T-visual-polish
+Agent: frontend-styling-expert
+Task: Add visual polish and micro-interactions across the app
+
+Work Log:
+- Task 1 — Global CSS animations (globals.css):
+  - Added custom scrollbar (6px thin, transparent track, border-colored thumb)
+  - Added brand-tinted ::selection (#4B0A8F33 light, #8A40B033/#D4B8E3 dark)
+  - Added :focus-visible outline using #A0006B brand magenta
+  - Added -webkit-tap-highlight-color: transparent on all elements
+  - Added -webkit-font-smoothing: antialiased and -moz-osx-font-smoothing: grayscale on body
+
+- Task 2 — Shimmer skeleton component (src/components/shared/shimmer-skeleton.tsx):
+  - Created ShimmerSkeleton with className, lines (default 3), card props
+  - Uses @keyframes shimmer with moving gradient (from-transparent via-[#F3ECF6] to-transparent light, via-[#1F086040] dark)
+  - Each line has varying width (100%, 85%, 70%, 92%, 60%, 80%, 75%) for natural look
+  - Created ShimmerCard variant with avatar circle + header + body lines
+  - Both components use animate-[shimmer_1.8s_ease-in-out_infinite] Tailwind arbitrary animation
+
+- Task 3 — Page transitions (src/components/layout/app-shell.tsx):
+  - Added framer-motion AnimatePresence + motion.div wrapping PageContent
+  - key={currentPage} ensures remount on navigation
+  - Animation: initial { opacity:0, y:8 }, animate { opacity:1, y:0 }, exit { opacity:0, y:-8 }
+  - Duration 200ms, ease: easeOut, mode: "wait"
+
+- Task 4 — Button ripple effect (globals.css):
+  - Added .btn-ripple class with ::after pseudo-element
+  - Radial gradient ripple on :active, scales from 0 to 2.5x
+  - 0.5s transition out, 0s instant transition in for snappy feel
+
+- Task 5 — Toast notification styling (globals.css):
+  - [data-sonner-toast] gets 3px left border in brand purple #4B0A8F
+  - Success toasts: left border #22c55e (semantic green)
+  - Error toasts: left border #ef4444 (semantic red)
+
+- ESLint: clean (no errors)
+- Files modified: src/app/globals.css, src/components/layout/app-shell.tsx
+- Files created: src/components/shared/shimmer-skeleton.tsx
+
+---
+Task ID: realtime-notifications
+Agent: Main
+Date: 2025-07-11
+
+## Summary
+Implemented a WebSocket-based real-time notification system using Socket.IO, integrating it alongside the existing 60s polling fallback in the notification bell.
+
+## Changes
+
+### Mini-Service: `/mini-services/notification-service/`
+
+- **package.json** — Standalone Bun project (port 3003) with `socket.io`, `@prisma/client`, `jose` (JWT verification), `dotenv`
+- **prisma/schema.prisma** — Simplified schema referencing the same SQLite DB (`../../.env`) with User, AuditLog, StaffMeta, Park, City, Batch, Group models
+- **index.ts** — Socket.IO server with:
+  - JWT authentication via `socket.handshake.auth.token` (verifies NextAuth JWT using `jose`)
+  - `connection` → auto-joins role-scoped rooms (`notifications:global`, `notifications:city:<id>`, `notifications:park:<id>`)
+  - `join-role-scope` event → re-joins rooms based on updated role/city/park scope
+  - `subscribe-park` event → joins an additional park-specific room
+  - `disconnect` → leaves all rooms
+  - Polls `audit_log` table every 2 seconds for new entries (watermark-based)
+  - Resolves each audit log's organizational scope (entity → park → city) and broadcasts to relevant rooms
+  - Broadcast format: `{ type: "notification", data: { id, action, entityType, description, actorName, timestamp } }`
+
+### Main Project
+
+- **src/hooks/use-realtime-notifications.ts** — React hook:
+  - Reads NextAuth JWT from `document.cookie` (`next-auth.session-token`)
+  - Connects to `/?XTransformPort=3003` via Socket.IO client
+  - Emits `join-role-scope` with user's role/assignedCityId/assignedParkId after connect
+  - Listens for `notification` events → invalidates `["notifications"]` TanStack Query cache
+  - Handles reconnection on session change; disconnects on logout/unmount
+  - Silent `connect_error` handling (polling fallback continues working)
+
+- **src/components/layout/notification-bell.tsx** — Added `useRealtimeNotifications()` call alongside existing 60s polling
+
+- **package.json** — Added `socket.io-client@^4.8.3`
+
+## Verification
+- ESLint: clean (no errors)
+- Notification service running on port 3003 (PID verified)
+- Dev server compiles without errors

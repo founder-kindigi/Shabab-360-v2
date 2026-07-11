@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { signIn } from "next-auth/react";
 import { useAppStore } from "@/stores/useAppStore";
 import { motion, AnimatePresence } from "framer-motion";
@@ -19,6 +19,19 @@ const shakeVariants = {
   },
 };
 
+const DEMO_ACCOUNTS = [
+  { email: "super_admin@shabab360.pk", role: "Super Admin", color: "#4B0A8F" },
+  { email: "program_admin@shabab360.pk", role: "Program Admin", color: "#A0006B" },
+  { email: "city_head@shabab360.pk", role: "City Head", color: "#6B20A0" },
+  { email: "park_admin@shabab360.pk", role: "Park Admin", color: "#8A40B0" },
+  { email: "park_lead@shabab360.pk", role: "Park Lead", color: "#2A0C8F" },
+  { email: "murabbi@shabab360.pk", role: "Murabbi", color: "#E0002A" },
+  { email: "guardian@shabab360.pk", role: "Guardian", color: "#6B5A7A" },
+  { email: "student@shabab360.pk", role: "Student", color: "#FF0015" },
+] as const;
+
+const DEMO_PASSWORD = "password123";
+
 export function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -26,7 +39,19 @@ export function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [shaking, setShaking] = useState(false);
+  const [showDemo, setShowDemo] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
   const { setUserRole, navigateTo } = useAppStore();
+
+  function handleQuickLogin(accountEmail: string) {
+    setEmail(accountEmail);
+    setPassword(DEMO_PASSWORD);
+    setError("");
+    // Use setTimeout to ensure state updates before submit
+    setTimeout(() => {
+      formRef.current?.requestSubmit();
+    }, 0);
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -138,7 +163,7 @@ export function LoginPage() {
                 </div>
               </CardHeader>
               <CardContent className="px-6 pb-6">
-                <form onSubmit={handleSubmit} className="space-y-5">
+                <form ref={formRef} onSubmit={handleSubmit} className="space-y-5">
                   <div className="space-y-2">
                     <Label htmlFor="email" className="text-sm font-medium">Email Address</Label>
                     <div className="relative">
@@ -220,6 +245,58 @@ export function LoginPage() {
                     >
                       Forgot password?
                     </button>
+                  </div>
+
+                  {/* Demo Accounts Quick Login */}
+                  <div>
+                    <button
+                      type="button"
+                      onClick={() => setShowDemo(!showDemo)}
+                      className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1 mx-auto"
+                    >
+                      Demo Accounts
+                      <motion.span
+                        animate={{ rotate: showDemo ? 180 : 0 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        ▾
+                      </motion.span>
+                    </button>
+
+                    <AnimatePresence initial={false}>
+                      {showDemo && (
+                        <motion.div
+                          key="demo-accounts"
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: "auto", opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.25, ease: "easeInOut" }}
+                          className="overflow-hidden"
+                        >
+                          <div className="bg-muted/30 rounded-lg p-3 mt-3 grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                            {DEMO_ACCOUNTS.map((account) => (
+                              <button
+                                key={account.email}
+                                type="button"
+                                disabled={loading}
+                                onClick={() => handleQuickLogin(account.email)}
+                                className="flex items-center gap-3 p-2 rounded-md hover:bg-muted/50 cursor-pointer transition-colors border-l-[3px] text-left disabled:opacity-50 disabled:cursor-not-allowed"
+                                style={{ borderLeftColor: account.color }}
+                              >
+                                <div className="min-w-0">
+                                  <p className="text-xs font-semibold text-foreground truncate">
+                                    {account.role}
+                                  </p>
+                                  <p className="text-[11px] text-muted-foreground truncate">
+                                    {account.email}
+                                  </p>
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
                 </form>
               </CardContent>

@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSession } from "next-auth/react";
 import { useAppStore } from "@/stores/useAppStore";
+import { useRealtimeNotifications } from "@/hooks/use-realtime-notifications";
 import {
   Popover,
   PopoverTrigger,
@@ -92,6 +93,11 @@ export function NotificationBell() {
   const [open, setOpen] = useState(false);
   const { data: session } = useSession();
   const { navigateTo } = useAppStore();
+
+  // Enable real-time notification updates via WebSocket.
+  // The existing 60s polling remains as a fallback.
+  useRealtimeNotifications();
+
   const user = session?.user as {
     role?: string;
   } | undefined;
