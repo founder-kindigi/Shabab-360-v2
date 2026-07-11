@@ -29,6 +29,7 @@ import { PeoplePage } from "@/components/modules/admin/people-page";
 import { AdminAttendanceEvents } from "@/components/modules/admin/admin-attendance-events";
 import { AnnouncementsPage } from "@/components/modules/admin/announcements-page";
 import { SettingsPage } from "@/components/modules/admin/settings-page";
+import { ReportsPage } from "@/components/modules/admin/reports-page";
 import { MurabbiDashboard } from "@/components/modules/murabbi/murabbi-dashboard";
 import { ParkDashboard } from "@/components/modules/park/park-dashboard";
 import { ParkAttendancePage } from "@/components/modules/park/park-attendance-page";
@@ -93,7 +94,6 @@ const comingSoonConfig: Record<string, { icon: typeof TreePine; module: string; 
   "admin-guardians": { icon: ShieldCheck, module: "Guardians", phase: "phase-4", description: "Guardian profiles, family linking, and contact management." },
   "admin-admissions": { icon: FileText, module: "Admissions", phase: "phase-4", description: "Student admission workflow, form management, and approval pipeline." },
   "admin-fees": { icon: DollarSign, module: "Fee Management", phase: "phase-4", description: "Fee collection, payment tracking, installments, and financial reports." },
-  "admin-reports": { icon: BarChart3, module: "Reports & Analytics", phase: "phase-4", description: "Comprehensive dashboards, attendance analytics, and exportable reports." },
   "park-roster": { icon: ClipboardList, module: "Roster", phase: "phase-3", description: "View and manage group rosters with participant details." },
   "park-participants": { icon: GraduationCap, module: "Participants", phase: "phase-3", description: "Participant profiles, contact info, and group assignments." },
   "park-guardians": { icon: ShieldCheck, module: "Families", phase: "phase-3", description: "Family contacts and guardian-linked participant views." },
@@ -149,6 +149,8 @@ function PageContent({ pageId }: { pageId: PageId }) {
       return <PeoplePage />;
     case "admin-announcements":
       return <AnnouncementsPage />;
+    case "admin-reports":
+      return <ReportsPage />;
     case "murabbi-dashboard":
       return <MurabbiDashboard />;
     case "park-dashboard":
@@ -191,7 +193,7 @@ export function AppShell() {
   } | undefined;
 
   const pageTitle = pageTitles[currentPage] || "Dashboard";
-  const showPageHeader = !["admin-dashboard", "city-head-dashboard", "murabbi-dashboard", "park-dashboard", "park-attendance-roster", "guardian-dashboard", "student-dashboard", "admin-cities", "admin-parks", "admin-batches", "admin-groups", "admin-users", "admin-audit-log", "admin-settings", "admin-attendance-events", "admin-people", "admin-announcements"].includes(currentPage);
+  const showPageHeader = !["admin-dashboard", "city-head-dashboard", "murabbi-dashboard", "park-dashboard", "park-attendance-roster", "guardian-dashboard", "student-dashboard", "admin-cities", "admin-parks", "admin-batches", "admin-groups", "admin-users", "admin-audit-log", "admin-settings", "admin-attendance-events", "admin-people", "admin-announcements", "admin-reports"].includes(currentPage);
 
   // Show scope selector on admin pages (not dashboard, settings, or audit-log)
   const showScopeSelector = currentPage.startsWith("admin-") && !(["admin-dashboard", "admin-settings", "admin-audit-log", "admin-people", "admin-announcements"] as const).includes(currentPage as any);

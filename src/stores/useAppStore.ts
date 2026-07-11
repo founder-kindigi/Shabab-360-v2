@@ -72,6 +72,10 @@ interface AppState {
   // Attendance
   selectedEventId: string | null;
   setSelectedEventId: (id: string | null) => void;
+
+  // Guardian
+  selectedParticipantId: string | null;
+  setSelectedParticipantId: (id: string | null) => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -110,4 +114,7 @@ export const useAppStore = create<AppState>((set) => ({
 
   selectedEventId: null,
   setSelectedEventId: (id) => set({ selectedEventId: id }),
+
+  selectedParticipantId: null,
+  setSelectedParticipantId: (id) => set({ selectedParticipantId: id }),
 }));

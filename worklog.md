@@ -875,3 +875,115 @@ Stage Summary:
 - White screen resolved — CSS parsing error eliminated
 - Root cause: Tailwind CSS 4 scans .md files and found arbitrary class patterns in agent context docs
 - Recommendation: Future agent working notes should NOT be stored as .md files in the project root; use a separate directory outside the project or non-scannable formats
+
+---
+Task ID: T-guardian-dashboard
+Agent: Main
+Task: Build Guardian Dashboard API endpoints and rebuild Guardian Dashboard frontend
+
+Work Log:
+- Added `selectedParticipantId` and `setSelectedParticipantId` to useAppStore for child-specific navigation
+- Created `/api/guardian/dashboard` GET endpoint:
+  - Server-side auth via getServerSession with guardian role check
+  - Finds Guardian record linked to session user
+  - Returns empty data structure if no guardian found
+  - Fetches children via GuardianChild relation with full participant→group→batch→park→city hierarchy
+  - Computes per-child 30-day attendance stats (present/absent/late/excused counts, rates)
+  - Computes 7-day attendance rate per child
+  - Returns last 5 attendance records per child
+  - Fetches today's events for all children's groups with progress
+  - Counts unread announcements (last 7 days, targeting guardian role)
+  - Uses PKT timezone helpers (todayPKT, endOfTodayPKT, formatPKT, toPKT)
+  - Fire-and-forget audit log on access
+- Created `/api/guardian/attendance-history` GET endpoint:
+  - Guardian role auth + validates participant belongs to this guardian's children
+  - Query params: participantId (required), from/to (optional dates), limit (default 30)
+  - Returns paginated attendance records with event details (date, title, group name, park name, status)
+  - Uses PKT timezone for date handling
+- Fully rebuilt `guardian-dashboard.tsx` frontend:
+  - Greeting banner with gradient from-[#2A0C8F] via-[#A0006B] to-[#FF0015] and decorative shapes
+  - 4 summary metric cards (2x2 mobile, 4 cols desktop): My Children, Today's Sessions, 30-Day Avg Rate, Announcements
+  - Children section with responsive grid cards: avatar initials, group/batch/park info, color-coded 30-day rate progress bar, P/A/L/E mini status pills, View History button
+  - Today's Sessions list with group/park name, Open/Closed badge, progress bar
+  - Quick Actions: View Announcements link, Contact Admin (coming soon)
+  - Loading skeleton, error state with AlertTriangle
+  - Framer Motion staggered entrance animations
+  - TanStack Query with queryKey ["guardian-dashboard"], staleTime: 30000
+  - All brand colors as hex values, no emerald/teal/green, dark mode support
+- ESLint: clean (no errors)
+
+---
+Task ID: T-student-dashboard
+Agent: Main
+Task: Build Student Dashboard API endpoints and fully rebuild Student Dashboard frontend
+
+Work Log:
+- Created `/api/student/dashboard` GET endpoint:
+  - Server-side auth via getServerSession with student role check
+  - Finds Participant record linked to session user with full group-batch-park-city hierarchy
+  - Returns `{ participant: null }` if no participant found
+  - Computes 30-day and 7-day attendance metrics (total events, present/absent/late/excused counts, rates)
+  - Computes current attendance streak (consecutive days with present status, skipping days with no events)
+  - Computes longest streak in last 90 days
+  - Fetches today's event for student's group with Open/Closed status and student's personal status
+  - Returns last 10 attendance records with PKT-formatted dates
+  - Returns 7-day daily trend data for weekly chart
+  - Uses PKT timezone helpers (todayPKT, endOfTodayPKT, formatPKT, toPKT) from @/lib/timezone
+  - Fire-and-forget audit log on access
+- Created `/api/student/attendance-history` GET endpoint:
+  - Student role auth + finds participant linked to session user
+  - Query params: from (optional ISO date), to (optional ISO date), limit (default 30, max 100), offset (default 0)
+  - Returns paginated attendance records with event details (date, title, status, isClosed)
+  - Computes monthly summary (per-month present/absent/late/excused counts) from all records in range
+  - Uses PKT timezone for date formatting
+- Fully rebuilt `student-dashboard.tsx` frontend:
+  - Greeting Banner with gradient from-[#2A0C8F] via-[#A0006B] to-[#FF0015], Assalamu Alaikum greeting, name, group/batch/park/city info, PKT date, decorative circles
+  - Profile Card: avatar with GraduationCap icon, name, state badge, grid of group/batch/park/city info, member since date
+  - Today's Session Card (conditional): Open/Closed status badge, event title, group name, student status badge (P=violet, A=red, L=amber, E=sky), progress bar with color coding; No session state with CalendarX icon
+  - 3 Attendance Metric Cards (3-col grid): 30-Day Rate (color-coded percentage, trend arrow), Current Streak (fire emoji), Best Streak (trophy icon)
+  - Weekly Trend: Pure CSS 7-bar chart with animated bars (Framer Motion), color-coded (violet >= 80%, amber >= 50%, red < 50%), day labels, rate labels above bars
+  - Recent Attendance: Last 10 records as clean list rows with date, event title, status badge, max-h-96 scroll, "View Full History" link to student-history
+  - Quick Actions: My Schedule and Announcements buttons with brand-colored icons
+  - Loading skeleton, error state with AlertTriangle, no-profile EmptyState
+  - TanStack Query with queryKey ["student-dashboard"], staleTime: 30000
+  - Framer Motion staggered entrance animations
+  - All brand colors as hex values, no emerald/teal/green, dark mode support, mobile-first responsive
+- ESLint: clean (no errors)
+
+---
+Task ID: T-admin-reports
+Agent: Main
+Task: Build Reports & Analytics module — admin-facing API + comprehensive dashboard page
+
+Work Log:
+- Created `/api/admin/reports` (GET) API route with 4 report types:
+  - Auth: `requireRole(["super_admin", "program_admin"])`
+  - Query params: `type`, `cityId` (optional), `parkId` (optional), `days` (default 30, clamped 1-365)
+  - `attendance-overview`: Total events/records/overall rate, daily attendance rates array (date/rate/marked/total), status distribution (present/absent/late/excused/unmarked), day-of-week breakdown (avg rate per DOW with event count), active participant count
+  - `city-comparison`: Per-city stats (name, parksCount, totalParticipants, totalEvents, avgRate, topPark) sorted by rate descending
+  - `park-comparison`: Requires cityId; per-park stats within city (name, totalParticipants, groups, totalEvents, avgRate) sorted by rate descending
+  - `trend`: Weekly aggregation (weekStart, rate, events, records) for last N weeks
+  - All date calculations use PKT timezone via date-fns-tz (toZonedTime, format, startOfDay, subDays, startOfWeek)
+  - Fire-and-forget audit log on every access
+- Created `reports-page.tsx` frontend component with:
+  - PageHeader: "Reports & Analytics" with description
+  - 4-tab layout using shadcn Tabs (Overview, Cities, Parks, Trend)
+  - Filter bar with 5 preset day buttons (7/14/30/60/90) using brand colors
+  - Tab 1 (Overview): 4 summary stat cards (Total Events, Overall Rate, Total Records, Active Participants), pure CSS daily bar chart (color-coded by rate threshold, hover tooltips), horizontal stacked status distribution bar with legend, 7-cell day-of-week heatmap with intensity-based background
+  - Tab 2 (City Comparison): Desktop table (City, Parks, Participants, Events, Avg Rate badge, Top Park), desktop horizontal bar chart, mobile responsive cards with progress bars
+  - Tab 3 (Park Comparison): City select dropdown (fetches from /api/admin/cities), same layout as city comparison but for parks within selected city, empty state when no city selected
+  - Tab 4 (Weekly Trend): Pure CSS bar chart showing week-over-week rates, detailed data table with week start/rate/events/records
+  - Framer Motion staggered entrance animations (containerVariants/itemVariants), AnimatePresence on tab change
+  - Loading skeletons for each section, empty states for no data
+  - All brand hex colors: #4B0A8F, #A0006B, #FF0015, #2A0C8F, #F3ECF6
+  - Chart colors: ≥80% = #22c55e, ≥50% = #f59e0b, <50% = #ef4444
+  - Dark mode support, mobile-first responsive design
+  - TanStack Query for all data fetching
+- Updated `app-shell.tsx`:
+  - Imported ReportsPage component
+  - Added `case "admin-reports": return <ReportsPage />;` in PageContent switch
+  - Removed "admin-reports" from comingSoonConfig
+  - Added "admin-reports" to showPageHeader exclusion array
+- ESLint: clean (no errors)
+- Files created: 2 (route.ts, reports-page.tsx)
+- Files modified: 1 (app-shell.tsx)
