@@ -25,6 +25,7 @@ export type PageId =
   | "admin-announcements"
   | "admin-reports"
   | "admin-audit-log"
+  | "admin-access"
   // Murabbi pages
   | "murabbi-dashboard"
   // Park pages

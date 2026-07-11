@@ -26,6 +26,7 @@ import {
   ClipboardList,
   Clock,
   X,
+  UserPlus,
 } from "lucide-react";
 import { type LucideIcon, motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -70,6 +71,7 @@ function getNavItems(role: string | undefined): NavItem[] {
       { id: "admin-guardians", label: "Guardians", icon: ShieldCheck, section: "people" },
       { id: "admin-attendance-events", label: "Attendance", icon: CalendarCheck, section: "operations" },
       { id: "admin-users", label: "Users", icon: UserCog, section: "operations" },
+      { id: "admin-access", label: "Access Provisioning", icon: UserPlus, section: "operations" },
       { id: "admin-admissions", label: "Admissions", icon: FileText, section: "operations" },
       { id: "admin-fees", label: "Fees", icon: DollarSign, section: "operations" },
       { id: "admin-announcements", label: "Announcements", icon: Megaphone, section: "communication" },

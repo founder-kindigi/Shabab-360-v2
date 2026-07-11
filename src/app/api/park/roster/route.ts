@@ -1,0 +1,316 @@
+import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { db } from "@/lib/db";
+import { todayPKT, endOfTodayPKT } from "@/lib/timezone";
+
+type SessionUser = {
+  id?: string;
+  role?: string;
+  name?: string | null;
+  assignedCityId?: string | null;
+  assignedParkId?: string | null;
+  assignedGroupId?: string | null;
+};
+
+export async function GET(request: NextRequest) {
+  const session = await getServerSession(authOptions);
+  const user = session?.user as SessionUser | undefined;
+
+  if (!session || !user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const allowedRoles = ["park_admin", "park_lead", "murabbi"];
+  if (!user.role || !allowedRoles.includes(user.role)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  try {
+    // Determine park scope from staffMeta
+    const staffMeta = await db.staffMeta.findUnique({
+      where: { userId: user.id },
+      select: {
+        role: true,
+        assignedParkId: true,
+        assignedGroupId: true,
+      },
+    });
+
+    let parkId: string | null = null;
+    let allowedGroupIds: string[] | null = null;
+
+    if (!staffMeta) {
+      return NextResponse.json({ error: "No staff assignment found" }, { status: 403 });
+    }
+
+    if (staffMeta.role === "murabbi" && staffMeta.assignedGroupId) {
+      // Murabbi: get park from their group
+      const group = await db.group.findUnique({
+        where: { id: staffMeta.assignedGroupId },
+        include: { batch: { select: { parkId: true } } },
+      });
+      if (!group) {
+        return NextResponse.json({ error: "Group not found" }, { status: 404 });
+      }
+      parkId = group.batch.parkId;
+      allowedGroupIds = [group.id];
+    } else if (staffMeta.assignedParkId) {
+      parkId = staffMeta.assignedParkId;
+    }
+
+    if (!parkId) {
+      return NextResponse.json({ error: "No park assigned" }, { status: 403 });
+    }
+
+    // Parse query params
+    const { searchParams } = new URL(request.url);
+    const search = searchParams.get("search")?.trim() || "";
+    const filterGroupId = searchParams.get("groupId") || null;
+    const filterBatchId = searchParams.get("batchId") || null;
+
+    // Get park info
+    const park = await db.park.findUnique({
+      where: { id: parkId },
+      include: { city: { select: { name: true } } },
+    });
+
+    if (!park) {
+      return NextResponse.json({ error: "Park not found" }, { status: 404 });
+    }
+
+    // Get all active batches in the park
+    let batchWhere: any = { parkId, isActive: true };
+    if (filterBatchId) {
+      batchWhere.id = filterBatchId;
+    }
+
+    const batches = await db.batch.findMany({
+      where: batchWhere,
+      include: {
+        groups: {
+          where: {
+            isActive: true,
+            ...(filterGroupId ? { id: filterGroupId } : {}),
+            ...(allowedGroupIds ? { id: { in: allowedGroupIds } } : {}),
+          },
+          orderBy: { name: "asc" },
+        },
+      },
+      orderBy: { name: "asc" },
+    });
+
+    // Today's date range in PKT
+    const todayStart = todayPKT();
+    const todayEnd = endOfTodayPKT();
+
+    // 30 days ago in PKT
+    const thirtyDaysAgo = new Date(todayStart.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+    // Collect all group IDs and participant IDs we need
+    const allGroupIds: string[] = [];
+    for (const batch of batches) {
+      for (const group of batch.groups) {
+        allGroupIds.push(group.id);
+      }
+    }
+
+    if (allGroupIds.length === 0) {
+      return NextResponse.json({
+        park: { id: park.id, name: park.name, city: park.city?.name || "Unknown" },
+        batches: [],
+        totalParticipants: 0,
+        activeGroups: 0,
+      });
+    }
+
+    // Build participant where clause
+    const participantWhere: any = {
+      groupId: { in: allGroupIds },
+      state: "active",
+    };
+    if (search) {
+      participantWhere.OR = [
+        { name: { contains: search } },
+        { phone: { contains: search } },
+      ];
+    }
+
+    // Get all participants with guardian links
+    const participants = await db.participant.findMany({
+      where: participantWhere,
+      include: {
+        guardianLinks: {
+          include: {
+            guardian: { select: { id: true, name: true, phone: true } },
+          },
+        },
+      },
+      orderBy: { name: "asc" },
+    });
+
+    const participantIds = participants.map((p) => p.id);
+
+    // Get 30-day attendance records for all participants
+    const thirtyDayRecords = participantIds.length > 0
+      ? await db.attendanceRecord.findMany({
+          where: {
+            participantId: { in: participantIds },
+            event: {
+              eventDate: { gte: thirtyDaysAgo, lte: todayEnd },
+              isClosed: true,
+            },
+          },
+          select: {
+            participantId: true,
+            status: true,
+            eventId: true,
+          },
+        })
+      : [];
+
+    // Count total closed events per group in the last 30 days
+    const thirtyDayEvents = await db.attendanceEvent.groupBy({
+      by: ["groupId"],
+      where: {
+        groupId: { in: allGroupIds },
+        eventDate: { gte: thirtyDaysAgo, lte: todayEnd },
+        isClosed: true,
+      },
+      _count: true,
+    });
+    const eventsPerGroup = new Map(thirtyDayEvents.map((e) => [e.groupId, e._count]));
+
+    // Build per-participant 30-day stats
+    const participantStats = new Map<
+      string,
+      { present: number; absent: number; late: number; excused: number; total: number }
+    >();
+
+    for (const rec of thirtyDayRecords) {
+      const existing = participantStats.get(rec.participantId) || {
+        present: 0,
+        absent: 0,
+        late: 0,
+        excused: 0,
+        total: 0,
+      };
+      existing.total++;
+      if (rec.status === "present") existing.present++;
+      else if (rec.status === "absent") existing.absent++;
+      else if (rec.status === "late") existing.late++;
+      else if (rec.status === "excused") existing.excused++;
+      participantStats.set(rec.participantId, existing);
+    }
+
+    // Get today's attendance events
+    const todayEvents = await db.attendanceEvent.findMany({
+      where: {
+        groupId: { in: allGroupIds },
+        eventDate: { gte: todayStart, lte: todayEnd },
+      },
+      include: {
+        records: {
+          select: { participantId: true, status: true },
+        },
+      },
+    });
+
+    // Build today's status map: participantId -> status
+    const todayStatus = new Map<string, string>();
+    for (const ev of todayEvents) {
+      for (const rec of ev.records) {
+        todayStatus.set(rec.participantId, rec.status);
+      }
+    }
+
+    // Group participants by groupId
+    const participantsByGroup = new Map<string, typeof participants>();
+    for (const p of participants) {
+      const arr = participantsByGroup.get(p.groupId) || [];
+      arr.push(p);
+      participantsByGroup.set(p.groupId, arr);
+    }
+
+    // Build response
+    let totalParticipants = 0;
+    const activeGroups = allGroupIds.length;
+
+    const batchData = batches.map((batch) => {
+      const groupsData = batch.groups.map((group) => {
+        const groupParticipants = participantsByGroup.get(group.id) || [];
+        totalParticipants += groupParticipants.length;
+
+        // Calculate group avg rate
+        let groupRate = 0;
+        const totalEventsInGroup = eventsPerGroup.get(group.id) || 0;
+
+        const participantList = groupParticipants.map((p, idx) => {
+          const stats = participantStats.get(p.id) || {
+            present: 0,
+            absent: 0,
+            late: 0,
+            excused: 0,
+            total: 0,
+          };
+          const rate = stats.total > 0 ? Math.round(((stats.present + stats.late) / stats.total) * 100) : 0;
+
+          // Accumulate for group avg
+          groupRate += rate;
+
+          const guardian = p.guardianLinks.length > 0 ? p.guardianLinks[0].guardian : null;
+
+          return {
+            id: p.id,
+            name: p.name,
+            phone: p.phone,
+            gender: p.gender,
+            dateOfBirth: p.dateOfBirth?.toISOString() || null,
+            state: p.state,
+            joinedAt: p.joinedAt.toISOString(),
+            guardianName: guardian?.name || null,
+            guardianPhone: guardian?.phone || null,
+            attendance30Day: {
+              present: stats.present,
+              absent: stats.absent,
+              late: stats.late,
+              excused: stats.excused,
+              rate,
+            },
+            todayStatus: todayStatus.get(p.id) || null,
+            // Index for avatar coloring
+            _idx: idx,
+          };
+        });
+
+        groupRate = groupParticipants.length > 0 ? Math.round(groupRate / groupParticipants.length) : 0;
+
+        return {
+          id: group.id,
+          name: group.name,
+          avgAttendanceRate: groupRate,
+          participants: participantList,
+        };
+      });
+
+      return {
+        id: batch.id,
+        name: batch.name,
+        groups: groupsData,
+      };
+    });
+
+    return NextResponse.json({
+      park: { id: park.id, name: park.name, city: park.city?.name || "Unknown" },
+      batches: batchData,
+      totalParticipants,
+      activeGroups,
+    });
+  } catch (error) {
+    console.error("Park roster error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}

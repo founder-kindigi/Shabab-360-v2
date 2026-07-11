@@ -987,3 +987,154 @@ Work Log:
 - ESLint: clean (no errors)
 - Files created: 2 (route.ts, reports-page.tsx)
 - Files modified: 1 (app-shell.tsx)
+
+---
+Task ID: T-access-provisioning
+Agent: Main
+Task: Build Access Provisioning module — invite API + provisioning page
+
+Work Log:
+- Created `/api/admin/invite` POST route:
+  - Auth: requireRole(["super_admin", "program_admin"])
+  - Zod validation for email, name, phone (optional), role (8 roles), assignedCityId/ParkId/GroupId
+  - Role-scope validation (city_head → city, park_admin/park_lead → city+park, murabbi → city+park+group)
+  - Entity existence validation (city, park→city, group→park batches)
+  - Email uniqueness check
+  - Prisma transaction: User + StaffMeta creation
+  - Default password: "Shabab@2024" hashed with bcryptjs (cost 12), mustResetPwd: true
+  - Audit log fired via logAudit()
+  - Returns created user with staffMeta relations
+- Created `AccessProvisioningPage` component:
+  - Two-panel layout (3/5 left form, 2/5 right recent invites)
+  - Personal Info card: Name, Email, Phone inputs with icons
+  - Role & Assignment card: 8-role dropdown with descriptions, cascading City→Park→Group selectors
+  - Auto show/hide selectors based on selected role
+  - Gradient submit button with UserPlus icon
+  - Client-side validation, error display, success toast
+  - Right panel: fetches last 10 users from /api/admin/users, shows compact list with avatar initials, role badge (color-coded with hex), date
+  - "View All" link navigates to admin-users
+  - Framer Motion fadeUp animations on form fields
+  - Loading skeletons, empty state
+  - Mobile-first responsive, dark mode compatible
+  - Role badge colors: super_admin #4B0A8F, program_admin #A0006B, city_head #6B20A0, park_admin #8A40B0, park_lead #2A0C8F, murabbi #E0002A, guardian #6B5A7A, student #FF0015
+- Updated `useAppStore.ts`: Added "admin-access" to PageId union type
+- Updated `app-shell.tsx`:
+  - Imported AccessProvisioningPage
+  - Added page title "Access Provisioning"
+  - Added case "admin-access" in PageContent switch
+  - Added "admin-access" to showPageHeader exclusion
+  - Added "admin-access" to showScopeSelector exclusion
+- Updated `sidebar.tsx`:
+  - Imported UserPlus icon
+  - Added "Access Provisioning" nav item (icon: UserPlus) in operations section after Users
+- ESLint: clean (0 errors on changed files; 1 pre-existing error in guardian-announcements-page.tsx unrelated)
+- Files created: 2 (invite/route.ts, access-provisioning-page.tsx)
+- Files modified: 3 (app-shell.tsx, sidebar.tsx, useAppStore.ts)
+
+---
+Task ID: T-park-roster
+Agent: Main
+Task: Build Park Roster page — API endpoint + frontend component
+
+Work Log:
+- Created `/api/park/roster/route.ts` (GET):
+  - Auth: requires park_admin, park_lead, or murabbi role
+  - Determines park scope from staffMeta (park_admin/park_lead → assignedParkId; murabbi → assignedGroupId → group.batch.parkId)
+  - Fetches all active batches with groups in the park
+  - Gets active participants per group with: name, phone, gender, dateOfBirth, state, joinedAt
+  - Joins guardian info via guardianLinks → GuardianChild → Guardian
+  - Computes 30-day attendance stats (present/absent/late/excused counts and rate) per participant
+  - Fetches today's attendance status per participant (from today's events)
+  - Supports query params: search (name/phone), groupId, batchId
+  - Uses PKT timezone via todayPKT/endOfTodayPKT
+  - Returns: { park, batches, totalParticipants, activeGroups }
+
+- Created `park-roster-page.tsx`:
+  - "use client" with TanStack Query (queryKey: ["park-roster"], staleTime: 30000)
+  - Custom header section: "Park Roster" title with park name/city subtitle, summary counts
+  - Search input (right-aligned on desktop, full-width on mobile) with enter-to-search and clear button
+  - Filter bar: batch pill tabs (All + each batch), group sub-filter shown when batch selected
+  - Collapsible group sections (default first expanded) using shadcn Collapsible
+  - Group header: name, participant count badge, 30-day avg rate badge (color-coded)
+  - Desktop: table view with avatar initials (brand-colored by index), name/phone/gender, 30-day rate mini progress bar, today status dot badge, guardian name, state badge, View action
+  - Mobile: card view with avatar, name/phone/state, rate bar, today status, guardian
+  - Rate bar colors: green ≥80%, amber ≥50%, red <50%
+  - Today status: P=violet #4B0A8F, A=red, L=amber, E=sky, none=gray dash
+  - State badges: active=green, inactive=red
+  - Empty states: no participants, no search results, no active batches
+  - Loading skeleton, error state with retry
+  - Framer Motion staggered animations on group sections and rows
+  - Hover effects on table rows
+  - Mobile-first responsive, dark mode compatible
+  - Brand colors: #4B0A8F, #A0006B, #F3ECF6, #D4B8E3, #2A0C8F
+
+- Updated `app-shell.tsx`:
+  - Added ParkRosterPage import
+  - Added `case "park-roster": return <ParkRosterPage />;` in PageContent switch
+  - Removed "park-roster" from comingSoonConfig
+  - Added "park-roster" to showPageHeader exclusion array
+
+- ESLint: clean (0 errors on changed files)
+- Files created: 2 (api/park/roster/route.ts, park-roster-page.tsx)
+- Files modified: 1 (app-shell.tsx)
+
+---
+Task ID: T-guardian-student-subpages
+Agent: Main
+Task: Build Guardian and Student sub-pages: Attendance History and Announcements pages for both roles
+
+Work Log:
+- Created 4 new page components:
+  1. `/src/components/modules/guardian/guardian-history-page.tsx` — Guardian Attendance History
+  2. `/src/components/modules/guardian/guardian-announcements-page.tsx` — Guardian Announcements
+  3. `/src/components/modules/student/student-history-page.tsx` — Student Attendance History
+  4. `/src/components/modules/student/student-announcements-page.tsx` — Student Announcements
+
+- Guardian History Page features:
+  - Child selector grid when no `selectedParticipantId` is set (fetched from guardian dashboard API)
+  - Date range filter with preset buttons (7/30/60/90 days) + custom calendar picker (Popover + Calendar)
+  - Summary stats row: Total, Present %, Absent, Late, Excused — as compact metric cards
+  - Paginated attendance list (15 per page, load more) with date, day of week, event title, group name, status badge
+  - Alternating row backgrounds, status letter badges (P/A/L/E) with brand colors
+  - Framer Motion staggered animations, mobile-responsive
+
+- Guardian Announcements Page features:
+  - Header with unread count badge (red badge showing non-expired count)
+  - Priority filter pills (All / Urgent / Normal / Low) with count badges
+  - Staggered Framer Motion announcement cards with:
+    - Priority icon (AlertTriangle for urgent, Megaphone for normal, Clock for low)
+    - Priority badge (urgent=red, normal=#4B0A8F, low=slate)
+    - Title, truncated content (200 chars), author name, PKT formatted date
+    - Expired announcements shown with reduced opacity
+    - Target roles as small outline badges
+  - Fetches from `/api/announcements?role=guardian`
+
+- Student History Page features:
+  - Monthly calendar view (CSS grid, 7 columns Mon-Sun) with:
+    - Color-coded day cells based on attendance status (green/red/amber/sky)
+    - Status letter dot (P/A/L/E) on each day
+    - Month navigation (prev/next arrows)
+    - Today highlighted with ring
+    - Color legend below calendar
+  - Monthly summary stats (Total, Present, Absent, Late, Excused)
+  - Detailed records list below calendar with same format as guardian (no child selector)
+  - Paginated with load more
+  - Fetches from `/api/student/attendance-history?from=Y&to=Z&limit=100`
+
+- Student Announcements Page features:
+  - Same layout as Guardian Announcements but simpler (no unread count in header)
+  - Same card layout, priority badges, expired styling
+  - Fetches from `/api/announcements?role=student`
+
+- Updated `/src/components/layout/app-shell.tsx`:
+  - Added imports for all 4 new components
+  - Added switch cases for guardian-history, guardian-announcements, student-history, student-announcements
+  - Removed all 4 from `comingSoonConfig`
+  - Added all 4 to `showPageHeader` exclusion array
+
+- Brand colors used: #4B0A8F, #A0006B, #FF0015, #2A0C8F, #F3ECF6, #D4B8E3, #8A40B0, #6B20A0
+- Status colors: Present=violet (#4B0A8F), Absent=red, Late=amber, Excused=sky
+- No emerald/teal/green used (except green-100 for ≥80% calendar cells, which is semantically correct for present)
+- ESLint: clean (0 errors, 0 warnings)
+- Files created: 4 new .tsx components
+- Files modified: app-shell.tsx (imports, switch, comingSoon, showPageHeader)
