@@ -11,6 +11,11 @@ export function toPKT(date: Date): Date {
 }
 
 /**
+ * Re-export toZonedTime for direct use.
+ */
+export { toZonedTime };
+
+/**
  * Convert a PKT date to UTC.
  */
 export function fromPKT(date: Date): Date {

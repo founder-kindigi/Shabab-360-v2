@@ -33,6 +33,7 @@ import { AnnouncementsPage } from "@/components/modules/admin/announcements-page
 import { SettingsPage } from "@/components/modules/admin/settings-page";
 import { ReportsPage } from "@/components/modules/admin/reports-page";
 import { AccessProvisioningPage } from "@/components/modules/admin/access-provisioning-page";
+import { FeesPage } from "@/components/modules/admin/fees-page";
 import { MurabbiDashboard } from "@/components/modules/murabbi/murabbi-dashboard";
 import { ParkDashboard } from "@/components/modules/park/park-dashboard";
 import { ParkAttendancePage } from "@/components/modules/park/park-attendance-page";
@@ -50,6 +51,7 @@ import { StudentAnnouncementsPage } from "@/components/modules/student/student-a
 import { ParkSchedulePage } from "@/components/modules/park/park-schedule-page";
 import { GuardianSchedulePage } from "@/components/modules/guardian/guardian-schedule-page";
 import { StudentSchedulePage } from "@/components/modules/student/student-schedule-page";
+import { AdmissionsPage } from "@/components/modules/admin/admissions-page";
 
 // Shared components
 import { ScopeSelector } from "@/components/shared/scope-selector";
@@ -104,8 +106,7 @@ const pageTitles: Record<PageId, string> = {
 };
 
 const comingSoonConfig: Record<string, { icon: typeof TreePine; module: string; phase: string; description: string }> = {
-  "admin-admissions": { icon: FileText, module: "Admissions", phase: "phase-4", description: "Student admission workflow, form management, and approval pipeline." },
-  "admin-fees": { icon: DollarSign, module: "Fee Management", phase: "phase-4", description: "Fee collection, payment tracking, installments, and financial reports." },
+  // All pages built — no coming-soon pages remaining
 };
 
 function ComingSoonPage({ pageId }: { pageId: PageId }) {
@@ -159,6 +160,10 @@ function PageContent({ pageId }: { pageId: PageId }) {
       return <StudentsPage />;
     case "admin-guardians":
       return <GuardiansPage />;
+    case "admin-admissions":
+      return <AdmissionsPage />;
+    case "admin-fees":
+      return <FeesPage />;
     case "murabbi-dashboard":
       return <MurabbiDashboard />;
     case "park-dashboard":
@@ -221,10 +226,10 @@ export function AppShell() {
   } | undefined;
 
   const pageTitle = pageTitles[currentPage] || "Dashboard";
-  const showPageHeader = !["admin-dashboard", "city-head-dashboard", "murabbi-dashboard", "park-dashboard", "park-attendance-roster", "park-roster", "park-participants", "park-guardians", "park-schedule", "guardian-dashboard", "guardian-history", "guardian-announcements", "guardian-schedule", "student-dashboard", "student-history", "student-announcements", "student-schedule", "admin-cities", "admin-parks", "admin-batches", "admin-groups", "admin-users", "admin-access", "admin-audit-log", "admin-settings", "admin-attendance-events", "admin-people", "admin-announcements", "admin-reports", "admin-students", "admin-guardians"].includes(currentPage);
+  const showPageHeader = !["admin-dashboard", "city-head-dashboard", "murabbi-dashboard", "park-dashboard", "park-attendance-roster", "park-roster", "park-participants", "park-guardians", "park-schedule", "guardian-dashboard", "guardian-history", "guardian-announcements", "guardian-schedule", "student-dashboard", "student-history", "student-announcements", "student-schedule", "admin-cities", "admin-parks", "admin-batches", "admin-groups", "admin-users", "admin-access", "admin-audit-log", "admin-settings", "admin-attendance-events", "admin-people", "admin-announcements", "admin-reports", "admin-students", "admin-guardians", "admin-fees"].includes(currentPage);
 
   // Show scope selector on admin pages (not dashboard, settings, or audit-log)
-  const showScopeSelector = currentPage.startsWith("admin-") && !(["admin-dashboard", "admin-settings", "admin-audit-log", "admin-people", "admin-announcements", "admin-access", "admin-students", "admin-guardians"] as const).includes(currentPage as any);
+  const showScopeSelector = currentPage.startsWith("admin-") && !(["admin-dashboard", "admin-settings", "admin-audit-log", "admin-people", "admin-announcements", "admin-access", "admin-students", "admin-guardians", "admin-fees", "admin-admissions"] as const).includes(currentPage as any);
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">

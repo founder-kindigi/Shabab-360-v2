@@ -1,0 +1,243 @@
+import { NextRequest, NextResponse } from "next/server";
+import { requireRole, requireAuth } from "@/lib/auth/authorize";
+import { db } from "@/lib/db";
+import { z } from "zod";
+import { logAudit } from "@/lib/audit";
+
+const VALID_STATUSES = ["submitted", "reviewing", "interviewed", "accepted", "rejected", "enrolled"] as const;
+
+const STATUS_FLOW: Record<string, string[]> = {
+  submitted: ["reviewing", "rejected"],
+  reviewing: ["interviewed", "rejected", "submitted"],
+  interviewed: ["accepted", "rejected", "reviewing"],
+  accepted: ["enrolled", "rejected", "interviewed"],
+  rejected: ["submitted"],
+  enrolled: [],
+};
+
+const patchSchema = z.object({
+  applicantName: z.string().min(2).optional(),
+  applicantDOB: z.string().optional(),
+  gender: z.string().optional(),
+  guardianName: z.string().min(2).optional(),
+  guardianPhone: z.string().min(5).optional(),
+  guardianRelation: z.string().optional(),
+  cityId: z.string().nullable().optional(),
+  preferredParkId: z.string().nullable().optional(),
+  notes: z.string().nullable().optional(),
+  status: z.enum(VALID_STATUSES).optional(),
+  // Enrollment fields
+  groupId: z.string().min(1).optional(),
+  createGuardian: z.boolean().optional(),
+});
+
+export async function GET(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const authError = await requireRole(["super_admin", "program_admin"]);
+  if (authError) return authError;
+
+  const { id } = await params;
+
+  const application = await db.admissionApplication.findUnique({
+    where: { id },
+    include: {
+      city: { select: { id: true, name: true } },
+      preferredPark: {
+        select: { id: true, name: true, cityId: true },
+      },
+      interviews: {
+        orderBy: { createdAt: "desc" },
+      },
+      convertedParticipant: {
+        select: {
+          id: true,
+          name: true,
+          group: {
+            select: {
+              id: true,
+              name: true,
+              batch: {
+                select: { id: true, name: true, park: { select: { id: true, name: true } } },
+              },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!application) {
+    return NextResponse.json({ error: "Application not found" }, { status: 404 });
+  }
+
+  return NextResponse.json(application);
+}
+
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const authError = await requireRole(["super_admin", "program_admin"]);
+  if (authError) return authError;
+
+  const auth = await requireAuth();
+  if (auth instanceof NextResponse) return auth;
+
+  const { id } = await params;
+
+  const existing = await db.admissionApplication.findUnique({ where: { id } });
+  if (!existing) {
+    return NextResponse.json({ error: "Application not found" }, { status: 404 });
+  }
+
+  const body = await request.json();
+  const parsed = patchSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: parsed.error.flatten().fieldErrors },
+      { status: 400 }
+    );
+  }
+
+  const data = parsed.data;
+
+  // Validate status transition
+  if (data.status && data.status !== existing.status) {
+    const allowed = STATUS_FLOW[existing.status] || [];
+    if (!allowed.includes(data.status)) {
+      return NextResponse.json(
+        { error: { status: [`Cannot move from "${existing.status}" to "${data.status}". Allowed: ${allowed.join(", ")}`] } },
+        { status: 400 }
+      );
+    }
+  }
+
+  // If enrolling, we need groupId
+  if (data.status === "enrolled") {
+    if (!data.groupId) {
+      return NextResponse.json(
+        { error: { groupId: ["Group is required when enrolling"] } },
+        { status: 400 }
+      );
+    }
+
+    if (existing.convertedParticipantId) {
+      return NextResponse.json(
+        { error: { status: ["This application has already been enrolled"] } },
+        { status: 400 }
+      );
+    }
+
+    // Validate group exists
+    const group = await db.group.findUnique({
+      where: { id: data.groupId, isActive: true },
+      include: { batch: true },
+    });
+    if (!group) {
+      return NextResponse.json(
+        { error: { groupId: ["Selected group not found or inactive"] } },
+        { status: 400 }
+      );
+    }
+
+    // Create participant
+    const participant = await db.participant.create({
+      data: {
+        name: existing.applicantName,
+        dateOfBirth: existing.applicantDOB,
+        gender: existing.gender,
+        groupId: data.groupId,
+      },
+    });
+
+    // Optionally create guardian
+    if (data.createGuardian) {
+      const guardian = await db.guardian.create({
+        data: {
+          name: existing.guardianName,
+          phone: existing.guardianPhone,
+        },
+      });
+
+      await db.guardianChild.create({
+        data: {
+          guardianId: guardian.id,
+          participantId: participant.id,
+          relation: existing.guardianRelation || undefined,
+        },
+      });
+    }
+
+    // Link participant to application
+    await db.admissionApplication.update({
+      where: { id },
+      data: { convertedParticipantId: participant.id, status: "enrolled" },
+    });
+
+    await logAudit({
+      userId: auth.user.id,
+      action: "enroll",
+      entityType: "admission_application",
+      entityId: id,
+      newValues: { status: "enrolled", participantId: participant.id, groupId: data.groupId },
+    });
+
+    // Return updated application with participant
+    const updated = await db.admissionApplication.findUnique({
+      where: { id },
+      include: {
+        city: { select: { id: true, name: true } },
+        preferredPark: { select: { id: true, name: true, cityId: true } },
+        interviews: { orderBy: { createdAt: "desc" } },
+        convertedParticipant: {
+          select: {
+            id: true,
+            name: true,
+            group: {
+              select: {
+                id: true,
+                name: true,
+                batch: {
+                  select: { id: true, name: true, park: { select: { id: true, name: true } } },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return NextResponse.json(updated);
+  }
+
+  // Normal update (non-enrollment)
+  const updateData: Record<string, unknown> = {};
+  if (data.applicantName !== undefined) updateData.applicantName = data.applicantName;
+  if (data.applicantDOB !== undefined) updateData.applicantDOB = data.applicantDOB ? new Date(data.applicantDOB) : null;
+  if (data.gender !== undefined) updateData.gender = data.gender || null;
+  if (data.guardianName !== undefined) updateData.guardianName = data.guardianName;
+  if (data.guardianPhone !== undefined) updateData.guardianPhone = data.guardianPhone;
+  if (data.guardianRelation !== undefined) updateData.guardianRelation = data.guardianRelation || null;
+  if (data.cityId !== undefined) updateData.cityId = data.cityId;
+  if (data.preferredParkId !== undefined) updateData.preferredParkId = data.preferredParkId;
+  if (data.notes !== undefined) updateData.notes = data.notes;
+  if (data.status !== undefined) updateData.status = data.status;
+
+  const application = await db.admissionApplication.update({
+    where: { id },
+    data: updateData,
+  });
+
+  await logAudit({
+    userId: auth.user.id,
+    action: "update",
+    entityType: "admission_application",
+    entityId: id,
+    oldValues: { status: existing.status },
+    newValues: updateData,
+  });
+
+  return NextResponse.json(application);
+}

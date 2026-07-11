@@ -1351,3 +1351,88 @@ Work Log:
 - Lint: clean (0 errors, 0 warnings)
 - Files created: 4 API route files, 2 frontend page components
 - Files modified: app-shell.tsx (imports, switch cases, exclusions)
+
+---
+Task ID: T-fee-mgmt
+Agent: Main
+Task: Build Fee Management module — API routes, frontend page, app-shell integration
+
+Work Log:
+- Created 3 API routes for fee management:
+  - `/api/admin/fees/route.ts` (GET + POST): Lists fee events with batch→park→city hierarchy, payment stats (totalPaid, totalExpected, paidCount, totalParticipants), due date status (overdue/upcoming/paid/none), paginated. POST creates fee events with Zod validation. Summary stats for all active matching events.
+  - `/api/admin/fees/[id]/route.ts` (GET + PATCH + DELETE): Full fee event detail with all payments, unpaid participants list. PATCH updates fields. DELETE soft-deletes (isActive=false). All operations audit-logged.
+  - `/api/admin/fees/[id]/payments/route.ts` (GET + POST): Lists payments with participant info. POST records payment with auto-generated receipt number (RCP-YYYY-NNNN) via ReceiptSequence upsert. Duplicate payment check.
+- Created `src/components/modules/admin/fees-page.tsx`:
+  - Summary cards (4): Total Fee Events, Total Expected, Total Collected, Collection Rate %
+  - Filter bar: City→Park→Batch cascading selects, Fee Type, Status (Active/All)
+  - Responsive fee events list: desktop table + mobile cards with progress bars
+  - Overdue items with red left border indicator, due date status icons
+  - Progress bar color: green ≥80%, amber ≥50%, red <50%
+  - Fee Event Detail Sheet (right side): info, collection progress, payment recording form, payment history, unpaid participants list with quick-record buttons
+  - Create Fee Event Dialog: cascading city→park→batch select, title, type, amount, due date
+  - Edit Fee Event Dialog
+  - Delete confirmation (soft delete)
+  - PKR formatting with comma separators, monospace font for amounts, code font for receipt numbers
+  - Framer Motion animations, brand hex colors (#4B0A8F, #A0006B, #FF0015, #2A0C8F, #F3ECF6)
+  - Dark mode, loading skeletons, empty states, mobile-first responsive
+- Updated `src/components/layout/app-shell.tsx`:
+  - Added FeesPage import
+  - Added `case "admin-fees": return <FeesPage />;`
+  - Removed "admin-fees" from comingSoonConfig
+  - Added "admin-fees" to showPageHeader exclusion and showScopeSelector exclusion
+- ESLint: clean (no errors)
+- Note: Pre-existing dev error in student-history-page.tsx (toZonedTime import) — not related to this task
+
+Files created:
+- src/app/api/admin/fees/route.ts
+- src/app/api/admin/fees/[id]/route.ts
+- src/app/api/admin/fees/[id]/payments/route.ts
+- src/components/modules/admin/fees-page.tsx
+
+Files modified:
+- src/components/layout/app-shell.tsx
+
+---
+Task ID: T-admissions
+Agent: Main
+Task: Build complete Admissions module — API routes, frontend page, app-shell integration
+
+Work Log:
+- Created /api/admin/admissions/route.ts (GET + POST):
+  - GET: Paginated list with filters (status, cityId, search), includes city/preferredPark/interviews/convertedParticipant
+  - POST: Creates application with Zod validation, auto-generates tracking code (SHB-YYYY-NNNN sequential)
+- Created /api/admin/admissions/[id]/route.ts (GET + PATCH):
+  - GET: Full detail with all relations and interviews
+  - PATCH: Updates application fields, validates status transitions via STATUS_FLOW, handles enrollment (creates Participant + optional Guardian + GuardianChild link)
+- Created /api/admin/admissions/[id]/interviews/route.ts (POST):
+  - Schedules new interview (date/time/conductedBy) or updates scores on latest scheduled interview
+  - Auto-moves application status: submitted→reviewing on schedule, reviewing→interviewed on score submit
+- Created src/components/modules/admin/admissions-page.tsx (full "use client" component):
+  - Stats bar (4 cards): Total Applications, Submitted, In Review, Accepted — with per-status count queries
+  - Filter bar: search (debounced), city select, status select, clear button
+  - Kanban/Pipeline view (default): 4 columns (Submitted, In Review, Interviewed, Accepted) with status-colored cards, "Move to" dropdown per card
+  - List view toggle: desktop table + mobile cards, pagination
+  - Application Detail Sheet: applicant info, guardian info, location, status timeline (5-step pipeline), interview history with scores, score input form, action buttons
+  - Create Application Dialog: full form with city→park cascade
+  - Schedule Interview Dialog: date, time, conductor
+  - Enrollment Dialog: group/batch selection, create guardian checkbox
+  - Status colors: Submitted=slate, Reviewing=#A0006B, Interviewed=#6B20A0, Accepted=#4B0A8F, Rejected=red, Enrolled=green
+  - Framer Motion animations (staggered cards, kanban columns, AnimatePresence)
+  - Brand hex colors throughout, dark mode support, responsive design
+- Updated src/components/layout/app-shell.tsx:
+  - Added AdmissionsPage import
+  - Added case "admin-admissions" → AdmissionsPage in PageContent
+  - Removed "admin-admissions" from comingSoonConfig
+  - Added "admin-admissions" to showPageHeader exclusion (page has own PageHeader)
+  - Added "admin-admissions" to showScopeSelector exclusion (page has own city filter)
+- Fixed pre-existing bug: re-exported toZonedTime from src/lib/timezone.ts (was used by student-history-page.tsx but not exported)
+
+Files created:
+- src/app/api/admin/admissions/route.ts
+- src/app/api/admin/admissions/[id]/route.ts
+- src/app/api/admin/admissions/[id]/interviews/route.ts
+- src/components/modules/admin/admissions-page.tsx
+
+Files modified:
+- src/components/layout/app-shell.tsx
+- src/lib/timezone.ts
