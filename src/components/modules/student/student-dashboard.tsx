@@ -9,8 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/layout/empty-state";
-import { formatPKT } from "@/lib/timezone";
-import { toPKT } from "@/lib/timezone";
+import { formatPKT, toPKT } from "@/lib/timezone";
 import { cn } from "@/lib/utils";
 import {
   GraduationCap,
@@ -32,6 +31,7 @@ import {
   Clock,
   Timer,
 } from "lucide-react";
+import { HeatmapCalendar } from "@/components/shared/heatmap-calendar";
 
 // ─── Types ───────────────────────────────────────────────────────────
 
@@ -208,22 +208,6 @@ function statusBadgeWide(status: string | null) {
   }
 }
 
-function heatmapCellColor(status: string | null) {
-  if (!status) return "bg-muted/50 text-muted-foreground/40";
-  switch (status) {
-    case "present":
-      return "bg-[#4B0A8F] text-white dark:bg-[#8A40B0] dark:text-white";
-    case "absent":
-      return "bg-red-500 text-white dark:bg-red-600 dark:text-white";
-    case "late":
-      return "bg-amber-500 text-white dark:bg-amber-600 dark:text-white";
-    case "excused":
-      return "bg-sky-500 text-white dark:bg-sky-600 dark:text-white";
-    default:
-      return "bg-muted/50 text-muted-foreground/40";
-  }
-}
-
 function getTimeUntil(targetDate: string): string {
   const now = new Date();
   const target = new Date(targetDate);
@@ -238,35 +222,6 @@ function getTimeUntil(targetDate: string): string {
   if (hours > 0) return `${hours}h`;
   const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
   return `${minutes}m`;
-}
-
-// ─── Heatmap Legend Sub-component ────────────────────────────────────
-
-function HeatmapLegend() {
-  return (
-    <div className="flex items-center gap-3 flex-wrap">
-      <div className="flex items-center gap-1">
-        <div className="size-3 rounded-sm bg-muted/50" />
-        <span className="text-[10px] text-muted-foreground">No event</span>
-      </div>
-      <div className="flex items-center gap-1">
-        <div className="size-3 rounded-sm bg-[#4B0A8F]" />
-        <span className="text-[10px] text-muted-foreground">Present</span>
-      </div>
-      <div className="flex items-center gap-1">
-        <div className="size-3 rounded-sm bg-red-500" />
-        <span className="text-[10px] text-muted-foreground">Absent</span>
-      </div>
-      <div className="flex items-center gap-1">
-        <div className="size-3 rounded-sm bg-amber-500" />
-        <span className="text-[10px] text-muted-foreground">Late</span>
-      </div>
-      <div className="flex items-center gap-1">
-        <div className="size-3 rounded-sm bg-sky-500" />
-        <span className="text-[10px] text-muted-foreground">Excused</span>
-      </div>
-    </div>
-  );
 }
 
 // ─── Component ───────────────────────────────────────────────────────
@@ -340,42 +295,19 @@ export function StudentDashboard() {
 
   const hasTrendData = dailyTrend.some((d) => d.hasEvent);
 
-  // Compute heatmap grid (7 columns: Mon-Sun)
-  const dayLabels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-  const heatmapGrid: Array<Array<HeatmapDay | null>> = [];
-  // Get current day for highlighting (in PKT)
-  const todayPKTDay = toPKT(new Date()).getDate();
-  const todayPKTMonth = toPKT(new Date()).getMonth();
-  const heatmapMonth = toPKT(new Date()).getMonth();
-
-  let currentWeek: Array<HeatmapDay | null> = Array(7).fill(null);
-
-  // Convert dayOfWeek from 0=Sun to Mon-Sun index (Mon=0, Tue=1, ..., Sun=6)
-  const toMonSunIdx = (dow: number) => (dow + 6) % 7;
-
-  // Pad the first week (in Mon-Sun order)
-  if (data.heatmapData.length > 0) {
-    const firstDayMonSunIdx = toMonSunIdx(data.heatmapData[0].dayOfWeek);
-    for (let i = 0; i < firstDayMonSunIdx; i++) {
-      currentWeek[i] = null;
-    }
-  }
-
+  // Convert heatmapData to Record<string, string> for HeatmapCalendar
+  const heatmapMap: Record<string, string> = {};
+  const pktNow = toPKT(new Date());
+  const currentYear = pktNow.getFullYear();
+  const currentMonth = pktNow.getMonth();
   for (const day of data.heatmapData) {
-    const monSunIdx = toMonSunIdx(day.dayOfWeek);
-    currentWeek[monSunIdx] = day;
-    if (monSunIdx === 6 || day === data.heatmapData[data.heatmapData.length - 1]) {
-      heatmapGrid.push([...currentWeek]);
-      currentWeek = Array(7).fill(null);
-    }
-  }
-  // Push remaining week
-  if (currentWeek.some((d) => d !== null)) {
-    heatmapGrid.push(currentWeek);
+    const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-${String(day.day).padStart(2, "0")}`;
+    heatmapMap[dateStr] = day.status ?? "";
   }
 
   return (
     <motion.div
+      data-tour="dashboard"
       variants={stagger}
       initial="hidden"
       animate="visible"
@@ -495,61 +427,18 @@ export function StudentDashboard() {
         </Card>
       </motion.div>
 
-      {/* ─── 3. Monthly Attendance Heatmap ────────────────────── */}
+      {/* ─── 3. Attendance Heatmap Calendar ────────────────────── */}
       <motion.div variants={fadeUp}>
         <Card className="overflow-hidden border-border">
           <CardContent className="p-4 space-y-3">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold">Monthly Attendance</h3>
+              <h3 className="text-sm font-semibold">Attendance History</h3>
               <Badge variant="outline" className="text-[10px] font-normal">
                 {formatPKT(new Date(), "MMMM yyyy")}
               </Badge>
             </div>
 
-            <HeatmapLegend />
-
-            <div className="space-y-1">
-              {/* Day labels header */}
-              <div className="grid grid-cols-7 gap-1">
-                {dayLabels.map((label) => (
-                  <div
-                    key={label}
-                    className="text-center text-[10px] font-medium text-muted-foreground"
-                  >
-                    {label}
-                  </div>
-                ))}
-              </div>
-
-              {/* Weeks */}
-              {heatmapGrid.map((week, wi) => (
-                <div key={wi} className="grid grid-cols-7 gap-1">
-                  {week.map((day, di) => {
-                    const isToday = day && day.day === todayPKTDay && heatmapMonth === todayPKTMonth;
-                    return (
-                      <div
-                        key={di}
-                        className={cn(
-                          "aspect-square flex items-center justify-center rounded-md text-[11px] font-medium transition-colors relative",
-                          day ? heatmapCellColor(day.status) : "bg-transparent",
-                          isToday && "ring-2 ring-foreground ring-offset-1 ring-offset-background"
-                        )}
-                        title={
-                          day
-                            ? `${day.day} — ${day.status || "No event"}`
-                            : undefined
-                        }
-                      >
-                        {day ? day.day : ""}
-                        {isToday && (
-                          <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 size-1 rounded-full bg-foreground" />
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              ))}
-            </div>
+            <HeatmapCalendar data={heatmapMap} months={6} />
           </CardContent>
         </Card>
       </motion.div>

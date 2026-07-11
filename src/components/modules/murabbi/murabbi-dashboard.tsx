@@ -189,6 +189,7 @@ export function MurabbiDashboard() {
 
   return (
     <motion.div
+      data-tour="dashboard"
       variants={stagger}
       initial="hidden"
       animate="visible"

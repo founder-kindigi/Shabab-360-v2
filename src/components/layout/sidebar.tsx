@@ -280,6 +280,7 @@ function DesktopSidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
 
   return (
     <motion.aside
+      data-tour="sidebar"
       initial={false}
       animate={{ width: collapsed ? 64 : 256 }}
       transition={{ duration: 0.2, ease: "easeInOut" }}

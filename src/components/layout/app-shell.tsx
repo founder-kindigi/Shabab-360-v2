@@ -25,6 +25,9 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useRealtimeNotifications } from "@/hooks/use-realtime-notifications";
+import { useOnboarding } from "@/hooks/use-onboarding";
+import { OnboardingTour } from "@/components/shared/onboarding-tour";
+import { ErrorBoundary } from "@/components/shared/error-boundary";
 
 // ── Lazy-loaded page components (code splitting) ──────────────────────
 const AdminDashboard = lazy(() => import("@/components/modules/admin/admin-dashboard").then(m => ({ default: m.AdminDashboard })));
@@ -146,6 +149,38 @@ const comingSoonConfig: Record<string, { icon: typeof TreePine; module: string; 
   // All pages built — no coming-soon pages remaining
 };
 
+function isKnownPage(pageId: PageId): boolean {
+  const knownPages: PageId[] = [
+    "login", "reset-password", "access-pending",
+    "city-head-dashboard",
+    "admin-dashboard", "admin-cities", "admin-parks", "admin-batches",
+    "admin-groups", "admin-people", "admin-students", "admin-guardians",
+    "admin-attendance-events", "admin-settings", "admin-users",
+    "admin-admissions", "admin-fees", "admin-announcements",
+    "admin-reports", "admin-audit-log", "admin-access", "notifications",
+    "murabbi-dashboard", "murabbi-groups",
+    "park-dashboard", "park-attendance", "park-attendance-roster",
+    "park-roster", "park-participants", "park-guardians", "park-schedule",
+    "guardian-dashboard", "guardian-history", "guardian-schedule",
+    "guardian-announcements", "guardian-fees",
+    "student-dashboard", "student-history", "student-schedule",
+    "student-announcements", "student-fees", "student-profile",
+  ];
+  return knownPages.includes(pageId);
+}
+
+function NotFoundPage() {
+  const { navigateTo } = useAppStore();
+  return (
+    <EmptyState
+      icon={Construction}
+      title="Page not found"
+      description="The page you're looking for doesn't exist or has been moved."
+      targetPage={"admin-dashboard" as PageId}
+    />
+  );
+}
+
 function ComingSoonPage({ pageId }: { pageId: PageId }) {
   const config = comingSoonConfig[pageId];
   const Icon = config?.icon || Construction;
@@ -252,9 +287,12 @@ function PageContentInner({ pageId }: { pageId: PageId }) {
     case "guardian-fees":
       return <GuardianFeesPage />;
 
-    // Everything else: coming soon
+    // 404 — unknown page
     default:
-      return <ComingSoonPage pageId={pageId} />;
+      if (isKnownPage(pageId)) {
+        return <ComingSoonPage pageId={pageId} />;
+      }
+      return <NotFoundPage />;
   }
 }
 
@@ -289,6 +327,15 @@ export function AppShell() {
   const { currentPage, navigateTo } = useAppStore();
   const { data: session } = useSession();
   const sessionUserId = (session?.user as { id?: string } | undefined)?.id;
+  const user = session?.user as {
+    name?: string;
+    email?: string;
+    role?: string;
+  } | undefined;
+  const userRole = (user?.role as import("@/types").UserRole) || null;
+
+  // Onboarding tour
+  const { isActive: tourActive, completeTour, skipTour, steps: tourSteps } = useOnboarding(userRole);
 
   // Read avatar from localStorage — updated via event listener only
   const [userAvatar, setUserAvatar] = useState<string | null>(() => {
@@ -322,12 +369,6 @@ export function AppShell() {
     document.addEventListener("shortcut:escape", handleEscape);
     return () => document.removeEventListener("shortcut:escape", handleEscape);
   }, []);
-  const user = session?.user as {
-    name?: string;
-    email?: string;
-    role?: string;
-  } | undefined;
-
   const pageTitle = pageTitles[currentPage] || "Dashboard";
   const showPageHeader = !["admin-dashboard", "city-head-dashboard", "murabbi-dashboard", "park-dashboard", "park-attendance-roster", "park-roster", "park-participants", "park-guardians", "park-schedule", "guardian-dashboard", "guardian-history", "guardian-announcements", "guardian-schedule", "guardian-fees", "student-dashboard", "student-history", "student-announcements", "student-schedule", "student-fees", "student-profile", "admin-cities", "admin-parks", "admin-batches", "admin-groups", "admin-users", "admin-access", "admin-audit-log", "admin-settings", "admin-attendance-events", "admin-people", "admin-announcements", "admin-reports", "admin-students", "admin-guardians", "admin-fees", "admin-admissions", "notifications"].includes(currentPage);
 
@@ -380,6 +421,7 @@ export function AppShell() {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
+                data-tour="user-menu"
                 variant="ghost"
                 className="flex items-center gap-2 px-2 h-9"
               >
@@ -452,7 +494,9 @@ export function AppShell() {
                 exit={{ opacity: 0, y: -8 }}
                 transition={{ duration: 0.2, ease: "easeOut" }}
               >
-                <PageContent pageId={currentPage} />
+                <ErrorBoundary>
+                  <PageContent pageId={currentPage} />
+                </ErrorBoundary>
               </motion.div>
             </AnimatePresence>
           </div>
@@ -461,6 +505,14 @@ export function AppShell() {
         {/* Mobile bottom navigation */}
         <BottomNav />
       </div>
+
+      {/* Onboarding Tour Overlay */}
+      <OnboardingTour
+        steps={tourSteps}
+        isActive={tourActive}
+        onComplete={completeTour}
+        onSkip={skipTour}
+      />
     </div>
   );
 }

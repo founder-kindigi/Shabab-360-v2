@@ -3648,3 +3648,80 @@ Files modified:
 6. src/components/modules/admin/admin-dashboard.tsx
 7. src/components/modules/city-head/city-head-dashboard.tsx
 8. src/components/modules/park/park-dashboard.tsx
+
+---
+Task ID: 21
+Agent: Main
+Task: Build advanced analytics widgets and enhanced data visualizations
+
+Work Log:
+- Created `src/components/shared/heatmap-calendar.tsx`: GitHub-style contribution heatmap calendar
+  - Pure SVG grid of 12×12 colored squares with 2px gaps
+  - Color scale: present=#22c55e, absent=#ef4444, late=#f59e0b, excused=#3b82f6, unmarked=#e5e7eb/#374151
+  - Month labels on top (Jan–Dec), day-of-week labels on left (Mon, Wed, Fri)
+  - SVG hover tooltip showing date + status
+  - Framer Motion staggered fade-in animation on all cells
+  - Dark mode support via next-themes (useTheme)
+  - Responsive horizontal scroll on mobile
+  - Built-in legend for all statuses
+
+- Created `src/components/shared/gauge-ring.tsx`: SVG circular progress ring
+  - Animated fill via Framer Motion (stroke-dashoffset transition, 1s ease-out)
+  - Center text: percentage in large font + label below
+  - Configurable size, strokeWidth, color, showValue
+  - Background ring adjusts for dark/light mode
+  - ARIA label for accessibility
+
+- Created `src/components/shared/comparison-bars.tsx`: Horizontal comparison bars
+  - Items sorted by value (highest first)
+  - Auto-calculates max from data if not provided
+  - Rounded bars with subtle gradient and shine effect
+  - Framer Motion width animation (staggered 0.08s per bar)
+  - Hover tooltip with label + exact value
+  - 10-color palette, responsive full-width on mobile
+
+- Created `src/components/shared/stat-card-visual.tsx`: Enhanced stat card with mini visualization
+  - "sparkline": 7-day SVG sparkline in card (subtle, 30% opacity)
+  - "bar": Small progress bar with gradient fill
+  - "gauge": Mini SVG gauge ring with animated fill
+  - "none": Plain card without visualization
+  - Brand-colored icon background, trend indicator (up/down arrows)
+  - Framer Motion entrance animation on bars and gauges
+  - Uses shadcn Card component, dark mode support
+
+- Modified `src/components/modules/student/student-dashboard.tsx`:
+  - Imported HeatmapCalendar from shared components
+  - Replaced inline heatmap grid (CSS grid with divs) with HeatmapCalendar component
+  - Converted heatmapData array to Record<string, string> format for new component
+  - Removed inline HeatmapLegend component (now built into HeatmapCalendar)
+  - Removed unused heatmapCellColor function and related helpers
+  - Section renamed from "Monthly Attendance" to "Attendance History"
+  - Shows 6 months of data instead of single month grid
+
+- ESLint: 0 errors (1 pre-existing warning in unrelated file)
+- Files created: 4 new shared components
+- Files modified: 1 (student-dashboard.tsx)
+
+---
+Task ID: 20
+Agent: Main
+Task: Build first-time user onboarding tour + React error boundary
+
+Work Log:
+- Created `src/hooks/use-onboarding.ts`: Custom hook managing tour state with localStorage persistence (`shabab360-tour-completed-{role}`). Returns `isActive`, `startTour`, `completeTour`, `skipTour`, `resetTour`, `steps`. Different step definitions per role: admin (6 steps), murabbi (4 steps), guardian (3 steps), student (3 steps). Auto-starts 800ms after mount if no completion record found.
+- Created `src/components/shared/onboarding-tour.tsx`: Custom tour overlay component (no external libraries). Uses SVG mask for semi-transparent backdrop with spotlight cutout around target element. `getBoundingClientRect()` for positioning. Framer Motion animations for tooltip entrance/exit. Auto-scrolls to off-screen targets via `scrollIntoView`. Step counter, Next/Prev/Skip/Finish buttons, "Don't show again" checkbox. Progress dots at bottom of screen. Brand-colored accent bar on tooltip.
+- Created `src/components/shared/error-boundary.tsx`: React class component error boundary. "Something went wrong" message with AlertTriangle icon. "Try Again" button resets error state. "Go to Dashboard" button navigates to role-appropriate dashboard. Expandable error details section (stack trace + component stack) for debugging. `console.error` reporting in `componentDidCatch`.
+- Integrated into `src/components/layout/app-shell.tsx`:
+  - Wrapped `<PageContent>` with `<ErrorBoundary>` to catch runtime errors without crashing the whole app.
+  - Added `<OnboardingTour>` overlay with tour state from `useOnboarding(userRole)`.
+  - Added `isKnownPage()` helper and `NotFoundPage` component for 404 handling — unknown `pageId` values now show "Page not found" instead of "Coming Soon".
+- Added `data-tour` attributes to key UI elements for tour targeting:
+  - `[data-tour='dashboard']` on all 4 dashboard root divs (admin, murabbi, guardian, student)
+  - `[data-tour='dashboard-cards']` on admin metric cards grid
+  - `[data-tour='sidebar']` on DesktopSidebar aside element
+  - `[data-tour='command-palette']` on CommandPaletteTrigger button
+  - `[data-tour='notifications']` on NotificationBell Button
+  - `[data-tour='user-menu']` on user avatar dropdown trigger
+- Files created: 3 (use-onboarding.ts, onboarding-tour.tsx, error-boundary.tsx)
+- Files modified: 6 (app-shell.tsx, sidebar.tsx, command-palette.tsx, notification-bell.tsx, admin-dashboard.tsx, murabbi-dashboard.tsx, guardian-dashboard.tsx, student-dashboard.tsx)
+- ESLint: 0 errors, 0 warnings

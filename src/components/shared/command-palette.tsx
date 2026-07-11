@@ -567,6 +567,7 @@ export function CommandPaletteTrigger() {
   return (
     <button
       type="button"
+      data-tour="command-palette"
       onClick={() => setOpen(true)}
       className={cn(
         "flex items-center gap-2 h-9 rounded-lg border border-border/60 bg-muted/40 px-3",

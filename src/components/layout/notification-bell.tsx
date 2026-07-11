@@ -301,6 +301,7 @@ export function NotificationBell() {
     <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
         <Button
+          data-tour="notifications"
           variant="ghost"
           size="icon"
           className="relative size-9 shrink-0"

@@ -370,6 +370,7 @@ export function AdminDashboard() {
 
     return (
       <motion.div
+        data-tour="dashboard"
         className="space-y-6"
         variants={containerVariants}
         initial="hidden"
@@ -385,6 +386,7 @@ export function AdminDashboard() {
 
         {/* B. Metric Cards */}
         <motion.div
+          data-tour="dashboard-cards"
           variants={itemVariants}
           className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 md:gap-4"
         >
