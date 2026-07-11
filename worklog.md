@@ -789,3 +789,71 @@ Stage Summary:
 - Quick action cards have pulse animation, hover gradient border, and notification badge support
 - Sidebar has gradient active indicator, smoother transitions, section headers with separators, and glowing gradient logo
 - All hex colors used (no CSS variables), responsive design preserved
+
+---
+Task ID: brand-migration-and-features
+Agent: Main
+Task: Complete brand migration, add Announcements & Staff Directory modules, UI polish
+
+Work Log:
+- **Brand Migration Completion**:
+  - Replaced all remaining emerald/teal/green references in 8 files with brand hex values
+  - Files: data-card.tsx, app-shell.tsx, use-online-status.ts, admin-dashboard.tsx, admin-attendance-events.tsx, city-head-dashboard.tsx, murabbi-dashboard.tsx, park-dashboard.tsx
+  - Renamed DataCard "emerald" variant to "brand" (actual colors were already brand hex values)
+  - Renamed useConnectionStatus color type from "emerald" to "brand"
+  - Result: 0 remaining emerald/teal/green references across entire codebase
+
+- **Critical CSS Bug Fix**:
+  - Discovered Tailwind CSS 4 auto-discovers CSS custom properties from ALL project files
+  - worklog.md contained `var(--brand-*)` in code examples that Tailwind scanned and tried to generate utilities for
+  - This caused `.border-[var(--brand-200/800)]` which is invalid CSS (variable names can't contain `/`)
+  - Fixed by: (1) removing all unused --brand-* variables from globals.css, (2) escaping brand var references in worklog.md, (3) adding `@source inline("src/**/*.{ts,tsx,js,jsx,css}")` to restrict Tailwind scanning
+  - Root cause: Tailwind CSS 4's automatic content discovery scans .md files
+
+- **Announcements Module (Module 7)**:
+  - Prisma schema: Announcement model with title, content, priority, targetRoles, authorId, expiresAt
+  - API: POST /api/announcements, GET /api/announcements, DELETE /api/announcements/[id]
+  - Frontend: announcements-page.tsx with priority badges, role-targeted display, create dialog, Framer Motion animations
+  - Integrated into app-shell and sidebar navigation
+
+- **People/Staff Directory**:
+  - API: GET /api/admin/people with search, role, city, active filters + pagination
+  - Frontend: people-page.tsx with search/filter bar, responsive card grid, role-colored avatars, detail sheet
+  - Added useDebounce hook for search input
+  - Integrated into app-shell
+
+- **UI Polish**:
+  - Attendance roster: Brand-colored status buttons (P/A/L/E), gradient progress bar, hover effects, offline indicator
+  - Admin dashboard: Animated gradient banner with particles, live PKT clock, color-coded city bars, action card animations
+  - Sidebar: Gradient active indicator, section headers, logo glow/gradient text effect
+
+- Git: Committed and pushed to GitHub (commit 51dcdd7)
+
+## Current Project Status
+
+### Assessment
+- **15 built pages**: Admin Dashboard, Cities, Parks, Batches, Groups, Users, Audit Log, Settings, Attendance Events, Park Dashboard, Park Attendance, Attendance Roster, Announcements, People Directory, plus City Head & Murabbi dashboards
+- **Brand migration**: 100% complete — zero emerald/teal/green references, all brand colors as hex values
+- **CSS stability**: Fixed critical Tailwind CSS 4 auto-discovery bug, added @source directive
+- **ESLint**: Clean (zero errors)
+- **Build**: Compiles successfully, serves pages (200 OK)
+- **Git**: Pushed to GitHub (commit 51dcdd7)
+
+### Completed Modifications (This Round)
+- Brand migration: 8 files updated, 0 emerald references remaining
+- CSS bug fix: worklog.md + globals.css cleanup, @source directive added
+- Announcements module: 3 API routes + 1 frontend component + schema update
+- Staff Directory: 1 API route + 1 frontend component + debounce hook
+- UI polish: attendance roster, admin dashboard, sidebar visual enhancements
+
+### Unresolved Issues / Risks
+- Dev server memory constraints in sandbox (requires NODE_OPTIONS="--max-old-space-size=768")
+- agent-browser cannot connect from sandbox (network isolation)
+- worklog.md brand var references replaced with "VAR_BRAND_REDACTED" placeholder (readable but loses detail)
+
+### Priority Recommendations for Next Phase
+1. **Module 5: Access Provisioning** — User assignment workflow, role management, invitation system
+2. **Guardian/Student Portal** — Attendance history views, student profile, guardian dashboard
+3. **Module 6: Reports & Analytics** — Attendance trends, city comparisons, export to PDF/Excel
+4. **Real-time Features** — WebSocket notifications, live attendance updates across sessions
+5. **End-to-end QA** — Test full flow in production environment (login → dashboard → operations → attendance → reports)
