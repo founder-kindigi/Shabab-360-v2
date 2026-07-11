@@ -31,7 +31,7 @@ import {
 import { type LucideIcon, motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 
-interface NavItem {
+export interface NavItem {
   id: PageId;
   label: string;
   icon: LucideIcon;
@@ -55,7 +55,7 @@ function getNavSections(items: NavItem[]): { section: string | null; items: NavI
 }
 
 // Navigation configuration per role tier
-function getNavItems(role: string | undefined): NavItem[] {
+export function getNavItems(role: string | undefined): NavItem[] {
   if (!role) return [];
 
   // Super Admin & Program Admin — full access

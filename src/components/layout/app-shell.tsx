@@ -57,6 +57,11 @@ import { AdmissionsPage } from "@/components/modules/admin/admissions-page";
 // Shared components
 import { ScopeSelector } from "@/components/shared/scope-selector";
 import { KeyboardShortcutsDialog } from "@/components/shared/keyboard-shortcuts-dialog";
+import {
+  CommandPalette,
+  CommandPaletteTrigger,
+  CommandPaletteMobileTrigger,
+} from "@/components/shared/command-palette";
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
 
 // Icons for coming-soon pages
@@ -260,6 +265,14 @@ export function AppShell() {
           {/* Spacer */}
           <div className="flex-1 hidden lg:block" />
 
+          {/* Search — desktop: full bar, mobile: icon only */}
+          <div className="hidden sm:block">
+            <CommandPaletteTrigger />
+          </div>
+          <div className="sm:hidden">
+            <CommandPaletteMobileTrigger />
+          </div>
+
           {/* Notification bell */}
           <NotificationBell />
 
@@ -313,6 +326,9 @@ export function AppShell() {
 
         {/* Keyboard shortcuts dialog */}
         <KeyboardShortcutsDialog />
+
+        {/* Command palette */}
+        <CommandPalette />
 
         {/* Page content */}
         <main className="flex-1 overflow-y-auto">

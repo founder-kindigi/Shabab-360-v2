@@ -9,6 +9,7 @@ import { useSession } from "next-auth/react";
 // ---------------------------------------------------------------------------
 
 import { create } from "zustand";
+import { useCommandPaletteStore } from "@/components/shared/command-palette";
 
 interface ShortcutsDialogState {
   open: boolean;
@@ -128,16 +129,10 @@ export function useKeyboardShortcuts() {
         return;
       }
 
-      // Ctrl/Cmd + K → Focus search (dispatch event for any search input)
+      // Ctrl/Cmd + K → Open command palette
       if (mod && e.key === "k") {
         e.preventDefault();
-        // Try to find a visible search input on the page
-        const searchInput = document.querySelector<HTMLInputElement>(
-          'input[type="search"], input[placeholder*="Search" i], input[placeholder*="search" i]'
-        );
-        if (searchInput) {
-          searchInput.focus();
-        }
+        useCommandPaletteStore.getState().toggle();
         return;
       }
 

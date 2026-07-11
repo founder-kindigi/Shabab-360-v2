@@ -149,26 +149,50 @@ export async function GET() {
     const prevAttendanceRate =
       prevTotalCapacity > 0 ? prevTotalMarks / prevTotalCapacity : 0;
 
-    // ==================== NEW DATA: Attendance Rate Trend (last 7 days) ====================
+    // ==================== NEW DATA: Attendance Rate Trend (last 12 days) ====================
+    const startDate12 = new Date(todayStart.getTime() - 11 * 24 * 60 * 60 * 1000);
+
+    // Single query for all events in the 12-day range
+    const trendEvents = await db.attendanceEvent.findMany({
+      where: {
+        groupId: { in: groupIds },
+        eventDate: { gte: startDate12, lte: todayStart },
+        isClosed: true,
+      },
+      select: {
+        id: true,
+        groupId: true,
+        eventDate: true,
+        _count: { select: { records: true } },
+        records: { select: { status: true } },
+      },
+      orderBy: { eventDate: "asc" },
+    });
+
+    // Group events by date
+    const eventsByDate = new Map<string, typeof trendEvents>();
+    for (const ev of trendEvents) {
+      const dateStr = formatPKT(ev.eventDate, "yyyy-MM-dd");
+      const arr = eventsByDate.get(dateStr) || [];
+      arr.push(ev);
+      eventsByDate.set(dateStr, arr);
+    }
+
+    // Build trend array
     const attendanceTrend: Array<{
       date: string;
       rate: number;
       marked: number;
       total: number;
+      present: number;
+      late: number;
+      absent: number;
     }> = [];
 
-    for (let i = 6; i >= 0; i--) {
+    for (let i = 11; i >= 0; i--) {
       const dayStart = new Date(todayStart.getTime() - i * 24 * 60 * 60 * 1000);
-      const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000 - 1);
-
-      const dayEvents = await db.attendanceEvent.findMany({
-        where: {
-          groupId: { in: groupIds },
-          eventDate: { gte: dayStart, lte: dayEnd },
-          isClosed: true,
-        },
-        include: { _count: { select: { records: true } } },
-      });
+      const dateStr = formatPKT(dayStart, "yyyy-MM-dd");
+      const dayEvents = eventsByDate.get(dateStr) || [];
 
       const dayMarked = dayEvents.reduce((s, e) => s + e._count.records, 0);
       const dayTotal = dayEvents.reduce(
@@ -177,11 +201,25 @@ export async function GET() {
       );
       const dayRate = dayTotal > 0 ? Math.round((dayMarked / dayTotal) * 100) : 0;
 
+      let dayPresent = 0;
+      let dayLate = 0;
+      let dayAbsent = 0;
+      for (const ev of dayEvents) {
+        for (const rec of ev.records) {
+          if (rec.status === "present") dayPresent++;
+          else if (rec.status === "late") dayLate++;
+          else if (rec.status === "absent") dayAbsent++;
+        }
+      }
+
       attendanceTrend.push({
-        date: formatPKT(dayStart, "yyyy-MM-dd"),
+        date: dateStr,
         rate: dayRate,
         marked: dayMarked,
         total: dayTotal,
+        present: dayPresent,
+        late: dayLate,
+        absent: dayAbsent,
       });
     }
 
@@ -481,6 +519,14 @@ export async function GET() {
       },
       // NEW fields
       attendanceTrend,
+      todayAttendance: attendanceTrend.length > 0
+        ? {
+            present: attendanceTrend[attendanceTrend.length - 1].present,
+            late: attendanceTrend[attendanceTrend.length - 1].late,
+            absent: attendanceTrend[attendanceTrend.length - 1].absent,
+            total: attendanceTrend[attendanceTrend.length - 1].marked,
+          }
+        : { present: 0, late: 0, absent: 0, total: 0 },
       groupBreakdown,
       topPerformers,
       needsAttention,

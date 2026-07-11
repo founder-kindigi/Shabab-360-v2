@@ -1,6 +1,88 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
+import { todayPKT, formatPKT } from "@/lib/timezone";
+
+/**
+ * Build attendance trend for the last N days using a single query.
+ * Returns array of { date, present, late, absent } grouped by event date.
+ */
+async function buildAttendanceTrend(
+  whereClause: object,
+  days: number
+): Promise<{ date: string; present: number; late: number; absent: number }[]> {
+  const todayStart = todayPKT();
+  const startDate = new Date(todayStart.getTime() - (days - 1) * 24 * 60 * 60 * 1000);
+
+  // Single query: fetch all records for the date range, grouped via include
+  const events = await db.attendanceEvent.findMany({
+    where: {
+      ...whereClause,
+      eventDate: { gte: startDate, lte: todayStart },
+      isClosed: true,
+    },
+    select: {
+      eventDate: true,
+      records: { select: { status: true } },
+    },
+    orderBy: { eventDate: "asc" },
+  });
+
+  // Build a map: date string -> { present, late, absent }
+  const grouped = new Map<string, { present: number; late: number; absent: number }>();
+  for (const ev of events) {
+    const dateStr = formatPKT(ev.eventDate, "yyyy-MM-dd");
+    const existing = grouped.get(dateStr) || { present: 0, late: 0, absent: 0 };
+    for (const rec of ev.records) {
+      if (rec.status === "present") existing.present++;
+      else if (rec.status === "late") existing.late++;
+      else if (rec.status === "absent") existing.absent++;
+    }
+    grouped.set(dateStr, existing);
+  }
+
+  // Fill in all days (even those with 0 records)
+  const trend: { date: string; present: number; late: number; absent: number }[] = [];
+  for (let i = days - 1; i >= 0; i--) {
+    const dayStart = new Date(todayStart.getTime() - i * 24 * 60 * 60 * 1000);
+    const dateStr = formatPKT(dayStart, "yyyy-MM-dd");
+    const counts = grouped.get(dateStr) || { present: 0, late: 0, absent: 0 };
+    trend.push({ date: dateStr, ...counts });
+  }
+
+  return trend;
+}
+
+/**
+ * Get today's attendance summary (present/late/absent counts).
+ */
+async function buildTodayAttendance(
+  whereClause: object
+): Promise<{ present: number; late: number; absent: number; total: number }> {
+  const todayStart = todayPKT();
+  const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000 - 1);
+
+  const todayRecords = await db.attendanceRecord.findMany({
+    where: {
+      event: {
+        ...whereClause,
+        eventDate: { gte: todayStart, lte: todayEnd },
+      },
+    },
+    select: { status: true },
+  });
+
+  let present = 0;
+  let late = 0;
+  let absent = 0;
+  for (const rec of todayRecords) {
+    if (rec.status === "present") present++;
+    else if (rec.status === "late") late++;
+    else if (rec.status === "absent") absent++;
+  }
+
+  return { present, late, absent, total: todayRecords.length };
+}
 
 export async function GET(request: NextRequest) {
   const auth = await requireAuth();
@@ -70,6 +152,12 @@ export async function GET(request: NextRequest) {
       _count: { ...city._count, staff: staffByCity[city.id] || 0 },
     }));
 
+    // Attendance trend (last 14 days) — no group filter (all groups)
+    const [attendanceTrend, todayAttendance] = await Promise.all([
+      buildAttendanceTrend({}, 14),
+      buildTodayAttendance({}),
+    ]);
+
     return NextResponse.json({
       cities,
       parks,
@@ -84,6 +172,8 @@ export async function GET(request: NextRequest) {
       })),
       recentActivity,
       cityBreakdown: cityBreakdownWithStaff,
+      attendanceTrend,
+      todayAttendance,
     });
   }
 
@@ -123,6 +213,17 @@ export async function GET(request: NextRequest) {
       })
     ).map((p) => p.id);
 
+    // Get group IDs for the city for attendance filtering
+    const cityGroupIds = (
+      await db.group.findMany({
+        where: {
+          batch: { park: { cityId: user.assignedCityId } },
+          isActive: true,
+        },
+        select: { id: true },
+      })
+    ).map((g) => g.id);
+
     const recentActivity = cityParkIds.length
       ? await db.auditLog.findMany({
           take: 10,
@@ -141,6 +242,16 @@ export async function GET(request: NextRequest) {
         })
       : [];
 
+    // Attendance trend scoped to city groups
+    const groupWhere = cityGroupIds.length > 0
+      ? { groupId: { in: cityGroupIds } }
+      : { id: "___none___" }; // ensures no results if no groups
+
+    const [attendanceTrend, todayAttendance] = await Promise.all([
+      buildAttendanceTrend(groupWhere, 14),
+      buildTodayAttendance(groupWhere),
+    ]);
+
     return NextResponse.json({
       parks,
       batches,
@@ -153,6 +264,8 @@ export async function GET(request: NextRequest) {
         include: { _count: { select: { batches: true } } },
         orderBy: { name: "asc" },
       }),
+      attendanceTrend,
+      todayAttendance,
     });
   }
 
@@ -161,7 +274,7 @@ export async function GET(request: NextRequest) {
     ["park_admin", "park_lead", "murabbi"].includes(user.role || "") &&
     user.assignedParkId
   ) {
-    const todayStart = new Date(new Date().toISOString().split("T")[0]);
+    const todayStart = todayPKT();
 
     const [groups, participants, todayEvents, openEvents, totalEvents] =
       await Promise.all([
@@ -191,12 +304,30 @@ export async function GET(request: NextRequest) {
         }),
       ]);
 
+    const parkGroupIds = (
+      await db.group.findMany({
+        where: { batch: { parkId: user.assignedParkId }, isActive: true },
+        select: { id: true },
+      })
+    ).map((g) => g.id);
+
+    const groupWhere = parkGroupIds.length > 0
+      ? { groupId: { in: parkGroupIds } }
+      : { id: "___none___" };
+
+    const [attendanceTrend, todayAttendance] = await Promise.all([
+      buildAttendanceTrend(groupWhere, 14),
+      buildTodayAttendance(groupWhere),
+    ]);
+
     return NextResponse.json({
       groups,
       participants,
       todayEvents,
       openEvents,
       totalEvents,
+      attendanceTrend,
+      todayAttendance,
     });
   }
 

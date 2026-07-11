@@ -43,6 +43,8 @@ import {
   Shield,
   BarChart3,
 } from "lucide-react";
+import { AttendanceChart } from "@/components/shared/attendance-chart";
+import { Sparkline } from "@/components/shared/sparkline";
 import type { PageId } from "@/stores/useAppStore";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -373,6 +375,70 @@ export function AdminDashboard() {
           <DataCard title="Staff" value={data.staff} icon={UserCog} variant="slate" />
         </motion.div>
 
+        {/* B2. Today's Attendance Card with Sparkline */}
+        {data.todayAttendance && (
+          <motion.div variants={itemVariants}>
+            <Card className="overflow-hidden">
+              <CardHeader className="pb-3 bg-muted/20 border-b">
+                <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                  <CalendarCheck className="size-4 text-[#4B0A8F]" />
+                  Today&apos;s Attendance
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-4 px-4">
+                <div className="flex items-center gap-6 flex-wrap">
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-[#4B0A8F] dark:text-[#8A40B0]">
+                      {data.todayAttendance.present}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground font-medium mt-0.5">Present</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-[#A0006B]">
+                      {data.todayAttendance.late}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground font-medium mt-0.5">Late</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-[#FF0015]">
+                      {data.todayAttendance.absent}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground font-medium mt-0.5">Absent</p>
+                  </div>
+                  <div className="ml-auto">
+                    {data.attendanceTrend && data.attendanceTrend.length > 1 && (
+                      <Sparkline
+                        data={data.attendanceTrend.slice(-7).map((d: any) => d.present)}
+                        width={90}
+                        height={32}
+                        color="#4B0A8F"
+                        showTrend
+                      />
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+
+        {/* B3. Attendance Trend Chart */}
+        {data.attendanceTrend && data.attendanceTrend.length > 0 && (
+          <motion.div variants={itemVariants}>
+            <Card className="overflow-hidden">
+              <CardHeader className="pb-2 bg-muted/20 border-b">
+                <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                  <BarChart3 className="size-4 text-[#4B0A8F]" />
+                  Attendance Trend (14 Days)
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-2 px-4">
+                <AttendanceChart data={data.attendanceTrend} height={220} />
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+
         {/* C. Quick Actions */}
         <motion.div variants={itemVariants}>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
@@ -615,6 +681,70 @@ export function AdminDashboard() {
           <DataCard title="Events" value={data.attendanceEvents} icon={Activity} variant="brand" />
         </motion.div>
 
+        {/* Today's Attendance Card with Sparkline */}
+        {data.todayAttendance && (
+          <motion.div variants={itemVariants}>
+            <Card className="overflow-hidden">
+              <CardHeader className="pb-3 bg-muted/20 border-b">
+                <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                  <CalendarCheck className="size-4 text-[#4B0A8F]" />
+                  Today&apos;s Attendance
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-4 px-4">
+                <div className="flex items-center gap-6 flex-wrap">
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-[#4B0A8F] dark:text-[#8A40B0]">
+                      {data.todayAttendance.present}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground font-medium mt-0.5">Present</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-[#A0006B]">
+                      {data.todayAttendance.late}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground font-medium mt-0.5">Late</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-[#FF0015]">
+                      {data.todayAttendance.absent}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground font-medium mt-0.5">Absent</p>
+                  </div>
+                  <div className="ml-auto">
+                    {data.attendanceTrend && data.attendanceTrend.length > 1 && (
+                      <Sparkline
+                        data={data.attendanceTrend.slice(-7).map((d: any) => d.present)}
+                        width={90}
+                        height={32}
+                        color="#4B0A8F"
+                        showTrend
+                      />
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+
+        {/* Attendance Trend Chart */}
+        {data.attendanceTrend && data.attendanceTrend.length > 0 && (
+          <motion.div variants={itemVariants}>
+            <Card className="overflow-hidden">
+              <CardHeader className="pb-2 bg-muted/20 border-b">
+                <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                  <BarChart3 className="size-4 text-[#4B0A8F]" />
+                  Attendance Trend (14 Days)
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-2 px-4">
+                <AttendanceChart data={data.attendanceTrend} height={220} />
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Parks breakdown */}
           <motion.div variants={itemVariants} className="lg:col-span-2 rounded-xl border bg-card overflow-hidden">
@@ -713,6 +843,70 @@ export function AdminDashboard() {
           <DataCard title="Open" value={data.openEvents} icon={Clock} variant="amber" />
           <DataCard title="Total Events" value={data.totalEvents} icon={Activity} variant="sky" />
         </motion.div>
+
+        {/* Today's Attendance + Sparkline */}
+        {data.todayAttendance && (
+          <motion.div variants={itemVariants}>
+            <Card className="overflow-hidden">
+              <CardHeader className="pb-3 bg-muted/20 border-b">
+                <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                  <CalendarCheck className="size-4 text-[#4B0A8F]" />
+                  Today&apos;s Attendance
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-4 px-4">
+                <div className="flex items-center gap-6 flex-wrap">
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-[#4B0A8F] dark:text-[#8A40B0]">
+                      {data.todayAttendance.present}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground font-medium mt-0.5">Present</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-[#A0006B]">
+                      {data.todayAttendance.late}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground font-medium mt-0.5">Late</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-[#FF0015]">
+                      {data.todayAttendance.absent}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground font-medium mt-0.5">Absent</p>
+                  </div>
+                  <div className="ml-auto">
+                    {data.attendanceTrend && data.attendanceTrend.length > 1 && (
+                      <Sparkline
+                        data={data.attendanceTrend.slice(-7).map((d: any) => d.present)}
+                        width={90}
+                        height={32}
+                        color="#4B0A8F"
+                        showTrend
+                      />
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+
+        {/* Attendance Trend Chart */}
+        {data.attendanceTrend && data.attendanceTrend.length > 0 && (
+          <motion.div variants={itemVariants}>
+            <Card className="overflow-hidden">
+              <CardHeader className="pb-2 bg-muted/20 border-b">
+                <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                  <BarChart3 className="size-4 text-[#4B0A8F]" />
+                  Attendance Trend (14 Days)
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-2 px-4">
+                <AttendanceChart data={data.attendanceTrend} height={220} />
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
 
         {/* Status Cards */}
         <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-2 gap-4">

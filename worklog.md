@@ -1703,3 +1703,139 @@ Stage Summary:
 - Login page now works end-to-end for all 8 demo role accounts
 - All three root causes fixed: missing arg, missing function, wrong email domain
 - Dev server running, no compile errors
+---
+Task ID: 5
+Agent: Main
+Task: Real Notification System with Announcements
+
+Work Log:
+- Read existing `/api/notifications/route.ts` — was returning audit log entries for admin/staff users only; guardians/students got empty arrays
+- Rewrote `/api/notifications/route.ts` GET handler to query the `announcements` table instead of `auditLog`
+  - Filters active (non-expired) announcements: `expiresAt IS NULL OR expiresAt > now`
+  - Parses `targetRoles` JSON field and filters by current user role (empty/null targets = all roles)
+  - Returns: id, title, content (truncated to 120 chars), priority, createdAt, authorName
+  - Uses `requireAuth()` for authentication, returns 401 for unauthenticated
+- Enhanced `src/components/layout/notification-bell.tsx`:
+  - Replaced audit-log based notifications with announcement-based notifications
+  - Priority dot system: urgent=`bg-[#FF0015]` (red), normal=`bg-[#4B0A8F]` (brand violet), low=`bg-muted-foreground` (gray)
+  - Unread count badge using `bg-[#FF0015] text-white rounded-full text-[10px]` per design spec
+  - Client-side "seen" tracking via localStorage (`shabab360_seen_announcements` key)
+  - "Mark all read" button with `CheckCheck` icon — stores timestamp in localStorage
+  - Individual notification click marks as seen and navigates to role-appropriate announcements page
+  - Role-aware navigation: staff→admin-announcements, guardian→guardian-announcements, student→student-announcements
+  - Time display using `formatDistanceToNow` from date-fns with `addSuffix: true`
+  - Empty state with `BellOff` icon when no announcements
+  - Desktop notification support (bonus): requests `Notification.permission` on first bell open, shows browser notifications for urgent announcements
+  - Bell icon changes to `BellOff` (muted) when no unread notifications
+  - Kept existing 60s `refetchInterval` polling + WebSocket realtime via `useRealtimeNotifications`
+  - New urgent announcements detected via ID comparison trigger desktop notifications
+  - Footer with "View All Announcements" button linking to announcements page
+  - Unread indicator dot (brand violet) on individual unread items
+- Lint: clean (fixed `react-hooks/set-state-in-effect` by using lazy initializer for `allSeenAt` state)
+- Dev server: no errors
+
+Files modified:
+- `src/app/api/notifications/route.ts` — full rewrite to query announcements
+- `src/components/layout/notification-bell.tsx` — enhanced with announcement display, priority dots, mark-all-read, desktop notifications
+
+---
+Task ID: 4
+Agent: Main
+Task: Global Search Command Palette (Cmd+K / Ctrl+K)
+
+Work Log:
+- Created `src/components/shared/command-palette.tsx` — full command palette implementation:
+  - `useCommandPaletteStore` (zustand) for open/close state management
+  - `CommandPalette` component using cmdk `Command` + Framer Motion `AnimatePresence` for open/close animations
+  - Custom overlay (backdrop-blur + fade) and panel (scale + translate + fade) animations via Framer Motion variants
+  - Search input auto-focused, results grouped by "Pages" (from sidebar `getNavItems`) and "Actions" (Toggle Sidebar, Toggle Theme, Sign Out)
+  - Brand-colored selected states: `bg-[#F3ECF6] text-[#4B0A8F]` light / `bg-[#1F086080] text-[#8A40B0]` dark
+  - Danger action (Sign Out) with red hover/selected states
+  - Empty state with search icon and "No results found" message
+  - Footer with keyboard hints (↵ Select, esc Close, ↑↓ Navigate) styled as kbd badges
+  - Escape handling via capture-phase keydown listener (intercepts before cmdk) + `shortcut:escape` custom event
+  - Backdrop click to close
+  - `CommandPaletteTrigger` — GitHub/Linear-style search bar button for desktop header
+  - `CommandPaletteMobileTrigger` — icon-only search button for mobile header
+  - Accessible: `role="dialog"`, `aria-label`, `aria-modal="true"`
+- Exported `NavItem` interface and `getNavItems` function from `src/components/layout/sidebar.tsx` for reuse
+- Modified `src/hooks/use-keyboard-shortcuts.ts`:
+  - Changed Cmd+K / Ctrl+K handler from "focus search input" to `useCommandPaletteStore.getState().toggle()` (opens command palette)
+- Modified `src/components/layout/app-shell.tsx`:
+  - Imported `CommandPalette`, `CommandPaletteTrigger`, `CommandPaletteMobileTrigger`
+  - Added desktop search bar trigger (hidden on <sm) between spacer and notification bell
+  - Added mobile search icon trigger (hidden on ≥sm) in same position
+  - Rendered `<CommandPalette />` alongside `<KeyboardShortcutsDialog />`
+- Updated `src/components/shared/keyboard-shortcuts-dialog.tsx`:
+  - Changed Cmd+K description from "Focus search input" to "Open command palette"
+- Lint: clean on all modified files (pre-existing error in attendance-chart.tsx is unrelated)
+- Dev server: compiled successfully, no errors
+
+Files created:
+- `src/components/shared/command-palette.tsx` — Command palette component with trigger buttons
+
+Files modified:
+- `src/components/layout/sidebar.tsx` — exported NavItem type and getNavItems function
+- `src/hooks/use-keyboard-shortcuts.ts` — Cmd+K now opens command palette
+- `src/components/layout/app-shell.tsx` — added search trigger in header + CommandPalette component
+- `src/components/shared/keyboard-shortcuts-dialog.tsx` — updated shortcut description
+
+---
+Task ID: 3
+Agent: Main
+Task: Dashboard Attendance Charts Enhancement — SVG-based attendance trend charts + sparklines
+
+Work Log:
+- Created pure SVG AttendanceChart component (src/components/shared/attendance-chart.tsx):
+  - Area chart with gradient fills for present/late/absent series
+  - Brand colors: #4B0A8F (present), #A0006B (late), #FF0015 (absent)
+  - Smooth cubic bezier curves via catmull-rom conversion
+  - Responsive width via ResizeObserver
+  - Hover tooltip showing exact values per date
+  - Y-axis count labels, X-axis date labels (adaptive step to avoid crowding)
+  - Grid lines with stroke-border/40, legend with colored dots
+
+- Created Sparkline component (src/components/shared/sparkline.tsx):
+  - Tiny inline SVG chart for stat cards
+  - Gradient fill below line, smooth bezier curves
+  - Optional trend indicator arrow (TrendingUp/TrendingDown from lucide-react)
+  - Configurable width, height, color
+
+- Enhanced /api/admin/dashboard API (src/app/api/admin/dashboard/route.ts):
+  - Added `buildAttendanceTrend()` helper: queries AttendanceRecord statuses grouped by date for last N days
+  - Added `buildTodayAttendance()` helper: gets present/late/absent counts for today
+  - HQ dashboard: returns `attendanceTrend` (14 days, all groups) + `todayAttendance`
+  - City Head dashboard: returns `attendanceTrend` (14 days, city-scoped) + `todayAttendance`
+  - Park-scoped admin dashboard: returns `attendanceTrend` (14 days, park-scoped) + `todayAttendance`
+  - Uses PKT timezone utilities (todayPKT, formatPKT) for date calculations
+
+- Enhanced /api/park/dashboard API (src/app/api/park/dashboard/route.ts):
+  - Extended attendanceTrend from 7 to 12 days
+  - Added present/late/absent status counts per day (via AttendanceRecord status query)
+  - Added `todayAttendance` field to response
+  - AttendanceTrendPoint type now includes present, late, absent fields
+
+- Integrated into Admin Dashboard (src/components/modules/admin/admin-dashboard.tsx):
+  - Added "Today's Attendance" card with present/late/absent counts + 7-day present Sparkline
+  - Added "Attendance Trend (14 Days)" card with AttendanceChart below stat cards
+  - Applied to all three dashboard variants: HQ, City Head, Park-scoped
+
+- Integrated into Park Dashboard (src/components/modules/park/park-dashboard.tsx):
+  - Added "Today's Attendance" card with present/late/absent + 7-day present Sparkline
+  - Replaced old WeeklyAttendanceChart (bar chart) with new SVG AttendanceChart (12 days)
+  - Added CardHeader/CardTitle imports, BarChart3 icon import
+  - Removed unused WeeklyAttendanceChart component and getDayLabel helper
+
+- Zero npm packages installed — pure SVG with React
+- ESLint: clean (0 errors, 0 warnings)
+- Dev server: healthy, park dashboard API returns 200
+
+Files created:
+- src/components/shared/attendance-chart.tsx
+- src/components/shared/sparkline.tsx
+
+Files modified:
+- src/app/api/admin/dashboard/route.ts
+- src/app/api/park/dashboard/route.ts
+- src/components/modules/admin/admin-dashboard.tsx
+- src/components/modules/park/park-dashboard.tsx

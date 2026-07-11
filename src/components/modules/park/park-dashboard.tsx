@@ -7,7 +7,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { DataCard } from "@/components/layout/data-card";
 import { EmptyState } from "@/components/layout/empty-state";
 import { OfflineQueuePanel } from "./offline-queue-panel";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -27,8 +27,11 @@ import {
   ShieldAlert,
   CircleAlert,
   Layers,
+  BarChart3,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { AttendanceChart } from "@/components/shared/attendance-chart";
+import { Sparkline } from "@/components/shared/sparkline";
 
 // ==================== TYPES ====================
 
@@ -37,6 +40,9 @@ type AttendanceTrendPoint = {
   rate: number;
   marked: number;
   total: number;
+  present: number;
+  late: number;
+  absent: number;
 };
 
 type GroupBreakdownItem = {
@@ -84,6 +90,7 @@ type DashboardData = {
     activeGroups: number;
   };
   attendanceTrend: AttendanceTrendPoint[];
+  todayAttendance?: { present: number; late: number; absent: number; total: number };
   groupBreakdown: GroupBreakdownItem[];
   topPerformers: TopPerformer[];
   needsAttention: NeedsAttentionItem[];
@@ -139,73 +146,6 @@ function barColor(pct: number) {
   if (pct >= 80) return "bg-[#4B0A8F] dark:bg-[#8A40B0]";
   if (pct >= 50) return "bg-amber-500 dark:bg-amber-400";
   return "bg-red-500 dark:bg-red-400";
-}
-
-function getDayLabel(dateStr: string): string {
-  const date = new Date(dateStr + "T00:00:00");
-  return date.toLocaleDateString("en-PK", { weekday: "short" });
-}
-
-// ==================== WEEKLY CHART COMPONENT ====================
-
-function WeeklyAttendanceChart({ trend }: { trend: AttendanceTrendPoint[] }) {
-  const maxRate = Math.max(...trend.map((t) => t.rate), 1);
-
-  return (
-    <div className="rounded-xl border bg-card p-4 sm:p-5 shadow-sm">
-      <h3 className="text-sm font-semibold mb-4">Weekly Attendance Trend</h3>
-      <div className="flex items-end justify-between gap-2 sm:gap-3 h-40">
-        {trend.map((point, i) => {
-          const heightPct = maxRate > 0 ? Math.max((point.rate / maxRate) * 100, 4) : 4;
-          return (
-            <motion.div
-              key={point.date}
-              className="flex flex-col items-center flex-1"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.08, duration: 0.4, ease: "easeOut" }}
-            >
-              {/* Percentage label */}
-              <span className="text-[10px] font-semibold mb-1.5 text-muted-foreground">
-                {point.total > 0 ? `${point.rate}%` : "—"}
-              </span>
-              {/* Bar */}
-              <div className="w-full flex-1 flex items-end">
-                <motion.div
-                  className={cn(
-                    "w-full rounded-t-md min-h-[4px]",
-                    barColor(point.rate)
-                  )}
-                  initial={{ height: 0 }}
-                  animate={{ height: `${heightPct}%` }}
-                  transition={{ delay: i * 0.08 + 0.1, duration: 0.5, ease: "easeOut" }}
-                />
-              </div>
-              {/* Day label */}
-              <span className="text-[10px] mt-1.5 text-muted-foreground font-medium">
-                {getDayLabel(point.date)}
-              </span>
-            </motion.div>
-          );
-        })}
-      </div>
-      {/* Legend */}
-      <div className="flex items-center gap-4 mt-4 pt-3 border-t">
-        <div className="flex items-center gap-1.5">
-          <div className="w-2.5 h-2.5 rounded-sm bg-[#4B0A8F]" />
-          <span className="text-[10px] text-muted-foreground">≥ 80%</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <div className="w-2.5 h-2.5 rounded-sm bg-amber-500" />
-          <span className="text-[10px] text-muted-foreground">50–79%</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <div className="w-2.5 h-2.5 rounded-sm bg-red-500" />
-          <span className="text-[10px] text-muted-foreground">&lt; 50%</span>
-        </div>
-      </div>
-    </div>
-  );
 }
 
 // ==================== GROUP PERFORMANCE CARD ====================
@@ -451,6 +391,7 @@ export function ParkDashboard() {
     todayEvents,
     recentSummary,
     attendanceTrend,
+    todayAttendance,
     groupBreakdown,
     topPerformers,
     needsAttention,
@@ -528,6 +469,56 @@ export function ParkDashboard() {
             </div>
           </div>
         </motion.div>
+
+        {/* ==================== TODAY'S ATTENDANCE INLINE ==================== */}
+        {todayAttendance && todayAttendance.total > 0 && (
+          <motion.div variants={fadeUp}>
+            <Card className="overflow-hidden">
+              <CardHeader className="pb-3 bg-muted/20 border-b">
+                <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                  <CalendarCheck className="size-4 text-[#4B0A8F]" />
+                  Today&apos;s Attendance
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-4 px-4">
+                <div className="flex items-center gap-6 flex-wrap">
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-[#4B0A8F] dark:text-[#8A40B0]">
+                      {todayAttendance.present}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground font-medium mt-0.5">Present</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-[#A0006B]">
+                      {todayAttendance.late}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground font-medium mt-0.5">Late</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-[#FF0015]">
+                      {todayAttendance.absent}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground font-medium mt-0.5">Absent</p>
+                  </div>
+                  <div className="ml-auto flex items-center gap-4">
+                    {attendanceTrend && attendanceTrend.length > 1 && (
+                      <div className="flex flex-col items-end gap-1">
+                        <span className="text-[10px] text-muted-foreground">7-Day Present Trend</span>
+                        <Sparkline
+                          data={attendanceTrend.slice(-7).map((t) => t.present)}
+                          width={90}
+                          height={32}
+                          color="#4B0A8F"
+                          showTrend
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
 
         {/* ==================== METRIC CARDS (2x3 desktop, 2x2 mobile) ==================== */}
         <motion.div variants={fadeUp} className="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -685,10 +676,28 @@ export function ParkDashboard() {
           </motion.div>
         )}
 
-        {/* ==================== WEEKLY ATTENDANCE CHART ==================== */}
+        {/* ==================== ATTENDANCE TREND CHART (12 Days) ==================== */}
         {attendanceTrend && attendanceTrend.length > 0 && (
           <motion.div variants={fadeUp}>
-            <WeeklyAttendanceChart trend={attendanceTrend} />
+            <Card className="overflow-hidden">
+              <CardHeader className="pb-2 bg-muted/20 border-b">
+                <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                  <BarChart3 className="size-4 text-[#4B0A8F]" />
+                  Attendance Trend (12 Days)
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-2 px-4">
+                <AttendanceChart
+                  data={attendanceTrend.map((t) => ({
+                    date: t.date,
+                    present: t.present,
+                    late: t.late,
+                    absent: t.absent,
+                  }))}
+                  height={220}
+                />
+              </CardContent>
+            </Card>
           </motion.div>
         )}
 
