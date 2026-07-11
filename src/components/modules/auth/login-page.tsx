@@ -8,31 +8,34 @@ import { useAppStore } from "@/stores/useAppStore";
 import { Eye, EyeOff, Shield, Lock, Mail } from "lucide-react";
 
 const DEMO_ACCOUNTS = [
-  { email: "super_admin@shab360.pk", role: "Super Admin", color: "#4B0A8F" },
-  { email: "program_admin@shab360.pk", role: "Program Admin", color: "#A0006B" },
-  { email: "city_head@shab360.pk", role: "City Head", color: "#6B20A0" },
-  { email: "park_admin@shab360.pk", role: "Park Admin", color: "#8A40B0" },
-  { email: "park_lead@shab360.pk", role: "Park Lead", color: "#2A0C8F" },
-  { email: "murabbi@shab360.pk", role: "Murabbi", color: "#E0002A" },
-  { email: "guardian@shab360.pk", role: "Guardian", color: "#6B5A7A" },
-  { email: "student@shab360.pk", role: "Student", color: "#FF0015" },
+  { email: "super_admin@shabab360.pk", role: "Super Admin", color: "#4B0A8F" },
+  { email: "program_admin@shabab360.pk", role: "Program Admin", color: "#A0006B" },
+  { email: "city_head@shabab360.pk", role: "City Head", color: "#6B20A0" },
+  { email: "park_admin@shabab360.pk", role: "Park Admin", color: "#8A40B0" },
+  { email: "park_lead@shabab360.pk", role: "Park Lead", color: "#2A0C8F" },
+  { email: "murabbi@shabab360.pk", role: "Murabbi", color: "#E0002A" },
+  { email: "guardian@shabab360.pk", role: "Guardian", color: "#6B5A7A" },
+  { email: "student@shabab360.pk", role: "Student", color: "#FF0015" },
 ] as const;
 
 const DEMO_PASSWORD = "password123";
 
-function doQuickLogin(accountEmail: string, setLoading: (v: boolean) => void) {
+function doQuickLogin(accountEmail: string, setLoading: (v: boolean) => void, setError: (v: string) => void, triggerShake: () => void) {
   setLoading(true);
-  const fd = new FormData();
-  fd.append("email", accountEmail);
-  fd.append("password", DEMO_PASSWORD);
-  fetch("/api/auth/callback/credentials", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: fd,
-    redirect: "manual",
-  }).then((r) => r.json()).then((d) => {
-    if (d.url) window.location.href = d.url;
+  setError("");
+  signIn("credentials", {
+    email: accountEmail,
+    password: DEMO_PASSWORD,
+    redirect: false,
+  }).then((result) => {
+    if (result?.error) {
+      setError("Quick login failed. Please try again.");
+      triggerShake();
+    }
   }).catch(() => {
+    setError("An unexpected error occurred. Please try again.");
+    triggerShake();
+  }).finally(() => {
     setLoading(false);
   });
 }
@@ -46,6 +49,11 @@ export function LoginPage() {
   const [shaking, setShaking] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
   const { navigateTo } = useAppStore();
+
+  function triggerShake() {
+    setShaking(true);
+    setTimeout(() => setShaking(false), 600);
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -126,7 +134,7 @@ export function LoginPage() {
                       type="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      placeholder="you@shab360.pk"
+                      placeholder="you@shabab360.pk"
                       className="w-full h-11 pl-10 pr-4 rounded-lg border border-input bg-background/50 text-sm focus-visible:ring-[#A0006B]/30 focus-visible:border-[#A0006B] focus-visible:ring-2 focus-visible:ring-offset-1 outline-none transition-colors placeholder:text-muted-foreground"
                     />
                   </div>
@@ -195,7 +203,7 @@ export function LoginPage() {
                         key={account.email}
                         type="button"
                         disabled={loading}
-                        onClick={() => doQuickLogin(account.email)}
+                        onClick={() => doQuickLogin(account.email, setLoading, setError, triggerShake)}
                         className="flex items-center gap-3 p-2 rounded-md hover:bg-muted/50 cursor-pointer transition-colors border-l-[3px] text-left disabled:opacity-50 disabled:cursor-not-allowed"
                         style={{ borderLeftColor: account.color }}
                       >
