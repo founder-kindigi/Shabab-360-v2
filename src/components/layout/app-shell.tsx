@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { useSession, signOut } from "next-auth/react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useAppStore, type PageId } from "@/stores/useAppStore";
@@ -19,47 +19,47 @@ import {
 import { Menu, LogOut, User, ChevronDown, Construction, Settings } from "lucide-react";
 import { useRealtimeNotifications } from "@/hooks/use-realtime-notifications";
 
-// Page components
-import { AdminDashboard } from "@/components/modules/admin/admin-dashboard";
-import { CitiesPage } from "@/components/modules/admin/cities-page";
-import { BatchesPage } from "@/components/modules/admin/batches-page";
-import { GroupsPage } from "@/components/modules/admin/groups-page";
-import { ParksPage } from "@/components/modules/admin/parks-page";
-import { UsersPage } from "@/components/modules/admin/users-page";
-import { AuditLogPage } from "@/components/modules/admin/audit-log-page";
-import { PeoplePage } from "@/components/modules/admin/people-page";
-import { StudentsPage } from "@/components/modules/admin/students-page";
-import { GuardiansPage } from "@/components/modules/admin/guardians-page";
-import { AdminAttendanceEvents } from "@/components/modules/admin/admin-attendance-events";
-import { AnnouncementsPage } from "@/components/modules/admin/announcements-page";
-import { SettingsPage } from "@/components/modules/admin/settings-page";
-import { ReportsPage } from "@/components/modules/admin/reports-page";
-import { AccessProvisioningPage } from "@/components/modules/admin/access-provisioning-page";
-import { FeesPage } from "@/components/modules/admin/fees-page";
-import { MurabbiDashboard } from "@/components/modules/murabbi/murabbi-dashboard";
-import { MurabbiGroupsPage } from "@/components/modules/murabbi/murabbi-groups-page";
-import { ParkDashboard } from "@/components/modules/park/park-dashboard";
-import { ParkAttendancePage } from "@/components/modules/park/park-attendance-page";
-import { ParkRosterPage } from "@/components/modules/park/park-roster-page";
-import { ParkParticipantsPage } from "@/components/modules/park/park-participants-page";
-import { ParkGuardiansPage } from "@/components/modules/park/park-guardians-page";
-import { AttendanceRoster } from "@/components/modules/park/attendance-roster";
-import { GuardianDashboard } from "@/components/modules/guardian/guardian-dashboard";
-import { GuardianHistoryPage } from "@/components/modules/guardian/guardian-history-page";
-import { GuardianAnnouncementsPage } from "@/components/modules/guardian/guardian-announcements-page";
-import { CityHeadDashboard } from "@/components/modules/city-head/city-head-dashboard";
-import { StudentDashboard } from "@/components/modules/student/student-dashboard";
-import { StudentHistoryPage } from "@/components/modules/student/student-history-page";
-import { StudentAnnouncementsPage } from "@/components/modules/student/student-announcements-page";
-import { ParkSchedulePage } from "@/components/modules/park/park-schedule-page";
-import { GuardianSchedulePage } from "@/components/modules/guardian/guardian-schedule-page";
-import { StudentSchedulePage } from "@/components/modules/student/student-schedule-page";
-import { StudentFeesPage } from "@/components/modules/student/student-fees-page";
-import { StudentProfilePage } from "@/components/modules/student/student-profile-page";
-import { GuardianFeesPage } from "@/components/modules/guardian/guardian-fees-page";
-import { AdmissionsPage } from "@/components/modules/admin/admissions-page";
+// ── Lazy-loaded page components (code splitting) ──────────────────────
+const AdminDashboard = lazy(() => import("@/components/modules/admin/admin-dashboard").then(m => ({ default: m.AdminDashboard })));
+const CitiesPage = lazy(() => import("@/components/modules/admin/cities-page").then(m => ({ default: m.CitiesPage })));
+const BatchesPage = lazy(() => import("@/components/modules/admin/batches-page").then(m => ({ default: m.BatchesPage })));
+const GroupsPage = lazy(() => import("@/components/modules/admin/groups-page").then(m => ({ default: m.GroupsPage })));
+const ParksPage = lazy(() => import("@/components/modules/admin/parks-page").then(m => ({ default: m.ParksPage })));
+const UsersPage = lazy(() => import("@/components/modules/admin/users-page").then(m => ({ default: m.UsersPage })));
+const AuditLogPage = lazy(() => import("@/components/modules/admin/audit-log-page").then(m => ({ default: m.AuditLogPage })));
+const PeoplePage = lazy(() => import("@/components/modules/admin/people-page").then(m => ({ default: m.PeoplePage })));
+const StudentsPage = lazy(() => import("@/components/modules/admin/students-page").then(m => ({ default: m.StudentsPage })));
+const GuardiansPage = lazy(() => import("@/components/modules/admin/guardians-page").then(m => ({ default: m.GuardiansPage })));
+const AdminAttendanceEvents = lazy(() => import("@/components/modules/admin/admin-attendance-events").then(m => ({ default: m.AdminAttendanceEvents })));
+const AnnouncementsPage = lazy(() => import("@/components/modules/admin/announcements-page").then(m => ({ default: m.AnnouncementsPage })));
+const SettingsPage = lazy(() => import("@/components/modules/admin/settings-page").then(m => ({ default: m.SettingsPage })));
+const ReportsPage = lazy(() => import("@/components/modules/admin/reports-page").then(m => ({ default: m.ReportsPage })));
+const AccessProvisioningPage = lazy(() => import("@/components/modules/admin/access-provisioning-page").then(m => ({ default: m.AccessProvisioningPage })));
+const FeesPage = lazy(() => import("@/components/modules/admin/fees-page").then(m => ({ default: m.FeesPage })));
+const AdmissionsPage = lazy(() => import("@/components/modules/admin/admissions-page").then(m => ({ default: m.AdmissionsPage })));
+const MurabbiDashboard = lazy(() => import("@/components/modules/murabbi/murabbi-dashboard").then(m => ({ default: m.MurabbiDashboard })));
+const MurabbiGroupsPage = lazy(() => import("@/components/modules/murabbi/murabbi-groups-page").then(m => ({ default: m.MurabbiGroupsPage })));
+const ParkDashboard = lazy(() => import("@/components/modules/park/park-dashboard").then(m => ({ default: m.ParkDashboard })));
+const ParkAttendancePage = lazy(() => import("@/components/modules/park/park-attendance-page").then(m => ({ default: m.ParkAttendancePage })));
+const AttendanceRoster = lazy(() => import("@/components/modules/park/attendance-roster").then(m => ({ default: m.AttendanceRoster })));
+const ParkRosterPage = lazy(() => import("@/components/modules/park/park-roster-page").then(m => ({ default: m.ParkRosterPage })));
+const ParkParticipantsPage = lazy(() => import("@/components/modules/park/park-participants-page").then(m => ({ default: m.ParkParticipantsPage })));
+const ParkGuardiansPage = lazy(() => import("@/components/modules/park/park-guardians-page").then(m => ({ default: m.ParkGuardiansPage })));
+const ParkSchedulePage = lazy(() => import("@/components/modules/park/park-schedule-page").then(m => ({ default: m.ParkSchedulePage })));
+const GuardianDashboard = lazy(() => import("@/components/modules/guardian/guardian-dashboard").then(m => ({ default: m.GuardianDashboard })));
+const GuardianHistoryPage = lazy(() => import("@/components/modules/guardian/guardian-history-page").then(m => ({ default: m.GuardianHistoryPage })));
+const GuardianAnnouncementsPage = lazy(() => import("@/components/modules/guardian/guardian-announcements-page").then(m => ({ default: m.GuardianAnnouncementsPage })));
+const GuardianSchedulePage = lazy(() => import("@/components/modules/guardian/guardian-schedule-page").then(m => ({ default: m.GuardianSchedulePage })));
+const GuardianFeesPage = lazy(() => import("@/components/modules/guardian/guardian-fees-page").then(m => ({ default: m.GuardianFeesPage })));
+const CityHeadDashboard = lazy(() => import("@/components/modules/city-head/city-head-dashboard").then(m => ({ default: m.CityHeadDashboard })));
+const StudentDashboard = lazy(() => import("@/components/modules/student/student-dashboard").then(m => ({ default: m.StudentDashboard })));
+const StudentHistoryPage = lazy(() => import("@/components/modules/student/student-history-page").then(m => ({ default: m.StudentHistoryPage })));
+const StudentAnnouncementsPage = lazy(() => import("@/components/modules/student/student-announcements-page").then(m => ({ default: m.StudentAnnouncementsPage })));
+const StudentSchedulePage = lazy(() => import("@/components/modules/student/student-schedule-page").then(m => ({ default: m.StudentSchedulePage })));
+const StudentFeesPage = lazy(() => import("@/components/modules/student/student-fees-page").then(m => ({ default: m.StudentFeesPage })));
+const StudentProfilePage = lazy(() => import("@/components/modules/student/student-profile-page").then(m => ({ default: m.StudentProfilePage })));
 
-// Shared components
+// Shared components (always loaded — used on every page)
 import { ScopeSelector } from "@/components/shared/scope-selector";
 import { BottomNav } from "@/components/shared/bottom-nav";
 import { KeyboardShortcutsDialog } from "@/components/shared/keyboard-shortcuts-dialog";
@@ -76,6 +76,18 @@ import {
   DollarSign, FileText, Megaphone,
   BarChart3, ClipboardList, Clock,
 } from "lucide-react";
+
+// ── Page loading fallback ─────────────────────────────────────────────
+function PageLoader() {
+  return (
+    <div className="flex items-center justify-center py-20">
+      <div className="flex flex-col items-center gap-3">
+        <div className="size-8 border-2 border-[#4B0A8F] border-t-transparent rounded-full animate-spin" />
+        <p className="text-sm text-muted-foreground">Loading…</p>
+      </div>
+    </div>
+  );
+}
 
 const pageTitles: Record<PageId, string> = {
   login: "Sign In",
@@ -142,6 +154,14 @@ function ComingSoonPage({ pageId }: { pageId: PageId }) {
 }
 
 function PageContent({ pageId }: { pageId: PageId }) {
+  return (
+    <Suspense fallback={<PageLoader />}>
+      <PageContentInner pageId={pageId} />
+    </Suspense>
+  );
+}
+
+function PageContentInner({ pageId }: { pageId: PageId }) {
   switch (pageId) {
     // Built pages
     case "city-head-dashboard":
@@ -253,7 +273,7 @@ export function AppShell() {
   } | undefined;
 
   const pageTitle = pageTitles[currentPage] || "Dashboard";
-  const showPageHeader = !["admin-dashboard", "city-head-dashboard", "murabbi-dashboard", "park-dashboard", "park-attendance-roster", "park-roster", "park-participants", "park-guardians", "park-schedule", "guardian-dashboard", "guardian-history", "guardian-announcements", "guardian-schedule", "guardian-fees", "student-dashboard", "student-history", "student-announcements", "student-schedule", "student-fees", "student-profile", "admin-cities", "admin-parks", "admin-batches", "admin-groups", "admin-users", "admin-access", "admin-audit-log", "admin-settings", "admin-attendance-events", "admin-people", "admin-announcements", "admin-reports", "admin-students", "admin-guardians", "admin-fees"].includes(currentPage);
+  const showPageHeader = !["admin-dashboard", "city-head-dashboard", "murabbi-dashboard", "park-dashboard", "park-attendance-roster", "park-roster", "park-participants", "park-guardians", "park-schedule", "guardian-dashboard", "guardian-history", "guardian-announcements", "guardian-schedule", "guardian-fees", "student-dashboard", "student-history", "student-announcements", "student-schedule", "student-fees", "student-profile", "admin-cities", "admin-parks", "admin-batches", "admin-groups", "admin-users", "admin-access", "admin-audit-log", "admin-settings", "admin-attendance-events", "admin-people", "admin-announcements", "admin-reports", "admin-students", "admin-guardians", "admin-fees", "admin-admissions"].includes(currentPage);
 
   // Show scope selector on admin pages (not dashboard, settings, or audit-log)
   const showScopeSelector = currentPage.startsWith("admin-") && !(["admin-dashboard", "admin-settings", "admin-audit-log", "admin-people", "admin-announcements", "admin-access", "admin-students", "admin-guardians", "admin-fees", "admin-admissions"] as const).includes(currentPage as any);

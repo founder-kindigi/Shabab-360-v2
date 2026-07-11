@@ -246,4 +246,17 @@
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
+
+  /* Attendance report print: show all responsive-hidden table columns */
+  .print-area td.hidden,
+  .print-area th.hidden {
+    display: table-cell !important;
+  }
+
+  /* Remove max-height scroll in print */
+  .print-area .overflow-y-auto,
+  .print-area .overflow-x-auto {
+    max-height: none !important;
+    overflow: visible !important;
+  }
 }

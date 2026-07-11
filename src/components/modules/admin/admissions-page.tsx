@@ -227,6 +227,16 @@ const PIPELINE_STATUSES = [
   "enrolled",
 ] as const;
 
+// Display pipeline for visual flow (excludes rejected/enrolled)
+const VISUAL_PIPELINE = [
+  "submitted",
+  "screening",
+  "interview_scheduled",
+  "interviewed",
+  "accepted",
+  "rejected",
+] as const;
+
 const STATUS_FLOW: Record<string, string[]> = {
   submitted: ["screening", "rejected"],
   screening: ["interview_scheduled", "rejected", "submitted"],
@@ -351,7 +361,12 @@ export function AdmissionsPage() {
     cityId: "",
     preferredParkId: "",
     notes: "",
+    emergencyContact: "",
+    emergencyPhone: "",
+    previousEducation: "",
+    reference: "",
   });
+  const [createErrors, setCreateErrors] = useState<Record<string, string>>({});
 
   // Interview schedule form
   const [interviewDate, setInterviewDate] = useState<Date | undefined>(undefined);
@@ -485,7 +500,8 @@ export function AdmissionsPage() {
       }
       toast.success("Application created", { description: `Tracking code: ${data.trackingCode}` });
       setCreateOpen(false);
-      setCreateForm({ applicantName: "", applicantDOB: "", gender: "", guardianName: "", guardianPhone: "", guardianRelation: "", cityId: "", preferredParkId: "", notes: "" });
+      setCreateForm({ applicantName: "", applicantDOB: "", gender: "", guardianName: "", guardianPhone: "", guardianRelation: "", cityId: "", preferredParkId: "", notes: "", emergencyContact: "", emergencyPhone: "", previousEducation: "", reference: "" });
+      setCreateErrors({});
       queryClient.invalidateQueries({ queryKey: ["admissions"] });
       queryClient.invalidateQueries({ queryKey: ["admissions-count"] });
     },
@@ -668,6 +684,16 @@ export function AdmissionsPage() {
   }, [selectedApp, detail, rejectReason, updateMutation]);
 
   const handleCreate = useCallback(() => {
+    const errors: Record<string, string> = {};
+    if (!createForm.applicantName.trim()) errors.applicantName = "Applicant name is required";
+    if (!createForm.guardianName.trim()) errors.guardianName = "Guardian name is required";
+    if (!createForm.guardianPhone.trim()) errors.guardianPhone = "Guardian phone is required";
+    else if (createForm.guardianPhone.trim().length < 5) errors.guardianPhone = "Phone must be at least 5 characters";
+    if (Object.keys(errors).length > 0) {
+      setCreateErrors(errors);
+      return;
+    }
+    setCreateErrors({});
     createMutation.mutate(createForm);
   }, [createForm, createMutation]);
 
@@ -791,6 +817,31 @@ export function AdmissionsPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Pipeline Status Pills */}
+      {!isLoading && viewMode === "kanban" && !statusFilter && !debouncedSearch && !cityFilter ? (
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          {VISUAL_PIPELINE.map((status) => {
+            const cfg = STATUS_CONFIG[status];
+            const count = (kanbanGroups[status] || []).length;
+            return (
+              <div
+                key={status}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-medium whitespace-nowrap ${cfg.bg} ${cfg.border} ${cfg.color} ${cfg.darkBg} ${cfg.darkText}`}
+              >
+                <span className={`size-2 rounded-full ${cfg.dot}`} />
+                {cfg.label}
+                <span className="font-bold">{count}</span>
+              </div>
+            );
+          })}
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-medium whitespace-nowrap bg-slate-100 border-slate-200 text-slate-700 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300">
+            <span className="size-2 rounded-full bg-emerald-500" />
+            Enrolled
+            <span className="font-bold">{(kanbanGroups["enrolled"] || []).length}</span>
+          </div>
+        </div>
+      ) : null}
 
       {/* Content */}
       {isLoading ? (
@@ -922,6 +973,7 @@ export function AdmissionsPage() {
                 </Select>
               </div>
             </div>
+            <Separator />
             <div className="space-y-2">
               <Label className="text-xs font-medium">Notes</Label>
               <Textarea
@@ -931,9 +983,65 @@ export function AdmissionsPage() {
                 onChange={(e) => setCreateForm((f) => ({ ...f, notes: e.target.value }))}
               />
             </div>
+            <Separator />
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Additional Information</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-xs font-medium">Emergency Contact Name</Label>
+                <Input
+                  placeholder="Emergency contact name"
+                  value={createForm.emergencyContact}
+                  onChange={(e) => setCreateForm((f) => ({ ...f, emergencyContact: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs font-medium">Emergency Contact Phone</Label>
+                <Input
+                  placeholder="Emergency contact phone"
+                  value={createForm.emergencyPhone}
+                  onChange={(e) => setCreateForm((f) => ({ ...f, emergencyPhone: e.target.value }))}
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs font-medium">Previous Education</Label>
+              <Input
+                placeholder="Last school / institution attended"
+                value={createForm.previousEducation}
+                onChange={(e) => setCreateForm((f) => ({ ...f, previousEducation: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs font-medium">Reference</Label>
+              <Input
+                placeholder="Referral name or source"
+                value={createForm.reference}
+                onChange={(e) => setCreateForm((f) => ({ ...f, reference: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full border-dashed text-muted-foreground hover:text-foreground"
+                onClick={() => toast.info("Document upload coming soon")}
+              >
+                <FolderInput className="size-4 mr-2" />
+                Upload Documents
+              </Button>
+              <p className="text-[10px] text-muted-foreground">Supports PDF, JPG, PNG (max 5MB each)</p>
+            </div>
+            {Object.keys(createErrors).length > 0 && (
+              <div className="rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900 p-3">
+                <p className="text-xs font-medium text-red-700 dark:text-red-400 mb-1">Please fix the following errors:</p>
+                {Object.entries(createErrors).map(([field, msg]) => (
+                  <p key={field} className="text-xs text-red-600 dark:text-red-400">• {msg}</p>
+                ))}
+              </div>
+            )}
           </div>
           <DialogFooter className="pt-2">
-            <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => { setCreateOpen(false); setCreateErrors({}); }}>Cancel</Button>
             <Button
               onClick={handleCreate}
               disabled={createMutation.isPending || !createForm.applicantName || !createForm.guardianName || !createForm.guardianPhone}
@@ -999,6 +1107,13 @@ export function AdmissionsPage() {
 
               <ScrollArea className="h-[calc(100vh-220px)]">
                 <div className="p-6 space-y-6">
+
+                  {/* Status Timeline */}
+                  <StatusTimeline
+                    currentStatus={detail.status}
+                    createdAt={detail.createdAt}
+                    updatedAt={detail.updatedAt}
+                  />
 
                   {/* Applicant Info */}
                   <div className="space-y-3">
@@ -1518,6 +1633,38 @@ export function AdmissionsPage() {
   );
 }
 
+// ─── Mini Pipeline Progress ────────────────────────────────────────────────
+
+const PROGRESS_STEPS = ["submitted", "screening", "interview_scheduled", "interviewed", "accepted", "enrolled"];
+
+function PipelineProgress({ currentStatus }: { currentStatus: string }) {
+  const currentIndex = PROGRESS_STEPS.indexOf(currentStatus);
+  const isRejected = currentStatus === "rejected";
+
+  return (
+    <div className="flex items-center gap-0.5">
+      {PROGRESS_STEPS.map((step, idx) => {
+        const isActive = idx <= currentIndex && !isRejected;
+        const isCurrent = step === currentStatus;
+        const stepCfg = STATUS_CONFIG[step];
+        return (
+          <div key={step} className="flex-1 flex items-center">
+            <div
+              className={`h-1.5 w-full rounded-full transition-colors ${
+                isRejected
+                  ? "bg-red-300 dark:bg-red-800"
+                  : isActive
+                    ? `${stepCfg.dot}`
+                    : "bg-border/50"
+              } ${isCurrent && !isRejected ? "ring-1 ring-offset-1 ring-offset-background rounded-full " + stepCfg.dot.replace("bg-", "ring-") : ""}`}
+            />
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // ─── Kanban / Pipeline View ──────────────────────────────────────────────────
 
 function KanbanView({
@@ -1542,15 +1689,17 @@ function KanbanView({
             transition={{ duration: 0.3 }}
             className="min-w-[240px] w-[240px] shrink-0 space-y-3"
           >
-            {/* Column header */}
-            <div className="flex items-center justify-between sticky top-0 bg-background z-10 pb-1">
-              <div className="flex items-center gap-2">
-                <span className={`size-2.5 rounded-full ${cfg.dot}`} />
-                <h3 className="text-xs font-semibold">{cfg.label}</h3>
+            {/* Column header with color-coded styling */}
+            <div className="sticky top-0 bg-background z-10 pb-1">
+              <div className={`flex items-center justify-between px-3 py-2 rounded-lg border-l-4 ${cfg.border} ${cfg.bg} ${cfg.darkBg}`}>
+                <div className="flex items-center gap-2">
+                  <span className={`size-2.5 rounded-full ${cfg.dot}`} />
+                  <h3 className={`text-xs font-semibold ${cfg.color} ${cfg.darkText}`}>{cfg.label}</h3>
+                </div>
+                <span className={`text-xs font-bold rounded-full px-2 py-0.5 ${cfg.color} ${cfg.darkText}`}>
+                  {apps.length}
+                </span>
               </div>
-              <Badge variant="secondary" className="text-[10px] h-5 min-w-[20px] flex items-center justify-center rounded-full">
-                {apps.length}
-              </Badge>
             </div>
 
             {/* Cards */}
@@ -1617,15 +1766,29 @@ function KanbanView({
                           <span className="truncate">{app.city?.name || "No city"}{app.preferredPark ? ` · ${app.preferredPark.name}` : ""}</span>
                         </div>
 
+                        {/* Mini Pipeline Progress Indicator */}
+                        <PipelineProgress currentStatus={app.status} />
+
                         {/* Footer */}
                         <div className="flex items-center justify-between pt-1">
                           <span className="text-[9px] text-muted-foreground">{formatPKT(new Date(app.createdAt), "dd MMM")}</span>
-                          {app.interviews.length > 0 && app.interviews[0].totalScore !== null && app.interviews[0].totalScore !== undefined && (
-                            <Badge variant="outline" className="text-[9px] h-4 bg-[#4B0A8F]/10 text-[#4B0A8F] border-[#4B0A8F]/20 dark:text-[#8A40B0] px-1.5">
-                              <Star className="size-2 mr-0.5" />
-                              {app.interviews[0].totalScore}
-                            </Badge>
-                          )}
+                          <div className="flex items-center gap-1">
+                            {app.interviews.length > 0 && app.interviews[0].totalScore !== null && app.interviews[0].totalScore !== undefined && (
+                              <Badge variant="outline" className="text-[9px] h-4 bg-[#4B0A8F]/10 text-[#4B0A8F] border-[#4B0A8F]/20 dark:text-[#8A40B0] px-1.5">
+                                <Star className="size-2 mr-0.5" />
+                                {app.interviews[0].totalScore}
+                              </Badge>
+                            )}
+                            {NEXT_STATUS_MAP[app.status] && app.status !== "rejected" && app.status !== "enrolled" && (
+                              <Button
+                                size="icon"
+                                className="size-5 h-5 bg-[#4B0A8F] hover:bg-[#4B0A8F]/80 text-white rounded-full"
+                                onClick={(e) => { e.stopPropagation(); onMoveStatus(app, NEXT_STATUS_MAP[app.status]); }}
+                              >
+                                <ArrowRight className="size-2.5" />
+                              </Button>
+                            )}
+                          </div>
                         </div>
                       </CardContent>
                     </Card>

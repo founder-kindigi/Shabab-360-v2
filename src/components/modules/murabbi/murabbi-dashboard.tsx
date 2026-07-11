@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Sparkline } from "@/components/shared/sparkline";
 import {
   Users,
   TrendingUp,
@@ -22,6 +23,9 @@ import {
   CalendarCheck,
   MapPin,
   TreePine,
+  CalendarClock,
+  ClipboardList,
+  Eye,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -50,6 +54,13 @@ type Absentee = {
   count: number;
 };
 
+type UpcomingEvent = {
+  id: string;
+  title: string;
+  eventDate: string;
+  eventDateRaw: string;
+};
+
 type DashboardData = {
   groupName: string;
   batchName: string;
@@ -60,9 +71,18 @@ type DashboardData = {
   todayEvent: TodayEvent | null;
   todayRate: number;
   dailyTrend: DailyTrend[];
+  sparklineData: number[];
   thisWeekRate: number;
   lastWeekRate: number;
   topAbsentees: Absentee[];
+  upcomingEvents: UpcomingEvent[];
+  attendanceSummary: {
+    present: number;
+    absent: number;
+    late: number;
+    excused: number;
+    total: number;
+  };
 };
 
 // ─── Animation Config ────────────────────────────────────────────────
@@ -128,6 +148,7 @@ export function MurabbiDashboard() {
         </div>
         <Skeleton className="h-40 rounded-xl" />
         <Skeleton className="h-48 rounded-xl" />
+        <Skeleton className="h-32 rounded-xl" />
       </div>
     );
   }
@@ -153,10 +174,16 @@ export function MurabbiDashboard() {
   const hasOpenEvent =
     data.todayEvent && !data.todayEvent.isClosed && data.todayEvent.progress < 100;
 
+  // Average attendance rate from sparkline (non-zero values)
+  const validRates = data.sparklineData.filter((r) => r > 0);
+  const avgRate = validRates.length > 0
+    ? Math.round(validRates.reduce((s, r) => s + r, 0) / validRates.length)
+    : 0;
+
   const handleMarkAttendance = () => {
     if (data.todayEvent) {
       setSelectedEventId(data.todayEvent.id);
-      navigateTo("park-attendance-roster");
+      navigateTo("park-attendance");
     }
   };
 
@@ -170,7 +197,6 @@ export function MurabbiDashboard() {
       {/* ─── 1. Gradient Greeting Banner ─────────────────────────── */}
       <motion.div variants={fadeUp}>
         <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-[#2A0C8F] via-[#A0006B] to-[#FF0015] px-5 py-5 text-white shadow-lg">
-          {/* Decorative shapes */}
           <div className="absolute -top-8 -right-8 size-32 rounded-full bg-white/10" />
           <div className="absolute -bottom-6 -right-6 size-20 rounded-full bg-white/5" />
           <div className="absolute top-1/2 -right-12 size-24 rounded-full bg-white/5" />
@@ -203,7 +229,70 @@ export function MurabbiDashboard() {
         </div>
       </motion.div>
 
-      {/* ─── 2. Quick Action Card ────────────────────────────────── */}
+      {/* ─── 2. My Group Overview Cards ──────────────────────────── */}
+      <motion.div variants={fadeUp} className="grid grid-cols-3 gap-3 sm:gap-4">
+        <Card className="overflow-hidden">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-center size-9 rounded-lg bg-sky-100 dark:bg-sky-950/60">
+              <Users className="size-4.5 text-sky-600 dark:text-sky-400" />
+            </div>
+            <p className="text-2xl font-bold mt-3">{data.totalParticipants}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Shabab</p>
+          </CardContent>
+        </Card>
+
+        <Card className="overflow-hidden">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center justify-center size-9 rounded-lg bg-[#F3ECF6] dark:bg-[#1F086099]">
+                <TrendingUp className="size-4.5 text-[#4B0A8F] dark:text-[#8A40B0]" />
+              </div>
+              {data.sparklineData.filter((r) => r > 0).length >= 2 && (
+                <Sparkline
+                  data={data.sparklineData}
+                  width={60}
+                  height={24}
+                  color="#4B0A8F"
+                />
+              )}
+            </div>
+            <p className={cn("text-2xl font-bold mt-3", rateColor(avgRate))}>
+              {avgRate > 0 ? `${avgRate}%` : "—"}
+            </p>
+            <p className="text-xs text-muted-foreground mt-0.5">Avg Attendance</p>
+          </CardContent>
+        </Card>
+
+        <Card className="overflow-hidden">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-center size-9 rounded-lg bg-violet-100 dark:bg-violet-950/60">
+              <TrendingUp className="size-4 text-violet-600 dark:text-violet-400" />
+            </div>
+            {weekDiff !== 0 && (
+              <div
+                className={cn(
+                  "absolute top-2 right-2 flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full",
+                  weekDiff > 0
+                    ? "bg-[#F3ECF6] text-[#4B0A8F] dark:bg-[#1F086080] dark:text-[#8A40B0]"
+                    : "bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-400"
+                )}
+              >
+                {weekDiff > 0 ? (
+                  <TrendingUp className="size-3" />
+                ) : (
+                  <TrendingDown className="size-3" />
+                )}
+                {weekDiff > 0 ? "+" : ""}
+                {weekDiff}%
+              </div>
+            )}
+            <p className="text-2xl font-bold mt-3">{data.thisWeekRate}%</p>
+            <p className="text-xs text-muted-foreground mt-0.5">This Week</p>
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      {/* ─── 3. Today's Session Quick Action ─────────────────────── */}
       <motion.div variants={fadeUp}>
         <Card
           className={cn(
@@ -239,7 +328,7 @@ export function MurabbiDashboard() {
               {data.todayEvent && !data.todayEvent.isClosed ? (
                 <Button
                   onClick={handleMarkAttendance}
-                  className="shrink-0 bg-gradient-to-r from-[#2A0C8F] via-[#A0006B] to-[#FF0015] hover:from-[#2A0C8F] hover:to-[#FF0015] text-white font-semibold h-11 px-5 text-sm shadow-md"
+                  className="shrink-0 bg-gradient-to-r from-[#2A0C8F] via-[#A0006B] to-[#FF0015] hover:from-[#2A0C8F] hover:to-[#FF0015] text-white font-semibold h-11 px-5 text-sm shadow-md relative"
                 >
                   {hasOpenEvent && (
                     <motion.span
@@ -273,125 +362,51 @@ export function MurabbiDashboard() {
         </Card>
       </motion.div>
 
-      {/* ─── 3. Four Metric Cards ────────────────────────────────── */}
-      <motion.div
-        variants={fadeUp}
-        className="grid grid-cols-2 gap-3 sm:gap-4"
-      >
-        {/* Total Shabab */}
-        <Card className="overflow-hidden">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center justify-center size-9 rounded-lg bg-sky-100 dark:bg-sky-950/60">
-                <Users className="size-4.5 text-sky-600 dark:text-sky-400" />
-              </div>
-            </div>
-            <p className="text-2xl font-bold mt-3">{data.totalParticipants}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">Total Shabab</p>
-          </CardContent>
-        </Card>
-
-        {/* Today's Rate */}
-        <Card className="overflow-hidden">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center justify-center size-9 rounded-lg bg-[#F3ECF6] dark:bg-[#1F086099]">
-                <TrendingUp className="size-4.5 text-[#4B0A8F] dark:text-[#8A40B0]" />
-              </div>
-            </div>
-            <p className={cn("text-2xl font-bold mt-3", rateColor(data.todayRate))}>
-              {data.todayEvent ? `${data.todayRate}%` : "—"}
-            </p>
-            <p className="text-xs text-muted-foreground mt-0.5">Today&apos;s Rate</p>
-          </CardContent>
-        </Card>
-
-        {/* This Week Rate */}
-        <Card className="overflow-hidden">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center justify-center size-9 rounded-lg bg-violet-100 dark:bg-violet-950/60">
-                <TrendingUp className="size-4 text-violet-600 dark:text-violet-400" />
-              </div>
-              {weekDiff !== 0 && (
-                <div
-                  className={cn(
-                    "flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full",
-                    weekDiff > 0
-                      ? "bg-[#F3ECF6] text-[#4B0A8F] dark:bg-[#1F086080] dark:text-[#8A40B0]"
-                      : "bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-400"
-                  )}
-                >
-                  {weekDiff > 0 ? (
-                    <TrendingUp className="size-3" />
-                  ) : (
-                    <TrendingDown className="size-3" />
-                  )}
-                  {weekDiff > 0 ? "+" : ""}
-                  {weekDiff}%
-                </div>
-              )}
-            </div>
-            <p className="text-2xl font-bold mt-3">{data.thisWeekRate}%</p>
-            <p className="text-xs text-muted-foreground mt-0.5">This Week</p>
-          </CardContent>
-        </Card>
-
-        {/* Last Week Rate */}
-        <Card className="overflow-hidden">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center justify-center size-9 rounded-lg bg-amber-100 dark:bg-amber-950/60">
-                <Clock className="size-4 text-amber-600 dark:text-amber-400" />
-              </div>
-              {weekDiff !== 0 && (
-                <div
-                  className={cn(
-                    "flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full",
-                    weekDiff > 0
-                      ? "bg-[#F3ECF6] text-[#4B0A8F] dark:bg-[#1F086080] dark:text-[#8A40B0]"
-                      : "bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-400"
-                  )}
-                >
-                  {weekDiff > 0 ? (
-                    <TrendingUp className="size-3" />
-                  ) : weekDiff < 0 ? (
-                    <TrendingDown className="size-3" />
-                  ) : (
-                    <Minus className="size-3" />
-                  )}
-                  {weekDiff > 0 ? "+" : ""}
-                  {weekDiff}%
-                </div>
-              )}
-            </div>
-            <p className="text-2xl font-bold mt-3">{data.lastWeekRate}%</p>
-            <p className="text-xs text-muted-foreground mt-0.5">Last Week</p>
-          </CardContent>
-        </Card>
-      </motion.div>
-
-      {/* ─── 4. Today's Session Card ─────────────────────────────── */}
+      {/* ─── 4. Attendance Summary (Today's P/A/L/E) ────────────── */}
       {data.todayEvent && (
         <motion.div variants={fadeUp}>
           <Card className="overflow-hidden border-border">
             <CardContent className="p-4 space-y-3">
               <div className="flex items-center justify-between">
-                <h3 className="text-sm font-semibold">Today&apos;s Session</h3>
-                {data.todayEvent.progress < 100 && !data.todayEvent.isClosed && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-xs text-[#4B0A8F] hover:text-[#4B0A8F] dark:text-[#8A40B0] h-8"
-                    onClick={handleMarkAttendance}
-                  >
-                    Mark Attendance
-                    <ChevronRight className="size-3.5 ml-1" />
-                  </Button>
-                )}
+                <h3 className="text-sm font-semibold">Today&apos;s Attendance</h3>
+                <Badge
+                  className={cn(
+                    "text-[10px] font-semibold px-2 py-0.5",
+                    rateColor(data.todayRate)
+                  )}
+                >
+                  {data.todayRate}% rate
+                </Badge>
               </div>
 
-              {/* Overall progress */}
+              <div className="grid grid-cols-4 gap-2">
+                <StatusPill
+                  icon={CheckCircle2}
+                  label="Present"
+                  count={data.attendanceSummary.present}
+                  colorClass="text-[#4B0A8F] dark:text-[#8A40B0] bg-[#F3ECF6] dark:bg-[#1F086066]"
+                />
+                <StatusPill
+                  icon={XCircle}
+                  label="Absent"
+                  count={data.attendanceSummary.absent}
+                  colorClass="text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/40"
+                />
+                <StatusPill
+                  icon={Clock}
+                  label="Late"
+                  count={data.attendanceSummary.late}
+                  colorClass="text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40"
+                />
+                <StatusPill
+                  icon={ShieldCheck}
+                  label="Excused"
+                  count={data.attendanceSummary.excused}
+                  colorClass="text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-950/40"
+                />
+              </div>
+
+              {/* Progress bar */}
               <div>
                 <div className="flex items-center justify-between text-xs mb-1.5">
                   <span className="text-muted-foreground">
@@ -411,44 +426,31 @@ export function MurabbiDashboard() {
                   />
                 </div>
               </div>
-
-              {/* P/A/L/E breakdown */}
-              <div className="grid grid-cols-4 gap-2">
-                <StatusPill
-                  icon={CheckCircle2}
-                  label="Present"
-                  count={data.todayEvent.counts.present}
-                  colorClass="text-[#4B0A8F] dark:text-[#8A40B0] bg-[#F3ECF6] dark:bg-[#1F086066]"
-                />
-                <StatusPill
-                  icon={XCircle}
-                  label="Absent"
-                  count={data.todayEvent.counts.absent}
-                  colorClass="text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/40"
-                />
-                <StatusPill
-                  icon={Clock}
-                  label="Late"
-                  count={data.todayEvent.counts.late}
-                  colorClass="text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40"
-                />
-                <StatusPill
-                  icon={ShieldCheck}
-                  label="Excused"
-                  count={data.todayEvent.counts.excused}
-                  colorClass="text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-950/40"
-                />
-              </div>
             </CardContent>
           </Card>
         </motion.div>
       )}
 
-      {/* ─── 5. Weekly Trend (7-day CSS bar chart) ───────────────── */}
+      {/* ─── 5. Weekly Trend with Sparkline ────────────────────────── */}
       <motion.div variants={fadeUp}>
         <Card className="overflow-hidden border-border">
           <CardContent className="p-4 space-y-4">
-            <h3 className="text-sm font-semibold">Weekly Trend</h3>
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold">7-Day Trend</h3>
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="text-[10px] font-normal">
+                  {data.lastWeekRate}% last week
+                </Badge>
+                {data.sparklineData.filter((r) => r > 0).length >= 2 && (
+                  <Sparkline
+                    data={data.sparklineData}
+                    width={80}
+                    height={28}
+                    color="#4B0A8F"
+                  />
+                )}
+              </div>
+            </div>
 
             <div className="flex items-end justify-between gap-1.5 sm:gap-3 h-32 sm:h-40">
               {data.dailyTrend.map((day, i) => (
@@ -456,7 +458,6 @@ export function MurabbiDashboard() {
                   key={day.date}
                   className="flex flex-col items-center gap-1.5 flex-1"
                 >
-                  {/* Rate label */}
                   <span
                     className={cn(
                       "text-[10px] sm:text-xs font-semibold tabular-nums",
@@ -466,7 +467,6 @@ export function MurabbiDashboard() {
                     {day.hasEvent ? `${day.rate}%` : "—"}
                   </span>
 
-                  {/* Bar */}
                   <div className="w-full flex-1 flex items-end">
                     <div className="w-full rounded-t-sm bg-muted/50 relative overflow-hidden" style={{ height: "100%" }}>
                       {day.hasEvent && (
@@ -483,7 +483,6 @@ export function MurabbiDashboard() {
                     </div>
                   </div>
 
-                  {/* Day label */}
                   <span
                     className={cn(
                       "text-[10px] sm:text-xs font-medium",
@@ -501,7 +500,93 @@ export function MurabbiDashboard() {
         </Card>
       </motion.div>
 
-      {/* ─── 6. Needs Attention ──────────────────────────────────── */}
+      {/* ─── 6. Upcoming Events ──────────────────────────────────── */}
+      <motion.div variants={fadeUp} className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-semibold">Upcoming Events</h3>
+          <Badge variant="outline" className="text-[10px] font-normal">
+            Next {data.upcomingEvents.length}
+          </Badge>
+        </div>
+
+        {data.upcomingEvents.length === 0 ? (
+          <Card>
+            <CardContent className="p-6 text-center">
+              <CalendarClock className="size-8 text-muted-foreground/40 mx-auto mb-2" />
+              <p className="text-sm text-muted-foreground">
+                No upcoming events scheduled
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="space-y-2">
+            {data.upcomingEvents.map((evt, i) => (
+              <motion.div
+                key={evt.id}
+                initial={{ opacity: 0, x: -8 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: i * 0.04, duration: 0.3 }}
+              >
+                <Card className="border-border overflow-hidden">
+                  <CardContent className="p-3 flex items-center gap-3">
+                    <div className="flex items-center justify-center size-10 rounded-lg bg-[#F3ECF6] dark:bg-[#1F086080] shrink-0">
+                      <CalendarCheck className="size-4 text-[#4B0A8F] dark:text-[#8A40B0]" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium truncate">{evt.title}</p>
+                      <p className="text-[10px] text-muted-foreground">{evt.eventDate}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            ))}
+          </div>
+        )}
+      </motion.div>
+
+      {/* ─── 7. Quick Actions ─────────────────────────────────────── */}
+      <motion.div variants={fadeUp} className="space-y-3">
+        <h3 className="text-sm font-semibold">Quick Actions</h3>
+        <div className="grid gap-2 sm:grid-cols-2">
+          <Card
+            className="cursor-pointer overflow-hidden border-border hover:border-[#D4B8E3] dark:hover:border-[#2A0C8F99] transition-colors"
+            onClick={handleMarkAttendance}
+          >
+            <CardContent className="p-4 flex items-center gap-3">
+              <div className="flex items-center justify-center size-9 rounded-lg bg-[#F3ECF6] dark:bg-[#1F086099] shrink-0">
+                <ClipboardList className="size-4.5 text-[#4B0A8F] dark:text-[#8A40B0]" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium">Mark Attendance</p>
+                <p className="text-[10px] text-muted-foreground">
+                  {hasOpenEvent ? "Session is open" : "No open session"}
+                </p>
+              </div>
+              <ChevronRight className="size-4 text-muted-foreground shrink-0" />
+            </CardContent>
+          </Card>
+
+          <Card
+            className="cursor-pointer overflow-hidden border-border hover:border-[#D4B8E3] dark:hover:border-[#2A0C8F99] transition-colors"
+            onClick={() => navigateTo("murabbi-groups")}
+          >
+            <CardContent className="p-4 flex items-center gap-3">
+              <div className="flex items-center justify-center size-9 rounded-lg bg-[#F3ECF6] dark:bg-[#1F086099] shrink-0">
+                <Eye className="size-4.5 text-[#4B0A8F] dark:text-[#8A40B0]" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium">View Groups</p>
+                <p className="text-[10px] text-muted-foreground">
+                  {data.totalParticipants} shabab in group
+                </p>
+              </div>
+              <ChevronRight className="size-4 text-muted-foreground shrink-0" />
+            </CardContent>
+          </Card>
+        </div>
+      </motion.div>
+
+      {/* ─── 8. Needs Attention ──────────────────────────────────── */}
       {data.topAbsentees.length > 0 && (
         <motion.div variants={fadeUp} className="space-y-3">
           <div className="flex items-center gap-2">

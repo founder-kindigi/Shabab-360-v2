@@ -145,6 +145,34 @@ export async function GET() {
         title: r.event.title,
       }));
 
+      // 7-day sparkline data (per-day rates for last 7 days)
+      const sparkline7Day: number[] = [];
+      for (let i = 6; i >= 0; i--) {
+        const dayDate = new Date(todayStart.getTime() - i * 24 * 60 * 60 * 1000);
+        const dayEnd = new Date(dayDate.getTime() + 24 * 60 * 60 * 1000 - 1);
+        const dayRecords = records30.filter((r) => {
+          const ed = new Date(r.event.eventDate);
+          return ed >= dayDate && ed <= dayEnd;
+        });
+        const dayEvents = [...new Set(dayRecords.map((r) => r.eventId))];
+        const dayPresent = dayRecords.filter((r) => r.status === "present" || r.status === "late").length;
+        sparkline7Day.push(dayEvents.length > 0 ? Math.round((dayPresent / dayEvents.length) * 100) : 0);
+      }
+
+      // Today's attendance status for this child
+      const todayRecords = records30.filter((r) => {
+        const ed = new Date(r.event.eventDate);
+        return ed >= todayStart && ed <= todayEnd;
+      });
+      // Prefer present > late > excused > absent if multiple events
+      const statusPriority = ["present", "late", "excused", "absent"];
+      let todayStatus: string | null = null;
+      for (const tr of todayRecords) {
+        if (!todayStatus || statusPriority.indexOf(tr.status) < statusPriority.indexOf(todayStatus)) {
+          todayStatus = tr.status;
+        }
+      }
+
       // Fee status for this child
       const nowPKTDate = nowPKT;
       const childFeeEvents = await db.feeEvent.findMany({
@@ -193,6 +221,8 @@ export async function GET() {
         parkName: p.group?.batch?.park?.name || null,
         cityName: p.group?.batch?.park?.city?.name || null,
         groupId,
+        todayStatus,
+        sparkline7Day,
         attendance: {
           totalEvents30,
           present30,
@@ -278,6 +308,26 @@ export async function GET() {
           children.reduce((sum, c) => sum + (c.fees?.outstanding || 0), 0)
         ),
       },
+      recentAnnouncements: await db.announcement.findMany({
+        where: {
+          targetRoles: { contains: "guardian" },
+        },
+        orderBy: { createdAt: "desc" },
+        take: 3,
+        select: {
+          id: true,
+          title: true,
+          content: true,
+          createdAt: true,
+        },
+      }).then((anns) =>
+        anns.map((a) => ({
+          id: a.id,
+          title: a.title,
+          content: a.content?.slice(0, 120) || "",
+          createdAt: a.createdAt.toISOString(),
+        }))
+      ),
     });
   } catch (error) {
     console.error("Guardian dashboard error:", error);

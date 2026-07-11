@@ -25,26 +25,24 @@ export async function GET() {
     },
   });
 
-  // Filter by targetRoles — parse the JSON string and check if user's role is included
+  // Filter by targetRoles
   const relevant = announcements.filter((a) => {
     try {
       const roles: string[] = JSON.parse(a.targetRoles);
-      // Empty array or null means "all roles"
       if (!roles || roles.length === 0) return true;
       return roles.includes(userRole);
     } catch {
-      // If JSON parse fails, treat as targeting all roles
       return true;
     }
   });
 
-  // Map to notification objects
   const notifications = relevant.map((a) => ({
     id: a.id,
     title: a.title,
     content:
       a.content.length > 120 ? a.content.slice(0, 120) + "…" : a.content,
-    priority: a.priority, // "urgent" | "normal" | "low"
+    type: "announcement" as const,
+    priority: a.priority,
     createdAt: a.createdAt.toISOString(),
     authorName: a.author?.name || "System",
   }));

@@ -39,6 +39,12 @@ import {
   BellOff,
   AlertTriangle,
   Trash2,
+  Download,
+  HardDrive,
+  Smartphone,
+  CalendarCheck,
+  Receipt,
+  Megaphone,
 } from "lucide-react";
 
 interface UserProfile {
@@ -47,6 +53,13 @@ interface UserProfile {
   email: string;
   phone: string | null;
   createdAt: string;
+}
+
+function getInitials(name: string | null | undefined): string {
+  if (!name) return "?";
+  const parts = name.trim().split(/\s+/);
+  if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  return parts[0].slice(0, 2).toUpperCase();
 }
 
 function ProfileTab() {
@@ -159,10 +172,29 @@ function ProfileTab() {
       transition={{ duration: 0.2 }}
       className="space-y-6 max-w-2xl"
     >
-      {/* Profile info card */}
+      {/* Profile header card */}
       <div className="rounded-xl border bg-card p-6 space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Profile Information</h2>
+        <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4">
+          {/* Avatar */}
+          <div className="flex items-center justify-center size-16 rounded-full bg-[#4B0A8F] text-white text-xl font-bold shrink-0 shadow-lg">
+            {getInitials(profile?.name || sessionUser?.name)}
+          </div>
+          <div className="text-center sm:text-left flex-1">
+            <div className="flex flex-col sm:flex-row items-center sm:items-center gap-2">
+              <h2 className="text-lg font-semibold">
+                {profile?.name || sessionUser?.name || "—"}
+              </h2>
+              <Badge
+                variant="outline"
+                className="capitalize text-[#4B0A8F] border-[#D4B8E3] bg-[#F3ECF6] dark:text-[#8A40B0] dark:border-[#2A0C8F] dark:bg-[#1F0860]"
+              >
+                {sessionUser?.role?.replace(/_/g, " ") || "—"}
+              </Badge>
+            </div>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              {profile?.email || sessionUser?.email || "—"}
+            </p>
+          </div>
           {!isEditing ? (
             <Button variant="outline" size="sm" onClick={startEditing}>
               Edit
@@ -251,21 +283,6 @@ function ProfileTab() {
                   {profile?.phone || "—"}
                 </span>
               )}
-            </div>
-
-            {/* Role (read-only) */}
-            <div className="grid grid-cols-3 gap-4 items-center">
-              <Label className="text-sm text-muted-foreground flex items-center gap-2">
-                <Shield className="size-4" /> Role
-              </Label>
-              <div className="col-span-2">
-                <Badge
-                  variant="outline"
-                  className="capitalize text-[#4B0A8F] border-[#D4B8E3] bg-[#F3ECF6] dark:text-[#8A40B0] dark:border-[#2A0C8F] dark:bg-[#1F0860]"
-                >
-                  {sessionUser?.role?.replace(/_/g, " ") || "—"}
-                </Badge>
-              </div>
             </div>
           </div>
         )}
@@ -528,14 +545,13 @@ function PreferencesTab() {
 
       {/* Notification Preferences */}
       <NotificationPreferencesSection />
-
-      {/* Danger Zone */}
-      <DangerZoneSection />
     </motion.div>
   );
 }
 
 function NotificationPreferencesSection() {
+  type PrefKey = "email" | "inApp" | "push" | "attendance" | "fees" | "announcements";
+
   function getStoredPrefs() {
     if (typeof window === "undefined") return {};
     const stored = localStorage.getItem("shabab360-notif-prefs");
@@ -551,28 +567,39 @@ function NotificationPreferencesSection() {
 
   const [emailNotifs, setEmailNotifs] = useState(() => getStoredPrefs().email ?? true);
   const [inAppNotifs, setInAppNotifs] = useState(() => getStoredPrefs().inApp ?? true);
+  const [pushNotifs, setPushNotifs] = useState(() => getStoredPrefs().push ?? false);
+  const [attendanceAlerts, setAttendanceAlerts] = useState(() => getStoredPrefs().attendance ?? true);
+  const [feeReminders, setFeeReminders] = useState(() => getStoredPrefs().fees ?? true);
+  const [announcementAlerts, setAnnouncementAlerts] = useState(() => getStoredPrefs().announcements ?? true);
 
-  function updatePref(key: "email" | "inApp", value: boolean) {
+  function updatePref(key: PrefKey, value: boolean) {
     const prefs = getStoredPrefs();
     prefs[key] = value;
     localStorage.setItem("shabab360-notif-prefs", JSON.stringify(prefs));
 
     if (key === "email") setEmailNotifs(value);
-    else setInAppNotifs(value);
+    else if (key === "inApp") setInAppNotifs(value);
+    else if (key === "push") setPushNotifs(value);
+    else if (key === "attendance") setAttendanceAlerts(value);
+    else if (key === "fees") setFeeReminders(value);
+    else if (key === "announcements") setAnnouncementAlerts(value);
 
-    toast.success(
-      value ? "Notifications enabled" : "Notifications disabled"
-    );
+    toast.success("Saved");
   }
+
+  const toggleItems = [
+    { key: "email" as PrefKey, label: "Email Notifications", desc: "Receive updates and alerts via email", icon: Mail, checked: emailNotifs },
+    { key: "push" as PrefKey, label: "Push Notifications", desc: "Get browser push notifications for important updates", icon: Smartphone, checked: pushNotifs },
+    { key: "attendance" as PrefKey, label: "Attendance Alerts", desc: "Notifications about attendance events and absences", icon: CalendarCheck, checked: attendanceAlerts },
+    { key: "fees" as PrefKey, label: "Fee Reminders", desc: "Reminders for upcoming and overdue fee payments", icon: Receipt, checked: feeReminders },
+    { key: "announcements" as PrefKey, label: "Announcement Alerts", desc: "Get notified about new announcements and updates", icon: Megaphone, checked: announcementAlerts },
+    { key: "inApp" as PrefKey, label: "In-App Notifications", desc: "Show notifications within the application", icon: Bell, checked: inAppNotifs },
+  ];
 
   return (
     <div className="rounded-xl border bg-card p-6 space-y-4">
       <div className="flex items-center gap-2">
-        {inAppNotifs ? (
-          <Bell className="size-5 text-[#4B0A8F] dark:text-[#8A40B0]" />
-        ) : (
-          <BellOff className="size-5 text-muted-foreground" />
-        )}
+        <Bell className="size-5 text-[#4B0A8F] dark:text-[#8A40B0]" />
         <div>
           <h2 className="text-lg font-semibold">Notification Preferences</h2>
           <p className="text-xs text-muted-foreground">
@@ -583,47 +610,68 @@ function NotificationPreferencesSection() {
       <Separator />
 
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center size-9 rounded-lg bg-[#F3ECF6] dark:bg-[#1F086080]">
-              <Mail className="size-4 text-[#4B0A8F] dark:text-[#8A40B0]" />
+        {toggleItems.map((item) => (
+          <div key={item.key} className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center justify-center size-9 rounded-lg bg-[#F3ECF6] dark:bg-[#1F086080]">
+                <item.icon className="size-4 text-[#4B0A8F] dark:text-[#8A40B0]" />
+              </div>
+              <div>
+                <p className="text-sm font-medium">{item.label}</p>
+                <p className="text-xs text-muted-foreground">
+                  {item.desc}
+                </p>
+              </div>
             </div>
-            <div>
-              <p className="text-sm font-medium">Email Notifications</p>
-              <p className="text-xs text-muted-foreground">
-                Receive updates and alerts via email
-              </p>
-            </div>
+            <Switch
+              checked={item.checked}
+              onCheckedChange={(v) => updatePref(item.key, v)}
+            />
           </div>
-          <Switch
-            checked={emailNotifs}
-            onCheckedChange={(v) => updatePref("email", v)}
-          />
-        </div>
-
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center size-9 rounded-lg bg-[#F3ECF6] dark:bg-[#1F086080]">
-              <Bell className="size-4 text-[#4B0A8F] dark:text-[#8A40B0]" />
-            </div>
-            <div>
-              <p className="text-sm font-medium">In-App Notifications</p>
-              <p className="text-xs text-muted-foreground">
-                Show notifications within the application
-              </p>
-            </div>
-          </div>
-          <Switch
-            checked={inAppNotifs}
-            onCheckedChange={(v) => updatePref("inApp", v)}
-          />
-        </div>
+        ))}
       </div>
     </div>
   );
 }
 
 function DangerZoneSection() {
+  function handleExportData() {
+    try {
+      const data: Record<string, unknown> = {};
+      // Gather all localStorage data related to the app
+      const keys = Object.keys(localStorage).filter((k) => k.startsWith("shabab360-"));
+      for (const key of keys) {
+        try {
+          data[key] = JSON.parse(localStorage.getItem(key) || "");
+        } catch {
+          data[key] = localStorage.getItem(key);
+        }
+      }
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "shabab360-my-data.json";
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("Data exported successfully");
+    } catch {
+      toast.error("Failed to export data");
+    }
+  }
+
+  function handleClearLocalData() {
+    try {
+      const keys = Object.keys(localStorage).filter((k) => k.startsWith("shabab360-"));
+      for (const key of keys) {
+        localStorage.removeItem(key);
+      }
+      toast.success("Local data cleared successfully");
+    } catch {
+      toast.error("Failed to clear local data");
+    }
+  }
+
   return (
     <div className="rounded-xl border-2 border-red-200 dark:border-red-800/50 bg-card p-6 space-y-4">
       <div className="flex items-center gap-2">
@@ -639,22 +687,63 @@ function DangerZoneSection() {
       </div>
       <Separator />
 
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm font-medium">Request Account Deletion</p>
-          <p className="text-xs text-muted-foreground">
-            Permanently delete your account and all associated data
-          </p>
+      <div className="space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <p className="text-sm font-medium">Request Account Deletion</p>
+            <p className="text-xs text-muted-foreground">
+              Permanently delete your account and all associated data
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="border-red-200 text-red-700 hover:bg-red-50 hover:text-red-700 dark:border-red-800/50 dark:text-red-400 dark:hover:bg-red-950/50 dark:hover:text-red-400 shrink-0"
+            onClick={() => toast.info("Please contact your administrator to request account deletion.")}
+          >
+            <Trash2 className="size-4 mr-1.5" />
+            Delete Account
+          </Button>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          className="border-red-200 text-red-700 hover:bg-red-50 hover:text-red-700 dark:border-red-800/50 dark:text-red-400 dark:hover:bg-red-950/50 dark:hover:text-red-400"
-          onClick={() => toast.info("Please contact your administrator to request account deletion.")}
-        >
-          <Trash2 className="size-4 mr-1.5" />
-          Delete Account
-        </Button>
+
+        <Separator />
+
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <p className="text-sm font-medium">Export My Data</p>
+            <p className="text-xs text-muted-foreground">
+              Download a copy of your profile and preferences as JSON
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportData}
+          >
+            <Download className="size-4 mr-1.5" />
+            Export Data
+          </Button>
+        </div>
+
+        <Separator />
+
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <p className="text-sm font-medium">Clear Local Data</p>
+            <p className="text-xs text-muted-foreground">
+              Remove all locally cached preferences and data
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="border-red-200 text-red-700 hover:bg-red-50 hover:text-red-700 dark:border-red-800/50 dark:text-red-400 dark:hover:bg-red-950/50 dark:hover:text-red-400"
+            onClick={handleClearLocalData}
+          >
+            <HardDrive className="size-4 mr-1.5" />
+            Clear Data
+          </Button>
+        </div>
       </div>
     </div>
   );
@@ -696,6 +785,11 @@ export function SettingsPage() {
           <PreferencesTab />
         </TabsContent>
       </Tabs>
+
+      {/* Danger Zone — always visible below all tabs */}
+      <div className="max-w-2xl">
+        <DangerZoneSection />
+      </div>
     </div>
   );
 }

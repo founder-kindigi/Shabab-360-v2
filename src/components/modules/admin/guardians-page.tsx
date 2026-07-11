@@ -179,6 +179,17 @@ export function GuardiansPage() {
   const [linkChildOpen, setLinkChildOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
+  const [inviteOpen, setInviteOpen] = useState(false);
+
+  // Invite form
+  const [inviteName, setInviteName] = useState("");
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [invitePhone, setInvitePhone] = useState("");
+  const [inviteCnic, setInviteCnic] = useState("");
+  const [inviteAddress, setInviteAddress] = useState("");
+  const [inviteRelationship, setInviteRelationship] = useState("");
+  const [inviteCode, setInviteCode] = useState("");
+  const [inviteErrors, setInviteErrors] = useState<Record<string, string>>({});
   const [selectedGuardian, setSelectedGuardian] = useState<Guardian | null>(null);
   const [selectedDetailId, setSelectedDetailId] = useState<string | null>(null);
 
@@ -193,6 +204,61 @@ export function GuardiansPage() {
   const [formCnic, setFormCnic] = useState("");
   const [formAddress, setFormAddress] = useState("");
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+
+  // ─── Invite Mutation ─────────────────────────────────────────────────────
+
+  const inviteMutation = useMutation({
+    mutationFn: (body: Record<string, string>) =>
+      fetch("/api/admin/guardians/invite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      }).then((r) => {
+        if (!r.ok) return r.json().then((e) => Promise.reject(e));
+        return r.json();
+      }),
+    onSuccess: (data) => {
+      setInviteCode(data.invitationCode);
+      queryClient.invalidateQueries({ queryKey: ["admin-guardians"] });
+      toast.success("Guardian invited successfully", {
+        description: `Invitation code: ${data.invitationCode}`,
+      });
+    },
+    onError: (err: any) => {
+      if (err.error) {
+        if (typeof err.error === "object") setInviteErrors(err.error);
+        else toast.error(err.error);
+      } else {
+        toast.error("Failed to invite guardian");
+      }
+    },
+  });
+
+  function closeInviteDialog() {
+    setInviteOpen(false);
+    setInviteName("");
+    setInviteEmail("");
+    setInvitePhone("");
+    setInviteCnic("");
+    setInviteAddress("");
+    setInviteRelationship("");
+    setInviteCode("");
+    setInviteErrors({});
+  }
+
+  function handleInviteSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setInviteErrors({});
+    setInviteCode("");
+    inviteMutation.mutate({
+      name: inviteName.trim(),
+      email: inviteEmail.trim() || undefined,
+      phone: invitePhone.trim(),
+      cnic: inviteCnic.trim() || undefined,
+      address: inviteAddress.trim() || undefined,
+      relationship: inviteRelationship,
+    });
+  }
 
   // Link child
   const [childSearch, setChildSearch] = useState("");
@@ -449,6 +515,14 @@ export function GuardiansPage() {
         description="Manage family contacts and participant links"
         actions={
           <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setInviteOpen(true)}
+              className="border-[#D4B8E3] text-[#4B0A8F] hover:bg-[#F3ECF6] dark:border-[#2A0C8F] dark:text-[#8A40B0] dark:hover:bg-[#1F086080]"
+            >
+              <UserPlus className="size-4 mr-2" />
+              Invite Guardian
+            </Button>
             <ExportButton
               data={guardians.map((g) => ({
                 name: g.name,
@@ -994,6 +1068,140 @@ export function GuardiansPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Invite Guardian Dialog */}
+      <Dialog open={inviteOpen} onOpenChange={(open) => { if (!open) closeInviteDialog(); else setInviteOpen(true); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <div className="size-8 rounded-lg bg-[#F3ECF6] dark:bg-[#1F086080] flex items-center justify-center">
+                <UserPlus className="size-4 text-[#4B0A8F] dark:text-[#8A40B0]" />
+              </div>
+              Invite Guardian
+            </DialogTitle>
+            <DialogDescription>
+              Create a guardian account with login credentials. An invitation code will be generated.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleInviteSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="invite-name" className="text-xs font-medium">Full Name *</Label>
+              <Input
+                id="invite-name"
+                placeholder="Guardian name"
+                value={inviteName}
+                onChange={(e) => setInviteName(e.target.value)}
+                autoFocus
+              />
+              {inviteErrors.name && (
+                <p className="text-xs text-destructive">
+                  {Array.isArray(inviteErrors.name) ? inviteErrors.name[0] : inviteErrors.name}
+                </p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="invite-email" className="text-xs font-medium">Email (optional)</Label>
+              <Input
+                id="invite-email"
+                type="email"
+                placeholder="guardian@example.com"
+                value={inviteEmail}
+                onChange={(e) => setInviteEmail(e.target.value)}
+              />
+              {inviteErrors.email && (
+                <p className="text-xs text-destructive">
+                  {Array.isArray(inviteErrors.email) ? inviteErrors.email[0] : inviteErrors.email}
+                </p>
+              )}
+              <p className="text-[10px] text-muted-foreground">If not provided, a system email will be generated from the phone number.</p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="invite-phone" className="text-xs font-medium">Phone *</Label>
+              <Input
+                id="invite-phone"
+                placeholder="Phone number"
+                value={invitePhone}
+                onChange={(e) => setInvitePhone(e.target.value)}
+              />
+              {inviteErrors.phone && (
+                <p className="text-xs text-destructive">
+                  {Array.isArray(inviteErrors.phone) ? inviteErrors.phone[0] : inviteErrors.phone}
+                </p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="invite-cnic" className="text-xs font-medium">CNIC (optional)</Label>
+              <Input
+                id="invite-cnic"
+                placeholder="e.g. 35201-XXXXXXX-X"
+                value={inviteCnic}
+                onChange={(e) => setInviteCnic(e.target.value)}
+              />
+              {inviteErrors.cnic && (
+                <p className="text-xs text-destructive">
+                  {Array.isArray(inviteErrors.cnic) ? inviteErrors.cnic[0] : inviteErrors.cnic}
+                </p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="invite-address" className="text-xs font-medium">Address (optional)</Label>
+              <Input
+                id="invite-address"
+                placeholder="Street address"
+                value={inviteAddress}
+                onChange={(e) => setInviteAddress(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="invite-relationship" className="text-xs font-medium">Relationship *</Label>
+              <Select value={inviteRelationship} onValueChange={setInviteRelationship}>
+                <SelectTrigger id="invite-relationship">
+                  <SelectValue placeholder="Select relationship" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Father">Father</SelectItem>
+                  <SelectItem value="Mother">Mother</SelectItem>
+                  <SelectItem value="Guardian">Guardian</SelectItem>
+                  <SelectItem value="Other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+              {inviteErrors.relationship && (
+                <p className="text-xs text-destructive">
+                  {Array.isArray(inviteErrors.relationship) ? inviteErrors.relationship[0] : inviteErrors.relationship}
+                </p>
+              )}
+            </div>
+
+            {/* Invitation Code Display */}
+            {inviteCode && (
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="rounded-lg border-2 border-dashed border-[#4B0A8F]/30 bg-[#F3ECF6] dark:bg-[#1F086080] p-4 text-center"
+              >
+                <p className="text-xs text-muted-foreground mb-1">Invitation Code</p>
+                <p className="text-2xl font-mono font-bold tracking-[0.3em] text-[#4B0A8F] dark:text-[#8A40B0]">{inviteCode}</p>
+                <p className="text-[10px] text-muted-foreground mt-2">Share this code with the guardian. They can use it as their initial password to log in.</p>
+              </motion.div>
+            )}
+
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={closeInviteDialog} disabled={inviteMutation.isPending}>
+                {inviteCode ? "Close" : "Cancel"}
+              </Button>
+              {!inviteCode && (
+                <Button
+                  type="submit"
+                  className="bg-[#A0006B] hover:bg-[#A0006B]/90 text-white"
+                  disabled={inviteMutation.isPending || !inviteName.trim() || !invitePhone.trim() || !inviteRelationship}
+                >
+                  {inviteMutation.isPending ? "Inviting..." : "Send Invitation"}
+                </Button>
+              )}
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* Guardian Detail Sheet */}
       <GuardianDetailSheet

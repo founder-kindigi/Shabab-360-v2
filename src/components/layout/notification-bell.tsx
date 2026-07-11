@@ -15,29 +15,41 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Bell, BellOff, CheckCheck, Megaphone } from "lucide-react";
+import {
+  Bell,
+  BellOff,
+  CheckCheck,
+  Megaphone,
+  CalendarCheck,
+  DollarSign,
+  Settings,
+  Volume2,
+  VolumeX,
+} from "lucide-react";
 import { OnlineStatus } from "@/components/shared/online-status";
 import type { PageId } from "@/stores/useAppStore";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
-interface AnnouncementNotification {
+interface NotificationItem {
   id: string;
   title: string;
   content: string;
-  priority: string; // "urgent" | "normal" | "low"
+  type: string; // "announcement" | "attendance" | "payment" | "system"
+  priority: string;
   createdAt: string;
   authorName: string;
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
-const STORAGE_KEY = "shabab360_seen_announcements";
+const STORAGE_KEY_SEEN = "shabab360_seen_announcements";
+const STORAGE_KEY_SOUND = "shabab360_notif_sound";
 
 function getSeenIds(): Set<string> {
   if (typeof window === "undefined") return new Set();
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(STORAGE_KEY_SEEN);
     return raw ? new Set<string>(JSON.parse(raw)) : new Set();
   } catch {
     return new Set();
@@ -49,7 +61,7 @@ function markIdsAsSeen(ids: string[]) {
   try {
     const existing = getSeenIds();
     const merged = new Set([...existing, ...ids]);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify([...merged]));
+    localStorage.setItem(STORAGE_KEY_SEEN, JSON.stringify([...merged]));
   } catch {
     // ignore storage errors
   }
@@ -58,8 +70,7 @@ function markIdsAsSeen(ids: string[]) {
 function markAllAsSeen() {
   if (typeof window === "undefined") return;
   try {
-    // Store a "mark all" timestamp instead of individual IDs
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ __all: true, at: Date.now() }));
+    localStorage.setItem(STORAGE_KEY_SEEN, JSON.stringify({ __all: true, at: Date.now() }));
   } catch {
     // ignore
   }
@@ -69,6 +80,25 @@ function isSeen(announcementId: string, allSeenAt: number | null): boolean {
   if (allSeenAt) return true;
   const seen = getSeenIds();
   return seen.has(announcementId);
+}
+
+function isSoundEnabled(): boolean {
+  if (typeof window === "undefined") return true;
+  try {
+    const val = localStorage.getItem(STORAGE_KEY_SOUND);
+    return val === null ? true : val === "true";
+  } catch {
+    return true;
+  }
+}
+
+function setSoundEnabled(enabled: boolean) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(STORAGE_KEY_SOUND, String(enabled));
+  } catch {
+    // ignore
+  }
 }
 
 function getAnnouncementPageId(role: string | undefined): PageId | null {
@@ -84,6 +114,30 @@ function getAnnouncementPageId(role: string | undefined): PageId | null {
   if (role === "guardian") return "guardian-announcements";
   if (role === "student") return "student-announcements";
   return null;
+}
+
+// ─── Notification Type Icon ────────────────────────────────────────────────
+
+function NotificationTypeIcon({ type }: { type: string }) {
+  const iconMap: Record<string, { icon: typeof Megaphone; color: string; darkColor: string }> = {
+    announcement: { icon: Megaphone, color: "text-[#4B0A8F]", darkColor: "dark:text-[#D4B8E3]" },
+    attendance: { icon: CalendarCheck, color: "text-green-600", darkColor: "dark:text-green-400" },
+    payment: { icon: DollarSign, color: "text-amber-600", darkColor: "dark:text-amber-400" },
+    system: { icon: Settings, color: "text-muted-foreground", darkColor: "dark:text-muted-foreground" },
+  };
+
+  const config = iconMap[type] || iconMap.announcement;
+  const IconComp = config.icon;
+
+  return (
+    <div className="size-8 rounded-lg bg-[#F3ECF6] dark:bg-[#1F086080] flex items-center justify-center shrink-0">
+      <IconComp className={cn("size-3.5", config.color, config.darkColor)} />
+    </div>
+  );
+}
+
+function cn(...classes: (string | undefined | false)[]) {
+  return classes.filter(Boolean).join(" ");
 }
 
 // ─── Priority Dot ───────────────────────────────────────────────────────────
@@ -136,6 +190,15 @@ export function NotificationBell() {
   const queryClient = useQueryClient();
   const prevNotifIdsRef = useRef<string[]>([]);
   const hasRequestedPermission = useRef(false);
+  const [soundEnabled, setSoundEnabledState] = useState<boolean>(() => {
+    if (typeof window === "undefined") return true;
+    try {
+      const val = localStorage.getItem(STORAGE_KEY_SOUND);
+      return val === null ? true : val === "true";
+    } catch {
+      return true;
+    }
+  });
 
   // Enable real-time notification updates via WebSocket
   useRealtimeNotifications();
@@ -148,7 +211,7 @@ export function NotificationBell() {
   const announcementPage = getAnnouncementPageId(user?.role);
 
   const { data, isLoading } = useQuery<{
-    notifications: AnnouncementNotification[];
+    notifications: NotificationItem[];
     unreadCount: number;
   }>({
     queryKey: ["notifications"],
@@ -160,11 +223,10 @@ export function NotificationBell() {
   const notifications = data?.notifications || [];
   const allNotifIds = notifications.map((n) => n.id);
 
-  // Initialize "all seen" timestamp from localStorage (lazy, no effect needed)
   const [allSeenAt, setAllSeenAt] = useState<number | null>(() => {
     if (typeof window === "undefined") return null;
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
+      const raw = localStorage.getItem(STORAGE_KEY_SEEN);
       if (raw) {
         const parsed = JSON.parse(raw);
         if (parsed.__all) return parsed.at;
@@ -175,7 +237,6 @@ export function NotificationBell() {
     return null;
   });
 
-  // Calculate unread count (client-side based on seen status)
   const unreadNotifications = notifications.filter(
     (n) => !isSeen(n.id, allSeenAt)
   );
@@ -190,16 +251,15 @@ export function NotificationBell() {
       (n) => !prevIds.includes(n.id) && n.priority === "urgent"
     );
 
-    if (newOnes.length > 0) {
+    if (newOnes.length > 0 && soundEnabled) {
       newOnes.forEach((n) => {
         showDesktopNotification(n.title, n.content);
       });
     }
 
     prevNotifIdsRef.current = allNotifIds;
-  }, [notifications, allNotifIds]);
+  }, [notifications, allNotifIds, soundEnabled]);
 
-  // Request notification permission on first bell click
   const handleOpenChange = useCallback(
     (nextOpen: boolean) => {
       setOpen(nextOpen);
@@ -211,14 +271,12 @@ export function NotificationBell() {
     []
   );
 
-  // Mark all as read handler
   const handleMarkAllRead = useCallback(() => {
     markAllAsSeen();
     setAllSeenAt(Date.now());
     queryClient.invalidateQueries({ queryKey: ["notifications"] });
   }, [queryClient]);
 
-  // Click notification → navigate to announcements page
   const handleNotificationClick = useCallback(
     (id: string) => {
       markIdsAsSeen([id]);
@@ -229,6 +287,12 @@ export function NotificationBell() {
     },
     [navigateTo, announcementPage]
   );
+
+  const handleToggleSound = useCallback(() => {
+    const next = !soundEnabled;
+    setSoundEnabledState(next);
+    setSoundEnabled(next);
+  }, [soundEnabled]);
 
   const badgeText =
     unreadCount > 99 ? "99+" : unreadCount > 0 ? String(unreadCount) : "";
@@ -255,7 +319,12 @@ export function NotificationBell() {
         </Button>
       </PopoverTrigger>
 
-      <PopoverContent align="end" sideOffset={8} className="w-80 p-0">
+      <PopoverContent
+        align="end"
+        sideOffset={12}
+        side="bottom"
+        className="w-80 p-0"
+      >
         <AnimatePresence mode="wait">
           {open && (
             <motion.div
@@ -268,16 +337,28 @@ export function NotificationBell() {
               {/* Header */}
               <div className="flex items-center justify-between px-4 py-3 border-b">
                 <div className="flex items-center gap-2">
-                  <Megaphone className="size-4 text-[#4B0A8F] dark:text-[#8A40B0]" />
-                  <h3 className="text-sm font-semibold">Announcements</h3>
+                  <Bell className="size-4 text-[#4B0A8F] dark:text-[#8A40B0]" />
+                  <h3 className="text-sm font-semibold">Notifications</h3>
                   {unreadCount > 0 && (
                     <span className="text-[10px] font-medium text-[#FF0015]">
                       {unreadCount} new
                     </span>
                   )}
                 </div>
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1">
                   {user?.id && <OnlineStatus userId={user.id} />}
+                  {/* Sound toggle */}
+                  <button
+                    onClick={handleToggleSound}
+                    className="p-1.5 rounded-md hover:bg-muted/50 transition-colors"
+                    title={soundEnabled ? "Mute notifications" : "Unmute notifications"}
+                  >
+                    {soundEnabled ? (
+                      <Volume2 className="size-3.5 text-muted-foreground" />
+                    ) : (
+                      <VolumeX className="size-3.5 text-muted-foreground" />
+                    )}
+                  </button>
                   {unreadCount > 0 && (
                     <button
                       onClick={handleMarkAllRead}
@@ -298,11 +379,13 @@ export function NotificationBell() {
                     <span className="text-xs">Loading...</span>
                   </div>
                 ) : notifications.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
-                    <BellOff className="size-8 mb-2 opacity-40" />
-                    <p className="text-sm font-medium">No announcements</p>
-                    <p className="text-xs mt-1">
-                      New announcements will appear here
+                  <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+                    <div className="size-14 rounded-full bg-[#F3ECF6] dark:bg-[#1F086080] flex items-center justify-center mb-3">
+                      <Bell className="size-7 text-[#4B0A8F] dark:text-[#D4B8E3]" />
+                    </div>
+                    <p className="text-sm font-medium text-foreground">No new notifications</p>
+                    <p className="text-xs mt-1 text-muted-foreground max-w-[200px] text-center">
+                      New announcements and updates will appear here
                     </p>
                   </div>
                 ) : (
@@ -313,33 +396,37 @@ export function NotificationBell() {
                         <button
                           key={item.id}
                           onClick={() => handleNotificationClick(item.id)}
-                          className="flex items-start gap-3 px-4 py-3 w-full text-left hover:bg-muted/50 transition-colors"
+                          className={cn(
+                            "flex items-start gap-3 px-4 py-3 w-full text-left hover:bg-muted/50 transition-colors",
+                            !seen && "bg-[#4B0A8F]/[0.03] dark:bg-[#8A40B0]/[0.05]"
+                          )}
                         >
-                          <div className="mt-1.5">
-                            <PriorityDot priority={item.priority} />
-                          </div>
+                          <NotificationTypeIcon type={item.type} />
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
+                              <PriorityDot priority={item.priority} />
                               <p
-                                className={`text-sm leading-snug truncate ${
+                                className={cn(
+                                  "text-sm leading-snug truncate",
                                   seen
                                     ? "text-muted-foreground font-normal"
                                     : "font-medium"
-                                }`}
+                                )}
                               >
                                 {item.title}
                               </p>
                             </div>
                             <p
-                              className={`text-xs mt-0.5 line-clamp-2 ${
+                              className={cn(
+                                "text-xs mt-0.5 line-clamp-2",
                                 seen
                                   ? "text-muted-foreground/60"
                                   : "text-muted-foreground"
-                              }`}
+                              )}
                             >
                               {item.content}
                             </p>
-                            <p className="text-xs text-muted-foreground mt-1">
+                            <p className="text-[10px] text-muted-foreground/70 mt-1">
                               {formatDistanceToNow(new Date(item.createdAt), {
                                 addSuffix: true,
                               })}

@@ -90,7 +90,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ExportButton } from "@/components/shared/export-button";
-import { generateReceipt, type ReceiptData } from "@/lib/pdf-receipt";
+import { FeeReceipt, type FeeReceiptData } from "@/components/shared/fee-receipt";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -232,6 +232,10 @@ export function FeesPage() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
   const [batchGenOpen, setBatchGenOpen] = useState(false);
+
+  // Receipt dialog state
+  const [receiptOpen, setReceiptOpen] = useState(false);
+  const [receiptPaymentId, setReceiptPaymentId] = useState<string | null>(null);
 
   // Batch generate state
   const [bgTitle, setBgTitle] = useState("");
@@ -604,6 +608,27 @@ export function FeesPage() {
   function handleFilterBatchChange(val: string) {
     setFilterBatchId(val);
     setPage(1);
+  }
+
+  // Receipt data query
+  const { data: receiptData, isLoading: receiptLoading } = useQuery<FeeReceiptData>({
+    queryKey: ["payment-receipt", receiptPaymentId],
+    queryFn: () =>
+      fetch(`/api/admin/payments/${receiptPaymentId}/receipt`).then((r) => {
+        if (!r.ok) throw new Error("Failed to load receipt");
+        return r.json();
+      }),
+    enabled: receiptOpen && !!receiptPaymentId,
+  });
+
+  function openReceiptDialog(paymentId: string) {
+    setReceiptPaymentId(paymentId);
+    setReceiptOpen(true);
+  }
+
+  function closeReceiptDialog() {
+    setReceiptOpen(false);
+    setReceiptPaymentId(null);
   }
 
   // ---- Dialog helpers ----
@@ -1891,28 +1916,10 @@ export function FeesPage() {
                               variant="ghost"
                               size="sm"
                               className="h-6 w-6 p-0 text-muted-foreground hover:text-[#4B0A8F] dark:hover:text-[#B87EE0]"
-                              onClick={() => {
-                                generateReceipt({
-                                  receiptNo: payment.receiptNo ?? "N/A",
-                                  date: new Date(payment.createdAt).toLocaleDateString("en-GB", {
-                                    day: "numeric",
-                                    month: "short",
-                                    year: "numeric",
-                                    timeZone: "Asia/Karachi",
-                                  }),
-                                  studentName: payment.participant.name,
-                                  groupName: payment.participant.group?.name ?? "—",
-                                  batchName: feeDetail.batch.name,
-                                  parkName: feeDetail.batch.park.name,
-                                  feeTitle: feeDetail.title,
-                                  amount: payment.amount,
-                                  method: payment.method,
-                                  recordedBy: "—",
-                                  notes: payment.notes ?? undefined,
-                                });
-                              }}
+                              onClick={() => openReceiptDialog(payment.id)}
+                              title="View Receipt"
                             >
-                              <Printer className="size-3.5" />
+                              <Receipt className="size-3.5" />
                             </Button>
                           </div>
                         </div>
@@ -1962,6 +1969,29 @@ export function FeesPage() {
           ) : null}
         </SheetContent>
       </Sheet>
+
+      {/* Receipt Dialog */}
+      <Dialog open={receiptOpen} onOpenChange={(open) => { if (!open) closeReceiptDialog(); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-[#4B0A8F] dark:text-[#B87EE0]">
+              <Receipt className="size-5" />
+              Fee Receipt
+            </DialogTitle>
+            <DialogDescription>
+              View and print the payment receipt
+            </DialogDescription>
+          </DialogHeader>
+          {receiptLoading && (
+            <div className="flex items-center justify-center py-12">
+              <div className="text-sm text-muted-foreground animate-pulse">Loading receipt…</div>
+            </div>
+          )}
+          {!receiptLoading && receiptData && (
+            <FeeReceipt data={receiptData} onClose={closeReceiptDialog} />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -87,7 +87,6 @@ export async function GET() {
     // Get attendance records breakdown for today's events
     let todayEvent = null;
     if (todayEvents.length > 0) {
-      // Pick the first (latest) event
       const evt = todayEvents[0];
       const records = await db.attendanceRecord.findMany({
         where: { eventId: evt.id },
@@ -113,7 +112,7 @@ export async function GET() {
       };
     }
 
-    // 7-day attendance trend (daily rate for last 7 days)
+    // ── 7-day sparkline data (array of rates) ──
     const sevenDaysAgo = new Date(
       todayStart.getTime() - 6 * 24 * 60 * 60 * 1000
     );
@@ -131,7 +130,7 @@ export async function GET() {
       orderBy: { eventDate: "asc" },
     });
 
-    // Build a map of date -> event data for each of the 7 days
+    // Build a map of date -> event data
     const eventDateMap = new Map<
       string,
       { records: number; date: string }
@@ -149,13 +148,14 @@ export async function GET() {
       }
     }
 
-    // Generate 7-day trend (including days with no events)
+    // Generate 7-day trend
     const dailyTrend: Array<{
       date: string;
       label: string;
       rate: number;
       hasEvent: boolean;
     }> = [];
+    const sparklineData: number[] = [];
     for (let i = 6; i >= 0; i--) {
       const dayDate = new Date(todayStart.getTime() - i * 24 * 60 * 60 * 1000);
       const dateKey = formatPKT(dayDate, "yyyy-MM-dd");
@@ -166,12 +166,12 @@ export async function GET() {
         ? Math.round((eventData.records / totalParticipants) * 100)
         : 0;
       dailyTrend.push({ date: dateKey, label, rate, hasEvent });
+      sparklineData.push(rate);
     }
 
     // This week vs last week attendance rate
-    // This week: start of week (Monday) to today
     const nowPKT = toPKT(new Date());
-    const dayOfWeek = nowPKT.getDay(); // 0=Sun, 1=Mon, ...
+    const dayOfWeek = nowPKT.getDay();
     const mondayOffset = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
     const thisWeekStart = new Date(
       todayStart.getTime() - mondayOffset * 24 * 60 * 60 * 1000
@@ -183,7 +183,6 @@ export async function GET() {
       thisWeekStart.getTime() - 1 * 24 * 60 * 60 * 1000
     );
 
-    // This week events (closed)
     const thisWeekEvents = await db.attendanceEvent.findMany({
       where: {
         groupId: group.id,
@@ -204,7 +203,6 @@ export async function GET() {
         ? Math.round((thisWeekTotal / thisWeekCapacity) * 100)
         : 0;
 
-    // Last week events (closed)
     const lastWeekEvents = await db.attendanceEvent.findMany({
       where: {
         groupId: group.id,
@@ -225,7 +223,7 @@ export async function GET() {
         ? Math.round((lastWeekTotal / lastWeekCapacity) * 100)
         : 0;
 
-    // Today's attendance rate (from today's events - including open ones)
+    // Today's attendance rate
     let todayRate = 0;
     if (todayEvents.length > 0) {
       const todayRecordsCount = await db.attendanceRecord.count({
@@ -269,10 +267,44 @@ export async function GET() {
       }
     }
 
-    // Filter to 3+ absences, sort by count desc
     const topAbsentees = Array.from(absenceCountMap.values())
       .filter((p) => p.count >= 3)
       .sort((a, b) => b.count - a.count);
+
+    // ── Upcoming events (next 3 scheduled attendance events) ──
+    const upcomingEvents = await db.attendanceEvent.findMany({
+      where: {
+        groupId: group.id,
+        eventDate: { gt: todayEnd },
+        isClosed: false,
+      },
+      orderBy: { eventDate: "asc" },
+      take: 3,
+      select: {
+        id: true,
+        title: true,
+        eventDate: true,
+      },
+    });
+
+    const upcomingEventsFormatted = upcomingEvents.map((e) => ({
+      id: e.id,
+      title: e.title,
+      eventDate: formatPKT(new Date(e.eventDate), "EEE, dd MMM yyyy"),
+      eventDateRaw: e.eventDate.toISOString(),
+    }));
+
+    // ── Attendance summary across all groups (single group here) ──
+    // Already computed in todayEvent.counts, but let's make it explicit
+    const attendanceSummary = todayEvent
+      ? {
+          present: todayEvent.counts.present,
+          absent: todayEvent.counts.absent,
+          late: todayEvent.counts.late,
+          excused: todayEvent.counts.excused,
+          total: todayEvent.counts.present + todayEvent.counts.absent + todayEvent.counts.late + todayEvent.counts.excused,
+        }
+      : { present: 0, absent: 0, late: 0, excused: 0, total: 0 };
 
     return NextResponse.json({
       groupName: group.name,
@@ -284,9 +316,12 @@ export async function GET() {
       todayEvent,
       todayRate,
       dailyTrend,
+      sparklineData,
       thisWeekRate,
       lastWeekRate,
       topAbsentees,
+      upcomingEvents: upcomingEventsFormatted,
+      attendanceSummary,
     });
   } catch (error) {
     console.error("Murabbi dashboard error:", error);

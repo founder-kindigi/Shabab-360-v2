@@ -7,6 +7,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Sparkline } from "@/components/shared/sparkline";
+import { formatPKT } from "@/lib/timezone";
+import { cn } from "@/lib/utils";
+import { formatDistanceToNow } from "date-fns";
 import {
   GraduationCap,
   CalendarCheck,
@@ -15,16 +19,17 @@ import {
   ChevronRight,
   AlertTriangle,
   MapPin,
-  TreePine,
   Users,
   CheckCircle2,
   XCircle,
   Clock,
   ShieldCheck,
   Wallet,
-  AlertCircle,
+  WalletIcon,
+  History,
+  CalendarDays,
+  Megaphone,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
 
 // ─── Types ───────────────────────────────────────────────────────────
 
@@ -47,6 +52,13 @@ type ChildFees = {
   overdueFees: number;
 };
 
+type Announcement = {
+  id: string;
+  title: string;
+  content: string;
+  createdAt: string;
+};
+
 type ChildData = {
   id: string;
   name: string;
@@ -55,6 +67,8 @@ type ChildData = {
   parkName: string | null;
   cityName: string | null;
   groupId: string;
+  todayStatus: string | null;
+  sparkline7Day: number[];
   attendance: ChildAttendance;
   fees?: ChildFees;
 };
@@ -77,6 +91,7 @@ type DashboardData = {
   unreadAnnouncements: number;
   todayDate: string;
   feesSummary?: { totalPaidThisMonth: number; totalOutstanding: number };
+  recentAnnouncements?: Announcement[];
 };
 
 // ─── Animation Config ────────────────────────────────────────────────
@@ -91,7 +106,7 @@ const fadeUp = {
   visible: { opacity: 1, y: 0, transition: { duration: 0.4, ease: "easeOut" } },
 };
 
-// ─── Avatar colors (no green/teal/emerald) ───────────────────────────
+// ─── Avatar colors ────────────────────────────────────────────────────
 
 const avatarColors = [
   "bg-[#4B0A8F] text-white",
@@ -131,6 +146,16 @@ function statusBadgeClass(status: string) {
   }
 }
 
+function statusLabel(status: string) {
+  switch (status) {
+    case "present": return "Present";
+    case "absent": return "Absent";
+    case "late": return "Late";
+    case "excused": return "Excused";
+    default: return "Unmarked";
+  }
+}
+
 // ─── Component ───────────────────────────────────────────────────────
 
 export function GuardianDashboard() {
@@ -152,7 +177,7 @@ export function GuardianDashboard() {
       <div className="space-y-6">
         <Skeleton className="h-40 rounded-xl" />
         <div className="grid grid-cols-2 gap-3 sm:gap-4">
-          {Array.from({ length: 4 }).map((_, i) => (
+          {Array.from({ length: 3 }).map((_, i) => (
             <Skeleton key={i} className="h-28 rounded-xl" />
           ))}
         </div>
@@ -184,6 +209,7 @@ export function GuardianDashboard() {
   const children = data.children || [];
   const todayEvents = data.todayEvents || [];
   const unreadAnnouncements = data.unreadAnnouncements || 0;
+  const recentAnnouncements = data.recentAnnouncements || [];
 
   // Compute average 30-day rate across children
   const childrenWithEvents = children.filter(
@@ -196,6 +222,11 @@ export function GuardianDashboard() {
             childrenWithEvents.length
         )
       : 0;
+
+  const totalFeesPaid = children.reduce(
+    (sum, c) => sum + (c.fees?.totalPaid || 0),
+    0
+  );
 
   const handleViewHistory = (participantId: string) => {
     setSelectedParticipantId(participantId);
@@ -235,10 +266,10 @@ export function GuardianDashboard() {
         </div>
       </motion.div>
 
-      {/* ─── 2. Summary Metric Cards (2x2 → 4 cols) ───────────── */}
+      {/* ─── 2. Summary Metric Cards (Overall Stats) ───────────── */}
       <motion.div
         variants={fadeUp}
-        className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-5"
+        className="grid grid-cols-3 gap-3 sm:gap-4"
       >
         {/* My Children */}
         <Card className="overflow-hidden">
@@ -253,20 +284,7 @@ export function GuardianDashboard() {
           </CardContent>
         </Card>
 
-        {/* Today's Sessions */}
-        <Card className="overflow-hidden">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-center size-9 rounded-lg bg-[#F3ECF6] dark:bg-[#1F086099]">
-              <CalendarCheck className="size-4.5 text-[#4B0A8F] dark:text-[#8A40B0]" />
-            </div>
-            <p className="text-2xl font-bold mt-3">{todayEvents.length}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Today&apos;s Sessions
-            </p>
-          </CardContent>
-        </Card>
-
-        {/* 30-Day Avg Rate */}
+        {/* Avg Attendance Rate */}
         <Card className="overflow-hidden">
           <CardContent className="p-4">
             <div className="flex items-center justify-center size-9 rounded-lg bg-[#F3ECF6] dark:bg-[#1F086099]">
@@ -281,41 +299,26 @@ export function GuardianDashboard() {
               {childrenWithEvents.length > 0 ? `${avgRate30}%` : "—"}
             </p>
             <p className="text-xs text-muted-foreground mt-0.5">
-              30-Day Avg Rate
+              Avg Attendance
             </p>
           </CardContent>
         </Card>
 
-        {/* Announcements */}
-        <Card className="overflow-hidden cursor-pointer" onClick={() => navigateTo("guardian-announcements")}>
+        {/* Total Fees Paid */}
+        <Card
+          className="overflow-hidden cursor-pointer"
+          onClick={() => navigateTo("guardian-fees")}
+        >
           <CardContent className="p-4">
-            <div className="relative flex items-center justify-center size-9 rounded-lg bg-[#F3ECF6] dark:bg-[#1F086099]">
-              <Bell className="size-4.5 text-[#4B0A8F] dark:text-[#8A40B0]" />
-              {unreadAnnouncements > 0 && (
-                <span className="absolute -top-1 -right-1 flex items-center justify-center size-4.5 rounded-full bg-[#FF0015] text-white text-[9px] font-bold">
-                  {unreadAnnouncements > 9 ? "9+" : unreadAnnouncements}
-                </span>
-              )}
+            <div className="flex items-center justify-center size-9 rounded-lg bg-[#F3ECF6] dark:bg-[#1F086099]">
+              <Wallet className="size-4.5 text-[#4B0A8F] dark:text-[#8A40B0]" />
             </div>
-            <p className="text-2xl font-bold mt-3">{unreadAnnouncements}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">Announcements</p>
+            <p className="text-lg font-bold mt-3 tabular-nums">
+              Rs {totalFeesPaid.toLocaleString()}
+            </p>
+            <p className="text-xs text-muted-foreground mt-0.5">Total Fees Paid</p>
           </CardContent>
         </Card>
-
-        {/* Fees Paid This Month */}
-        {feesSummary && (
-          <Card className="overflow-hidden cursor-pointer" onClick={() => navigateTo("guardian-fees")}>
-            <CardContent className="p-4">
-              <div className="relative flex items-center justify-center size-9 rounded-lg bg-[#F3ECF6] dark:bg-[#1F086099]">
-                <Wallet className="size-4.5 text-[#4B0A8F] dark:text-[#8A40B0]" />
-              </div>
-              <p className="text-lg font-bold mt-3 tabular-nums">
-                Rs {feesSummary.totalPaidThisMonth.toLocaleString()}
-              </p>
-              <p className="text-xs text-muted-foreground mt-0.5">Fees Paid</p>
-            </CardContent>
-          </Card>
-        )}
       </motion.div>
 
       {/* ─── 3. My Children Section ─────────────────────────────── */}
@@ -353,16 +356,14 @@ export function GuardianDashboard() {
               >
                 <Card className="overflow-hidden border-border h-full">
                   <CardContent className="p-4 space-y-3">
-                    {/* Child header - clickable */}
-                    <div
-                      className="flex items-center gap-3 cursor-pointer"
-                      onClick={() => handleViewChildDetails(child.id)}
-                    >
+                    {/* Child header with avatar, name, group, today status badge, sparkline */}
+                    <div className="flex items-start gap-3">
                       <div
                         className={cn(
-                          "flex items-center justify-center size-10 rounded-full text-sm font-bold shrink-0",
+                          "flex items-center justify-center size-10 rounded-full text-sm font-bold shrink-0 cursor-pointer",
                           avatarColors[index % avatarColors.length]
                         )}
+                        onClick={() => handleViewChildDetails(child.id)}
                       >
                         {child.name
                           .split(" ")
@@ -371,10 +372,22 @@ export function GuardianDashboard() {
                           .toUpperCase()
                           .slice(0, 2)}
                       </div>
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold truncate">
-                          {child.name}
-                        </p>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-sm font-semibold truncate cursor-pointer" onClick={() => handleViewChildDetails(child.id)}>
+                            {child.name}
+                          </p>
+                          {child.todayStatus && (
+                            <Badge
+                              className={cn(
+                                "text-[10px] shrink-0 font-semibold px-1.5 py-0",
+                                statusBadgeClass(child.todayStatus)
+                              )}
+                            >
+                              {statusLabel(child.todayStatus)}
+                            </Badge>
+                          )}
+                        </div>
                         <p className="text-xs text-muted-foreground truncate">
                           {child.groupName || "No group"}
                           {child.batchName ? ` · ${child.batchName}` : ""}
@@ -386,6 +399,17 @@ export function GuardianDashboard() {
                           </p>
                         )}
                       </div>
+                      {/* 7-day sparkline */}
+                      {child.sparkline7Day && child.sparkline7Day.filter((r) => r > 0).length >= 2 && (
+                        <div className="shrink-0">
+                          <Sparkline
+                            data={child.sparkline7Day}
+                            width={64}
+                            height={28}
+                            color="#4B0A8F"
+                          />
+                        </div>
+                      )}
                     </div>
 
                     {/* 30-day attendance rate */}
@@ -446,12 +470,53 @@ export function GuardianDashboard() {
                       />
                     </div>
 
+                    {/* Per-child fee summary with progress bar */}
+                    {child.fees && child.fees.totalExpected > 0 && (
+                      <div className="space-y-1.5 pt-1 border-t border-border/50">
+                        <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                          <WalletIcon className="size-3" />
+                          <span>Fees</span>
+                        </div>
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-muted-foreground">
+                            Rs {child.fees.totalPaid.toLocaleString()} / Rs {child.fees.totalExpected.toLocaleString()}
+                          </span>
+                          <span className={cn("font-semibold tabular-nums", rateColor(
+                            child.fees.totalExpected > 0
+                              ? Math.round((child.fees.totalPaid / child.fees.totalExpected) * 100)
+                              : 0
+                          ))}>
+                            {Math.round((child.fees.totalPaid / child.fees.totalExpected) * 100)}%
+                          </span>
+                        </div>
+                        <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                          <div
+                            className={cn(
+                              "h-full rounded-full transition-all duration-500",
+                              child.fees.outstanding === 0
+                                ? "bg-[#4B0A8F] dark:bg-[#8A40B0]"
+                                : child.fees.totalPaid / child.fees.totalExpected >= 0.5
+                                  ? "bg-amber-500"
+                                  : "bg-red-500"
+                            )}
+                            style={{
+                              width: `${Math.round((child.fees.totalPaid / child.fees.totalExpected) * 100)}%`,
+                            }}
+                          />
+                        </div>
+                        {child.fees.outstanding > 0 && (
+                          <p className="text-[10px] text-amber-600 dark:text-amber-400">
+                            Rs {child.fees.outstanding.toLocaleString()} remaining
+                          </p>
+                        )}
+                      </div>
+                    )}
+
                     {/* Fee status badges */}
                     {child.fees && (
                       <div className="flex items-center gap-1.5 flex-wrap">
                         {child.fees.overdueFees > 0 && (
                           <Badge className="bg-red-100 text-red-700 border-0 text-[10px] font-semibold px-2 py-0.5 dark:bg-red-950/50 dark:text-red-400">
-                            <AlertCircle className="size-3 mr-1" />
                             {child.fees.overdueFees} overdue
                           </Badge>
                         )}
@@ -464,7 +529,7 @@ export function GuardianDashboard() {
                         {child.fees.outstanding === 0 && child.fees.totalExpected > 0 && (
                           <Badge className="bg-[#F3ECF6] text-[#4B0A8F] border-0 text-[10px] font-semibold px-2 py-0.5 dark:bg-[#1F086080] dark:text-[#8A40B0]">
                             <CheckCircle2 className="size-3 mr-1" />
-                            Paid
+                            All paid
                           </Badge>
                         )}
                       </div>
@@ -488,7 +553,50 @@ export function GuardianDashboard() {
         )}
       </motion.div>
 
-      {/* ─── 4. Today's Sessions ────────────────────────────────── */}
+      {/* ─── 4. Recent Announcements ────────────────────────────── */}
+      {recentAnnouncements.length > 0 && (
+        <motion.div variants={fadeUp} className="space-y-3">
+          <div className="flex items-center gap-2">
+            <Megaphone className="size-4 text-[#4B0A8F] dark:text-[#8A40B0]" />
+            <h3 className="text-sm font-semibold">Recent Announcements</h3>
+            <Badge
+              variant="secondary"
+              className="text-[10px] bg-[#F3ECF6] text-[#4B0A8F] dark:bg-[#1F086066] dark:text-[#8A40B0]"
+            >
+              {recentAnnouncements.length}
+            </Badge>
+          </div>
+
+          <div className="space-y-2">
+            {recentAnnouncements.map((ann, i) => (
+              <motion.div
+                key={ann.id}
+                initial={{ opacity: 0, x: -8 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: i * 0.04, duration: 0.3 }}
+              >
+                <Card className="border-border overflow-hidden">
+                  <CardContent className="p-3 space-y-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-sm font-medium truncate">{ann.title}</p>
+                      <span className="text-[10px] text-muted-foreground shrink-0">
+                        {formatDistanceToNow(new Date(ann.createdAt), { addSuffix: true })}
+                      </span>
+                    </div>
+                    {ann.content && (
+                      <p className="text-xs text-muted-foreground line-clamp-2">
+                        {ann.content}
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+              </motion.div>
+            ))}
+          </div>
+        </motion.div>
+      )}
+
+      {/* ─── 5. Today's Sessions ────────────────────────────────── */}
       {todayEvents.length > 0 && (
         <motion.div variants={fadeUp} className="space-y-3">
           <div className="flex items-center gap-2">
@@ -518,7 +626,7 @@ export function GuardianDashboard() {
                           {evt.title}
                         </p>
                         <p className="text-[10px] text-muted-foreground flex items-center gap-1.5 mt-0.5">
-                          <TreePine className="size-3" />
+                          <Users className="size-3" />
                           {evt.groupName}
                           {evt.parkName ? ` · ${evt.parkName}` : ""}
                         </p>
@@ -559,41 +667,63 @@ export function GuardianDashboard() {
         </motion.div>
       )}
 
-      {/* ─── 5. Quick Actions ───────────────────────────────────── */}
+      {/* ─── 6. Quick Actions ───────────────────────────────────── */}
       <motion.div variants={fadeUp} className="space-y-3">
         <h3 className="text-sm font-semibold">Quick Actions</h3>
-        <div className="grid gap-2 sm:grid-cols-2">
+        <div className="grid gap-2 sm:grid-cols-3">
           <Card
             className="cursor-pointer overflow-hidden border-border hover:border-[#D4B8E3] dark:hover:border-[#2A0C8F99] transition-colors"
-            onClick={() => navigateTo("guardian-announcements")}
+            onClick={() => navigateTo("guardian-fees")}
           >
             <CardContent className="p-4 flex items-center gap-3">
               <div className="flex items-center justify-center size-9 rounded-lg bg-[#F3ECF6] dark:bg-[#1F086099] shrink-0">
-                <Bell className="size-4.5 text-[#4B0A8F] dark:text-[#8A40B0]" />
+                <Wallet className="size-4.5 text-[#4B0A8F] dark:text-[#8A40B0]" />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium">View Announcements</p>
+                <p className="text-sm font-medium">Fees</p>
                 <p className="text-[10px] text-muted-foreground">
-                  {unreadAnnouncements > 0
-                    ? `${unreadAnnouncements} unread announcement${unreadAnnouncements > 1 ? "s" : ""}`
-                    : "No new announcements"}
+                  {feesSummary
+                    ? `Rs ${feesSummary.totalOutstanding.toLocaleString()} outstanding`
+                    : "View fee details"}
                 </p>
               </div>
               <ChevronRight className="size-4 text-muted-foreground shrink-0" />
             </CardContent>
           </Card>
 
-          <Card className="overflow-hidden border-border opacity-60">
+          <Card
+            className="cursor-pointer overflow-hidden border-border hover:border-[#D4B8E3] dark:hover:border-[#2A0C8F99] transition-colors"
+            onClick={() => navigateTo("guardian-history")}
+          >
             <CardContent className="p-4 flex items-center gap-3">
-              <div className="flex items-center justify-center size-9 rounded-lg bg-muted shrink-0">
-                <Users className="size-4.5 text-muted-foreground" />
+              <div className="flex items-center justify-center size-9 rounded-lg bg-[#F3ECF6] dark:bg-[#1F086099] shrink-0">
+                <History className="size-4.5 text-[#4B0A8F] dark:text-[#8A40B0]" />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium">Contact Admin</p>
+                <p className="text-sm font-medium">History</p>
                 <p className="text-[10px] text-muted-foreground">
-                  Coming soon
+                  View attendance history
                 </p>
               </div>
+              <ChevronRight className="size-4 text-muted-foreground shrink-0" />
+            </CardContent>
+          </Card>
+
+          <Card
+            className="cursor-pointer overflow-hidden border-border hover:border-[#D4B8E3] dark:hover:border-[#2A0C8F99] transition-colors"
+            onClick={() => navigateTo("guardian-schedule")}
+          >
+            <CardContent className="p-4 flex items-center gap-3">
+              <div className="flex items-center justify-center size-9 rounded-lg bg-[#F3ECF6] dark:bg-[#1F086099] shrink-0">
+                <CalendarDays className="size-4.5 text-[#4B0A8F] dark:text-[#8A40B0]" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium">Schedule</p>
+                <p className="text-[10px] text-muted-foreground">
+                  View upcoming schedule
+                </p>
+              </div>
+              <ChevronRight className="size-4 text-muted-foreground shrink-0" />
             </CardContent>
           </Card>
         </div>

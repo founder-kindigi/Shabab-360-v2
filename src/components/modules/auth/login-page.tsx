@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useRef } from "react";
-import { motion } from "framer-motion";
+import { useState, useRef, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { signIn } from "next-auth/react";
 import { Card, CardContent } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useAppStore } from "@/stores/useAppStore";
-import { Eye, EyeOff, Shield, Lock, Mail } from "lucide-react";
+import { Eye, EyeOff, Shield, Lock, Mail, XCircle, Loader2 } from "lucide-react";
 
 const DEMO_ACCOUNTS = [
   { email: "super_admin@shabab360.pk", role: "Super Admin", color: "#4B0A8F" },
@@ -44,11 +45,22 @@ export function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [shaking, setShaking] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
   const { navigateTo } = useAppStore();
+
+  // Restore remember me and email from localStorage
+  useEffect(() => {
+    const savedEmail = localStorage.getItem("shabab360-remember-email");
+    const savedRemember = localStorage.getItem("shabab360-remember-me");
+    if (savedRemember === "true" && savedEmail) {
+      setEmail(savedEmail);
+      setRememberMe(true);
+    }
+  }, []);
 
   function triggerShake() {
     setShaking(true);
@@ -63,6 +75,15 @@ export function LoginPage() {
       setError("Please enter both email and password.");
       triggerShake();
       return;
+    }
+
+    // Persist email if remember me is checked
+    if (rememberMe) {
+      localStorage.setItem("shabab360-remember-email", email.trim());
+      localStorage.setItem("shabab360-remember-me", "true");
+    } else {
+      localStorage.removeItem("shabab360-remember-email");
+      localStorage.removeItem("shabab360-remember-me");
     }
 
     setLoading(true);
@@ -161,16 +182,19 @@ export function LoginPage() {
                   </div>
                 </div>
 
-                {error && (
-                  <motion.p
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: "auto" }}
-                    exit={{ opacity: 0, height: 0 }}
-                    className="text-sm text-red-500 bg-red-50 dark:bg-red-950/30 rounded-lg px-3 py-2"
-                  >
-                    {error}
-                  </motion.p>
-                )}
+                <AnimatePresence>
+                  {error && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -4 }}
+                      className="flex items-start gap-2.5 text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800/50 rounded-lg px-3 py-2.5"
+                    >
+                      <XCircle className="size-4 shrink-0 mt-0.5" />
+                      <span>{error}</span>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
 
                 {/* Submit */}
                 <button
@@ -178,13 +202,25 @@ export function LoginPage() {
                   disabled={loading}
                   className="w-full h-11 bg-gradient-to-r from-[#4B0A8F] to-[#A0006B] hover:opacity-90 text-white font-medium rounded-lg shadow-[#4B0A8F]/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
-                  {loading && (
-                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-white/30" />
+                  {loading ? (
+                    <>
+                      <Loader2 className="size-4 animate-spin" />
+                      Signing in...
+                    </>
+                  ) : (
+                    "Sign In"
                   )}
-                  {loading ? "Signing in..." : "Sign In"}
                 </button>
 
-                <div className="text-center pt-1">
+                <div className="flex items-center justify-between">
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <Checkbox
+                      checked={rememberMe}
+                      onCheckedChange={(v) => setRememberMe(v === true)}
+                      className="size-4"
+                    />
+                    <span className="text-xs text-muted-foreground">Remember me</span>
+                  </label>
                   <button
                     type="button"
                     onClick={() => navigateTo("reset-password")}

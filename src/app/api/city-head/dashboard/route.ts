@@ -184,10 +184,67 @@ export async function GET() {
     const totalCapacityLast7Days = last7DaysEvents.reduce((sum, e) => {
       return sum + (participantCountMap.get(e.groupId) || 0);
     }, 0);
-    const cityAttendanceRate =
+    const cityAttendanceRate7Day =
       totalCapacityLast7Days > 0
         ? Math.round((totalMarksLast7Days / totalCapacityLast7Days) * 100)
         : 0;
+
+    // Today's attendance rate
+    let todayAttendanceRate = 0;
+    if (todayEvents.length > 0) {
+      const todayMarks = todayEvents.reduce((s, e) => s + e._count.records, 0);
+      const todayCapacity = todayEvents.reduce((s, e) => {
+        return s + (participantCountMap.get(e.groupId) || 0);
+      }, 0);
+      todayAttendanceRate = todayCapacity > 0 ? Math.round((todayMarks / todayCapacity) * 100) : 0;
+    }
+
+    // ── 14-day trend for AttendanceChart ──
+    const fourteenDaysAgo = new Date(todayStart.getTime() - 13 * 24 * 60 * 60 * 1000);
+    const last14DaysEvents = await db.attendanceEvent.findMany({
+      where: {
+        groupId: { in: groupIds },
+        eventDate: { gte: fourteenDaysAgo, lte: todayEnd },
+        isClosed: true,
+      },
+      include: {
+        _count: {
+          select: {
+            records: { where: { status: "present" } },
+          },
+        },
+      },
+      select: {
+        id: true,
+        eventDate: true,
+        groupId: true,
+        records: {
+          select: { status: true },
+        },
+      },
+      orderBy: { eventDate: "asc" },
+    });
+
+    // Build date-keyed map for the 14 days
+    const trendMap = new Map<string, { present: number; late: number; absent: number }>();
+    for (const evt of last14DaysEvents) {
+      const dateKey = formatPKT(new Date(evt.eventDate), "yyyy-MM-dd");
+      const existing = trendMap.get(dateKey) || { present: 0, late: 0, absent: 0 };
+      for (const rec of evt.records) {
+        if (rec.status === "present") existing.present++;
+        else if (rec.status === "late") existing.late++;
+        else if (rec.status === "absent") existing.absent++;
+      }
+      trendMap.set(dateKey, existing);
+    }
+
+    const trend14Day: Array<{ date: string; present: number; late: number; absent: number }> = [];
+    for (let i = 13; i >= 0; i--) {
+      const dayDate = new Date(todayStart.getTime() - i * 24 * 60 * 60 * 1000);
+      const dateKey = formatPKT(dayDate, "yyyy-MM-dd");
+      const data = trendMap.get(dateKey) || { present: 0, late: 0, absent: 0 };
+      trend14Day.push({ date: dateKey, ...data });
+    }
 
     // Park-level breakdown with 7-day rate per park
     const parkBreakdown = await Promise.all(
@@ -243,8 +300,7 @@ export async function GET() {
       })
     );
 
-    // Recent activity: last 10 audit log entries for this city
-    // We look for audit logs related to entities in this city's parks
+    // Recent activity: last 5 audit log entries
     const recentActivity = await db.auditLog.findMany({
       take: 10,
       orderBy: { createdAt: "desc" },
@@ -258,19 +314,61 @@ export async function GET() {
       },
     });
 
-    // Filter activity to city-relevant entries (parks, batches, groups, participants in this city)
+    // Filter to last 5 relevant
     const cityRelevantActivity = recentActivity.filter((log) => {
-      // Include city-level actions
       if (log.entityType === "city" && log.entityId === cityId) return true;
-      // Include any activity from staff in this city
       if (log.user) return true;
       return false;
     });
 
-    // If we don't have enough, just return what we have
     const activityToReturn = cityRelevantActivity.length >= 3
-      ? cityRelevantActivity.slice(0, 10)
-      : recentActivity.slice(0, 10);
+      ? cityRelevantActivity.slice(0, 5)
+      : recentActivity.slice(0, 5);
+
+    // ── Fees overview ──
+    // Get all batch IDs in the city
+    const allCityBatchIds = (
+      await db.batch.findMany({
+        where: { parkId: { in: parkIds }, isActive: true },
+        select: { id: true },
+      })
+    ).map((b) => b.id);
+
+    const nowPKT = todayStart;
+    const monthStart = new Date(nowPKT.getFullYear(), nowPKT.getMonth(), 1);
+
+    // Total fee events in the city
+    const cityFeeEvents = await db.feeEvent.findMany({
+      where: { batchId: { in: allCityBatchIds }, isActive: true },
+      select: { id: true, amount: true },
+    });
+    const totalFeeExpected = cityFeeEvents.reduce((s, f) => s + f.amount, 0);
+
+    // Payments collected this month
+    let totalCollectedThisMonth = 0;
+    let totalPendingFees = 0;
+
+    if (cityFeeEvents.length > 0) {
+      const feeEventIds = cityFeeEvents.map((f) => f.id);
+
+      const paymentsThisMonth = await db.payment.aggregate({
+        where: {
+          feeEventId: { in: feeEventIds },
+          createdAt: { gte: monthStart },
+        },
+        _sum: { amount: true },
+      });
+      totalCollectedThisMonth = paymentsThisMonth._sum.amount || 0;
+
+      const allPayments = await db.payment.aggregate({
+        where: {
+          feeEventId: { in: feeEventIds },
+        },
+        _sum: { amount: true },
+      });
+      const totalAllPaid = allPayments._sum.amount || 0;
+      totalPendingFees = Math.max(totalFeeExpected - totalAllPaid, 0);
+    }
 
     return NextResponse.json({
       city: {
@@ -284,7 +382,8 @@ export async function GET() {
         groupCount,
         totalParticipants,
         totalStaff,
-        attendanceRate7Day: cityAttendanceRate,
+        attendanceRate7Day: cityAttendanceRate7Day,
+        todayAttendanceRate,
       },
       todayDate: formatPKT(new Date(), "yyyy-MM-dd"),
       todayEvents: todayEventsList,
@@ -297,6 +396,11 @@ export async function GET() {
         userName: a.user?.name || "System",
         createdAt: a.createdAt.toISOString(),
       })),
+      trend14Day,
+      feesOverview: {
+        totalCollectedThisMonth: Math.round(totalCollectedThisMonth),
+        totalPendingFees: Math.round(totalPendingFees),
+      },
     });
   } catch (error) {
     console.error("City head dashboard error:", error);

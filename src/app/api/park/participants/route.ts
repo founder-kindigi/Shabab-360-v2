@@ -118,6 +118,8 @@ export async function GET(request: NextRequest) {
         pagination: { page, pageSize, total: 0, totalPages: 0 },
         totalActive: 0,
         totalInactive: 0,
+        newThisMonth: 0,
+        weeklyAttendanceRate: 0,
         park: { id: park.id, name: park.name, city: park.city?.name || "Unknown" },
         groups: [],
       });
@@ -148,6 +150,35 @@ export async function GET(request: NextRequest) {
     const totalInactive = await db.participant.count({
       where: { groupId: { in: allGroupIds }, state: "inactive" },
     });
+
+    // Count new this month
+    const nowPKT = todayPKT();
+    const monthStart = new Date(nowPKT.getFullYear(), nowPKT.getMonth(), 1);
+    const newThisMonth = await db.participant.count({
+      where: {
+        groupId: { in: allGroupIds },
+        joinedAt: { gte: monthStart },
+      },
+    });
+
+    // Calculate weekly attendance rate (last 7 days)
+    const sevenDaysAgo = new Date(nowPKT.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const weekRecords = await db.attendanceRecord.findMany({
+      where: {
+        event: {
+          eventDate: { gte: sevenDaysAgo, lte: endOfTodayPKT() },
+          isClosed: true,
+          groupId: { in: allGroupIds },
+        },
+      },
+      select: { status: true },
+    });
+    let weekPresent = 0;
+    let weekTotal = weekRecords.length;
+    for (const r of weekRecords) {
+      if (r.status === "present" || r.status === "late") weekPresent++;
+    }
+    const weeklyAttendanceRate = weekTotal > 0 ? Math.round((weekPresent / weekTotal) * 100) : 0;
 
     // Count filtered total for pagination
     const totalFiltered = await db.participant.count({ where: participantWhere });
@@ -195,25 +226,34 @@ export async function GET(request: NextRequest) {
           select: {
             participantId: true,
             status: true,
+            event: {
+              select: { eventDate: true },
+            },
           },
         })
       : [];
 
-    // Build per-participant 30-day stats
+    // Build per-participant 30-day stats + last attendance date
     const participantStats = new Map<
       string,
-      { present: number; absent: number; late: number; excused: number; total: number }
+      { present: number; absent: number; late: number; excused: number; total: number; lastDate: string | null }
     >();
 
     for (const rec of thirtyDayRecords) {
       const existing = participantStats.get(rec.participantId) || {
-        present: 0, absent: 0, late: 0, excused: 0, total: 0,
+        present: 0, absent: 0, late: 0, excused: 0, total: 0, lastDate: null,
       };
       existing.total++;
       if (rec.status === "present") existing.present++;
       else if (rec.status === "absent") existing.absent++;
       else if (rec.status === "late") existing.late++;
       else if (rec.status === "excused") existing.excused++;
+      const eventDate = rec.event?.eventDate?.toISOString();
+      if (eventDate) {
+        if (!existing.lastDate || eventDate > existing.lastDate) {
+          existing.lastDate = eventDate;
+        }
+      }
       participantStats.set(rec.participantId, existing);
     }
 
@@ -223,7 +263,7 @@ export async function GET(request: NextRequest) {
     // Build response data
     const data = participants.map((p, idx) => {
       const stats = participantStats.get(p.id) || {
-        present: 0, absent: 0, late: 0, excused: 0, total: 0,
+        present: 0, absent: 0, late: 0, excused: 0, total: 0, lastDate: null,
       };
       const rate = stats.total > 0 ? Math.round(((stats.present + stats.late) / stats.total) * 100) : 0;
       const group = groupMap.get(p.groupId);
@@ -250,6 +290,7 @@ export async function GET(request: NextRequest) {
           excused: stats.excused,
           rate,
         },
+        lastAttendanceDate: stats.lastDate || null,
         _idx: idx,
       };
     });
@@ -264,6 +305,8 @@ export async function GET(request: NextRequest) {
       },
       totalActive,
       totalInactive,
+      newThisMonth,
+      weeklyAttendanceRate,
       park: { id: park.id, name: park.name, city: park.city?.name || "Unknown" },
       groups: allGroups.map((g) => ({ id: g.id, name: g.name, batchName: g.batchName })),
     });
@@ -271,6 +314,70 @@ export async function GET(request: NextRequest) {
     console.error("Park participants error:", error);
     return NextResponse.json(
       { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}
+
+// ==================== POST: Create Participant ====================
+
+export async function POST(request: NextRequest) {
+  const session = await getServerSession(authOptions);
+  const user = session?.user as SessionUser | undefined;
+
+  if (!session || !user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const allowedRoles = ["park_admin", "park_lead", "murabbi"];
+  if (!user.role || !allowedRoles.includes(user.role)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  try {
+    const body = await request.json();
+    const { name, phone, gender, dateOfBirth, groupId } = body;
+
+    if (!name || !groupId) {
+      return NextResponse.json({ error: "Name and group are required" }, { status: 400 });
+    }
+
+    // Verify the group belongs to the user's park
+    const staffMeta = await db.staffMeta.findUnique({
+      where: { userId: user.id },
+      select: { assignedParkId: true, assignedGroupId: true, role: true },
+    });
+
+    if (!staffMeta?.assignedParkId) {
+      return NextResponse.json({ error: "No park assigned" }, { status: 403 });
+    }
+
+    const group = await db.group.findUnique({
+      where: { id: groupId },
+      include: { batch: { select: { parkId: true } } },
+    });
+
+    if (!group || group.batch.parkId !== staffMeta.assignedParkId) {
+      return NextResponse.json({ error: "Invalid group" }, { status: 400 });
+    }
+
+    // Create participant
+    const participant = await db.participant.create({
+      data: {
+        name: name.trim(),
+        phone: phone?.trim() || null,
+        gender: gender || null,
+        dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
+        groupId,
+        state: "active",
+      },
+    });
+
+    return NextResponse.json({ id: participant.id, name: participant.name }, { status: 201 });
+  } catch (error) {
+    console.error("Create participant error:", error);
+    return NextResponse.json(
+      { error: "Failed to create participant" },
       { status: 500 }
     );
   }
