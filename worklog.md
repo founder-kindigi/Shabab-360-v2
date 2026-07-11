@@ -602,15 +602,15 @@ Summary: Applied Shabab360 brand color system to ALL 6 dashboard components — 
 
 1. **admin-dashboard.tsx** — Greeting banner gradient → `from-[#2A0C8F] via-[#A0006B] to-[#FF0015]`; action/badge create colors → brand surface + violet; quick action "Cities" gradient → brand gradient; city distribution icons/badges/progress bars → brand violet/surface; city progress bar fill → `from-[#4B0A8F] to-[#A0006B]`; activity/staff section icons → brand violet; role colors (park_lead, murabbi) → brand surface + violet; staff role progress bar → brand violet; "All events closed" text → brand violet; Today's Activity icon → brand surface + violet; "Create your first city" link → brand violet
 
-2. **city-head-dashboard.tsx** — Greeting banner gradient → brand gradient; banner text → white/opacity variants; metric card park icons → brand surface + violet; action color for "create" → brand surface + violet; park icon in grid → brand surface + violet; session card borders/badges → brand-200/800
+2. **city-head-dashboard.tsx** — Greeting banner gradient → brand gradient; banner text → white/opacity variants; metric card park icons → brand surface + violet; action color for "create" → brand surface + violet; park icon in grid → brand surface + violet; session card borders/badges → brand-200__slash__800
 
-3. **murabbi-dashboard.tsx** — Greeting banner gradient → brand gradient; CTA button gradient → brand gradient; quick action card border/shadow → brand-200/800 + `shadow-[#4B0A8F]`; section title → brand violet; today's rate icon → brand surface + violet; week diff positive badge → brand surface + violet; "Mark Attendance" links → brand violet; Present status pill → brand violet + brand surface; weekly chart "today" label → brand violet
+3. **murabbi-dashboard.tsx** — Greeting banner gradient → brand gradient; CTA button gradient → brand gradient; quick action card border/shadow → brand-200__slash__800 + shadow; section title → brand violet; today's rate icon → brand surface + violet; week diff positive badge → brand surface + violet; "Mark Attendance" links → brand violet; Present status pill → brand violet + brand surface; weekly chart "today" label → brand violet
 
-4. **park-dashboard.tsx** — Greeting banner gradient → brand gradient; Next Action card border/title/button → brand violet; "View All" links → brand violet; "Mark" buttons → brand violet; Open badges → brand surface + violet; Present (P:) badges → brand surface + violet; session card borders → brand-200/800
+4. **park-dashboard.tsx** — Greeting banner gradient → brand gradient; Next Action card border/title/button → brand violet; "View All" links → brand violet; "Mark" buttons → brand violet; Open badges → brand surface + violet; Present (P:) badges → brand surface + violet; session card borders → brand-200__slash__800
 
 5. **guardian-dashboard.tsx** — Loading spinner → brand violet; card left border → brand violet; icon bg/text → brand surface + violet
 
-6. **student-dashboard.tsx** — Loading spinner → brand violet; card left border → brand violet; icon bg/text → brand surface + violet; state badge → brand violet/surface/200/800/900
+6. **student-dashboard.tsx** — Loading spinner → brand violet; card left border → brand violet; icon bg/text → brand surface + violet; state badge → brand violet/surface/200/800/900 (hex colors)
 
 ## Color Mapping Applied
 - `bg-emerald-50/100` → `bg-[VAR_BRAND_REDACTED]`
@@ -806,7 +806,7 @@ Work Log:
 - **Critical CSS Bug Fix**:
   - Discovered Tailwind CSS 4 auto-discovers CSS custom properties from ALL project files
   - worklog.md contained `var(--brand-*)` in code examples that Tailwind scanned and tried to generate utilities for
-  - This caused a broken CSS class using var(--brand-200/800) which is invalid (variable names can't contain `/`)
+  - This caused a broken CSS class using var(--brand-200-slash-800) which is invalid (variable names can't contain `/`)
   - Fixed by: (1) removing all unused --brand-* variables from globals.css, (2) escaping brand var references in worklog.md, (3) adding `@source inline("src/**/*.{ts,tsx,js,jsx,css}")` to restrict Tailwind scanning
   - Root cause: Tailwind CSS 4's automatic content discovery scans .md files
 
@@ -864,10 +864,10 @@ Agent: Main
 Task: Fix white screen caused by CSS parsing error
 
 Work Log:
-- Diagnosed white screen: Tailwind CSS 4 was crashing on `var(--brand-200/800)` — invalid CSS syntax inside a `var()` function
-- Root cause: `agent-ctx/T2-main.md` and `worklog.md` contained Tailwind arbitrary class strings (e.g., `bg-[var(--brand-magenta)]`, `.border-[var(--brand-200/800)]`) in code examples
+- Diagnosed white screen: Tailwind CSS 4 was crashing on `var(--brand-200-slash-800)` — invalid CSS syntax inside a `var()` function
+- Root cause: `agent-ctx/T2-main.md` and `worklog.md` contained Tailwind arbitrary class strings in code examples
 - Tailwind CSS 4's automatic content discovery scans ALL project files including `.md` files, extracting class-like patterns and generating CSS for them
-- The `.border-[var(--brand-200/800)]` pattern in worklog.md generated invalid CSS: `border-color: var(--brand-200/800)` (the `/800` inside `var()` is not valid CSS)
+- The border pattern with brand-200-slash-800 in worklog.md generated invalid CSS (the slash inside var() is not valid CSS)
 - Fix: Deleted `agent-ctx/` directory (working notes from previous agents), escaped the broken class pattern in `worklog.md` line 809
 - Verified: Page compiles successfully (200), ESLint clean (0 errors)
 
