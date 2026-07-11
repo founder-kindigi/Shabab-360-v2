@@ -28,13 +28,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-} from "@/components/ui/sheet";
+import { ParticipantDetailSheet } from "@/components/modules/admin/participant-detail-sheet";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -69,12 +63,10 @@ import {
   Trash2,
   Eye,
   GraduationCap,
-  Phone,
   MapPin,
   ChevronLeft,
   ChevronRight,
   User,
-  Calendar,
 } from "lucide-react";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -213,6 +205,7 @@ export function StudentsPage() {
   const [detailOpen, setDetailOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+  const [selectedDetailId, setSelectedDetailId] = useState<string | null>(null);
 
   // Form state
   const [formName, setFormName] = useState("");
@@ -390,8 +383,14 @@ export function StudentsPage() {
   }
 
   function openDetailSheet(student: Student) {
+    setSelectedDetailId(student.id);
     setSelectedStudent(student);
     setDetailOpen(true);
+  }
+
+  function closeDetailSheet() {
+    setDetailOpen(false);
+    setSelectedDetailId(null);
   }
 
   function openDeleteDialog(student: Student) {
@@ -603,7 +602,8 @@ export function StudentsPage() {
                     {students.map((student) => (
                       <TableRow
                         key={student.id}
-                        className="hover:bg-muted/30 transition-colors"
+                        className="hover:bg-muted/30 transition-colors cursor-pointer"
+                        onClick={() => openDetailSheet(student)}
                       >
                         <TableCell>
                           <div className="flex items-center gap-3">
@@ -676,28 +676,28 @@ export function StudentsPage() {
                         <TableCell>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="size-8">
+                              <Button variant="ghost" size="icon" className="size-8" onClick={(e) => e.stopPropagation()}>
                                 <MoreHorizontal className="size-4" />
                                 <span className="sr-only">Actions</span>
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                               <DropdownMenuItem
-                                onClick={() => openDetailSheet(student)}
+                                onClick={(e) => { e.stopPropagation(); openDetailSheet(student); }}
                                 className="cursor-pointer"
                               >
                                 <Eye className="size-4 mr-2" />
                                 View Details
                               </DropdownMenuItem>
                               <DropdownMenuItem
-                                onClick={() => openEditDialog(student)}
+                                onClick={(e) => { e.stopPropagation(); openEditDialog(student); }}
                                 className="cursor-pointer"
                               >
                                 <Pencil className="size-4 mr-2" />
                                 Edit
                               </DropdownMenuItem>
                               <DropdownMenuItem
-                                onClick={() => openDeleteDialog(student)}
+                                onClick={(e) => { e.stopPropagation(); openDeleteDialog(student); }}
                                 className="text-red-600 focus:text-red-600 cursor-pointer"
                               >
                                 <Trash2 className="size-4 mr-2" />
@@ -721,7 +721,7 @@ export function StudentsPage() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.15 }}
                   >
-                    <Card className="p-4 space-y-3">
+                    <Card className="p-4 space-y-3 cursor-pointer hover:border-[#D4B8E3] dark:hover:border-[#2A0C8F] transition-colors" onClick={() => openDetailSheet(student)}>
                       <div className="flex items-start justify-between">
                         <div className="flex items-center gap-3 min-w-0">
                           <div className="rounded-full bg-[#F3ECF6] dark:bg-[#1F086080] flex items-center justify-center size-10 text-sm font-semibold text-[#4B0A8F] dark:text-[#8A40B0] shrink-0">
@@ -745,20 +745,20 @@ export function StudentsPage() {
                           </Badge>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="size-7">
+                              <Button variant="ghost" size="icon" className="size-7" onClick={(e) => e.stopPropagation()}>
                                 <MoreHorizontal className="size-4" />
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => openDetailSheet(student)} className="cursor-pointer">
+                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openDetailSheet(student); }} className="cursor-pointer">
                                 <Eye className="size-4 mr-2" />
                                 View
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => openEditDialog(student)} className="cursor-pointer">
+                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openEditDialog(student); }} className="cursor-pointer">
                                 <Pencil className="size-4 mr-2" />
                                 Edit
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => openDeleteDialog(student)} className="text-red-600 focus:text-red-600 cursor-pointer">
+                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openDeleteDialog(student); }} className="text-red-600 focus:text-red-600 cursor-pointer">
                                 <Trash2 className="size-4 mr-2" />
                                 Deactivate
                               </DropdownMenuItem>
@@ -1045,135 +1045,19 @@ export function StudentsPage() {
       </Dialog>
 
       {/* Detail Sheet */}
-      <Sheet open={detailOpen} onOpenChange={setDetailOpen}>
-        <SheetContent>
-          <SheetHeader>
-            <SheetTitle>Student Details</SheetTitle>
-            <SheetDescription>Complete participant information</SheetDescription>
-          </SheetHeader>
-          {selectedStudent && (
-            <div className="mt-6 space-y-6">
-              {/* Avatar + Name */}
-              <div className="flex items-center gap-4">
-                <div className="rounded-full bg-[#F3ECF6] dark:bg-[#1F086080] flex items-center justify-center size-16 text-xl font-bold text-[#4B0A8F] dark:text-[#8A40B0]">
-                  {getInitials(selectedStudent.name)}
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold">{selectedStudent.name}</h3>
-                  <div className="flex items-center gap-2 mt-1">
-                    <Badge
-                      variant="outline"
-                      className={
-                        selectedStudent.state === "active"
-                          ? "text-[#4B0A8F] border-[#D4B8E3] bg-[#F3ECF6] dark:text-[#8A40B0] dark:border-[#2A0C8F] dark:bg-[#1F0860]"
-                          : "text-muted-foreground border-muted bg-muted/50"
-                      }
-                    >
-                      {selectedStudent.state}
-                    </Badge>
-                    {selectedStudent.gender && (
-                      <span className="text-xs text-muted-foreground capitalize">{selectedStudent.gender}</span>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Info Grid */}
-              <div className="grid gap-4">
-                {selectedStudent.phone && (
-                  <div className="flex items-center gap-3">
-                    <div className="rounded-lg bg-[#F3ECF6] p-2 dark:bg-[#1F086080]">
-                      <Phone className="size-4 text-[#4B0A8F] dark:text-[#8A40B0]" />
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Phone</p>
-                      <p className="text-sm font-medium">{selectedStudent.phone}</p>
-                    </div>
-                  </div>
-                )}
-
-                {selectedStudent.dateOfBirth && (
-                  <div className="flex items-center gap-3">
-                    <div className="rounded-lg bg-[#F3ECF6] p-2 dark:bg-[#1F086080]">
-                      <Calendar className="size-4 text-[#4B0A8F] dark:text-[#8A40B0]" />
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Date of Birth</p>
-                      <p className="text-sm font-medium">{formatPKT(new Date(selectedStudent.dateOfBirth))}</p>
-                    </div>
-                  </div>
-                )}
-
-                <div className="flex items-center gap-3">
-                  <div className="rounded-lg bg-[#F3ECF6] p-2 dark:bg-[#1F086080]">
-                    <Calendar className="size-4 text-[#4B0A8F] dark:text-[#8A40B0]" />
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Joined</p>
-                    <p className="text-sm font-medium">{formatPKT(new Date(selectedStudent.joinedAt))}</p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <div className="rounded-lg bg-[#F3ECF6] p-2 dark:bg-[#1F086080]">
-                    <MapPin className="size-4 text-[#4B0A8F] dark:text-[#8A40B0]" />
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Location</p>
-                    <p className="text-sm font-medium">
-                      {selectedStudent.group.name} → {selectedStudent.group.batch.name} → {selectedStudent.group.batch.park.name} → {selectedStudent.group.batch.park.city.name}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Attendance */}
-              <div className="space-y-2">
-                <p className="text-sm font-medium">30-Day Attendance</p>
-                <div className="flex items-center gap-3">
-                  <div className="flex-1 h-2.5 bg-muted rounded-full overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all ${getRateBarColor(selectedStudent.attendanceRate)}`}
-                      style={{ width: `${selectedStudent.attendanceRate ?? 0}%` }}
-                    />
-                  </div>
-                  <span className={`text-sm font-semibold px-2 py-0.5 rounded ${getRateColor(selectedStudent.attendanceRate)}`}>
-                    {selectedStudent.attendanceRate !== null ? `${selectedStudent.attendanceRate}%` : "N/A"}
-                  </span>
-                </div>
-                {selectedStudent.attendanceTotal > 0 && (
-                  <p className="text-xs text-muted-foreground">
-                    {selectedStudent.attendancePresent} present out of {selectedStudent.attendanceTotal} events
-                  </p>
-                )}
-              </div>
-
-              {/* Guardians */}
-              {selectedStudent.guardians.length > 0 && (
-                <div className="space-y-2">
-                  <p className="text-sm font-medium">Guardians</p>
-                  <div className="space-y-2">
-                    {selectedStudent.guardians.map((g) => (
-                      <div key={g.id} className="flex items-center gap-3 p-2 rounded-lg bg-muted/50">
-                        <div className="rounded-full bg-[#D4B8E3] dark:bg-[#1F086080] flex items-center justify-center size-8 text-xs font-semibold text-[#4B0A8F] dark:text-[#8A40B0]">
-                          {getInitials(g.name)}
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium">{g.name}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {g.phone}
-                            {g.relation && ` · ${g.relation}`}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </SheetContent>
-      </Sheet>
+      <ParticipantDetailSheet
+        open={detailOpen}
+        onOpenChange={(open) => {
+          if (!open) closeDetailSheet();
+          else setDetailOpen(true);
+        }}
+        participantId={selectedDetailId}
+        participantName={selectedStudent?.name}
+        onEdit={selectedStudent ? () => {
+          closeDetailSheet();
+          openEditDialog(selectedStudent);
+        } : undefined}
+      />
 
       {/* Delete Confirmation */}
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>

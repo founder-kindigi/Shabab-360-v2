@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
     newValues: { type, cityId, parkId, days },
   }).catch(() => {});
 
-  const validTypes = ["attendance-overview", "city-comparison", "park-comparison", "trend"];
+  const validTypes = ["attendance-overview", "city-comparison", "park-comparison", "trend", "fee-by-park"];
   if (!validTypes.includes(type)) {
     return NextResponse.json({ error: "Invalid report type" }, { status: 400 });
   }
@@ -42,6 +42,8 @@ export async function GET(request: NextRequest) {
       return getParkComparison(startDateUTC, cityId);
     case "trend":
       return getTrend(startDateUTC, days, cityId, parkId);
+    case "fee-by-park":
+      return getFeeByPark(cityId);
     default:
       return NextResponse.json({ error: "Invalid report type" }, { status: 400 });
   }
@@ -179,6 +181,37 @@ async function getAttendanceOverview(startDateUTC: Date, cityId?: string, parkId
     }))
     .sort((a, b) => a.dayIndex - b.dayIndex);
 
+  // City attendance rates
+  const cityRates = await db.$queryRaw<Array<{ cityName: string; cityId: string; totalRecords: number; attended: number; rate: number }>>`
+    SELECT 
+      c.name as cityName,
+      c.id as cityId,
+      COUNT(DISTINCT ar.id) as totalRecords,
+      SUM(CASE WHEN ar.status = 'present' OR ar.status = 'late' THEN 1 ELSE 0 END) as attended,
+      ROUND(100.0 * SUM(CASE WHEN ar.status = 'present' OR ar.status = 'late' THEN 1 ELSE 0 END) / COUNT(DISTINCT ar.id), 1) as rate
+    FROM cities c
+    JOIN parks p ON p.cityId = c.id
+    JOIN batches b ON b.parkId = p.id
+    JOIN groups g ON g.batchId = b.id
+    JOIN attendance_events ae ON ae.groupId = g.id
+    JOIN attendance_records ar ON ar.eventId = ae.id
+    WHERE ae.eventDate >= ${startDateUTC}
+    GROUP BY c.id
+    ORDER BY rate DESC
+  `;
+
+  // Total fees collected
+  const feeResult = await db.$queryRaw<Array<{ total: number }>>`
+    SELECT COALESCE(SUM(py.amount), 0) as total
+    FROM payments py
+    JOIN fee_events fe ON fe.id = py.feeEventId
+    JOIN batches b ON b.id = fe.batchId
+    JOIN parks p ON p.id = b.parkId
+    JOIN cities c ON c.id = p.cityId
+    WHERE py.createdAt >= ${startDateUTC}
+  `;
+  const totalFeesCollected = feeResult[0]?.total || 0;
+
   return NextResponse.json({
     totalEvents,
     totalRecords,
@@ -193,6 +226,14 @@ async function getAttendanceOverview(startDateUTC: Date, cityId?: string, parkId
     },
     dayOfWeekBreakdown,
     activeParticipants: totalParticipants,
+    cityAttendanceRates: cityRates.map(r => ({
+      cityId: r.cityId,
+      cityName: r.cityName,
+      rate: Number(r.rate),
+      totalRecords: Number(r.totalRecords),
+      attended: Number(r.attended),
+    })),
+    totalFeesCollected: Number(totalFeesCollected),
   });
 }
 
@@ -403,4 +444,33 @@ async function getTrend(startDateUTC: Date, days: number, cityId?: string, parkI
     }));
 
   return NextResponse.json(weeklyTrend);
+}
+
+async function getFeeByPark(cityId?: string) {
+  const whereClause = cityId ? `WHERE c.id = ${cityId}` : "";
+  const parkFees = await db.$queryRaw<Array<{ parkName: string; parkId: string; cityName: string; totalCollected: number }>>`
+    SELECT 
+      p.name as parkName,
+      p.id as parkId,
+      c.name as cityName,
+      SUM(py.amount) as totalCollected
+    FROM parks p
+    JOIN cities c ON c.id = p.cityId
+    JOIN batches b ON b.parkId = p.id
+    JOIN fee_events fe ON fe.batchId = b.id
+    JOIN payments py ON py.feeEventId = fe.id
+    ${whereClause}
+    GROUP BY p.id
+    ORDER BY totalCollected DESC
+    LIMIT 10
+  `;
+
+  return NextResponse.json(
+    parkFees.map(r => ({
+      parkId: r.parkId,
+      parkName: r.parkName,
+      cityName: r.cityName,
+      totalCollected: Number(r.totalCollected),
+    }))
+  );
 }

@@ -222,7 +222,7 @@ export function SortableDataTable<T>({
                 className={cn(
                   "cursor-pointer",
                   action.destructive &&
-                    "text-red-600 focus:text-red-600"
+                    "text-red-600 dark:text-red-400 focus:text-red-600 dark:focus:text-red-400"
                 )}
               >
                 {Icon && <Icon className="size-4 mr-2" />}

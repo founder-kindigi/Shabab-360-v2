@@ -132,7 +132,7 @@ export function BottomNav() {
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#A0006B] focus-visible:ring-offset-1",
                 "min-w-[56px]",
                 isActive
-                  ? "bg-[#4B0A8F] text-white"
+                  ? "bg-[#4B0A8F] dark:bg-[#7B3ADF] text-white"
                   : "text-muted-foreground hover:text-foreground"
               )}
             >

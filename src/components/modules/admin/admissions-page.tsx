@@ -974,7 +974,7 @@ export function AdmissionsPage() {
                           onClick={() => handleCopyTracking(detail.trackingCode)}
                         >
                           {copied ? (
-                            <Check className="size-3 text-green-600" />
+                            <Check className="size-3 text-green-600 dark:text-green-400" />
                           ) : (
                             <Copy className="size-3 text-muted-foreground" />
                           )}
@@ -1366,7 +1366,7 @@ export function AdmissionsPage() {
               {/* Total Score */}
               <div className="flex items-center justify-center gap-2 py-2 px-3 bg-muted/50 rounded-lg">
                 <span className="text-xs text-muted-foreground">Total Score:</span>
-                <span className={`text-lg font-bold ${totalScore >= 20 ? "text-green-600" : totalScore >= 15 ? "text-amber-600" : "text-red-600"}`}>
+                <span className={`text-lg font-bold ${totalScore >= 20 ? "text-green-600 dark:text-green-400" : totalScore >= 15 ? "text-amber-600 dark:text-amber-400" : "text-red-600 dark:text-red-400"}`}>
                   {totalScore}
                 </span>
                 <span className="text-xs text-muted-foreground">/ 30</span>
@@ -1383,17 +1383,17 @@ export function AdmissionsPage() {
                 <SelectContent>
                   <SelectItem value="passed">
                     <span className="flex items-center gap-2">
-                      <CheckCircle2 className="size-3.5 text-green-600" /> Pass
+                      <CheckCircle2 className="size-3.5 text-green-600 dark:text-green-400" /> Pass
                     </span>
                   </SelectItem>
                   <SelectItem value="failed">
                     <span className="flex items-center gap-2">
-                      <XCircle className="size-3.5 text-red-600" /> Fail
+                      <XCircle className="size-3.5 text-red-600 dark:text-red-400" /> Fail
                     </span>
                   </SelectItem>
                   <SelectItem value="conditional">
                     <span className="flex items-center gap-2">
-                      <AlertTriangle className="size-3.5 text-amber-600" /> Conditional
+                      <AlertTriangle className="size-3.5 text-amber-600 dark:text-amber-400" /> Conditional
                     </span>
                   </SelectItem>
                 </SelectContent>
@@ -1596,7 +1596,7 @@ function KanbanView({
                                 <DropdownMenuItem
                                   key={ns}
                                   onClick={() => onMoveStatus(app, ns)}
-                                  className={ns === "rejected" ? "text-red-600 focus:text-red-600" : ""}
+                                  className={ns === "rejected" ? "text-red-600 dark:text-red-400 focus:text-red-600 dark:focus:text-red-400" : ""}
                                 >
                                   {ns === "rejected" ? <UserX className="size-3.5 mr-2" /> : <ArrowRightLeft className="size-3.5 mr-2" />}
                                   Move to {STATUS_CONFIG[ns].label}
@@ -1733,7 +1733,7 @@ function ListView({
                           <DropdownMenuItem
                             key={ns}
                             onClick={(e) => { e.stopPropagation(); onMoveStatus(app, ns); }}
-                            className={ns === "rejected" ? "text-red-600 focus:text-red-600" : ""}
+                            className={ns === "rejected" ? "text-red-600 dark:text-red-400 focus:text-red-600 dark:focus:text-red-400" : ""}
                           >
                             {ns === "rejected" ? <UserX className="size-3.5 mr-2" /> : <ArrowRightLeft className="size-3.5 mr-2" />}
                             Move to {STATUS_CONFIG[ns].label}

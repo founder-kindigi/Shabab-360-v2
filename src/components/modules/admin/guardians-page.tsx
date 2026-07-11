@@ -46,6 +46,8 @@ import { toast } from "sonner";
 import { useDebounce } from "@/hooks/use-debounce";
 import { formatPKT } from "@/lib/timezone";
 import { ExportButton } from "@/components/shared/export-button";
+import { GuardianDetailSheet } from "@/components/modules/admin/guardian-detail-sheet";
+import { ParticipantDetailSheet } from "@/components/modules/admin/participant-detail-sheet";
 import {
   Plus,
   Search,
@@ -62,6 +64,7 @@ import {
   IdCard,
   User,
   X,
+  Eye,
 } from "lucide-react";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -175,7 +178,14 @@ export function GuardiansPage() {
   const [editOpen, setEditOpen] = useState(false);
   const [linkChildOpen, setLinkChildOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [detailOpen, setDetailOpen] = useState(false);
   const [selectedGuardian, setSelectedGuardian] = useState<Guardian | null>(null);
+  const [selectedDetailId, setSelectedDetailId] = useState<string | null>(null);
+
+  // Participant detail sheet (child click)
+  const [childDetailOpen, setChildDetailOpen] = useState(false);
+  const [childDetailId, setChildDetailId] = useState<string | null>(null);
+  const [childDetailName, setChildDetailName] = useState("");
 
   // Create/Edit form
   const [formName, setFormName] = useState("");
@@ -371,6 +381,23 @@ export function GuardiansPage() {
     setDeleteOpen(true);
   }
 
+  function openDetailSheet(guardian: Guardian) {
+    setSelectedDetailId(guardian.id);
+    setSelectedGuardian(guardian);
+    setDetailOpen(true);
+  }
+
+  function closeDetailSheet() {
+    setDetailOpen(false);
+    setSelectedDetailId(null);
+  }
+
+  function handleChildClick(participantId: string, participantName: string) {
+    setChildDetailId(participantId);
+    setChildDetailName(participantName);
+    setChildDetailOpen(true);
+  }
+
   // ─── Submit handlers ─────────────────────────────────────────────────────
 
   function handleCreateSubmit(e: React.FormEvent) {
@@ -525,7 +552,7 @@ export function GuardiansPage() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.15, delay: idx * 0.03 }}
                   >
-                    <Card className="border-[#D4B8E3] dark:border-[#2A0C8F] overflow-hidden">
+                    <Card className="border-[#D4B8E3] dark:border-[#2A0C8F] overflow-hidden cursor-pointer hover:shadow-md transition-shadow" onClick={() => openDetailSheet(guardian)}>
                       {/* Header */}
                       <div className="flex items-start justify-between p-4 pb-3">
                         <div className="flex items-center gap-3 min-w-0">
@@ -561,22 +588,26 @@ export function GuardiansPage() {
                           </div>
                         </div>
                         <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
+                          <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
                             <Button variant="ghost" size="icon" className="size-7 shrink-0">
                               <MoreHorizontal className="size-4" />
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => openEditDialog(guardian)} className="cursor-pointer">
+                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openDetailSheet(guardian); }} className="cursor-pointer">
+                              <Eye className="size-4 mr-2" />
+                              View Details
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openEditDialog(guardian); }} className="cursor-pointer">
                               <Pencil className="size-4 mr-2" />
                               Edit
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => openLinkChildDialog(guardian)} className="cursor-pointer">
+                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openLinkChildDialog(guardian); }} className="cursor-pointer">
                               <UserPlus className="size-4 mr-2" />
                               Manage Children
                             </DropdownMenuItem>
                             {guardian.isActive && (
-                              <DropdownMenuItem onClick={() => openDeleteDialog(guardian)} className="text-red-600 focus:text-red-600 cursor-pointer">
+                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openDeleteDialog(guardian); }} className="text-red-600 focus:text-red-600 cursor-pointer">
                                 <Trash2 className="size-4 mr-2" />
                                 Deactivate
                               </DropdownMenuItem>
@@ -605,7 +636,7 @@ export function GuardiansPage() {
                             variant="ghost"
                             size="sm"
                             className="size-6 text-[#4B0A8F] dark:text-[#8A40B0] h-auto p-0"
-                            onClick={() => openLinkChildDialog(guardian)}
+                            onClick={(e) => { e.stopPropagation(); openLinkChildDialog(guardian); }}
                           >
                             <UserPlus className="size-3.5" />
                           </Button>
@@ -963,6 +994,43 @@ export function GuardiansPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Guardian Detail Sheet */}
+      <GuardianDetailSheet
+        open={detailOpen}
+        onOpenChange={(open) => {
+          if (!open) closeDetailSheet();
+          else setDetailOpen(true);
+        }}
+        guardianId={selectedDetailId}
+        guardianName={selectedGuardian?.name}
+        onEdit={selectedGuardian ? () => {
+          closeDetailSheet();
+          openEditDialog(selectedGuardian);
+        } : undefined}
+        onLinkChild={selectedGuardian ? () => {
+          closeDetailSheet();
+          openLinkChildDialog(selectedGuardian);
+        } : undefined}
+        onChildClick={(participantId, participantName) => {
+          handleChildClick(participantId, participantName);
+        }}
+      />
+
+      {/* Child (Participant) Detail Sheet */}
+      <ParticipantDetailSheet
+        open={childDetailOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            setChildDetailOpen(false);
+            setChildDetailId(null);
+          } else {
+            setChildDetailOpen(true);
+          }
+        }}
+        participantId={childDetailId}
+        participantName={childDetailName}
+      />
     </div>
   );
 }

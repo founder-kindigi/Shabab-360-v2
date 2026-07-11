@@ -90,6 +90,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ExportButton } from "@/components/shared/export-button";
+import { generateReceipt, type ReceiptData } from "@/lib/pdf-receipt";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -509,11 +510,22 @@ export function FeesPage() {
         if (!r.ok) return r.json().then((e) => Promise.reject(e));
         return r.json();
       }),
-    onSuccess: () => {
+    onSuccess: (res: any) => {
       queryClient.invalidateQueries({ queryKey: ["admin-fee-detail"] });
       queryClient.invalidateQueries({ queryKey: ["admin-fees"] });
-      toast.success("Payment recorded successfully");
       resetPaymentForm();
+
+      if (res.receiptData) {
+        toast.success("Payment recorded successfully", {
+          action: {
+            label: "Print Receipt",
+            onClick: () => generateReceipt(res.receiptData as ReceiptData),
+          },
+          duration: 8000,
+        });
+      } else {
+        toast.success("Payment recorded successfully");
+      }
     },
     onError: (err: any) => {
       if (err.error) {
@@ -1874,6 +1886,35 @@ export function FeesPage() {
                           {payment.notes && (
                             <p className="text-[10px] text-muted-foreground italic mt-1">{payment.notes}</p>
                           )}
+                          <div className="flex justify-end pt-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 w-6 p-0 text-muted-foreground hover:text-[#4B0A8F] dark:hover:text-[#B87EE0]"
+                              onClick={() => {
+                                generateReceipt({
+                                  receiptNo: payment.receiptNo ?? "N/A",
+                                  date: new Date(payment.createdAt).toLocaleDateString("en-GB", {
+                                    day: "numeric",
+                                    month: "short",
+                                    year: "numeric",
+                                    timeZone: "Asia/Karachi",
+                                  }),
+                                  studentName: payment.participant.name,
+                                  groupName: payment.participant.group?.name ?? "—",
+                                  batchName: feeDetail.batch.name,
+                                  parkName: feeDetail.batch.park.name,
+                                  feeTitle: feeDetail.title,
+                                  amount: payment.amount,
+                                  method: payment.method,
+                                  recordedBy: "—",
+                                  notes: payment.notes ?? undefined,
+                                });
+                              }}
+                            >
+                              <Printer className="size-3.5" />
+                            </Button>
+                          </div>
                         </div>
                       ))}
                     </div>

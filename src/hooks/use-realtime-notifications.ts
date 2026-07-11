@@ -5,6 +5,7 @@ import { io, Socket } from "socket.io-client";
 import { useSession } from "next-auth/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { usePresenceStore } from "@/stores/usePresenceStore";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -12,6 +13,11 @@ interface NotificationPayload {
   type: string;
   data: Record<string, unknown>;
   timestamp: string;
+}
+
+interface PresenceEntry {
+  userId: string;
+  role: string;
 }
 
 /**
@@ -22,12 +28,16 @@ interface NotificationPayload {
  * - Joins the user's role room for scoped broadcasts
  * - Listens for `attendance:updated` → triggers toast + invalidates relevant queries
  * - Listens for `announcement:received` → triggers toast + invalidates notification queries
+ * - Tracks user presence: emits `presence:join` on connect, heartbeat every 30s
+ * - Listens for `user:presence` → updates the presence store
  * - Handles reconnection automatically via Socket.IO
  */
 export function useRealtimeNotifications() {
   const { data: session, status } = useSession();
   const queryClient = useQueryClient();
   const socketRef = useRef<Socket | null>(null);
+  const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const setOnlineUsers = usePresenceStore((s) => s.setOnlineUsers);
 
   const connect = useCallback(() => {
     // Disconnect existing socket if any
@@ -51,14 +61,33 @@ export function useRealtimeNotifications() {
     socket.on("connect", () => {
       console.log("[realtime] Connected to notification service");
 
-      // Auto-join role-based room
       const user = session?.user as
-        | { role?: string }
+        | { id?: string; role?: string }
         | undefined;
 
+      // Auto-join role-based room
       if (user?.role) {
         socket.emit("join-room", `role:${user.role}`);
       }
+
+      // ─── Presence: announce self ─────────────────────────────────────────
+      if (user?.id) {
+        socket.emit("presence:join", {
+          userId: user.id,
+          role: user.role || "unknown",
+        });
+      }
+
+      // ─── Presence: start heartbeat (every 30s) ───────────────────────────
+      if (heartbeatRef.current) clearInterval(heartbeatRef.current);
+      heartbeatRef.current = setInterval(() => {
+        socket.emit("presence:ping");
+      }, 30000);
+    });
+
+    // ─── User Presence Update ──────────────────────────────────────────────
+    socket.on("user:presence", (data: Record<string, PresenceEntry>) => {
+      setOnlineUsers(data);
     });
 
     // ─── Attendance Update ─────────────────────────────────────────────────
@@ -135,10 +164,16 @@ export function useRealtimeNotifications() {
         // Reconnection will be handled by Socket.IO automatically
         console.log("[realtime] Disconnected, will auto-reconnect");
       }
+
+      // Stop heartbeat
+      if (heartbeatRef.current) {
+        clearInterval(heartbeatRef.current);
+        heartbeatRef.current = null;
+      }
     });
 
     socketRef.current = socket;
-  }, [session, queryClient]);
+  }, [session, queryClient, setOnlineUsers]);
 
   // Connect / reconnect when session changes
   useEffect(() => {
@@ -152,6 +187,10 @@ export function useRealtimeNotifications() {
     }
 
     return () => {
+      if (heartbeatRef.current) {
+        clearInterval(heartbeatRef.current);
+        heartbeatRef.current = null;
+      }
       if (socketRef.current) {
         socketRef.current.disconnect();
         socketRef.current = null;

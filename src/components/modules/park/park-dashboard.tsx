@@ -96,6 +96,7 @@ type DashboardData = {
   needsAttention: NeedsAttentionItem[];
   openUncompletedCount: number;
   unclosedYesterdayCount: number;
+  warningsCount: number;
   attentionItems: Array<{
     type: string;
     message: string;
@@ -397,6 +398,7 @@ export function ParkDashboard() {
     needsAttention,
     openUncompletedCount,
     unclosedYesterdayCount,
+    warningsCount,
     attentionItems,
     events,
   } = data;
@@ -580,6 +582,40 @@ export function ParkDashboard() {
             />
           )}
         </motion.div>
+
+        {/* ==================== ATTENDANCE WARNING CARD ==================== */}
+        {warningsCount > 0 && (
+          <motion.div variants={fadeUp}>
+            <div
+              className="relative overflow-hidden rounded-xl bg-gradient-to-r from-red-500 via-amber-500 to-red-500 px-5 py-4 text-white shadow-md cursor-pointer"
+              onClick={() => navigateTo("park-attendance")}
+            >
+              {/* Decorative shapes */}
+              <div className="absolute -top-4 -right-4 size-20 rounded-full bg-white/10" />
+              <div className="absolute bottom-1 right-16 size-8 rounded-full bg-white/5" />
+
+              <div className="relative flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="flex items-center justify-center size-10 rounded-full bg-white/20 backdrop-blur-sm shrink-0">
+                    <AlertTriangle className="size-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-lg font-bold">
+                      {warningsCount} Attendance {warningsCount === 1 ? "Warning" : "Warnings"}
+                    </p>
+                    <p className="text-white/70 text-xs mt-0.5">
+                      Participant{warningsCount !== 1 ? "s" : ""} with excessive consecutive absences
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1.5 text-xs font-medium bg-white/15 backdrop-blur-sm rounded-full px-3 py-1.5 shrink-0">
+                  View Details
+                  <ChevronRight className="size-3.5" />
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
 
         {/* ==================== ATTENTION ITEMS (ENHANCED) ==================== */}
         {needsAttention.length > 0 && (

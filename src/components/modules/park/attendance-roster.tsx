@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef, useMemo } from "react";
+import { useState, useCallback, useRef, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import { useAppStore } from "@/stores/useAppStore";
@@ -8,15 +8,24 @@ import { useAttendanceSync } from "@/hooks/use-attendance-sync";
 import { useOnlineStatus } from "@/hooks/use-online-status";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
-import { PageHeader } from "@/components/layout/page-header";
 import { EmptyState } from "@/components/layout/empty-state";
 import { OfflineQueuePanel } from "./offline-queue-panel";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Progress } from "@/components/ui/progress";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Dialog,
   DialogContent,
@@ -25,6 +34,11 @@ import {
   DialogFooter,
   DialogDescription,
 } from "@/components/ui/dialog";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   CheckCircle2,
   XCircle,
@@ -40,9 +54,18 @@ import {
   Filter,
   X,
   Printer,
+  RotateCcw,
+  Check,
+  Users,
+  AlertTriangle,
+  Phone,
+  Send,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { v4 as uuidv4 } from "uuid";
 import type { AttendanceStatus } from "@/lib/offline/db";
+
+// ─── Types ───────────────────────────────────────────────────────────────────
 
 type RosterItem = {
   participantId: string;
@@ -76,6 +99,55 @@ type Summary = {
   unmarked: number;
 };
 
+type WarningItem = {
+  participantId: string;
+  participantName: string;
+  consecutiveAbsents: number;
+  level: "warning" | "critical" | "dropout";
+  threshold: number;
+  lastAttendanceDate: string | null;
+};
+
+type WarningsData = {
+  warnings: WarningItem[];
+  settings: { warningAbsents: number; dropoutAbsents: number };
+};
+
+function warningLevelColor(level: WarningItem["level"]) {
+  switch (level) {
+    case "warning":
+      return "text-amber-500 dark:text-amber-400";
+    case "critical":
+      return "text-orange-500 dark:text-orange-400";
+    case "dropout":
+      return "text-red-500 dark:text-red-400";
+  }
+}
+
+function warningLevelBg(level: WarningItem["level"]) {
+  switch (level) {
+    case "warning":
+      return "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-300 dark:border-amber-800/50";
+    case "critical":
+      return "bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950/30 dark:text-orange-300 dark:border-orange-800/50";
+    case "dropout":
+      return "bg-red-50 text-red-700 border-red-200 dark:bg-red-950/30 dark:text-red-300 dark:border-red-800/50";
+  }
+}
+
+function warningLevelBadge(level: WarningItem["level"]) {
+  switch (level) {
+    case "warning":
+      return "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400";
+    case "critical":
+      return "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400";
+    case "dropout":
+      return "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400";
+  }
+}
+
+// ─── Constants ───────────────────────────────────────────────────────────────
+
 const STATUS_CYCLE: (AttendanceStatus | null)[] = [
   null,
   "present",
@@ -94,6 +166,7 @@ const STATUS_CONFIG: Record<
     icon: typeof CheckCircle2;
     iconColor: string;
     borderClass: string;
+    btnClass: string;
   }
 > = {
   present: {
@@ -104,6 +177,8 @@ const STATUS_CONFIG: Record<
     icon: CheckCircle2,
     iconColor: "text-white",
     borderClass: "",
+    btnClass:
+      "bg-emerald-100 text-emerald-700 hover:bg-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:hover:bg-emerald-900/50",
   },
   absent: {
     label: "Absent",
@@ -113,6 +188,8 @@ const STATUS_CONFIG: Record<
     icon: XCircle,
     iconColor: "text-red-600 dark:text-red-400",
     borderClass: "border-l-[3px] border-l-red-500",
+    btnClass:
+      "bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50",
   },
   late: {
     label: "Late",
@@ -122,6 +199,8 @@ const STATUS_CONFIG: Record<
     icon: Clock,
     iconColor: "text-amber-600 dark:text-amber-400",
     borderClass: "border-l-[3px] border-l-amber-500",
+    btnClass:
+      "bg-amber-100 text-amber-700 hover:bg-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:hover:bg-amber-900/50",
   },
   excused: {
     label: "Excused",
@@ -131,8 +210,19 @@ const STATUS_CONFIG: Record<
     icon: ShieldCheck,
     iconColor: "text-sky-600 dark:text-sky-400",
     borderClass: "border-l-[3px] border-l-sky-500",
+    btnClass:
+      "bg-sky-100 text-sky-700 hover:bg-sky-200 dark:bg-sky-900/30 dark:text-sky-400 dark:hover:bg-sky-900/50",
   },
 };
+
+const QUICK_STATUSES: { status: AttendanceStatus; icon: typeof CheckCircle2; label: string; colorClass: string }[] = [
+  { status: "present", icon: CheckCircle2, label: "Present", colorClass: "text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/30" },
+  { status: "absent", icon: XCircle, label: "Absent", colorClass: "text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30" },
+  { status: "late", icon: Clock, label: "Late", colorClass: "text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/30" },
+  { status: "excused", icon: ShieldCheck, label: "Excused", colorClass: "text-sky-600 dark:text-sky-400 hover:bg-sky-100 dark:hover:bg-sky-900/30" },
+];
+
+// ─── Component ───────────────────────────────────────────────────────────────
 
 export function AttendanceRoster() {
   const { selectedEventId, navigateTo } = useAppStore();
@@ -146,15 +236,27 @@ export function AttendanceRoster() {
   const [closeDialogOpen, setCloseDialogOpen] = useState(false);
   const [closeReason, setCloseReason] = useState("");
   const [processingIds, setProcessingIds] = useState<Set<string>>(new Set());
+  const [warningDialogOpen, setWarningDialogOpen] = useState(false);
+
+  // Confirmation dialogs
+  const [bulkConfirm, setBulkConfirm] = useState<{
+    type: "present" | "absent" | "reset";
+    count: number;
+  } | null>(null);
+
+  // Range selection
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const lastClickedIdx = useRef<number | null>(null);
 
   // Optimistic local status overrides
   const localStatusMap = useRef<Map<string, AttendanceStatus>>(new Map());
 
   const userRole = (session?.user as { role?: string } | undefined)?.role;
-  const canClose =
-    userRole === "park_admin" || userRole === "park_lead";
+  const canClose = userRole === "park_admin" || userRole === "park_lead";
+  const canReset = canClose;
 
-  // Fetch roster
+  // ─── Fetch roster ────────────────────────────────────────────────────────
+
   const {
     data,
     isLoading,
@@ -174,6 +276,99 @@ export function AttendanceRoster() {
     enabled: !!selectedEventId,
     refetchInterval: 15000,
     staleTime: 10000,
+  });
+
+  // ─── Fetch warnings for this group ───────────────────────────────────
+
+  const { data: warningsData } = useQuery<WarningsData>({
+    queryKey: ["attendance-warnings", data?.event?.groupId],
+    queryFn: () =>
+      fetch(`/api/park/attendance/warnings?groupId=${data!.event!.groupId}`).then((r) => {
+        if (!r.ok) throw new Error("Failed to load warnings");
+        return r.json();
+      }),
+    enabled: !!data?.event?.groupId,
+    staleTime: 60000,
+  });
+
+  const warningMap = useMemo(() => {
+    const map = new Map<string, WarningItem>();
+    for (const w of warningsData?.warnings || []) {
+      map.set(w.participantId, w);
+    }
+    return map;
+  }, [warningsData]);
+
+  // ─── Mutations ───────────────────────────────────────────────────────────
+
+  // Batch sync mutation
+  const batchSyncMutation = useMutation({
+    mutationFn: async (params: {
+      participantIds: string[];
+      status: AttendanceStatus;
+    }) => {
+      const now = new Date().toISOString();
+      const mutations = params.participantIds.map((pid) => ({
+        mutationId: uuidv4(),
+        eventId: selectedEventId,
+        participantId: pid,
+        status: params.status,
+        markedAt: now,
+      }));
+
+      const res = await fetch("/api/park/attendance/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mutations }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: "Batch sync failed" }));
+        throw new Error(err.error || "Batch sync failed");
+      }
+
+      return res.json();
+    },
+    onSuccess: (_data, variables) => {
+      toast.success(
+        `Marked ${variables.participantIds.length} as ${variables.status}`
+      );
+      queryClient.invalidateQueries({
+        queryKey: ["attendance-roster", selectedEventId],
+      });
+    },
+    onError: (err: Error, variables) => {
+      // Revert optimistic updates for failed batch
+      variables.participantIds.forEach((pid) => {
+        localStatusMap.current.delete(pid);
+      });
+      toast.error(err.message || "Batch operation failed");
+    },
+  });
+
+  // Reset all mutation
+  const resetMutation = useMutation({
+    mutationFn: () =>
+      fetch(`/api/park/attendance/${selectedEventId}/reset`, {
+        method: "DELETE",
+      }).then((r) => {
+        if (!r.ok) return r.json().then((e) => { throw new Error(e.error || "Reset failed"); });
+        return r.json();
+      }),
+    onMutate: () => {
+      // Clear all local optimistic state
+      localStatusMap.current.clear();
+    },
+    onSuccess: () => {
+      toast.success("All attendance marks cleared");
+      queryClient.invalidateQueries({
+        queryKey: ["attendance-roster", selectedEventId],
+      });
+    },
+    onError: (err: Error) => {
+      toast.error(err.message || "Failed to reset attendance");
+      refetch();
+    },
   });
 
   // Close event mutation
@@ -200,38 +395,25 @@ export function AttendanceRoster() {
     },
   });
 
-  const handleCycleStatus = useCallback(
-    async (participantId: string, currentStatus: AttendanceStatus | null) => {
+  // ─── Handlers ────────────────────────────────────────────────────────────
+
+  const handleMarkSingle = useCallback(
+    async (participantId: string, status: AttendanceStatus) => {
       if (!selectedEventId || !data?.event || data.event.isClosed) return;
 
-      const currentIdx = STATUS_CYCLE.indexOf(currentStatus);
-      const nextStatus = STATUS_CYCLE[(currentIdx + 1) % STATUS_CYCLE.length];
-
-      // Update local optimistic state
-      if (nextStatus) {
-        localStatusMap.current.set(participantId, nextStatus);
-      } else {
-        localStatusMap.current.delete(participantId);
-      }
-
-      // Update processing indicator
+      // Optimistic update
+      localStatusMap.current.set(participantId, status);
       setProcessingIds((prev) => new Set(prev).add(participantId));
 
       try {
-        if (nextStatus) {
-          const result = await markAttendance({
-            eventId: selectedEventId,
-            participantId,
-            status: nextStatus,
-          });
-          if (!result.success) {
-            // Revert optimistic update
-            localStatusMap.current.delete(participantId);
-            toast.error(result.error || "Failed to mark attendance");
-          }
-        } else {
-          // Cycling back to null - we don't actually call the API for this
-          // The "null" state just means unmarking locally
+        const result = await markAttendance({
+          eventId: selectedEventId,
+          participantId,
+          status,
+        });
+        if (!result.success) {
+          localStatusMap.current.delete(participantId);
+          toast.error(result.error || "Failed to mark attendance");
         }
       } finally {
         setProcessingIds((prev) => {
@@ -239,14 +421,86 @@ export function AttendanceRoster() {
           next.delete(participantId);
           return next;
         });
-        // Brief refetch delay to let sync process
-        setTimeout(() => {
-          refetch();
-        }, 500);
+        setTimeout(() => refetch(), 500);
       }
     },
     [selectedEventId, data?.event, markAttendance, refetch]
   );
+
+  const handleCycleStatus = useCallback(
+    async (participantId: string, currentStatus: AttendanceStatus | null) => {
+      const currentIdx = STATUS_CYCLE.indexOf(currentStatus);
+      const nextStatus = STATUS_CYCLE[(currentIdx + 1) % STATUS_CYCLE.length];
+
+      if (!nextStatus) {
+        // Cycling back to null
+        localStatusMap.current.delete(participantId);
+        return;
+      }
+
+      await handleMarkSingle(participantId, nextStatus);
+    },
+    [handleMarkSingle]
+  );
+
+  const handleBulkMark = useCallback(
+    (status: AttendanceStatus) => {
+      if (!data?.roster) return;
+
+      const unmarked = data.roster.filter(
+        (r) => !r.status && !localStatusMap.current.has(r.participantId)
+      );
+
+      if (unmarked.length === 0) {
+        toast.info("No unmarked participants to mark");
+        return;
+      }
+
+      setBulkConfirm({ type: status, count: unmarked.length });
+    },
+    [data?.roster]
+  );
+
+  const confirmBulkMark = useCallback(() => {
+    if (!bulkConfirm || !data?.roster) return;
+
+    const targetStatus = bulkConfirm.type;
+    const unmarked = data.roster.filter(
+      (r) => !r.status && !localStatusMap.current.has(r.participantId)
+    );
+
+    const ids = unmarked.map((r) => r.participantId);
+
+    // Optimistic: set all local statuses immediately
+    ids.forEach((pid) => localStatusMap.current.set(pid, targetStatus));
+    setProcessingIds(new Set(ids));
+
+    // Clear selection after bulk mark
+    setSelectedIds(new Set());
+    lastClickedIdx.current = null;
+
+    batchSyncMutation.mutate(
+      { participantIds: ids, status: targetStatus },
+      {
+        onSettled: () => {
+          setProcessingIds(new Set());
+        },
+      }
+    );
+
+    setBulkConfirm(null);
+  }, [bulkConfirm, data?.roster, batchSyncMutation]);
+
+  const confirmReset = useCallback(() => {
+    setSelectedIds(new Set());
+    lastClickedIdx.current = null;
+    resetMutation.mutate(undefined, {
+      onSettled: () => {
+        setProcessingIds(new Set());
+      },
+    });
+    setBulkConfirm(null);
+  }, [resetMutation]);
 
   const handleCloseEvent = () => {
     if (!closeReason.trim()) {
@@ -256,27 +510,97 @@ export function AttendanceRoster() {
     closeMutation.mutate(closeReason.trim());
   };
 
-  // Filtered roster
+  // ─── Range selection handlers ────────────────────────────────────────────
+
+  const handleRowClick = useCallback(
+    (e: React.MouseEvent, index: number, participantId: string) => {
+      if (!data?.roster || isClosed) return;
+
+      if (e.shiftKey && lastClickedIdx.current !== null) {
+        // Range select
+        const start = Math.min(lastClickedIdx.current, index);
+        const end = Math.max(lastClickedIdx.current, index);
+        const rangeIds = filteredRoster
+          .slice(start, end + 1)
+          .map((r) => r.participantId);
+
+        setSelectedIds((prev) => {
+          const next = new Set(prev);
+          rangeIds.forEach((id) => next.add(id));
+          return next;
+        });
+      } else if (e.metaKey || e.ctrlKey) {
+        // Toggle single in selection
+        setSelectedIds((prev) => {
+          const next = new Set(prev);
+          if (next.has(participantId)) {
+            next.delete(participantId);
+          } else {
+            next.add(participantId);
+          }
+          return next;
+        });
+        lastClickedIdx.current = index;
+      } else {
+        // Clear and select single
+        setSelectedIds(new Set([participantId]));
+        lastClickedIdx.current = index;
+      }
+    },
+    [data?.roster, isClosed, filteredRoster]
+  );
+
+  const handleRangeMark = useCallback(
+    (status: AttendanceStatus) => {
+      if (selectedIds.size === 0) return;
+      const ids = Array.from(selectedIds);
+
+      // Optimistic
+      ids.forEach((pid) => localStatusMap.current.set(pid, status));
+      setProcessingIds((prev) => {
+        const next = new Set(prev);
+        ids.forEach((id) => next.add(id));
+        return next;
+      });
+
+      batchSyncMutation.mutate(
+        { participantIds: ids, status },
+        {
+          onSettled: () => {
+            setProcessingIds(new Set());
+            setSelectedIds(new Set());
+            lastClickedIdx.current = null;
+          },
+        }
+      );
+    },
+    [selectedIds, batchSyncMutation]
+  );
+
+  const clearSelection = useCallback(() => {
+    setSelectedIds(new Set());
+    lastClickedIdx.current = null;
+  }, []);
+
+  // ─── Computed data ───────────────────────────────────────────────────────
+
   const roster = data?.roster || [];
-  const summary = data?.summary || ({} as Summary);
+  const serverSummary = data?.summary || ({} as Summary);
   const event = data?.event;
 
   const filteredRoster = useMemo(() => {
     let items = roster;
-
     if (search.trim()) {
       const q = search.toLowerCase();
       items = items.filter((r) =>
         r.participantName.toLowerCase().includes(q)
       );
     }
-
     if (showUnmarkedOnly) {
       items = items.filter(
         (r) => !r.status && !localStatusMap.current.has(r.participantId)
       );
     }
-
     return items;
   }, [roster, search, showUnmarkedOnly]);
 
@@ -287,6 +611,46 @@ export function AttendanceRoster() {
     },
     []
   );
+
+  // Computed summary with optimistic updates
+  const liveSummary = useMemo<Summary>(() => {
+    const counts: Summary = {
+      total: roster.length,
+      present: 0,
+      absent: 0,
+      late: 0,
+      excused: 0,
+      unmarked: 0,
+    };
+
+    for (const item of roster) {
+      const status = localStatusMap.current.get(item.participantId) ?? item.status;
+      if (status && status in counts) {
+        counts[status]++;
+      } else {
+        counts.unmarked++;
+      }
+    }
+
+    return counts;
+  }, [roster]);
+
+  const unmarkedCount = useMemo(
+    () =>
+      roster.filter(
+        (r) => !r.status && !localStatusMap.current.has(r.participantId)
+      ).length,
+    [roster]
+  );
+
+  const hasMarkedRecords = serverSummary.total > 0 && serverSummary.unmarked < serverSummary.total;
+
+  const presentPercent =
+    liveSummary.total > 0
+      ? Math.round((liveSummary.present / liveSummary.total) * 100)
+      : 0;
+
+  // ─── Loading / error / empty states ──────────────────────────────────────
 
   if (!selectedEventId) {
     return (
@@ -344,8 +708,10 @@ export function AttendanceRoster() {
 
   const isClosed = event.isClosed;
 
+  // ─── Render ──────────────────────────────────────────────────────────────
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {/* Back button + event info */}
       <div className="flex items-start gap-3">
         <Button
@@ -440,46 +806,142 @@ export function AttendanceRoster() {
         </motion.div>
       )}
 
-      {/* Progress section */}
-      <div className="space-y-3 rounded-xl border bg-card p-4">
-        {/* Gradient progress bar */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-muted-foreground">Attendance Progress</span>
-            <span className="inline-flex items-center rounded-full bg-[#4B0A8F]/10 px-2.5 py-0.5 text-xs font-semibold text-[#4B0A8F] dark:bg-[#4B0A8F]/20 dark:text-[#8A40B0]">
-              {summary.total > 0
-                ? Math.round(((summary.present + summary.late) / summary.total) * 100)
-                : 0}
-              %
+      {/* Warning banner */}
+      {warningsData && warningsData.warnings.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex items-center gap-2.5 px-4 py-2.5 rounded-lg bg-amber-50 border border-amber-200 dark:bg-amber-950/30 dark:border-amber-800/50"
+        >
+          <AlertTriangle className="size-4 text-amber-500 dark:text-amber-400 shrink-0" />
+          <p className="text-sm text-amber-800 dark:text-amber-300 flex-1">
+            <span className="font-semibold">{warningsData.warnings.length}</span>{" "}
+            participant{warningsData.warnings.length !== 1 ? "s" : ""}{" "}
+            {warningsData.warnings.length === 1 ? "has" : "have"} attendance warnings
+          </p>
+          <Button
+            size="sm"
+            variant="outline"
+            className="shrink-0 text-[11px] h-7 px-2.5 border-amber-300 text-amber-700 hover:bg-amber-100 dark:border-amber-700 dark:text-amber-300 dark:hover:bg-amber-950/50"
+            onClick={() => setWarningDialogOpen(true)}
+          >
+            View Details
+          </Button>
+        </motion.div>
+      )}
+
+      {/* ─── Bulk Action Toolbar (sticky) ────────────────────────────────── */}
+      {!isClosed && (
+        <motion.div
+          initial={{ opacity: 0, y: -4 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="sticky top-0 z-20 -mx-4 px-4 py-2.5 bg-background/95 backdrop-blur-sm border-b no-print"
+        >
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-medium text-muted-foreground mr-1 hidden sm:inline">
+              Bulk:
             </span>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className={cn(
+                    "gap-1.5 text-xs",
+                    "border-emerald-300 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800",
+                    "dark:border-emerald-700 dark:text-emerald-400 dark:hover:bg-emerald-950/30 dark:hover:text-emerald-300"
+                  )}
+                  onClick={() => handleBulkMark("present")}
+                  disabled={unmarkedCount === 0}
+                >
+                  <CheckCircle2 className="size-3.5" />
+                  <span className="hidden sm:inline">All Present</span>
+                  <span className="sm:hidden">Present</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                Mark {unmarkedCount} unmarked as Present
+              </TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className={cn(
+                    "gap-1.5 text-xs",
+                    "border-red-300 text-red-600 hover:bg-red-50 hover:text-red-700",
+                    "dark:border-red-700 dark:text-red-400 dark:hover:bg-red-950/30 dark:hover:text-red-300"
+                  )}
+                  onClick={() => handleBulkMark("absent")}
+                  disabled={unmarkedCount === 0}
+                >
+                  <XCircle className="size-3.5" />
+                  <span className="hidden sm:inline">All Absent</span>
+                  <span className="sm:hidden">Absent</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                Mark {unmarkedCount} unmarked as Absent
+              </TooltipContent>
+            </Tooltip>
+
+            {canReset && hasMarkedRecords && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="gap-1.5 text-xs text-muted-foreground hover:text-destructive"
+                    onClick={() =>
+                      setBulkConfirm({ type: "reset", count: liveSummary.total - liveSummary.unmarked })
+                    }
+                  >
+                    <RotateCcw className="size-3.5" />
+                    <span className="hidden sm:inline">Reset All</span>
+                    <span className="sm:hidden">Reset</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Clear all attendance marks</TooltipContent>
+              </Tooltip>
+            )}
+
+            {selectedIds.size > 0 && (
+              <div className="flex items-center gap-1 ml-auto">
+                <Badge variant="secondary" className="text-[10px] gap-1">
+                  <Users className="size-3" />
+                  {selectedIds.size} selected
+                </Badge>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 px-2 text-xs text-muted-foreground"
+                  onClick={clearSelection}
+                >
+                  <X className="size-3" />
+                </Button>
+              </div>
+            )}
           </div>
-          <div className="h-2.5 w-full overflow-hidden rounded-full bg-muted/60">
-            <div
-              className="h-full rounded-full bg-gradient-to-r from-[#2A0C8F] via-[#A0006B] to-[#FF0015] transition-all duration-500 ease-out"
-              style={{
-                width: `${summary.total > 0 ? ((summary.present + summary.late) / summary.total) * 100 : 0}%`,
-              }}
-            />
-          </div>
-        </div>
-        {/* Status count pills */}
-        <div className="flex flex-wrap items-center gap-1.5">
-          <span className="inline-flex items-center gap-1 rounded-full bg-[#4B0A8F]/10 px-2.5 py-1 text-xs font-semibold text-[#4B0A8F] dark:bg-[#4B0A8F]/20 dark:text-[#8A40B0]">
-            P: {summary.present}
+        </motion.div>
+      )}
+
+      {/* Compact progress bar */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-medium text-muted-foreground">
+            Attendance Progress
           </span>
-          <span className="inline-flex items-center gap-1 rounded-full bg-red-500/10 px-2.5 py-1 text-xs font-semibold text-red-600 dark:text-red-400">
-            A: {summary.absent}
-          </span>
-          <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2.5 py-1 text-xs font-semibold text-amber-600 dark:text-amber-400">
-            L: {summary.late}
-          </span>
-          <span className="inline-flex items-center gap-1 rounded-full bg-sky-500/10 px-2.5 py-1 text-xs font-semibold text-sky-600 dark:text-sky-400">
-            E: {summary.excused}
-          </span>
-          <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-xs font-semibold text-muted-foreground">
-            —: {summary.unmarked}
+          <span className="inline-flex items-center rounded-full bg-[#4B0A8F]/10 px-2 py-0.5 text-[10px] font-semibold text-[#4B0A8F] dark:bg-[#4B0A8F]/20 dark:text-[#8A40B0]">
+            {presentPercent}%
           </span>
         </div>
+        <Progress
+          value={presentPercent}
+          className="h-2 [&>div]:bg-gradient-to-r [&>div]:from-[#2A0C8F] [&>div]:via-[#A0006B] [&>div]:to-[#4B0A8F] [&>div]:transition-all [&>div]:duration-500"
+        />
       </div>
 
       {/* Search + filter */}
@@ -515,8 +977,8 @@ export function AttendanceRoster() {
         </Button>
       </div>
 
-      {/* Roster list */}
-      <div className="space-y-1.5 max-h-[60vh] overflow-y-auto pr-1 custom-scrollbar">
+      {/* ─── Roster list ─────────────────────────────────────────────────── */}
+      <div className="space-y-1.5 max-h-[50vh] overflow-y-auto pr-1 custom-scrollbar">
         {filteredRoster.length === 0 ? (
           <div className="py-12 text-center">
             <p className="text-sm text-muted-foreground">
@@ -531,26 +993,52 @@ export function AttendanceRoster() {
               const status = getStatus(item);
               const config = status ? STATUS_CONFIG[status] : null;
               const isProcessing = processingIds.has(item.participantId);
+              const isSelected = selectedIds.has(item.participantId);
+              const participantWarning = warningMap.get(item.participantId);
 
               return (
                 <motion.div
                   key={item.participantId}
                   initial={{ opacity: 0, x: -8 }}
                   animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: Math.min(i * 0.02, 0.5), duration: 0.2 }}
+                  transition={{
+                    delay: Math.min(i * 0.02, 0.5),
+                    duration: 0.2,
+                  }}
+                  onClick={(e) => handleRowClick(e, i, item.participantId)}
                   className={cn(
-                    "flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg border transition-all duration-200 min-h-[48px]",
+                    "flex items-center justify-between gap-2 px-3 py-2 rounded-lg border transition-all duration-200 min-h-[52px] cursor-pointer group/row",
                     !isClosed && "hover:translate-y-[-1px] hover:shadow-md",
                     isClosed
                       ? "bg-muted/30 border-border/50"
-                      : "bg-card border-border hover:bg-accent/50"
+                      : "bg-card border-border hover:bg-accent/50",
+                    isSelected &&
+                      "ring-2 ring-[#4B0A8F]/40 border-[#4B0A8F]/30 bg-[#4B0A8F]/5 dark:ring-[#8A40B0]/40 dark:border-[#8A40B0]/30 dark:bg-[#4B0A8F]/10",
+                    config && !isSelected && config.borderClass
                   )}
                 >
-                  {/* Name */}
+                  {/* Name + phone */}
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium truncate">
-                      {item.participantName}
-                    </p>
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-sm font-medium truncate">
+                        {item.participantName}
+                      </p>
+                      {participantWarning && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <AlertTriangle
+                              className={cn(
+                                "size-3.5 shrink-0",
+                                warningLevelColor(participantWarning.level)
+                              )}
+                            />
+                          </TooltipTrigger>
+                          <TooltipContent side="top">
+                            {participantWarning.consecutiveAbsents} consecutive absences ({participantWarning.level} threshold: {participantWarning.threshold})
+                          </TooltipContent>
+                        </Tooltip>
+                      )}
+                    </div>
                     {item.phone && (
                       <p className="text-xs text-muted-foreground truncate">
                         {item.phone}
@@ -558,17 +1046,81 @@ export function AttendanceRoster() {
                     )}
                   </div>
 
-                  {/* Status button */}
+                  {/* Quick status buttons (mobile: always visible, desktop: hover) */}
+                  {!isClosed && (
+                    <div className="flex items-center gap-1 shrink-0 sm:opacity-0 sm:group-hover/row:opacity-100 transition-opacity duration-150">
+                      {QUICK_STATUSES.map((qs) => {
+                        const isCurrentStatus = status === qs.status;
+                        const Icon = qs.icon;
+                        return (
+                          <Tooltip key={qs.status}>
+                            <TooltipTrigger asChild>
+                              <button
+                                disabled={isProcessing}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (isCurrentStatus) return;
+                                  handleMarkSingle(
+                                    item.participantId,
+                                    qs.status
+                                  );
+                                }}
+                                className={cn(
+                                  "flex items-center justify-center w-7 h-7 rounded-full transition-all duration-150",
+                                  isCurrentStatus
+                                    ? qs.colorClass.replace(
+                                        "hover:bg-",
+                                        "bg-"
+                                      ).replace(
+                                        "dark:hover:bg-",
+                                        "dark:bg-"
+                                      )
+                                    : "text-muted-foreground/60 hover:text-foreground hover:bg-muted/50 dark:hover:bg-muted/30",
+                                  isCurrentStatus && "ring-1.5 ring-current/20",
+                                  !isProcessing && "active:scale-90"
+                                )}
+                                aria-label={`${qs.label} ${item.participantName}`}
+                              >
+                                {isProcessing && !isCurrentStatus ? (
+                                  <Loader2 className="size-3.5 animate-spin" />
+                                ) : (
+                                  <Icon
+                                    className={cn(
+                                      "size-3.5",
+                                      isCurrentStatus && qs.colorClass.split(" ")[0]
+                                    )}
+                                  />
+                                )}
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent side="left">
+                              {qs.label}
+                            </TooltipContent>
+                          </Tooltip>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* Status badge (cycle button) */}
                   <button
                     disabled={isClosed || isProcessing}
-                    onClick={() => handleCycleStatus(item.participantId, status)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleCycleStatus(item.participantId, status);
+                    }}
                     className={cn(
-                      "relative flex items-center justify-center w-11 h-11 rounded-xl transition-all duration-150 shrink-0",
+                      "relative flex items-center justify-center w-9 h-9 rounded-lg transition-all duration-150 shrink-0 sm:hidden",
                       config
                         ? cn(config.bg, config.borderClass)
                         : "bg-muted/50 border-2 border-dashed border-muted-foreground/30",
-                      !isClosed && !isProcessing && "active:scale-90 hover:opacity-90",
-                      !isClosed && !isProcessing && !config && "hover:border-muted-foreground/50",
+                      !isClosed &&
+                        !isProcessing &&
+                        "active:scale-90 hover:opacity-90",
+                      !isClosed &&
+                        !isProcessing &&
+                        !config &&
+                        "hover:border-muted-foreground/50",
                       isClosed && "cursor-default opacity-70"
                     )}
                     aria-label={
@@ -578,18 +1130,13 @@ export function AttendanceRoster() {
                     }
                   >
                     {isProcessing ? (
-                      <RefreshCw className="size-4 animate-spin text-muted-foreground" />
+                      <RefreshCw className="size-3.5 animate-spin text-muted-foreground" />
                     ) : config ? (
-                      <span
-                        className={cn(
-                          "text-sm font-bold",
-                          config.text
-                        )}
-                      >
+                      <span className={cn("text-xs font-bold", config.text)}>
                         {config.letter}
                       </span>
                     ) : (
-                      <Circle className="size-4 text-muted-foreground/40" />
+                      <Circle className="size-3.5 text-muted-foreground/40" />
                     )}
                   </button>
                 </motion.div>
@@ -599,9 +1146,125 @@ export function AttendanceRoster() {
         )}
       </div>
 
+      {/* ─── Attendance Summary Bar (sticky bottom) ──────────────────────── */}
+      {roster.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="sticky bottom-0 z-20 -mx-4 px-4 py-3 bg-background/95 backdrop-blur-sm border-t no-print"
+        >
+          {/* Progress bar */}
+          <div className="mb-2">
+            <Progress
+              value={presentPercent}
+              className="h-1.5 [&>div]:bg-emerald-500 [&>div]:transition-all [&>div]:duration-500"
+            />
+          </div>
+
+          {/* Summary counts */}
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+            <span className="font-semibold text-foreground">
+              Total: {liveSummary.total}
+            </span>
+            <span className="text-muted-foreground">|</span>
+
+            <span className="flex items-center gap-1 font-medium text-emerald-600 dark:text-emerald-400">
+              <CheckCircle2 className="size-3" />
+              Present: {liveSummary.present}{" "}
+              <span className="text-muted-foreground">
+                ({liveSummary.total > 0 ? Math.round((liveSummary.present / liveSummary.total) * 100) : 0}%)
+              </span>
+            </span>
+
+            <span className="flex items-center gap-1 font-medium text-red-600 dark:text-red-400">
+              <XCircle className="size-3" />
+              Absent: {liveSummary.absent}{" "}
+              <span className="text-muted-foreground">
+                ({liveSummary.total > 0 ? Math.round((liveSummary.absent / liveSummary.total) * 100) : 0}%)
+              </span>
+            </span>
+
+            <span className="flex items-center gap-1 font-medium text-amber-600 dark:text-amber-400">
+              <Clock className="size-3" />
+              Late: {liveSummary.late}{" "}
+              <span className="text-muted-foreground">
+                ({liveSummary.total > 0 ? Math.round((liveSummary.late / liveSummary.total) * 100) : 0}%)
+              </span>
+            </span>
+
+            <span className="flex items-center gap-1 font-medium text-sky-600 dark:text-sky-400">
+              <ShieldCheck className="size-3" />
+              Excused: {liveSummary.excused}{" "}
+              <span className="text-muted-foreground">
+                ({liveSummary.total > 0 ? Math.round((liveSummary.excused / liveSummary.total) * 100) : 0}%)
+              </span>
+            </span>
+
+            {liveSummary.unmarked > 0 && (
+              <>
+                <span className="text-muted-foreground">|</span>
+                <span className="flex items-center gap-1 text-muted-foreground">
+                  <Circle className="size-3" />
+                  Unmarked: {liveSummary.unmarked}{" "}
+                  <span>
+                    ({Math.round((liveSummary.unmarked / liveSummary.total) * 100)}%)
+                  </span>
+                </span>
+              </>
+            )}
+          </div>
+        </motion.div>
+      )}
+
+      {/* ─── Floating Range Action Bar ───────────────────────────────────── */}
+      <AnimatePresence>
+        {selectedIds.size > 0 && !isClosed && (
+          <motion.div
+            initial={{ opacity: 0, y: 20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.95 }}
+            transition={{ type: "spring", damping: 25, stiffness: 300 }}
+            className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 rounded-xl border bg-background shadow-xl px-3 py-2 no-print sm:bottom-8"
+          >
+            <span className="text-xs font-medium text-muted-foreground whitespace-nowrap">
+              Mark {selectedIds.size} as:
+            </span>
+            <div className="flex items-center gap-1.5">
+              {QUICK_STATUSES.map((qs) => {
+                const Icon = qs.icon;
+                return (
+                  <Button
+                    key={qs.status}
+                    size="sm"
+                    variant="ghost"
+                    className={cn(
+                      "h-8 gap-1.5 px-2.5 text-xs font-medium",
+                      qs.colorClass
+                    )}
+                    onClick={() => handleRangeMark(qs.status)}
+                    disabled={batchSyncMutation.isPending}
+                  >
+                    <Icon className="size-3.5" />
+                    {qs.label}
+                  </Button>
+                );
+              })}
+            </div>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-8 px-2 text-xs text-muted-foreground"
+              onClick={clearSelection}
+            >
+              <X className="size-3.5" />
+            </Button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Close event button */}
       {!isClosed && canClose && (
-        <div className="pt-2">
+        <div className="pt-1">
           <Button
             variant="outline"
             className="w-full border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 dark:border-red-800 dark:hover:bg-red-950/30 dark:text-red-400 dark:hover:text-red-300"
@@ -616,14 +1279,104 @@ export function AttendanceRoster() {
       {/* Offline Queue Panel */}
       <OfflineQueuePanel />
 
-      {/* Close Event Dialog */}
+      {/* ─── Bulk Confirmation Dialog ────────────────────────────────────── */}
+      <AlertDialog
+        open={!!bulkConfirm && bulkConfirm.type !== "reset"}
+        onOpenChange={(open) => !open && setBulkConfirm(null)}
+      >
+        <AlertDialogContent className="sm:max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Mark all as{" "}
+              {bulkConfirm?.type === "present" ? "Present" : "Absent"}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This will mark{" "}
+              <strong>{bulkConfirm?.count ?? 0} unmarked participants</strong>{" "}
+              as {bulkConfirm?.type === "present" ? "Present" : "Absent"}.
+              Already marked participants will not be affected.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setBulkConfirm(null)}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmBulkMark}
+              className={cn(
+                bulkConfirm?.type === "present" &&
+                  "bg-emerald-600 hover:bg-emerald-700 text-white",
+                bulkConfirm?.type === "absent" &&
+                  "bg-red-600 hover:bg-red-700 text-white"
+              )}
+            >
+              {batchSyncMutation.isPending ? (
+                <>
+                  <Loader2 className="size-4 mr-2 animate-spin" />
+                  Marking...
+                </>
+              ) : bulkConfirm?.type === "present" ? (
+                <>
+                  <CheckCircle2 className="size-4 mr-2" />
+                  Mark All Present
+                </>
+              ) : (
+                <>
+                  <XCircle className="size-4 mr-2" />
+                  Mark All Absent
+                </>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* ─── Reset Confirmation Dialog ───────────────────────────────────── */}
+      <AlertDialog
+        open={bulkConfirm?.type === "reset"}
+        onOpenChange={(open) => !open && setBulkConfirm(null)}
+      >
+        <AlertDialogContent className="sm:max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Clear all attendance marks?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently remove{" "}
+              <strong>{bulkConfirm?.count ?? 0} attendance records</strong> for
+              this session. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setBulkConfirm(null)}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmReset}
+              className="bg-destructive hover:bg-destructive/90 text-white"
+            >
+              {resetMutation.isPending ? (
+                <>
+                  <Loader2 className="size-4 mr-2 animate-spin" />
+                  Resetting...
+                </>
+              ) : (
+                <>
+                  <RotateCcw className="size-4 mr-2" />
+                  Reset All
+                </>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* ─── Close Event Dialog ──────────────────────────────────────────── */}
       <Dialog open={closeDialogOpen} onOpenChange={setCloseDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Close Event</DialogTitle>
             <DialogDescription>
-              This will lock the event and prevent further attendance marks (except
-              for park admins/leads with an edit reason).
+              This will lock the event and prevent further attendance marks
+              (except for park admins/leads with an edit reason).
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
@@ -639,8 +1392,8 @@ export function AttendanceRoster() {
             </div>
             <div className="rounded-lg bg-amber-50 border border-amber-200 dark:bg-amber-950/30 dark:border-amber-800/50 px-3 py-2">
               <p className="text-xs text-amber-800 dark:text-amber-300">
-                <strong>Note:</strong> {summary.unmarked} participant
-                {summary.unmarked !== 1 ? "s" : ""} still unmarked.
+                <strong>Note:</strong> {liveSummary.unmarked} participant
+                {liveSummary.unmarked !== 1 ? "s" : ""} still unmarked.
               </p>
             </div>
           </div>
@@ -664,6 +1417,97 @@ export function AttendanceRoster() {
               ) : (
                 "Close Event"
               )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── Warnings Dialog ─────────────────────────────────────────────── */}
+      <Dialog open={warningDialogOpen} onOpenChange={setWarningDialogOpen}>
+        <DialogContent className="sm:max-w-lg max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="size-5 text-amber-500" />
+              Attendance Warnings
+            </DialogTitle>
+            <DialogDescription>
+              Participants with consecutive absences approaching or exceeding thresholds.
+              {warningsData?.settings && (
+                <span className="block mt-1">
+                  Warning: {warningsData.settings.warningAbsents} absences &middot; Dropout: {warningsData.settings.dropoutAbsents} absences
+                </span>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+
+          {warningsData && warningsData.warnings.length > 0 && (
+            <div className="space-y-2 py-2">
+              {warningsData.warnings
+                .sort((a, b) => {
+                  const order = { dropout: 0, critical: 1, warning: 2 };
+                  return order[a.level] - order[b.level] || b.consecutiveAbsents - a.consecutiveAbsents;
+                })
+                .map((w) => (
+                  <div
+                    key={w.participantId}
+                    className={cn(
+                      "flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg border",
+                      warningLevelBg(w.level)
+                    )}
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-semibold truncate">{w.participantName}</p>
+                        <Badge
+                          variant="secondary"
+                          className={cn("text-[10px] shrink-0", warningLevelBadge(w.level))}
+                        >
+                          {w.level}
+                        </Badge>
+                      </div>
+                      <p className="text-xs mt-0.5 opacity-80">
+                        {w.consecutiveAbsents} consecutive absence{w.consecutiveAbsents !== 1 ? "s" : ""}
+                        {w.lastAttendanceDate && (
+                          <span> &middot; Last attended: {w.lastAttendanceDate}</span>
+                        )}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 w-7 p-0"
+                            onClick={() => toast.info(`Contact guardian feature coming soon for ${w.participantName}`)}
+                          >
+                            <Phone className="size-3.5" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Contact Guardian</TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 w-7 p-0"
+                            onClick={() => toast.info(`Warning notice will be sent to ${w.participantName}'s guardian`)}
+                          >
+                            <Send className="size-3.5" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Send Warning Notice</TooltipContent>
+                      </Tooltip>
+                    </div>
+                  </div>
+                ))}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setWarningDialogOpen(false)}>
+              Close
             </Button>
           </DialogFooter>
         </DialogContent>

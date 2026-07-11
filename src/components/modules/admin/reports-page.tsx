@@ -7,7 +7,7 @@ import { format, parseISO } from "date-fns";
 import { PageHeader } from "@/components/layout/page-header";
 import { EmptyState } from "@/components/layout/empty-state";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -18,6 +18,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { BarChart } from "@/components/shared/bar-chart";
+import { DonutChart } from "@/components/shared/donut-chart";
 import {
   BarChart3,
   CalendarDays,
@@ -27,8 +29,10 @@ import {
   Activity,
   Users,
   ClipboardCheck,
-  Loader2,
   Calendar,
+  Banknote,
+  Coins,
+  PieChart,
 } from "lucide-react";
 
 // ── Types ──────────────────────────────────────────────────────
@@ -41,6 +45,7 @@ interface OverviewData {
   totalRecords: number;
   overallRate: number;
   activeParticipants: number;
+  totalFeesCollected: number;
   dailyRates: { date: string; rate: number; marked: number; total: number }[];
   statusDistribution: {
     present: number;
@@ -55,6 +60,20 @@ interface OverviewData {
     avgRate: number;
     events: number;
   }[];
+  cityAttendanceRates: {
+    cityId: string;
+    cityName: string;
+    rate: number;
+    totalRecords: number;
+    attended: number;
+  }[];
+}
+
+interface ParkFeeData {
+  parkId: string;
+  parkName: string;
+  cityName: string;
+  totalCollected: number;
 }
 
 interface CityStat {
@@ -93,8 +112,12 @@ const DAYS_PRESETS: { value: DaysPreset; label: string }[] = [
   { value: 90, label: "90 Days" },
 ];
 
-const DOW_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-const DOW_FULL = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+// Pakistan week starts Saturday. JS getDay(): 0=Sun,1=Mon,...,5=Fri,6=Sat
+const PKT_DOW_ORDER = [6, 0, 1, 2, 3, 4, 5]; // Sat, Sun, Mon, Tue, Wed, Thu, Fri
+const PKT_DOW_LABELS = ["Sat", "Sun", "Mon", "Tue", "Wed", "Thu", "Fri"];
+const PKT_DOW_FULL = ["Saturday", "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+const DOW_LABELS = PKT_DOW_LABELS;
+const DOW_FULL = PKT_DOW_FULL;
 
 const STATUS_COLORS: Record<string, { bg: string; darkBg: string; label: string }> = {
   present: { bg: "bg-[#22c55e]", darkBg: "dark:bg-[#16a34a]", label: "Present" },
@@ -139,24 +162,26 @@ const itemVariants = {
 
 // ── Sub-components ─────────────────────────────────────────────
 
-function StatCard({ icon: Icon, label, value, sub, color }: {
+function StatCard({ icon: Icon, label, value, sub, color, children }: {
   icon: typeof BarChart3;
   label: string;
   value: string | number;
   sub?: string;
-  color: string;
+  color?: string;
+  children?: React.ReactNode;
 }) {
   return (
     <motion.div variants={itemVariants}>
       <Card className="relative overflow-hidden">
         <CardContent className="p-4 md:p-6">
           <div className="flex items-start justify-between">
-            <div className="space-y-1">
+            <div className="space-y-1 min-w-0">
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{label}</p>
-              <p className={`text-2xl md:text-3xl font-bold ${color}`}>{value}</p>
+              <p className={`text-2xl md:text-3xl font-bold ${color || "text-[#4B0A8F] dark:text-[#8A40B0]"} truncate`}>{value}</p>
               {sub && <p className="text-xs text-muted-foreground">{sub}</p>}
+              {children}
             </div>
-            <div className="flex items-center justify-center size-10 rounded-lg bg-[#F3ECF6] dark:bg-[#1F086080]">
+            <div className="flex items-center justify-center size-10 rounded-lg bg-[#F3ECF6] dark:bg-[#1F086080] shrink-0 ml-2">
               <Icon className="size-5 text-[#4B0A8F] dark:text-[#8A40B0]" />
             </div>
           </div>
@@ -292,47 +317,196 @@ function StatusDistribution({ dist }: { dist: OverviewData["statusDistribution"]
   );
 }
 
-// ── Day-of-Week Heatmap ────────────────────────────────────────
+// ── Day-of-Week Heatmap (Pakistan Week) ────────────────────────
 
 function DayOfWeekHeatmap({ data }: { data: OverviewData["dayOfWeekBreakdown"] }) {
+  // Build lookup by JS dayIndex (0=Sun..6=Sat)
+  const dowMap = new Map(data.map((d) => [d.dayIndex, d]));
   const maxRate = Math.max(...data.map((d) => d.avgRate), 1);
 
-  // Build full week map
-  const weekMap = new Map(data.map((d) => [d.dayIndex, d]));
+  // Helper: rate → background color
+  const cellBg = (rate: number, hasData: boolean) => {
+    if (!hasData) return "bg-muted/40 dark:bg-muted/20";
+    if (rate >= 80) return "bg-[#22c55e]/15 dark:bg-[#22c55e]/20";
+    if (rate >= 60) return "bg-[#22c55e]/8 dark:bg-[#22c55e]/10";
+    if (rate >= 40) return "bg-[#f59e0b]/12 dark:bg-[#f59e0b]/15";
+    if (rate >= 20) return "bg-[#f59e0b]/8 dark:bg-[#f59e0b]/10";
+    return "bg-[#ef4444]/12 dark:bg-[#ef4444]/15";
+  };
+
+  const cellBorder = (rate: number, hasData: boolean) => {
+    if (!hasData) return "border-border/40";
+    if (rate >= 80) return "border-[#22c55e]/30";
+    if (rate >= 50) return "border-[#f59e0b]/30";
+    return "border-[#ef4444]/30";
+  };
 
   return (
     <Card>
       <CardHeader className="pb-3">
         <CardTitle className="text-sm font-semibold flex items-center gap-2">
           <Calendar className="size-4 text-[#A0006B]" />
-          Average Rate by Day of Week
+          Attendance by Day of Week
         </CardTitle>
+        <CardDescription className="text-xs">Pakistan week — Saturday to Friday</CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-7 gap-2">
-          {DOW_LABELS.map((label, idx) => {
-            const info = weekMap.get(idx);
+        <div className="grid grid-cols-7 gap-2 sm:gap-3">
+          {PKT_DOW_ORDER.map((jsDayIdx, displayIdx) => {
+            const info = dowMap.get(jsDayIdx);
             const rate = info?.avgRate || 0;
-            const intensity = info ? rate / maxRate : 0;
+            const hasData = !!info;
             return (
-              <div key={label} className="text-center">
-                <div
-                  className="rounded-lg p-3 flex flex-col items-center justify-center gap-1 min-h-[72px] transition-all"
-                  style={{
-                    backgroundColor: info
-                      ? `rgba(75, 10, 143, ${0.05 + intensity * 0.35})`
-                      : undefined,
-                  }}
-                >
-                  <span className="text-xs font-medium text-muted-foreground">{label}</span>
-                  {info ? (
-                    <>
-                      <span className={`text-lg font-bold ${rateTextColor(rate)}`}>{rate}%</span>
-                      <span className="text-[10px] text-muted-foreground">{info.events} events</span>
-                    </>
-                  ) : (
-                    <span className="text-xs text-muted-foreground">—</span>
-                  )}
+              <div
+                key={PKT_DOW_LABELS[displayIdx]}
+                className={`
+                  rounded-xl border p-2 sm:p-3 flex flex-col items-center justify-center gap-0.5 min-h-[72px] sm:min-h-[88px]
+                  transition-all duration-200 hover:scale-[1.03]
+                  ${cellBg(rate, hasData)}
+                  ${cellBorder(rate, hasData)}
+                `}
+              >
+                <span className="text-[10px] sm:text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  {PKT_DOW_LABELS[displayIdx]}
+                </span>
+                {hasData ? (
+                  <>
+                    <span className={`text-base sm:text-xl font-bold tabular-nums leading-tight ${rateTextColor(rate)}`}>
+                      {rate}%
+                    </span>
+                    <span className="text-[9px] sm:text-[10px] text-muted-foreground">
+                      {info.events} event{info.events !== 1 ? "s" : ""}
+                    </span>
+                  </>
+                ) : (
+                  <span className="text-xs text-muted-foreground/60 mt-1">—</span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+        {/* Legend */}
+        <div className="flex items-center justify-center gap-4 mt-3 text-[10px] text-muted-foreground">
+          <span className="flex items-center gap-1"><span className="inline-block size-2.5 rounded-sm bg-[#22c55e]/30 border border-[#22c55e]/40" /> High (≥80%)</span>
+          <span className="flex items-center gap-1"><span className="inline-block size-2.5 rounded-sm bg-[#f59e0b]/25 border border-[#f59e0b]/40" /> Medium</span>
+          <span className="flex items-center gap-1"><span className="inline-block size-2.5 rounded-sm bg-[#ef4444]/25 border border-[#ef4444]/40" /> Low (&lt;50%)</span>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ── Status Distribution Donut ──────────────────────────────────
+
+function StatusDonut({ dist }: { dist: OverviewData["statusDistribution"] }) {
+  const total = dist.present + dist.absent + dist.late + dist.excused + dist.unmarked;
+  if (total === 0) return null;
+
+  const segments = [
+    { label: "Present", value: dist.present, color: "#22c55e" },
+    { label: "Absent", value: dist.absent, color: "#ef4444" },
+    { label: "Late", value: dist.late, color: "#f59e0b" },
+    { label: "Excused", value: dist.excused, color: "#8b5cf6" },
+    { label: "Unmarked", value: dist.unmarked, color: "#9ca3af" },
+  ].filter((s) => s.value > 0);
+
+  return (
+    <Card className="h-full">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-sm font-semibold flex items-center gap-2">
+          <PieChart className="size-4 text-[#A0006B]" />
+          Status Distribution
+        </CardTitle>
+        <CardDescription className="text-xs">Overall attendance status breakdown</CardDescription>
+      </CardHeader>
+      <CardContent className="flex items-center justify-center py-4">
+        <DonutChart
+          segments={segments}
+          size={180}
+          strokeWidth={32}
+          centerLabel="Total Records"
+          centerValue={total.toLocaleString()}
+        />
+      </CardContent>
+    </Card>
+  );
+}
+
+// ── Attendance by City Bar Chart ───────────────────────────────
+
+function CityAttendanceChart({ data }: { data: OverviewData["cityAttendanceRates"] }) {
+  if (data.length === 0) return null;
+
+  const chartData = data.map((c) => ({
+    label: c.cityName,
+    value: Math.round(c.rate * 10) / 10,
+  }));
+
+  return (
+    <Card className="h-full">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-sm font-semibold flex items-center gap-2">
+          <Building2 className="size-4 text-[#A0006B]" />
+          Attendance by City
+        </CardTitle>
+        <CardDescription className="text-xs">Average attendance rate per city</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <BarChart
+          data={chartData}
+          height={180}
+          barColor="#4B0A8F"
+          showValues={true}
+          valueFormatter={(val) => `${val}%`}
+        />
+      </CardContent>
+    </Card>
+  );
+}
+
+// ── Fee Collection by Park (Horizontal Bar Chart) ──────────────
+
+function FeeByParkChart({ data }: { data: ParkFeeData[] }) {
+  if (data.length === 0) return null;
+  const maxVal = Math.max(...data.map((d) => d.totalCollected), 1);
+
+  const formatPKR = (val: number) => {
+    if (val >= 100000) return `${(val / 100000).toFixed(1)}L`;
+    if (val >= 1000) return `${(val / 1000).toFixed(1)}K`;
+    return val.toLocaleString();
+  };
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-sm font-semibold flex items-center gap-2">
+          <Banknote className="size-4 text-[#A0006B]" />
+          Fee Collection by Park
+        </CardTitle>
+        <CardDescription className="text-xs">Top 10 parks by total fees collected (PKR)</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-2.5 max-h-96 overflow-y-auto pr-1 custom-scrollbar">
+          {data.map((park) => {
+            const pct = (park.totalCollected / maxVal) * 100;
+            return (
+              <div key={park.parkId} className="group">
+                <div className="flex items-center justify-between mb-1">
+                  <div className="min-w-0">
+                    <span className="text-sm font-medium truncate block max-w-[200px]">{park.parkName}</span>
+                    <span className="text-[10px] text-muted-foreground">{park.cityName}</span>
+                  </div>
+                  <span className="text-sm font-bold text-[#A0006B] dark:text-[#D64D9E] ml-2 tabular-nums whitespace-nowrap">
+                    PKR {formatPKR(park.totalCollected)}
+                  </span>
+                </div>
+                <div className="h-5 bg-muted rounded-md overflow-hidden">
+                  <motion.div
+                    className="h-full rounded-md bg-gradient-to-r from-[#A0006B] to-[#D64D9E] transition-all duration-500 group-hover:opacity-80"
+                    initial={{ width: 0 }}
+                    animate={{ width: `${pct}%` }}
+                    transition={{ duration: 0.6, ease: "easeOut" }}
+                  />
                 </div>
               </div>
             );
@@ -758,52 +932,119 @@ function OverviewContent({ days }: { days: DaysPreset }) {
     queryFn: () => fetch(`/api/admin/reports?type=attendance-overview&days=${days}`).then((r) => r.json()),
   });
 
+  const { data: parkFees, isLoading: feesLoading } = useQuery<ParkFeeData[]>({
+    queryKey: ["reports", "fee-by-park"],
+    queryFn: () => fetch("/api/admin/reports?type=fee-by-park").then((r) => r.json()),
+  });
+
+  const formatPKR = (val: number) => {
+    if (val >= 10000000) return `PKR ${(val / 10000000).toFixed(2)} Cr`;
+    if (val >= 100000) return `PKR ${(val / 100000).toFixed(1)} L`;
+    if (val >= 1000) return `PKR ${(val / 1000).toFixed(1)} K`;
+    return `PKR ${val.toLocaleString()}`;
+  };
+
   if (error) return <EmptyState icon={BarChart3} title="Error loading data" description="Could not load attendance overview." />;
   if (isLoading) {
     return (
       <div className="space-y-4">
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)}
         </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <SectionSkeleton />
+          <SectionSkeleton />
+        </div>
         <SectionSkeleton />
-        <SectionSkeleton />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <SectionSkeleton />
+          <SectionSkeleton />
+        </div>
       </div>
     );
   }
   if (!data) return <EmptyState icon={BarChart3} title="No data" description="No attendance data available for the selected period." />;
 
+  const cityRates = data.cityAttendanceRates || [];
+
   return (
     <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-4">
-      {/* Summary Cards */}
-      <div className="grid grid-cols-2 gap-4">
+      {/* Quick Stats Row — 4 cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
         <StatCard icon={CalendarDays} label="Total Events" value={data.totalEvents} sub="in selected period" color="text-[#4B0A8F] dark:text-[#8A40B0]" />
-        <StatCard icon={TrendingUp} label="Overall Rate" value={`${data.overallRate}%`} sub={`${data.totalRecords} of ${data.activeParticipants * data.totalEvents} possible`} color={rateTextColor(data.overallRate)} />
-        <StatCard icon={ClipboardCheck} label="Total Records" value={data.totalRecords.toLocaleString()} sub="attendance marks" color="text-[#2A0C8F] dark:text-[#6D4DC7]" />
+        <StatCard icon={TrendingUp} label="Avg Attendance Rate" value={`${data.overallRate}%`} sub={`${data.totalRecords.toLocaleString()} records`}>
+          {/* Mini sparkline from daily rates */}
+          {data.dailyRates.length > 1 && (
+            <div className="mt-2 flex items-end gap-[2px] h-5">
+              {data.dailyRates.slice(-14).map((d) => {
+                const h = Math.max((d.rate / 100) * 100, 4);
+                return (
+                  <div
+                    key={d.date}
+                    className="flex-1 min-w-0 rounded-t-sm opacity-60"
+                    style={{
+                      height: `${h}%`,
+                      backgroundColor: d.rate >= 70 ? "#22c55e" : d.rate >= 40 ? "#f59e0b" : "#ef4444",
+                    }}
+                  />
+                );
+              })}
+            </div>
+          )}
+        </StatCard>
         <StatCard icon={Users} label="Active Participants" value={data.activeParticipants} sub="across all groups" color="text-[#A0006B] dark:text-[#D64D9E]" />
+        <StatCard icon={Coins} label="Total Fee Collected" value={formatPKR(data.totalFeesCollected || 0)} sub="in selected period" color="text-[#A0006B] dark:text-[#D64D9E]" />
       </div>
 
-      {/* Daily Trend Chart */}
-      {data.dailyRates.length > 0 ? (
-        <motion.div variants={itemVariants}>
-          <DailyBarChart data={data.dailyRates} />
-        </motion.div>
-      ) : (
-        <motion.div variants={itemVariants}>
-          <EmptyState icon={BarChart3} title="No daily data" description="No attendance events found in the selected period." />
-        </motion.div>
-      )}
+      {/* 2-col: Daily Trend + Day-of-Week Heatmap */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {data.dailyRates.length > 0 ? (
+          <motion.div variants={itemVariants}>
+            <DailyBarChart data={data.dailyRates} />
+          </motion.div>
+        ) : (
+          <motion.div variants={itemVariants}>
+            <EmptyState icon={BarChart3} title="No daily data" description="No attendance events found in the selected period." />
+          </motion.div>
+        )}
 
-      {/* Status Distribution */}
+        {data.dayOfWeekBreakdown.length > 0 ? (
+          <motion.div variants={itemVariants}>
+            <DayOfWeekHeatmap data={data.dayOfWeekBreakdown} />
+          </motion.div>
+        ) : (
+          <SectionSkeleton />
+        )}
+      </div>
+
+      {/* 2-col: City Attendance BarChart + Status Distribution Donut */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {cityRates.length > 0 ? (
+          <motion.div variants={itemVariants}>
+            <CityAttendanceChart data={cityRates} />
+          </motion.div>
+        ) : (
+          <SectionSkeleton />
+        )}
+
+        <motion.div variants={itemVariants}>
+          <StatusDonut dist={data.statusDistribution} />
+        </motion.div>
+      </div>
+
+      {/* Fee Collection by Park — full width */}
+      {feesLoading ? (
+        <SectionSkeleton />
+      ) : parkFees && parkFees.length > 0 ? (
+        <motion.div variants={itemVariants}>
+          <FeeByParkChart data={parkFees} />
+        </motion.div>
+      ) : null}
+
+      {/* Status Distribution Bar (legacy — kept as supplementary) */}
       <motion.div variants={itemVariants}>
         <StatusDistribution dist={data.statusDistribution} />
       </motion.div>
-
-      {/* Day-of-Week Heatmap */}
-      {data.dayOfWeekBreakdown.length > 0 ? (
-        <motion.div variants={itemVariants}>
-          <DayOfWeekHeatmap data={data.dayOfWeekBreakdown} />
-        </motion.div>
-      ) : null}
     </motion.div>
   );
 }

@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 import { type LucideIcon, motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
+import { OnlineStatus } from "@/components/shared/online-status";
 
 export interface NavItem {
   id: PageId;
@@ -236,7 +237,7 @@ function SidebarNavItem({
 function DesktopSidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
   const { currentPage, navigateTo } = useAppStore();
   const { data: session } = useSession();
-  const user = session?.user as { role?: string; name?: string; email?: string } | undefined;
+  const user = session?.user as { role?: string; name?: string; email?: string; id?: string } | undefined;
   const navItems = getNavItems(user?.role);
 
   return (
@@ -312,7 +313,10 @@ function DesktopSidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
               className="overflow-hidden"
             >
               <div className="rounded-lg bg-muted/50 px-3 py-2 mb-2">
-                <p className="text-xs font-medium truncate">{user?.name || "User"}</p>
+                <div className="flex items-center gap-1.5">
+                  {user?.id && <OnlineStatus userId={user.id} />}
+                  <p className="text-xs font-medium truncate">{user?.name || "User"}</p>
+                </div>
                 <p className="text-[10px] text-muted-foreground truncate">{user?.email}</p>
                 <span className="inline-flex items-center gap-1 mt-1 rounded-full bg-[#F3ECF6] px-2 py-0.5 text-[10px] font-medium text-[#4B0A8F] dark:bg-[#1F086080] dark:text-[#8A40B0] capitalize">
                   {getRoleLabel(user?.role)}
@@ -367,7 +371,7 @@ function MobileSidebar({
 }) {
   const { currentPage, navigateTo } = useAppStore();
   const { data: session } = useSession();
-  const user = session?.user as { role?: string; name?: string; email?: string } | undefined;
+  const user = session?.user as { role?: string; name?: string; email?: string; id?: string } | undefined;
   const navItems = getNavItems(user?.role);
 
   return (
@@ -395,7 +399,10 @@ function MobileSidebar({
 
         {/* User info */}
         <div className="px-4 py-3 border-b bg-muted/30">
-          <p className="text-sm font-medium truncate">{user?.name || "User"}</p>
+          <div className="flex items-center gap-2">
+            {user?.id && <OnlineStatus userId={user.id} />}
+            <p className="text-sm font-medium truncate">{user?.name || "User"}</p>
+          </div>
           <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
           <span className="inline-flex items-center gap-1 mt-1 rounded-full bg-[#F3ECF6] px-2 py-0.5 text-[10px] font-medium text-[#4B0A8F] dark:bg-[#1F086080] dark:text-[#8A40B0] capitalize">
             {getRoleLabel(user?.role)}

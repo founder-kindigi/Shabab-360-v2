@@ -495,6 +495,117 @@ export async function GET() {
       (e) => !e.isClosed && e._count.records < (participantCountMap.get(e.groupId) || 0)
     ).length;
 
+    // ==================== ATTENDANCE WARNINGS COUNT ====================
+    // Count participants with warnings across all groups in the park
+    let totalWarnings = 0;
+
+    if (groupIds.length > 0) {
+      // Get batch settings for all batches in the park (via groupIds)
+      const batchesWithSettings = await db.batch.findMany({
+        where: {
+          groups: { some: { id: { in: groupIds } } },
+          isActive: true,
+        },
+        include: { settings: true },
+      });
+
+      const batchSettingsMap = new Map(
+        batchesWithSettings.map((b) => [
+          b.id,
+          b.settings || { warningAbsents: 3, dropoutAbsents: 6 },
+        ])
+      );
+
+      // Get all active participants in the groups
+      const allParticipants = await db.participant.findMany({
+        where: { groupId: { in: groupIds }, state: "active" },
+        select: { id: true, groupId: true },
+      });
+
+      if (allParticipants.length > 0) {
+        // Get group-to-batch mapping
+        const groupsForBatch = await db.group.findMany({
+          where: { id: { in: groupIds } },
+          select: { id: true, batchId: true },
+        });
+        const groupBatchMap = new Map(
+          groupsForBatch.map((g) => [g.id, g.batchId])
+        );
+
+        // Get all attendance events for these groups, ordered by date DESC
+        const allEvents = await db.attendanceEvent.findMany({
+          where: { groupId: { in: groupIds } },
+          select: { id: true, eventDate: true, groupId: true },
+          orderBy: { eventDate: "desc" },
+        });
+
+        const eventIds = allEvents.map((e) => e.id);
+
+        // Get all attendance records
+        const allRecords = await db.attendanceRecord.findMany({
+          where: {
+            eventId: { in: eventIds },
+            participantId: { in: allParticipants.map((p) => p.id) },
+          },
+          select: { eventId: true, participantId: true, status: true },
+        });
+
+        // Build eventId -> Set of absent participantIds
+        const absentByEvent = new Map<string, Set<string>>();
+        const attendedByParticipant = new Map<string, Set<string>>();
+
+        for (const rec of allRecords) {
+          if (rec.status === "absent") {
+            const set = absentByEvent.get(rec.eventId) || new Set();
+            set.add(rec.participantId);
+            absentByEvent.set(rec.eventId, set);
+          } else if (rec.status === "present" || rec.status === "late") {
+            const set = attendedByParticipant.get(rec.participantId) || new Set();
+            set.add(rec.eventId);
+            attendedByParticipant.set(rec.participantId, set);
+          }
+        }
+
+        // Group events by groupId for efficient lookup
+        const eventsByGroup = new Map<string, typeof allEvents>();
+        for (const ev of allEvents) {
+          const arr = eventsByGroup.get(ev.groupId) || [];
+          arr.push(ev);
+          eventsByGroup.set(ev.groupId, arr);
+        }
+
+        // Check each participant
+        for (const participant of allParticipants) {
+          const batchId = groupBatchMap.get(participant.groupId);
+          const settings = batchId ? batchSettingsMap.get(batchId) : null;
+          const warningAbsents = settings?.warningAbsents || 3;
+          const dropoutAbsents = settings?.dropoutAbsents || 6;
+          const criticalThreshold = Math.ceil(warningAbsents * 0.67);
+
+          const groupEvents = eventsByGroup.get(participant.groupId) || [];
+          const participantAttended = attendedByParticipant.get(participant.id);
+
+          let consecutiveAbsents = 0;
+          for (const event of groupEvents) {
+            const absentSet = absentByEvent.get(event.id);
+            if (absentSet && absentSet.has(participant.id)) {
+              consecutiveAbsents++;
+            } else if (participantAttended && participantAttended.has(event.id)) {
+              break;
+            }
+          }
+
+          if (
+            consecutiveAbsents >= dropoutAbsents ||
+            consecutiveAbsents >= warningAbsents ||
+            consecutiveAbsents >= criticalThreshold
+          ) {
+            totalWarnings++;
+          }
+        }
+      }
+    }
+
     return NextResponse.json({
       park: park
         ? {
@@ -532,6 +643,7 @@ export async function GET() {
       needsAttention,
       openUncompletedCount: openUncompleted,
       unclosedYesterdayCount: unclosedYesterdayEvents.length,
+      warningsCount: totalWarnings,
       // Existing fields
       attentionItems,
       events: eventList,

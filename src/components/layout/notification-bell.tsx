@@ -16,6 +16,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Bell, BellOff, CheckCheck, Megaphone } from "lucide-react";
+import { OnlineStatus } from "@/components/shared/online-status";
 import type { PageId } from "@/stores/useAppStore";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -140,6 +141,7 @@ export function NotificationBell() {
   useRealtimeNotifications();
 
   const user = session?.user as {
+    id?: string;
     role?: string;
   } | undefined;
 
@@ -274,15 +276,18 @@ export function NotificationBell() {
                     </span>
                   )}
                 </div>
-                {unreadCount > 0 && (
-                  <button
-                    onClick={handleMarkAllRead}
-                    className="text-xs text-[#4B0A8F] hover:text-[#A0006B] dark:text-[#8A40B0] dark:hover:text-[#D4B8E3] font-medium flex items-center gap-1 transition-colors"
-                  >
-                    <CheckCheck className="size-3.5" />
-                    Mark all read
-                  </button>
-                )}
+                <div className="flex items-center gap-1.5">
+                  {user?.id && <OnlineStatus userId={user.id} />}
+                  {unreadCount > 0 && (
+                    <button
+                      onClick={handleMarkAllRead}
+                      className="text-xs text-[#4B0A8F] hover:text-[#A0006B] dark:text-[#8A40B0] dark:hover:text-[#D4B8E3] font-medium flex items-center gap-1 transition-colors"
+                    >
+                      <CheckCheck className="size-3.5" />
+                      Mark all read
+                    </button>
+                  )}
+                </div>
               </div>
 
               {/* List */}

@@ -46,6 +46,7 @@ import {
   Pencil,
 } from "lucide-react";
 import type { StaffRole } from "@/types";
+import { OnlineStatus } from "@/components/shared/online-status";
 import {
   SortableDataTable,
   type Column,
@@ -486,8 +487,13 @@ export function UsersPage() {
       header: "User",
       render: (user) => (
         <div className="flex items-center gap-3">
-          <div className="flex items-center justify-center size-9 rounded-full bg-[#F3ECF6] dark:bg-[#1F0860] text-[#4B0A8F] dark:text-[#8A40B0] text-xs font-bold shrink-0">
-            {getInitials(user.name, user.email)}
+          <div className="relative">
+            <div className="flex items-center justify-center size-9 rounded-full bg-[#F3ECF6] dark:bg-[#1F0860] text-[#4B0A8F] dark:text-[#8A40B0] text-xs font-bold shrink-0">
+              {getInitials(user.name, user.email)}
+            </div>
+            <span className="absolute -bottom-0.5 -right-0.5">
+              <OnlineStatus userId={user.id} />
+            </span>
           </div>
           <div className="min-w-0">
             <p className="font-medium text-sm truncate">
@@ -502,8 +508,13 @@ export function UsersPage() {
       mobileRender: (user) => (
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="flex items-center justify-center size-10 rounded-full bg-[#F3ECF6] dark:bg-[#1F0860] text-[#4B0A8F] dark:text-[#8A40B0] text-sm font-bold shrink-0">
-              {getInitials(user.name, user.email)}
+            <div className="relative">
+              <div className="flex items-center justify-center size-10 rounded-full bg-[#F3ECF6] dark:bg-[#1F0860] text-[#4B0A8F] dark:text-[#8A40B0] text-sm font-bold shrink-0">
+                {getInitials(user.name, user.email)}
+              </div>
+              <span className="absolute -bottom-0.5 -right-0.5">
+                <OnlineStatus userId={user.id} />
+              </span>
             </div>
             <div className="min-w-0">
               <p className="font-medium text-sm truncate">
