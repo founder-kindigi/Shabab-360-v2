@@ -1518,3 +1518,21 @@ Work Log:
   - Unique receipt numbers: FEE-2025-0001 through FEE-2025-0004
 - ESLint: clean (no errors)
 - Seed verified: all data created successfully
+
+---
+Task ID: T-qa-fix-bugs
+Agent: Main
+Task: QA testing via agent-browser, fix critical bugs, enhance seed data
+
+Work Log:
+- **QA via agent-browser**: Login flow works, dashboard renders correctly, all 16 sidebar nav items present
+- **Bug Fix: date-fns-tz import crash**: Reports API imported PKT, startOfDay, subDays, format from date-fns-tz (which only exports timezone functions). This single import error caused Turbopack compilation failure that blocked ALL API routes from responding. Fixed by importing from date-fns and @/lib/timezone instead.
+- **Bug Fix: client-side date-fns-tz imports**: student-announcements-page.tsx and guardian-announcements-page.tsx imported toZonedTime from date-fns-tz directly. Fixed to import from @/lib/timezone.
+- **Seed Data Enhancement**: Added 84 historical attendance events (30 days × 4 groups), 1,042 attendance records, 20 audit log entries, 3 announcements, 1 fee event + 4 payments. Dashboards now show rich 30-day trends.
+- Verified: Login → Dashboard → Fees page navigation works, Reports API compiles without error
+
+Stage Summary:
+- Critical import bug fixed (was causing ALL API routes to 500)
+- 3 files fixed (reports/route.ts, student-announcements-page.tsx, guardian-announcements-page.tsx)
+- Seed data enhanced from 2 events to 86 events with 30 days of history
+- 4 commits pushed: b6b3117, 5a2afd1, 8094712
