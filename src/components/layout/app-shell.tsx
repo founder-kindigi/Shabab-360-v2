@@ -26,6 +26,8 @@ import { ParksPage } from "@/components/modules/admin/parks-page";
 import { UsersPage } from "@/components/modules/admin/users-page";
 import { AuditLogPage } from "@/components/modules/admin/audit-log-page";
 import { PeoplePage } from "@/components/modules/admin/people-page";
+import { StudentsPage } from "@/components/modules/admin/students-page";
+import { GuardiansPage } from "@/components/modules/admin/guardians-page";
 import { AdminAttendanceEvents } from "@/components/modules/admin/admin-attendance-events";
 import { AnnouncementsPage } from "@/components/modules/admin/announcements-page";
 import { SettingsPage } from "@/components/modules/admin/settings-page";
@@ -35,6 +37,8 @@ import { MurabbiDashboard } from "@/components/modules/murabbi/murabbi-dashboard
 import { ParkDashboard } from "@/components/modules/park/park-dashboard";
 import { ParkAttendancePage } from "@/components/modules/park/park-attendance-page";
 import { ParkRosterPage } from "@/components/modules/park/park-roster-page";
+import { ParkParticipantsPage } from "@/components/modules/park/park-participants-page";
+import { ParkGuardiansPage } from "@/components/modules/park/park-guardians-page";
 import { AttendanceRoster } from "@/components/modules/park/attendance-roster";
 import { GuardianDashboard } from "@/components/modules/guardian/guardian-dashboard";
 import { GuardianHistoryPage } from "@/components/modules/guardian/guardian-history-page";
@@ -43,6 +47,9 @@ import { CityHeadDashboard } from "@/components/modules/city-head/city-head-dash
 import { StudentDashboard } from "@/components/modules/student/student-dashboard";
 import { StudentHistoryPage } from "@/components/modules/student/student-history-page";
 import { StudentAnnouncementsPage } from "@/components/modules/student/student-announcements-page";
+import { ParkSchedulePage } from "@/components/modules/park/park-schedule-page";
+import { GuardianSchedulePage } from "@/components/modules/guardian/guardian-schedule-page";
+import { StudentSchedulePage } from "@/components/modules/student/student-schedule-page";
 
 // Shared components
 import { ScopeSelector } from "@/components/shared/scope-selector";
@@ -97,16 +104,8 @@ const pageTitles: Record<PageId, string> = {
 };
 
 const comingSoonConfig: Record<string, { icon: typeof TreePine; module: string; phase: string; description: string }> = {
-  "admin-students": { icon: GraduationCap, module: "Students", phase: "phase-4", description: "Student profiles, academic progress tracking, and batch assignments." },
-  "admin-guardians": { icon: ShieldCheck, module: "Guardians", phase: "phase-4", description: "Guardian profiles, family linking, and contact management." },
   "admin-admissions": { icon: FileText, module: "Admissions", phase: "phase-4", description: "Student admission workflow, form management, and approval pipeline." },
   "admin-fees": { icon: DollarSign, module: "Fee Management", phase: "phase-4", description: "Fee collection, payment tracking, installments, and financial reports." },
-  
-  "park-participants": { icon: GraduationCap, module: "Participants", phase: "phase-3", description: "Participant profiles, contact info, and group assignments." },
-  "park-guardians": { icon: ShieldCheck, module: "Families", phase: "phase-3", description: "Family contacts and guardian-linked participant views." },
-  "park-schedule": { icon: Clock, module: "Schedule", phase: "phase-3", description: "Weekly schedule view and session planning for your park." },
-  "guardian-schedule": { icon: Clock, module: "Schedule", phase: "phase-3", description: "View upcoming sessions and schedules for your children." },
-  "student-schedule": { icon: Clock, module: "Schedule", phase: "phase-3", description: "View your upcoming sessions and batch schedule." },
 };
 
 function ComingSoonPage({ pageId }: { pageId: PageId }) {
@@ -156,6 +155,10 @@ function PageContent({ pageId }: { pageId: PageId }) {
       return <AnnouncementsPage />;
     case "admin-reports":
       return <ReportsPage />;
+    case "admin-students":
+      return <StudentsPage />;
+    case "admin-guardians":
+      return <GuardiansPage />;
     case "murabbi-dashboard":
       return <MurabbiDashboard />;
     case "park-dashboard":
@@ -166,6 +169,10 @@ function PageContent({ pageId }: { pageId: PageId }) {
       return <AttendanceRoster />;
     case "park-roster":
       return <ParkRosterPage />;
+    case "park-participants":
+      return <ParkParticipantsPage />;
+    case "park-guardians":
+      return <ParkGuardiansPage />;
     case "guardian-dashboard":
       return <GuardianDashboard />;
     case "guardian-history":
@@ -178,6 +185,12 @@ function PageContent({ pageId }: { pageId: PageId }) {
       return <StudentHistoryPage />;
     case "student-announcements":
       return <StudentAnnouncementsPage />;
+    case "park-schedule":
+      return <ParkSchedulePage />;
+    case "guardian-schedule":
+      return <GuardianSchedulePage />;
+    case "student-schedule":
+      return <StudentSchedulePage />;
 
     // Everything else: coming soon
     default:
@@ -208,10 +221,10 @@ export function AppShell() {
   } | undefined;
 
   const pageTitle = pageTitles[currentPage] || "Dashboard";
-  const showPageHeader = !["admin-dashboard", "city-head-dashboard", "murabbi-dashboard", "park-dashboard", "park-attendance-roster", "park-roster", "guardian-dashboard", "guardian-history", "guardian-announcements", "student-dashboard", "student-history", "student-announcements", "admin-cities", "admin-parks", "admin-batches", "admin-groups", "admin-users", "admin-access", "admin-audit-log", "admin-settings", "admin-attendance-events", "admin-people", "admin-announcements", "admin-reports"].includes(currentPage);
+  const showPageHeader = !["admin-dashboard", "city-head-dashboard", "murabbi-dashboard", "park-dashboard", "park-attendance-roster", "park-roster", "park-participants", "park-guardians", "park-schedule", "guardian-dashboard", "guardian-history", "guardian-announcements", "guardian-schedule", "student-dashboard", "student-history", "student-announcements", "student-schedule", "admin-cities", "admin-parks", "admin-batches", "admin-groups", "admin-users", "admin-access", "admin-audit-log", "admin-settings", "admin-attendance-events", "admin-people", "admin-announcements", "admin-reports", "admin-students", "admin-guardians"].includes(currentPage);
 
   // Show scope selector on admin pages (not dashboard, settings, or audit-log)
-  const showScopeSelector = currentPage.startsWith("admin-") && !(["admin-dashboard", "admin-settings", "admin-audit-log", "admin-people", "admin-announcements", "admin-access"] as const).includes(currentPage as any);
+  const showScopeSelector = currentPage.startsWith("admin-") && !(["admin-dashboard", "admin-settings", "admin-audit-log", "admin-people", "admin-announcements", "admin-access", "admin-students", "admin-guardians"] as const).includes(currentPage as any);
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">

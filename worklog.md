@@ -1138,3 +1138,216 @@ Work Log:
 - ESLint: clean (0 errors, 0 warnings)
 - Files created: 4 new .tsx components
 - Files modified: app-shell.tsx (imports, switch, comingSoon, showPageHeader)
+
+---
+Task ID: T-park-participants-guardians
+Agent: Main
+Task: Build Park Participants Page and Park Families (Guardians) Page
+
+Work Log:
+- Created `/api/park/participants/route.ts` (GET):
+  - Auth: park_admin, park_lead, murabbi roles
+  - Park scope resolution from staffMeta (same pattern as park-roster)
+  - Query params: search (name/phone), groupId, state (active/inactive/all), page, pageSize, sortBy, sortOrder
+  - Fetches participants across all groups in the park with:
+    - Participant details (name, phone, gender, DOB, state, joinedAt)
+    - Group name and Batch name resolved via group map
+    - Guardian info (name, phone, relation) via GuardianChild link
+    - 30-day attendance stats (present/absent/late/excused/rate)
+  - Returns paginated: `{ data, pagination, totalActive, totalInactive, park, groups }`
+  - Separate counts for totalActive and totalInactive (unfiltered) for header stats
+
+- Created `/api/park/guardians/route.ts` (GET):
+  - Auth: park_admin, park_lead, murabbi roles
+  - Park scope resolution from staffMeta
+  - Query params: search (guardian name/phone/cnic), page, pageSize
+  - Collects all participants in park's groups, resolves their GuardianChild → Guardian links
+  - Deduplicates guardians by ID, aggregates children per guardian
+  - For each guardian: name, phone, cnic, address, children count, children list with:
+    - Child name, groupName, batchName, relation, state, 30-day attendance rate
+  - Returns paginated: `{ data, pagination, park }`
+
+- Built `park-participants-page.tsx`:
+  - Custom header: "Participants" with park name subtitle, active/inactive dot counts
+  - Search input + Group select (all groups in park) + State filter (active/inactive/all)
+  - View toggle: Grid (default) / List with purple active indicator
+  - Grid view: responsive 1/2/3 column card grid
+    - Each card: avatar with colored initials, name (bold), phone, gender icon, group badge, batch name, 30-day rate mini progress bar, state badge, guardian name with shield icon
+    - Hover: subtle lift + shadow effect via Framer Motion whileHover
+  - List view: sortable table (name, rate, state columns) with desktop/mobile column visibility
+  - Detail Sheet (right side): full participant info, contact details, group assignment, circular 30-day rate indicator with SVG ring, 4-stat grid (P/A/L/E), guardian details card
+  - Pagination with page size selector (20/40/60)
+  - Loading skeleton, error state with retry, empty states (no data / no search results)
+  - Framer Motion staggered animations on cards and table rows
+
+- Built `park-guardians-page.tsx`:
+  - Custom header: "Families" with park name subtitle, total families count
+  - Search bar: search by guardian name or phone
+  - Family cards: responsive 2-column grid (1-col mobile)
+    - Card border-left: 3px solid #4B0A8F
+    - Guardian avatar with initials, name (bold), phone, CNIC (formatted), address
+    - Children section: shows up to 3 children with mini avatar, name, group, rate badge
+    - "+N more children" link if >3
+    - "View" button to open detail sheet
+    - Hover: subtle lift + shadow
+  - Detail Sheet: full guardian info (phone, CNIC, address), all children with:
+    - Individual child cards: avatar, name, state badge, group/batch, rate badge, 4-stat attendance grid (P/A/L/E), relation
+  - Pagination with page size selector
+  - Loading skeleton, error state with retry, empty states
+  - Framer Motion staggered animations
+
+- Updated `app-shell.tsx`:
+  - Added imports for ParkParticipantsPage and ParkGuardiansPage
+  - Added switch cases: `case "park-participants"` and `case "park-guardians"`
+  - Removed both from `comingSoonConfig`
+  - Added both to `showPageHeader` exclusion array
+
+- Brand hex colors used: #4B0A8F, #A0006B, #2A0C8F, #F3ECF6, #8A40B0, #D4B8E3
+- Rate colors: green ≥80%, amber ≥50%, red <50% (no emerald/teal/green for UI elements)
+- Dark mode support throughout (dark: variants for backgrounds, text colors)
+- Mobile-first responsive design (sm/md/lg/xl breakpoints)
+- ESLint: clean on all new/modified files (0 errors)
+- Pre-existing lint errors in students-page.tsx and student/schedule/route.ts are unrelated
+- Files created: 2 API routes + 2 frontend components
+- Files modified: app-shell.tsx
+
+---
+Task ID: T-schedule-pages
+Agent: Main
+Task: Build three schedule pages — Park Schedule, Guardian Schedule, Student Schedule
+
+Work Log:
+- Created `/api/park/schedule/route.ts` (GET):
+  - Auth: park_admin, park_lead, murabbi roles with park scope resolution from staffMeta
+  - Query params: weekOffset (0=this week, -1=last, 1=next)
+  - Mon-Sun week calculation in PKT timezone (Islamic week convention)
+  - Fetches all batches → groups in the park, events for the selected week
+  - Computes typical session days per group from last 4 weeks (≥2 occurrences = typical)
+  - Returns: park info, batches with groups/events/typicalDays, weekStart/End, summary stats
+
+- Created `/api/guardian/schedule/route.ts` (GET):
+  - Auth: guardian role
+  - Finds guardian's children via GuardianChild → Participant with group hierarchy
+  - Query params: weekOffset
+  - Mon-Sun week in PKT
+  - Returns: children array with participant info, group info, events per child per week
+
+- Created `/api/student/schedule/route.ts` (GET):
+  - Auth: student role
+  - Finds participant linked to user with group/batch/park/city hierarchy
+  - Query params: weekOffset
+  - Mon-Sun week in PKT
+  - Fetches events + student's attendance records for the week
+  - Computes typical days from last 4 weeks
+  - Fetches next 3 upcoming events beyond the week
+  - Returns: participant, group, events with myStatus, typicalDays, upcoming, summary
+
+- Built `park-schedule-page.tsx`:
+  - Header: gradient banner with park name, city, week navigation (← This Week →)
+  - Week navigation: prev/next with "This Week" indicator, blocks future navigation
+  - 3 summary cards: Total Sessions, Completed, Open (brand/violet/amber accent borders)
+  - Weekly Calendar Grid (7 columns × N group rows):
+    - Column headers: Mon-Sun with date numbers, today highlighted with brand violet left border
+    - Batch section headers
+    - Row per group: group name, participant count, Users icon
+    - Event cards: title, Open/Closed badge, time, P/Total progress, color-coded progress bar
+    - Empty cells: muted background; typical-day cells: dashed border + "Expected" label + Plus icon
+    - Past typical days don't show "Expected"
+  - Mobile: horizontal scrollable table with min-width 800px
+  - Loading skeleton, error state, empty state
+  - Framer Motion stagger + fadeUp animations, AnimatePresence for event cards
+
+- Built `guardian-schedule-page.tsx`:
+  - Header: gradient banner with "Your children's weekly session schedule", week navigation
+  - Per-child sections: child card with avatar, name, park location, group badge
+    - Weekly calendar strip (7 day cells, horizontal, min-width 500px for scroll)
+    - Each day: date num, day label, colored dot (magenta=open, muted=closed) + event title
+    - Today highlighted with brand background + ring
+  - Detailed List: "This Week's Sessions" grouped by day
+    - Day header with day name + date
+    - Event rows: colored dot, child name, title, group, park, time, Open/Done badge
+  - Mobile-first responsive design
+  - Loading skeleton, error state, empty states (no children, no sessions)
+  - Framer Motion animations
+
+- Built `student-schedule-page.tsx`:
+  - Header: gradient banner with "My Schedule", park/batch/group breadcrumb, week navigation
+  - 3 summary cards: Sessions, Attended (green accent), Remaining (amber accent)
+  - Weekly Calendar (single row, 7 columns, horizontal scroll on mobile):
+    - Day header: day label + date num, today highlighted with brand left border
+    - Event cards: My Status badge (P=green, A=red, L=amber, E=sky), Open/Closed badge, title, time, progress bar with P/Total and color-coded percentage
+    - Typical day cells (no event yet, not past): dashed border + "Expected" label + CalendarClock icon
+  - Upcoming Section: next 3 upcoming events beyond this week with date, time, status
+  - Mobile: horizontal scroll with min-width 600px
+  - Loading skeleton, error/empty states
+  - Framer Motion animations
+
+- Updated `app-shell.tsx`:
+  - Added imports for ParkSchedulePage, GuardianSchedulePage, StudentSchedulePage
+  - Removed all 3 from comingSoonConfig
+  - Added switch cases for park-schedule, guardian-schedule, student-schedule
+  - Added all 3 to showPageHeader exclusion array
+
+- Brand hex colors: #4B0A8F, #A0006B, #FF0015, #2A0C8F, #F3ECF6, #D4B8E3
+- No emerald/teal/green (except green for ≥80% rate and student "Attended" card — semantically correct)
+- PKT timezone used via toPKT/formatPKT from @/lib/timezone for all date operations
+- Week starts Monday (Islamic week convention): dayOfWeek 0=Mon, 6=Sun
+- Dark mode support throughout (dark: variants for backgrounds, borders, text)
+- ESLint: clean on all new/modified files (pre-existing error in students-page.tsx is unrelated)
+- Files created: 3 API routes + 3 frontend components
+- Files modified: app-shell.tsx
+
+---
+Task ID: T-students-guardians
+Agent: Main
+Task: Build Admin Students Management and Guardians Management pages with full CRUD APIs
+
+Work Log:
+- **API: Students (4 endpoints)**
+  - `GET /api/admin/students` — Paginated list with search (name/phone), cityId, parkId, groupId, state filters. Includes group→batch→park→city hierarchy, guardian info via guardianLinks, 30-day attendance rate per participant. Returns `{ data, pagination }`.
+  - `POST /api/admin/students` — Create participant with Zod validation (name, phone, gender, dateOfBirth, groupId). Validates group exists and is active.
+  - `PATCH /api/admin/students/[id]` — Update name, phone, gender, dateOfBirth, state, groupId. Validates group on change.
+  - `DELETE /api/admin/students/[id]` — Soft-delete (state = "inactive").
+  - All endpoints: requireRole(["super_admin", "program_admin"]), audit logging.
+
+- **API: Guardians (4 endpoints)**
+  - `GET /api/admin/guardians` — Paginated list with search, cityId (filters by children in city), state (active/inactive). Includes children via GuardianChild with participant details and 30-day attendance rate. Returns `{ data, pagination }`.
+  - `POST /api/admin/guardians` — Create guardian with Zod validation (name, phone, cnic, address, optional userId). Validates user uniqueness.
+  - `PATCH /api/admin/guardians/[id]` — Update fields + sync children (participantIds array). Computes diff, adds/removes GuardianChild links atomically.
+  - `DELETE /api/admin/guardians/[id]` — Soft-delete (isActive = false).
+  - All endpoints: requireRole(["super_admin", "program_admin"]), audit logging.
+
+- **Frontend: Students Page (students-page.tsx)**
+  - PageHeader: "Students" with "Manage participant profiles and assignments"
+  - Filter Bar (Card): Search input with debounce, City→Park→Group cascading selects, State filter (active/inactive/all), results count
+  - Desktop: responsive Table with columns — Avatar+Name, Phone, Gender icon (User icon with brand colors), Hierarchy chain (Group→Batch→Park→City), Guardian names, 30-day attendance (mini progress bar + rate badge with green≥80%/amber≥50%/red<50%), State badge, Join date, Actions dropdown
+  - Mobile: Cards with same info, compact layout
+  - Edit Dialog: Name, Phone, Gender select, DateOfBirth, State, Group select (cascading from all groups)
+  - Create Dialog: Same fields with required name + group
+  - View Details Sheet: Full info with avatar, location chain, attendance bar, guardian cards
+  - Deactivate AlertDialog
+  - Pagination controls (prev/next)
+  - TanStack Query with staleTime, Framer Motion (AnimatePresence, staggered card animations), useCallback for filter handlers
+  - Brand hex colors throughout, dark mode support
+
+- **Frontend: Guardians Page (guardians-page.tsx)**
+  - PageHeader: "Guardians" with "Manage family contacts and participant links"
+  - Filter Bar (Card): Search, City filter, Active/Inactive toggle, results count
+  - Cards grid (2-col on md+): Each card shows — Guardian avatar+name+status badge, Phone, CNIC, Address, Children section with scrollable list (child avatar, name, group, park, attendance rate badge), "Add Child" icon button, Actions dropdown (Edit, Manage Children, Deactivate)
+  - Create Dialog: Name, Phone, CNIC, Address with Zod-style validation display
+  - Edit Dialog: Same fields
+  - Link Child Dialog: Search participants by name, checkbox list with checkmark icons, selected count, saves full participantIds array via PATCH
+  - Deactivate AlertDialog
+  - Pagination controls
+  - TanStack Query, Framer Motion (staggered card entry), brand hex colors, dark mode
+
+- **Integration (app-shell.tsx)**
+  - Imported StudentsPage and GuardiansPage
+  - Added `case "admin-students": return <StudentsPage />;` and `case "admin-guardians": return <GuardiansPage />;` to PageContent switch
+  - Removed both from comingSoonConfig
+  - Added both to showPageHeader exclusion list
+  - Added both to showScopeSelector exclusion list
+
+- Lint: clean (0 errors, 0 warnings)
+- Files created: 4 API route files, 2 frontend page components
+- Files modified: app-shell.tsx (imports, switch cases, exclusions)
