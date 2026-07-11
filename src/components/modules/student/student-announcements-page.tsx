@@ -17,7 +17,7 @@ import {
   Filter,
 } from "lucide-react";
 import { format } from "date-fns";
-import { toZonedTime } from "date-fns-tz";
+import { toZonedTime } from "@/lib/timezone";
 
 // ─── Types ───────────────────────────────────────────────────────────
 
