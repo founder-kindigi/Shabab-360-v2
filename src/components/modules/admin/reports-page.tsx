@@ -53,7 +53,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
+import { Calendar as CalendarUI } from "@/components/ui/calendar";
 import {
   AttendanceReportPrint,
   type AttendanceReportData,
@@ -1124,7 +1124,7 @@ function PrintableReportTab() {
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
+                    <CalendarUI
                       mode="single"
                       selected={dateFrom}
                       onSelect={(d) => { setDateFrom(d); setFromOpen(false); }}
@@ -1143,7 +1143,7 @@ function PrintableReportTab() {
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
+                    <CalendarUI
                       mode="single"
                       selected={dateTo}
                       onSelect={(d) => { setDateTo(d); setToOpen(false); }}

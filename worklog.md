@@ -3358,3 +3358,293 @@ Shabab360 is now a **feature-complete** youth organization management system wit
 4. PDF certificate generation for course completion
 5. End-to-end testing with agent-browser
 6. Performance monitoring and optimization
+
+---
+Task ID: 14
+Agent: File Upload System Builder
+Task: Build file upload system for avatars and document attachments
+
+Work Log:
+- Created `public/uploads/avatars/` and `public/uploads/documents/` directories for local file storage
+- Built `src/app/api/upload/avatar/route.ts` (POST + GET): accepts multipart form data, validates image type (jpeg/png/webp) and 2MB size limit, generates unique filename with userId-timestamp.ext pattern, saves to disk, stores metadata in JSON sidecar file, returns public URL
+- Built `src/app/api/upload/document/route.ts` (POST + GET + DELETE): accepts multipart form data with entityType/entityId, validates file type (pdf/doc/docx/jpg/png) and 5MB size, organizes by entityType subdirectory, maintains per-entity JSON metadata file for file listing, supports file deletion
+- Built `src/components/shared/avatar-upload.tsx`: reusable "use client" component with 3 size variants (sm=40px, md=64px, lg=96px), shows current avatar image or brand-colored initials fallback, camera icon overlay on hover with Framer Motion animation, file picker with client-side validation, upload progress spinner, persists avatar URL to localStorage and dispatches custom "avatar-updated" event for cross-component sync
+- Built `src/components/shared/document-upload.tsx`: reusable "use client" component with drag-and-drop zone (dashed border, upload icon), multi-file support, configurable max files, file type/size validation, animated progress bar during upload, file list with type icons (PDF=red, image=blue, DOC=blue), per-file delete button with confirmation, uses TanStack Query for document metadata fetching/invalidation
+- Integrated AvatarUpload in Settings page Profile tab: replaced static initials circle with interactive AvatarUpload component (lg size)
+- Integrated avatar display in App Shell header: reads avatar URL from localStorage on mount, listens for "avatar-updated" custom events, shows user photo in the user dropdown trigger or falls back to User icon
+- Integrated avatar in People Directory: added `useUserAvatar` hook and `AvatarOrInitials` helper component, replaced initials circles in staff table rows (sm), mobile cards (md), and staff detail sheet (lg, with upload capability)
+- Integrated DocumentUpload in Admissions page: added Documents section with FileText icon header in the application detail sheet, passing entityType="admission" and entityId from the selected application, max 10 files
+- Fixed pre-existing Calendar name collision in reports-page.tsx (renamed UI Calendar import to CalendarUI)
+
+Stage Summary:
+- **4 new files created**: 2 API routes (avatar, document) + 2 shared UI components (AvatarUpload, DocumentUpload)
+- **4 files modified**: settings-page.tsx, app-shell.tsx, people-page.tsx, admissions-page.tsx
+- **1 incidental fix**: reports-page.tsx Calendar name collision
+- All files pass ESLint with 0 errors
+- Dev server returns 200 on all routes
+- No external upload libraries used — pure native Fetch + FormData + Node.js fs
+- Avatar persistence via localStorage + JSON metadata files
+- Document management with CRUD metadata via JSON sidecar files
+- Brand colors and dark mode support applied throughout
+
+---
+Task ID: 17
+Agent: Main
+Task: Add batch/bulk operations across admin pages (select multiple, bulk actions)
+
+Work Log:
+- Created 3 batch operation API routes:
+  - `src/app/api/admin/students/batch/route.ts` (POST): activate, deactivate, change-group, export actions for participants
+  - `src/app/api/admin/users/batch/route.ts` (POST): activate, deactivate, reset-password, assign-role actions for staff users
+  - `src/app/api/admin/guardians/batch/route.ts` (POST): activate, deactivate, send-invite actions for guardians
+- All batch APIs follow existing patterns: requireRole for auth, zod validation, logAudit for each affected record, return { success, failed, errors } response
+- Created `src/components/shared/bulk-action-toolbar.tsx`: reusable animated toolbar with selected count badge, action buttons, clear selection, AlertDialog confirmation for destructive actions, Framer Motion entrance/exit animations, sticky positioning
+- Integrated bulk operations into Students page (`students-page.tsx`):
+  - Added Checkbox import and BulkActionToolbar component
+  - Added selectedIds state (Set<string>), selection helpers, batch mutation
+  - Added checkbox column to desktop table header and rows
+  - Added checkbox overlay on mobile cards (positioned over avatar)
+  - Added "Move to Group" dialog with group selector
+  - Added client-side CSV export for selected students
+  - Clear selection on filter/page changes
+- Integrated bulk operations into Users page (`users-page.tsx`):
+  - Added BulkActionToolbar and new icons (UserCheck, UserX, Shield)
+  - Added selection state and batch mutation
+  - Enabled SortableDataTable's built-in selectable prop (already had checkbox support)
+  - Added "Assign Role" dialog with role selector
+  - Clear selection on search/filter/page changes
+- Integrated bulk operations into Guardians page (`guardians-page.tsx`):
+  - Added Checkbox import and BulkActionToolbar component
+  - Added selection state, selection helpers, batch mutation
+  - Added select-all checkbox row and per-card checkboxes (over avatar, same pattern as students)
+  - Clear selection on filter/page changes
+- Fixed pre-existing ESLint error in `src/components/layout/sidebar.tsx`: moved `useTranslation()` hook call out of non-component function `getNavItems()` into the calling components, passing `t` as a parameter
+- Verified: `bun run lint` passes with 0 errors
+
+Stage Summary:
+- 4 new files created (3 batch APIs + 1 shared component)
+- 4 files modified (3 page components + sidebar fix)
+- All batch operations use confirmation dialogs for destructive actions
+- Selection state clears on filter/search/page changes to avoid stale selections
+- Consistent UX across all 3 admin pages with the shared BulkActionToolbar component
+
+---
+Task ID: 13b
+Agent: Main
+Date: 2025-01-24
+Summary: Apply i18n translations to Login page and Sidebar
+
+Changes:
+- Verified both `login-page.tsx` and `sidebar.tsx` already had `useTranslation` imported and `t()` calls in place
+- Added 9 missing auth keys to en.ts and ur.ts:
+  - `auth.emailPlaceholder`, `auth.passwordPlaceholder`, `auth.enterBoth`, `auth.loginFailed`, `auth.quickLoginFailed`, `auth.unexpectedError`, `auth.quickLogin`, `auth.builtFor`
+- Added 14 missing nav section keys to en.ts and ur.ts:
+  - `nav.section.overview`, `nav.section.organization`, `nav.section.people`, `nav.section.operations`, `nav.section.communication`, `nav.section.system`, `nav.section.daily`, `nav.section.directory`, `nav.section.group`, `nav.section.tracking`, `nav.section.updates`
+- Added 2 missing nav keys: `nav.attendanceHistory`, `nav.myAttendance`
+- Added 1 app key: `app.collapse`
+- Changed 3 instances of `t("app.signOut")` to `t("auth.signOut")` in sidebar.tsx (DesktopSidebar tooltip, label, MobileSidebar label)
+- Fixed duplicate comma syntax error in both en.ts and ur.ts
+- `app-shell.tsx` pageTitles left as-is (outside component scope, per task instructions)
+- Lint: 0 errors
+
+Files modified:
+- `src/lib/i18n/en.ts` — added 26 missing translation keys
+- `src/lib/i18n/ur.ts` — added 26 missing translation keys
+- `src/components/layout/sidebar.tsx` — changed `app.signOut` → `auth.signOut` (3 occurrences)
+
+---
+Task ID: 18
+Agent: Main
+Task: Add PDF certificate generation for batch/course completion + enhance chart components
+
+Work Log:
+- Created `src/app/api/admin/certificates/[participantId]/route.ts` (GET):
+  - Admin-only auth with scope checks (city, park level)
+  - Fetches participant with group → batch → park → city relations
+  - Calculates attendance rate from AttendanceEvent/AttendanceRecord counts
+  - Generates unique certificate number: SHABAB-{YEAR}-{BATCH_CODE}-{PARTICIPANT_SUFFIX}
+  - Returns participant name, group, batch, park, city, joinDate, completionDate, attendanceRate, totalEvents, certificateNo
+
+- Created `src/app/api/admin/certificates/batch/route.ts` (GET):
+  - Accepts batchId query parameter
+  - Batch-fetches all participants across groups with attendance data (optimized single query approach)
+  - Returns array of certificate data for all active/graduated participants
+
+- Created `src/components/shared/completion-certificate.tsx` ("use client"):
+  - Beautiful A4 landscape certificate with brand colors (#4B0A8F, #A0006B)
+  - Double-line decorative border with accent-colored corner decorations
+  - SHABAB360 header, bilingual subtitle (English + Urdu)
+  - Participant name, batch program details, park/city, duration, attendance rate
+  - Two signature lines (Program Director, Park Admin) with certificate number
+  - Print CSS: @media print hides all other content, landscape orientation, only certificate visible
+  - Exported CertificateData interface for reuse
+
+- Modified `src/components/modules/admin/batches-page.tsx`:
+  - Added "Certificates" action (Award icon) in batch actions dropdown
+  - Certificate List Dialog: shows all participants with attendance % and Print button
+  - Certificate View Dialog: full certificate preview with Print/Close buttons
+  - "Print All" button opens certificate view for first participant
+  - Skeleton loading state while fetching certificate data
+  - TanStack Query for certificate data fetching with proper query key
+
+- Enhanced `src/components/shared/bar-chart.tsx`:
+  - Added hover tooltips with Framer Motion AnimatePresence
+  - Dark tooltip background with arrow, showing label + value
+  - Invisible hit areas for better hover detection
+  - Dimming effect on non-hovered bars (opacity 0.4)
+  - useCallback for hover handlers to prevent re-renders
+
+- Enhanced `src/components/shared/donut-chart.tsx`:
+  - Interactive legend with click-to-toggle segment visibility
+  - Legend shows colored dot + label + value + percentage
+  - Visual feedback: hidden segments show line-through + dimmed color
+  - Supports legendPosition="bottom" | "right"
+  - Empty state text when all segments hidden
+  - Prevents hiding the last visible segment
+
+- Created `src/components/shared/waterfall-chart.tsx`:
+  - New waterfall chart component for fee collection trends
+  - Props: data (label, value, isTotal?, color?), configurable colors
+  - Bars start from previous bar's end (waterfall effect)
+  - Positive values green, negative red, totals in brand purple
+  - Connecting dashed lines between bars along zero line
+  - Animated entrance with Framer Motion (staggered delays)
+  - Hover tooltips showing label and formatted value
+  - Responsive via ResizeObserver
+
+- ESLint: 0 errors
+- Pre-existing dev server error (missing i18n locale files) is unrelated to this task
+
+Files created:
+- `src/app/api/admin/certificates/[participantId]/route.ts`
+- `src/app/api/admin/certificates/batch/route.ts`
+- `src/components/shared/completion-certificate.tsx`
+- `src/components/shared/waterfall-chart.tsx`
+
+Files modified:
+- `src/components/modules/admin/batches-page.tsx`
+- `src/components/shared/bar-chart.tsx`
+- `src/components/shared/donut-chart.tsx`
+
+---
+Task ID: 16
+Agent: Main
+Task: Build global unified search + dashboard data widgets
+
+Work Log:
+
+**Part A: Global Search API** (`src/app/api/search/route.ts`)
+- Created GET endpoint: `?q=searchterm&limit=20`
+- Auth via `requireAuth()` — any authenticated user can search
+- Parallel entity search across 5 models using `Promise.all`:
+  - Participants: matches name (contains, insensitive) and phone
+  - Guardians: matches name, phone, and CNIC
+  - Staff (Users with StaffMeta): matches name and email
+  - Batches: matches name (contains, insensitive)
+  - Groups: matches name (contains, insensitive)
+- Returns `{ results: SearchResult[], total: number }` with type, id, title, subtitle, url
+- Limited to 5 results per entity type, 20 total max
+- Subtitle includes contextual info (park → batch → group hierarchy, role, CNIC, etc.)
+
+**Part B: Enhanced Command Palette** (`src/components/shared/command-palette.tsx`)
+- Added state management for search query, entity results, loading/hasSearched flags
+- Debounced search (300ms) triggers fetch to `/api/search?q=...&limit=20`
+- Added "Search Entities" section below Pages, before Actions
+- Results grouped by type with color-coded icons:
+  - Participants → GraduationCap (rose), "Students"
+  - Guardians → Shield (amber), "Guardians"
+  - Staff → UserCog (sky), "Staff"
+  - Batches → Layers (violet), "Batches"
+  - Groups → Users (brand purple), "Groups"
+- Each result shows title + subtitle + type badge
+- Loading skeleton animation while searching
+- "No entities match..." message when no results found
+- Search resets when palette closes
+- Placeholder updated to "Search pages, actions, entities..."
+
+**Part C: Welcome Widget** (`src/components/shared/welcome-widget.tsx`)
+- Collapsible card with gradient border (brand purple → magenta)
+- Shows "Welcome to Shabab360!" with getting-started tips
+- 5 tips rotate every 5 seconds with Framer Motion crossfade
+- Clickable dot indicators to manually select tips
+- Dismiss button stores preference in `localStorage` (shabab360-welcome-dismissed)
+- Collapse/expand toggle
+- Uses lazy initializer for dismissed state to avoid setState-in-effect lint error
+
+**Part D: Quick Stats Widget** (`src/components/shared/quick-stats-widget.tsx`)
+- Accepts `stats` array of `{ label, value, change, changeType, icon }`
+- Responsive grid: 2 cols on mobile, 4 on desktop
+- Each pill shows: icon in brand-colored container, large value, small label, change indicator
+- Green arrow-up for "up", red arrow-down for "down", neutral minus icon
+- Framer Motion staggered entrance animation
+- Hover effects with brand border glow
+
+**Dashboard Integration** (`src/components/modules/admin/admin-dashboard.tsx`)
+- Added `WelcomeWidget` import and placed it after the GreetingCard on the HQ dashboard
+- Wrapped in `motion.div` with `itemVariants` for consistent animation
+
+**Bug fixes (pre-existing):**
+- Fixed duplicate `import { useTranslation }` in `src/components/layout/app-shell.tsx`
+- Fixed wrong import paths in `src/lib/i18n.ts` (`./en` → `./i18n/en`, `./ur` → `./i18n/ur`)
+- Fixed `setState-in-effect` lint errors in `notifications-page.tsx`: used lazy initializer for `readIds` state and removed unnecessary `setPage(1)` effect
+
+Files created:
+- `src/app/api/search/route.ts`
+- `src/components/shared/welcome-widget.tsx`
+- `src/components/shared/quick-stats-widget.tsx`
+
+Files modified:
+- `src/components/shared/command-palette.tsx`
+- `src/components/modules/admin/admin-dashboard.tsx`
+- `src/components/modules/admin/notifications-page.tsx`
+- `src/lib/i18n.ts`
+- `src/components/layout/app-shell.tsx`
+
+---
+Task ID: 19
+Agent: Main
+Task: Build a full notifications center page + enhance activity feeds across dashboards
+
+Work Log:
+- Created `src/app/api/notifications/history/route.ts` (GET) — queries audit_log with scope-aware filtering (role, city, park assignments from StaffMeta), supports pagination (page/pageSize) and type filtering (all/attendance/fees/announcements/system), resolves actor name, builds human-readable descriptions
+- Created `src/app/api/notifications/[id]/read/route.ts` (PATCH) — returns success for future server-side read tracking; read state tracked client-side via localStorage
+- Created `src/components/modules/admin/notifications-page.tsx` ("use client") — full-page notification center with:
+  - Filter tabs: All / Attendance / Fees / Announcements / System
+  - Mark all as read (localStorage-backed)
+  - Paginated notification list (20 per page)
+  - Each card: entity type icon (CalendarCheck/DollarSign/Megaphone/Settings/UserPlus), color-coded left border (green=create, sky=update, red=delete), actor name, description, relative timestamp, unread dot
+  - Click navigates to relevant entity page (attendance→admin-attendance-events, fees→admin-fees, etc.)
+  - Empty state with Bell icon, loading skeletons, refetching indicator
+  - Framer Motion staggered entrance/exit
+- Created `src/components/shared/activity-feed.tsx` ("use client") — compact activity feed component:
+  - Props: limit, showHeader, className
+  - Fetches from /api/notifications/history
+  - Each item: actor initial avatar circle, description text, relative time, color-coded action dot
+  - Framer Motion staggered entrance
+  - "View All Notifications" link at bottom → navigates to notifications page
+  - Loading skeletons, empty state
+- Modified `src/stores/useAppStore.ts` — added "notifications" PageId
+- Modified `src/components/layout/app-shell.tsx` — lazy-loaded NotificationsPage, added to pageTitles, PageContentInner switch, showPageHeader exclusion list
+- Modified `src/components/layout/sidebar.tsx` — added Bell import, navConfig entry (section: "system"), iconMap entry (Bell), added "notifications" to all role nav arrays (super_admin, program_admin, city_head, park_admin, park_lead, murabbi)
+- Modified `src/lib/i18n/en.ts` — added "nav.notifications": "Notifications"
+- Modified `src/lib/i18n/ur.ts` — added "nav.notifications": "اطلاعات"
+- Modified `src/components/modules/admin/admin-dashboard.tsx` — replaced both Recent Activity inline sections (HQ layout + city head layout) with ActivityFeed component (limit=8)
+- Modified `src/components/modules/city-head/city-head-dashboard.tsx` — replaced inline Recent Activity section with ActivityFeed (limit=5), removed unused helper functions (actionIcon, actionColor), cleaned up unused destructured variable
+- Modified `src/components/modules/park/park-dashboard.tsx` — added ActivityFeed (limit=5) section above Offline Queue Panel
+- ESLint: clean (0 errors)
+
+Files created:
+1. src/app/api/notifications/history/route.ts
+2. src/app/api/notifications/[id]/read/route.ts
+3. src/components/modules/admin/notifications-page.tsx
+4. src/components/shared/activity-feed.tsx
+
+Files modified:
+1. src/stores/useAppStore.ts
+2. src/components/layout/app-shell.tsx
+3. src/components/layout/sidebar.tsx
+4. src/lib/i18n/en.ts
+5. src/lib/i18n/ur.ts
+6. src/components/modules/admin/admin-dashboard.tsx
+7. src/components/modules/city-head/city-head-dashboard.tsx
+8. src/components/modules/park/park-dashboard.tsx

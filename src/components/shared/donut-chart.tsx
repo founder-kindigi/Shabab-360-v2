@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
 
 export interface DonutSegment {
@@ -15,11 +16,13 @@ interface DonutChartProps {
   className?: string;
   centerLabel?: string;
   centerValue?: string;
+  legendPosition?: "bottom" | "right";
 }
 
 /**
  * Pure SVG donut chart — no external libraries.
  * Uses stroke-dasharray on circles for each segment.
+ * Supports interactive legend with toggle visibility.
  */
 export function DonutChart({
   segments,
@@ -28,48 +31,82 @@ export function DonutChart({
   className = "",
   centerLabel,
   centerValue,
+  legendPosition = "bottom",
 }: DonutChartProps) {
+  const [hiddenSegments, setHiddenSegments] = useState<Set<string>>(new Set());
+
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
   const center = size / 2;
-  const total = segments.reduce((sum, s) => sum + s.value, 0);
+
+  // Filter visible segments
+  const visibleSegments = useMemo(
+    () => segments.filter((s) => !hiddenSegments.has(s.label)),
+    [segments, hiddenSegments]
+  );
+
+  const total = visibleSegments.reduce((sum, s) => sum + s.value, 0);
 
   // Calculate cumulative offsets for each segment
-  let cumulativePct = 0;
-  const arcs: Array<{
-    label: string;
-    value: number;
-    color: string;
-    pct: number;
-    arcLength: number;
-    startAngle: number;
-  }> = [];
+  const arcs = useMemo(() => {
+    let cumulativePct = 0;
+    const result: Array<{
+      label: string;
+      value: number;
+      color: string;
+      pct: number;
+      arcLength: number;
+      startAngle: number;
+    }> = [];
 
-  for (const seg of segments) {
-    if (seg.value === 0) continue;
-    const pct = seg.value / total;
-    const arcLength = pct * circumference;
-    const startAngle = cumulativePct * 360;
-    cumulativePct += pct;
-    arcs.push({
-      label: seg.label,
-      value: seg.value,
-      color: seg.color,
-      pct,
-      arcLength,
-      startAngle,
+    for (const seg of visibleSegments) {
+      if (seg.value === 0 || total === 0) continue;
+      const pct = seg.value / total;
+      const arcLength = pct * circumference;
+      const startAngle = cumulativePct * 360;
+      cumulativePct += pct;
+      result.push({
+        label: seg.label,
+        value: seg.value,
+        color: seg.color,
+        pct,
+        arcLength,
+        startAngle,
+      });
+    }
+
+    return result;
+  }, [visibleSegments, total, circumference]);
+
+  function toggleSegment(label: string) {
+    setHiddenSegments((prev) => {
+      const next = new Set(prev);
+      if (next.has(label)) {
+        next.delete(label);
+      } else {
+        // Don't allow hiding the last visible segment
+        if (segments.length - next.size > 1) {
+          next.add(label);
+        }
+      }
+      return next;
     });
   }
 
+  const isHorizontal = legendPosition === "bottom";
+
   return (
-    <div className={`relative inline-flex flex-col items-center ${className}`}>
-      <div className="relative" style={{ width: size, height: size }}>
+    <div
+      className={`inline-flex ${isHorizontal ? "flex-col items-center" : "flex-row items-center"} gap-4 ${className}`}
+    >
+      {/* Donut */}
+      <div className="relative shrink-0" style={{ width: size, height: size }}>
         <svg
           width={size}
           height={size}
           viewBox={`0 0 ${size} ${size}`}
           role="img"
-          aria-label={`Donut chart: ${segments.map((s) => `${s.label} ${total > 0 ? Math.round((s.value / total) * 100) : 0}%`).join(", ")}`}
+          aria-label={`Donut chart: ${visibleSegments.map((s) => `${s.label} ${total > 0 ? Math.round((s.value / total) * 100) : 0}%`).join(", ")}`}
         >
           {/* Background ring */}
           <circle
@@ -107,6 +144,20 @@ export function DonutChart({
               transition={{ delay: idx * 0.15, duration: 0.5, ease: "easeOut" }}
             />
           ))}
+
+          {/* Empty state when all hidden */}
+          {arcs.length === 0 && (
+            <text
+              x={center}
+              y={center}
+              textAnchor="middle"
+              dominantBaseline="central"
+              className="fill-muted-foreground"
+              style={{ fontSize: "12px" }}
+            >
+              No data
+            </text>
+          )}
         </svg>
 
         {/* Center text */}
@@ -125,20 +176,59 @@ export function DonutChart({
       </div>
 
       {/* Legend */}
-      <div className="flex items-center justify-center gap-3 flex-wrap mt-2">
+      <div
+        className={`${
+          isHorizontal
+            ? "flex items-center justify-center gap-3 flex-wrap"
+            : "flex flex-col gap-2.5"
+        }`}
+      >
         {segments.map((seg) => {
-          const pct = total > 0 ? Math.round((seg.value / total) * 100) : 0;
+          const pct =
+            total > 0 ? Math.round((seg.value / total) * 100) : 0;
+          const isHidden = hiddenSegments.has(seg.label);
+
           return (
-            <div key={seg.label} className="flex items-center gap-1.5">
+            <button
+              key={seg.label}
+              type="button"
+              onClick={() => toggleSegment(seg.label)}
+              className={`flex items-center gap-2 group cursor-pointer rounded-md px-1.5 py-1 -mx-1.5 transition-colors ${
+                isHidden
+                  ? "opacity-40"
+                  : "hover:bg-muted/60"
+              }`}
+              aria-label={`${isHidden ? "Show" : "Hide"} ${seg.label}`}
+            >
               <span
-                className="inline-block size-2.5 rounded-full shrink-0"
-                style={{ backgroundColor: seg.color }}
+                className="inline-block size-3 rounded-sm shrink-0 transition-transform group-hover:scale-110"
+                style={{
+                  backgroundColor: isHidden ? "currentColor" : seg.color,
+                  opacity: isHidden ? 0.3 : 1,
+                }}
               />
-              <span className="text-[11px] text-muted-foreground">{seg.label}</span>
-              <span className="text-[11px] font-semibold tabular-nums text-foreground">
-                {pct}%
+              <span
+                className={`text-[11px] leading-tight ${
+                  isHidden ? "text-muted-foreground line-through" : "text-foreground"
+                }`}
+              >
+                {seg.label}
               </span>
-            </div>
+              <span
+                className={`text-[11px] font-semibold tabular-nums leading-tight ${
+                  isHidden ? "text-muted-foreground/60" : "text-foreground"
+                }`}
+              >
+                {seg.value.toLocaleString()}
+              </span>
+              <span
+                className={`text-[11px] tabular-nums leading-tight ${
+                  isHidden ? "text-muted-foreground/50" : "text-muted-foreground"
+                }`}
+              >
+                ({pct}%)
+              </span>
+            </button>
           );
         })}
       </div>

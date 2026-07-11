@@ -89,6 +89,7 @@ import {
   Printer,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTranslation } from "@/lib/i18n";
 import { ExportButton } from "@/components/shared/export-button";
 import { FeeReceipt, type FeeReceiptData } from "@/components/shared/fee-receipt";
 
@@ -216,6 +217,7 @@ function getMethodBadge(method: string): string {
 // ---------------------------------------------------------------------------
 
 export function FeesPage() {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
 
   // Filter state
@@ -860,7 +862,7 @@ export function FeesPage() {
             <div className="flex items-center justify-center size-8 rounded-lg bg-[#F3ECF6] dark:bg-[#1F086080]">
               <TrendingUp className="size-4 text-[#4B0A8F] dark:text-[#B87EE0]" />
             </div>
-            <span className="text-xs text-muted-foreground font-medium">Collection Rate</span>
+            <span className="text-xs text-muted-foreground font-medium">{t("fees.collectionProgress")}</span>
           </div>
           {isLoading ? (
             <Skeleton className="h-7 w-16" />
@@ -883,7 +885,7 @@ export function FeesPage() {
           <Label className="text-xs text-muted-foreground mb-1 block">City</Label>
           <Select value={filterCityId} onValueChange={handleFilterCityChange}>
             <SelectTrigger className="h-9 text-sm">
-              <SelectValue placeholder="All Cities" />
+              <SelectValue placeholder={t("fees.allCitiesFilter")} />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="__all__">All Cities</SelectItem>
@@ -895,13 +897,13 @@ export function FeesPage() {
         </div>
 
         <div className="min-w-[140px] flex-1 sm:flex-none">
-          <Label className="text-xs text-muted-foreground mb-1 block">Park</Label>
+          <Label className="text-xs text-muted-foreground mb-1 block">{t("fees.park")}</Label>
           <Select value={filterParkId} onValueChange={handleFilterParkChange}>
             <SelectTrigger className="h-9 text-sm">
-              <SelectValue placeholder="All Parks" />
+              <SelectValue placeholder={t("fees.allParks")} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="__all__">All Parks</SelectItem>
+              <SelectItem value="__all__">{t("fees.allParks")}</SelectItem>
               {filteredParks.map((p) => (
                 <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
               ))}
@@ -910,13 +912,13 @@ export function FeesPage() {
         </div>
 
         <div className="min-w-[140px] flex-1 sm:flex-none">
-          <Label className="text-xs text-muted-foreground mb-1 block">Batch</Label>
+          <Label className="text-xs text-muted-foreground mb-1 block">{t("fees.batch")}</Label>
           <Select value={filterBatchId} onValueChange={handleFilterBatchChange}>
             <SelectTrigger className="h-9 text-sm">
-              <SelectValue placeholder="All Batches" />
+              <SelectValue placeholder={t("fees.allBatches")} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="__all__">All Batches</SelectItem>
+              <SelectItem value="__all__">{t("fees.allBatches")}</SelectItem>
               {filteredBatches.map((b) => (
                 <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
               ))}
@@ -925,29 +927,29 @@ export function FeesPage() {
         </div>
 
         <div className="min-w-[130px]">
-          <Label className="text-xs text-muted-foreground mb-1 block">Fee Type</Label>
+          <Label className="text-xs text-muted-foreground mb-1 block">{t("fees.feeType")}</Label>
           <Select value={filterFeeType} onValueChange={(v) => { setFilterFeeType(v === "__all__" ? "" : v); setPage(1); }}>
             <SelectTrigger className="h-9 text-sm">
-              <SelectValue placeholder="All Types" />
+              <SelectValue placeholder={t("fees.allTypes")} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="__all__">All Types</SelectItem>
-              <SelectItem value="tuition">Tuition</SelectItem>
-              <SelectItem value="admission">Admission</SelectItem>
-              <SelectItem value="other">Other</SelectItem>
+              <SelectItem value="__all__">{t("fees.allTypes")}</SelectItem>
+              <SelectItem value="tuition">{t("fees.tuition")}</SelectItem>
+              <SelectItem value="admission">{t("fees.admission")}</SelectItem>
+              <SelectItem value="other">{t("fees.other")}</SelectItem>
             </SelectContent>
           </Select>
         </div>
 
         <div className="min-w-[110px]">
-          <Label className="text-xs text-muted-foreground mb-1 block">Status</Label>
+          <Label className="text-xs text-muted-foreground mb-1 block">{t("common.status")}</Label>
           <Select value={filterStatus} onValueChange={(v) => { setFilterStatus(v); setPage(1); }}>
             <SelectTrigger className="h-9 text-sm">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="active">Active</SelectItem>
-              <SelectItem value="all">All</SelectItem>
+              <SelectItem value="active">{t("fees.active")}</SelectItem>
+              <SelectItem value="all">{t("common.all")}</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -960,7 +962,7 @@ export function FeesPage() {
             onClick={() => window.print()}
           >
             <Printer className="size-4 mr-1.5" />
-            Print
+            {t("common.print")}
           </Button>
           <ExportButton
             data={feeEvents.map((f) => ({
@@ -995,7 +997,7 @@ export function FeesPage() {
             onClick={() => setBatchGenOpen(true)}
           >
             <Layers className="size-4 mr-1.5" />
-            <span className="hidden sm:inline">Generate Fees</span>
+            <span className="hidden sm:inline">{t("fees.generate")}</span>
           </Button>
           <Button
             size="sm"
@@ -1003,7 +1005,7 @@ export function FeesPage() {
             onClick={() => setCreateOpen(true)}
           >
             <Plus className="size-4 mr-1.5" />
-            <span className="hidden sm:inline">New Fee</span>
+            <span className="hidden sm:inline">{t("fees.create")}</span>
           </Button>
         </div>
       </motion.div>
@@ -1030,8 +1032,8 @@ export function FeesPage() {
         ) : feeEvents.length === 0 ? (
           <EmptyState
             icon={DollarSign}
-            title="No Fee Events"
-            description="Create your first fee event to start tracking collections."
+            title={t("fees.noFeeEvents")}
+            description={t("fees.noFeeEventsDesc")}
           />
         ) : (
           <>
@@ -1040,13 +1042,13 @@ export function FeesPage() {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-[#F3ECF6]/50 dark:bg-[#1F086080]/50 hover:bg-[#F3ECF6]/50 dark:hover:bg-[#1F086080]/50">
-                    <TableHead className="text-xs font-semibold">Title</TableHead>
-                    <TableHead className="text-xs font-semibold">Batch / Park / City</TableHead>
-                    <TableHead className="text-xs font-semibold">Type</TableHead>
-                    <TableHead className="text-xs font-semibold text-right">Amount</TableHead>
-                    <TableHead className="text-xs font-semibold">Due Date</TableHead>
-                    <TableHead className="text-xs font-semibold">Progress</TableHead>
-                    <TableHead className="text-xs font-semibold text-center">Paid</TableHead>
+                    <TableHead className="text-xs font-semibold">{t("fees.titleCol")}</TableHead>
+                    <TableHead className="text-xs font-semibold">{t("fees.batchParkCity")}</TableHead>
+                    <TableHead className="text-xs font-semibold">{t("fees.typeCol")}</TableHead>
+                    <TableHead className="text-xs font-semibold text-right">{t("fees.amount")}</TableHead>
+                    <TableHead className="text-xs font-semibold">{t("fees.dueDate")}</TableHead>
+                    <TableHead className="text-xs font-semibold">{t("fees.progress")}</TableHead>
+                    <TableHead className="text-xs font-semibold text-center">{t("fees.paid")}</TableHead>
                     <TableHead className="text-xs font-semibold w-12"></TableHead>
                   </TableRow>
                 </TableHeader>
@@ -1118,19 +1120,19 @@ export function FeesPage() {
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="w-40">
                             <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openDetailSheet(fe); }}>
-                              <Eye className="size-4 mr-2" /> View Details
+                              <Eye className="size-4 mr-2" /> {t("fees.viewDetails")}
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openDetailSheet(fe); }}>
-                              <CreditCard className="size-4 mr-2" /> Record Payment
+                              <CreditCard className="size-4 mr-2" /> {t("fees.recordPayment")}
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openEditDialog(fe); }}>
-                              <Pencil className="size-4 mr-2" /> Edit
+                              <Pencil className="size-4 mr-2" /> {t("common.edit")}
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               className="text-red-600 focus:text-red-600"
                               onClick={(e) => { e.stopPropagation(); openDeleteDialog(fe); }}
                             >
-                              <Trash2 className="size-4 mr-2" /> Deactivate
+                              <Trash2 className="size-4 mr-2" /> {t("fees.deactivateFeeBtn")}
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -1223,13 +1225,13 @@ export function FeesPage() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openEditDialog(fe); }}>
-                          <Pencil className="size-4 mr-2" /> Edit
+                          <Pencil className="size-4 mr-2" /> {t("common.edit")}
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           className="text-red-600 focus:text-red-600"
                           onClick={(e) => { e.stopPropagation(); openDeleteDialog(fe); }}
                         >
-                          <Trash2 className="size-4 mr-2" /> Deactivate
+                          <Trash2 className="size-4 mr-2" /> {t("fees.deactivateFeeBtn")}
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -1276,9 +1278,9 @@ export function FeesPage() {
           <DialogHeader>
             <DialogTitle className="text-lg flex items-center gap-2">
               <Layers className="size-5 text-[#A0006B] dark:text-[#E06BAF]" />
-              Generate Fees for Multiple Batches
+              {t("fees.generateFeesForMultiple")}
             </DialogTitle>
-            <DialogDescription>Create a fee event for multiple batches at once.</DialogDescription>
+            <DialogDescription>{t("fees.generateFeesDesc")}</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleBatchGenSubmit} className="flex-1 overflow-y-auto space-y-4 pr-1">
             <div className="space-y-2">
@@ -1450,7 +1452,7 @@ export function FeesPage() {
                 disabled={batchGenMutation.isPending || bgSelectedIds.length === 0}
                 className="bg-[#A0006B] hover:bg-[#800055] text-white"
               >
-                {batchGenMutation.isPending ? "Generating..." : `Generate for ${bgSelectedIds.length} Batch${bgSelectedIds.length !== 1 ? "es" : ""}`}
+                {batchGenMutation.isPending ? t("fees.generating") : t("fees.generateFor", { n: bgSelectedIds.length, plural: bgSelectedIds.length !== 1 ? "es" : "" })}
               </Button>
             </DialogFooter>
           </form>
@@ -1461,8 +1463,8 @@ export function FeesPage() {
       <Dialog open={createOpen} onOpenChange={(open) => { if (!open) closeCreateDialog(); }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-lg">Create Fee Event</DialogTitle>
-            <DialogDescription>Add a new fee event for a batch to track collections.</DialogDescription>
+            <DialogTitle className="text-lg">{t("fees.createFeeEvent")}</DialogTitle>
+            <DialogDescription>{t("fees.createFeeDesc")}</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleCreateSubmit} className="space-y-4">
             <div className="space-y-2">
@@ -1581,7 +1583,7 @@ export function FeesPage() {
                 disabled={createMutation.isPending}
                 className="bg-[#4B0A8F] hover:bg-[#3A0870] text-white"
               >
-                {createMutation.isPending ? "Creating..." : "Create Fee Event"}
+                {createMutation.isPending ? t("fees.creating") : t("fees.createFeeEvent")}
               </Button>
             </DialogFooter>
           </form>
@@ -1592,8 +1594,8 @@ export function FeesPage() {
       <Dialog open={editOpen} onOpenChange={(open) => { if (!open) closeEditDialog(); }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-lg">Edit Fee Event</DialogTitle>
-            <DialogDescription>Update fee event details.</DialogDescription>
+            <DialogTitle className="text-lg">{t("fees.editFee")}</DialogTitle>
+            <DialogDescription>{t("fees.editFeeDesc")}</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleEditSubmit} className="space-y-4">
             <div className="space-y-2">
@@ -1658,7 +1660,7 @@ export function FeesPage() {
                 disabled={updateMutation.isPending}
                 className="bg-[#4B0A8F] hover:bg-[#3A0870] text-white"
               >
-                {updateMutation.isPending ? "Saving..." : "Save Changes"}
+                {updateMutation.isPending ? t("fees.saving") : t("students.saveChanges")}
               </Button>
             </DialogFooter>
           </form>
@@ -1669,7 +1671,7 @@ export function FeesPage() {
       <AlertDialog open={deleteOpen} onOpenChange={(open) => { if (!open) { setDeleteOpen(false); setSelectedFeeEvent(null); } }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Deactivate Fee Event</AlertDialogTitle>
+            <AlertDialogTitle>{t("fees.deactivateFee")}</AlertDialogTitle>
             <AlertDialogDescription>
               Are you sure you want to deactivate &ldquo;{selectedFeeEvent?.title}&rdquo;?
               This will mark it as inactive. Existing payment records will be preserved.
@@ -1682,7 +1684,7 @@ export function FeesPage() {
               onClick={() => selectedFeeEvent && deleteMutation.mutate(selectedFeeEvent.id)}
               disabled={deleteMutation.isPending}
             >
-              {deleteMutation.isPending ? "Deactivating..." : "Deactivate"}
+              {deleteMutation.isPending ? t("fees.deactivating") : t("fees.deactivateFeeBtn")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -1736,7 +1738,7 @@ export function FeesPage() {
                 {/* Collection Progress */}
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <h4 className="text-sm font-semibold">Collection Progress</h4>
+                    <h4 className="text-sm font-semibold">{t("fees.collectionProgress")}</h4>
                     <span className={cn(
                       "text-lg font-bold tabular-nums",
                       feeDetail.rate >= 80 ? "text-green-600 dark:text-green-400" :
@@ -1749,24 +1751,24 @@ export function FeesPage() {
                   <Progress value={Math.min(feeDetail.rate, 100)} className="h-3 [&>div]:rounded-full" />
                   <div className="flex items-center justify-between text-xs text-muted-foreground">
                     <span>
-                      <span className="font-mono font-semibold text-foreground">{formatPKR(feeDetail.totalPaid)}</span> collected
+                      <span className="font-mono font-semibold text-foreground">{formatPKR(feeDetail.totalPaid)}</span> {t("fees.collected")}
                     </span>
                     <span>
-                      of <span className="font-mono font-semibold text-foreground">{formatPKR(feeDetail.totalExpected)}</span> expected
+                      {t("common.of")} <span className="font-mono font-semibold text-foreground">{formatPKR(feeDetail.totalExpected)}</span> {t("fees.expected")}
                     </span>
                   </div>
                   <div className="flex items-center gap-4 text-xs text-muted-foreground pt-1">
                     <span className="flex items-center gap-1">
                       <Users className="size-3" />
-                      {feeDetail.totalParticipants} participants
+                      {feeDetail.totalParticipants} {t("fees.participants")}
                     </span>
                     <span className="flex items-center gap-1">
                       <CheckCircle2 className="size-3 text-green-500" />
-                      {feeDetail.paidCount} paid
+                      {feeDetail.paidCount} {t("fees.paid")}
                     </span>
                     <span className="flex items-center gap-1">
                       <AlertTriangle className="size-3 text-[#FF0015]" />
-                      {feeDetail.totalParticipants - feeDetail.paidCount} unpaid
+                      {feeDetail.totalParticipants - feeDetail.paidCount} {t("fees.unpaid")}
                     </span>
                   </div>
                 </div>
@@ -1777,7 +1779,7 @@ export function FeesPage() {
                 <div className="space-y-3">
                   <h4 className="text-sm font-semibold flex items-center gap-2">
                     <CreditCard className="size-4 text-[#4B0A8F] dark:text-[#B87EE0]" />
-                    Record Payment
+                    {t("fees.recordPayment")}
                   </h4>
                   <form onSubmit={handlePaymentSubmit} className="space-y-3 p-3 rounded-lg border bg-[#F3ECF6]/20 dark:bg-[#1F086080]/20">
                     <div className="space-y-1.5">
@@ -1789,7 +1791,7 @@ export function FeesPage() {
                         <SelectContent>
                           {feeDetail.unpaidParticipants.length === 0 ? (
                             <div className="px-2 py-3 text-xs text-muted-foreground text-center">
-                              All participants have paid
+                              {t("fees.allParticipantsHavePaid")}
                             </div>
                           ) : (
                             feeDetail.unpaidParticipants.map((p) => (
@@ -1859,7 +1861,7 @@ export function FeesPage() {
                       disabled={paymentMutation.isPending || !payParticipantId || !payAmount || !payMethod}
                       className="w-full bg-[#4B0A8F] hover:bg-[#3A0870] text-white"
                     >
-                      {paymentMutation.isPending ? "Recording..." : "Record Payment"}
+                      {paymentMutation.isPending ? t("fees.recording") : t("fees.recordPayment")}
                     </Button>
                   </form>
                 </div>
@@ -1870,11 +1872,11 @@ export function FeesPage() {
                 <div className="space-y-3">
                   <h4 className="text-sm font-semibold flex items-center gap-2">
                     <Receipt className="size-4 text-[#A0006B] dark:text-[#E06BAF]" />
-                    Payment History ({feeDetail.payments.length})
+                    {t("fees.paymentHistoryCount", { n: feeDetail.payments.length })}
                   </h4>
                   {feeDetail.payments.length === 0 ? (
                     <p className="text-xs text-muted-foreground py-4 text-center">
-                      No payments recorded yet
+                      {t("fees.noPaymentsRecorded")}
                     </p>
                   ) : (
                     <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
@@ -1934,12 +1936,12 @@ export function FeesPage() {
                 <div className="space-y-3 pb-6">
                   <h4 className="text-sm font-semibold flex items-center gap-2">
                     <AlertTriangle className="size-4 text-[#FF0015] dark:text-[#FF4D4D]" />
-                    Unpaid Participants ({feeDetail.unpaidParticipants.length})
+                    {t("fees.unpaidParticipants")} ({feeDetail.unpaidParticipants.length})
                   </h4>
                   {feeDetail.unpaidParticipants.length === 0 ? (
                     <div className="flex items-center gap-2 text-xs text-green-600 dark:text-green-400 py-3">
                       <CheckCircle2 className="size-4" />
-                      All participants have paid!
+                      {t("fees.allParticipantsHavePaid")}
                     </div>
                   ) : (
                     <div className="space-y-1.5 max-h-48 overflow-y-auto">
@@ -1948,7 +1950,7 @@ export function FeesPage() {
                           <div className="min-w-0 flex-1">
                             <p className="text-sm font-medium truncate">{p.name}</p>
                             <p className="text-[10px] text-muted-foreground">
-                              {p.group?.name || "No group"}{p.phone ? ` · ${p.phone}` : ""}
+                              {p.group?.name || t("fees.noGroup")}
                             </p>
                           </div>
                           <Button

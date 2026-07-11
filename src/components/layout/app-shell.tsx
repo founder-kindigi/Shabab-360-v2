@@ -16,7 +16,14 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Menu, LogOut, User, ChevronDown, Construction, Settings } from "lucide-react";
+import { Menu, LogOut, User, ChevronDown, Construction, Settings, Globe, Languages } from "lucide-react";
+import { useTranslation } from "@/lib/i18n";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useRealtimeNotifications } from "@/hooks/use-realtime-notifications";
 
 // ── Lazy-loaded page components (code splitting) ──────────────────────
@@ -36,6 +43,7 @@ const SettingsPage = lazy(() => import("@/components/modules/admin/settings-page
 const ReportsPage = lazy(() => import("@/components/modules/admin/reports-page").then(m => ({ default: m.ReportsPage })));
 const AccessProvisioningPage = lazy(() => import("@/components/modules/admin/access-provisioning-page").then(m => ({ default: m.AccessProvisioningPage })));
 const FeesPage = lazy(() => import("@/components/modules/admin/fees-page").then(m => ({ default: m.FeesPage })));
+const NotificationsPage = lazy(() => import("@/components/modules/admin/notifications-page").then(m => ({ default: m.NotificationsPage })));
 const AdmissionsPage = lazy(() => import("@/components/modules/admin/admissions-page").then(m => ({ default: m.AdmissionsPage })));
 const MurabbiDashboard = lazy(() => import("@/components/modules/murabbi/murabbi-dashboard").then(m => ({ default: m.MurabbiDashboard })));
 const MurabbiGroupsPage = lazy(() => import("@/components/modules/murabbi/murabbi-groups-page").then(m => ({ default: m.MurabbiGroupsPage })));
@@ -111,6 +119,7 @@ const pageTitles: Record<PageId, string> = {
   "admin-announcements": "Announcements",
   "admin-reports": "Reports",
   "admin-audit-log": "Audit Log",
+  "notifications": "Notifications",
   "murabbi-dashboard": "Dashboard",
   "murabbi-groups": "My Groups",
   "park-dashboard": "Dashboard",
@@ -182,6 +191,8 @@ function PageContentInner({ pageId }: { pageId: PageId }) {
       return <AccessProvisioningPage />;
     case "admin-audit-log":
       return <AuditLogPage />;
+    case "notifications":
+      return <NotificationsPage />;
     case "admin-settings":
       return <SettingsPage />;
     case "admin-attendance-events":
@@ -247,10 +258,55 @@ function PageContentInner({ pageId }: { pageId: PageId }) {
   }
 }
 
+function LanguageToggleButton() {
+  const { language, setLanguage } = useAppStore();
+  const label = language === "en" ? "اردو" : "English";
+  const tooltip = language === "en" ? "Switch to Urdu" : "اردو سے انگریزی";
+  return (
+    <TooltipProvider delayDuration={0}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="shrink-0 relative"
+            onClick={() => setLanguage(language === "en" ? "ur" : "en")}
+          >
+            <Languages className="size-[18px]" />
+            <span className="sr-only">{tooltip}</span>
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p className="text-xs">{label}</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
+
 export function AppShell() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const { currentPage, navigateTo } = useAppStore();
   const { data: session } = useSession();
+  const sessionUserId = (session?.user as { id?: string } | undefined)?.id;
+
+  // Read avatar from localStorage — updated via event listener only
+  const [userAvatar, setUserAvatar] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    if (!sessionUserId) return null;
+    return localStorage.getItem(`avatar-${sessionUserId}`);
+  });
+
+  // Listen for avatar updates via custom event
+  useEffect(() => {
+    const handler = () => {
+      if (!sessionUserId) return;
+      const saved = localStorage.getItem(`avatar-${sessionUserId}`);
+      setUserAvatar(saved);
+    };
+    window.addEventListener("avatar-updated", handler);
+ return () => window.removeEventListener("avatar-updated", handler);
+  }, [sessionUserId]);
 
   // Keyboard shortcuts
   useKeyboardShortcuts();
@@ -273,7 +329,7 @@ export function AppShell() {
   } | undefined;
 
   const pageTitle = pageTitles[currentPage] || "Dashboard";
-  const showPageHeader = !["admin-dashboard", "city-head-dashboard", "murabbi-dashboard", "park-dashboard", "park-attendance-roster", "park-roster", "park-participants", "park-guardians", "park-schedule", "guardian-dashboard", "guardian-history", "guardian-announcements", "guardian-schedule", "guardian-fees", "student-dashboard", "student-history", "student-announcements", "student-schedule", "student-fees", "student-profile", "admin-cities", "admin-parks", "admin-batches", "admin-groups", "admin-users", "admin-access", "admin-audit-log", "admin-settings", "admin-attendance-events", "admin-people", "admin-announcements", "admin-reports", "admin-students", "admin-guardians", "admin-fees", "admin-admissions"].includes(currentPage);
+  const showPageHeader = !["admin-dashboard", "city-head-dashboard", "murabbi-dashboard", "park-dashboard", "park-attendance-roster", "park-roster", "park-participants", "park-guardians", "park-schedule", "guardian-dashboard", "guardian-history", "guardian-announcements", "guardian-schedule", "guardian-fees", "student-dashboard", "student-history", "student-announcements", "student-schedule", "student-fees", "student-profile", "admin-cities", "admin-parks", "admin-batches", "admin-groups", "admin-users", "admin-access", "admin-audit-log", "admin-settings", "admin-attendance-events", "admin-people", "admin-announcements", "admin-reports", "admin-students", "admin-guardians", "admin-fees", "admin-admissions", "notifications"].includes(currentPage);
 
   // Show scope selector on admin pages (not dashboard, settings, or audit-log)
   const showScopeSelector = currentPage.startsWith("admin-") && !(["admin-dashboard", "admin-settings", "admin-audit-log", "admin-people", "admin-announcements", "admin-access", "admin-students", "admin-guardians", "admin-fees", "admin-admissions"] as const).includes(currentPage as any);
@@ -317,6 +373,9 @@ export function AppShell() {
           {/* Notification bell */}
           <NotificationBell />
 
+          {/* Language toggle */}
+          <LanguageToggleButton />
+
           {/* User menu */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -324,9 +383,17 @@ export function AppShell() {
                 variant="ghost"
                 className="flex items-center gap-2 px-2 h-9"
               >
-                <div className="flex items-center justify-center size-7 rounded-full bg-[#F3ECF6] dark:bg-[#1F086080]">
-                  <User className="size-3.5 text-[#4B0A8F] dark:text-[#8A40B0]" />
-                </div>
+                {userAvatar ? (
+                  <img
+                    src={userAvatar}
+                    alt="Avatar"
+                    className="size-7 rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="flex items-center justify-center size-7 rounded-full bg-[#F3ECF6] dark:bg-[#1F086080]">
+                    <User className="size-3.5 text-[#4B0A8F] dark:text-[#8A40B0]" />
+                  </div>
+                )}
                 <div className="hidden sm:flex flex-col items-start text-left">
                   <span className="text-xs font-medium leading-tight truncate max-w-[120px]">
                     {user?.name || "User"}

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useMemo, useRef } from "react";
-import { motion } from "framer-motion";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface BarChartProps {
   data: { label: string; value: number }[];
@@ -26,6 +26,8 @@ export function BarChart({
 }: BarChartProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [containerWidth, setContainerWidth] = useState(300);
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+  const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
 
   // Responsive width
   useEffect(() => {
@@ -91,6 +93,22 @@ export function BarChart({
     return label.slice(0, 5) + "…";
   };
 
+  const handleBarHover = useCallback(
+    (i: number, barX: number, barY: number) => {
+      const labelX =
+        PADDING.left +
+        (i / data.length) * chartW +
+        chartW / data.length / 2;
+      setHoveredIndex(i);
+      setTooltipPos({ x: labelX, y: barY - 8 });
+    },
+    [data.length, chartW]
+  );
+
+  const handleBarLeave = useCallback(() => {
+    setHoveredIndex(null);
+  }, []);
+
   if (data.length === 0) {
     return (
       <div className={`flex items-center justify-center text-sm text-muted-foreground ${className}`} style={{ height }}>
@@ -150,6 +168,18 @@ export function BarChart({
 
             return (
               <g key={`bar-${i}`}>
+                {/* Invisible hit area for hover */}
+                <rect
+                  x={x - 4}
+                  y={PADDING.top}
+                  width={barWidth + 8}
+                  height={chartH}
+                  fill="transparent"
+                  onMouseEnter={() => handleBarHover(i, x, y)}
+                  onMouseLeave={handleBarLeave}
+                  style={{ cursor: "pointer" }}
+                />
+
                 {/* Bar (with rounded top corners) */}
                 {d.value > 0 ? (
                   <motion.rect
@@ -170,6 +200,7 @@ export function BarChart({
                       delay: i * 0.05,
                       ease: "easeOut",
                     }}
+                    style={{ opacity: hoveredIndex !== null && hoveredIndex !== i ? 0.4 : 1 }}
                   />
                 ) : (
                   /* Zero value: thin baseline tick */
@@ -217,6 +248,61 @@ export function BarChart({
                 >
                   {formatLabel(d.label)}
                 </text>
+
+                {/* Hover tooltip */}
+                <AnimatePresence>
+                  {hoveredIndex === i && d.value > 0 && (
+                    <g>
+                      <motion.rect
+                        x={labelX - 42}
+                        y={y - 38}
+                        width={84}
+                        height={26}
+                        rx={6}
+                        fill="#1e1e2e"
+                        initial={{ opacity: 0, y: y - 28 }}
+                        animate={{ opacity: 1, y: y - 38 }}
+                        exit={{ opacity: 0, y: y - 28 }}
+                        transition={{ duration: 0.15 }}
+                      />
+                      {/* Tooltip arrow */}
+                      <motion.polygon
+                        points={`${labelX - 5},${y - 12} ${labelX + 5},${y - 12} ${labelX},${y - 6}`}
+                        fill="#1e1e2e"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.15 }}
+                      />
+                      <motion.text
+                        x={labelX}
+                        y={y - 21}
+                        textAnchor="middle"
+                        fill="white"
+                        style={{ fontSize: "10px", fontWeight: 600 }}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.15 }}
+                      >
+                        {formatVal(d.value)}
+                      </motion.text>
+                      <motion.text
+                        x={labelX}
+                        y={y - 30}
+                        textAnchor="middle"
+                        fill="#a0a0b8"
+                        style={{ fontSize: "8px" }}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.15 }}
+                      >
+                        {d.label}
+                      </motion.text>
+                    </g>
+                  )}
+                </AnimatePresence>
               </g>
             );
           })}

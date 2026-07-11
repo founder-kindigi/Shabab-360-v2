@@ -93,6 +93,7 @@ import {
   LayoutGrid,
   ArrowRightLeft,
 } from "lucide-react";
+import { DocumentUpload } from "@/components/shared/document-upload";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -1024,13 +1025,14 @@ export function AdmissionsPage() {
                 type="button"
                 variant="outline"
                 className="w-full border-dashed text-muted-foreground hover:text-foreground"
-                onClick={() => toast.info("Document upload coming soon")}
+                onClick={() => toast.info("Upload documents from the application detail view")}
               >
                 <FolderInput className="size-4 mr-2" />
                 Upload Documents
               </Button>
               <p className="text-[10px] text-muted-foreground">Supports PDF, JPG, PNG (max 5MB each)</p>
             </div>
+            <p className="text-[10px] text-muted-foreground">Tip: You can also upload documents after creating the application, from its detail view.</p>
             {Object.keys(createErrors).length > 0 && (
               <div className="rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900 p-3">
                 <p className="text-xs font-medium text-red-700 dark:text-red-400 mb-1">Please fix the following errors:</p>
@@ -1295,6 +1297,22 @@ export function AdmissionsPage() {
                       </div>
                     </>
                   )}
+
+                  {/* Documents Section */}
+                  <Separator className="bg-border/50" />
+                  <div className="space-y-3">
+                    <h4 className="text-sm font-semibold flex items-center gap-2">
+                      <FileText className="size-4 text-[#4B0A8F] dark:text-[#8A40B0]" />
+                      Documents
+                    </h4>
+                    {detail && (
+                      <DocumentUpload
+                        entityType="admission"
+                        entityId={detail.id}
+                        maxFiles={10}
+                      />
+                    )}
+                  </div>
 
                   {/* Actions Section */}
                   <Separator className="bg-border/50" />

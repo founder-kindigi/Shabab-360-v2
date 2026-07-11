@@ -32,6 +32,7 @@ import {
 import { cn } from "@/lib/utils";
 import { AttendanceChart } from "@/components/shared/attendance-chart";
 import { Sparkline } from "@/components/shared/sparkline";
+import { ActivityFeed } from "@/components/shared/activity-feed";
 
 // ==================== TYPES ====================
 
@@ -916,6 +917,11 @@ export function ParkDashboard() {
               ))}
             </div>
           )}
+        </motion.div>
+
+        {/* ==================== RECENT ACTIVITY ==================== */}
+        <motion.div variants={fadeUp}>
+          <ActivityFeed limit={5} />
         </motion.div>
 
         {/* ==================== OFFLINE QUEUE PANEL ==================== */}

@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AttendanceChart } from "@/components/shared/attendance-chart";
 import { BarChart } from "@/components/shared/bar-chart";
+import { ActivityFeed } from "@/components/shared/activity-feed";
 import { toPKT, formatPKT } from "@/lib/timezone";
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -128,34 +129,6 @@ function formatPKTDate(): string {
   });
 }
 
-function actionIcon(action: string) {
-  if (action.includes("create") || action.includes("add"))
-    return Plus;
-  if (action.includes("update") || action.includes("edit"))
-    return Pencil;
-  if (action.includes("delete") || action.includes("remove"))
-    return Trash2;
-  if (action.includes("close"))
-    return Lock;
-  if (action.includes("view"))
-    return BarChart3;
-  return CircleDot;
-}
-
-function actionColor(action: string) {
-  if (action.includes("create") || action.includes("add"))
-    return "bg-green-100 text-green-700 dark:bg-green-950/50 dark:text-green-400";
-  if (action.includes("update") || action.includes("edit"))
-    return "bg-sky-100 text-sky-700 dark:bg-sky-950/50 dark:text-sky-400";
-  if (action.includes("delete") || action.includes("remove"))
-    return "bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-400";
-  if (action.includes("close"))
-    return "bg-slate-100 text-slate-700 dark:bg-slate-800/50 dark:text-slate-400";
-  if (action.includes("view"))
-    return "bg-sky-100 text-sky-700 dark:bg-sky-950/50 dark:text-sky-400";
-  return "bg-muted text-muted-foreground";
-}
-
 // ── Component ───────────────────────────────────────────────────────────────
 
 export function CityHeadDashboard() {
@@ -207,7 +180,7 @@ export function CityHeadDashboard() {
     );
   }
 
-  const { city, metrics, todayEvents, parkBreakdown, recentActivity, trend14Day, feesOverview } =
+  const { city, metrics, todayEvents, parkBreakdown, trend14Day, feesOverview } =
     data;
 
   // Bar chart data for park comparison
@@ -562,74 +535,9 @@ export function CityHeadDashboard() {
         )}
       </motion.div>
 
-      {/* ── 8. Recent Activity (last 5) ── */}
-      <motion.div variants={fadeUp} className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold">Recent Activity</h3>
-          <Badge variant="outline" className="text-[10px] font-normal">
-            Last 5
-          </Badge>
-        </div>
-
-        {recentActivity.length === 0 ? (
-          <Card>
-            <CardContent className="p-6 text-center">
-              <Activity className="size-8 text-muted-foreground/40 mx-auto mb-2" />
-              <p className="text-sm text-muted-foreground">
-                No recent activity to show
-              </p>
-            </CardContent>
-          </Card>
-        ) : (
-          <Card>
-            <CardContent className="p-4">
-              <div className="relative space-y-0">
-                {recentActivity.map((activity, i) => {
-                  const Icon = actionIcon(activity.action);
-                  const isLast = i === recentActivity.length - 1;
-                  return (
-                    <div key={activity.id} className="relative flex gap-3 pb-4">
-                      {!isLast && (
-                        <div className="absolute left-[15px] top-8 bottom-0 w-px bg-border" />
-                      )}
-
-                      <div
-                        className={cn(
-                          "relative z-10 flex items-center justify-center size-[30px] rounded-full shrink-0",
-                          actionColor(activity.action)
-                        )}
-                      >
-                        <Icon className="size-3.5" />
-                      </div>
-
-                      <div className="min-w-0 flex-1 pt-0.5">
-                        <div className="flex items-baseline gap-2 flex-wrap">
-                          <p className="text-sm font-medium truncate">
-                            {activity.userName}
-                          </p>
-                          <span className="text-xs text-muted-foreground capitalize">
-                            {activity.action.replace(/_/g, " ")}
-                          </span>
-                        </div>
-                        <p className="text-[11px] text-muted-foreground mt-0.5 capitalize">
-                          {activity.entityType.replace(/_/g, " ")}
-                          {activity.entityId ? ` #${activity.entityId.slice(0, 6)}` : ""}
-                        </p>
-                        <p className="text-[10px] text-muted-foreground/70 mt-0.5">
-                          {formatDistanceToNow(new Date(activity.createdAt), {
-                            addSuffix: true,
-                          })}
-                          {" · "}
-                          {formatPKT(new Date(activity.createdAt), "dd MMM, hh:mm a")}
-                        </p>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
-        )}
+      {/* ── 8. Recent Activity ── */}
+      <motion.div variants={fadeUp}>
+        <ActivityFeed limit={5} />
       </motion.div>
     </motion.div>
   );

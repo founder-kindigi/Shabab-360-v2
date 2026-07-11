@@ -44,6 +44,9 @@ import {
   Users,
   Trash2,
   Pencil,
+  UserCheck,
+  UserX,
+  Shield,
 } from "lucide-react";
 import type { StaffRole } from "@/types";
 import { OnlineStatus } from "@/components/shared/online-status";
@@ -51,6 +54,7 @@ import {
   SortableDataTable,
   type Column,
 } from "@/components/shared/sortable-data-table";
+import { BulkActionToolbar, type BulkAction } from "@/components/shared/bulk-action-toolbar";
 
 interface UserWithMeta {
   id: string;
@@ -145,7 +149,12 @@ export function UsersPage() {
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [resetPwdOpen, setResetPwdOpen] = useState(false);
+  const [assignRoleOpen, setAssignRoleOpen] = useState(false);
+  const [assignRole, setAssignRole] = useState<StaffRole | "">("");
   const [selectedUser, setSelectedUser] = useState<UserWithMeta | null>(null);
+
+  // Selection
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   // Form state
   const [formName, setFormName] = useState("");
@@ -359,6 +368,34 @@ export function UsersPage() {
     },
     onError: (err: any) => {
       toast.error(err.error || "Failed to update user status");
+    },
+  });
+
+  // Batch mutation
+  const batchMutation = useMutation({
+    mutationFn: (body: { action: string; userIds: string[]; role?: string }) =>
+      fetch("/api/admin/users/batch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      }).then((r) => {
+        if (!r.ok) return r.json().then((e) => Promise.reject(e));
+        return r.json();
+      }),
+    onSuccess: (result, vars) => {
+      queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+      setSelectedIds(new Set());
+      const label = vars.action === "activate" ? "activated" : vars.action === "deactivate" ? "deactivated" : vars.action === "reset-password" ? "password-reset" : "role-assigned";
+      const msg = vars.action === "reset-password"
+        ? `Password reset flagged for ${result.success} user${result.success !== 1 ? "s" : ""}`
+        : `${result.success} user${result.success !== 1 ? "s" : ""} ${label} successfully`;
+      toast.success(msg);
+      if (result.failed > 0) {
+        toast.warning(`${result.failed} operation${result.failed !== 1 ? "s" : ""} failed`);
+      }
+    },
+    onError: (err: any) => {
+      toast.error(err.error || "Batch operation failed");
     },
   });
 
@@ -698,12 +735,32 @@ export function UsersPage() {
         }
       />
 
+      {/* Bulk Action Toolbar */}
+      <BulkActionToolbar
+        selectedIds={Array.from(selectedIds)}
+        onClearSelection={() => setSelectedIds(new Set())}
+        actions={[
+          { key: "activate", label: "Activate", icon: UserCheck, confirmMessage: `Are you sure you want to activate ${selectedIds.size} user${selectedIds.size !== 1 ? "s" : ""}?` },
+          { key: "deactivate", label: "Deactivate", icon: UserX, variant: "destructive", confirmMessage: `Are you sure you want to deactivate ${selectedIds.size} user${selectedIds.size !== 1 ? "s" : ""}? This action can be reversed.` },
+          { key: "reset-password", label: "Reset Passwords", icon: KeyRound, confirmMessage: `Force password reset for ${selectedIds.size} user${selectedIds.size !== 1 ? "s" : ""}? They will be prompted on next login.` },
+          { key: "assign-role", label: "Assign Role", icon: Shield },
+        ]}
+        onAction={(action) => {
+          if (action === "assign-role") {
+            setAssignRoleOpen(true);
+          } else {
+            batchMutation.mutate({ action, userIds: Array.from(selectedIds) });
+          }
+        }}
+        isLoading={batchMutation.isPending}
+      />
+
       <SortableDataTable<UserWithMeta>
         columns={columns}
         data={users}
         isLoading={isLoading}
         search={search}
-        onSearchChange={(v) => { setSearch(v); setPage(1); }}
+        onSearchChange={(v) => { setSearch(v); setPage(1); setSelectedIds(new Set()); }}
         searchPlaceholder="Search by name, email, or phone..."
         filters={[
           {
@@ -718,7 +775,7 @@ export function UsersPage() {
               { value: "murabbi", label: "Murabbi" },
             ],
             value: roleFilter,
-            onChange: (v) => { setRoleFilter(v); setPage(1); },
+            onChange: (v) => { setRoleFilter(v); setPage(1); setSelectedIds(new Set()); },
           },
           {
             key: "status",
@@ -728,7 +785,7 @@ export function UsersPage() {
               { value: "inactive", label: "Inactive" },
             ],
             value: statusFilter,
-            onChange: (v) => { setStatusFilter(v); setPage(1); },
+            onChange: (v) => { setStatusFilter(v); setPage(1); setSelectedIds(new Set()); },
           },
         ]}
         pagination={
@@ -738,7 +795,7 @@ export function UsersPage() {
                 pageSize: pagination.pageSize,
                 totalItems: pagination.totalItems,
                 totalPages: pagination.totalPages,
-                onPageChange: setPage,
+                onPageChange: (p) => { setPage(p); setSelectedIds(new Set()); },
               }
             : undefined
         }
@@ -776,6 +833,9 @@ export function UsersPage() {
         }
         getRowId={(user) => user.id}
         skeletonRows={4}
+        selectable
+        selectedIds={selectedIds}
+        onSelectionChange={(ids) => setSelectedIds(ids)}
       />
 
       {/* Create User Dialog */}
@@ -1288,6 +1348,52 @@ export function UsersPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Assign Role Dialog */}
+      <Dialog open={assignRoleOpen} onOpenChange={(open) => { setAssignRoleOpen(open); if (!open) setAssignRole(""); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Assign Role to {selectedIds.size} User{selectedIds.size !== 1 ? "s" : ""}</DialogTitle>
+            <DialogDescription>
+              Select a new role for all selected users.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>New Role</Label>
+              <Select value={assignRole} onValueChange={(v) => setAssignRole(v as StaffRole)}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select a role" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="super_admin">Super Admin</SelectItem>
+                  <SelectItem value="program_admin">Program Admin</SelectItem>
+                  <SelectItem value="city_head">City Head</SelectItem>
+                  <SelectItem value="park_admin">Park Admin</SelectItem>
+                  <SelectItem value="park_lead">Park Lead</SelectItem>
+                  <SelectItem value="murabbi">Murabbi</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAssignRoleOpen(false)} disabled={batchMutation.isPending}>
+              Cancel
+            </Button>
+            <Button
+              className="bg-[#4B0A8F] hover:bg-[#4B0A8FE6] text-white"
+              disabled={!assignRole || batchMutation.isPending}
+              onClick={() => {
+                batchMutation.mutate({ action: "assign-role", userIds: Array.from(selectedIds), role: assignRole });
+                setAssignRoleOpen(false);
+                setAssignRole("");
+              }}
+            >
+              {batchMutation.isPending ? "Assigning..." : "Assign Role"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

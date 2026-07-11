@@ -65,7 +65,13 @@ import {
   User,
   X,
   Eye,
+  UserCheck,
+  UserX,
+  Send,
+  Check,
 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { BulkActionToolbar, type BulkAction } from "@/components/shared/bulk-action-toolbar";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -157,20 +163,26 @@ export function GuardiansPage() {
 
   const debouncedSearch = useDebounce(search, 300);
 
+  // Selection
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
   // Reset page on filter change
   const handleSearchChange = useCallback((val: string) => {
     setSearch(val);
     setPage(1);
+    setSelectedIds(new Set());
   }, []);
 
   const handleCityFilterChange = useCallback((val: string) => {
     setCityId(val);
     setPage(1);
+    setSelectedIds(new Set());
   }, []);
 
   const handleStateChange = useCallback((val: string) => {
     setState(val);
     setPage(1);
+    setSelectedIds(new Set());
   }, []);
 
   // Dialogs
@@ -204,6 +216,32 @@ export function GuardiansPage() {
   const [formCnic, setFormCnic] = useState("");
   const [formAddress, setFormAddress] = useState("");
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+
+  // ─── Batch Mutation ─────────────────────────────────────────────────────
+
+  const batchMutation = useMutation({
+    mutationFn: (body: { action: string; guardianIds: string[] }) =>
+      fetch("/api/admin/guardians/batch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      }).then((r) => {
+        if (!r.ok) return r.json().then((e) => Promise.reject(e));
+        return r.json();
+      }),
+    onSuccess: (result, vars) => {
+      queryClient.invalidateQueries({ queryKey: ["admin-guardians"] });
+      setSelectedIds(new Set());
+      const label = vars.action === "activate" ? "activated" : vars.action === "deactivate" ? "deactivated" : "invited";
+      toast.success(`${result.success} guardian${result.success !== 1 ? "s" : ""} ${label} successfully`);
+      if (result.failed > 0) {
+        toast.warning(`${result.failed} operation${result.failed !== 1 ? "s" : ""} failed`);
+      }
+    },
+    onError: (err: any) => {
+      toast.error(err.error || "Batch operation failed");
+    },
+  });
 
   // ─── Invite Mutation ─────────────────────────────────────────────────────
 
@@ -306,6 +344,27 @@ export function GuardiansPage() {
 
   const guardians = data?.data || [];
   const pagination = data?.pagination;
+
+  // Selection helpers (after data is available)
+  const allRowIds = guardians.map((g) => g.id);
+  const allSelected = selectedIds.size > 0 && allRowIds.length > 0 && allRowIds.every((id) => selectedIds.has(id));
+
+  const toggleAll = useCallback(() => {
+    if (allSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(allRowIds));
+    }
+  }, [allSelected, allRowIds]);
+
+  const toggleRow = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
 
   // ─── Mutations ───────────────────────────────────────────────────────────
 
@@ -598,6 +657,21 @@ export function GuardiansPage() {
         </CardContent>
       </Card>
 
+      {/* Bulk Action Toolbar */}
+      <BulkActionToolbar
+        selectedIds={Array.from(selectedIds)}
+        onClearSelection={() => setSelectedIds(new Set())}
+        actions={[
+          { key: "activate", label: "Activate", icon: UserCheck, confirmMessage: `Are you sure you want to activate ${selectedIds.size} guardian${selectedIds.size !== 1 ? "s" : ""}?` },
+          { key: "deactivate", label: "Deactivate", icon: UserX, variant: "destructive", confirmMessage: `Are you sure you want to deactivate ${selectedIds.size} guardian${selectedIds.size !== 1 ? "s" : ""}? This action can be reversed.` },
+          { key: "send-invite", label: "Send Invites", icon: Send, confirmMessage: `Send portal invitations to ${selectedIds.size} guardian${selectedIds.size !== 1 ? "s" : ""}?` },
+        ]}
+        onAction={(action) => {
+          batchMutation.mutate({ action, guardianIds: Array.from(selectedIds) });
+        }}
+        isLoading={batchMutation.isPending}
+      />
+
       {/* Loading */}
       {isLoading && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -619,6 +693,15 @@ export function GuardiansPage() {
               transition={{ duration: 0.2 }}
             >
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Select all row (desktop) */}
+                <div className="hidden md:flex items-center gap-2 col-span-2 pb-1">
+                  <Checkbox
+                    checked={allSelected}
+                    onCheckedChange={toggleAll}
+                    aria-label="Select all guardians"
+                  />
+                  <span className="text-xs text-muted-foreground">Select all on this page</span>
+                </div>
                 {guardians.map((guardian, idx) => (
                   <motion.div
                     key={guardian.id}
@@ -630,8 +713,16 @@ export function GuardiansPage() {
                       {/* Header */}
                       <div className="flex items-start justify-between p-4 pb-3">
                         <div className="flex items-center gap-3 min-w-0">
-                          <div className="rounded-full bg-[#F3ECF6] dark:bg-[#1F086080] flex items-center justify-center size-11 text-sm font-semibold text-[#4B0A8F] dark:text-[#8A40B0] shrink-0">
+                          <div className="relative shrink-0" onClick={(e) => e.stopPropagation()}>
+                            <Checkbox
+                              checked={selectedIds.has(guardian.id)}
+                              onCheckedChange={() => toggleRow(guardian.id)}
+                              className="absolute -top-1 -left-1 size-5"
+                              aria-label={`Select ${guardian.name}`}
+                            />
+                            <div className="rounded-full bg-[#F3ECF6] dark:bg-[#1F086080] flex items-center justify-center size-11 text-sm font-semibold text-[#4B0A8F] dark:text-[#8A40B0]">
                             {getInitials(guardian.name)}
+                          </div>
                           </div>
                           <div className="min-w-0">
                             <div className="flex items-center gap-2">
@@ -765,7 +856,7 @@ export function GuardiansPage() {
                       size="icon"
                       className="size-8"
                       disabled={pagination.page <= 1}
-                      onClick={() => setPage((p) => p - 1)}
+                      onClick={() => { setPage((p) => p - 1); setSelectedIds(new Set()); }}
                     >
                       <ChevronLeft className="size-4" />
                     </Button>
@@ -774,7 +865,7 @@ export function GuardiansPage() {
                       size="icon"
                       className="size-8"
                       disabled={pagination.page >= pagination.totalPages}
-                      onClick={() => setPage((p) => p + 1)}
+                      onClick={() => { setPage((p) => p + 1); setSelectedIds(new Set()); }}
                     >
                       <ChevronRight className="size-4" />
                     </Button>

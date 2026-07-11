@@ -26,6 +26,7 @@ export type PageId =
   | "admin-reports"
   | "admin-audit-log"
   | "admin-access"
+  | "notifications"
   // Murabbi pages
   | "murabbi-dashboard"
   | "murabbi-groups"
@@ -51,6 +52,13 @@ export type PageId =
   | "student-profile"
   // Guardian pages (extra)
   | "guardian-fees";
+
+export type Language = "en" | "ur";
+
+function getInitialLanguage(): Language {
+  if (typeof window === "undefined") return "en";
+  return (localStorage.getItem("shabab360-language") as Language) || "en";
+}
 
 interface AppState {
   currentPage: PageId;
@@ -82,6 +90,10 @@ interface AppState {
   // Guardian
   selectedParticipantId: string | null;
   setSelectedParticipantId: (id: string | null) => void;
+
+  // Language
+  language: Language;
+  setLanguage: (lang: Language) => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -123,4 +135,12 @@ export const useAppStore = create<AppState>((set) => ({
 
   selectedParticipantId: null,
   setSelectedParticipantId: (id) => set({ selectedParticipantId: id }),
+
+  language: getInitialLanguage(),
+  setLanguage: (lang) => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("shabab360-language", lang);
+    }
+    set({ language: lang });
+  },
 }));

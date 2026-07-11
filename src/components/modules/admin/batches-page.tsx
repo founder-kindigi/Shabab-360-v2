@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select,
   SelectContent,
@@ -39,13 +40,17 @@ import {
   Pencil,
   Trash2,
   CalendarRange,
-  TreePine,
-  Users,
+  Award,
+  Printer,
 } from "lucide-react";
 import {
   SortableDataTable,
   type Column,
 } from "@/components/shared/sortable-data-table";
+import {
+  CompletionCertificate,
+  type CertificateData,
+} from "@/components/shared/completion-certificate";
 
 interface ParkOption {
   id: string;
@@ -62,6 +67,15 @@ interface Batch {
   createdAt: string;
   park: { id: string; name: string; city: { id: string; name: string } };
   _count: { groups: number };
+}
+
+interface BatchCertificatesResponse {
+  batchId: string;
+  batch: string;
+  park: string;
+  city: string;
+  totalParticipants: number;
+  certificates: CertificateData[];
 }
 
 function formatDate(dateStr: string | null) {
@@ -86,12 +100,18 @@ export function BatchesPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [certListOpen, setCertListOpen] = useState(false);
+  const [certViewOpen, setCertViewOpen] = useState(false);
   const [selectedBatch, setSelectedBatch] = useState<Batch | null>(null);
+  const [selectedCert, setSelectedCert] = useState<CertificateData | null>(null);
   const [formName, setFormName] = useState("");
   const [formParkId, setFormParkId] = useState("");
   const [formStartDate, setFormStartDate] = useState("");
   const [formEndDate, setFormEndDate] = useState("");
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+
+  // Certificate state
+  const [certBatchId, setCertBatchId] = useState<string | null>(null);
 
   // Fetch parks for dropdown
   const { data: parks } = useQuery<ParkOption[]>({
@@ -197,6 +217,19 @@ export function BatchesPage() {
     },
   });
 
+  // Certificates query
+  const {
+    data: batchCertificates,
+    isLoading: certLoading,
+  } = useQuery<BatchCertificatesResponse>({
+    queryKey: ["batch-certificates", certBatchId],
+    queryFn: () =>
+      fetch(`/api/admin/certificates/batch?batchId=${certBatchId}`).then(
+        (r) => r.json()
+      ),
+    enabled: !!certBatchId && certListOpen,
+  });
+
   // Dialog helpers
   function openCreateDialog() {
     setFormName("");
@@ -230,6 +263,28 @@ export function BatchesPage() {
   function openDeleteDialog(batch: Batch) {
     setSelectedBatch(batch);
     setDeleteOpen(true);
+  }
+
+  function openCertificatesDialog(batch: Batch) {
+    setSelectedBatch(batch);
+    setCertBatchId(batch.id);
+    setCertListOpen(true);
+  }
+
+  function closeCertListDialog() {
+    setCertListOpen(false);
+    setCertBatchId(null);
+    setSelectedBatch(null);
+  }
+
+  function openCertView(cert: CertificateData) {
+    setSelectedCert(cert);
+    setCertViewOpen(true);
+  }
+
+  function closeCertView() {
+    setCertViewOpen(false);
+    setSelectedCert(null);
   }
 
   function handleCreateSubmit(e: React.FormEvent) {
@@ -405,6 +460,11 @@ export function BatchesPage() {
         searchPlaceholder="Search batches..."
         actions={(batch) => [
           { label: "Edit", icon: Pencil, onClick: () => openEditDialog(batch) },
+          {
+            label: "Certificates",
+            icon: Award,
+            onClick: () => openCertificatesDialog(batch),
+          },
           {
             label: "Deactivate",
             icon: Trash2,
@@ -608,6 +668,118 @@ export function BatchesPage() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Certificate List Dialog */}
+      <Dialog
+        open={certListOpen}
+        onOpenChange={(open) => {
+          if (!open) closeCertListDialog();
+        }}
+      >
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Award className="size-5 text-[#4B0A8F]" />
+              Certificates — {selectedBatch?.name}
+            </DialogTitle>
+            <DialogDescription>
+              {batchCertificates
+                ? `${batchCertificates.totalParticipants} participant(s) in ${batchCertificates.park}, ${batchCertificates.city}`
+                : "Loading participants..."}
+            </DialogDescription>
+          </DialogHeader>
+
+          {certLoading ? (
+            <div className="space-y-3 py-4">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="flex items-center justify-between">
+                  <Skeleton className="h-5 w-48" />
+                  <Skeleton className="h-8 w-24" />
+                </div>
+              ))}
+            </div>
+          ) : batchCertificates && batchCertificates.certificates.length > 0 ? (
+            <div className="max-h-96 overflow-y-auto space-y-2">
+              {batchCertificates.certificates.map((cert) => (
+                <div
+                  key={cert.participantId}
+                  className="flex items-center justify-between rounded-lg border border-border/50 p-3 hover:bg-muted/50 transition-colors"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="rounded-full bg-[#F3ECF6] p-1.5 dark:bg-[#1F0860]">
+                      <Award className="size-3.5 text-[#4B0A8F] dark:text-[#8A40B0]" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium truncate">
+                        {cert.participant}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {cert.group} · Attendance: {cert.attendanceRate}%
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="shrink-0 ml-3"
+                    onClick={() => openCertView(cert)}
+                  >
+                    <Printer className="size-3.5 mr-1.5" />
+                    Print
+                  </Button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-muted-foreground text-sm">
+              No active participants found in this batch.
+            </div>
+          )}
+
+          {batchCertificates && batchCertificates.certificates.length > 0 && (
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={closeCertListDialog}
+              >
+                Close
+              </Button>
+              <Button
+                className="bg-[#4B0A8F] hover:bg-[#4B0A8FE6] text-white"
+                onClick={() => {
+                  if (batchCertificates.certificates.length > 0) {
+                    setSelectedCert(batchCertificates.certificates[0]);
+                    setCertViewOpen(true);
+                  }
+                }}
+              >
+                <Printer className="size-4 mr-2" />
+                Print All
+              </Button>
+            </DialogFooter>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Certificate View Dialog */}
+      <Dialog open={certViewOpen} onOpenChange={setCertViewOpen}>
+        <DialogContent className="max-w-5xl w-full">
+          <DialogHeader>
+            <DialogTitle>Completion Certificate</DialogTitle>
+            <DialogDescription>
+              Preview and print the certificate. Use the Print button below or
+              Ctrl+P.
+            </DialogDescription>
+          </DialogHeader>
+          {selectedCert && (
+            <CompletionCertificate
+              data={selectedCert}
+              onClose={closeCertView}
+              showActions={true}
+            />
+          )}
         </DialogContent>
       </Dialog>
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useCallback } from "react";
+import { useEffect, useCallback, useState, useRef } from "react";
 import { create } from "zustand";
 import { useTheme } from "next-themes";
 import { signOut, useSession } from "next-auth/react";
@@ -26,6 +26,10 @@ import {
   PanelLeftClose,
   Users,
   CornerDownLeft,
+  GraduationCap,
+  Shield,
+  UserCog,
+  Layers,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -56,6 +60,18 @@ interface PaletteAction {
   shortcut?: string;
   onSelect: () => void;
   danger?: boolean;
+}
+
+// ---------------------------------------------------------------------------
+// Entity search result type
+// ---------------------------------------------------------------------------
+
+interface EntitySearchResult {
+  type: "participant" | "guardian" | "staff" | "batch" | "group";
+  id: string;
+  title: string;
+  subtitle: string;
+  url: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -100,6 +116,67 @@ const panelVariants = {
 };
 
 // ---------------------------------------------------------------------------
+// Entity type config
+// ---------------------------------------------------------------------------
+
+const entityTypeConfig: Record<
+  EntitySearchResult["type"],
+  { label: string; icon: LucideIcon; colorClass: string }
+> = {
+  participant: {
+    label: "Students",
+    icon: GraduationCap,
+    colorClass: "text-rose-600 dark:text-rose-400",
+  },
+  guardian: {
+    label: "Guardians",
+    icon: Shield,
+    colorClass: "text-amber-600 dark:text-amber-400",
+  },
+  staff: {
+    label: "Staff",
+    icon: UserCog,
+    colorClass: "text-sky-600 dark:text-sky-400",
+  },
+  batch: {
+    label: "Batches",
+    icon: Layers,
+    colorClass: "text-violet-600 dark:text-violet-400",
+  },
+  group: {
+    label: "Groups",
+    icon: Users,
+    colorClass: "text-[#4B0A8F] dark:text-[#8A40B0]",
+  },
+};
+
+// ---------------------------------------------------------------------------
+// Skeleton loader for entity search
+// ---------------------------------------------------------------------------
+
+function SearchSkeleton() {
+  return (
+    <div className="space-y-1 px-2 py-1">
+      <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-2 py-1.5">
+        Searching entities...
+      </p>
+      {[0, 1, 2].map((i) => (
+        <div
+          key={i}
+          className="flex items-center gap-2.5 px-2 py-2.5 animate-pulse"
+        >
+          <div className="size-4 rounded bg-muted" />
+          <div className="flex-1 space-y-1.5">
+            <div className="h-3.5 w-3/5 rounded bg-muted" />
+            <div className="h-2.5 w-2/5 rounded bg-muted/70" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Command Palette Dialog
 // ---------------------------------------------------------------------------
 
@@ -112,6 +189,15 @@ export function CommandPalette() {
   const { theme, setTheme } = useTheme();
   const user = session?.user as { role?: string } | undefined;
   const role = user?.role;
+
+  // Entity search state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [entityResults, setEntityResults] = useState<EntitySearchResult[]>(
+    []
+  );
+  const [isSearching, setIsSearching] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>(null);
 
   // Navigation items from sidebar
   const navItems: NavItem[] = getNavItems(role);
@@ -139,6 +225,51 @@ export function CommandPalette() {
       danger: true,
     },
   ];
+
+  // Debounced entity search
+  useEffect(() => {
+    if (!open) {
+      setSearchQuery("");
+      setEntityResults([]);
+      setIsSearching(false);
+      setHasSearched(false);
+      return;
+    }
+
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+
+    const q = searchQuery.trim();
+
+    if (q.length < 2) {
+      setEntityResults([]);
+      setIsSearching(false);
+      setHasSearched(false);
+      return;
+    }
+
+    setIsSearching(true);
+    setHasSearched(true);
+
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/search?q=${encodeURIComponent(q)}&limit=20`);
+        const data = await res.json();
+        setEntityResults(data.results || []);
+      } catch {
+        setEntityResults([]);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 300);
+
+    return () => {
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
+    };
+  }, [searchQuery, open]);
 
   // Close on Escape (capture phase — intercept before cmdk)
   useEffect(() => {
@@ -192,6 +323,27 @@ export function CommandPalette() {
     [setOpen]
   );
 
+  // Handle entity result click
+  const handleEntitySelect = useCallback(
+    (result: EntitySearchResult) => {
+      navigateTo(result.url as PageId);
+      setOpen(false);
+    },
+    [navigateTo, setOpen]
+  );
+
+  // Group entity results by type
+  const groupedResults = entityResults.reduce<
+    Record<string, EntitySearchResult[]>
+  >((acc, r) => {
+    if (!acc[r.type]) acc[r.type] = [];
+    acc[r.type].push(r);
+    return acc;
+  }, {});
+
+  const hasEntityResults = entityResults.length > 0;
+  const showEntitySection = hasSearched && searchQuery.trim().length >= 2;
+
   return (
     <AnimatePresence>
       {open && (
@@ -230,8 +382,10 @@ export function CommandPalette() {
                 <div className="flex items-center border-b border-border/60 px-3">
                   <Search className="size-4 shrink-0 text-muted-foreground" />
                   <CommandInput
-                    placeholder="Search pages, actions..."
+                    placeholder="Search pages, actions, entities..."
                     className="text-sm"
+                    onValueChange={setSearchQuery}
+                    value={searchQuery}
                   />
                 </div>
 
@@ -266,6 +420,78 @@ export function CommandPalette() {
                         );
                       })}
                     </CommandGroup>
+                  )}
+
+                  {/* Entity search results */}
+                  {showEntitySection && (
+                    <>
+                      {navItems.length > 0 && (
+                        <CommandSeparator className="my-1" />
+                      )}
+
+                      {/* Loading skeleton */}
+                      {isSearching && <SearchSkeleton />}
+
+                      {/* Grouped results */}
+                      {!isSearching && hasEntityResults && (
+                        <CommandGroup heading="Search Entities">
+                          {Object.entries(groupedResults).map(
+                            ([type, items]) => {
+                              const config = entityTypeConfig[type as EntitySearchResult["type"]];
+                              if (!config) return null;
+                              const TypeIcon = config.icon;
+                              return (
+                                <div key={type}>
+                                  {items.map((result) => (
+                                    <CommandItem
+                                      key={`${result.type}-${result.id}`}
+                                      value={`entity-${result.type}-${result.id}-${result.title}`}
+                                      onSelect={() =>
+                                        handleEntitySelect(result)
+                                      }
+                                      className={cn(itemActiveClass)}
+                                    >
+                                      <TypeIcon
+                                        className={cn(
+                                          "shrink-0",
+                                          config.colorClass
+                                        )}
+                                      />
+                                      <div className="flex-1 min-w-0">
+                                        <p className="truncate text-sm">
+                                          {result.title}
+                                        </p>
+                                        <p className="truncate text-xs text-muted-foreground">
+                                          {result.subtitle}
+                                        </p>
+                                      </div>
+                                      <span className="shrink-0 text-[10px] font-medium text-muted-foreground/70 capitalize">
+                                        {config.label}
+                                      </span>
+                                    </CommandItem>
+                                  ))}
+                                </div>
+                              );
+                            }
+                          )}
+                        </CommandGroup>
+                      )}
+
+                      {/* No entity results */}
+                      {!isSearching &&
+                        showEntitySection &&
+                        !hasEntityResults && (
+                          <div className="px-3 py-4 text-center">
+                            <p className="text-xs text-muted-foreground">
+                              No entities match &ldquo;
+                              <span className="font-medium text-foreground">
+                                {searchQuery}
+                              </span>
+                              &rdquo;
+                            </p>
+                          </div>
+                        )}
+                    </>
                   )}
 
                   {/* Actions group */}

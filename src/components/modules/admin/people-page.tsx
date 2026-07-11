@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAppStore } from "@/stores/useAppStore";
@@ -61,6 +61,7 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { formatPKT } from "@/lib/timezone";
 import { toast } from "sonner";
 import { DonutChart } from "@/components/shared/donut-chart";
+import { AvatarUpload } from "@/components/shared/avatar-upload";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -156,6 +157,58 @@ function getInitials(name: string | null | undefined): string {
   const parts = name.trim().split(/\s+/);
   if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
   return parts[0].slice(0, 2).toUpperCase();
+}
+
+/** Resolve avatar URL from localStorage for a given user ID */
+function useUserAvatar(userId: string | undefined): string | null {
+  const [avatar, setAvatar] = useState<string | null>(() => {
+    if (typeof window === "undefined" || !userId) return null;
+    return localStorage.getItem(`avatar-${userId}`);
+  });
+  // Update when userId changes (deferred to avoid synchronous setState in effect)
+  useEffect(() => {
+    if (!userId) return;
+    const timer = setTimeout(() => {
+      setAvatar(localStorage.getItem(`avatar-${userId}`));
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [userId]);
+  return avatar;
+}
+
+/** Small component: show avatar image or colored initials circle */
+function AvatarOrInitials({
+  userId,
+  name,
+  size = "sm",
+  avatarColor,
+}: {
+  userId: string;
+  name: string | null | undefined;
+  size?: "sm" | "md" | "lg";
+  avatarColor?: string;
+}) {
+  const avatar = useUserAvatar(userId);
+  const s = size === "sm" ? "size-8 text-xs" : size === "md" ? "size-10 text-sm" : "size-20 text-2xl";
+  const colors = avatarColor || "bg-[#4B0A8F]";
+
+  if (avatar) {
+    return (
+      <img
+        src={avatar}
+        alt={name || "Avatar"}
+        className={`${s} rounded-full object-cover shrink-0`}
+      />
+    );
+  }
+
+  return (
+    <div
+      className={`flex items-center justify-center ${s} rounded-full ${colors} text-white font-bold shrink-0`}
+    >
+      {getInitials(name)}
+    </div>
+  );
 }
 
 function formatDateRel(dateStr: string): string {
@@ -649,11 +702,12 @@ export function PeoplePage() {
                             </td>
                             <td className="py-2.5 px-4">
                               <div className="flex items-center gap-3">
-                                <div
-                                  className={`flex items-center justify-center size-8 rounded-full ${colors.avatar} text-white text-xs font-bold shrink-0`}
-                                >
-                                  {getInitials(member.name)}
-                                </div>
+                                <AvatarOrInitials
+                                  userId={member.id}
+                                  name={member.name}
+                                  avatarColor={colors.avatar}
+                                  size="sm"
+                                />
                                 <span className="font-medium text-foreground truncate max-w-[180px]">
                                   {member.name || "No Name"}
                                 </span>
@@ -739,11 +793,12 @@ export function PeoplePage() {
                         {/* Top row: Avatar + Name + Status */}
                         <div className="flex items-start gap-3">
                           {/* Avatar */}
-                          <div
-                            className={`flex items-center justify-center size-10 rounded-full ${colors.avatar} text-white text-sm font-bold shrink-0`}
-                          >
-                            {getInitials(member.name)}
-                          </div>
+                          <AvatarOrInitials
+                            userId={member.id}
+                            name={member.name}
+                            avatarColor={colors.avatar}
+                            size="md"
+                          />
 
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
@@ -936,11 +991,12 @@ function StaffDetailSheet({
     <div className="space-y-6 pb-6">
       {/* ── Profile Header ──────────────────────────────────────────── */}
       <div className="flex flex-col items-center text-center gap-3 pt-2">
-        <div
-          className={`flex items-center justify-center size-20 rounded-full ${colors.avatar} text-white text-2xl font-bold shadow-lg`}
-        >
-          {getInitials(staff.name)}
-        </div>
+        <AvatarUpload
+          userId={staff.id}
+          name={staff.name}
+          size="lg"
+          avatarColor={colors.avatar}
+        />
         <div>
           <h3 className="text-lg font-semibold text-foreground leading-tight">
             {staff.name || "No Name"}
