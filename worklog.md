@@ -1490,3 +1490,31 @@ Stage Summary:
 - Dark mode fine-tuning across all new pages
 - End-to-end QA in production environment
 - Mobile app (PWA) considerations
+
+---
+Task ID: T-seed-enhance
+Agent: Main
+Task: Enhance seed script with rich demo data (historical attendance, audit logs, announcements, fees)
+
+Work Log:
+- Read existing prisma/seed.ts (8 users, 55 participants, 2 events for today) and prisma/schema.prisma
+- Added historical attendance events for last 30 days across all 4 groups (~70% day coverage)
+  - 84 historical events created (Alpha: 21, Beta: 18, Gamma: 23, Delta: 22)
+  - Varied session titles: Regular Session, Quran Recitation, Islamic Studies, Group Discussion
+  - Events older than 2 days: auto-closed with closedAt = eventDate + 2h
+- Added attendance records for all historical events (1,042 total records)
+  - Present: 60-85%, Late: 5-10%, Absent: 5-10%, Excused: 2-5%
+  - Marked by rotating murabbi/parkAdmin with realistic time-of-day stamps (5-6:30 PM PKT)
+  - Used createMany for batch efficiency
+- Added 20 audit log entries spanning last 30 days:
+  - 3 city creations, 2 park creations, 3 batch creations, 4 group creations
+  - 5 user login events, 3 attendance event creation entries
+- Added 3 sample announcements with different priorities:
+  - Urgent: Eid Milad-un-Nabi Program (expires in 7 days, all roles)
+  - Normal: New Batch 2024-D (expires in 30 days, park_admin/park_lead/murabbi)
+  - Low: System Maintenance Notice (expires in 14 days, super_admin/program_admin)
+- Added 1 fee event (Monthly Tuition - January 2025, Rs. 2000, batch1) with 4 sample payments
+  - Payment methods: cash, bank_transfer, jazzcash, easypaisa
+  - Unique receipt numbers: FEE-2025-0001 through FEE-2025-0004
+- ESLint: clean (no errors)
+- Seed verified: all data created successfully
