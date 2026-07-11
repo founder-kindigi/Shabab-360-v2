@@ -126,7 +126,7 @@ function actionIcon(action: string) {
 
 function actionColor(action: string) {
   if (action.includes("create") || action.includes("add"))
-    return "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400";
+    return "bg-[#F3ECF6] text-[#4B0A8F] dark:bg-[#1F086080] dark:text-[#8A40B0]";
   if (action.includes("update") || action.includes("edit"))
     return "bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400";
   if (action.includes("delete") || action.includes("remove"))
@@ -198,20 +198,20 @@ export function CityHeadDashboard() {
     >
       {/* ── 1. Greeting Banner ── */}
       <motion.div variants={fadeUp}>
-        <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-5 py-5 md:px-6 md:py-6 text-white shadow-lg">
+        <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-[#2A0C8F] via-[#A0006B] to-[#FF0015] px-5 py-5 md:px-6 md:py-6 text-white shadow-lg">
           {/* Decorative shapes */}
           <div className="absolute -top-6 -right-6 size-24 rounded-full bg-white/10" />
           <div className="absolute -bottom-4 -right-4 size-16 rounded-full bg-white/5" />
           <div className="absolute top-1/2 -right-10 size-20 rounded-full bg-white/5" />
 
           <div className="relative">
-            <p className="text-emerald-100 text-sm font-medium">
+            <p className="text-white/80 text-sm font-medium">
               Assalamu Alaikum, {userName}
             </p>
             <h1 className="text-2xl md:text-3xl font-bold mt-1">
               {city.name}
             </h1>
-            <div className="flex items-center gap-1.5 mt-1.5 text-emerald-200 text-sm">
+            <div className="flex items-center gap-1.5 mt-1.5 text-white/70 text-sm">
               <MapPin className="size-3.5" />
               <span>City Head Dashboard</span>
               <span className="mx-1">&middot;</span>
@@ -219,7 +219,7 @@ export function CityHeadDashboard() {
                 {city.code}
               </Badge>
             </div>
-            <p className="text-emerald-200/70 text-xs mt-2">
+            <p className="text-white/50 text-xs mt-2">
               {formatPKTDate()}
             </p>
           </div>
@@ -292,8 +292,8 @@ export function CityHeadDashboard() {
                     <div className="flex items-start justify-between">
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
-                          <div className="flex items-center justify-center size-8 rounded-lg bg-emerald-100 dark:bg-emerald-950/50 shrink-0">
-                            <TreePine className="size-4 text-emerald-600 dark:text-emerald-400" />
+                          <div className="flex items-center justify-center size-8 rounded-lg bg-[#F3ECF6] dark:bg-[#1F086080] shrink-0">
+                            <TreePine className="size-4 text-[#4B0A8F] dark:text-[#8A40B0]" />
                           </div>
                           <p className="text-sm font-semibold truncate">
                             {park.name}
@@ -384,7 +384,7 @@ export function CityHeadDashboard() {
                     "transition-shadow hover:shadow-sm",
                     event.isClosed
                       ? "border-border/60"
-                      : "border-emerald-200/60 dark:border-emerald-800/30"
+                      : "border-[#D4B8E399] dark:border-[#2A0C8F4D]"
                   )}
                 >
                   <CardContent className="p-4">
@@ -400,7 +400,7 @@ export function CityHeadDashboard() {
                               "text-[10px] shrink-0",
                               event.isClosed
                                 ? "bg-muted text-muted-foreground"
-                                : "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400"
+                                : "bg-[#F3ECF6] text-[#4B0A8F] dark:bg-[#1F086080] dark:text-[#8A40B0]"
                             )}
                           >
                             {event.isClosed ? "Closed" : "Open"}

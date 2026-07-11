@@ -116,7 +116,7 @@ function getStatusBadge(isClosed: boolean) {
   return (
     <Badge
       variant="outline"
-      className="bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-400 dark:border-emerald-800 gap-1"
+      className="bg-[#F3ECF6] text-[#4B0A8F] border-[#D4B8E3] dark:bg-[#1F0860] dark:text-[#8A40B0] dark:border-[#2A0C8F] gap-1"
     >
       Open
     </Badge>
@@ -124,7 +124,7 @@ function getStatusBadge(isClosed: boolean) {
 }
 
 function getProgressColor(progress: number): string {
-  if (progress >= 80) return "bg-emerald-500 dark:bg-emerald-400";
+  if (progress >= 80) return "bg-[#4B0A8F] dark:bg-[#4B0A8F]";
   if (progress >= 50) return "bg-amber-500 dark:bg-amber-400";
   return "bg-red-500 dark:bg-red-400";
 }
@@ -559,7 +559,7 @@ export function AdminAttendanceEvents() {
                             </span>
                           </div>
                           <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-muted-foreground">
-                            <span className="text-emerald-600 dark:text-emerald-400">
+                            <span className="text-[#4B0A8F] dark:text-[#8A40B0]">
                               P: {event.presentCount}
                             </span>
                             <span className="text-red-500 dark:text-red-400">
@@ -669,7 +669,7 @@ function SummaryCard({
 }) {
   const colorMap = {
     emerald:
-      "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 border-emerald-200/60 dark:border-emerald-800/40",
+      "bg-[#F3ECF6] dark:bg-[#1F0860] text-[#4B0A8F] dark:text-[#8A40B0] border-[#D4B8E399] dark:border-[#2A0C8F66]",
     amber:
       "bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 border-amber-200/60 dark:border-amber-800/40",
     slate:
@@ -678,7 +678,7 @@ function SummaryCard({
   };
 
   const iconColorMap = {
-    emerald: "text-emerald-600 dark:text-emerald-400",
+    emerald: "text-[#4B0A8F] dark:text-[#8A40B0]",
     amber: "text-amber-600 dark:text-amber-400",
     slate: "text-slate-500 dark:text-slate-400",
     sky: "text-sky-600 dark:text-sky-400",
@@ -711,8 +711,8 @@ function EventCard({ event }: { event: AttendanceEvent }) {
       {/* Header row: Date + Status */}
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-3 min-w-0">
-          <div className="rounded-lg bg-emerald-50 p-2 dark:bg-emerald-950/50 shrink-0">
-            <CalendarCheck className="size-4 text-emerald-600 dark:text-emerald-400" />
+          <div className="rounded-lg bg-[#F3ECF6] p-2 dark:bg-[#1F0860] shrink-0">
+            <CalendarCheck className="size-4 text-[#4B0A8F] dark:text-[#8A40B0]" />
           </div>
           <div className="min-w-0">
             <div className="text-sm font-medium truncate">
@@ -765,7 +765,7 @@ function EventCard({ event }: { event: AttendanceEvent }) {
         </div>
         {/* Status breakdown */}
         <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
-          <span className="text-emerald-600 dark:text-emerald-400">
+          <span className="text-[#4B0A8F] dark:text-[#8A40B0]">
             P: {event.presentCount}
           </span>
           <span className="text-red-500 dark:text-red-400">

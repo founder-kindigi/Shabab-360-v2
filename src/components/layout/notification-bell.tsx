@@ -57,8 +57,8 @@ function ActionIcon({ action }: { action: string }) {
   switch (action) {
     case "CREATE":
       return (
-        <div className="flex items-center justify-center size-8 rounded-full bg-emerald-100 dark:bg-emerald-950 shrink-0">
-          <Plus className="size-4 text-emerald-600 dark:text-emerald-400" />
+        <div className="flex items-center justify-center size-8 rounded-full bg-[#F3ECF6] dark:bg-[#1F0860] shrink-0">
+          <Plus className="size-4 text-[#4B0A8F] dark:text-[#8A40B0]" />
         </div>
       );
     case "UPDATE":
@@ -160,7 +160,7 @@ export function NotificationBell() {
                       setOpen(false);
                       navigateTo("admin-audit-log");
                     }}
-                    className="text-xs text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300 font-medium"
+                    className="text-xs text-[#4B0A8F] hover:text-[#A0006B] dark:text-[#8A40B0] dark:hover:text-[#8A40B0] font-medium"
                   >
                     View All
                   </button>
@@ -171,7 +171,7 @@ export function NotificationBell() {
               <ScrollArea className="max-h-96">
                 {isLoading ? (
                   <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
-                    <div className="size-5 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin mb-2" />
+                    <div className="size-5 border-2 border-[#4B0A8F] border-t-transparent rounded-full animate-spin mb-2" />
                     <span className="text-xs">Loading...</span>
                   </div>
                 ) : displayed.length === 0 ? (

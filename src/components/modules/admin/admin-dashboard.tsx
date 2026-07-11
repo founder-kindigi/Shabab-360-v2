@@ -62,7 +62,7 @@ function formatPKTDate(): string {
 
 function getActionColor(action: string) {
   switch (action.toLowerCase()) {
-    case "create": return "bg-emerald-100 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400";
+    case "create": return "bg-[#F3ECF6] text-[#4B0A8F] dark:bg-[#1F086099] dark:text-[#8A40B0]";
     case "update": return "bg-amber-100 text-amber-600 dark:bg-amber-950/60 dark:text-amber-400";
     case "delete": return "bg-red-100 text-red-600 dark:bg-red-950/60 dark:text-red-400";
     case "login": case "logout": return "bg-sky-100 text-sky-600 dark:bg-sky-950/60 dark:text-sky-400";
@@ -72,7 +72,7 @@ function getActionColor(action: string) {
 
 function getActionBadgeColor(action: string) {
   switch (action.toLowerCase()) {
-    case "create": return "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800";
+    case "create": return "bg-[#F3ECF6] text-[#4B0A8F] border-[#D4B8E3] dark:bg-[#1F086066] dark:text-[#8A40B0] dark:border-[#2A0C8F]";
     case "update": return "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800";
     case "delete": return "bg-red-50 text-red-700 border-red-200 dark:bg-red-950/40 dark:text-red-400 dark:border-red-800";
     case "login": case "logout": return "bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-950/40 dark:text-sky-400 dark:border-sky-800";
@@ -117,7 +117,7 @@ const scaleIn = {
 // ── Quick actions config ────────────────────────────────────────────────────
 
 const quickActions: { label: string; description: string; icon: typeof MapPin; page: PageId; color: string }[] = [
-  { label: "Cities", description: "Manage locations", icon: MapPin, page: "admin-cities", color: "from-emerald-500 to-teal-500" },
+  { label: "Cities", description: "Manage locations", icon: MapPin, page: "admin-cities", color: "from-[#2A0C8F] via-[#A0006B] to-[#FF0015]" },
   { label: "Parks", description: "Park operations", icon: TreePine, page: "admin-parks", color: "from-sky-500 to-blue-500" },
   { label: "Users", description: "Staff accounts", icon: Users, page: "admin-users", color: "from-violet-500 to-purple-500" },
   { label: "Reports", description: "Analytics", icon: BarChart3, page: "admin-reports", color: "from-amber-500 to-orange-500" },
@@ -132,7 +132,7 @@ function GreetingCard({ name, activeBatches }: { name: string; activeBatches?: n
   return (
     <motion.div
       variants={itemVariants}
-      className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-500 dark:from-emerald-800 dark:via-emerald-700 dark:to-teal-700 px-6 py-6 md:px-8 md:py-8"
+      className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#2A0C8F] via-[#A0006B] to-[#FF0015] px-6 py-6 md:px-8 md:py-8"
     >
       {/* Background decorations */}
       <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/4" />
@@ -155,7 +155,7 @@ function GreetingCard({ name, activeBatches }: { name: string; activeBatches?: n
             <h2 className="text-xl md:text-2xl font-bold text-white">
               {greeting}, {name}
             </h2>
-            <p className="text-emerald-100 text-sm mt-1">{pktDate}</p>
+            <p className="text-white/80 text-sm mt-1">{pktDate}</p>
           </div>
         </div>
 
@@ -172,7 +172,7 @@ function GreetingCard({ name, activeBatches }: { name: string; activeBatches?: n
                 <p className="text-white font-semibold text-sm">
                   {activeBatches} Active {activeBatches === 1 ? "Batch" : "Batches"}
                 </p>
-                <p className="text-emerald-100 text-[11px]">Currently running</p>
+                <p className="text-white/80 text-[11px]">Currently running</p>
               </div>
             </motion.div>
           )}
@@ -233,8 +233,8 @@ const roleColors: Record<string, string> = {
   program_admin: "bg-violet-100 text-violet-700 dark:bg-violet-950/50 dark:text-violet-400",
   city_head: "bg-sky-100 text-sky-700 dark:bg-sky-950/50 dark:text-sky-400",
   park_admin: "bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400",
-  park_lead: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400",
-  murabbi: "bg-teal-100 text-teal-700 dark:bg-teal-950/50 dark:text-teal-400",
+  park_lead: "bg-[#F3ECF6] text-[#4B0A8F] dark:bg-[#1F086080] dark:text-[#8A40B0]",
+  murabbi: "bg-[#F3ECF6] text-[#4B0A8F] dark:bg-[#1F086080] dark:text-[#8A40B0]",
 };
 
 // ── Main Component ───────────────────────────────────────────────────────────
@@ -260,7 +260,7 @@ export function AdminDashboard() {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
         <div className="flex flex-col items-center gap-3">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600" />
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#4B0A8F]" />
           <p className="text-sm text-muted-foreground">Loading dashboard...</p>
         </div>
       </div>
@@ -328,7 +328,7 @@ export function AdminDashboard() {
           <motion.div variants={itemVariants} className="lg:col-span-2 rounded-xl border bg-card overflow-hidden">
             <div className="px-6 py-4 border-b bg-muted/20">
               <h3 className="font-semibold flex items-center gap-2 text-sm">
-                <Building2 className="size-4 text-emerald-600" />
+                <Building2 className="size-4 text-[#4B0A8F]" />
                 City Distribution
               </h3>
               <p className="text-xs text-muted-foreground mt-0.5">
@@ -351,11 +351,11 @@ export function AdminDashboard() {
                   >
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-3">
-                        <div className="rounded-lg bg-emerald-50 p-1.5 dark:bg-emerald-950/50 group-hover:bg-emerald-100 dark:group-hover:bg-emerald-950/80 transition-colors">
-                          <Building2 className="size-3.5 text-emerald-600 dark:text-emerald-400" />
+                        <div className="rounded-lg bg-[#F3ECF6] p-1.5 dark:bg-[#1F086080] group-hover:bg-[#F3ECF6] dark:group-hover:bg-[#1F0860CC] transition-colors">
+                          <Building2 className="size-3.5 text-[#4B0A8F] dark:text-[#8A40B0]" />
                         </div>
                         <div>
-                          <span className="text-sm font-medium group-hover:text-emerald-700 dark:group-hover:text-emerald-400 transition-colors">
+                          <span className="text-sm font-medium group-hover:text-[#4B0A8F] dark:group-hover:text-[#8A40B0] transition-colors">
                             {city.name}
                           </span>
                           <span className="ml-2 text-xs text-muted-foreground font-mono">{city.code}</span>
@@ -363,7 +363,7 @@ export function AdminDashboard() {
                       </div>
                       <div className="flex items-center gap-3">
                         <span className="text-xs text-muted-foreground">{staff} staff</span>
-                        <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 px-2 py-0.5 rounded-full">
+                        <span className="text-xs font-semibold text-[#4B0A8F] dark:text-[#8A40B0] bg-[#F3ECF6] dark:bg-[#1F086080] px-2 py-0.5 rounded-full">
                           {parks} {parks === 1 ? "park" : "parks"}
                         </span>
                       </div>
@@ -373,7 +373,7 @@ export function AdminDashboard() {
                         initial={{ width: 0 }}
                         animate={{ width: `${pct}%` }}
                         transition={{ duration: 0.8, delay: idx * 0.1, ease: "easeOut" }}
-                        className="h-full bg-gradient-to-r from-emerald-400 to-emerald-500 rounded-full"
+                        className="h-full bg-gradient-to-r from-[#4B0A8F] to-[#A0006B] rounded-full"
                       />
                     </div>
                   </motion.div>
@@ -384,7 +384,7 @@ export function AdminDashboard() {
                   <p className="text-sm text-muted-foreground">No cities created yet.</p>
                   <Button
                     variant="link"
-                    className="text-emerald-600 mt-1"
+                    className="text-[#4B0A8F] mt-1"
                     onClick={() => navigateTo("admin-cities")}
                   >
                     Create your first city
@@ -400,7 +400,7 @@ export function AdminDashboard() {
             <Card className="overflow-hidden">
               <CardHeader className="pb-3 bg-muted/20 border-b">
                 <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                  <Activity className="size-4 text-emerald-600" />
+                  <Activity className="size-4 text-[#4B0A8F]" />
                   Recent Activity
                   {data.recentActivity?.length > 0 && (
                     <Badge variant="secondary" className="ml-auto text-[10px] h-5 px-1.5">
@@ -437,7 +437,7 @@ export function AdminDashboard() {
               <Card className="overflow-hidden">
                 <CardHeader className="pb-3 bg-muted/20 border-b">
                   <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                    <Users className="size-4 text-emerald-600" />
+                    <Users className="size-4 text-[#4B0A8F]" />
                     Staff by Role
                   </CardTitle>
                 </CardHeader>
@@ -466,7 +466,7 @@ export function AdminDashboard() {
                             initial={{ width: 0 }}
                             animate={{ width: `${pct}%` }}
                             transition={{ duration: 0.6, delay: idx * 0.08 }}
-                            className={cn("h-full rounded-full", cs.role.includes("admin") ? "bg-violet-500" : cs.role === "city_head" ? "bg-sky-500" : "bg-emerald-500")}
+                            className={cn("h-full rounded-full", cs.role.includes("admin") ? "bg-violet-500" : cs.role === "city_head" ? "bg-sky-500" : "bg-[#4B0A8F]")}
                           />
                         </div>
                       </motion.div>
@@ -506,7 +506,7 @@ export function AdminDashboard() {
           <motion.div variants={itemVariants} className="lg:col-span-2 rounded-xl border bg-card overflow-hidden">
             <div className="px-6 py-4 border-b bg-muted/20">
               <h3 className="font-semibold flex items-center gap-2 text-sm">
-                <TreePine className="size-4 text-emerald-600" />
+                <TreePine className="size-4 text-[#4B0A8F]" />
                 Parks in Your City
               </h3>
               <p className="text-xs text-muted-foreground mt-0.5">Batches and groups per park</p>
@@ -551,7 +551,7 @@ export function AdminDashboard() {
             <Card className="overflow-hidden h-full">
               <CardHeader className="pb-3 bg-muted/20 border-b">
                 <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                  <Activity className="size-4 text-emerald-600" />
+                  <Activity className="size-4 text-[#4B0A8F]" />
                   Recent Activity
                 </CardTitle>
               </CardHeader>
@@ -621,7 +621,7 @@ export function AdminDashboard() {
                 <p className="text-sm text-muted-foreground">need attention</p>
               </div>
             ) : (
-              <div className="flex items-center gap-2 text-emerald-600">
+              <div className="flex items-center gap-2 text-[#4B0A8F]">
                 <CheckCircle2 className="size-5" />
                 <span className="text-sm font-medium">All events closed</span>
               </div>
@@ -633,8 +633,8 @@ export function AdminDashboard() {
             className="rounded-xl border bg-card p-5"
           >
             <div className="flex items-center gap-3 mb-4">
-              <div className="rounded-xl bg-emerald-50 p-2.5 dark:bg-emerald-950/50">
-                <CalendarCheck className="size-5 text-emerald-600 dark:text-emerald-400" />
+              <div className="rounded-xl bg-[#F3ECF6] p-2.5 dark:bg-[#1F086080]">
+                <CalendarCheck className="size-5 text-[#4B0A8F] dark:text-[#8A40B0]" />
               </div>
               <div>
                 <p className="text-sm font-semibold">Today&apos;s Activity</p>

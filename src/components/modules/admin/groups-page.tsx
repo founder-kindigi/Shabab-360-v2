@@ -276,7 +276,7 @@ export function GroupsPage() {
           canCreate ? (
             <Button
               onClick={openCreateDialog}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+              className="bg-[#4B0A8F] hover:bg-[#4B0A8FE6] text-white"
             >
               <Plus className="size-4 mr-2" />
               Create Group
@@ -339,8 +339,8 @@ export function GroupsPage() {
                   >
                     <TableCell>
                       <div className="flex items-center gap-3">
-                        <div className="rounded-lg bg-emerald-50 p-2 dark:bg-emerald-950/50">
-                          <Users className="size-4 text-emerald-600 dark:text-emerald-400" />
+                        <div className="rounded-lg bg-[#F3ECF6] p-2 dark:bg-[#1F0860]">
+                          <Users className="size-4 text-[#4B0A8F] dark:text-[#8A40B0]" />
                         </div>
                         <span className="font-medium text-sm">
                           {group.name}
@@ -352,14 +352,14 @@ export function GroupsPage() {
                       {group.batch.park.name}
                     </TableCell>
                     <TableCell className="text-center">
-                      <span className="inline-flex items-center justify-center rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-400">
+                      <span className="inline-flex items-center justify-center rounded-full bg-[#F3ECF6] px-2.5 py-0.5 text-xs font-medium text-[#4B0A8F] dark:bg-[#1F0860] dark:text-[#8A40B0]">
                         {group._count.participants}
                       </span>
                     </TableCell>
                     <TableCell className="text-center">
                       <Badge
                         variant="outline"
-                        className="text-emerald-700 border-emerald-200 bg-emerald-50 dark:text-emerald-400 dark:border-emerald-800 dark:bg-emerald-950/50"
+                        className="text-[#4B0A8F] border-[#D4B8E3] bg-[#F3ECF6] dark:text-[#8A40B0] dark:border-[#2A0C8F] dark:bg-[#1F0860]"
                       >
                         Active
                       </Badge>
@@ -413,8 +413,8 @@ export function GroupsPage() {
               >
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="rounded-lg bg-emerald-50 p-2 dark:bg-emerald-950/50">
-                      <Users className="size-4 text-emerald-600 dark:text-emerald-400" />
+                    <div className="rounded-lg bg-[#F3ECF6] p-2 dark:bg-[#1F0860]">
+                      <Users className="size-4 text-[#4B0A8F] dark:text-[#8A40B0]" />
                     </div>
                     <div>
                       <p className="font-medium text-sm">{group.name}</p>
@@ -541,7 +541,7 @@ export function GroupsPage() {
               </Button>
               <Button
                 type="submit"
-                className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                className="bg-[#4B0A8F] hover:bg-[#4B0A8FE6] text-white"
                 disabled={createMutation.isPending}
               >
                 {createMutation.isPending ? "Creating..." : "Create Group"}
@@ -601,7 +601,7 @@ export function GroupsPage() {
               </Button>
               <Button
                 type="submit"
-                className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                className="bg-[#4B0A8F] hover:bg-[#4B0A8FE6] text-white"
                 disabled={updateMutation.isPending}
               >
                 {updateMutation.isPending ? "Saving..." : "Save Changes"}

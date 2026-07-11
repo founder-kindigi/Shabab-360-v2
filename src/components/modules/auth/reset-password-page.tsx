@@ -77,11 +77,11 @@ export function ResetPasswordPage() {
 
   if (success) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-emerald-50 via-white to-teal-50 dark:from-emerald-950 dark:via-background dark:to-teal-950">
+      <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-[#F3ECF6] via-[#F3F1F4] to-[#F5E8EF] dark:from-[#150540] dark:via-background dark:to-[#2A1528]">
         <div className="w-full max-w-md text-center">
           <div className="flex flex-col items-center gap-4">
-            <div className="rounded-full bg-emerald-100 p-4 dark:bg-emerald-950">
-              <CheckCircle2 className="size-10 text-emerald-600" />
+            <div className="rounded-full bg-[#F3ECF6] p-4 dark:bg-[#1F0860]">
+              <CheckCircle2 className="size-10 text-[#4B0A8F]" />
             </div>
             <h2 className="text-xl font-bold">Password Updated!</h2>
             <p className="text-sm text-muted-foreground">
@@ -94,11 +94,11 @@ export function ResetPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-emerald-50 via-white to-teal-50 dark:from-emerald-950 dark:via-background dark:to-teal-950">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-[#F3ECF6] via-[#F3F1F4] to-[#F5E8EF] dark:from-[#150540] dark:via-background dark:to-[#2A1528]">
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="flex flex-col items-center mb-8">
-          <div className="flex items-center justify-center size-14 rounded-2xl bg-emerald-600 text-white font-bold text-xl mb-4 shadow-lg shadow-emerald-600/25">
+          <div className="flex items-center justify-center size-14 rounded-2xl bg-gradient-to-br from-[#2A0C8F] via-[#A0006B] to-[#FF0015] text-white font-bold text-xl mb-4 shadow-lg shadow-[#4B0A8F4D]">
             S
           </div>
           <h1 className="text-2xl font-bold text-foreground">Shabab360</h1>
@@ -182,7 +182,7 @@ export function ResetPasswordPage() {
 
               <Button
                 type="submit"
-                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
+                className="w-full bg-gradient-to-br from-[#2A0C8F] via-[#A0006B] to-[#FF0015] hover:opacity-90 text-white"
                 disabled={loading}
               >
                 {loading && <Loader2 className="size-4 animate-spin" />}

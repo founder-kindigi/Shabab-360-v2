@@ -316,7 +316,7 @@ export function BatchesPage() {
           canCreate ? (
             <Button
               onClick={openCreateDialog}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+              className="bg-[#4B0A8F] hover:bg-[#4B0A8FE6] text-white"
             >
               <Plus className="size-4 mr-2" />
               Create Batch
@@ -382,8 +382,8 @@ export function BatchesPage() {
                   >
                     <TableCell>
                       <div className="flex items-center gap-3">
-                        <div className="rounded-lg bg-emerald-50 p-2 dark:bg-emerald-950/50">
-                          <CalendarRange className="size-4 text-emerald-600 dark:text-emerald-400" />
+                        <div className="rounded-lg bg-[#F3ECF6] p-2 dark:bg-[#1F0860]">
+                          <CalendarRange className="size-4 text-[#4B0A8F] dark:text-[#8A40B0]" />
                         </div>
                         <span className="font-medium text-sm">
                           {batch.name}
@@ -399,7 +399,7 @@ export function BatchesPage() {
                       </div>
                     </TableCell>
                     <TableCell className="text-center">
-                      <span className="inline-flex items-center justify-center rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-400">
+                      <span className="inline-flex items-center justify-center rounded-full bg-[#F3ECF6] px-2.5 py-0.5 text-xs font-medium text-[#4B0A8F] dark:bg-[#1F0860] dark:text-[#8A40B0]">
                         {batch._count.groups}
                       </span>
                     </TableCell>
@@ -412,7 +412,7 @@ export function BatchesPage() {
                     <TableCell className="text-center">
                       <Badge
                         variant="outline"
-                        className="text-emerald-700 border-emerald-200 bg-emerald-50 dark:text-emerald-400 dark:border-emerald-800 dark:bg-emerald-950/50"
+                        className="text-[#4B0A8F] border-[#D4B8E3] bg-[#F3ECF6] dark:text-[#8A40B0] dark:border-[#2A0C8F] dark:bg-[#1F0860]"
                       >
                         Active
                       </Badge>
@@ -462,8 +462,8 @@ export function BatchesPage() {
               >
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="rounded-lg bg-emerald-50 p-2 dark:bg-emerald-950/50">
-                      <CalendarRange className="size-4 text-emerald-600 dark:text-emerald-400" />
+                    <div className="rounded-lg bg-[#F3ECF6] p-2 dark:bg-[#1F0860]">
+                      <CalendarRange className="size-4 text-[#4B0A8F] dark:text-[#8A40B0]" />
                     </div>
                     <div>
                       <p className="font-medium text-sm">{batch.name}</p>
@@ -619,7 +619,7 @@ export function BatchesPage() {
               </Button>
               <Button
                 type="submit"
-                className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                className="bg-[#4B0A8F] hover:bg-[#4B0A8FE6] text-white"
                 disabled={createMutation.isPending}
               >
                 {createMutation.isPending ? "Creating..." : "Create Batch"}
@@ -709,7 +709,7 @@ export function BatchesPage() {
               </Button>
               <Button
                 type="submit"
-                className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                className="bg-[#4B0A8F] hover:bg-[#4B0A8FE6] text-white"
                 disabled={updateMutation.isPending}
               >
                 {updateMutation.isPending ? "Saving..." : "Save Changes"}

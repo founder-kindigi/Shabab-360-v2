@@ -1,6 +1,35 @@
 # Shabab360 v2 - Work Log
 
 ---
+Task ID: T2-fix
+Agent: Main
+Task: Fix CSS parsing error — replace all var(--brand-*) in Tailwind arbitrary classes with hex values
+
+Work Log:
+- Created Python bulk-replacement script (fix_brand_vars.py) to process all 27 affected .tsx files in src/components/
+- Replaced 477 instances of var(--brand-*) inside Tailwind arbitrary value classes [var(--brand-X)] with actual hex color values
+- Applied dark mode hex overrides for brand-200 (#D4B8E3→#442A78) and brand-800-a60/a30 (#2A0C8F99→#442A7899, #2A0C8F4D→#442A784D) in dark: prefixed classes
+- Handled alpha variants (e.g., brand-900-a50→#1F086080, brand-violet-a90→#4B0A8FE6) with pre-computed hex+alpha values
+- Baked /N opacity modifiers into hex alpha where needed (e.g., /90→E6, /50→80) and stripped the /N syntax
+- Removed 2 remaining /N opacity modifiers on shadow classes (shadow-[#4B0A8F]/40, hover:shadow-[#A0006B]/50)
+- Verification: 0 remaining var(--brand-*) in [*] Tailwind classes across all .tsx files
+- Verification: 0 remaining /N opacity modifiers
+- ESLint: clean (no errors)
+- Files modified: 27/80 .tsx files in src/components/
+
+---
+Task ID: T5
+Agent: Main
+Task: Apply Shabab360 brand color system to 9 admin CRUD files
+
+Work Log:
+- Replaced ALL emerald/teal green CSS classes with violet/magenta brand CSS custom properties across 9 files:
+  - cities-page.tsx, parks-page.tsx, batches-page.tsx, groups-page.tsx, users-page.tsx
+  - audit-log-page.tsx, admin-attendance-events.tsx, settings-page.tsx, scope-selector.tsx
+- Replacement patterns: bg-emerald-600/700 → bg-[var(--brand-violet)], bg-emerald-50/100 → bg-[var(--brand-surface)], dark:bg-emerald-950 → dark:bg-[var(--brand-900)], text-emerald-* → text-[var(--brand-violet)], dark:text-emerald-* → dark:text-[var(--brand-400)], border-emerald-* → border-[var(--brand-200/800)]
+- No logic/structure/behavior changes — color-only replacements. ESLint clean.
+
+---
 Task ID: 1
 Agent: Main
 Task: Module 1 - Auth & Foundation (Complete)
@@ -489,3 +518,120 @@ Stage Summary:
 3. **People/Staff Directory** (admin-people page) — Complete Module 2 remaining task
 4. **Guardian/Student Portal Enhancement** — Attendance history views, schedule pages
 5. **End-to-end attendance testing** — Test full flow: create event → mark attendance → close event → verify records
+
+---
+Task ID: T3
+Agent: Main
+Task: Apply Shabab360 brand color system to auth pages (replace emerald/teal with violet/magenta/red)
+
+Work Log:
+- Replaced all emerald/teal color references in `login-page.tsx`, `reset-password-page.tsx`, `access-pending-page.tsx`
+- Background gradients: `from-emerald-50 via-white to-teal-50` → `from-[#F3ECF6] via-[#F3F1F4] to-[#F5E8EF]`
+- Dark mode backgrounds: `dark:from-emerald-950 dark:to-teal-950` → `dark:from-[var(--brand-950)] dark:to-[#2A1528]`
+- Blur circle decorations: `bg-emerald-200/30` / `bg-teal-200/30` → `bg-[var(--brand-magenta)]/20`
+- Center blur circle: `bg-emerald-100/20` → `bg-[var(--brand-violet)]/10`
+- Logo square: `bg-gradient-to-br from-emerald-500 to-emerald-700` → `bg-[var(--brand-gradient)]`
+- Logo shadow: `shadow-emerald-600/30` → `shadow-[#4B0A8F]/40`
+- Logo hover shadow: `hover:shadow-emerald-500/50` → `hover:shadow-[#A0006B]/50`
+- Glow effect: `bg-emerald-500/20` → `bg-[var(--brand-magenta)]/20`
+- Shield icon backdrop: `bg-emerald-50 dark:bg-emerald-950/50` → `bg-[var(--brand-surface)] dark:bg-[var(--brand-900)]/50`
+- Shield icon color: `text-emerald-600 dark:text-emerald-400` → `text-[var(--brand-violet)] dark:text-[var(--brand-400)]`
+- Submit button: `bg-gradient-to-r from-emerald-600 to-emerald-500` → `bg-[var(--brand-gradient)] hover:opacity-90`
+- Button shadow: `shadow-emerald-600/20` → `shadow-[#4B0A8F]/30`
+- Forgot password link: `hover:text-emerald-600` → `hover:text-[var(--brand-violet)]`
+- Geometric pattern fill: `%2310b981` → `%234B0A8F`
+- Reset password success icon: `bg-emerald-100 text-emerald-600` → `bg-[var(--brand-surface)] text-[var(--brand-violet)]`
+- Reset password button: `bg-emerald-600 hover:bg-emerald-700` → `bg-[var(--brand-gradient)] hover:opacity-90`
+- Access pending logo: `bg-emerald-600 shadow-emerald-600/25` → `bg-[var(--brand-gradient)] shadow-[#4B0A8F]/30`
+- Verified zero remaining emerald/teal references across all auth files
+- Lint passed with no errors
+
+6. **Shabab360 Brand Color Migration (T6)** — Replaced all emerald/teal green with violet/magenta brand colors across 5 files:
+   - `park-attendance-page.tsx` — Event cards, progress bars, create event button, filter chips, status indicators, badges
+   - `attendance-roster.tsx` — Present status button (violet), summary bar present count, event info header badge, unmarked filter button
+   - `offline-queue-panel.tsx` — Pending count badge, sync icon color
+   - `notification-bell.tsx` — CREATE action icon, "View All" link, loading spinner
+   - `keyboard-shortcuts-dialog.tsx` — Keyboard icon container background and icon color
+   - Used CSS custom properties: `--brand-violet`, `--brand-magenta`, `--brand-surface`, `--brand-400`, `--brand-900`, `--brand-200`, `--brand-800`
+   - Kept attendance status colors distinct: Present=violet, Absent=red, Late=amber, Excused=sky
+   - Zero logic/structure changes — color-only replacements verified via grep (0 remaining emerald/teal references)
+
+---
+Task ID: T2
+Agent: Main
+Task: Apply Shabab360 brand color system to all shared layout components (violet/magenta/red)
+
+Work Log:
+- Read and analyzed all 9 target files for emerald/sky/violet color references
+- Updated `sidebar.tsx` (11 color replacements):
+  - Logo square: `bg-emerald-600` → `bg-[var(--brand-gradient)]`
+  - Active nav item: `bg-emerald-50 text-emerald-700` → `bg-[var(--brand-surface)] text-[var(--brand-violet)]`
+  - Active icon: `text-emerald-600` → `text-[var(--brand-violet)]`
+  - Active indicator bar: `bg-emerald-600` → `bg-[var(--brand-magenta)]`
+  - Focus ring: `focus-visible:ring-emerald-500` → `focus-visible:ring-[var(--brand-magenta)]`
+  - Role badges: `bg-emerald-100 text-emerald-700` → `bg-[var(--brand-surface)] text-[var(--brand-violet)]`
+  - Mobile sidebar: same pattern applied to all matching elements
+  - Sign out hover kept red (unchanged)
+- Updated `data-card.tsx` (3 variant color replacements):
+  - `emerald` variant: gradient → `bg-[var(--brand-gradient)]`, shadow → `shadow-[#4B0A8F]/30`, accent → `border-l-[var(--brand-magenta)]`
+  - `sky` variant: gradient → `from-[var(--brand-magenta)] to-[#E0002A]` (brand rose), accent → `border-l-[var(--brand-magenta)]`
+  - `violet` variant: gradient → `from-[#2A0C8F] to-[#4B0A8F]` (brand violet dark), accent → `border-l-[var(--brand-magenta)]`
+  - `amber`, `rose`, `slate` variants kept as-is
+- Updated `empty-state.tsx` (4 color replacements):
+  - Phase 1 badge: emerald → `bg-[var(--brand-surface)] text-[var(--brand-violet)]`
+  - Phase 2 badge: sky → `bg-[var(--brand-surface-rose)] text-[var(--brand-magenta)]`
+  - Phase 4 badge: violet → `bg-[var(--brand-100)] text-[var(--brand-violet-dark)]`
+  - Progress segments: `bg-emerald-500` → `bg-[var(--brand-magenta)]`, incomplete → `bg-[var(--brand-surface)]`
+  - Phase 3 (amber) kept as-is
+- Updated `loading-state.tsx` (1 replacement):
+  - Spinner: `text-emerald-600` → `text-[var(--brand-violet)]`
+- `page-header.tsx`: No emerald references found — no changes needed
+- `error-state.tsx`: Uses `text-destructive` (red) — no changes needed
+- `confirm-dialog.tsx`: No emerald references — no changes needed
+- `notification-bell.tsx`: Already had brand colors applied — verified clean
+- `keyboard-shortcuts-dialog.tsx`: Already had brand colors applied — verified clean
+- Lint passes with zero errors
+- All changes are color-only; no logic/structure/props modified
+
+---
+Task ID: T4
+Agent: Main
+Summary: Applied Shabab360 brand color system to ALL 6 dashboard components — replaced emerald/teal green with violet/magenta/red brand colors
+
+## Files Updated (6)
+
+1. **admin-dashboard.tsx** — Greeting banner gradient → `from-[#2A0C8F] via-[#A0006B] to-[#FF0015]`; action/badge create colors → brand surface + violet; quick action "Cities" gradient → brand gradient; city distribution icons/badges/progress bars → brand violet/surface; city progress bar fill → `from-[#4B0A8F] to-[#A0006B]`; activity/staff section icons → brand violet; role colors (park_lead, murabbi) → brand surface + violet; staff role progress bar → brand violet; "All events closed" text → brand violet; Today's Activity icon → brand surface + violet; "Create your first city" link → brand violet
+
+2. **city-head-dashboard.tsx** — Greeting banner gradient → brand gradient; banner text → white/opacity variants; metric card park icons → brand surface + violet; action color for "create" → brand surface + violet; park icon in grid → brand surface + violet; session card borders/badges → brand-200/800
+
+3. **murabbi-dashboard.tsx** — Greeting banner gradient → brand gradient; CTA button gradient → brand gradient; quick action card border/shadow → brand-200/800 + `shadow-[#4B0A8F]`; section title → brand violet; today's rate icon → brand surface + violet; week diff positive badge → brand surface + violet; "Mark Attendance" links → brand violet; Present status pill → brand violet + brand surface; weekly chart "today" label → brand violet
+
+4. **park-dashboard.tsx** — Greeting banner gradient → brand gradient; Next Action card border/title/button → brand violet; "View All" links → brand violet; "Mark" buttons → brand violet; Open badges → brand surface + violet; Present (P:) badges → brand surface + violet; session card borders → brand-200/800
+
+5. **guardian-dashboard.tsx** — Loading spinner → brand violet; card left border → brand violet; icon bg/text → brand surface + violet
+
+6. **student-dashboard.tsx** — Loading spinner → brand violet; card left border → brand violet; icon bg/text → brand surface + violet; state badge → brand violet/surface/200/800/900
+
+## Color Mapping Applied
+- `bg-emerald-50/100` → `bg-[var(--brand-surface)]`
+- `text-emerald-600/700` → `text-[var(--brand-violet)]`
+- `dark:text-emerald-400/500` → `dark:text-[var(--brand-400)]`
+- `bg-emerald-600/700` → `bg-[var(--brand-violet)]`
+- `dark:bg-emerald-950/*` → `dark:bg-[var(--brand-900)]/*`
+- `border-emerald-200/300` → `border-[var(--brand-200)]`
+- `dark:border-emerald-700/800` → `dark:border-[var(--brand-800)]`
+- `shadow-emerald-*` → `shadow-[#4B0A8F]/*`
+- All gradients → `from-[#2A0C8F] via-[#A0006B] to-[#FF0015]`
+- Teal (used interchangeably) → same brand violet/surface mappings
+- Banner text (`text-emerald-100/200`) → `text-white/80`, `text-white/70`, etc.
+
+## Intentionally Kept (Green for ≥80%)
+- Progress bar functions (`progressColor`, `progressTextColor`, `rateColor`, `rateBarColor`, `barColor`) in park, city-head, murabbi
+- Chart legend dot for ≥80%
+- Top performer rate text for ≥80%
+- Attendance progress remains: green ≥80%, amber 50-79%, red <50%
+
+## Notes
+- `DataCard variant="emerald"` props left unchanged (component prop, not CSS class)
+- Lint passes with zero errors
+- All changes are color-only; no logic, data fetching, structure, or animations modified

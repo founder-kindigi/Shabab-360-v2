@@ -73,7 +73,7 @@ const ENTITY_OPTIONS = [
 function getActionBadgeStyle(action: string) {
   switch (action.toUpperCase()) {
     case "CREATE":
-      return "bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-400 dark:border-emerald-800";
+      return "bg-[#F3ECF6] text-[#4B0A8F] border-[#D4B8E3] dark:bg-[#1F0860] dark:text-[#8A40B0] dark:border-[#2A0C8F]";
     case "UPDATE":
       return "bg-sky-100 text-sky-800 border-sky-200 dark:bg-sky-950/50 dark:text-sky-400 dark:border-sky-800";
     case "DELETE":
@@ -117,7 +117,7 @@ function MetadataBlock({ label, value }: { label: string; value: string | null }
         {isLong && (
           <button
             onClick={() => setExpanded(!expanded)}
-            className="inline-flex items-center gap-0.5 text-xs text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300 cursor-pointer"
+            className="inline-flex items-center gap-0.5 text-xs text-[#4B0A8F] hover:text-[#4B0A8FCC] dark:text-[#8A40B0] dark:hover:text-[#8A40B0CC] cursor-pointer"
           >
             {expanded ? (
               <>
@@ -463,7 +463,7 @@ function AuditLogRow({ log }: { log: AuditLogEntry }) {
         {hasDetails ? (
           <button
             onClick={() => setShowDetails(!showDetails)}
-            className="text-xs text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300 cursor-pointer"
+            className="text-xs text-[#4B0A8F] hover:text-[#4B0A8FCC] dark:text-[#8A40B0] dark:hover:text-[#8A40B0CC] cursor-pointer"
           >
             {showDetails ? "Hide details" : "View details"}
           </button>
@@ -509,8 +509,8 @@ function AuditLogCard({ log }: { log: AuditLogEntry }) {
     >
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-3 min-w-0">
-          <div className="rounded-lg bg-emerald-50 p-2 dark:bg-emerald-950/50 shrink-0">
-            <ScrollText className="size-4 text-emerald-600 dark:text-emerald-400" />
+          <div className="rounded-lg bg-[#F3ECF6] p-2 dark:bg-[#1F0860] shrink-0">
+            <ScrollText className="size-4 text-[#4B0A8F] dark:text-[#8A40B0]" />
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
@@ -549,7 +549,7 @@ function AuditLogCard({ log }: { log: AuditLogEntry }) {
       {hasDetails && (
         <button
           onClick={() => setShowDetails(!showDetails)}
-          className="text-xs text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300 cursor-pointer"
+          className="text-xs text-[#4B0A8F] hover:text-[#4B0A8FCC] dark:text-[#8A40B0] dark:hover:text-[#8A40B0CC] cursor-pointer"
         >
           {showDetails ? "Hide details" : "View details"}
         </button>

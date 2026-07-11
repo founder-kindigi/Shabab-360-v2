@@ -133,7 +133,7 @@ function ScopeLevel({
         <SelectTrigger
           className={cn(
             "h-9 min-w-[140px] gap-1.5 pr-7 transition-all duration-200",
-            value && !disabled && "border-emerald-500/50 bg-emerald-50 dark:bg-emerald-950/30",
+            value && !disabled && "border-[#4B0A8F80] bg-[#F3ECF6] dark:bg-[#1F0860]",
             disabled && "opacity-80"
           )}
         >
@@ -145,7 +145,7 @@ function ScopeLevel({
                 {selectedItem.count !== undefined && (
                   <Badge
                     variant="secondary"
-                    className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300 text-[10px] px-1.5 py-0 h-4 font-semibold"
+                    className="bg-[#F3ECF6] text-[#4B0A8F] dark:bg-[#1F0860] dark:text-[#8A40B0] text-[10px] px-1.5 py-0 h-4 font-semibold"
                   >
                     {selectedItem.count}
                   </Badge>

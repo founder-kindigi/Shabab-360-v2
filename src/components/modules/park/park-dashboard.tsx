@@ -238,7 +238,7 @@ function GroupPerformanceCard({
                 No session today
               </Badge>
             ) : group.todayEventStatus === "open" ? (
-              <Badge className="text-[10px] bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400">
+              <Badge className="text-[10px] bg-[#F3ECF6] text-[#4B0A8F] dark:bg-[#1F086080] dark:text-[#8A40B0]">
                 Open
               </Badge>
             ) : (
@@ -282,7 +282,7 @@ function GroupPerformanceCard({
               {/* P/A/L/E badges */}
               <div className="flex items-center gap-1.5 flex-wrap">
                 {group.todayPresent > 0 && (
-                  <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400">
+                  <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-[#F3ECF6] text-[#4B0A8F] dark:bg-[#1F086080] dark:text-[#8A40B0]">
                     P: {group.todayPresent}
                   </span>
                 )}
@@ -489,7 +489,7 @@ export function ParkDashboard() {
       >
         {/* ==================== ENHANCED GREETING BANNER ==================== */}
         <motion.div variants={fadeUp}>
-          <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-5 py-5 text-white shadow-lg">
+          <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-[#2A0C8F] via-[#A0006B] to-[#FF0015] px-5 py-5 text-white shadow-lg">
             {/* Decorative shapes */}
             <div className="absolute -top-6 -right-6 size-28 rounded-full bg-white/10" />
             <div className="absolute top-2 -right-2 size-12 rounded-full bg-white/5" />
@@ -498,20 +498,20 @@ export function ParkDashboard() {
             <div className="absolute top-1/3 -left-6 size-10 rounded-full bg-white/10" />
 
             <div className="relative">
-              <p className="text-emerald-100 text-sm font-medium">
+              <p className="text-white/80 text-sm font-medium">
                 Assalamu Alaikum{userName ? `, ${userName}` : ""}
               </p>
               <h1 className="text-2xl font-bold mt-1">
                 {park?.name || "Your Park"}
               </h1>
               {park?.cityName && (
-                <div className="flex items-center gap-1.5 mt-1.5 text-emerald-200 text-sm">
+                <div className="flex items-center gap-1.5 mt-1.5 text-white/70 text-sm">
                   <MapPin className="size-3.5" />
                   {park.cityName}
                 </div>
               )}
               <div className="flex items-center justify-between mt-2">
-                <p className="text-emerald-200/70 text-xs">{todayDate}</p>
+                <p className="text-white/50 text-xs">{todayDate}</p>
                 {openUncompletedCount > 0 && (
                   <motion.div
                     initial={{ opacity: 0, scale: 0.8 }}
@@ -654,11 +654,11 @@ export function ParkDashboard() {
         {/* ==================== NEXT ACTION CARD ==================== */}
         {nextActionEvent && (
           <motion.div variants={fadeUp}>
-            <Card className="overflow-hidden border-emerald-200 dark:border-emerald-800/50">
+            <Card className="overflow-hidden border-[#D4B8E3] dark:border-[#2A0C8F80]">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="text-xs font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-[#4B0A8F] dark:text-[#8A40B0]">
                       Next Action
                     </p>
                     <p className="text-sm font-bold mt-1 truncate">
@@ -670,7 +670,7 @@ export function ParkDashboard() {
                     </p>
                   </div>
                   <Button
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white shrink-0"
+                    className="bg-[#4B0A8F] hover:bg-[#4B0A8F] text-white shrink-0"
                     onClick={() => {
                       setSelectedEventId(nextActionEvent.id);
                       navigateTo("park-attendance-roster");
@@ -700,7 +700,7 @@ export function ParkDashboard() {
               <Button
                 variant="ghost"
                 size="sm"
-                className="text-xs text-emerald-600 hover:text-emerald-700 dark:text-emerald-400"
+                className="text-xs text-[#4B0A8F] hover:text-[#4B0A8F] dark:text-[#8A40B0]"
                 onClick={() => navigateTo("park-attendance")}
               >
                 View All
@@ -740,7 +740,7 @@ export function ParkDashboard() {
             <Button
               variant="ghost"
               size="sm"
-              className="text-xs text-emerald-600 hover:text-emerald-700 dark:text-emerald-400"
+              className="text-xs text-[#4B0A8F] hover:text-[#4B0A8F] dark:text-[#8A40B0]"
               onClick={() => navigateTo("park-attendance")}
             >
               View All
@@ -771,7 +771,7 @@ export function ParkDashboard() {
                       "transition-shadow hover:shadow-sm",
                       event.isClosed
                         ? "border-border/60"
-                        : "border-emerald-200/60 dark:border-emerald-800/30"
+                        : "border-[#D4B8E399] dark:border-[#2A0C8F4D]"
                     )}
                   >
                     <CardContent className="p-4">
@@ -787,7 +787,7 @@ export function ParkDashboard() {
                                 "text-[10px] shrink-0",
                                 event.isClosed
                                   ? "bg-muted text-muted-foreground"
-                                  : "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400"
+                                  : "bg-[#F3ECF6] text-[#4B0A8F] dark:bg-[#1F086080] dark:text-[#8A40B0]"
                               )}
                             >
                               {event.isClosed ? "Closed" : "Open"}
@@ -828,7 +828,7 @@ export function ParkDashboard() {
                           {!event.isClosed && (
                             <Button
                               size="sm"
-                              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                              className="bg-[#4B0A8F] hover:bg-[#4B0A8F] text-white"
                               onClick={() => {
                                 setSelectedEventId(event.id);
                                 navigateTo("park-attendance-roster");

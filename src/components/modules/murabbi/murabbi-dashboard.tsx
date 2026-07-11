@@ -169,26 +169,26 @@ export function MurabbiDashboard() {
     >
       {/* ─── 1. Gradient Greeting Banner ─────────────────────────── */}
       <motion.div variants={fadeUp}>
-        <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 px-5 py-5 text-white shadow-lg">
+        <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-[#2A0C8F] via-[#A0006B] to-[#FF0015] px-5 py-5 text-white shadow-lg">
           {/* Decorative shapes */}
           <div className="absolute -top-8 -right-8 size-32 rounded-full bg-white/10" />
           <div className="absolute -bottom-6 -right-6 size-20 rounded-full bg-white/5" />
           <div className="absolute top-1/2 -right-12 size-24 rounded-full bg-white/5" />
 
           <div className="relative">
-            <p className="text-emerald-100 text-sm font-medium">
+            <p className="text-white/80 text-sm font-medium">
               Assalamu Alaikum,
             </p>
             <h1 className="text-2xl font-bold mt-1">{user?.name || "Murabbi"}</h1>
 
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-emerald-100 text-sm">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-white/80 text-sm">
               <span className="flex items-center gap-1.5">
                 <Users className="size-3.5" />
                 {data.groupName}
               </span>
               <span>{data.batchName}</span>
             </div>
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1 text-emerald-200/70 text-xs">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1 text-white/50 text-xs">
               <span className="flex items-center gap-1.5">
                 <TreePine className="size-3" />
                 {data.parkName}
@@ -198,7 +198,7 @@ export function MurabbiDashboard() {
                 {data.cityName}
               </span>
             </div>
-            <p className="text-emerald-200/60 text-xs mt-2">{data.todayDate}</p>
+            <p className="text-white/40 text-xs mt-2">{data.todayDate}</p>
           </div>
         </div>
       </motion.div>
@@ -209,14 +209,14 @@ export function MurabbiDashboard() {
           className={cn(
             "overflow-hidden transition-shadow",
             hasOpenEvent
-              ? "border-emerald-300 dark:border-emerald-700/60 shadow-emerald-100 dark:shadow-emerald-950/30"
+              ? "border-[#D4B8E3] dark:border-[#2A0C8F99] shadow-[#4B0A8F1A] dark:shadow-[#4B0A8F33]"
               : "border-border"
           )}
         >
           <CardContent className="p-4">
             <div className="flex items-center justify-between gap-4">
               <div className="min-w-0">
-                <p className="text-xs font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                <p className="text-xs font-semibold uppercase tracking-wider text-[#4B0A8F] dark:text-[#8A40B0]">
                   {data.todayEvent
                     ? data.todayEvent.isClosed
                       ? "Session Completed"
@@ -239,7 +239,7 @@ export function MurabbiDashboard() {
               {data.todayEvent && !data.todayEvent.isClosed ? (
                 <Button
                   onClick={handleMarkAttendance}
-                  className="shrink-0 bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-700 hover:to-teal-600 text-white font-semibold h-11 px-5 text-sm shadow-md"
+                  className="shrink-0 bg-gradient-to-r from-[#2A0C8F] via-[#A0006B] to-[#FF0015] hover:from-[#2A0C8F] hover:to-[#FF0015] text-white font-semibold h-11 px-5 text-sm shadow-md"
                 >
                   {hasOpenEvent && (
                     <motion.span
@@ -295,8 +295,8 @@ export function MurabbiDashboard() {
         <Card className="overflow-hidden">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
-              <div className="flex items-center justify-center size-9 rounded-lg bg-emerald-100 dark:bg-emerald-950/60">
-                <TrendingUp className="size-4.5 text-emerald-600 dark:text-emerald-400" />
+              <div className="flex items-center justify-center size-9 rounded-lg bg-[#F3ECF6] dark:bg-[#1F086099]">
+                <TrendingUp className="size-4.5 text-[#4B0A8F] dark:text-[#8A40B0]" />
               </div>
             </div>
             <p className={cn("text-2xl font-bold mt-3", rateColor(data.todayRate))}>
@@ -318,7 +318,7 @@ export function MurabbiDashboard() {
                   className={cn(
                     "flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full",
                     weekDiff > 0
-                      ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400"
+                      ? "bg-[#F3ECF6] text-[#4B0A8F] dark:bg-[#1F086080] dark:text-[#8A40B0]"
                       : "bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-400"
                   )}
                 >
@@ -349,7 +349,7 @@ export function MurabbiDashboard() {
                   className={cn(
                     "flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full",
                     weekDiff > 0
-                      ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400"
+                      ? "bg-[#F3ECF6] text-[#4B0A8F] dark:bg-[#1F086080] dark:text-[#8A40B0]"
                       : "bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-400"
                   )}
                 >
@@ -382,7 +382,7 @@ export function MurabbiDashboard() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="text-xs text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 h-8"
+                    className="text-xs text-[#4B0A8F] hover:text-[#4B0A8F] dark:text-[#8A40B0] h-8"
                     onClick={handleMarkAttendance}
                   >
                     Mark Attendance
@@ -418,7 +418,7 @@ export function MurabbiDashboard() {
                   icon={CheckCircle2}
                   label="Present"
                   count={data.todayEvent.counts.present}
-                  colorClass="text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40"
+                  colorClass="text-[#4B0A8F] dark:text-[#8A40B0] bg-[#F3ECF6] dark:bg-[#1F086066]"
                 />
                 <StatusPill
                   icon={XCircle}
@@ -488,7 +488,7 @@ export function MurabbiDashboard() {
                     className={cn(
                       "text-[10px] sm:text-xs font-medium",
                       i === data.dailyTrend.length - 1
-                        ? "text-emerald-600 dark:text-emerald-400 font-bold"
+                        ? "text-[#4B0A8F] dark:text-[#8A40B0] font-bold"
                         : "text-muted-foreground"
                     )}
                   >

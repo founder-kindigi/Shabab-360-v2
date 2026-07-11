@@ -115,9 +115,9 @@ const ROLE_LABELS: Record<string, string> = {
 
 const ROLE_COLORS: Record<string, string> = {
   super_admin:
-    "bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-400 dark:border-emerald-800",
+    "bg-[#F3ECF6] text-[#4B0A8F] border-[#D4B8E3] dark:bg-[#1F0860] dark:text-[#8A40B0] dark:border-[#2A0C8F]",
   program_admin:
-    "bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-400 dark:border-emerald-800",
+    "bg-[#F3ECF6] text-[#4B0A8F] border-[#D4B8E3] dark:bg-[#1F0860] dark:text-[#8A40B0] dark:border-[#2A0C8F]",
   city_head:
     "bg-sky-100 text-sky-800 border-sky-200 dark:bg-sky-950/50 dark:text-sky-400 dark:border-sky-800",
   park_admin:
@@ -488,7 +488,7 @@ export function UsersPage() {
         actions={
           <Button
             onClick={openCreateDialog}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white"
+            className="bg-[#4B0A8F] hover:bg-[#4B0A8FE6] text-white"
           >
             <Plus className="size-4 mr-2" />
             Create User
@@ -572,7 +572,7 @@ export function UsersPage() {
                   >
                     <TableCell>
                       <div className="flex items-center gap-3">
-                        <div className="flex items-center justify-center size-9 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400 text-xs font-bold shrink-0">
+                        <div className="flex items-center justify-center size-9 rounded-full bg-[#F3ECF6] dark:bg-[#1F0860] text-[#4B0A8F] dark:text-[#8A40B0] text-xs font-bold shrink-0">
                           {getInitials(user.name, user.email)}
                         </div>
                         <div className="min-w-0">
@@ -650,7 +650,7 @@ export function UsersPage() {
                         variant="outline"
                         className={
                           user.isActive
-                            ? "text-emerald-700 border-emerald-200 bg-emerald-50 dark:text-emerald-400 dark:border-emerald-800 dark:bg-emerald-950/50"
+                            ? "text-[#4B0A8F] border-[#D4B8E3] bg-[#F3ECF6] dark:text-[#8A40B0] dark:border-[#2A0C8F] dark:bg-[#1F0860]"
                             : "text-red-700 border-red-200 bg-red-50 dark:text-red-400 dark:border-red-800 dark:bg-red-950/50"
                         }
                       >
@@ -727,7 +727,7 @@ export function UsersPage() {
               >
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className="flex items-center justify-center size-10 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400 text-sm font-bold shrink-0">
+                    <div className="flex items-center justify-center size-10 rounded-full bg-[#F3ECF6] dark:bg-[#1F0860] text-[#4B0A8F] dark:text-[#8A40B0] text-sm font-bold shrink-0">
                       {getInitials(user.name, user.email)}
                     </div>
                     <div className="min-w-0">
@@ -802,7 +802,7 @@ export function UsersPage() {
                     variant="outline"
                     className={
                       user.isActive
-                        ? "text-emerald-700 border-emerald-200 bg-emerald-50 dark:text-emerald-400 dark:border-emerald-800 dark:bg-emerald-950/50"
+                        ? "text-[#4B0A8F] border-[#D4B8E3] bg-[#F3ECF6] dark:text-[#8A40B0] dark:border-[#2A0C8F] dark:bg-[#1F0860]"
                         : "text-red-700 border-red-200 bg-red-50 dark:text-red-400 dark:border-red-800 dark:bg-red-950/50"
                     }
                   >
@@ -1084,7 +1084,7 @@ export function UsersPage() {
               </Button>
               <Button
                 type="submit"
-                className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                className="bg-[#4B0A8F] hover:bg-[#4B0A8FE6] text-white"
                 disabled={createMutation.isPending}
               >
                 {createMutation.isPending ? "Creating..." : "Create User"}
@@ -1284,7 +1284,7 @@ export function UsersPage() {
               </Button>
               <Button
                 type="submit"
-                className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                className="bg-[#4B0A8F] hover:bg-[#4B0A8FE6] text-white"
                 disabled={updateMutation.isPending}
               >
                 {updateMutation.isPending ? "Saving..." : "Save Changes"}

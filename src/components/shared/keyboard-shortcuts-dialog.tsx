@@ -134,8 +134,8 @@ export function KeyboardShortcutsDialog() {
         >
           <DialogHeader className="px-6 pt-6 pb-0">
             <div className="flex items-center gap-2.5">
-              <div className="flex items-center justify-center size-8 rounded-lg bg-emerald-50 dark:bg-emerald-950/50">
-                <Keyboard className="size-4 text-emerald-600 dark:text-emerald-400" />
+              <div className="flex items-center justify-center size-8 rounded-lg bg-[#F3ECF6] dark:bg-[#1F0860]">
+                <Keyboard className="size-4 text-[#4B0A8F] dark:text-[#8A40B0]" />
               </div>
               <div>
                 <DialogTitle className="text-base">Keyboard Shortcuts</DialogTitle>

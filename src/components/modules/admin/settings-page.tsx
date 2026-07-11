@@ -174,7 +174,7 @@ function ProfileTab() {
               </Button>
               <Button
                 size="sm"
-                className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                className="bg-[#4B0A8F] hover:bg-[#4B0A8FE6] text-white"
                 onClick={handleProfileSave}
                 disabled={updateMutation.isPending}
               >
@@ -257,7 +257,7 @@ function ProfileTab() {
               <div className="col-span-2">
                 <Badge
                   variant="outline"
-                  className="capitalize text-emerald-700 border-emerald-200 bg-emerald-50 dark:text-emerald-400 dark:border-emerald-800 dark:bg-emerald-950/50"
+                  className="capitalize text-[#4B0A8F] border-[#D4B8E3] bg-[#F3ECF6] dark:text-[#8A40B0] dark:border-[#2A0C8F] dark:bg-[#1F0860]"
                 >
                   {sessionUser?.role?.replace(/_/g, " ") || "—"}
                 </Badge>
@@ -329,7 +329,7 @@ function ProfileTab() {
 
           <Button
             type="submit"
-            className="bg-emerald-600 hover:bg-emerald-700 text-white"
+            className="bg-[#4B0A8F] hover:bg-[#4B0A8FE6] text-white"
             disabled={pwdMutation.isPending}
           >
             {pwdMutation.isPending ? (
@@ -377,8 +377,8 @@ function OrganizationTab() {
       {/* Org info */}
       <div className="rounded-xl border bg-card p-6 space-y-4">
         <div className="flex items-center gap-3">
-          <div className="rounded-lg bg-emerald-50 p-2.5 dark:bg-emerald-950/50">
-            <Building2 className="size-5 text-emerald-600 dark:text-emerald-400" />
+          <div className="rounded-lg bg-[#F3ECF6] p-2.5 dark:bg-[#1F0860]">
+            <Building2 className="size-5 text-[#4B0A8F] dark:text-[#8A40B0]" />
           </div>
           <div>
             <h2 className="text-lg font-semibold">Shabab360</h2>
@@ -473,15 +473,15 @@ function PreferencesTab() {
                   onClick={() => setTheme(opt.value)}
                   className={`flex flex-col items-center gap-2 rounded-lg border-2 p-4 transition-all cursor-pointer ${
                     isActive
-                      ? "border-emerald-600 bg-emerald-50 dark:border-emerald-500 dark:bg-emerald-950/30"
+                      ? "border-[#4B0A8F] bg-[#F3ECF6] dark:border-[#4B0A8F] dark:bg-[#1F0860]"
                       : "border-transparent bg-muted/50 hover:bg-muted"
                   }`}
                 >
                   <opt.icon
-                    className={`size-5 ${isActive ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"}`}
+                    className={`size-5 ${isActive ? "text-[#4B0A8F] dark:text-[#8A40B0]" : "text-muted-foreground"}`}
                   />
                   <span
-                    className={`text-xs font-medium ${isActive ? "text-emerald-700 dark:text-emerald-300" : "text-muted-foreground"}`}
+                    className={`text-xs font-medium ${isActive ? "text-[#4B0A8F] dark:text-[#8A40B0]" : "text-muted-foreground"}`}
                   >
                     {opt.label}
                   </span>

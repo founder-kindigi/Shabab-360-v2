@@ -76,7 +76,7 @@ export function OfflineQueuePanel() {
               ) : isOnline ? (
                 <RefreshCw
                   className={cn(
-                    "size-4 text-emerald-600 dark:text-emerald-400 shrink-0",
+                    "size-4 text-[#4B0A8F] dark:text-[#8A40B0] shrink-0",
                     syncing && "animate-spin"
                   )}
                 />
@@ -91,7 +91,7 @@ export function OfflineQueuePanel() {
               {pendingCount > 0 && (
                 <Badge
                   variant="secondary"
-                  className="text-[10px] px-1.5 py-0 bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400"
+                  className="text-[10px] px-1.5 py-0 bg-[#F3ECF6] text-[#4B0A8F] dark:bg-[#1F0860] dark:text-[#8A40B0]"
                 >
                   {pendingCount}
                 </Badge>

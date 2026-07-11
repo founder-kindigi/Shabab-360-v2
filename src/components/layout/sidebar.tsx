@@ -158,9 +158,9 @@ function SidebarNavItem({
       onClick={onClick}
       className={cn(
         "flex items-center gap-3 w-full rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-1",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#A0006B] focus-visible:ring-offset-1",
         isActive
-          ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400 shadow-sm"
+          ? "bg-[#F3ECF6] text-[#4B0A8F] dark:bg-[#1F0860] dark:text-[#8A40B0] shadow-sm"
           : "text-muted-foreground hover:bg-muted/80 hover:text-foreground",
         collapsed && "justify-center px-2"
       )}
@@ -170,7 +170,7 @@ function SidebarNavItem({
         className={cn(
           "flex items-center justify-center shrink-0 transition-colors",
           isActive
-            ? "text-emerald-600 dark:text-emerald-400"
+            ? "text-[#4B0A8F] dark:text-[#8A40B0]"
             : "text-muted-foreground group-hover:text-foreground"
         )}
       >
@@ -180,14 +180,14 @@ function SidebarNavItem({
         <span className="truncate">{item.label}</span>
       )}
       {!collapsed && item.badge && (
-        <span className="ml-auto rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400">
+        <span className="ml-auto rounded-full bg-[#F3ECF6] px-2 py-0.5 text-[10px] font-semibold text-[#4B0A8F] dark:bg-[#1F0860] dark:text-[#8A40B0]">
           {item.badge}
         </span>
       )}
       {isActive && !collapsed && (
         <motion.div
           layoutId="sidebar-active-indicator"
-          className="absolute left-0 w-0.5 h-5 bg-emerald-600 dark:bg-emerald-400 rounded-r-full"
+          className="absolute left-0 w-0.5 h-5 bg-[#A0006B] dark:bg-[#A0006B] rounded-r-full"
           transition={{ type: "spring", stiffness: 350, damping: 30 }}
         />
       )}
@@ -226,7 +226,7 @@ function DesktopSidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
     >
       {/* Header / Brand */}
       <div className="flex items-center gap-3 px-4 h-14 border-b shrink-0">
-        <div className="flex items-center justify-center size-8 rounded-lg bg-emerald-600 text-white font-bold text-sm shrink-0 shadow-sm">
+        <div className="flex items-center justify-center size-8 rounded-lg bg-gradient-to-br from-[#2A0C8F] via-[#A0006B] to-[#FF0015] text-white font-bold text-sm shrink-0 shadow-sm">
           S
         </div>
         <AnimatePresence>
@@ -277,7 +277,7 @@ function DesktopSidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
               <div className="rounded-lg bg-muted/50 px-3 py-2 mb-2">
                 <p className="text-xs font-medium truncate">{user?.name || "User"}</p>
                 <p className="text-[10px] text-muted-foreground truncate">{user?.email}</p>
-                <span className="inline-flex items-center gap-1 mt-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-medium text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400 capitalize">
+                <span className="inline-flex items-center gap-1 mt-1 rounded-full bg-[#F3ECF6] px-2 py-0.5 text-[10px] font-medium text-[#4B0A8F] dark:bg-[#1F086080] dark:text-[#8A40B0] capitalize">
                   {getRoleLabel(user?.role)}
                 </span>
               </div>
@@ -339,7 +339,7 @@ function MobileSidebar({
         {/* Header */}
         <div className="flex items-center justify-between px-4 h-14 border-b">
           <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center size-8 rounded-lg bg-emerald-600 text-white font-bold text-sm shadow-sm">
+            <div className="flex items-center justify-center size-8 rounded-lg bg-gradient-to-br from-[#2A0C8F] via-[#A0006B] to-[#FF0015] text-white font-bold text-sm shadow-sm">
               S
             </div>
             <p className="text-sm font-bold text-foreground">Shabab360</p>
@@ -358,7 +358,7 @@ function MobileSidebar({
         <div className="px-4 py-3 border-b bg-muted/30">
           <p className="text-sm font-medium truncate">{user?.name || "User"}</p>
           <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
-          <span className="inline-flex items-center gap-1 mt-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-medium text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400 capitalize">
+          <span className="inline-flex items-center gap-1 mt-1 rounded-full bg-[#F3ECF6] px-2 py-0.5 text-[10px] font-medium text-[#4B0A8F] dark:bg-[#1F086080] dark:text-[#8A40B0] capitalize">
             {getRoleLabel(user?.role)}
           </span>
         </div>
@@ -379,14 +379,14 @@ function MobileSidebar({
                   className={cn(
                     "flex items-center gap-3 w-full rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200 relative",
                     isActive
-                      ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400 shadow-sm"
+                      ? "bg-[#F3ECF6] text-[#4B0A8F] dark:bg-[#1F0860] dark:text-[#8A40B0] shadow-sm"
                       : "text-muted-foreground hover:bg-muted/80 hover:text-foreground"
                   )}
                 >
                   <Icon className="size-[18px] shrink-0" />
                   <span className="truncate">{item.label}</span>
                   {isActive && (
-                    <div className="absolute left-0 w-0.5 h-5 bg-emerald-600 dark:bg-emerald-400 rounded-r-full" />
+                    <div className="absolute left-0 w-0.5 h-5 bg-[#A0006B] dark:bg-[#A0006B] rounded-r-full" />
                   )}
                 </button>
               );

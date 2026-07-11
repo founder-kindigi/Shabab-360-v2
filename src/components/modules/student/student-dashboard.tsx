@@ -17,7 +17,7 @@ export function StudentDashboard() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600" />
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#4B0A8F]" />
       </div>
     );
   }
@@ -43,17 +43,17 @@ export function StudentDashboard() {
 
       <div className="max-w-lg">
         <Card className="overflow-hidden">
-          <div className="border-l-4 border-emerald-500" />
+          <div className="border-l-4 border-[#4B0A8F]" />
           <CardContent className="p-6 space-y-4">
             <div className="flex items-center gap-4">
-              <div className="rounded-full bg-emerald-100 p-3 dark:bg-emerald-950/50">
-                <GraduationCap className="size-6 text-emerald-600 dark:text-emerald-400" />
+              <div className="rounded-full bg-[#F3ECF6] p-3 dark:bg-[#1F086080]">
+                <GraduationCap className="size-6 text-[#4B0A8F] dark:text-[#8A40B0]" />
               </div>
               <div>
                 <p className="text-lg font-semibold">{p.name}</p>
                 <Badge
                   variant="outline"
-                  className="text-emerald-700 border-emerald-200 bg-emerald-50 dark:text-emerald-400 dark:border-emerald-800 dark:bg-emerald-950/50 capitalize"
+                  className="text-[#4B0A8F] border-[#D4B8E3] bg-[#F3ECF6] dark:text-[#8A40B0] dark:border-[#2A0C8F] dark:bg-[#1F086080] capitalize"
                 >
                   {p.state || "active"}
                 </Badge>

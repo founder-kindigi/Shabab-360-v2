@@ -18,10 +18,10 @@ interface EmptyStateProps {
 }
 
 const phaseLabels: Record<string, { label: string; color: string }> = {
-  "phase-1": { label: "Phase 1 — Foundation", color: "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-400 dark:border-emerald-800" },
-  "phase-2": { label: "Phase 2 — Operations", color: "bg-sky-100 text-sky-700 border-sky-200 dark:bg-sky-950/50 dark:text-sky-400 dark:border-sky-800" },
+  "phase-1": { label: "Phase 1 — Foundation", color: "bg-[#F3ECF6] text-[#4B0A8F] border-[#D4B8E3] dark:bg-[#1F086080] dark:text-[#8A40B0] dark:border-[#2A0C8F]" },
+  "phase-2": { label: "Phase 2 — Operations", color: "bg-[#F5E8EF] text-[#A0006B] border-[#D4B8E3] dark:bg-[#1F086080] dark:text-[#8A40B0] dark:border-[#2A0C8F]" },
   "phase-3": { label: "Phase 3 — Engagement", color: "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950/50 dark:text-amber-400 dark:border-amber-800" },
-  "phase-4": { label: "Phase 4 — Intelligence", color: "bg-violet-100 text-violet-700 border-violet-200 dark:bg-violet-950/50 dark:text-violet-400 dark:border-violet-800" },
+  "phase-4": { label: "Phase 4 — Intelligence", color: "bg-[#E8D8F0] text-[#2A0C8F] border-[#D4B8E3] dark:bg-[#1F086080] dark:text-[#8A40B0] dark:border-[#2A0C8F]" },
 };
 
 export function EmptyState({
@@ -89,10 +89,10 @@ export function EmptyState({
                 transition={{ delay: currentIdx * 0.1 + 0.3 }}
                 className={`h-1.5 rounded-full transition-colors ${
                   isComplete
-                    ? "w-8 bg-emerald-500"
+                    ? "w-8 bg-[#A0006B]"
                     : isCurrent
-                    ? "w-8 bg-emerald-400/50 animate-pulse"
-                    : "w-4 bg-muted"
+                    ? "w-8 bg-[#A0006B80] animate-pulse"
+                    : "w-4 bg-[#F3ECF6]"
                 }`}
               />
             );

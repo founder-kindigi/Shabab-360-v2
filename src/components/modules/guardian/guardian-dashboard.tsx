@@ -16,7 +16,7 @@ export function GuardianDashboard() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600" />
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#4B0A8F]" />
       </div>
     );
   }
@@ -43,11 +43,11 @@ export function GuardianDashboard() {
             const p = child.participant;
             return (
               <Card key={p.id} className="overflow-hidden">
-                <div className="border-l-4 border-emerald-500" />
+                <div className="border-l-4 border-[#4B0A8F]" />
                 <CardContent className="p-4 space-y-3">
                   <div className="flex items-center gap-3">
-                    <div className="rounded-full bg-emerald-100 p-2.5 dark:bg-emerald-950/50">
-                      <GraduationCap className="size-5 text-emerald-600 dark:text-emerald-400" />
+                    <div className="rounded-full bg-[#F3ECF6] p-2.5 dark:bg-[#1F086080]">
+                      <GraduationCap className="size-5 text-[#4B0A8F] dark:text-[#8A40B0]" />
                     </div>
                     <div>
                       <p className="font-medium text-sm">{p.name}</p>

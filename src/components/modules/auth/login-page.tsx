@@ -65,19 +65,19 @@ export function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-emerald-50 via-white to-teal-50 dark:from-emerald-950 dark:via-background dark:to-teal-950 relative overflow-hidden">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-[#F3ECF6] via-[#F3F1F4] to-[#F5E8EF] dark:from-[#150540] dark:via-background dark:to-[#2A1528] relative overflow-hidden">
       {/* Background decorations */}
       <div className="absolute top-0 left-0 w-full h-full pointer-events-none overflow-hidden">
-        <div className="absolute -top-40 -right-40 w-80 h-80 rounded-full bg-emerald-200/30 dark:bg-emerald-800/20 blur-3xl" />
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 rounded-full bg-teal-200/30 dark:bg-teal-800/20 blur-3xl" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-emerald-100/20 dark:bg-emerald-900/10 blur-3xl" />
+        <div className="absolute -top-40 -right-40 w-80 h-80 rounded-full bg-[#A0006B33] dark:bg-[#A0006B1A] blur-3xl" />
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 rounded-full bg-[#A0006B33] dark:bg-[#A0006B1A] blur-3xl" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-[#4B0A8F1A] dark:bg-[#4B0A8F0D] blur-3xl" />
       </div>
 
       {/* Subtle geometric pattern overlay */}
       <div
         className="absolute inset-0 opacity-[0.03] dark:opacity-[0.05] pointer-events-none"
         style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%2310b981' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+          backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%234B0A8F' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
         }}
       />
 
@@ -91,11 +91,11 @@ export function LoginPage() {
             whileHover={{ scale: 1.05 }}
             className="relative cursor-default"
           >
-            <div className="flex items-center justify-center size-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-700 text-white font-bold text-2xl mb-4 shadow-xl shadow-emerald-600/30 transition-shadow duration-300 hover:shadow-emerald-500/50 hover:shadow-2xl">
+            <div className="flex items-center justify-center size-16 rounded-2xl bg-gradient-to-br from-[#2A0C8F] via-[#A0006B] to-[#FF0015] text-white font-bold text-2xl mb-4 shadow-xl shadow-[#4B0A8F] transition-shadow duration-300 hover:shadow-[#A0006B] hover:shadow-2xl">
               S
             </div>
             {/* Glow effect */}
-            <div className="absolute inset-0 rounded-2xl bg-emerald-500/20 blur-xl -z-10 transition-opacity duration-300 group-hover:opacity-100" />
+            <div className="absolute inset-0 rounded-2xl bg-[#A0006B33] blur-xl -z-10 transition-opacity duration-300 group-hover:opacity-100" />
           </motion.div>
           <motion.h1
             initial={{ opacity: 0, y: 10 }}
@@ -128,8 +128,8 @@ export function LoginPage() {
             <Card className="border-0 shadow-xl shadow-black/5 dark:shadow-black/20 ring-1 ring-black/5 dark:ring-white/5 backdrop-blur-sm bg-card/80">
               <CardHeader className="pb-2 pt-6">
                 <div className="flex flex-col items-center text-center">
-                  <div className="rounded-xl bg-emerald-50 dark:bg-emerald-950/50 p-2.5 mb-3">
-                    <Shield className="size-5 text-emerald-600 dark:text-emerald-400" />
+                  <div className="rounded-xl bg-[#F3ECF6] dark:bg-[#1F086080] p-2.5 mb-3">
+                    <Shield className="size-5 text-[#4B0A8F] dark:text-[#8A40B0]" />
                   </div>
                   <h2 className="text-lg font-semibold">Welcome Back</h2>
                   <p className="text-sm text-muted-foreground mt-1">
@@ -205,7 +205,7 @@ export function LoginPage() {
 
                   <Button
                     type="submit"
-                    className="w-full h-11 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-700 hover:to-emerald-600 text-white font-medium shadow-md shadow-emerald-600/20 transition-all duration-200"
+                    className="w-full h-11 bg-gradient-to-br from-[#2A0C8F] via-[#A0006B] to-[#FF0015] hover:opacity-90 text-white font-medium shadow-md shadow-[#4B0A8F4D] transition-all duration-200"
                     disabled={loading}
                   >
                     {loading && <Loader2 className="size-4 animate-spin" />}
@@ -216,7 +216,7 @@ export function LoginPage() {
                     <button
                       type="button"
                       onClick={() => navigateTo("reset-password")}
-                      className="text-xs text-muted-foreground hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
+                      className="text-xs text-muted-foreground hover:text-[#4B0A8F] dark:hover:text-[#8A40B0] transition-colors"
                     >
                       Forgot password?
                     </button>

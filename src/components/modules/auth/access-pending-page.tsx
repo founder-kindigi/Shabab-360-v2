@@ -7,11 +7,11 @@ import { ShieldAlert, LogOut } from "lucide-react";
 
 export function AccessPendingPage() {
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-emerald-50 via-white to-teal-50 dark:from-emerald-950 dark:via-background dark:to-teal-950">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-[#F3ECF6] via-[#F3F1F4] to-[#F5E8EF] dark:from-[#150540] dark:via-background dark:to-[#2A1528]">
       <div className="w-full max-w-md text-center">
         {/* Logo */}
         <div className="flex flex-col items-center mb-8">
-          <div className="flex items-center justify-center size-14 rounded-2xl bg-emerald-600 text-white font-bold text-xl mb-4 shadow-lg shadow-emerald-600/25">
+          <div className="flex items-center justify-center size-14 rounded-2xl bg-gradient-to-br from-[#2A0C8F] via-[#A0006B] to-[#FF0015] text-white font-bold text-xl mb-4 shadow-lg shadow-[#4B0A8F4D]">
             S
           </div>
           <h1 className="text-2xl font-bold text-foreground">Shabab360</h1>

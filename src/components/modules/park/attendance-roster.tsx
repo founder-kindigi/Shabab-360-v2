@@ -97,10 +97,10 @@ const STATUS_CONFIG: Record<
   present: {
     label: "Present",
     letter: "P",
-    bg: "bg-emerald-100 dark:bg-emerald-900/30",
-    text: "text-emerald-700 dark:text-emerald-400",
+    bg: "bg-[#F3ECF6] dark:bg-[#1F0860]",
+    text: "text-[#4B0A8F] dark:text-[#8A40B0]",
     icon: CheckCircle2,
-    iconColor: "text-emerald-600 dark:text-emerald-400",
+    iconColor: "text-[#4B0A8F] dark:text-[#8A40B0]",
   },
   absent: {
     label: "Absent",
@@ -359,7 +359,7 @@ export function AttendanceRoster() {
                 "text-[10px] shrink-0",
                 isClosed
                   ? "bg-muted text-muted-foreground"
-                  : "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400"
+                  : "bg-[#F3ECF6] text-[#4B0A8F] dark:bg-[#1F0860] dark:text-[#8A40B0]"
               )}
             >
               {isClosed ? "Closed" : "Open"}
@@ -429,7 +429,7 @@ export function AttendanceRoster() {
             {
               label: "Present",
               count: summary.present,
-              color: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400",
+              color: "bg-[#F3ECF6] text-[#4B0A8F] dark:bg-[#1F0860] dark:text-[#8A40B0]",
             },
             {
               label: "Late",
@@ -493,7 +493,7 @@ export function AttendanceRoster() {
           onClick={() => setShowUnmarkedOnly(!showUnmarkedOnly)}
           className={cn(
             showUnmarkedOnly &&
-              "bg-emerald-600 hover:bg-emerald-700 text-white"
+              "bg-[#4B0A8F] hover:bg-[#4B0A8FE6] text-white"
           )}
         >
           <Filter className="size-3.5 mr-1.5" />

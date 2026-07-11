@@ -76,7 +76,7 @@ const cardVariants = {
 };
 
 function progressColor(progress: number) {
-  if (progress >= 80) return "bg-emerald-500";
+  if (progress >= 80) return "bg-[#4B0A8F]";
   if (progress >= 50) return "bg-amber-500";
   return "bg-red-500";
 }
@@ -234,7 +234,7 @@ export function ParkAttendancePage() {
         actions={
           <Button
             onClick={() => setCreateOpen(true)}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white"
+            className="bg-[#4B0A8F] hover:bg-[#4B0A8FE6] text-white"
           >
             <Plus className="size-4 mr-2" />
             New Event
@@ -257,7 +257,7 @@ export function ParkAttendancePage() {
             className={cn(
               "px-3.5 py-1.5 rounded-full text-sm font-medium transition-colors",
               filter === f.value
-                ? "bg-emerald-600 text-white shadow-sm"
+                ? "bg-[#4B0A8F] text-white shadow-sm"
                 : "bg-muted text-muted-foreground hover:bg-muted/80"
             )}
           >
@@ -265,7 +265,7 @@ export function ParkAttendancePage() {
             <span
               className={cn(
                 "ml-1 text-xs",
-                filter === f.value ? "text-emerald-100" : "text-muted-foreground/70"
+                filter === f.value ? "text-white/70" : "text-muted-foreground/70"
               )}
             >
               {f.count}
@@ -303,7 +303,7 @@ export function ParkAttendancePage() {
                     "overflow-hidden transition-shadow hover:shadow-md cursor-pointer border",
                     event.isClosed
                       ? "border-border/60"
-                      : "border-emerald-200 dark:border-emerald-800/50"
+                      : "border-[#D4B8E3] dark:border-[#2A0C8F80]"
                   )}
                   onClick={() =>
                     event.isClosed
@@ -318,7 +318,7 @@ export function ParkAttendancePage() {
                         {event.isClosed ? (
                           <Lock className="size-4 text-muted-foreground shrink-0" />
                         ) : (
-                          <Circle className="size-4 text-emerald-500 fill-emerald-500 shrink-0" />
+                          <Circle className="size-4 text-[#4B0A8F] fill-[#4B0A8F] shrink-0" />
                         )}
                         <div className="min-w-0">
                           <p className="text-sm font-semibold truncate">
@@ -335,7 +335,7 @@ export function ParkAttendancePage() {
                           "shrink-0 text-[10px] px-2 py-0",
                           event.isClosed
                             ? "bg-muted text-muted-foreground"
-                            : "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400"
+                            : "bg-[#F3ECF6] text-[#4B0A8F] dark:bg-[#1F0860] dark:text-[#8A40B0]"
                         )}
                       >
                         {event.isClosed ? "Closed" : "Open"}
@@ -352,7 +352,7 @@ export function ParkAttendancePage() {
                           className={cn(
                             "font-semibold",
                             event.progress >= 80
-                              ? "text-emerald-600 dark:text-emerald-400"
+                              ? "text-[#4B0A8F] dark:text-[#8A40B0]"
                               : event.progress >= 50
                               ? "text-amber-600 dark:text-amber-400"
                               : "text-red-600 dark:text-red-400"
@@ -377,7 +377,7 @@ export function ParkAttendancePage() {
                     {/* Breakdown mini badges */}
                     <div className="flex items-center gap-1.5 flex-wrap">
                       {event.presentCount > 0 && (
-                        <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400">
+                        <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-[#F3ECF6] text-[#4B0A8F] dark:bg-[#1F0860] dark:text-[#8A40B0]">
                           P:{event.presentCount}
                         </span>
                       )}
@@ -405,7 +405,7 @@ export function ParkAttendancePage() {
                       className={cn(
                         "w-full mt-1",
                         !event.isClosed &&
-                          "bg-emerald-600 hover:bg-emerald-700 text-white"
+                          "bg-[#4B0A8F] hover:bg-[#4B0A8FE6] text-white"
                       )}
                       onClick={(e) => {
                         e.stopPropagation();
@@ -489,7 +489,7 @@ export function ParkAttendancePage() {
                 !createTitle.trim() ||
                 createMutation.isPending
               }
-              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+              className="bg-[#4B0A8F] hover:bg-[#4B0A8FE6] text-white"
             >
               {createMutation.isPending ? (
                 <>

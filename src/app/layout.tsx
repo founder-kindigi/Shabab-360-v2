@@ -16,8 +16,11 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Shabab360 - Program Operations",
   description: "Shabab360 Program Operations Platform",
+  other: {
+    "theme-color": "#2A0C8F",
+  },
   icons: {
-    icon: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌿</text></svg>",
+    icon: "/favicon.ico",
   },
 };
 
@@ -27,7 +30,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning style={{ colorScheme: 'light dark' }}>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
       >
