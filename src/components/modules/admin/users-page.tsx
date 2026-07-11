@@ -49,6 +49,7 @@ import {
   Shield,
 } from "lucide-react";
 import type { StaffRole } from "@/types";
+import { useDebounce } from "@/hooks/use-debounce";
 import { OnlineStatus } from "@/components/shared/online-status";
 import {
   SortableDataTable,
@@ -140,6 +141,7 @@ function getInitials(name: string | null, email: string) {
 export function UsersPage() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 300);
   const [roleFilter, setRoleFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [page, setPage] = useState(1);
@@ -170,12 +172,12 @@ export function UsersPage() {
 
   // Fetch users
   const { data, isLoading } = useQuery<{ data: UserWithMeta[]; pagination: Pagination }>({
-    queryKey: ["admin-users", roleFilter, statusFilter, search, page],
+    queryKey: ["admin-users", roleFilter, statusFilter, debouncedSearch, page],
     queryFn: () => {
       const params = new URLSearchParams();
       if (roleFilter !== "all") params.set("role", roleFilter);
       if (statusFilter !== "all") params.set("status", statusFilter);
-      if (search) params.set("search", search);
+      if (debouncedSearch) params.set("search", debouncedSearch);
       params.set("page", String(page));
       params.set("pageSize", "20");
       const qs = params.toString();

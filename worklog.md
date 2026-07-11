@@ -3725,3 +3725,75 @@ Work Log:
 - Files created: 3 (use-onboarding.ts, onboarding-tour.tsx, error-boundary.tsx)
 - Files modified: 6 (app-shell.tsx, sidebar.tsx, command-palette.tsx, notification-bell.tsx, admin-dashboard.tsx, murabbi-dashboard.tsx, guardian-dashboard.tsx, student-dashboard.tsx)
 - ESLint: 0 errors, 0 warnings
+
+---
+Task ID: 22
+Agent: Main
+Task: Final performance optimization, dark mode audit, and UI polish pass
+
+Work Log:
+
+## Part A: Performance Optimization
+
+### 1. Debounce Search Inputs
+- **Audited 4 admin pages** for search debounce usage:
+  - `students-page.tsx`: ✅ Already uses `useDebounce(search, 300)` (line 181)
+  - `guardians-page.tsx`: ✅ Already uses `useDebounce(search, 300)` (line 164) + child search debounced (line 304)
+  - `users-page.tsx`: ❌ **FIXED** — was passing raw `search` state directly into queryKey, causing API call on every keystroke
+    - Added `import { useDebounce } from "@/hooks/use-debounce"`
+    - Added `const debouncedSearch = useDebounce(search, 300)`
+    - Changed queryKey from `search` → `debouncedSearch` and queryFn param from `search` → `debouncedSearch`
+  - `people-page.tsx`: ✅ Already uses `useDebounce(search, 300)` (line 234)
+
+### 2. Query staleTime Audit
+- **Audited all 46 files** using `useQuery` for staleTime configuration
+- **Result**: All queries already have appropriate staleTime values:
+  - Dashboard queries: 20-30s (admin, murabbi, park, guardian, student)
+  - Reference data (cities, parks, batches): 30-60s
+  - User profile: 15s
+  - Attendance-related: 10-15s
+  - Notifications: 15-30s
+- No changes needed
+
+## Part B: Dark Mode Audit
+
+- **Audited 11 components** for dark mode compatibility:
+  1. `avatar-upload.tsx`: ✅ Uses `bg-black/50` and `bg-black/40` overlays — works in both modes
+  2. `document-upload.tsx`: ✅ Uses `border-border`, `bg-card`, has `dark:` variants on hover states
+  3. `bulk-action-toolbar.tsx`: ✅ Has `dark:bg-[#1F0860]`, `dark:border-[#2A0C8F]`, `dark:text-[#8A40B0]` variants
+  4. `heatmap-calendar.tsx`: ✅ Uses `useTheme()` with separate `STATUS_COLORS_LIGHT`/`STATUS_COLORS_DARK`, `fill-muted-foreground` for SVG text
+  5. `gauge-ring.tsx`: ✅ Uses `useTheme()` with `BG_LIGHT`/`BG_DARK` constants, `text-muted-foreground` for label
+  6. `comparison-bars.tsx`: ✅ Uses `text-foreground`, `bg-muted/40 dark:bg-muted/20`, tooltip is self-contained dark overlay
+  7. `stat-card-visual.tsx`: ✅ Uses shadcn `Card`/`CardContent`, `text-foreground`, `text-muted-foreground`, `dark:` variants on trend badges
+  8. `onboarding-tour.tsx`: ✅ Has `bg-white dark:bg-[#0F0520]`, `dark:border-[#2A0C8F]`, `dark:text-[#8A40B0]`, `dark:ring-offset-background`
+  9. `waterfall-chart.tsx`: ✅ Uses `stroke-border/60`, `fill-muted-foreground`, tooltip is self-contained dark overlay
+  10. `welcome-widget.tsx`: ✅ Uses `bg-card`, `dark:bg-[#1F086080]`, `dark:text-[#8A40B0]`, `dark:bg-[#D4B8E3]`
+  11. `notifications-page.tsx`: ✅ Uses shadcn `Card`, all badges have `dark:bg-*`/`dark:text-*` variants
+- **No dark mode fixes needed** — all components are already properly themed
+
+## Part C: Accessibility Improvements
+
+### 4. Aria Labels
+- **app-shell.tsx**: ✅ Hamburger button has `sr-only` label, language toggle has `sr-only` label
+- **notification-bell.tsx**: ❌ **FIXED** — Sound toggle button (Volume2/VolumeX) had only `title` attribute, replaced with `aria-label`
+- **bottom-nav.tsx**: ✅ All nav items have `aria-label` and `aria-current={isActive ? "page" : undefined}`
+- **sidebar.tsx**: ❌ **FIXED** — Mobile sidebar close button (X icon) was missing `aria-label`, added `aria-label="Close sidebar"`
+
+### 5. Focus Management
+- **onboarding-tour.tsx**: ✅ Has `aria-modal="true"`, `role="dialog"`, `aria-label="Onboarding tour"`
+- **command-palette.tsx**: ✅ Has `role="dialog"`, `aria-modal="true"`, `aria-label="Command palette"`, focus managed by cmdk library
+- **keyboard-shortcuts-dialog.tsx**: ✅ Uses shadcn Dialog (built-in focus trap)
+- **confirm-dialog.tsx**: ✅ Uses shadcn AlertDialog (built-in focus trap)
+- All other dialogs use shadcn Dialog/AlertDialog components with built-in focus management
+
+## Part D: Loading State Consistency
+
+- **murabbi-groups-page.tsx**: ✅ Has `GroupsLoadingSkeleton` component with stats + table skeletons, shown when `isLoading`
+- **park-schedule-page.tsx**: ✅ Has Skeleton-based loading UI for mobile cards and desktop table when `isLoading`
+- **guardian-history-page.tsx**: ✅ Has `dashLoading` skeleton for stats grid and `historyLoading` skeleton for history table, uses "—" placeholders during loading
+- **ShimmerSkeleton component**: Exists at `src/components/shared/shimmer-skeleton.tsx` (available for use)
+- All 46 pages with `useQuery` were verified — all handle `isLoading` state appropriately
+
+## Summary
+- Files modified: 3 (`users-page.tsx`, `notification-bell.tsx`, `sidebar.tsx`)
+- ESLint: 0 errors, 0 warnings

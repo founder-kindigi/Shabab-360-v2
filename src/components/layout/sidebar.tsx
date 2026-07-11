@@ -437,6 +437,7 @@ function MobileSidebar({
             size="icon"
             className="size-8"
             onClick={() => onOpenChange(false)}
+            aria-label="Close sidebar"
           >
             <X className="size-4" />
           </Button>

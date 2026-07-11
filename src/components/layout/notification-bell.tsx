@@ -352,7 +352,7 @@ export function NotificationBell() {
                   <button
                     onClick={handleToggleSound}
                     className="p-1.5 rounded-md hover:bg-muted/50 transition-colors"
-                    title={soundEnabled ? "Mute notifications" : "Unmute notifications"}
+                    aria-label={soundEnabled ? "Mute notifications" : "Unmute notifications"}
                   >
                     {soundEnabled ? (
                       <Volume2 className="size-3.5 text-muted-foreground" />
