@@ -4,8 +4,27 @@ import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import bcrypt from "bcryptjs";
 
+// CSRF: validate Origin/Referer against configured NEXTAUTH_URL or localhost
+function isAllowedOrigin(origin: string | null, referer: string | null): boolean {
+  const allowed = process.env.NEXTAUTH_URL || "http://localhost:3000";
+  const url = origin || referer;
+  if (!url) return false;
+  try {
+    const parsed = new URL(url);
+    const allowedParsed = new URL(allowed);
+    return parsed.origin === allowedParsed.origin;
+  } catch {
+    return false;
+  }
+}
+
 export async function POST(request: Request) {
   try {
+    // CSRF protection
+    if (!isAllowedOrigin(request.headers.get("origin"), request.headers.get("referer"))) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     const session = await getServerSession(authOptions);
     const user = session?.user;
 
@@ -20,7 +39,14 @@ export async function POST(request: Request) {
       confirmPassword?: string;
     };
 
-    // Validate
+    // Validate required fields
+    if (!currentPassword || typeof currentPassword !== "string") {
+      return NextResponse.json(
+        { error: "Current password is required" },
+        { status: 400 }
+      );
+    }
+
     if (!newPassword || typeof newPassword !== "string") {
       return NextResponse.json(
         { error: "New password is required" },
@@ -42,25 +68,23 @@ export async function POST(request: Request) {
       );
     }
 
-    // If currentPassword is provided (authenticated change), verify it
-    if (currentPassword) {
-      const existingUser = await db.user.findUnique({
-        where: { id: user.id },
-        select: { passwordHash: true },
-      });
-      if (!existingUser) {
-        return NextResponse.json({ error: "User not found" }, { status: 404 });
-      }
-      const valid = await bcrypt.compare(currentPassword, existingUser.passwordHash);
-      if (!valid) {
-        return NextResponse.json(
-          { error: "Current password is incorrect" },
-          { status: 400 }
-        );
-      }
+    // Verify current password
+    const existingUser = await db.user.findUnique({
+      where: { id: user.id },
+      select: { passwordHash: true },
+    });
+    if (!existingUser) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+    const valid = await bcrypt.compare(currentPassword, existingUser.passwordHash);
+    if (!valid) {
+      return NextResponse.json(
+        { error: "Current password is incorrect" },
+        { status: 400 }
+      );
     }
 
-    // Hash and update
+    // Hash new password and increment tokenVersion to invalidate all existing sessions
     const passwordHash = await bcrypt.hash(newPassword, 12);
 
     await db.user.update({
@@ -68,6 +92,7 @@ export async function POST(request: Request) {
       data: {
         passwordHash,
         mustResetPwd: false,
+        tokenVersion: { increment: 1 },
       },
     });
 

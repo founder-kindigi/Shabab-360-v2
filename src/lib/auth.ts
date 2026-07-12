@@ -3,11 +3,35 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import { db } from "@/lib/db";
 import bcrypt from "bcryptjs";
 
+// Simple in-memory rate limiter: email -> { count, resetAt }
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+const MAX_LOGIN_ATTEMPTS = 5;
+const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
+
+function checkRateLimit(email: string): boolean {
+  const now = Date.now();
+  const entry = rateLimitMap.get(email);
+  if (!entry || now > entry.resetAt) {
+    rateLimitMap.set(email, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+    return true;
+  }
+  if (entry.count >= MAX_LOGIN_ATTEMPTS) {
+    return false;
+  }
+  entry.count++;
+  return true;
+}
+
+function resetRateLimit(email: string) {
+  rateLimitMap.delete(email);
+}
+
 // Augment NextAuth types to include custom user properties
 declare module "next-auth" {
   interface User {
     role?: string;
     mustResetPwd?: boolean;
+    tokenVersion?: number;
     assignedCityId?: string | null;
     assignedParkId?: string | null;
     assignedGroupId?: string | null;
@@ -20,6 +44,7 @@ declare module "next-auth" {
       name?: string | null;
       role?: string;
       mustResetPwd?: boolean;
+      tokenVersion?: number;
       assignedCityId?: string | null;
       assignedParkId?: string | null;
       assignedGroupId?: string | null;
@@ -32,6 +57,7 @@ declare module "next-auth/jwt" {
     id?: string;
     role?: string;
     mustResetPwd?: boolean;
+    tokenVersion?: number;
     assignedCityId?: string | null;
     assignedParkId?: string | null;
     assignedGroupId?: string | null;
@@ -52,6 +78,11 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
+        // Rate limiting: check before DB query
+        if (!checkRateLimit(credentials.email)) {
+          return null;
+        }
+
         // Find active user
         const user = await db.user.findUnique({
           where: { email: credentials.email },
@@ -66,6 +97,9 @@ export const authOptions: NextAuthOptions = {
         if (!isValid) {
           return null;
         }
+
+        // Successful login: reset rate limit
+        resetRateLimit(credentials.email);
 
         // Resolve role
         let role: string | null = null;
@@ -110,6 +144,7 @@ export const authOptions: NextAuthOptions = {
           name: user.name || user.email.split("@")[0],
           role,
           mustResetPwd: user.mustResetPwd,
+          tokenVersion: user.tokenVersion,
           assignedCityId,
           assignedParkId,
           assignedGroupId,
@@ -127,10 +162,23 @@ export const authOptions: NextAuthOptions = {
         token.id = user.id;
         token.role = user.role;
         token.mustResetPwd = user.mustResetPwd;
+        token.tokenVersion = user.tokenVersion;
         token.assignedCityId = user.assignedCityId;
         token.assignedParkId = user.assignedParkId;
         token.assignedGroupId = user.assignedGroupId;
       }
+
+      // Check if token version matches DB — invalidate if password was changed
+      if (token.id) {
+        const dbUser = await db.user.findUnique({
+          where: { id: token.id },
+          select: { tokenVersion: true },
+        });
+        if (dbUser && token.tokenVersion !== dbUser.tokenVersion) {
+          return {};
+        }
+      }
+
       return token;
     },
     async session({ session, token }) {
@@ -138,6 +186,7 @@ export const authOptions: NextAuthOptions = {
         session.user.id = token.id!;
         session.user.role = token.role;
         session.user.mustResetPwd = token.mustResetPwd;
+        session.user.tokenVersion = token.tokenVersion;
         session.user.assignedCityId = token.assignedCityId;
         session.user.assignedParkId = token.assignedParkId;
         session.user.assignedGroupId = token.assignedGroupId;
@@ -148,5 +197,5 @@ export const authOptions: NextAuthOptions = {
   pages: {
     signIn: "/",
   },
-  secret: process.env.NEXTAUTH_SECRET || "shabab360-dev-secret-change-in-production",
+  secret: process.env.NEXTAUTH_SECRET,
 };
