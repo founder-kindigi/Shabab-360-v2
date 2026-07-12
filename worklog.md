@@ -1899,3 +1899,30 @@ Stage Summary:
 - Dev server is the recommended way to test in this sandbox (auth works correctly)
 - Production build auth issue is a deployment concern (NextAuth v4 session provider stuck in "loading" state in standalone mode)
 - Both UI fixes are confirmed working
+
+---
+Task ID: T-fix-404-chunks
+Agent: Main
+Task: Fix 404 errors for _next/static/chunks/ in production mode
+
+Work Log:
+- User reported 404 errors for Turbopack-generated chunk files (e.g., 771dedee3f5e1621.js, turbopack-c505b40b593f2e25.js)
+- Root cause: `next build` creates a standalone output in `.next/standalone/`, but the static chunk files from `.next/static/` and `public/` were NOT being copied into the standalone directory
+- The standalone server was running but serving HTML that referenced chunk files that didn't exist on disk
+- Fix 1: Copied static files: `cp -r .next/static .next/standalone/.next/` and `cp -r public .next/standalone/`
+- Fix 2: Updated `package.json` build script to automatically copy static files after every build
+- Switched from dev server to production server (uses ~826MB vs ~2.3GB for dev, stable in 4GB sandbox)
+- Added NEXTAUTH_URL and NEXTAUTH_SECRET to .env for proper production auth
+- Full end-to-end verification via agent-browser:
+  - Login page loads with no 404 errors ✅
+  - Super Admin login works ✅
+  - Dashboard renders correctly ✅
+  - Sidebar: width=256px, minWidth=256px, flexShrink=0 ✅
+  - Cities page: h1="Cities", p="Manage cities in your program" ✅
+  - No console errors ✅
+
+Stage Summary:
+- Production build now serves all static chunks correctly (no 404 errors)
+- Production server uses only ~826MB RAM (stable in 4GB sandbox)
+- All previous UI fixes (sidebar squeeze, page header truncation) verified on production build
+- Build script updated to prevent regression
