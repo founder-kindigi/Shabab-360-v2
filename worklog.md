@@ -1807,3 +1807,37 @@ Stage Summary:
 - Card sizes are consistent across all dashboards: p-5 padding, text-3xl values, size-5 icons, gradient backgrounds
 - Files modified: murabbi-dashboard.tsx, student-dashboard.tsx, guardian-dashboard.tsx
 - No breaking changes - same data, same variants, just unified visual presentation
+
+---
+Task ID: T-pageheader-fix
+Agent: Main
+Task: Fix PageHeader text truncation and button misalignment across all pages
+
+Work Log:
+- Analyzed 3 user-submitted screenshots showing text truncation ("Manage..." instead of full description) and button misalignment on Cities, Parks, and Attendance pages
+- Identified root cause in PageHeader component (src/components/layout/page-header.tsx):
+  - `sm:flex-row sm:items-center` forced vertical centering, misaligning button with multi-line title+description
+  - `min-w-0` on text container allowed it to shrink to 0 width when button took space
+  - `shrink-0` on actions prevented button from shrinking, squeezing text container
+  - `mt-2 sm:mt-0` hack on actions created inconsistent spacing
+- Applied fix to PageHeader component:
+  - Changed `sm:items-center` → `sm:items-start` (top-aligned, cleaner with multi-line descriptions)
+  - Added `flex-1` to text container (takes all remaining space)
+  - Added `gap-3` on outer container (consistent spacing, replaces mt-2 hack)
+  - Added `break-words` to h1 and p (ensures text wraps instead of truncating)
+  - Added `sm:ml-4` on actions div (consistent horizontal gap between text and button)
+  - Removed `mt-2 sm:mt-0` from actions (gap-3 handles all spacing)
+  - Removed `mt-4` from Separator (gap-3 provides sufficient spacing)
+  - Removed unused imports (useEffect, useState, Skeleton, cn)
+- Verified fix via agent-browser on 3 pages:
+  - Cities: "Manage cities in your program" fully visible ✅
+  - Parks: "Manage parks across your cities" fully visible ✅
+  - Attendance: "Mark and manage daily attendance" fully visible ✅
+- VLM visual verification: "Header alignment: Yes. Text truncation: No. Layout: Clean."
+- ESLint: 0 errors
+
+Stage Summary:
+- PageHeader component fixed — affects ALL 12+ pages that use it (Cities, Parks, Batches, Groups, Users, Attendance, Announcements, Reports, Fees, Admissions, Access Provisioning, Audit Log)
+- Root cause: flex layout with center-alignment and min-w-0 causing text squeeze
+- Fix: top-alignment + flex-1 + gap-3 + break-words
+- File modified: src/components/layout/page-header.tsx

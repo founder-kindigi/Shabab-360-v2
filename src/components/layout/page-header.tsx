@@ -1,6 +1,6 @@
 "use client";
 
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAppStore } from "@/stores/useAppStore";
 import { Separator } from "@/components/ui/separator";
@@ -12,9 +12,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Building2, TreePine, CalendarCheck, Users } from "lucide-react";
-import { cn } from "@/lib/utils";
 
 interface PageHeaderProps {
   title: string;
@@ -92,11 +90,11 @@ export function PageHeader({ title, description, actions }: PageHeaderProps) {
   const showBreadcrumb = hasScope && cityName;
 
   return (
-    <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-      <div className="space-y-1 min-w-0">
-        <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
+    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+      <div className="flex-1 min-w-0 space-y-1">
+        <h1 className="text-2xl font-bold tracking-tight break-words">{title}</h1>
         {description && (
-          <p className="text-sm text-muted-foreground">{description}</p>
+          <p className="text-sm text-muted-foreground break-words">{description}</p>
         )}
         {/* Scope breadcrumb trail */}
         {showBreadcrumb && (
@@ -147,8 +145,12 @@ export function PageHeader({ title, description, actions }: PageHeaderProps) {
           </div>
         )}
       </div>
-      {actions && <div className="flex items-center gap-2 mt-2 sm:mt-0 shrink-0">{actions}</div>}
-      <Separator className="mt-4 border-border/50" />
+      {actions && (
+        <div className="flex items-center gap-2 shrink-0 sm:ml-4 pt-1 sm:pt-1.5">
+          {actions}
+        </div>
+      )}
+      <Separator className="border-border/50" />
     </div>
   );
 }
