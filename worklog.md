@@ -1861,3 +1861,41 @@ Stage Summary:
 - Sidebar squeeze issue fixed with double protection: `flex-none` CSS class + `minWidth` inline style
 - The sidebar will now maintain its minimum width (64px collapsed, 256px expanded) regardless of viewport size, flex layout, or animation state
 - File modified: src/components/layout/sidebar.tsx
+
+---
+Task ID: T-sidebar-verify
+Agent: Main
+Task: Verify sidebar squeeze fix and page header fix via agent-browser end-to-end testing
+
+Work Log:
+- Started Next.js dev server (production build had auth issues; dev server works with credentials auth)
+- Agent-browser opened login page, clicked "Super Admin" quick-login button
+- Successfully logged in and landed on admin dashboard
+- **Sidebar Expanded verification**: `getComputedStyle(aside)` returned `{"width":"256px","minWidth":"256px","flexShrink":"0"}` ✅
+- Navigated to Cities page via sidebar
+- **Sidebar on Cities page**: `{"width":"256px","minWidth":"256px","flexShrink":"0"}` ✅
+- **PageHeader on Cities**: h1="Cities", p="Manage cities in your program" ✅
+- **Sidebar Collapsed verification**: Clicked "Collapse" button, `getComputedStyle(aside)` returned `{"width":"64px","minWidth":"64px","flexShrink":"0"}` ✅
+- In collapsed state: only "S" brand logo visible, all nav items show as icon-only buttons
+
+Stage Summary:
+- **Sidebar fix VERIFIED** ✅ — Both expanded (256px) and collapsed (64px) states maintain correct width with `flexShrink: 0`
+- **PageHeader fix VERIFIED** ✅ — "Cities" heading and "Manage cities in your program" description render correctly
+- No vertical text rendering observed — all nav labels display horizontally
+- Screenshots saved: upload/screenshot-dashboard-sidebar.png, upload/screenshot-collapsed-sidebar.png, upload/screenshot-cities-page.png
+
+---
+Task ID: T-server-env-fix
+Agent: Main
+Task: Fix environment and optimize for sandbox memory constraints
+
+Work Log:
+- Added NEXTAUTH_URL=http://localhost:3000 and NEXTAUTH_SECRET to .env for production builds
+- Disabled Prisma query logging (log: []) to reduce memory pressure and log noise in src/lib/db.ts
+- Dev server confirmed working with both fixes; production build has client-side NextAuth session loading issue (separate from UI fixes)
+- Sandbox has ~4GB RAM; dev server uses ~2.3GB which can trigger OOM killer; production server uses ~800MB but has auth issue
+
+Stage Summary:
+- Dev server is the recommended way to test in this sandbox (auth works correctly)
+- Production build auth issue is a deployment concern (NextAuth v4 session provider stuck in "loading" state in standalone mode)
+- Both UI fixes are confirmed working
