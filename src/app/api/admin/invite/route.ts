@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireRole, requireAuth } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
+import { sendInviteEmail } from "@/lib/email-service";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 
@@ -213,6 +214,14 @@ export async function POST(request: NextRequest) {
     entityId: user!.id,
     newValues: { name, email, role, assignedCityId, assignedParkId, assignedGroupId },
   });
+
+  // Queue invite email with credentials (fire-and-forget)
+  const TEMP_PASSWORD = "Shabab@2024";
+  sendInviteEmail(
+    { id: user!.id, email: user!.email, name: user!.name },
+    TEMP_PASSWORD,
+    role
+  ).catch(() => {});
 
   return NextResponse.json(user, { status: 201 });
 }

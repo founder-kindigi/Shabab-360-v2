@@ -46,6 +46,11 @@ import { toast } from "sonner";
 import { useDebounce } from "@/hooks/use-debounce";
 import { formatPKT } from "@/lib/timezone";
 import { ExportButton } from "@/components/shared/export-button";
+import {
+  ImportDialog,
+  GUARDIAN_FIELDS,
+  EXAMPLE_ROWS,
+} from "@/components/shared/import-dialog";
 import { GuardianDetailSheet } from "@/components/modules/admin/guardian-detail-sheet";
 import { ParticipantDetailSheet } from "@/components/modules/admin/participant-detail-sheet";
 import {
@@ -69,6 +74,7 @@ import {
   UserX,
   Send,
   Check,
+  FolderInput,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { BulkActionToolbar, type BulkAction } from "@/components/shared/bulk-action-toolbar";
@@ -187,6 +193,7 @@ export function GuardiansPage() {
 
   // Dialogs
   const [createOpen, setCreateOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [linkChildOpen, setLinkChildOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -581,6 +588,14 @@ export function GuardiansPage() {
             >
               <UserPlus className="size-4 mr-2" />
               Invite Guardian
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setImportOpen(true)}
+              className="border-[#D4B8E3] text-[#4B0A8F] hover:bg-[#F3ECF6] dark:border-[#2A0C8F] dark:text-[#8A40B0] dark:hover:bg-[#1F086080]"
+            >
+              <FolderInput className="size-4 mr-2" />
+              Import
             </Button>
             <ExportButton
               data={guardians.map((g) => ({
@@ -1329,6 +1344,18 @@ export function GuardiansPage() {
         }}
         participantId={childDetailId}
         participantName={childDetailName}
+      />
+
+      <ImportDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        type="guardians"
+        title="Import Guardians"
+        description="Upload a CSV file to bulk import guardians. Each row creates a guardian record."
+        fields={GUARDIAN_FIELDS}
+        exampleRows={EXAMPLE_ROWS.guardians}
+        apiEndpoint="/api/admin/import/guardians"
+        onSuccess={() => queryClient.invalidateQueries({ queryKey: ["admin-guardians"] })}
       />
     </div>
   );

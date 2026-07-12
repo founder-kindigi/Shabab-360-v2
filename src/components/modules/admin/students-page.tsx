@@ -57,6 +57,11 @@ import { formatPKT } from "@/lib/timezone";
 import { useTranslation } from "@/lib/i18n";
 import { ExportButton } from "@/components/shared/export-button";
 import {
+  ImportDialog,
+  PARTICIPANT_FIELDS,
+  EXAMPLE_ROWS,
+} from "@/components/shared/import-dialog";
+import {
   Plus,
   Search,
   MoreHorizontal,
@@ -219,6 +224,7 @@ export function StudentsPage() {
 
   // Dialogs
   const [createOpen, setCreateOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -539,6 +545,14 @@ export function StudentsPage() {
               ]}
               disabled={isLoading}
             />
+            <Button
+              variant="outline"
+              onClick={() => setImportOpen(true)}
+              className="border-[#D4B8E3] text-[#4B0A8F] hover:bg-[#F3ECF6] dark:border-[#2A0C8F] dark:text-[#8A40B0] dark:hover:bg-[#1F086080]"
+            >
+              <FolderInput className="size-4 mr-2" />
+              Import
+            </Button>
             <Button
               onClick={openCreateDialog}
               className="bg-[#4B0A8F] hover:bg-[#4B0A8FE6] text-white"
@@ -1274,6 +1288,18 @@ export function StudentsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <ImportDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        type="participants"
+        title="Import Students"
+        description="Upload a CSV file to bulk import students. Each row creates a participant record."
+        fields={PARTICIPANT_FIELDS}
+        exampleRows={EXAMPLE_ROWS.participants}
+        apiEndpoint="/api/admin/import/participants"
+        onSuccess={() => queryClient.invalidateQueries({ queryKey: ["admin-students"] })}
+      />
     </div>
   );
 }

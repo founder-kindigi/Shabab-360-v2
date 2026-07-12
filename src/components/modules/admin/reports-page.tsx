@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { format, parseISO } from "date-fns";
@@ -21,6 +21,7 @@ import {
 import { BarChart } from "@/components/shared/bar-chart";
 import { DonutChart } from "@/components/shared/donut-chart";
 import { ExportButton } from "@/components/shared/export-button";
+import { registerExportData, clearExportData, useExportRegistry } from "@/lib/export-registry";
 import {
   BarChart3,
   CalendarDays,
@@ -43,6 +44,7 @@ import {
   Clock,
   Target,
   ShieldX,
+  Download,
 } from "lucide-react";
 import {
   Dialog,
@@ -924,6 +926,22 @@ function OverviewContent({ days }: { days: DaysPreset }) {
     queryFn: () => fetch("/api/admin/reports?type=fee-by-park").then((r) => r.json()),
   });
 
+  useEffect(() => {
+    if (data?.dailyRates) {
+      registerExportData({
+        filename: "attendance-overview",
+        columns: [
+          { key: "Date", header: "Date" },
+          { key: "Rate", header: "Attendance Rate (%)" },
+          { key: "Marked", header: "Marked" },
+          { key: "Total", header: "Total" },
+        ],
+        data: data.dailyRates.map((d) => ({ Date: d.date, Rate: d.rate, Marked: d.marked, Total: d.total })),
+      });
+    }
+    return () => { clearExportData(); };
+  }, [data?.dailyRates]);
+
   if (error) return <EmptyState icon={BarChart3} title="Error loading data" description="Could not load attendance overview." />;
   if (isLoading) {
     return (
@@ -1235,6 +1253,21 @@ function FeeCollectionTab() {
     [typeData],
   );
 
+  useEffect(() => {
+    if (monthlyExportData.length > 0) {
+      registerExportData({
+        filename: "fee-collection-monthly",
+        columns: [
+          { key: "Month", header: "Month" },
+          { key: "Collected", header: "Collected (PKR)" },
+          { key: "Transactions", header: "Transactions" },
+        ],
+        data: monthlyExportData as unknown as Record<string, unknown>[],
+      });
+    }
+    return () => { clearExportData(); };
+  }, [monthlyExportData]);
+
   if (isLoading) {
     return (
       <div className="space-y-4">
@@ -1413,6 +1446,20 @@ function RegistrationTab() {
     [data],
   );
 
+  useEffect(() => {
+    if (exportData.length > 0) {
+      registerExportData({
+        filename: "registration-by-city",
+        columns: [
+          { key: "City", header: "City" },
+          { key: "Participants", header: "Participants" },
+        ],
+        data: exportData as unknown as Record<string, unknown>[],
+      });
+    }
+    return () => { clearExportData(); };
+  }, [exportData]);
+
   if (isLoading) {
     return (
       <div className="space-y-4">
@@ -1584,6 +1631,20 @@ function StaffReportTab() {
     [data],
   );
 
+  useEffect(() => {
+    if (exportData.length > 0) {
+      registerExportData({
+        filename: "staff-by-role",
+        columns: [
+          { key: "Role", header: "Role" },
+          { key: "Count", header: "Count" },
+        ],
+        data: exportData as unknown as Record<string, unknown>[],
+      });
+    }
+    return () => { clearExportData(); };
+  }, [exportData]);
+
   if (isLoading) {
     return (
       <div className="space-y-4">
@@ -1731,11 +1792,27 @@ export function ReportsPage() {
     setActiveTab(val as ReportType);
   }, []);
 
+  // Read current tab's export data for the header export button
+  const currentExportData = useExportRegistry();
+
   return (
     <div className="space-y-4">
       <PageHeader
         title="Reports & Analytics"
         description="Comprehensive attendance analytics and organization-wide insights."
+        actions={
+          <ExportButton
+            data={currentExportData?.data ?? []}
+            filename={currentExportData?.filename ?? "report"}
+            columns={currentExportData?.columns ?? []}
+            trigger={
+              <Button variant="outline" size="sm" className="gap-1.5 no-print hover:bg-[#F3ECF6] dark:hover:bg-[#1F086080]">
+                <Download className="size-3.5" />
+                <span className="hidden sm:inline">Export</span>
+              </Button>
+            }
+          />
+        }
       />
 
       <Tabs value={activeTab} onValueChange={handleTabChange}>

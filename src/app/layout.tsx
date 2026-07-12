@@ -17,10 +17,17 @@ export const metadata: Metadata = {
   title: "Shabab360 - Program Operations",
   description: "Shabab360 Program Operations Platform",
   other: {
-    "theme-color": "#2A0C8F",
+    "theme-color": "#4B0A8F",
   },
   icons: {
     icon: "/favicon.ico",
+    apple: "/icons/icon-192.png",
+  },
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Shabab360",
   },
 };
 

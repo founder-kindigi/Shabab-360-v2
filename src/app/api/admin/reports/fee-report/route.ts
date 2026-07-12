@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireRole } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
-import { PKT, toZonedTime, format } from "@/lib/timezone";
+import { PKT, toZonedTime, formatPKT } from "@/lib/timezone";
 import { startOfMonth, subMonths, parseISO, isAfter, isBefore, endOfMonth } from "date-fns";
 
 export async function GET(request: NextRequest) {
@@ -123,8 +123,8 @@ export async function GET(request: NextRequest) {
 
     for (const p of payments) {
       const pDate = toZonedTime(p.createdAt, PKT);
-      const key = format(pDate, "yyyy-MM");
-      const label = format(pDate, "MMM yyyy");
+      const key = formatPKT(pDate, "yyyy-MM");
+      const label = formatPKT(pDate, "MMM yyyy");
 
       const existing = monthMap.get(key) || { month: label, collected: 0, count: 0 };
       existing.collected += Number(p.amount);

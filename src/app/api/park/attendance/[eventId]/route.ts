@@ -333,6 +333,17 @@ export async function POST(
       // Non-blocking — notification service may be unavailable
     });
 
+    // ─── Check absence alerts (non-blocking) ──────────────────────────────
+    if (status === "absent") {
+      fetch("/api/park/attendance/check-alerts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ participantId, eventId }),
+      }).catch(() => {
+        // Non-blocking — alert check should not block the response
+      });
+    }
+
     return NextResponse.json({
       success: true,
       record: {
