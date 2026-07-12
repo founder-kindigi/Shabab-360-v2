@@ -1841,3 +1841,23 @@ Stage Summary:
 - Root cause: flex layout with center-alignment and min-w-0 causing text squeeze
 - Fix: top-alignment + flex-1 + gap-3 + break-words
 - File modified: src/components/layout/page-header.tsx
+
+---
+Task ID: T-sidebar-squeeze-fix
+Agent: Main
+Task: Fix collapsed sidebar being squeezed to ~40-50px causing vertical text display
+
+Work Log:
+- Analyzed user screenshot showing sidebar text ("Cities", "Manage") displayed vertically (one letter per line)
+- VLM confirmed: sidebar width ~40-50px, text rendered vertically, sidebar in expanded state but squeezed
+- Root cause: `overflow-hidden` on the sidebar triggers browser's implicit `min-width: 0` in flexbox, overriding the default `min-width: auto`. Combined with `shrink-0` alone (which only sets `flex-shrink: 0`), the sidebar could still be squeezed below its intended width in certain edge cases (browser resize, animation intermediate states)
+- Fix applied to sidebar.tsx DesktopSidebar:
+  1. Changed `shrink-0` → `flex-none` (sets `flex: 0 0 auto` — no grow, no shrink, auto basis)
+  2. Added `style={{ minWidth: collapsed ? 64 : 256 }}` (inline style with highest specificity ensures sidebar NEVER goes below 64px collapsed / 256px expanded)
+  3. Removed redundant `min-w-[64px]` class (inline style handles both states)
+- ESLint: 0 errors
+
+Stage Summary:
+- Sidebar squeeze issue fixed with double protection: `flex-none` CSS class + `minWidth` inline style
+- The sidebar will now maintain its minimum width (64px collapsed, 256px expanded) regardless of viewport size, flex layout, or animation state
+- File modified: src/components/layout/sidebar.tsx
