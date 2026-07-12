@@ -20,19 +20,22 @@ const DEMO_ACCOUNTS = [
 
 const DEMO_PASSWORD = "password123";
 
-function doQuickLogin(accountEmail: string, setLoading: (v: boolean) => void) {
+function doQuickLogin(accountEmail: string, setLoading: (v: boolean) => void, setError: (v: string) => void, triggerShake: () => void) {
   setLoading(true);
-  const fd = new FormData();
-  fd.append("email", accountEmail);
-  fd.append("password", DEMO_PASSWORD);
-  fetch("/api/auth/callback/credentials", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: fd,
-    redirect: "manual",
-  }).then((r) => r.json()).then((d) => {
-    if (d.url) window.location.href = d.url;
+  setError("");
+  signIn("credentials", {
+    email: accountEmail,
+    password: DEMO_PASSWORD,
+    redirect: false,
+  }).then((result) => {
+    if (result?.error) {
+      setError("Login failed. Please try again.");
+      triggerShake();
+    }
   }).catch(() => {
+    setError("An unexpected error occurred.");
+    triggerShake();
+  }).finally(() => {
     setLoading(false);
   });
 }
@@ -195,7 +198,7 @@ export function LoginPage() {
                         key={account.email}
                         type="button"
                         disabled={loading}
-                        onClick={() => doQuickLogin(account.email, setLoading)}
+                        onClick={() => doQuickLogin(account.email, setLoading, setError, () => setShaking(true))}
                         className="flex items-center gap-3 p-2 rounded-md hover:bg-muted/50 cursor-pointer transition-colors border-l-[3px] text-left disabled:opacity-50 disabled:cursor-not-allowed"
                         style={{ borderLeftColor: account.color }}
                       >
