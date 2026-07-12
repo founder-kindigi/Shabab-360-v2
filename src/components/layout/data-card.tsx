@@ -117,7 +117,7 @@ export function DataCard({
           <div className="absolute -top-4 -right-4 size-16 rounded-full bg-white/10" />
           <div className="absolute -bottom-2 -right-2 size-10 rounded-full bg-white/5" />
 
-          <CardContent className="relative p-0">
+          <CardContent className="relative p-0 flex flex-col justify-between min-h-[104px]">
             <div className="flex items-start justify-between">
               <div className="space-y-3">
                 <p className={cn("text-xs font-semibold uppercase tracking-wider", style.titleColor)}>
@@ -131,8 +131,9 @@ export function DataCard({
                 <Icon className={cn("size-5", style.iconColor)} />
               </div>
             </div>
-            {trend && trendValue && (
-              <div className="mt-3 flex items-center gap-1.5">
+            {/* Always reserve space for trend area to keep card heights consistent */}
+            <div className="mt-3 min-h-[24px] flex items-center">
+              {trend && trendValue && (
                 <motion.span
                   initial={{ opacity: 0, scale: 0.8 }}
                   animate={{ opacity: 1, scale: 1 }}
@@ -149,8 +150,8 @@ export function DataCard({
                   {trend === "neutral" && <Minus className="size-3" />}
                   {trendValue}
                 </motion.span>
-              </div>
-            )}
+              )}
+            </div>
           </CardContent>
         </div>
       </Card>
