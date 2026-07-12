@@ -337,7 +337,7 @@ export function AdminDashboard() {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
         <div className="flex flex-col items-center gap-3">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#4B0A8F]" />
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#4B0A8F] dark:border-[#8A40B0]" />
           <p className="text-sm text-muted-foreground">Loading dashboard...</p>
         </div>
       </div>
@@ -419,7 +419,7 @@ export function AdminDashboard() {
           <motion.div variants={itemVariants} className="lg:col-span-2 rounded-xl border bg-card overflow-hidden">
             <div className="px-6 py-4 border-b bg-muted/20">
               <h3 className="font-semibold flex items-center gap-2 text-sm">
-                <Building2 className="size-4 text-[#4B0A8F]" />
+                <Building2 className="size-4 text-[#4B0A8F] dark:text-[#8A40B0]" />
                 City Distribution
               </h3>
               <p className="text-xs text-muted-foreground mt-0.5">
@@ -497,7 +497,7 @@ export function AdminDashboard() {
                   <p className="text-sm text-muted-foreground">No cities created yet.</p>
                   <Button
                     variant="link"
-                    className="text-[#4B0A8F] mt-1"
+                    className="text-[#4B0A8F] dark:text-[#8A40B0] mt-1"
                     onClick={() => navigateTo("admin-cities")}
                   >
                     Create your first city
@@ -514,7 +514,7 @@ export function AdminDashboard() {
             <Card className="overflow-hidden">
               <CardHeader className="pb-3 bg-muted/20 border-b">
                 <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                  <Activity className="size-4 text-[#4B0A8F]" />
+                  <Activity className="size-4 text-[#4B0A8F] dark:text-[#8A40B0]" />
                   Recent Activity
                   {data.recentActivity?.length > 0 && (
                     <Badge variant="secondary" className="ml-auto text-[10px] h-5 px-1.5">
@@ -551,7 +551,7 @@ export function AdminDashboard() {
               <Card className="overflow-hidden">
                 <CardHeader className="pb-3 bg-muted/20 border-b">
                   <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                    <Users className="size-4 text-[#4B0A8F]" />
+                    <Users className="size-4 text-[#4B0A8F] dark:text-[#8A40B0]" />
                     Staff by Role
                   </CardTitle>
                 </CardHeader>
@@ -620,7 +620,7 @@ export function AdminDashboard() {
           <motion.div variants={itemVariants} className="lg:col-span-2 rounded-xl border bg-card overflow-hidden">
             <div className="px-6 py-4 border-b bg-muted/20">
               <h3 className="font-semibold flex items-center gap-2 text-sm">
-                <TreePine className="size-4 text-[#4B0A8F]" />
+                <TreePine className="size-4 text-[#4B0A8F] dark:text-[#8A40B0]" />
                 Parks in Your City
               </h3>
               <p className="text-xs text-muted-foreground mt-0.5">Batches and groups per park</p>
@@ -665,7 +665,7 @@ export function AdminDashboard() {
             <Card className="overflow-hidden h-full">
               <CardHeader className="pb-3 bg-muted/20 border-b">
                 <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                  <Activity className="size-4 text-[#4B0A8F]" />
+                  <Activity className="size-4 text-[#4B0A8F] dark:text-[#8A40B0]" />
                   Recent Activity
                 </CardTitle>
               </CardHeader>
@@ -735,7 +735,7 @@ export function AdminDashboard() {
                 <p className="text-sm text-muted-foreground">need attention</p>
               </div>
             ) : (
-              <div className="flex items-center gap-2 text-[#4B0A8F]">
+              <div className="flex items-center gap-2 text-[#4B0A8F] dark:text-[#8A40B0]">
                 <CheckCircle2 className="size-5" />
                 <span className="text-sm font-medium">All events closed</span>
               </div>

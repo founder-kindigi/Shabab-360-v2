@@ -201,7 +201,7 @@ function DailyBarChart({ data }: { data: OverviewData["dailyRates"] }) {
     <Card>
       <CardHeader className="pb-3">
         <CardTitle className="text-sm font-semibold flex items-center gap-2">
-          <Activity className="size-4 text-[#A0006B]" />
+          <Activity className="size-4 text-[#A0006B] dark:text-[#C94D99]" />
           Daily Attendance Rate
         </CardTitle>
       </CardHeader>
@@ -262,7 +262,7 @@ function StatusDistribution({ dist }: { dist: OverviewData["statusDistribution"]
     <Card>
       <CardHeader className="pb-3">
         <CardTitle className="text-sm font-semibold flex items-center gap-2">
-          <ClipboardCheck className="size-4 text-[#A0006B]" />
+          <ClipboardCheck className="size-4 text-[#A0006B] dark:text-[#C94D99]" />
           Status Distribution
         </CardTitle>
       </CardHeader>
@@ -304,7 +304,7 @@ function DayOfWeekHeatmap({ data }: { data: OverviewData["dayOfWeekBreakdown"] }
     <Card>
       <CardHeader className="pb-3">
         <CardTitle className="text-sm font-semibold flex items-center gap-2">
-          <Calendar className="size-4 text-[#A0006B]" />
+          <Calendar className="size-4 text-[#A0006B] dark:text-[#C94D99]" />
           Average Rate by Day of Week
         </CardTitle>
       </CardHeader>
@@ -364,7 +364,7 @@ function CityComparisonContent() {
         <Card className="hidden md:block">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-semibold flex items-center gap-2">
-              <Building2 className="size-4 text-[#A0006B]" />
+              <Building2 className="size-4 text-[#A0006B] dark:text-[#C94D99]" />
               City Attendance Rates
             </CardTitle>
           </CardHeader>
@@ -540,7 +540,7 @@ function ParkComparisonContent({ days }: { days: DaysPreset }) {
             <Card className="hidden md:block">
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                  <TreePine className="size-4 text-[#A0006B]" />
+                  <TreePine className="size-4 text-[#A0006B] dark:text-[#C94D99]" />
                   Park Attendance Rates
                 </CardTitle>
               </CardHeader>
@@ -666,7 +666,7 @@ function WeeklyTrendContent() {
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-semibold flex items-center gap-2">
-              <TrendingUp className="size-4 text-[#A0006B]" />
+              <TrendingUp className="size-4 text-[#A0006B] dark:text-[#C94D99]" />
               Weekly Attendance Trend
             </CardTitle>
           </CardHeader>

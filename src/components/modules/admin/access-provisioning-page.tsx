@@ -351,7 +351,7 @@ export function AccessProvisioningPage() {
           <Card className="border-border/60">
             <CardHeader className="pb-4">
               <CardTitle className="text-base font-semibold flex items-center gap-2">
-                <Users className="size-4 text-[#4B0A8F]" />
+                <Users className="size-4 text-[#4B0A8F] dark:text-[#8A40B0]" />
                 Personal Information
               </CardTitle>
               <CardDescription className="text-xs">
@@ -424,7 +424,7 @@ export function AccessProvisioningPage() {
           <Card className="border-border/60">
             <CardHeader className="pb-4">
               <CardTitle className="text-base font-semibold flex items-center gap-2">
-                <Shield className="size-4 text-[#A0006B]" />
+                <Shield className="size-4 text-[#A0006B] dark:text-[#C94D99]" />
                 Role & Assignment
               </CardTitle>
               <CardDescription className="text-xs">

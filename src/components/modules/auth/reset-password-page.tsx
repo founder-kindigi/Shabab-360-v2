@@ -81,7 +81,7 @@ export function ResetPasswordPage() {
         <div className="w-full max-w-md text-center">
           <div className="flex flex-col items-center gap-4">
             <div className="rounded-full bg-[#F3ECF6] p-4 dark:bg-[#1F0860]">
-              <CheckCircle2 className="size-10 text-[#4B0A8F]" />
+              <CheckCircle2 className="size-10 text-[#4B0A8F] dark:text-[#8A40B0]" />
             </div>
             <h2 className="text-xl font-bold">Password Updated!</h2>
             <p className="text-sm text-muted-foreground">

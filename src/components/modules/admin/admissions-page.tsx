@@ -1037,7 +1037,7 @@ export function AdmissionsPage() {
 
                     {/* Score Input for latest scheduled interview */}
                     {detail.interviews?.some((i) => i.status === "scheduled") && (
-                      <Card className="border-[#6B20A0]/20 shadow-none">
+                      <Card className="border-[#6B20A0]/20 dark:border-[#6B20A0]/30 shadow-none">
                         <CardContent className="p-3 space-y-3">
                           <p className="text-xs font-medium text-[#6B20A0] dark:text-[#C08ADF]">Record Interview Scores</p>
                           <div className="grid grid-cols-3 gap-2">

@@ -303,7 +303,7 @@ export function StudentDashboard() {
       {/* ─── 2. Profile Card ────────────────────────────────────── */}
       <motion.div variants={fadeUp}>
         <Card className="overflow-hidden border-[#D4B8E3] dark:border-[#2A0C8F99]">
-          <div className="border-l-4 border-[#4B0A8F]" />
+          <div className="border-l-4 border-[#4B0A8F] dark:border-[#8A40B0]" />
           <CardContent className="p-4 sm:p-5">
             <div className="flex items-start gap-4">
               <div className="rounded-full bg-[#F3ECF6] dark:bg-[#1F086080] p-3 shrink-0">

@@ -318,7 +318,7 @@ export function ParkAttendancePage() {
                         {event.isClosed ? (
                           <Lock className="size-4 text-muted-foreground shrink-0" />
                         ) : (
-                          <Circle className="size-4 text-[#4B0A8F] fill-[#4B0A8F] shrink-0" />
+                          <Circle className="size-4 text-[#4B0A8F] dark:text-[#8A40B0] fill-[#4B0A8F] dark:fill-[#8A40B0] shrink-0" />
                         )}
                         <div className="min-w-0">
                           <p className="text-sm font-semibold truncate">

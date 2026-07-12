@@ -300,7 +300,7 @@ function ParticipantRow({ p, index }: { p: RosterParticipant; index: number }) {
         <div className="text-xs text-muted-foreground">
           {p.guardianName ? (
             <span className="flex items-center gap-1">
-              <ShieldCheck className="size-3 text-[#A0006B]" />
+              <ShieldCheck className="size-3 text-[#A0006B] dark:text-[#C94D99]" />
               {p.guardianName}
             </span>
           ) : (
@@ -358,7 +358,7 @@ function ParticipantCard({ p, index }: { p: RosterParticipant; index: number }) 
         )}
         {p.guardianName && (
           <p className="text-[11px] text-muted-foreground truncate flex items-center gap-1">
-            <ShieldCheck className="size-2.5 text-[#A0006B]" />
+            <ShieldCheck className="size-2.5 text-[#A0006B] dark:text-[#C94D99]" />
             {p.guardianName}
           </p>
         )}

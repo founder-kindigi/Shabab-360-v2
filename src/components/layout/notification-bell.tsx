@@ -177,7 +177,7 @@ export function NotificationBell() {
               <ScrollArea className="max-h-96">
                 {isLoading ? (
                   <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
-                    <div className="size-5 border-2 border-[#4B0A8F] border-t-transparent rounded-full animate-spin mb-2" />
+                    <div className="size-5 border-2 border-[#4B0A8F] dark:border-[#8A40B0] border-t-transparent rounded-full animate-spin mb-2" />
                     <span className="text-xs">Loading...</span>
                   </div>
                 ) : displayed.length === 0 ? (

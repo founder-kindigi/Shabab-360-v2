@@ -8,14 +8,14 @@ import { useAppStore } from "@/stores/useAppStore";
 import { Eye, EyeOff, Shield, Lock, Mail } from "lucide-react";
 
 const DEMO_ACCOUNTS = [
-  { email: "super_admin@shab360.pk", role: "Super Admin", color: "#4B0A8F" },
-  { email: "program_admin@shab360.pk", role: "Program Admin", color: "#A0006B" },
-  { email: "city_head@shab360.pk", role: "City Head", color: "#6B20A0" },
-  { email: "park_admin@shab360.pk", role: "Park Admin", color: "#8A40B0" },
-  { email: "park_lead@shab360.pk", role: "Park Lead", color: "#2A0C8F" },
-  { email: "murabbi@shab360.pk", role: "Murabbi", color: "#E0002A" },
-  { email: "guardian@shab360.pk", role: "Guardian", color: "#6B5A7A" },
-  { email: "student@shab360.pk", role: "Student", color: "#FF0015" },
+  { email: "super_admin@shabab360.pk", role: "Super Admin", color: "#4B0A8F" },
+  { email: "program_admin@shabab360.pk", role: "Program Admin", color: "#A0006B" },
+  { email: "city_head@shabab360.pk", role: "City Head", color: "#6B20A0" },
+  { email: "park_admin@shabab360.pk", role: "Park Admin", color: "#8A40B0" },
+  { email: "park_lead@shabab360.pk", role: "Park Lead", color: "#2A0C8F" },
+  { email: "murabbi@shabab360.pk", role: "Murabbi", color: "#E0002A" },
+  { email: "guardian@shabab360.pk", role: "Guardian", color: "#6B5A7A" },
+  { email: "student@shabab360.pk", role: "Student", color: "#FF0015" },
 ] as const;
 
 const DEMO_PASSWORD = "password123";
@@ -126,7 +126,7 @@ export function LoginPage() {
                       type="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      placeholder="you@shab360.pk"
+                      placeholder="you@shabab360.pk"
                       className="w-full h-11 pl-10 pr-4 rounded-lg border border-input bg-background/50 text-sm focus-visible:ring-[#A0006B]/30 focus-visible:border-[#A0006B] focus-visible:ring-2 focus-visible:ring-offset-1 outline-none transition-colors placeholder:text-muted-foreground"
                     />
                   </div>

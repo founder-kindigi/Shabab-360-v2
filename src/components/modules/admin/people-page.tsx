@@ -95,14 +95,14 @@ const ROLE_LABELS: Record<string, string> = {
 };
 
 const ROLE_COLORS: Record<string, { bg: string; text: string; avatar: string; border: string }> = {
-  super_admin: { bg: "bg-[#4B0A8F]/10", text: "text-[#4B0A8F]", avatar: "bg-[#4B0A8F]", border: "border-[#4B0A8F]/20" },
-  program_admin: { bg: "bg-[#A0006B]/10", text: "text-[#A0006B]", avatar: "bg-[#A0006B]", border: "border-[#A0006B]/20" },
-  city_head: { bg: "bg-[#6B20A0]/10", text: "text-[#6B20A0]", avatar: "bg-[#6B20A0]", border: "border-[#6B20A0]/20" },
-  park_admin: { bg: "bg-[#8A40B0]/10", text: "text-[#8A40B0]", avatar: "bg-[#8A40B0]", border: "border-[#8A40B0]/20" },
-  park_lead: { bg: "bg-[#2A0C8F]/10", text: "text-[#2A0C8F]", avatar: "bg-[#2A0C8F]", border: "border-[#2A0C8F]/20" },
-  murabbi: { bg: "bg-[#E0002A]/10", text: "text-[#E0002A]", avatar: "bg-[#E0002A]", border: "border-[#E0002A]/20" },
-  guardian: { bg: "bg-[#6B5A7A]/10", text: "text-[#6B5A7A]", avatar: "bg-[#6B5A7A]", border: "border-[#6B5A7A]/20" },
-  student: { bg: "bg-[#FF0015]/10", text: "text-[#FF0015]", avatar: "bg-[#FF0015]", border: "border-[#FF0015]/20" },
+  super_admin: { bg: "bg-[#4B0A8F]/10 dark:bg-[#4B0A8F]/20", text: "text-[#4B0A8F] dark:text-[#8A40B0]", avatar: "bg-[#4B0A8F]", border: "border-[#4B0A8F]/20 dark:border-[#8A40B0]/30" },
+  program_admin: { bg: "bg-[#A0006B]/10 dark:bg-[#A0006B]/20", text: "text-[#A0006B] dark:text-[#C94D99]", avatar: "bg-[#A0006B]", border: "border-[#A0006B]/20 dark:border-[#C94D99]/30" },
+  city_head: { bg: "bg-[#6B20A0]/10 dark:bg-[#6B20A0]/20", text: "text-[#6B20A0] dark:text-[#9A68D0]", avatar: "bg-[#6B20A0]", border: "border-[#6B20A0]/20 dark:border-[#9A68D0]/30" },
+  park_admin: { bg: "bg-[#8A40B0]/10 dark:bg-[#8A40B0]/20", text: "text-[#8A40B0] dark:text-[#B580D8]", avatar: "bg-[#8A40B0]", border: "border-[#8A40B0]/20 dark:border-[#B580D8]/30" },
+  park_lead: { bg: "bg-[#2A0C8F]/10 dark:bg-[#2A0C8F]/20", text: "text-[#2A0C8F] dark:text-[#6B3ADF]", avatar: "bg-[#2A0C8F]", border: "border-[#2A0C8F]/20 dark:border-[#6B3ADF]/30" },
+  murabbi: { bg: "bg-[#E0002A]/10 dark:bg-[#E0002A]/20", text: "text-[#E0002A] dark:text-[#FF4466]", avatar: "bg-[#E0002A]", border: "border-[#E0002A]/20 dark:border-[#FF4466]/30" },
+  guardian: { bg: "bg-[#6B5A7A]/10 dark:bg-[#6B5A7A]/20", text: "text-[#6B5A7A] dark:text-[#9A8AAE]", avatar: "bg-[#6B5A7A]", border: "border-[#6B5A7A]/20 dark:border-[#9A8AAE]/30" },
+  student: { bg: "bg-[#FF0015]/10 dark:bg-[#FF0015]/20", text: "text-[#FF0015] dark:text-[#FF6677]", avatar: "bg-[#FF0015]", border: "border-[#FF0015]/20 dark:border-[#FF6677]/30" },
 };
 
 // ─── Helper ──────────────────────────────────────────────────────────────────
@@ -393,7 +393,7 @@ export function PeoplePage() {
                   layout
                 >
                   <Card
-                    className={`overflow-hidden cursor-pointer transition-all duration-200 hover:shadow-md hover:border-[#4B0A8F]/20 ${isInactive ? "opacity-60" : ""}`}
+                    className={`overflow-hidden cursor-pointer transition-all duration-200 hover:shadow-md hover:border-[#4B0A8F]/20 dark:hover:border-[#8A40B0]/30 ${isInactive ? "opacity-60" : ""}`}
                     onClick={() => openDetail(member)}
                   >
                     <CardContent className="p-4 space-y-3">
@@ -443,7 +443,7 @@ export function PeoplePage() {
                         <div className="flex flex-wrap items-center gap-1 text-[11px] text-muted-foreground">
                           {member.staffMeta.assignedCity && (
                             <span className="inline-flex items-center gap-1 bg-muted/60 rounded-md px-1.5 py-0.5">
-                              <MapPin className="size-3 text-[#6B20A0]" />
+                              <MapPin className="size-3 text-[#6B20A0] dark:text-[#9A68D0]" />
                               {member.staffMeta.assignedCity.name}
                             </span>
                           )}
@@ -460,7 +460,7 @@ export function PeoplePage() {
                             <>
                               <span className="text-muted-foreground/50">→</span>
                               <span className="inline-flex items-center gap-1 bg-muted/60 rounded-md px-1.5 py-0.5">
-                                <Users className="size-3 text-[#A0006B]" />
+                                <Users className="size-3 text-[#A0006B] dark:text-[#C94D99]" />
                                 {member.staffMeta.assignedGroup.name}
                               </span>
                             </>
@@ -649,7 +649,7 @@ function StaffDetailSheet({
         <div className="space-y-2">
           {staff.staffMeta.assignedCity && (
             <div className="flex items-center gap-2 text-sm bg-[#F3ECF6] dark:bg-[#1F086080] rounded-lg px-3 py-2">
-              <MapPin className="size-4 text-[#6B20A0] shrink-0" />
+              <MapPin className="size-4 text-[#6B20A0] dark:text-[#9A68D0] shrink-0" />
               <div>
                 <span className="text-[11px] text-muted-foreground block">City</span>
                 <span className="text-foreground font-medium">{staff.staffMeta.assignedCity.name}</span>
@@ -667,7 +667,7 @@ function StaffDetailSheet({
           )}
           {staff.staffMeta.assignedGroup && (
             <div className="flex items-center gap-2 text-sm bg-[#F3ECF6] dark:bg-[#1F086080] rounded-lg px-3 py-2">
-              <Users className="size-4 text-[#A0006B] shrink-0" />
+              <Users className="size-4 text-[#A0006B] dark:text-[#C94D99] shrink-0" />
               <div>
                 <span className="text-[11px] text-muted-foreground block">Group</span>
                 <span className="text-foreground font-medium">{staff.staffMeta.assignedGroup.name}</span>
@@ -708,7 +708,7 @@ function StaffDetailSheet({
             className="justify-start gap-2 text-sm"
             onClick={onEditUser}
           >
-            <Pencil className="size-4 text-[#4B0A8F]" />
+            <Pencil className="size-4 text-[#4B0A8F] dark:text-[#8A40B0]" />
             Edit User
           </Button>
           <Button
@@ -716,7 +716,7 @@ function StaffDetailSheet({
             className="justify-start gap-2 text-sm"
             onClick={onViewAudit}
           >
-            <ScrollText className="size-4 text-[#A0006B]" />
+            <ScrollText className="size-4 text-[#A0006B] dark:text-[#C94D99]" />
             View Audit Log
           </Button>
         </div>

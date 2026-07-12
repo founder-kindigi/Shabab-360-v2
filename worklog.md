@@ -1686,3 +1686,103 @@ Stage Summary:
 - WebSocket error handling & retry mechanism
 - Mobile PWA considerations
 - End-to-end production QA
+
+---
+Task ID: 6
+Agent: Breadcrumb-Builder
+Task: Add breadcrumb navigation to top bar
+
+Work Log:
+- Read worklog.md, useAppStore.ts, app-shell.tsx, sidebar.tsx, and types/index.ts to understand project context
+- Created `src/components/shared/breadcrumb-nav.tsx` — a "use client" component with:
+  - `pageSectionMap`: comprehensive mapping of all 25+ PageIds to their section display name and optional clickable section page
+  - `getDashboardPage()`: resolves the correct dashboard PageId per user role (super_admin/program_admin → admin-dashboard, city_head → city-head-dashboard, park_admin/park_lead → park-dashboard, murabbi → murabbi-dashboard, guardian → guardian-dashboard, student → student-dashboard)
+  - Hides on auth pages (login, reset-password, access-pending) and dashboard pages
+  - Renders 3-tier breadcrumb: Dashboard (clickable) > Section label (decorative) > Current page (non-clickable, bold)
+  - For `park-attendance-roster`, the section "Attendance" is clickable and navigates to `park-attendance`
+  - Uses `text-muted-foreground` for breadcrumb labels, `text-foreground font-medium` for current page
+  - Uses `ChevronRight` icon as separator
+  - Wrapped with `hidden lg:flex` to only show on desktop
+  - Proper `aria-label="Breadcrumb"` and `aria-current="page"` for accessibility
+- Integrated `<BreadcrumbNav />` into `src/components/layout/app-shell.tsx`:
+  - Added import alongside other shared components
+  - Placed between the mobile page title and the desktop spacer in the top bar header
+  - No existing functionality was modified (ThemeToggle, CommandPalette, globals.css, layout.tsx all untouched)
+- Removed unused `UserRole` type import from breadcrumb-nav.tsx
+- ESLint: 0 errors
+
+Stage Summary:
+- Breadcrumb navigation added to the top bar for all non-dashboard, non-auth pages
+- Desktop-only visibility (mobile continues to show page title only)
+- Consistent with the violet/magenta brand color system (uses standard text tokens)
+- All 6 role dashboards correctly resolved as breadcrumb root
+---
+Task ID: 2
+Agent: Light-Mode-Fixer
+Task: Audit and fix light mode styling across all components
+
+Work Log:
+- Read worklog.md to understand project context (Shabab360 brand system, violet/magenta/red hex colors, 27+ pages)
+- Systematically searched all component files for hardcoded brand colors without dark: equivalents
+- Used PCRE2 regex searches to find: text-[#4B0A8F], text-[#A0006B], text-[#6B20A0], text-[#2A0C8F], border-[#...], bg-[#...] without dark: prefixes
+- Fixed 5 instances in admin-dashboard.tsx (section header icons: Building2, Activity, TreePine, Users, "All events closed" text)
+- Fixed loading-state.tsx spinner color
+- Fixed reset-password-page.tsx success icon
+- Fixed access-provisioning-page.tsx (Users and Shield icon colors)
+- Fixed park-attendance-page.tsx open session Circle indicator (text + fill)
+- Fixed park-participants-page.tsx (sort indicator, 2x ShieldCheck icons)
+- Fixed park-roster-page.tsx (2x ShieldCheck guardian icons)
+- Fixed park-guardians-page.tsx (ShieldCheck icon)
+- Fixed reports-page.tsx (6 section header icons: Activity, ClipboardCheck, Calendar, Building2, TreePine, TrendingUp)
+- Fixed people-page.tsx (ROLE_COLORS config with 8 roles: added dark:bg, dark:text, dark:border variants; 6 icon colors in cards/sheet)
+- Fixed students-page.tsx (gender icon colors: User for male/female)
+- Fixed admissions-page.tsx (interview score Card border)
+- Fixed student-dashboard.tsx (profile card left border accent)
+- Fixed notification-bell.tsx (loading spinner border)
+- Added dark hover:border variants to people-page.tsx card hover
+- Added dark:border to admin-dashboard.tsx loading spinner
+- Verified zero remaining hardcoded dark-only text colors (text-[#F0ECF5], text-[#F3F1F4], bg-[#1E1530], bg-[#130C1F], bg-[#1A1030] — none found)
+- Verified all bg-[#4B0A8F] with text-white (buttons, avatars) are fine in both modes
+- Verified gradient banners (from-[#2A0C8F] via-[#A0006B] to-[#FF0015]) with text-white are fine in both modes
+- Verified DataCard gradient backgrounds are fine (self-contained dark bg)
+- ESLint: 0 errors, 0 warnings
+
+Stage Summary:
+- Fixed light mode styling issues across 15 component files
+- Primary pattern: added dark:text-[#8A40B0] / dark:text-[#C94D99] / dark:text-[#9A68D0] / dark:text-[#6B3ADF] equivalents to brand-colored icons and text
+- Secondary pattern: added dark:border-[#8A40B0]/30 / dark:border-[#C94D99] / dark:border-[#6B20A0]/30 to hover states and borders
+- Fixed ROLE_COLORS in people-page.tsx (8 roles now have proper light/dark bg, text, border variants)
+- Files modified: 15 (admin-dashboard, loading-state, reset-password-page, access-provisioning-page, park-attendance-page, park-participants-page, park-roster-page, park-guardians-page, reports-page, people-page, students-page, admissions-page, student-dashboard, notification-bell, admin-dashboard spinner)
+- Files NOT modified (as instructed): globals.css, layout.tsx, app-shell.tsx
+
+---
+Task ID: light-theme-features
+Agent: Main
+Task: Add light/dark theme toggle, command palette, breadcrumbs, and fix light mode styling
+
+Work Log:
+- Added theme toggle button (Sun/Moon icon) to the top bar in app-shell.tsx using next-themes useTheme hook
+- Created command palette component (src/components/shared/command-palette.tsx) with:
+  - Role-aware page listing organized by sections
+  - Fuzzy search via shadcn Command component
+  - Cmd+K keyboard shortcut to toggle
+  - "Current" badge on active page
+  - Keyboard navigation hints in footer
+- Created breadcrumb navigation component (src/components/shared/breadcrumb-nav.tsx) with:
+  - 3-tier hierarchy: Dashboard > Section > Current Page
+  - Role-aware dashboard root
+  - Special case for park-attendance-roster (clickable Attendance section crumb)
+  - Hidden on auth pages and dashboard pages
+  - Desktop only (mobile still shows simple page title)
+- Fixed demo account email domain mismatch: login-page.tsx used shab360.pk but seed data uses shabab360.pk
+- Updated keyboard shortcuts hook to not conflict with command palette's Cmd+K
+- Subagent audited and fixed light mode styling across 15 component files:
+  - Added dark: variants for icons, text colors, borders, and hover states
+  - Fixed admin-dashboard, reports, access-provisioning, loading-state, reset-password, people, students, student-dashboard, notification-bell, park-attendance, park-participants, park-roster, park-guardians pages
+- Verified via agent-browser: login, dashboard, theme toggle, command palette, breadcrumbs, Settings page all working
+
+Stage Summary:
+- 3 new features: Theme toggle in top bar, Command palette (Cmd+K), Breadcrumb navigation
+- Light mode fully working across all components
+- Demo account emails fixed (shabab360.pk)
+- ESLint: 0 errors

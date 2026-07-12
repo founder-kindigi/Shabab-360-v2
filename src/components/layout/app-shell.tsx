@@ -16,7 +16,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Menu, LogOut, User, ChevronDown, Construction, Settings } from "lucide-react";
+import { Menu, LogOut, User, ChevronDown, Construction, Settings, Sun, Moon, Search } from "lucide-react";
+import { useTheme } from "next-themes";
 
 // Page components
 import { AdminDashboard } from "@/components/modules/admin/admin-dashboard";
@@ -56,7 +57,9 @@ import { AdmissionsPage } from "@/components/modules/admin/admissions-page";
 
 // Shared components
 import { ScopeSelector } from "@/components/shared/scope-selector";
+import { BreadcrumbNav } from "@/components/shared/breadcrumb-nav";
 import { KeyboardShortcutsDialog } from "@/components/shared/keyboard-shortcuts-dialog";
+import { CommandPalette } from "@/components/shared/command-palette";
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
 
 // Icons for coming-soon pages
@@ -204,6 +207,32 @@ function PageContent({ pageId }: { pageId: PageId }) {
   }
 }
 
+// ─── Theme Toggle ──────────────────────────────────────────────────
+
+function ThemeToggle() {
+  const { setTheme, resolvedTheme } = useTheme();
+
+  // next-themes returns undefined for resolvedTheme during SSR
+  const isDark = resolvedTheme === "dark";
+
+  return (
+    <Button
+      variant="ghost"
+      size="icon"
+      className="size-9 text-muted-foreground hover:text-foreground transition-colors"
+      onClick={() => setTheme(isDark ? "light" : "dark")}
+      title={isDark ? "Switch to light mode" : "Switch to dark mode"}
+    >
+      {isDark ? (
+        <Sun className="size-[18px]" />
+      ) : (
+        <Moon className="size-[18px]" />
+      )}
+      <span className="sr-only">Toggle theme</span>
+    </Button>
+  );
+}
+
 export function AppShell() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const { currentPage, navigateTo } = useAppStore();
@@ -257,11 +286,28 @@ export function AppShell() {
             {pageTitle}
           </h2>
 
+          {/* Breadcrumb (desktop only) */}
+          <BreadcrumbNav />
+
           {/* Spacer */}
           <div className="flex-1 hidden lg:block" />
 
+          {/* Command palette trigger (desktop) */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="hidden lg:flex size-9 text-muted-foreground"
+            onClick={() => document.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true, bubbles: true }))}
+          >
+            <Search className="size-4" />
+            <span className="sr-only">Search pages</span>
+          </Button>
+
           {/* Notification bell */}
           <NotificationBell />
+
+          {/* Theme toggle */}
+          <ThemeToggle />
 
           {/* User menu */}
           <DropdownMenu>
@@ -313,6 +359,9 @@ export function AppShell() {
 
         {/* Keyboard shortcuts dialog */}
         <KeyboardShortcutsDialog />
+
+        {/* Command palette */}
+        <CommandPalette />
 
         {/* Page content */}
         <main className="flex-1 overflow-y-auto">

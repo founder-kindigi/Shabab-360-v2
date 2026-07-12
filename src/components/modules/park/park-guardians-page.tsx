@@ -313,7 +313,7 @@ function GuardianDetailSheet({
             <div className="min-w-0">
               <SheetTitle className="text-lg truncate">{guardian.name}</SheetTitle>
               <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
-                <ShieldCheck className="size-3 text-[#A0006B]" />
+                <ShieldCheck className="size-3 text-[#A0006B] dark:text-[#C94D99]" />
                 Guardian · {guardian.childrenCount} children
               </div>
             </div>

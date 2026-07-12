@@ -128,16 +128,9 @@ export function useKeyboardShortcuts() {
         return;
       }
 
-      // Ctrl/Cmd + K → Focus search (dispatch event for any search input)
+      // Ctrl/Cmd + K → Open command palette (handled by CommandPalette component)
       if (mod && e.key === "k") {
         e.preventDefault();
-        // Try to find a visible search input on the page
-        const searchInput = document.querySelector<HTMLInputElement>(
-          'input[type="search"], input[placeholder*="Search" i], input[placeholder*="search" i]'
-        );
-        if (searchInput) {
-          searchInput.focus();
-        }
         return;
       }
 

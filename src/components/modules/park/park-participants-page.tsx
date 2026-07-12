@@ -289,7 +289,7 @@ function ParticipantGridCard({
         </div>
         {p.guardianName && (
           <div className="flex items-center gap-1 pt-1 border-t border-border/50">
-            <ShieldCheck className="size-3 text-[#A0006B] shrink-0" />
+            <ShieldCheck className="size-3 text-[#A0006B] dark:text-[#C94D99] shrink-0" />
             <span className="truncate">{p.guardianName}</span>
           </div>
         )}
@@ -402,7 +402,7 @@ function SortableHeader({
         <ArrowUpDown
           className={cn(
             "size-3",
-            isActive ? "text-[#4B0A8F]" : "opacity-30"
+            isActive ? "text-[#4B0A8F] dark:text-[#8A40B0]" : "opacity-30"
           )}
         />
       </div>
@@ -545,7 +545,7 @@ function DetailSheet({
             {participant.guardianName ? (
               <div className="rounded-lg border bg-muted/30 p-3 space-y-2 text-sm">
                 <div className="flex items-center gap-2">
-                  <ShieldCheck className="size-4 text-[#A0006B]" />
+                  <ShieldCheck className="size-4 text-[#A0006B] dark:text-[#C94D99]" />
                   <span className="font-medium">{participant.guardianName}</span>
                 </div>
                 {participant.guardianPhone && (

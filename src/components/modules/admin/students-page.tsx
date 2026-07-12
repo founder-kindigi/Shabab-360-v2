@@ -593,9 +593,9 @@ export function StudentsPage() {
                         </TableCell>
                         <TableCell className="text-sm capitalize">
                           {student.gender === "male" ? (
-                            <User className="size-4 text-[#2A0C8F]" />
+                            <User className="size-4 text-[#2A0C8F] dark:text-[#6B3ADF]" />
                           ) : student.gender === "female" ? (
-                            <User className="size-4 text-[#A0006B]" />
+                            <User className="size-4 text-[#A0006B] dark:text-[#C94D99]" />
                           ) : (
                             "—"
                           )}
