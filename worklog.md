@@ -2159,3 +2159,31 @@ Stage Summary:
 - 6 files created, 5 files modified
 - All notifications are queued in DB (viewable via /api/admin/notifications/queue)
 - 24h deduplication prevents duplicate absence alerts
+
+---
+Task ID: T-complete-remaining-features
+Agent: Main (coordinator) + 4 parallel full-stack-developer agents
+Task: Build all remaining core features and push to GitHub
+
+Work Log:
+- Launched 4 parallel agents to build features simultaneously:
+  - Agent 2-a: PDF/Excel Export system (ExcelJS + file-saver)
+  - Agent 2-b: CSV Data Import system (PapaParse)
+  - Agent 2-c: PWA (manifest, service worker, offline indicator, install prompt)
+  - Agent 2-d: Email notifications, attendance alerts, profile pictures, attendance edit
+
+- Installed dependencies: exceljs, file-saver, papaparse, @types/papaparse, @types/file-saver
+- Pushed Prisma schema (Notification model) to database
+- Fixed 4 lint errors:
+  - app-shell.tsx: Added missing imports for ErrorBoundary, BottomNav, OnboardingTour, useOnboarding
+  - people-page.tsx: Fixed duplicate Card nesting, missing .map() wrapper for card view, missing closing )} for assignment chain conditional, simplified ternaries to fix cascading parse error from remote merge
+  - fee-report/route.ts: Fixed import (format → formatPKT from timezone util)
+- Rebuilt production, copied static files, verified server starts at 866MB
+- Pushed to GitHub: b27541a..0ab66d5
+
+Stage Summary:
+- ALL remaining core features built and pushed to GitHub
+- Production server running at 866MB, HTTP 200
+- New files created: 15+ components, utilities, API routes
+- Total API routes now: 55+ (added import, export, notifications, avatar, attendance edit, fee report, warnings, search)
+- Remaining minor items: mobile-specific bottom nav optimization, push notifications, advanced fee waivers
