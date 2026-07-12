@@ -90,66 +90,68 @@ export function PageHeader({ title, description, actions }: PageHeaderProps) {
   const showBreadcrumb = hasScope && cityName;
 
   return (
-    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-      <div className="flex-1 min-w-0 space-y-1">
-        <h1 className="text-2xl font-bold tracking-tight break-words">{title}</h1>
-        {description && (
-          <p className="text-sm text-muted-foreground break-words">{description}</p>
-        )}
-        {/* Scope breadcrumb trail */}
-        {showBreadcrumb && (
-          <div className="overflow-x-auto scrollbar-none -mx-1 px-1 pt-1">
-            <Breadcrumb>
-              <BreadcrumbList className="flex-nowrap">
-                <BreadcrumbItem>
-                  <BreadcrumbLink className="flex items-center gap-1 text-xs">
-                    <CityIcon />
-                    <span>{cityName}</span>
-                  </BreadcrumbLink>
-                </BreadcrumbItem>
-                {parkName && (
-                  <>
-                    <BreadcrumbSeparator />
-                    <BreadcrumbItem>
-                      <BreadcrumbLink className="flex items-center gap-1 text-xs">
-                        <ParkIcon />
-                        <span>{parkName}</span>
-                      </BreadcrumbLink>
-                    </BreadcrumbItem>
-                  </>
-                )}
-                {batchName && (
-                  <>
-                    <BreadcrumbSeparator />
-                    <BreadcrumbItem>
-                      <BreadcrumbLink className="flex items-center gap-1 text-xs">
-                        <BatchIcon />
-                        <span>{batchName}</span>
-                      </BreadcrumbLink>
-                    </BreadcrumbItem>
-                  </>
-                )}
-                {groupName && (
-                  <>
-                    <BreadcrumbSeparator />
-                    <BreadcrumbItem>
-                      <BreadcrumbPage className="flex items-center gap-1 text-xs">
-                        <GroupIcon />
-                        <span>{groupName}</span>
-                      </BreadcrumbPage>
-                    </BreadcrumbItem>
-                  </>
-                )}
-              </BreadcrumbList>
-            </Breadcrumb>
+    <div className="space-y-3">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+        <div className="flex-1 min-w-0 space-y-1">
+          <h1 className="text-2xl font-bold tracking-tight break-words">{title}</h1>
+          {description && (
+            <p className="text-sm text-muted-foreground break-words">{description}</p>
+          )}
+          {/* Scope breadcrumb trail */}
+          {showBreadcrumb && (
+            <div className="overflow-x-auto scrollbar-none -mx-1 px-1 pt-1">
+              <Breadcrumb>
+                <BreadcrumbList className="flex-nowrap">
+                  <BreadcrumbItem>
+                    <BreadcrumbLink className="flex items-center gap-1 text-xs">
+                      <CityIcon />
+                      <span>{cityName}</span>
+                    </BreadcrumbLink>
+                  </BreadcrumbItem>
+                  {parkName && (
+                    <>
+                      <BreadcrumbSeparator />
+                      <BreadcrumbItem>
+                        <BreadcrumbLink className="flex items-center gap-1 text-xs">
+                          <ParkIcon />
+                          <span>{parkName}</span>
+                        </BreadcrumbLink>
+                      </BreadcrumbItem>
+                    </>
+                  )}
+                  {batchName && (
+                    <>
+                      <BreadcrumbSeparator />
+                      <BreadcrumbItem>
+                        <BreadcrumbLink className="flex items-center gap-1 text-xs">
+                          <BatchIcon />
+                          <span>{batchName}</span>
+                        </BreadcrumbLink>
+                      </BreadcrumbItem>
+                    </>
+                  )}
+                  {groupName && (
+                    <>
+                      <BreadcrumbSeparator />
+                      <BreadcrumbItem>
+                        <BreadcrumbPage className="flex items-center gap-1 text-xs">
+                          <GroupIcon />
+                          <span>{groupName}</span>
+                        </BreadcrumbPage>
+                      </BreadcrumbItem>
+                    </>
+                  )}
+                </BreadcrumbList>
+              </Breadcrumb>
+            </div>
+          )}
+        </div>
+        {actions && (
+          <div className="flex items-center gap-2 shrink-0 sm:ml-4 pt-1 sm:pt-1.5">
+            {actions}
           </div>
         )}
       </div>
-      {actions && (
-        <div className="flex items-center gap-2 shrink-0 sm:ml-4 pt-1 sm:pt-1.5">
-          {actions}
-        </div>
-      )}
       <Separator className="border-border/50" />
     </div>
   );
