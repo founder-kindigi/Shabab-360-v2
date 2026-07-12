@@ -65,7 +65,13 @@ import { ScopeSelector } from "@/components/shared/scope-selector";
 import { BreadcrumbNav } from "@/components/shared/breadcrumb-nav";
 import { KeyboardShortcutsDialog } from "@/components/shared/keyboard-shortcuts-dialog";
 import { CommandPalette } from "@/components/shared/command-palette";
+import { OfflineIndicator } from "@/components/shared/offline-indicator";
+import { InstallPrompt } from "@/components/shared/install-prompt";
+import { ErrorBoundary } from "@/components/shared/error-boundary";
+import { BottomNav } from "@/components/shared/bottom-nav";
+import { OnboardingTour } from "@/components/shared/onboarding-tour";
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
+import { useOnboarding } from "@/hooks/use-onboarding";
 
 // Icons for coming-soon pages
 import {
@@ -368,13 +374,16 @@ export function AppShell() {
 
       {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        {/* Offline indicator banner */}
+        <OfflineIndicator />
+
         {/* Top bar */}
-        <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b bg-card px-4 shrink-0">
+        <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b bg-card px-4 flex-none">
           {/* Mobile hamburger */}
           <Button
             variant="ghost"
             size="icon"
-            className="lg:hidden shrink-0"
+            className="lg:hidden flex-none"
             onClick={() => setMobileOpen(true)}
           >
             <Menu className="size-5" />
@@ -505,6 +514,9 @@ export function AppShell() {
         onComplete={completeTour}
         onSkip={skipTour}
       />
+
+      {/* PWA install prompt */}
+      <InstallPrompt />
     </div>
   );
 }

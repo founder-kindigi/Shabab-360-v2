@@ -767,7 +767,14 @@ export function PeoplePage() {
             </Card>
           </div>
 
-              return (
+          {/* Mobile/Card View */}
+          <div className="lg:hidden grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            <AnimatePresence>
+              {staff.map((member, i) => {
+                const role = member.staffMeta.role;
+                const colors = ROLE_COLORS[role] || ROLE_COLORS.student;
+                const isInactive = !member.isActive || !member.staffMeta.isActive;
+                return (
                 <motion.div
                   key={member.id}
                   custom={i}
@@ -781,10 +788,6 @@ export function PeoplePage() {
                     className={`overflow-hidden cursor-pointer transition-all duration-200 hover:shadow-md hover:border-[#4B0A8F]/20 dark:hover:border-[#8A40B0]/30 ${isInactive ? "opacity-60" : ""}`}
                     onClick={() => openDetail(member)}
                   >
-                    <Card
-                      className={`overflow-hidden cursor-pointer transition-all duration-200 hover:shadow-md hover:border-[#4B0A8F]/20 ${isInactive ? "opacity-60" : ""}`}
-                      onClick={() => openDetail(member)}
-                    >
                       <CardContent className="p-4 space-y-3">
                         {/* Top row: Avatar + Name + Status */}
                         <div className="flex items-start gap-3">
@@ -842,7 +845,7 @@ export function PeoplePage() {
                               <span className="text-muted-foreground/50">→</span>
                               <span className="inline-flex items-center gap-1 bg-muted/60 rounded-md px-1.5 py-0.5">
                                 <MapPin className="size-3 text-[#6B20A0]" />
-                                {member.staffMeta.assignedCity.name}
+                                {member.staffMeta.assignedPark.name}
                               </span>
                             </>
                           )}
@@ -856,6 +859,7 @@ export function PeoplePage() {
                             </>
                           )}
                         </div>
+                      )}
                       </CardContent>
                     </Card>
                   </motion.div>
@@ -1023,7 +1027,7 @@ function StaffDetailSheet({
       <div className="space-y-3">
         <h4 className="text-sm font-semibold text-foreground">Assignment</h4>
         <div className="space-y-2">
-          {staff.staffMeta.assignedCity && (
+          {staff.staffMeta.assignedCity ? (
             <div className="flex items-center gap-2 text-sm bg-[#F3ECF6] dark:bg-[#1F086080] rounded-lg px-3 py-2">
               <MapPin className="size-4 text-[#6B20A0] dark:text-[#9A68D0] shrink-0" />
               <div>
@@ -1031,17 +1035,7 @@ function StaffDetailSheet({
                 <span className="text-foreground font-medium">{staff.staffMeta.assignedCity.name}</span>
               </div>
             </div>
-          ) : (
-            <div className="flex items-center gap-3 text-sm rounded-lg px-3 py-2.5 bg-muted/50">
-              <div className="flex items-center justify-center size-8 rounded-md bg-muted shrink-0">
-                <MapPin className="size-4 text-muted-foreground" />
-              </div>
-              <div>
-                <span className="text-[11px] text-muted-foreground block">City</span>
-                <span className="text-muted-foreground italic">Unassigned</span>
-              </div>
-            </div>
-          )}
+          ) : null}
 
           {staff.staffMeta.assignedPark ? (
             <div className="flex items-center gap-3 text-sm bg-[#F3ECF6] dark:bg-[#1F086080] rounded-lg px-3 py-2.5">
@@ -1053,33 +1047,13 @@ function StaffDetailSheet({
                 <span className="text-foreground font-medium">{staff.staffMeta.assignedPark.name}</span>
               </div>
             </div>
-          ) : (
-            <div className="flex items-center gap-3 text-sm rounded-lg px-3 py-2.5 bg-muted/50">
-              <div className="flex items-center justify-center size-8 rounded-md bg-muted shrink-0">
-                <TreePine className="size-4 text-muted-foreground" />
-              </div>
-              <div>
-                <span className="text-[11px] text-muted-foreground block">Park</span>
-                <span className="text-muted-foreground italic">Unassigned</span>
-              </div>
-            </div>
-          )}
+          ) : null}
           {staff.staffMeta.assignedGroup && (
             <div className="flex items-center gap-2 text-sm bg-[#F3ECF6] dark:bg-[#1F086080] rounded-lg px-3 py-2">
               <Users className="size-4 text-[#A0006B] dark:text-[#C94D99] shrink-0" />
               <div>
                 <span className="text-[11px] text-muted-foreground block">Group</span>
                 <span className="text-foreground font-medium">{staff.staffMeta.assignedGroup.name}</span>
-              </div>
-            </div>
-          ) : (
-            <div className="flex items-center gap-3 text-sm rounded-lg px-3 py-2.5 bg-muted/50">
-              <div className="flex items-center justify-center size-8 rounded-md bg-muted shrink-0">
-                <Users className="size-4 text-muted-foreground" />
-              </div>
-              <div>
-                <span className="text-[11px] text-muted-foreground block">Group</span>
-                <span className="text-muted-foreground italic">Unassigned</span>
               </div>
             </div>
           )}

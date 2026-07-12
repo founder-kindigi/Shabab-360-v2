@@ -1,0 +1,272 @@
+import { NextRequest, NextResponse } from "next/server";
+import { requireRole, requireAuth } from "@/lib/auth/authorize";
+import { db } from "@/lib/db";
+import { logAudit } from "@/lib/audit";
+import Papa from "papaparse";
+import bcrypt from "bcryptjs";
+
+export async function POST(request: NextRequest) {
+  const authError = await requireRole([
+    "super_admin",
+    "program_admin",
+    "city_head",
+    "park_admin",
+    "park_lead",
+    "murabbi",
+  ]);
+  if (authError) return authError;
+
+  try {
+    const formData = await request.formData();
+    const file = formData.get("file") as File | null;
+
+    if (!file) {
+      return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
+    }
+
+    if (!file.name.endsWith(".csv")) {
+      return NextResponse.json(
+        { error: "Only CSV files are supported" },
+        { status: 400 }
+      );
+    }
+
+    const text = await file.text();
+    const parsed = Papa.parse<Record<string, string>>(text, {
+      header: true,
+      skipEmptyLines: true,
+      transformHeader: (h) => h.trim(),
+    });
+
+    if (parsed.errors.length > 0 && parsed.data.length === 0) {
+      return NextResponse.json(
+        { error: `CSV parse error: ${parsed.errors.map((e) => e.message).join(", ")}` },
+        { status: 400 }
+      );
+    }
+
+    const rows = parsed.data.map((row) => {
+      const clean: Record<string, string> = {};
+      for (const [k, v] of Object.entries(row)) {
+        clean[k.trim()] = (v ?? "").trim();
+      }
+      return clean;
+    });
+
+    if (rows.length === 0) {
+      return NextResponse.json({ error: "CSV is empty" }, { status: 400 });
+    }
+
+    // Pre-fetch groups, cities, parks for lookups
+    const groups = await db.group.findMany({
+      include: {
+        batch: { include: { park: { include: { city: true } } } },
+      },
+    });
+
+    const groupLookup = new Map<string, (typeof groups)[number]>();
+    for (const g of groups) {
+      groupLookup.set(g.id, g);
+      // Also index by name for flexible matching
+      groupLookup.set(g.name.toLowerCase(), g);
+    }
+
+    // City lookup by name
+    const cities = await db.city.findMany();
+    const cityLookup = new Map<string, (typeof cities)[number]>();
+    for (const c of cities) {
+      cityLookup.set(c.name.toLowerCase(), c);
+    }
+
+    // Park lookup by name
+    const parks = await db.park.findMany();
+    const parkLookup = new Map<string, (typeof parks)[number]>();
+    for (const p of parks) {
+      parkLookup.set(p.name.toLowerCase(), p);
+    }
+
+    // Lookup helpers
+    function findGroup(name: string | undefined) {
+      if (!name) return null;
+      return groupLookup.get(name.toLowerCase()) ?? groupLookup.get(name) ?? null;
+    }
+
+    function findCity(name: string | undefined) {
+      if (!name) return null;
+      return cityLookup.get(name.toLowerCase()) ?? null;
+    }
+
+    function findPark(name: string | undefined) {
+      if (!name) return null;
+      return parkLookup.get(name.toLowerCase()) ?? null;
+    }
+
+    let success = 0;
+    const errors: { row: number; message: string }[] = [];
+
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      const rowNum = i + 2; // header is row 1
+
+      try {
+        const name = row["name"] || row["Name"] || "";
+        if (!name) {
+          errors.push({ row: rowNum, message: "Name is required" });
+          continue;
+        }
+
+        const email = row["email"] || row["Email"] || "";
+        const phone = row["phone"] || row["Phone"] || "";
+        const gender = row["gender"] || row["Gender"] || "";
+        const dateOfBirth = row["dateOfBirth"] || row["DateOfBirth"] || row["date_of_birth"] || "";
+        const groupName = row["group"] || row["Group"] || row["groupName"] || "";
+        const cityName = row["city"] || row["City"] || "";
+        const parkName = row["park"] || row["Park"] || "";
+        const batchName = row["batch"] || row["Batch"] || "";
+
+        // Find or resolve group
+        let group = findGroup(groupName);
+
+        // If no group by name, try city > park > batch > group hierarchy
+        if (!group && (cityName || parkName || batchName)) {
+          let matchingGroups = groups;
+
+          const city = findCity(cityName);
+          if (city) {
+            matchingGroups = matchingGroups.filter(
+              (g) => g.batch.park.cityId === city.id
+            );
+          }
+
+          const park = findPark(parkName);
+          if (park) {
+            matchingGroups = matchingGroups.filter(
+              (g) => g.batch.parkId === park.id
+            );
+          }
+
+          if (batchName) {
+            matchingGroups = matchingGroups.filter(
+              (g) => g.batch.name.toLowerCase() === batchName.toLowerCase()
+            );
+          }
+
+          if (matchingGroups.length === 1) {
+            group = matchingGroups[0];
+          }
+        }
+
+        if (!group) {
+          errors.push({
+            row: rowNum,
+            message: `Could not find matching group. Provide a valid "group" name, or city/park/batch combination.`,
+          });
+          continue;
+        }
+
+        // Create User account if email is provided
+        let userId: string | undefined;
+        if (email) {
+          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+          if (!emailRegex.test(email)) {
+            errors.push({ row: rowNum, message: `Invalid email format: "${email}"` });
+            continue;
+          }
+
+          const existingUser = await db.user.findUnique({ where: { email } });
+          if (existingUser) {
+            userId = existingUser.id;
+          } else {
+            const password = Math.random().toString(36).slice(-8);
+            const hash = await bcrypt.hash(password, 10);
+            const newUser = await db.user.create({
+              data: {
+                email,
+                passwordHash: hash,
+                name,
+                phone: phone || null,
+                mustResetPwd: true,
+              },
+            });
+            userId = newUser.id;
+          }
+        }
+
+        // Handle guardian
+        const guardianName = row["guardianName"] || row["Guardian Name"] || row["guardian_name"] || "";
+        const guardianPhone = row["guardianPhone"] || row["Guardian Phone"] || row["guardian_phone"] || "";
+        const guardianCNIC = row["guardianCNIC"] || row["Guardian CNIC"] || row["guardian_cnic"] || "";
+
+        let guardianId: string | undefined;
+        if (guardianName && guardianPhone) {
+          // Try to find existing guardian by phone
+          const existingGuardian = await db.guardian.findFirst({
+            where: { phone: guardianPhone },
+          });
+
+          if (existingGuardian) {
+            guardianId = existingGuardian.id;
+          } else {
+            const newGuardian = await db.guardian.create({
+              data: {
+                name: guardianName,
+                phone: guardianPhone,
+                cnic: guardianCNIC || null,
+              },
+            });
+            guardianId = newGuardian.id;
+          }
+        }
+
+        // Create Participant
+        const participant = await db.participant.create({
+          data: {
+            name,
+            phone: phone || null,
+            gender: gender || null,
+            dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
+            groupId: group.id,
+            userId: userId || null,
+            state: "active",
+          },
+        });
+
+        // Link guardian to participant if applicable
+        if (guardianId) {
+          await db.guardianChild.create({
+            data: {
+              guardianId,
+              participantId: participant.id,
+            },
+          });
+        }
+
+        success++;
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : "Unknown error";
+        errors.push({ row: rowNum, message: msg });
+      }
+    }
+
+    // Log audit
+    const auth = await requireAuth();
+    if (!(auth instanceof NextResponse)) {
+      logAudit({
+        userId: auth.user.id,
+        action: "IMPORT_PARTICIPANTS",
+        entityType: "Participant",
+        entityId: null,
+        newValues: JSON.stringify({ success, errors: errors.length, total: rows.length }),
+      });
+    }
+
+    return NextResponse.json({
+      success,
+      errors,
+      total: rows.length,
+    });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "Unknown server error";
+    return NextResponse.json({ error: msg }, { status: 500 });
+  }
+}

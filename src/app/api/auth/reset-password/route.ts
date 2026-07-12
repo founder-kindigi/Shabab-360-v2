@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import bcrypt from "bcryptjs";
+import { sendPasswordReset } from "@/lib/email-service";
 
 // CSRF: validate Origin/Referer against configured NEXTAUTH_URL or localhost
 function isAllowedOrigin(origin: string | null, referer: string | null): boolean {
@@ -95,6 +96,12 @@ export async function POST(request: Request) {
         tokenVersion: { increment: 1 },
       },
     });
+
+    // Queue password reset confirmation email (fire-and-forget)
+    sendPasswordReset(
+      { id: user.id, email: user.email, name: user.name },
+      "(password changed via authenticated session)"
+    ).catch(() => {});
 
     return NextResponse.json({ data: { success: true } });
   } catch {

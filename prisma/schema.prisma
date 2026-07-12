@@ -26,6 +26,7 @@ model User {
   participant   Participant?
   auditLogs     AuditLog[]
   announcements Announcement[]
+  notifications Notification[]
 
   @@map("users")
 }
@@ -353,6 +354,28 @@ model Announcement {
   expiresAt   DateTime?
 
   @@map("announcements")
+}
+
+// ========== NOTIFICATIONS ==========
+
+model Notification {
+  id              String    @id @default(cuid())
+  type            String    @default("in_app") // "email" | "in_app" | "push"
+  channel         String                      // "password_reset" | "invite" | "fee_reminder" | "absence_alert" | "admission_status"
+  recipientId     String?
+  recipientEmail  String?
+  subject         String
+  body            String
+  data            String?                      // JSON metadata
+  status          String    @default("pending") // "pending" | "sent" | "failed"
+  sentAt          DateTime?
+  createdAt       DateTime  @default(now())
+
+  user            User?     @relation(fields: [recipientId], references: [id])
+
+  @@index([recipientId])
+  @@index([status])
+  @@map("notifications")
 }
 
 // ========== REPORT PRESETS ==========

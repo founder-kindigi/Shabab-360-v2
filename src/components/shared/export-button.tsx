@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -8,70 +8,161 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Download, Loader2 } from "lucide-react";
-import { exportToCSV } from "@/lib/csv-export";
+import {
+  Download,
+  FileSpreadsheet,
+  FileText,
+  Printer,
+  Loader2,
+} from "lucide-react";
+import {
+  exportToExcel,
+  exportToCSV,
+  exportToPDF,
+  type ExportColumn,
+} from "@/lib/export-utils";
+
+/* ------------------------------------------------------------------ */
+/*  Types                                                              */
+/* ------------------------------------------------------------------ */
 
 interface ExportButtonProps {
-  /** The data rows to export */
+  /** Array of row objects to export */
   data: Record<string, unknown>[];
-  /** File name (without .csv extension) */
+  /** Base filename (without extension) */
   filename: string;
-  /** Column definitions — `key` maps to a property in the data row, `header` is the CSV column heading */
-  columns: { key: string; header: string }[];
-  /** Optional disabled state (e.g. while data is loading) */
+  /** Column definitions mapping data keys to display headers */
+  columns: ExportColumn[];
+  /** Optional: DOM element ID for PDF print export */
+  printElementId?: string;
+  /** Disabled state */
   disabled?: boolean;
-  /** Optional extra class names on the trigger button */
+  /** Additional class names */
   className?: string;
+  /** Button size variant */
+  size?: "default" | "sm" | "lg" | "icon";
+  /** Button variant */
+  variant?: "default" | "outline" | "secondary" | "ghost" | "link" | "destructive";
+  /** Render as a compact icon-only button */
+  iconOnly?: boolean;
+  /** Custom trigger element (overrides default button) */
+  trigger?: ReactNode;
 }
+
+/* ------------------------------------------------------------------ */
+/*  Component                                                          */
+/* ------------------------------------------------------------------ */
 
 export function ExportButton({
   data,
   filename,
   columns,
+  printElementId,
   disabled = false,
   className,
+  size = "sm",
+  variant = "outline",
+  iconOnly = false,
+  trigger,
 }: ExportButtonProps) {
   const [exporting, setExporting] = useState(false);
 
-  // Memoize the flat data array passed to the CSV utility
-  const exportData = useMemo(
-    () => data as unknown as Record<string, unknown>[],
-    [data]
-  );
+  const isEmpty = !data || data.length === 0;
 
-  async function handleExport() {
+  async function handleExcel() {
+    if (isEmpty || exporting) return;
     setExporting(true);
-    // Small delay so the UI can show the spinner before the main thread blocks on blob creation
-    await new Promise((r) => setTimeout(r, 50));
     try {
-      exportToCSV(exportData, filename, columns);
+      await exportToExcel(data, filename, columns);
+    } catch (err) {
+      console.error("[ExportButton] Excel export failed:", err);
     } finally {
       setExporting(false);
     }
+  }
+
+  function handleCSV() {
+    if (isEmpty || exporting) return;
+    try {
+      exportToCSV(data, filename, columns);
+    } catch (err) {
+      console.error("[ExportButton] CSV export failed:", err);
+    }
+  }
+
+  function handlePDF() {
+    if (exporting) return;
+    try {
+      if (printElementId) {
+        exportToPDF(printElementId, filename);
+      } else {
+        // Fallback: print the whole page
+        window.print();
+      }
+    } catch (err) {
+      console.error("[ExportButton] PDF export failed:", err);
+    }
+  }
+
+  if (trigger) {
+    // Custom trigger mode
+    return (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild disabled={disabled || isEmpty || exporting}>
+          {trigger}
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-48">
+          <DropdownMenuItem onClick={handleExcel} disabled={exporting}>
+            <FileSpreadsheet className="size-4 mr-2 text-green-600" />
+            Excel (.xlsx)
+            {exporting && <Loader2 className="size-3.5 ml-auto animate-spin" />}
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={handleCSV} disabled={exporting}>
+            <FileText className="size-4 mr-2 text-blue-600" />
+            CSV (.csv)
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={handlePDF} disabled={exporting}>
+            <Printer className="size-4 mr-2 text-[#A0006B]" />
+            Print / PDF
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    );
   }
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button
-          variant="outline"
-          size="sm"
-          disabled={disabled || exportData.length === 0 || exporting}
-          className={`h-9 gap-1.5 text-sm bg-[#4B0A8F] hover:bg-[#4B0A8FE6] text-white border-[#4B0A8F] hover:text-white disabled:opacity-50 ${className ?? ""}`}
+          variant={variant}
+          size={size}
+          disabled={disabled || isEmpty || exporting}
+          className={className}
         >
           {exporting ? (
-            <Loader2 className="size-4 animate-spin" />
+            <Loader2 className="size-3.5 animate-spin" />
           ) : (
-            <Download className="size-4" />
+            <Download className="size-3.5" />
           )}
-          <span className="hidden sm:inline">Export</span>
+          {!iconOnly && <span className="hidden sm:inline ml-1.5">Export</span>}
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={handleExport} disabled={exportData.length === 0}>
-          <Download className="size-4 mr-2" />
-          Export CSV
+      <DropdownMenuContent align="end" className="w-48">
+        <DropdownMenuItem onClick={handleExcel} disabled={exporting}>
+          <FileSpreadsheet className="size-4 mr-2 text-green-600" />
+          Excel (.xlsx)
+          {exporting && <Loader2 className="size-3.5 ml-auto animate-spin" />}
         </DropdownMenuItem>
+        <DropdownMenuItem onClick={handleCSV} disabled={exporting}>
+          <FileText className="size-4 mr-2 text-blue-600" />
+          CSV (.csv)
+        </DropdownMenuItem>
+        {printElementId && (
+          <DropdownMenuItem onClick={handlePDF} disabled={exporting}>
+            <Printer className="size-4 mr-2 text-[#A0006B]" />
+            Print / PDF
+          </DropdownMenuItem>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );

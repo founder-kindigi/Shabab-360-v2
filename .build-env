@@ -1,0 +1,9 @@
+# Important context for build agents
+PROJECT_DIR=/home/z/my-project
+FRAMEWORK=Next.js 16 App Router
+DB=Prisma with SQLite
+AUTH=NextAuth v4 JWT
+UI=shadcn/ui + Tailwind CSS 4 + Framer Motion + Lucide
+STATE=Zustand (client) + TanStack Query (server)
+BRAND_COLORS: primary=#4B0A8F, accent=#A0006B, red=#FF0015
+THEME: light/dark via next-themes

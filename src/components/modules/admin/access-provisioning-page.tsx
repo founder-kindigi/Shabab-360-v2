@@ -52,7 +52,13 @@ import {
   XCircle,
   AlertTriangle,
   FilterX,
+  FolderInput,
 } from "lucide-react";
+import {
+  ImportDialog,
+  USER_FIELDS,
+  EXAMPLE_ROWS,
+} from "@/components/shared/import-dialog";
 import { useAppStore } from "@/stores/useAppStore";
 import { cn } from "@/lib/utils";
 import type { UserRole } from "@/types";
@@ -251,6 +257,7 @@ export function AccessProvisioningPage() {
   const [formParkId, setFormParkId] = useState("");
   const [formGroupId, setFormGroupId] = useState("");
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [importOpen, setImportOpen] = useState(false);
 
   // Search state for recent invites
   const [searchQuery, setSearchQuery] = useState("");
@@ -524,6 +531,16 @@ export function AccessProvisioningPage() {
       <PageHeader
         title="Access Provisioning"
         description="Create new user accounts and assign roles and permissions"
+        actions={
+          <Button
+            variant="outline"
+            onClick={() => setImportOpen(true)}
+            className="border-[#D4B8E3] text-[#4B0A8F] hover:bg-[#F3ECF6] dark:border-[#2A0C8F] dark:text-[#8A40B0] dark:hover:bg-[#1F086080]"
+          >
+            <FolderInput className="size-4 mr-2" />
+            Import Users
+          </Button>
+        }
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
@@ -1181,6 +1198,18 @@ export function AccessProvisioningPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ImportDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        type="users"
+        title="Import Users"
+        description="Upload a CSV file to bulk create user accounts with staff roles. Passwords will be auto-generated."
+        fields={USER_FIELDS}
+        exampleRows={EXAMPLE_ROWS.users}
+        apiEndpoint="/api/admin/import/users"
+        onSuccess={() => queryClient.invalidateQueries({ queryKey: ["admin-users"] })}
+      />
     </div>
   );
 }

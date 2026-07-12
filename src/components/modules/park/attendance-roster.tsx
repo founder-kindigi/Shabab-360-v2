@@ -60,7 +60,9 @@ import {
   AlertTriangle,
   Phone,
   Send,
+  Pencil,
 } from "lucide-react";
+import { AttendanceEditDialog } from "@/components/shared/attendance-edit-dialog";
 import { cn } from "@/lib/utils";
 import { v4 as uuidv4 } from "uuid";
 import type { AttendanceStatus } from "@/lib/offline/db";
@@ -237,6 +239,15 @@ export function AttendanceRoster() {
   const [closeReason, setCloseReason] = useState("");
   const [processingIds, setProcessingIds] = useState<Set<string>>(new Set());
   const [warningDialogOpen, setWarningDialogOpen] = useState(false);
+
+  // Edit dialog state
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState<{
+    recordId: string;
+    participantName: string;
+    currentStatus: AttendanceStatus | null;
+  } | null>(null);
+  const canEditRecord = userRole === "admin" || userRole === "super_admin" || userRole === "program_admin" || userRole === "park_admin" || userRole === "park_lead";
 
   // Confirmation dialogs
   const [bulkConfirm, setBulkConfirm] = useState<{
@@ -1099,18 +1110,65 @@ export function AttendanceRoster() {
                           </Tooltip>
                         );
                       })}
+                      {/* Edit button on desktop (visible alongside quick status) */}
+                      {canEditRecord && item.recordId && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditTarget({
+                                  recordId: item.recordId!,
+                                  participantName: item.participantName,
+                                  currentStatus: status,
+                                });
+                                setEditDialogOpen(true);
+                              }}
+                              className="flex items-center justify-center w-7 h-7 rounded-full text-muted-foreground/60 hover:text-foreground hover:bg-muted/50 transition-colors"
+                              aria-label={`Edit ${item.participantName}`}
+                            >
+                              <Pencil className="size-3" />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent side="left">Edit record</TooltipContent>
+                        </Tooltip>
+                      )}
                     </div>
                   )}
 
                   {/* Status badge (cycle button) */}
-                  <button
-                    disabled={isClosed || isProcessing}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleCycleStatus(item.participantId, status);
-                    }}
-                    className={cn(
-                      "relative flex items-center justify-center w-9 h-9 rounded-lg transition-all duration-150 shrink-0 sm:hidden",
+                  <div className="flex items-center gap-1 shrink-0">
+                    {/* Edit button (admin/park_admin only, when record exists) */}
+                    {canEditRecord && item.recordId && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditTarget({
+                                recordId: item.recordId!,
+                                participantName: item.participantName,
+                                currentStatus: status,
+                              });
+                              setEditDialogOpen(true);
+                            }}
+                            className="hidden sm:flex items-center justify-center w-7 h-7 rounded-md text-muted-foreground/60 hover:text-foreground hover:bg-muted/50 transition-colors"
+                            aria-label={`Edit ${item.participantName}`}
+                          >
+                            <Pencil className="size-3" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="left">Edit record</TooltipContent>
+                      </Tooltip>
+                    )}
+                    <button
+                      disabled={isClosed || isProcessing}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleCycleStatus(item.participantId, status);
+                      }}
+                      className={cn(
+                        "relative flex items-center justify-center w-9 h-9 rounded-lg transition-all duration-150 shrink-0 sm:hidden",
                       config
                         ? cn(config.bg, config.borderClass)
                         : "bg-muted/50 border-2 border-dashed border-muted-foreground/30",
@@ -1139,6 +1197,7 @@ export function AttendanceRoster() {
                       <Circle className="size-3.5 text-muted-foreground/40" />
                     )}
                   </button>
+                  </div>
                 </motion.div>
               );
             })}
@@ -1512,6 +1571,19 @@ export function AttendanceRoster() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* ─── Edit Attendance Dialog ──────────────────────────────────────── */}
+      {editTarget && selectedEventId && (
+        <AttendanceEditDialog
+          open={editDialogOpen}
+          onOpenChange={setEditDialogOpen}
+          eventId={selectedEventId}
+          recordId={editTarget.recordId}
+          participantName={editTarget.participantName}
+          currentStatus={editTarget.currentStatus}
+          onClose={() => setEditTarget(null)}
+        />
+      )}
     </div>
   );
 }

@@ -7,6 +7,7 @@ import { useEffect, useRef } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { PageRouter } from "@/components/layout/page-router";
 import { LoadingState } from "@/components/layout/loading-state";
+import { useServiceWorker } from "@/hooks/use-service-worker";
 
 const queryClient = new QueryClient();
 
@@ -14,6 +15,9 @@ function AuthenticatedApp() {
   const { data: session, status } = useSession();
   const { setUserRole, navigateTo, currentPage, userRole } = useAppStore();
   const wasAuthenticated = useRef(false);
+
+  // Register PWA service worker (production only)
+  useServiceWorker();
 
   useEffect(() => {
     if (session?.user) {
