@@ -4,8 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev -p 3000 2>&1 | tee dev.log",
-    "build": "next build && cp -r .next/static .next/standalone/.next/ && cp -r public .next/standalone/",
-    "start": "NODE_ENV=production bun .next/standalone/server.js 2>&1 | tee server.log",
+    "build": "next build && cp -r .next/static .next/standalone/.next/ && cp -r public .next/standalone/ && cp -r db prisma .next/standalone/ 2>/dev/null; true",
+    "start": "NEXTAUTH_SECRET=${NEXTAUTH_SECRET:-shabab360-dev-secret-change-in-production} NEXTAUTH_URL=${NEXTAUTH_URL:-http://localhost:3000} NODE_OPTIONS='--max-old-space-size=512' node .next/standalone/server.js -p 3000 2>&1 | tee server.log",
     "lint": "eslint .",
     "db:push": "prisma db push",
     "db:generate": "prisma generate",

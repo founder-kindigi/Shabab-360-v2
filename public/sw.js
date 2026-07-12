@@ -59,6 +59,10 @@ self.addEventListener("fetch", (event) => {
   // Skip chrome-extension and other non-http(s) requests
   if (!url.protocol.startsWith("http")) return;
 
+  // Skip ALL API requests — let them go directly to the server
+  // Auth, CRUD, and all API routes must not be cached or intercepted
+  if (url.pathname.startsWith("/api/")) return;
+
   // ── Strategy 1: Cache-first for static assets ───────────────────
   // These files are content-hashed by Next.js, so they never change
   if (isStaticAsset(url)) {

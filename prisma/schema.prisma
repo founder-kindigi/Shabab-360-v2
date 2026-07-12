@@ -254,6 +254,12 @@ model FeeEvent {
   feeType     String
   amount      Float
   dueDate     DateTime?
+  discountAmount  Float       @default(0)
+  waiverReason   String?
+  waivedBy       String?
+  waivedAt       DateTime?
+  reminderSentAt DateTime?
+  reminderCount  Int         @default(0)
   isActive    Boolean     @default(true)
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
@@ -273,6 +279,8 @@ model Payment {
   receiptNo       String?      @unique
   recordedBy      String?
   notes           String?
+  isPartial       Boolean      @default(false)
+  waivedAmount    Float        @default(0)
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
 

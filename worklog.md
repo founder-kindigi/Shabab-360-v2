@@ -1,6 +1,32 @@
 # Shabab360 v2 - Work Log
 
 ---
+Task ID: T-fee-features
+Agent: Main
+Task: Add waiver/discount, fee reminders, partial payment indicators, and payment history enhancements to fees page
+
+Work Log:
+- Updated `FeeEventItem` interface: added `discountAmount?`, `waiverReason?`, `reminderCount?`, `reminderSentAt?` fields
+- Updated `PaymentItem` interface: added `isPartial?`, `remaining?` fields
+- Updated `ParticipantItem` interface: added `totalPaid?`, `remaining?`, `isPartial?` fields
+- Added imports: `ShieldCheck`, `Mail`, `Percent` from lucide-react; `useSession` from next-auth/react
+- Added waiver state variables (`waiverOpen`, `waiverAmount`, `waiverReason`, `waiverErrors`)
+- Added `useSession` role check (`isAdmin`) for waiver permission gating
+- Added 3 mutations: `waiverMutation` (POST apply waiver), `removeWaiverMutation` (DELETE remove waiver), `reminderMutation` (POST send reminders)
+- Added helper functions: `openWaiverDialog`, `closeWaiverDialog`, `handleWaiverSubmit`
+- Updated `handleQuickPay` to auto-fill remaining balance for partial payments (accounts for waivers)
+- Detail sheet header: added Waiver button (ShieldCheck icon) next to title, gated by `isAdmin`
+- Info Grid: changed from 2-col to 3-col; when `discountAmount > 0` shows crossed-out original, effective amount, WAIVER badge; 3rd col shows waiver info with reason; otherwise shows status badge
+- Collection Progress section: added "Send Reminders" button (Mail icon) with loading state; shows `reminderSentAt` if exists
+- Payment form participant selector: shows PARTIAL badge for partial payers; auto-fills amount with remaining balance on selection
+- Unpaid participants list: shows PARTIAL badge, "Rs. X / Rs. Y paid" text, and remaining balance for partial payers
+- Payment history: shows PARTIAL badge next to name and remaining balance after amount for partial payments
+- Added Waiver Dialog: shows current waiver info with "Remove Waiver" option if waiver exists; otherwise shows discount amount input + reason textarea with validation
+- Lint: clean (no errors)
+- File modified: src/components/modules/admin/fees-page.tsx (1999 → 2357 lines)
+
+---
+
 Task ID: T2-fix
 Agent: Main
 Task: Fix CSS parsing error — replace all VAR_BRAND_REDACTED in Tailwind arbitrary classes with hex values

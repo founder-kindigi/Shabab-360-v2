@@ -9,6 +9,7 @@ const createPaymentSchema = z.object({
   amount: z.number().positive("Amount must be positive"),
   method: z.enum(["cash", "bank", "online", "other"]),
   notes: z.string().optional(),
+  waivedAmount: z.number().min(0).optional(),
 });
 
 async function generateReceiptNo(prefix: string = "RCP"): Promise<string> {
@@ -90,14 +91,45 @@ export async function GET(
         })
       : [];
 
-  const paidParticipantIds = new Set(feeEvent.payments.map((p) => p.participantId));
+  // Calculate paid amounts per participant
+  const effectiveAmount = feeEvent.amount - (feeEvent.discountAmount || 0);
+  const paidMap = new Map<string, number>();
+  for (const p of feeEvent.payments) {
+    paidMap.set(p.participantId, (paidMap.get(p.participantId) || 0) + p.amount);
+  }
+
+  // Participants who are fully paid
+  const fullyPaidIds = new Set<string>();
+  for (const [pid, paid] of paidMap.entries()) {
+    if (paid >= effectiveAmount - 0.01) fullyPaidIds.add(pid);
+  }
+
+  // Unpaid + partially paid participants
   const unpaidParticipants = allParticipants.filter(
-    (p) => !paidParticipantIds.has(p.id)
+    (p) => !fullyPaidIds.has(p.id)
   );
 
+  // Attach remaining balance info to participants
+  const participantsWithBalance = unpaidParticipants.map((p) => ({
+    ...p,
+    totalPaid: paidMap.get(p.id) || 0,
+    remaining: Math.max(0, effectiveAmount - (paidMap.get(p.id) || 0)),
+    isPartial: (paidMap.get(p.id) || 0) > 0,
+  }));
+
+  // Attach remaining balance to payments
+  const paymentsWithInfo = feeEvent.payments.map((p) => ({
+    ...p,
+    remainingBalance: Math.max(0, effectiveAmount - (paidMap.get(p.participantId) || 0)),
+    totalPaid: paidMap.get(p.participantId) || 0,
+    effectiveAmount,
+  }));
+
   return NextResponse.json({
-    payments: feeEvent.payments,
-    unpaidParticipants,
+    payments: paymentsWithInfo,
+    unpaidParticipants: participantsWithBalance,
+    effectiveAmount,
+    discountAmount: feeEvent.discountAmount || 0,
   });
 }
 
@@ -139,19 +171,23 @@ export async function POST(
     );
   }
 
-  // Check for duplicate payment
-  const existingPayment = await db.payment.findFirst({
-    where: {
-      feeEventId,
-      participantId: parsed.data.participantId,
-    },
+  // Check remaining balance (allow partial payments)
+  const effectiveAmount = feeEvent.amount - (feeEvent.discountAmount || 0);
+  const previousPayments = await db.payment.aggregate({
+    where: { feeEventId, participantId: parsed.data.participantId },
+    _sum: { amount: true },
   });
-  if (existingPayment) {
+  const totalPaid = previousPayments._sum.amount || 0;
+  const remaining = effectiveAmount - totalPaid;
+
+  if (parsed.data.amount > remaining + 0.01) {
     return NextResponse.json(
-      { error: { participantId: ["This participant already has a payment recorded for this fee event"] } },
+      { error: { amount: [`Amount exceeds remaining balance of Rs. ${remaining.toLocaleString()}`] } },
       { status: 400 }
     );
   }
+
+  const isPartial = parsed.data.amount < remaining - 0.01;
 
   // Generate receipt number
   const receiptNo = await generateReceiptNo();
@@ -165,6 +201,8 @@ export async function POST(
       receiptNo,
       recordedBy: user.id,
       notes: parsed.data.notes,
+      isPartial,
+      waivedAmount: parsed.data.waivedAmount || 0,
     },
     include: {
       participant: {
@@ -187,6 +225,8 @@ export async function POST(
       feeEventId,
       participantId: parsed.data.participantId,
       amount: parsed.data.amount,
+      isPartial,
+      remainingBalance: isPartial ? Math.max(0, remaining - parsed.data.amount) : 0,
       method: parsed.data.method,
       receiptNo,
     },

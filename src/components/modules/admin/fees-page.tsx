@@ -87,7 +87,11 @@ import {
   Layers,
   Search,
   Printer,
+  ShieldCheck,
+  Mail,
+  Percent,
 } from "lucide-react";
+import { useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "@/lib/i18n";
 import { ExportButton } from "@/components/shared/export-button";
@@ -121,6 +125,10 @@ interface FeeEventItem {
   totalParticipants: number;
   rate: number;
   dueDateStatus: "overdue" | "upcoming" | "paid" | "none";
+  discountAmount?: number;
+  waiverReason?: string;
+  reminderCount?: number;
+  reminderSentAt?: string;
 }
 
 interface FeeEventDetail extends FeeEventItem {
@@ -138,6 +146,8 @@ interface PaymentItem {
   notes: string | null;
   createdAt: string;
   participant: { id: string; name: string; phone: string | null; group: { name: string } | null };
+  isPartial?: boolean;
+  remaining?: number;
 }
 
 interface ParticipantItem {
@@ -145,6 +155,9 @@ interface ParticipantItem {
   name: string;
   phone: string | null;
   group: { id: string; name: string } | null;
+  totalPaid?: number;
+  remaining?: number;
+  isPartial?: boolean;
 }
 
 interface FeesResponse {
@@ -272,6 +285,16 @@ export function FeesPage() {
   const [editDueDate, setEditDueDate] = useState("");
 
   const [selectedFeeEvent, setSelectedFeeEvent] = useState<FeeEventItem | null>(null);
+
+  // Waiver state
+  const [waiverOpen, setWaiverOpen] = useState(false);
+  const [waiverAmount, setWaiverAmount] = useState("");
+  const [waiverReason, setWaiverReason] = useState("");
+  const [waiverErrors, setWaiverErrors] = useState<Record<string, string>>({});
+
+  // Session for role check
+  const { data: session } = useSession();
+  const isAdmin = session?.user?.role === "ADMIN" || session?.user?.role === "SUPER_ADMIN";
 
   // ---- Queries ----
 
@@ -581,6 +604,79 @@ export function FeesPage() {
     },
   });
 
+  // Waiver mutation (apply)
+  const waiverMutation = useMutation({
+    mutationFn: ({
+      id,
+      data,
+    }: {
+      id: string;
+      data: { discountAmount: number; waiverReason: string };
+    }) =>
+      fetch(`/api/admin/fees/${id}/waiver`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      }).then((r) => {
+        if (!r.ok) return r.json().then((e) => Promise.reject(e));
+        return r.json();
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-fee-detail"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-fees"] });
+      toast.success("Waiver applied successfully");
+      closeWaiverDialog();
+    },
+    onError: (err: any) => {
+      if (err.error) {
+        if (typeof err.error === "object") {
+          setWaiverErrors(err.error);
+        } else {
+          toast.error(err.error);
+        }
+      } else {
+        toast.error("Failed to apply waiver");
+      }
+    },
+  });
+
+  // Waiver mutation (remove)
+  const removeWaiverMutation = useMutation({
+    mutationFn: (id: string) =>
+      fetch(`/api/admin/fees/${id}/waiver`, { method: "DELETE" }).then((r) => {
+        if (!r.ok) return r.json().then((e) => Promise.reject(e));
+        return r.json();
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-fee-detail"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-fees"] });
+      toast.success("Waiver removed successfully");
+      closeWaiverDialog();
+    },
+    onError: (err: any) => {
+      toast.error(err.error || "Failed to remove waiver");
+    },
+  });
+
+  // Reminder mutation
+  const reminderMutation = useMutation({
+    mutationFn: (id: string) =>
+      fetch(`/api/admin/fees/${id}/remind`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      }).then((r) => {
+        if (!r.ok) return r.json().then((e) => Promise.reject(e));
+        return r.json();
+      }),
+    onSuccess: (res: any) => {
+      queryClient.invalidateQueries({ queryKey: ["admin-fee-detail"] });
+      toast.success(`Fee reminders sent to ${res.count ?? 0} guardian(s)`);
+    },
+    onError: (err: any) => {
+      toast.error(err.error || "Failed to send reminders");
+    },
+  });
+
   // ---- Filter cascading ----
   const filteredParks = useMemo(() => {
     if (!parks) return [];
@@ -776,9 +872,58 @@ export function FeesPage() {
   function handleQuickPay(participant: ParticipantItem) {
     if (!selectedFeeEvent) return;
     setPayParticipantId(participant.id);
-    setPayAmount(String(selectedFeeEvent.amount));
+    const effectiveAmount = (selectedFeeEvent.discountAmount && selectedFeeEvent.discountAmount > 0)
+      ? selectedFeeEvent.amount - selectedFeeEvent.discountAmount
+      : selectedFeeEvent.amount;
+    const remaining = participant.remaining ?? (participant.isPartial ? effectiveAmount - (participant.totalPaid ?? 0) : effectiveAmount);
+    setPayAmount(String(remaining));
     setPayMethod("cash");
     setPayNotes("");
+  }
+
+  function openWaiverDialog() {
+    const fd = feeDetail as FeeEventDetail | undefined;
+    if (fd?.discountAmount && fd.discountAmount > 0) {
+      setWaiverAmount(String(fd.discountAmount));
+      setWaiverReason(fd.waiverReason || "");
+    } else {
+      setWaiverAmount("");
+      setWaiverReason("");
+    }
+    setWaiverErrors({});
+    setWaiverOpen(true);
+  }
+
+  function closeWaiverDialog() {
+    setWaiverOpen(false);
+    setWaiverAmount("");
+    setWaiverReason("");
+    setWaiverErrors({});
+  }
+
+  function handleWaiverSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setWaiverErrors({});
+    if (!selectedFeeEvent) return;
+
+    const amount = parseFloat(waiverAmount);
+    if (!amount || amount <= 0) {
+      setWaiverErrors({ discountAmount: "Enter a valid discount amount" });
+      return;
+    }
+    if (amount >= selectedFeeEvent.amount) {
+      setWaiverErrors({ discountAmount: "Discount must be less than the fee amount" });
+      return;
+    }
+    if (!waiverReason.trim() || waiverReason.trim().length < 5) {
+      setWaiverErrors({ waiverReason: "Reason must be at least 5 characters" });
+      return;
+    }
+
+    waiverMutation.mutate({
+      id: selectedFeeEvent.id,
+      data: { discountAmount: amount, waiverReason: waiverReason.trim() },
+    });
   }
 
   const feeEvents = feesData?.data || [];
@@ -1705,7 +1850,20 @@ export function FeesPage() {
               {/* Header */}
               <div className="sticky top-0 z-10 bg-card border-b px-6 py-4">
                 <SheetHeader>
-                  <SheetTitle className="text-lg font-bold">{feeDetail.title}</SheetTitle>
+                  <div className="flex items-center gap-2">
+                    <SheetTitle className="text-lg font-bold flex-1">{feeDetail.title}</SheetTitle>
+                    {isAdmin && (
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="size-8 shrink-0 border-[#4B0A8F]/30 text-[#4B0A8F] hover:bg-[#4B0A8F]/10 dark:text-[#B87EE0] dark:border-[#4B0A8F]/40 dark:hover:bg-[#4B0A8F]/20"
+                        onClick={openWaiverDialog}
+                        title="Waiver / Discount"
+                      >
+                        <ShieldCheck className="size-4" />
+                      </Button>
+                    )}
+                  </div>
                   <SheetDescription className="flex flex-wrap items-center gap-2 text-xs">
                     <Badge variant="outline" className={cn("text-[10px] font-semibold px-2 py-0.5", getFeeTypeBadgeColor(feeDetail.feeType))}>
                       {feeDetail.feeType}
@@ -1719,10 +1877,20 @@ export function FeesPage() {
 
               <div className="px-6 py-4 space-y-6">
                 {/* Info Grid */}
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-3 gap-3">
                   <div className="rounded-lg border p-3 bg-[#F3ECF6]/30 dark:bg-[#1F086080]/30">
                     <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Amount</p>
-                    <p className="font-mono font-bold text-lg">{formatPKR(feeDetail.amount)}</p>
+                    {feeDetail.discountAmount && feeDetail.discountAmount > 0 ? (
+                      <>
+                        <p className="font-mono text-sm text-muted-foreground line-through">{formatPKR(feeDetail.amount)}</p>
+                        <p className="font-mono font-bold text-lg">{formatPKR(feeDetail.amount - feeDetail.discountAmount)}</p>
+                        <Badge className="mt-1 text-[9px] font-bold bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/20 hover:bg-amber-500/20">
+                          WAIVER
+                        </Badge>
+                      </>
+                    ) : (
+                      <p className="font-mono font-bold text-lg">{formatPKR(feeDetail.amount)}</p>
+                    )}
                   </div>
                   <div className="rounded-lg border p-3 bg-[#F3ECF6]/30 dark:bg-[#1F086080]/30">
                     <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Due Date</p>
@@ -1733,6 +1901,34 @@ export function FeesPage() {
                       {formatDate(feeDetail.dueDate)}
                     </p>
                   </div>
+                  {feeDetail.discountAmount && feeDetail.discountAmount > 0 ? (
+                    <div className="rounded-lg border p-3 bg-amber-500/5 dark:bg-amber-500/10 border-amber-500/20">
+                      <p className="text-[10px] text-amber-600 dark:text-amber-400 uppercase tracking-wider mb-1 flex items-center gap-1">
+                        <Percent className="size-3" /> Waiver
+                      </p>
+                      <p className="font-mono font-bold text-sm text-amber-700 dark:text-amber-300">
+                        -{formatPKR(feeDetail.discountAmount)}
+                      </p>
+                      {feeDetail.waiverReason && (
+                        <p className="text-[10px] text-muted-foreground mt-1 line-clamp-2">{feeDetail.waiverReason}</p>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="rounded-lg border p-3 bg-[#F3ECF6]/30 dark:bg-[#1F086080]/30">
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Status</p>
+                      <Badge
+                        variant="outline"
+                        className={cn(
+                          "text-[10px] font-semibold",
+                          feeDetail.isActive
+                            ? "bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20"
+                            : "bg-gray-500/10 text-gray-700 dark:text-gray-400 border-gray-500/20"
+                        )}
+                      >
+                        {feeDetail.isActive ? "Active" : "Inactive"}
+                      </Badge>
+                    </div>
+                  )}
                 </div>
 
                 {/* Collection Progress */}
@@ -1771,6 +1967,27 @@ export function FeesPage() {
                       {feeDetail.totalParticipants - feeDetail.paidCount} {t("fees.unpaid")}
                     </span>
                   </div>
+
+                  {/* Send Reminders Button */}
+                  {feeDetail.totalParticipants - feeDetail.paidCount > 0 && (
+                    <div className="flex items-center justify-between pt-1">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 text-xs border-[#4B0A8F]/30 text-[#4B0A8F] hover:bg-[#4B0A8F]/10 dark:text-[#B87EE0] dark:border-[#4B0A8F]/40 dark:hover:bg-[#4B0A8F]/20"
+                        disabled={reminderMutation.isPending}
+                        onClick={() => selectedFeeEvent && reminderMutation.mutate(selectedFeeEvent.id)}
+                      >
+                        <Mail className="size-3.5 mr-1.5" />
+                        {reminderMutation.isPending ? "Sending..." : "Send Reminders"}
+                      </Button>
+                      {feeDetail.reminderSentAt && (
+                        <span className="text-[10px] text-muted-foreground">
+                          Last: {formatDateTime(feeDetail.reminderSentAt)}
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 <Separator />
@@ -1784,7 +2001,17 @@ export function FeesPage() {
                   <form onSubmit={handlePaymentSubmit} className="space-y-3 p-3 rounded-lg border bg-[#F3ECF6]/20 dark:bg-[#1F086080]/20">
                     <div className="space-y-1.5">
                       <Label className="text-xs">Participant</Label>
-                      <Select value={payParticipantId} onValueChange={setPayParticipantId}>
+                      <Select value={payParticipantId} onValueChange={(val) => {
+                        setPayParticipantId(val);
+                        const participant = feeDetail.unpaidParticipants.find((p) => p.id === val);
+                        if (participant) {
+                          const effectiveAmount = (feeDetail.discountAmount && feeDetail.discountAmount > 0)
+                            ? feeDetail.amount - feeDetail.discountAmount
+                            : feeDetail.amount;
+                          const remaining = participant.remaining ?? (participant.isPartial ? effectiveAmount - (participant.totalPaid ?? 0) : effectiveAmount);
+                          setPayAmount(String(remaining));
+                        }
+                      }}>
                         <SelectTrigger className="h-9 text-sm">
                           <SelectValue placeholder="Select participant (unpaid)" />
                         </SelectTrigger>
@@ -1796,10 +2023,17 @@ export function FeesPage() {
                           ) : (
                             feeDetail.unpaidParticipants.map((p) => (
                               <SelectItem key={p.id} value={p.id}>
-                                <span className="truncate">{p.name}</span>
-                                {p.group && (
-                                  <span className="text-muted-foreground ml-1">({p.group.name})</span>
-                                )}
+                                <div className="flex items-center gap-1.5">
+                                  <span className="truncate">{p.name}</span>
+                                  {p.isPartial && (
+                                    <Badge className="text-[8px] px-1 py-0 bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/20 hover:bg-amber-500/20">
+                                      PARTIAL
+                                    </Badge>
+                                  )}
+                                  {p.group && (
+                                    <span className="text-muted-foreground">({p.group.name})</span>
+                                  )}
+                                </div>
                               </SelectItem>
                             ))
                           )}
@@ -1884,8 +2118,13 @@ export function FeesPage() {
                         <div key={payment.id} className="rounded-lg border p-3 space-y-1.5">
                           <div className="flex items-start justify-between">
                             <div className="min-w-0 flex-1">
-                              <p className="text-sm font-medium truncate">
+                              <p className="text-sm font-medium truncate flex items-center gap-1.5">
                                 {payment.participant.name}
+                                {payment.isPartial && (
+                                  <Badge className="text-[8px] px-1 py-0 bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/20 hover:bg-amber-500/20">
+                                    PARTIAL
+                                  </Badge>
+                                )}
                               </p>
                               {payment.participant.group && (
                                 <p className="text-[10px] text-muted-foreground">
@@ -1893,9 +2132,16 @@ export function FeesPage() {
                                 </p>
                               )}
                             </div>
-                            <p className="font-mono font-bold text-sm shrink-0 ml-2">
-                              {formatPKR(payment.amount)}
-                            </p>
+                            <div className="shrink-0 ml-2 text-right">
+                              <p className="font-mono font-bold text-sm">
+                                {formatPKR(payment.amount)}
+                              </p>
+                              {payment.isPartial && payment.remaining != null && payment.remaining > 0 && (
+                                <p className="font-mono text-[10px] text-amber-600 dark:text-amber-400">
+                                  {formatPKR(payment.remaining)} remaining
+                                </p>
+                              )}
+                            </div>
                           </div>
                           <div className="flex items-center justify-between text-[10px] text-muted-foreground">
                             <div className="flex items-center gap-2">
@@ -1948,10 +2194,26 @@ export function FeesPage() {
                       {feeDetail.unpaidParticipants.map((p) => (
                         <div key={p.id} className="flex items-center justify-between rounded-lg border px-3 py-2">
                           <div className="min-w-0 flex-1">
-                            <p className="text-sm font-medium truncate">{p.name}</p>
-                            <p className="text-[10px] text-muted-foreground">
-                              {p.group?.name || t("fees.noGroup")}
-                            </p>
+                            <div className="flex items-center gap-1.5">
+                              <p className="text-sm font-medium truncate">{p.name}</p>
+                              {p.isPartial && (
+                                <Badge className="text-[8px] px-1 py-0 bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/20 hover:bg-amber-500/20">
+                                  PARTIAL
+                                </Badge>
+                              )}
+                            </div>
+                            {p.isPartial ? (
+                              <p className="text-[10px] text-amber-600 dark:text-amber-400 font-mono">
+                                Rs. {p.totalPaid ?? 0} / Rs. {((feeDetail.discountAmount && feeDetail.discountAmount > 0) ? feeDetail.amount - feeDetail.discountAmount : feeDetail.amount)} paid
+                                {p.remaining != null && p.remaining > 0 && (
+                                  <span className="text-muted-foreground ml-1">· {formatPKR(p.remaining)} remaining</span>
+                                )}
+                              </p>
+                            ) : (
+                              <p className="text-[10px] text-muted-foreground">
+                                {p.group?.name || t("fees.noGroup")}
+                              </p>
+                            )}
                           </div>
                           <Button
                             size="sm"
@@ -1991,6 +2253,102 @@ export function FeesPage() {
           )}
           {!receiptLoading && receiptData && (
             <FeeReceipt data={receiptData} onClose={closeReceiptDialog} />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* ============ WAIVER / DISCOUNT DIALOG ============ */}
+      <Dialog open={waiverOpen} onOpenChange={(open) => { if (!open) closeWaiverDialog(); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-lg flex items-center gap-2">
+              <ShieldCheck className="size-5 text-[#4B0A8F] dark:text-[#B87EE0]" />
+              Waiver / Discount
+            </DialogTitle>
+            <DialogDescription>
+              Apply a waiver or discount to &ldquo;{selectedFeeEvent?.title}&rdquo;
+            </DialogDescription>
+          </DialogHeader>
+          {feeDetail?.discountAmount && feeDetail.discountAmount > 0 ? (
+            <div className="space-y-4">
+              <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 dark:bg-amber-500/10 p-4 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">Current Waiver</span>
+                  <Badge className="text-[9px] font-bold bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/20">
+                    {formatPKR(feeDetail.discountAmount)} off
+                  </Badge>
+                </div>
+                <p className="text-xs text-muted-foreground">{feeDetail.waiverReason}</p>
+                <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                  <span className="line-through font-mono">{formatPKR(feeDetail.amount)}</span>
+                  <span>→</span>
+                  <span className="font-mono font-bold text-foreground">{formatPKR(feeDetail.amount - feeDetail.discountAmount)}</span>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={closeWaiverDialog}>
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  className="bg-[#FF0015] hover:bg-[#CC0010] text-white"
+                  disabled={removeWaiverMutation.isPending}
+                  onClick={() => selectedFeeEvent && removeWaiverMutation.mutate(selectedFeeEvent.id)}
+                >
+                  {removeWaiverMutation.isPending ? "Removing..." : "Remove Waiver"}
+                </Button>
+              </DialogFooter>
+            </div>
+          ) : (
+            <form onSubmit={handleWaiverSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label className="text-sm">Discount Amount (PKR)</Label>
+                <Input
+                  type="number"
+                  className="h-9 font-mono"
+                  placeholder="0"
+                  min="1"
+                  step="1"
+                  max={selectedFeeEvent ? selectedFeeEvent.amount - 1 : undefined}
+                  value={waiverAmount}
+                  onChange={(e) => setWaiverAmount(e.target.value)}
+                />
+                {waiverErrors.discountAmount && (
+                  <p className="text-xs text-[#FF0015]">{waiverErrors.discountAmount}</p>
+                )}
+                {waiverAmount && selectedFeeEvent && parseFloat(waiverAmount) < selectedFeeEvent.amount && (
+                  <p className="text-xs text-muted-foreground font-mono">
+                    Effective: {formatPKR(selectedFeeEvent.amount - parseFloat(waiverAmount))}
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-sm">Reason *</Label>
+                <Textarea
+                  className="text-sm min-h-[80px] resize-none"
+                  placeholder="Reason for waiver (min 5 characters)..."
+                  value={waiverReason}
+                  onChange={(e) => setWaiverReason(e.target.value)}
+                />
+                {waiverErrors.waiverReason && (
+                  <p className="text-xs text-[#FF0015]">{waiverErrors.waiverReason}</p>
+                )}
+              </div>
+
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={closeWaiverDialog}>
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={waiverMutation.isPending || !waiverAmount || !waiverReason}
+                  className="bg-[#4B0A8F] hover:bg-[#3A0870] text-white"
+                >
+                  {waiverMutation.isPending ? "Applying..." : "Apply Waiver"}
+                </Button>
+              </DialogFooter>
+            </form>
           )}
         </DialogContent>
       </Dialog>
