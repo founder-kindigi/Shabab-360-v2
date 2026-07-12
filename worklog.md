@@ -2213,3 +2213,37 @@ Stage Summary:
 - New files created: 15+ components, utilities, API routes
 - Total API routes now: 55+ (added import, export, notifications, avatar, attendance edit, fee report, warnings, search)
 - Remaining minor items: mobile-specific bottom nav optimization, push notifications, advanced fee waivers
+
+---
+Task ID: T-complete-features
+Agent: Main
+Task: Push code to GitHub and complete remaining core features
+
+Work Log:
+- Assessed existing feature implementations: found that most "remaining" features were already built
+  - PDF/Excel Export: ExportButton, csv-export.ts, pdf-receipt.ts, export-utils.ts, export-registry.ts ✅
+  - Email/SMS Notifications: email-service.ts with 5 templates (password reset, invite, absence alert, fee reminder, admission) ✅
+  - Data Import: csv-parser.ts, import-dialog.tsx, 3 API routes (guardians, participants, users) ✅
+  - PWA: manifest.json, sw.js, use-service-worker.ts, install-prompt.tsx ✅
+  - Auto Attendance Alerts: check-alerts/route.ts, warnings/route.ts ✅
+  - Attendance Edit Reason UI: attendance-edit-dialog.tsx with reason validation ✅
+  - Profile Pictures: avatar-upload.tsx component existed
+- Restored 2 deleted upload routes: /api/upload/avatar, /api/upload/document
+- Added FeeEvent schema fields: discountAmount, waiverReason, waivedBy, waivedAt, reminderSentAt, reminderCount
+- Added Payment schema fields: isPartial, waivedAmount
+- Created /api/admin/fees/[id]/waiver (POST + DELETE) for waiver management
+- Created /api/admin/fees/[id]/remind (POST) for sending fee reminders to guardians
+- Updated /api/admin/fees/[id]/payments to support partial payments (removed duplicate payment check, added balance validation)
+- Updated fees-page.tsx with waiver dialog, reminder button, partial payment indicators (PARTIAL badges, remaining balance display, auto-fill amounts)
+- Fixed PWA service worker intercepting /api/ requests (added skip rule)
+- Updated build/start scripts for proper production standalone deployment
+- Pushed 2 commits to GitHub
+
+Stage Summary:
+- All previously identified "remaining core features" are now complete
+- 2 new API routes created (waiver, remind)
+- 2 API routes restored (avatar upload, document upload)  
+- Prisma schema updated with 7 new fields across 2 models
+- Fees page grew from 1999 to 2357 lines with new UI features
+- Production build verified: ESLint clean, all routes compile
+- Known limitation: sandbox OOM prevents full browser verification (Chrome + Node = >4GB)
