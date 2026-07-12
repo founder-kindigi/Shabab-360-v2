@@ -1786,3 +1786,24 @@ Stage Summary:
 - Light mode fully working across all components
 - Demo account emails fixed (shabab360.pk)
 - ESLint: 0 errors
+
+---
+Task ID: card-size-standardization
+Agent: Main
+Task: Standardize card sizes across all dashboards to use the same DataCard component
+
+Work Log:
+- Analyzed all 6 dashboard files (admin, city-head, park, murabbi, student, guardian) to identify inconsistent card sizes
+- Found that admin, city-head, and park dashboards already used the DataCard component (gradient cards with p-5, text-3xl, size-5 icons)
+- Found that murabbi, student, and guardian dashboards used plain Card components with smaller sizes (p-4, text-2xl, size-9 icon containers)
+- Updated murabbi-dashboard.tsx: Replaced 4 plain metric Cards with DataCard components (sky, brand, violet, amber variants), updated grid to 2-col mobile / 4-col desktop
+- Updated student-dashboard.tsx: Replaced 3 plain metric Cards with DataCard components (brand, amber, violet variants), kept 3-col grid
+- Updated guardian-dashboard.tsx: Replaced 4 plain metric Cards with DataCard components (brand, sky, violet, amber variants), updated grid to 2-col mobile / 4-col desktop, added pulse prop for announcements
+- All files pass ESLint with zero errors
+- Dev server compiles successfully with no errors
+
+Stage Summary:
+- All 6 dashboards now use the same DataCard component for metric/stat cards
+- Card sizes are consistent across all dashboards: p-5 padding, text-3xl values, size-5 icons, gradient backgrounds
+- Files modified: murabbi-dashboard.tsx, student-dashboard.tsx, guardian-dashboard.tsx
+- No breaking changes - same data, same variants, just unified visual presentation

@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useAppStore } from "@/stores/useAppStore";
 import { motion } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
+import { DataCard } from "@/components/layout/data-card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -216,72 +217,43 @@ export function GuardianDashboard() {
         </div>
       </motion.div>
 
-      {/* ─── 2. Summary Metric Cards (2x2 → 4 cols) ───────────── */}
+      {/* ─── 2. Summary Metric Cards ───────────────────────────── */}
       <motion.div
         variants={fadeUp}
-        className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4"
+        className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4"
       >
         {/* My Children */}
-        <Card className="overflow-hidden">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-center size-9 rounded-lg bg-[#F3ECF6] dark:bg-[#1F086099]">
-              <GraduationCap className="size-4.5 text-[#4B0A8F] dark:text-[#8A40B0]" />
-            </div>
-            <p className="text-2xl font-bold mt-3">{children.length}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              My Children
-            </p>
-          </CardContent>
-        </Card>
+        <DataCard
+          title="My Children"
+          value={children.length}
+          icon={GraduationCap}
+          variant="brand"
+        />
 
         {/* Today's Sessions */}
-        <Card className="overflow-hidden">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-center size-9 rounded-lg bg-[#F3ECF6] dark:bg-[#1F086099]">
-              <CalendarCheck className="size-4.5 text-[#4B0A8F] dark:text-[#8A40B0]" />
-            </div>
-            <p className="text-2xl font-bold mt-3">{todayEvents.length}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Today&apos;s Sessions
-            </p>
-          </CardContent>
-        </Card>
+        <DataCard
+          title="Today's Sessions"
+          value={todayEvents.length}
+          icon={CalendarCheck}
+          variant="sky"
+        />
 
         {/* 30-Day Avg Rate */}
-        <Card className="overflow-hidden">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-center size-9 rounded-lg bg-[#F3ECF6] dark:bg-[#1F086099]">
-              <TrendingUp className="size-4.5 text-[#4B0A8F] dark:text-[#8A40B0]" />
-            </div>
-            <p
-              className={cn(
-                "text-2xl font-bold mt-3",
-                rateColor(avgRate30)
-              )}
-            >
-              {childrenWithEvents.length > 0 ? `${avgRate30}%` : "—"}
-            </p>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              30-Day Avg Rate
-            </p>
-          </CardContent>
-        </Card>
+        <DataCard
+          title="30-Day Avg Rate"
+          value={childrenWithEvents.length > 0 ? `${avgRate30}%` : "—"}
+          icon={TrendingUp}
+          variant="violet"
+        />
 
         {/* Announcements */}
-        <Card className="overflow-hidden cursor-pointer" onClick={() => navigateTo("guardian-announcements")}>
-          <CardContent className="p-4">
-            <div className="relative flex items-center justify-center size-9 rounded-lg bg-[#F3ECF6] dark:bg-[#1F086099]">
-              <Bell className="size-4.5 text-[#4B0A8F] dark:text-[#8A40B0]" />
-              {unreadAnnouncements > 0 && (
-                <span className="absolute -top-1 -right-1 flex items-center justify-center size-4.5 rounded-full bg-[#FF0015] text-white text-[9px] font-bold">
-                  {unreadAnnouncements > 9 ? "9+" : unreadAnnouncements}
-                </span>
-              )}
-            </div>
-            <p className="text-2xl font-bold mt-3">{unreadAnnouncements}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">Announcements</p>
-          </CardContent>
-        </Card>
+        <DataCard
+          title="Announcements"
+          value={unreadAnnouncements}
+          icon={Bell}
+          variant="amber"
+          pulse={unreadAnnouncements > 0}
+        />
       </motion.div>
 
       {/* ─── 3. My Children Section ─────────────────────────────── */}

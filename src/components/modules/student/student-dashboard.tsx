@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import { useAppStore } from "@/stores/useAppStore";
 import { motion } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
+import { DataCard } from "@/components/layout/data-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -438,80 +439,33 @@ export function StudentDashboard() {
       {/* ─── 4. Attendance Metrics (3 cards) ───────────────────── */}
       <motion.div
         variants={fadeUp}
-        className="grid grid-cols-3 gap-3 sm:gap-4"
+        className="grid grid-cols-3 gap-3 md:gap-4"
       >
         {/* 30-Day Rate */}
-        <Card className="overflow-hidden">
-          <CardContent className="p-3 sm:p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center justify-center size-8 rounded-lg bg-[#F3ECF6] dark:bg-[#1F086099]">
-                <TrendingUp className="size-4 text-[#4B0A8F] dark:text-[#8A40B0]" />
-              </div>
-              {metrics.rate7 !== 0 && (
-                <div
-                  className={cn(
-                    "flex items-center gap-0.5 text-[9px] sm:text-[10px] font-semibold px-1 py-0.5 rounded-full",
-                    metrics.rate30 >= metrics.rate7
-                      ? "bg-[#F3ECF6] text-[#4B0A8F] dark:bg-[#1F086080] dark:text-[#8A40B0]"
-                      : "bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-400"
-                  )}
-                >
-                  {metrics.rate30 >= metrics.rate7 ? (
-                    <TrendingUp className="size-2.5" />
-                  ) : (
-                    <TrendingDown className="size-2.5" />
-                  )}
-                </div>
-              )}
-            </div>
-            <p className={cn("text-xl sm:text-2xl font-bold mt-2.5", rateColor(metrics.rate30))}>
-              {metrics.totalEvents30 > 0 ? `${metrics.rate30}%` : "—"}
-            </p>
-            <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">
-              30-Day Rate
-            </p>
-          </CardContent>
-        </Card>
+        <DataCard
+          title="30-Day Rate"
+          value={metrics.totalEvents30 > 0 ? `${metrics.rate30}%` : "—"}
+          icon={TrendingUp}
+          variant="brand"
+          trend={metrics.rate7 !== 0 ? (metrics.rate30 >= metrics.rate7 ? "up" : "down") : undefined}
+          trendValue={metrics.rate7 !== 0 ? `vs 7-day` : undefined}
+        />
 
         {/* Current Streak */}
-        <Card className="overflow-hidden">
-          <CardContent className="p-3 sm:p-4">
-            <div className="flex items-center justify-center size-8 rounded-lg bg-orange-100 dark:bg-orange-950/60">
-              <Flame className="size-4 text-orange-500 dark:text-orange-400" />
-            </div>
-            <p className="text-xl sm:text-2xl font-bold mt-2.5">
-              {streak.current > 0 ? (
-                <span>
-                  🔥 <span className="text-foreground">{streak.current}</span>
-                </span>
-              ) : (
-                <span className="text-muted-foreground">—</span>
-              )}
-            </p>
-            <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">
-              {streak.current === 1 ? "day" : "days"} streak
-            </p>
-          </CardContent>
-        </Card>
+        <DataCard
+          title="Current Streak"
+          value={streak.current > 0 ? streak.current : "—"}
+          icon={Flame}
+          variant="amber"
+        />
 
         {/* Best Streak */}
-        <Card className="overflow-hidden">
-          <CardContent className="p-3 sm:p-4">
-            <div className="flex items-center justify-center size-8 rounded-lg bg-amber-100 dark:bg-amber-950/60">
-              <Trophy className="size-4 text-amber-600 dark:text-amber-400" />
-            </div>
-            <p className="text-xl sm:text-2xl font-bold mt-2.5">
-              {streak.longest > 0 ? (
-                <span className="text-foreground">{streak.longest}</span>
-              ) : (
-                <span className="text-muted-foreground">—</span>
-              )}
-            </p>
-            <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">
-              Best streak
-            </p>
-          </CardContent>
-        </Card>
+        <DataCard
+          title="Best Streak"
+          value={streak.longest > 0 ? streak.longest : "—"}
+          icon={Trophy}
+          variant="violet"
+        />
       </motion.div>
 
       {/* ─── 5. Weekly Trend (7-day CSS bar chart) ──────────────── */}

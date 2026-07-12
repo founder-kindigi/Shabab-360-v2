@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import { useAppStore } from "@/stores/useAppStore";
 import { motion } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
+import { DataCard } from "@/components/layout/data-card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -276,99 +277,41 @@ export function MurabbiDashboard() {
       {/* ─── 3. Four Metric Cards ────────────────────────────────── */}
       <motion.div
         variants={fadeUp}
-        className="grid grid-cols-2 gap-3 sm:gap-4"
+        className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4"
       >
         {/* Total Shabab */}
-        <Card className="overflow-hidden">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center justify-center size-9 rounded-lg bg-sky-100 dark:bg-sky-950/60">
-                <Users className="size-4.5 text-sky-600 dark:text-sky-400" />
-              </div>
-            </div>
-            <p className="text-2xl font-bold mt-3">{data.totalParticipants}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">Total Shabab</p>
-          </CardContent>
-        </Card>
+        <DataCard
+          title="Total Shabab"
+          value={data.totalParticipants}
+          icon={Users}
+          variant="sky"
+        />
 
         {/* Today's Rate */}
-        <Card className="overflow-hidden">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center justify-center size-9 rounded-lg bg-[#F3ECF6] dark:bg-[#1F086099]">
-                <TrendingUp className="size-4.5 text-[#4B0A8F] dark:text-[#8A40B0]" />
-              </div>
-            </div>
-            <p className={cn("text-2xl font-bold mt-3", rateColor(data.todayRate))}>
-              {data.todayEvent ? `${data.todayRate}%` : "—"}
-            </p>
-            <p className="text-xs text-muted-foreground mt-0.5">Today&apos;s Rate</p>
-          </CardContent>
-        </Card>
+        <DataCard
+          title="Today's Rate"
+          value={data.todayEvent ? `${data.todayRate}%` : "—"}
+          icon={TrendingUp}
+          variant="brand"
+        />
 
         {/* This Week Rate */}
-        <Card className="overflow-hidden">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center justify-center size-9 rounded-lg bg-violet-100 dark:bg-violet-950/60">
-                <TrendingUp className="size-4 text-violet-600 dark:text-violet-400" />
-              </div>
-              {weekDiff !== 0 && (
-                <div
-                  className={cn(
-                    "flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full",
-                    weekDiff > 0
-                      ? "bg-[#F3ECF6] text-[#4B0A8F] dark:bg-[#1F086080] dark:text-[#8A40B0]"
-                      : "bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-400"
-                  )}
-                >
-                  {weekDiff > 0 ? (
-                    <TrendingUp className="size-3" />
-                  ) : (
-                    <TrendingDown className="size-3" />
-                  )}
-                  {weekDiff > 0 ? "+" : ""}
-                  {weekDiff}%
-                </div>
-              )}
-            </div>
-            <p className="text-2xl font-bold mt-3">{data.thisWeekRate}%</p>
-            <p className="text-xs text-muted-foreground mt-0.5">This Week</p>
-          </CardContent>
-        </Card>
+        <DataCard
+          title="This Week"
+          value={`${data.thisWeekRate}%`}
+          icon={TrendingUp}
+          variant="violet"
+          trend={weekDiff > 0 ? "up" : weekDiff < 0 ? "down" : undefined}
+          trendValue={weekDiff !== 0 ? `${weekDiff > 0 ? "+" : ""}${weekDiff}%` : undefined}
+        />
 
         {/* Last Week Rate */}
-        <Card className="overflow-hidden">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center justify-center size-9 rounded-lg bg-amber-100 dark:bg-amber-950/60">
-                <Clock className="size-4 text-amber-600 dark:text-amber-400" />
-              </div>
-              {weekDiff !== 0 && (
-                <div
-                  className={cn(
-                    "flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full",
-                    weekDiff > 0
-                      ? "bg-[#F3ECF6] text-[#4B0A8F] dark:bg-[#1F086080] dark:text-[#8A40B0]"
-                      : "bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-400"
-                  )}
-                >
-                  {weekDiff > 0 ? (
-                    <TrendingUp className="size-3" />
-                  ) : weekDiff < 0 ? (
-                    <TrendingDown className="size-3" />
-                  ) : (
-                    <Minus className="size-3" />
-                  )}
-                  {weekDiff > 0 ? "+" : ""}
-                  {weekDiff}%
-                </div>
-              )}
-            </div>
-            <p className="text-2xl font-bold mt-3">{data.lastWeekRate}%</p>
-            <p className="text-xs text-muted-foreground mt-0.5">Last Week</p>
-          </CardContent>
-        </Card>
+        <DataCard
+          title="Last Week"
+          value={`${data.lastWeekRate}%`}
+          icon={Clock}
+          variant="amber"
+        />
       </motion.div>
 
       {/* ─── 4. Today's Session Card ─────────────────────────────── */}
