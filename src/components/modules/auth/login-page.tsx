@@ -195,7 +195,7 @@ export function LoginPage() {
                         key={account.email}
                         type="button"
                         disabled={loading}
-                        onClick={() => doQuickLogin(account.email)}
+                        onClick={() => doQuickLogin(account.email, setLoading)}
                         className="flex items-center gap-3 p-2 rounded-md hover:bg-muted/50 cursor-pointer transition-colors border-l-[3px] text-left disabled:opacity-50 disabled:cursor-not-allowed"
                         style={{ borderLeftColor: account.color }}
                       >
