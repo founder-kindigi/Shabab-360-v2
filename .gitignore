@@ -60,3 +60,6 @@ db/*.db-journal
 db/*.db-wal
 shabab360-v2/
 
+.zscripts/
+tool-results/
+*.pid
