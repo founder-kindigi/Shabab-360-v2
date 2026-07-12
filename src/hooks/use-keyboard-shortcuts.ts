@@ -9,6 +9,7 @@ import { useSession } from "next-auth/react";
 // ---------------------------------------------------------------------------
 
 import { create } from "zustand";
+import { useCommandPaletteStore } from "@/components/shared/command-palette";
 
 interface ShortcutsDialogState {
   open: boolean;

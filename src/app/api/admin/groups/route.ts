@@ -16,28 +16,45 @@ export async function GET(request: NextRequest) {
 
   const { searchParams } = new URL(request.url);
   const batchId = searchParams.get("batchId") || undefined;
+  const parkId = searchParams.get("parkId") || undefined;
+  const search = searchParams.get("search") || undefined;
+  const status = searchParams.get("status") || undefined;
 
   const isHQ = ["super_admin", "program_admin"].includes(user.role || "");
 
   // Build where clause based on role
-  let where: any = { isActive: true };
+  let where: any = {};
+
+  // Status filter (default: active only)
+  if (status === "inactive") {
+    where.isActive = false;
+  } else if (status !== "all") {
+    where.isActive = true;
+  }
 
   if (isHQ) {
+    if (parkId) where.batch = { ...where.batch, parkId };
     if (batchId) where.batchId = batchId;
   } else if (user.role === "city_head" && user.assignedCityId) {
-    where.batch = { park: { cityId: user.assignedCityId } };
+    where.batch = { ...where.batch, park: { cityId: user.assignedCityId } };
+    if (parkId) where.batch = { ...where.batch, parkId };
     if (batchId) where.batchId = batchId;
   } else if (
     ["park_admin", "park_lead"].includes(user.role || "") &&
     user.assignedParkId
   ) {
-    where.batch = { parkId: user.assignedParkId };
+    where.batch = { ...where.batch, parkId: user.assignedParkId };
     if (batchId) where.batchId = batchId;
   } else if (user.role === "murabbi" && user.assignedGroupId) {
     // Murabbi: only their own group
     where.id = user.assignedGroupId;
   } else {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  // Search by group name
+  if (search) {
+    where.name = { contains: search, mode: "insensitive" };
   }
 
   const groups = await db.group.findMany({

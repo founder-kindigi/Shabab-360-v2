@@ -23,8 +23,11 @@ export async function GET(request: NextRequest) {
   const parkId = searchParams.get("parkId") || undefined;
   const groupId = searchParams.get("groupId") || undefined;
   const state = searchParams.get("state") || undefined;
-  const page = parseInt(searchParams.get("page") || "1", 10);
-  const pageSize = Math.min(parseInt(searchParams.get("pageSize") || "20", 10), 100);
+  const gender = searchParams.get("gender") || undefined;
+  const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
+  const pageSize = Math.min(100, Math.max(1, parseInt(searchParams.get("pageSize") || "20", 10)));
+  const sort = searchParams.get("sort") || "createdAt";
+  const order = searchParams.get("order") || "desc";
 
   // Build where clause
   const where: any = {};
@@ -51,9 +54,20 @@ export async function GET(request: NextRequest) {
     where.state = state;
   }
 
-  const thirtyDaysAgo = subDays(new Date(), 30);
+  if (gender && gender !== "all") {
+    where.gender = gender;
+  }
 
-  const [students, total] = await Promise.all([
+  // Build orderBy
+  const allowedSortFields = ["name", "joinedAt", "createdAt"] as const;
+  const sortField = allowedSortFields.includes(sort as any) ? sort : "createdAt";
+  const sortOrder = order === "asc" ? "asc" : "desc";
+  const orderBy: any = { [sortField]: sortOrder };
+
+  const thirtyDaysAgo = subDays(new Date(), 30);
+  const skip = (page - 1) * pageSize;
+
+  const [students, totalItems] = await Promise.all([
     db.participant.findMany({
       where,
       include: {
@@ -84,8 +98,8 @@ export async function GET(request: NextRequest) {
           select: { id: true, status: true },
         },
       },
-      orderBy: { createdAt: "desc" },
-      skip: (page - 1) * pageSize,
+      orderBy,
+      skip,
       take: pageSize,
     }),
     db.participant.count({ where }),
@@ -138,8 +152,8 @@ export async function GET(request: NextRequest) {
     pagination: {
       page,
       pageSize,
-      total,
-      totalPages: Math.ceil(total / pageSize),
+      totalItems,
+      totalPages: Math.ceil(totalItems / pageSize),
     },
   });
 }

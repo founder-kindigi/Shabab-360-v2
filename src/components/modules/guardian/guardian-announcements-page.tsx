@@ -1,14 +1,14 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatPKT, PKT } from "@/lib/timezone";
 import { cn } from "@/lib/utils";
+import { PKT, toZonedTime, formatPKT } from "@/lib/timezone";
 import {
   AlertTriangle,
   Megaphone,
@@ -16,9 +16,12 @@ import {
   Bell,
   Eye,
   Filter,
+  ChevronDown,
+  CheckCheck,
+  Users,
+  GraduationCap,
 } from "lucide-react";
-import { format } from "date-fns";
-import { toZonedTime } from "@/lib/timezone";
+import { toast } from "sonner";
 
 // ─── Types ───────────────────────────────────────────────────────────
 
@@ -66,22 +69,38 @@ const priorityConfig: Record<
     icon: typeof AlertTriangle;
     badgeClass: string;
     label: string;
+    borderClass: string;
+    iconBgClass: string;
+    iconClass: string;
+    groupLabel: string;
   }
 > = {
   urgent: {
     icon: AlertTriangle,
-    badgeClass: "bg-red-500/10 text-red-600 border-0 dark:text-red-400",
+    badgeClass: "bg-red-500/10 text-red-600 border-0 dark:text-red-400 dark:bg-red-500/20",
     label: "Urgent",
+    borderClass: "border-l-[3px] border-l-red-500 dark:border-l-red-400",
+    iconBgClass: "bg-red-50 dark:bg-red-950/40",
+    iconClass: "text-red-500 dark:text-red-400",
+    groupLabel: "Urgent Announcements",
   },
   normal: {
     icon: Megaphone,
     badgeClass: "bg-[#4B0A8F]/10 text-[#4B0A8F] border-0 dark:text-[#8A40B0] dark:bg-[#4B0A8F]/20",
     label: "Normal",
+    borderClass: "border-l-[3px] border-l-[#4B0A8F] dark:border-l-[#8A40B0]",
+    iconBgClass: "bg-[#F3ECF6] dark:bg-[#1F086099]",
+    iconClass: "text-[#4B0A8F] dark:text-[#8A40B0]",
+    groupLabel: "General Announcements",
   },
   low: {
     icon: Clock,
     badgeClass: "bg-slate-100 text-slate-600 border-0 dark:bg-slate-800 dark:text-slate-400",
     label: "Low",
+    borderClass: "border-l-[3px] border-l-slate-400 dark:border-l-slate-500",
+    iconBgClass: "bg-slate-100 dark:bg-slate-800",
+    iconClass: "text-slate-500 dark:text-slate-400",
+    groupLabel: "Other Updates",
   },
 };
 
@@ -96,10 +115,46 @@ const roleLabels: Record<string, string> = {
   student: "Student",
 };
 
+// Relevance description for guardians
+function getRelevanceText(targetRoles: string[]): string {
+  const hasStudent = targetRoles.includes("student");
+  const hasGuardian = targetRoles.includes("guardian");
+  if (hasStudent && hasGuardian) return "Relevant to you and your children";
+  if (hasStudent) return "Relevant to your children";
+  if (hasGuardian) return "Relevant to guardians";
+  return "";
+}
+
+// ─── localStorage helpers ────────────────────────────────────────────
+
+const STORAGE_KEY = "shabab360-guardian-read-announcements";
+
+function getReadIds(): Set<string> {
+  if (typeof window === "undefined") return new Set();
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? new Set(JSON.parse(raw) as string[]) : new Set();
+  } catch {
+    return new Set();
+  }
+}
+
+function setReadIds(ids: Set<string>) {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(STORAGE_KEY, JSON.stringify([...ids]));
+}
+
 // ─── Component ───────────────────────────────────────────────────────
 
 export function GuardianAnnouncementsPage() {
   const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>("all");
+  const [groupByPriority, setGroupByPriority] = useState(false);
+  const [readIds, setReadIdsState] = useState<Set<string>>(new Set());
+
+  // Hydrate readIds from localStorage after mount
+  useState(() => {
+    setReadIdsState(getReadIds());
+  });
 
   // Fetch announcements filtered by guardian role
   const { data: announcements, isLoading, error } = useQuery<Announcement[]>({
@@ -119,11 +174,34 @@ export function GuardianAnnouncementsPage() {
     return announcements.filter((a) => a.priority === priorityFilter);
   }, [announcements, priorityFilter]);
 
-  // Unread count (non-expired)
+  // Unread count (non-expired, not read)
   const unreadCount = useMemo(
-    () => (announcements || []).filter((a) => !a.isExpired).length,
-    [announcements]
+    () =>
+      (announcements || []).filter(
+        (a) => !a.isExpired && !readIds.has(a.id)
+      ).length,
+    [announcements, readIds]
   );
+
+  // Grouped announcements
+  const grouped = useMemo(() => {
+    if (!groupByPriority || priorityFilter !== "all") return null;
+    const urgent = filtered.filter((a) => a.priority === "urgent");
+    const normal = filtered.filter((a) => a.priority === "normal");
+    const low = filtered.filter((a) => a.priority === "low");
+    return { urgent, normal, low };
+  }, [filtered, groupByPriority, priorityFilter]);
+
+  const markAllAsRead = useCallback(() => {
+    if (!announcements) return;
+    const newSet = new Set(readIds);
+    announcements.forEach((a) => {
+      if (!a.isExpired) newSet.add(a.id);
+    });
+    setReadIdsState(newSet);
+    setReadIds(newSet);
+    toast.success("All announcements marked as read");
+  }, [announcements, readIds]);
 
   const filterPills: { key: PriorityFilter; label: string }[] = [
     { key: "all", label: "All" },
@@ -131,6 +209,38 @@ export function GuardianAnnouncementsPage() {
     { key: "normal", label: "Normal" },
     { key: "low", label: "Low" },
   ];
+
+  const renderAnnouncementList = (
+    items: Announcement[],
+    startIndex: number
+  ) => (
+    <AnimatePresence mode="popLayout">
+      <div className="space-y-3">
+        {items.map((announcement, i) => (
+          <motion.div
+            key={announcement.id}
+            custom={startIndex + i}
+            variants={cardVariant}
+            initial="hidden"
+            animate="visible"
+            exit={{ opacity: 0, scale: 0.95 }}
+            layout
+          >
+            <AnnouncementCard
+              announcement={announcement}
+              isRead={readIds.has(announcement.id)}
+              onRead={(id) => {
+                const newSet = new Set(readIds);
+                newSet.add(id);
+                setReadIdsState(newSet);
+                setReadIds(newSet);
+              }}
+            />
+          </motion.div>
+        ))}
+      </div>
+    </AnimatePresence>
+  );
 
   return (
     <motion.div
@@ -140,23 +250,39 @@ export function GuardianAnnouncementsPage() {
       className="space-y-5"
     >
       {/* ─── Header ───────────────────────────────────────────────── */}
-      <motion.div variants={fadeUp} className="flex items-center justify-between gap-3">
+      <motion.div
+        variants={fadeUp}
+        className="flex items-center justify-between gap-3"
+      >
         <div className="flex items-center gap-2.5 min-w-0">
           <h2 className="text-lg font-bold text-foreground">Announcements</h2>
           {unreadCount > 0 && (
             <Badge className="bg-[#FF0015] text-white border-0 text-[10px] font-bold px-2 py-0.5">
-              {unreadCount}
+              {unreadCount} new
             </Badge>
           )}
         </div>
-        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          <Eye className="size-3.5" />
-          <span>{announcements?.length || 0} total</span>
+        <div className="flex items-center gap-2 shrink-0">
+          {unreadCount > 0 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-xs text-[#4B0A8F] hover:text-[#6B20A0] hover:bg-[#F3ECF6] dark:text-[#8A40B0] dark:hover:bg-[#1F086080] h-8 gap-1.5"
+              onClick={markAllAsRead}
+            >
+              <CheckCheck className="size-3.5" />
+              Mark all as read
+            </Button>
+          )}
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Eye className="size-3.5" />
+            <span>{announcements?.length || 0} total</span>
+          </div>
         </div>
       </motion.div>
 
       {/* ─── Priority Filter Pills ─────────────────────────────────── */}
-      <motion.div variants={fadeUp} className="flex items-center gap-1.5">
+      <motion.div variants={fadeUp} className="flex items-center gap-1.5 flex-wrap">
         <Filter className="size-3.5 text-muted-foreground shrink-0" />
         {filterPills.map((pill) => (
           <Button
@@ -183,6 +309,24 @@ export function GuardianAnnouncementsPage() {
             )}
           </Button>
         ))}
+
+        {/* Group toggle */}
+        {priorityFilter === "all" && filtered.length > 3 && (
+          <Button
+            variant={groupByPriority ? "default" : "outline"}
+            size="sm"
+            className={cn(
+              "h-7 text-xs px-3 ml-auto",
+              groupByPriority
+                ? "bg-[#A0006B] hover:bg-[#A0006B] text-white border-0"
+                : "hover:border-[#D4B8E3] hover:text-[#A0006B] dark:hover:border-[#2A0C8F99] dark:hover:text-[#D4B8E3]"
+            )}
+            onClick={() => setGroupByPriority((prev) => !prev)}
+          >
+            <Users className="size-3 mr-1" />
+            {groupByPriority ? "Ungroup" : "Group by priority"}
+          </Button>
+        )}
       </motion.div>
 
       {/* ─── Content ───────────────────────────────────────────────── */}
@@ -193,7 +337,7 @@ export function GuardianAnnouncementsPage() {
           ))}
         </div>
       ) : error ? (
-        <Card className="border-red-200 dark:border-red-800/50">
+        <Card className="border-red-200 dark:border-red-800/50 bg-card">
           <CardContent className="p-6 text-center">
             <AlertTriangle className="size-6 text-red-500 mx-auto mb-2" />
             <p className="text-sm font-medium text-red-700 dark:text-red-400">
@@ -219,24 +363,38 @@ export function GuardianAnnouncementsPage() {
             </p>
           </div>
         </motion.div>
-      ) : (
-        <AnimatePresence mode="popLayout">
-          <div className="space-y-3">
-            {filtered.map((announcement, i) => (
-              <motion.div
-                key={announcement.id}
-                custom={i}
-                variants={cardVariant}
-                initial="hidden"
-                animate="visible"
-                exit={{ opacity: 0, scale: 0.95 }}
-                layout
-              >
-                <AnnouncementCard announcement={announcement} />
+      ) : grouped ? (
+        /* ─── Grouped view ──────────────────────────────────────────── */
+        <div className="space-y-6">
+          {(["urgent", "normal", "low"] as const).map((prio) => {
+            const items = grouped[prio];
+            if (items.length === 0) return null;
+            const cfg = priorityConfig[prio];
+            const PrioIcon = cfg.icon;
+            let offset = 0;
+            if (prio === "normal") offset = grouped.urgent.length;
+            if (prio === "low") offset = grouped.urgent.length + grouped.normal.length;
+            return (
+              <motion.div key={prio} variants={fadeUp}>
+                <div className="flex items-center gap-2 mb-3">
+                  <PrioIcon className={cn("size-4", cfg.iconClass)} />
+                  <h3 className="text-sm font-semibold text-foreground">
+                    {cfg.groupLabel}
+                  </h3>
+                  <Badge
+                    variant="secondary"
+                    className="text-[10px] px-1.5 py-0 bg-muted text-muted-foreground"
+                  >
+                    {items.length}
+                  </Badge>
+                </div>
+                {renderAnnouncementList(items, offset)}
               </motion.div>
-            ))}
-          </div>
-        </AnimatePresence>
+            );
+          })}
+        </div>
+      ) : (
+        renderAnnouncementList(filtered, 0)
       )}
     </motion.div>
   );
@@ -244,80 +402,165 @@ export function GuardianAnnouncementsPage() {
 
 // ─── Announcement Card Sub-component ─────────────────────────────────
 
-function AnnouncementCard({ announcement }: { announcement: Announcement }) {
+function AnnouncementCard({
+  announcement,
+  isRead,
+  onRead,
+}: {
+  announcement: Announcement;
+  isRead: boolean;
+  onRead: (id: string) => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
   const config = priorityConfig[announcement.priority] || priorityConfig.normal;
   const PriorityIcon = config.icon;
+  const isUnread = !isRead && !announcement.isExpired;
+  const isLong = announcement.content.length > 150;
+  const relevanceText = getRelevanceText(announcement.targetRoles || []);
 
   const formattedDate = (() => {
     try {
-      const date = new Date(announcement.createdAt);
-      const zoned = toZonedTime(date, PKT);
-      return format(zoned, "dd MMM yyyy · h:mm a");
+      return formatPKT(new Date(announcement.createdAt), "dd MMM yyyy · h:mm a");
     } catch {
       return "";
     }
   })();
 
+  const handleExpand = () => {
+    if (isLong) {
+      setExpanded((prev) => !prev);
+    }
+    if (isUnread) {
+      onRead(announcement.id);
+    }
+  };
+
   return (
     <Card
       className={cn(
-        "overflow-hidden border-border transition-all",
-        announcement.isExpired && "opacity-60"
+        "overflow-hidden transition-all duration-200 bg-card",
+        config.borderClass,
+        announcement.isExpired && "opacity-60",
+        isUnread
+          ? "hover:shadow-md dark:hover:shadow-[#4B0A8F]/5"
+          : "hover:shadow-sm"
       )}
     >
       <CardContent className="p-4 space-y-2.5">
-        {/* Top row: icon, title, badge */}
+        {/* Top row: icon, title, badges */}
         <div className="flex items-start gap-3">
           <div
             className={cn(
-              "flex items-center justify-center size-9 rounded-lg shrink-0 mt-0.5",
-              announcement.priority === "urgent"
-                ? "bg-red-50 dark:bg-red-950/40"
-                : announcement.priority === "normal"
-                  ? "bg-[#F3ECF6] dark:bg-[#1F086099]"
-                  : "bg-slate-100 dark:bg-slate-800"
+              "flex items-center justify-center size-9 rounded-lg shrink-0 mt-0.5 relative",
+              config.iconBgClass
             )}
           >
-            <PriorityIcon
-              className={cn(
-                "size-4",
-                announcement.priority === "urgent"
-                  ? "text-red-500 dark:text-red-400"
-                  : announcement.priority === "normal"
-                    ? "text-[#4B0A8F] dark:text-[#8A40B0]"
-                    : "text-slate-500 dark:text-slate-400"
-              )}
-            />
+            <PriorityIcon className={cn("size-4", config.iconClass)} />
+            {/* Pulsing dot for urgent + unread */}
+            {announcement.priority === "urgent" && isUnread && (
+              <span className="absolute -top-0.5 -right-0.5">
+                <span className="flex size-2.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full size-2.5 bg-red-500" />
+                </span>
+              </span>
+            )}
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 flex-wrap">
-              <h3 className="text-sm font-semibold leading-tight">
+              {/* "New" badge for unread */}
+              {isUnread && (
+                <Badge className="bg-[#FF0015] text-white border-0 text-[9px] font-bold px-1.5 py-0 h-4 leading-none">
+                  NEW
+                </Badge>
+              )}
+              <h3
+                className={cn(
+                  "text-sm leading-tight cursor-pointer",
+                  isUnread
+                    ? "font-bold text-foreground"
+                    : "font-semibold text-foreground/90"
+                )}
+                onClick={handleExpand}
+              >
                 {announcement.title}
               </h3>
-              <Badge className={cn("text-[10px] font-semibold px-2 py-0.5", config.badgeClass)}>
+              <Badge
+                className={cn(
+                  "text-[10px] font-semibold px-2 py-0.5 shrink-0",
+                  config.badgeClass
+                )}
+              >
                 {config.label}
               </Badge>
               {announcement.isExpired && (
-                <Badge variant="secondary" className="text-[9px] px-1.5 py-0">
+                <Badge
+                  variant="secondary"
+                  className="text-[9px] px-1.5 py-0 bg-muted text-muted-foreground"
+                >
                   Expired
                 </Badge>
               )}
             </div>
-            {/* Content (truncated) */}
-            <p className="text-xs text-muted-foreground mt-1 leading-relaxed line-clamp-2">
-              {announcement.content.length > 200
-                ? announcement.content.slice(0, 200) + "…"
-                : announcement.content}
-            </p>
+
+            {/* Relevance indicator for guardians */}
+            {relevanceText && (
+              <div className="flex items-center gap-1 mt-1">
+                <GraduationCap className="size-3 text-[#A0006B] dark:text-[#D4B8E3]" />
+                <span className="text-[11px] text-[#A0006B] dark:text-[#D4B8E3] font-medium">
+                  {relevanceText}
+                </span>
+              </div>
+            )}
+
+            {/* Content — expandable */}
+            <div
+              className={cn(
+                "text-xs text-muted-foreground mt-1.5 leading-relaxed cursor-pointer",
+                isLong && !expanded && "line-clamp-2"
+              )}
+              onClick={handleExpand}
+            >
+              {expanded || !isLong
+                ? announcement.content
+                : announcement.content.slice(0, 150) + "…"}
+            </div>
+
+            {/* Expand/collapse indicator */}
+            {isLong && (
+              <button
+                onClick={handleExpand}
+                className="flex items-center gap-0.5 text-[11px] text-[#4B0A8F] dark:text-[#8A40B0] hover:underline mt-1 font-medium"
+              >
+                {expanded ? "Show less" : "Read more"}
+                <ChevronDown
+                  className={cn(
+                    "size-3 transition-transform duration-200",
+                    expanded && "rotate-180"
+                  )}
+                />
+              </button>
+            )}
           </div>
         </div>
 
         {/* Bottom row: author, date, target roles */}
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground pl-12">
-          <span className="font-medium text-foreground/80">{announcement.authorName}</span>
+          <span className="font-medium text-foreground/80">
+            {announcement.authorName}
+          </span>
           <span>·</span>
           <span>{formattedDate}</span>
-          {/* Target roles as small badges */}
+          {isUnread && (
+            <>
+              <span>·</span>
+              <span className="flex items-center gap-1 text-[#4B0A8F] dark:text-[#8A40B0]">
+                <Eye className="size-3" />
+                Unread
+              </span>
+            </>
+          )}
+          {/* Target roles */}
           <div className="flex items-center gap-1">
             {(announcement.targetRoles || [])
               .slice(0, 3)

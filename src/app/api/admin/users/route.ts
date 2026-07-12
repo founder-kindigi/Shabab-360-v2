@@ -34,6 +34,10 @@ export async function GET(request: NextRequest) {
   const role = searchParams.get("role") || undefined;
   const status = searchParams.get("status") || undefined;
   const search = searchParams.get("search") || undefined;
+  const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
+  const pageSize = Math.min(100, Math.max(1, parseInt(searchParams.get("pageSize") || "20", 10)));
+  const sort = searchParams.get("sort") || "createdAt";
+  const order = searchParams.get("order") || "desc";
 
   // Build where clause
   const where: any = {};
@@ -56,34 +60,55 @@ export async function GET(request: NextRequest) {
     ];
   }
 
-  const users = await db.user.findMany({
-    where,
-    orderBy: { createdAt: "desc" },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      phone: true,
-      isActive: true,
-      mustResetPwd: true,
-      createdAt: true,
-      staffMeta: {
-        select: {
-          id: true,
-          role: true,
-          assignedCityId: true,
-          assignedParkId: true,
-          assignedGroupId: true,
-          isActive: true,
-          assignedCity: { select: { id: true, name: true } },
-          assignedPark: { select: { id: true, name: true } },
-          assignedGroup: { select: { id: true, name: true } },
+  // Build orderBy
+  const allowedSortFields = ["name", "email", "createdAt"] as const;
+  const sortField = allowedSortFields.includes(sort as any) ? sort : "createdAt";
+  const sortOrder = order === "asc" ? "asc" : "desc";
+  const orderBy: any = { [sortField]: sortOrder };
+
+  const skip = (page - 1) * pageSize;
+
+  const [users, totalItems] = await Promise.all([
+    db.user.findMany({
+      where,
+      orderBy,
+      skip,
+      take: pageSize,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        isActive: true,
+        mustResetPwd: true,
+        createdAt: true,
+        staffMeta: {
+          select: {
+            id: true,
+            role: true,
+            assignedCityId: true,
+            assignedParkId: true,
+            assignedGroupId: true,
+            isActive: true,
+            assignedCity: { select: { id: true, name: true } },
+            assignedPark: { select: { id: true, name: true } },
+            assignedGroup: { select: { id: true, name: true } },
+          },
         },
       },
+    }),
+    db.user.count({ where }),
+  ]);
+
+  return NextResponse.json({
+    data: users,
+    pagination: {
+      page,
+      pageSize,
+      totalItems,
+      totalPages: Math.ceil(totalItems / pageSize),
     },
   });
-
-  return NextResponse.json(users);
 }
 
 export async function POST(request: NextRequest) {

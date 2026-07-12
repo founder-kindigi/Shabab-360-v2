@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useDebounce } from "@/hooks/use-debounce";
 import { useSession } from "next-auth/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
@@ -52,6 +53,7 @@ import {
   AlertTriangle,
   Clock,
   X,
+  Search,
 } from "lucide-react";
 import type { UserRole } from "@/types";
 
@@ -161,6 +163,10 @@ export function AnnouncementsPage() {
   const userRole = user?.role as UserRole | undefined;
   const userId = user?.id;
   const canCreate = userRole ? CAN_CREATE_ROLES.includes(userRole) : false;
+
+  // Search state
+  const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 300);
 
   // Dialog state
   const [createOpen, setCreateOpen] = useState(false);
@@ -304,6 +310,11 @@ export function AnnouncementsPage() {
       deleteMutation.mutate(selectedAnnouncement.id);
     }
   }
+
+  // Filter announcements by search
+  const filteredAnnouncements = announcements?.filter((a) =>
+    !debouncedSearch || a.title.toLowerCase().includes(debouncedSearch.toLowerCase())
+  );
 
   // Priority icon
   function PriorityIndicator({ priority }: { priority: string }) {

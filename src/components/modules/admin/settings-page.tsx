@@ -16,6 +16,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { useAppStore } from "@/stores/useAppStore";
+import { useTranslation } from "@/lib/i18n";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   User,
   Lock,
@@ -35,7 +43,19 @@ import {
   UserCog,
   Save,
   Loader2,
+  Bell,
+  BellOff,
+  AlertTriangle,
+  Trash2,
+  Download,
+  HardDrive,
+  Smartphone,
+  CalendarCheck,
+  Receipt,
+  Megaphone,
+  Globe,
 } from "lucide-react";
+import { AvatarUpload } from "@/components/shared/avatar-upload";
 
 interface UserProfile {
   id: string;
@@ -45,7 +65,15 @@ interface UserProfile {
   createdAt: string;
 }
 
+function getInitials(name: string | null | undefined): string {
+  if (!name) return "?";
+  const parts = name.trim().split(/\s+/);
+  if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  return parts[0].slice(0, 2).toUpperCase();
+}
+
 function ProfileTab() {
+  const { t } = useTranslation();
   const { data: session } = useSession();
   const queryClient = useQueryClient();
   const sessionUser = session?.user as {
@@ -89,11 +117,11 @@ function ProfileTab() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["user-profile"] });
-      toast.success("Profile updated successfully");
+      toast.success(t("settings.profileUpdated"));
       setIsEditing(false);
     },
     onError: (err: any) => {
-      toast.error(err.error || "Failed to update profile");
+      toast.error(err.error || t("settings.profileUpdateFailed"));
     },
   });
 
@@ -109,14 +137,14 @@ function ProfileTab() {
         return r.json();
       }),
     onSuccess: () => {
-      toast.success("Password changed successfully");
+      toast.success(t("settings.pwdChanged"));
       setPwdCurrent("");
       setPwdNew("");
       setPwdConfirm("");
       setPwdError("");
     },
     onError: (err: any) => {
-      setPwdError(err.error || "Failed to change password");
+      setPwdError(err.error || t("settings.pwdChangeFailed"));
     },
   });
 
@@ -129,15 +157,15 @@ function ProfileTab() {
     setPwdError("");
 
     if (!pwdCurrent || !pwdNew || !pwdConfirm) {
-      setPwdError("All password fields are required");
+      setPwdError(t("settings.allPwdRequired"));
       return;
     }
     if (pwdNew.length < 8) {
-      setPwdError("New password must be at least 8 characters");
+      setPwdError(t("auth.passwordMinLength"));
       return;
     }
     if (pwdNew !== pwdConfirm) {
-      setPwdError("New passwords do not match");
+      setPwdError(t("auth.passwordsMatch"));
       return;
     }
 
@@ -155,13 +183,34 @@ function ProfileTab() {
       transition={{ duration: 0.2 }}
       className="space-y-6 max-w-2xl"
     >
-      {/* Profile info card */}
+      {/* Profile header card */}
       <div className="rounded-xl border bg-card p-6 space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Profile Information</h2>
+        <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4">
+          {/* Avatar */}
+          <AvatarUpload
+            userId={sessionUser?.id || ""}
+            name={profile?.name || sessionUser?.name || ""}
+            size="lg"
+          />
+          <div className="text-center sm:text-left flex-1">
+            <div className="flex flex-col sm:flex-row items-center sm:items-center gap-2">
+              <h2 className="text-lg font-semibold">
+                {profile?.name || sessionUser?.name || "—"}
+              </h2>
+              <Badge
+                variant="outline"
+                className="capitalize text-[#4B0A8F] border-[#D4B8E3] bg-[#F3ECF6] dark:text-[#8A40B0] dark:border-[#2A0C8F] dark:bg-[#1F0860]"
+              >
+                {sessionUser?.role?.replace(/_/g, " ") || "—"}
+              </Badge>
+            </div>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              {profile?.email || sessionUser?.email || "—"}
+            </p>
+          </div>
           {!isEditing ? (
             <Button variant="outline" size="sm" onClick={startEditing}>
-              Edit
+              {t("common.edit")}
             </Button>
           ) : (
             <div className="flex gap-2">
@@ -170,7 +219,7 @@ function ProfileTab() {
                 size="sm"
                 onClick={() => setIsEditing(false)}
               >
-                Cancel
+                {t("common.cancel")}
               </Button>
               <Button
                 size="sm"
@@ -183,7 +232,7 @@ function ProfileTab() {
                 ) : (
                   <Save className="size-4 mr-1" />
                 )}
-                Save
+                {t("common.save")}
               </Button>
             </div>
           )}
@@ -202,14 +251,14 @@ function ProfileTab() {
             {/* Name */}
             <div className="grid grid-cols-3 gap-4 items-center">
               <Label className="text-sm text-muted-foreground flex items-center gap-2">
-                <User className="size-4" /> Name
+                <User className="size-4" /> {t("common.name")}
               </Label>
               {isEditing ? (
                 <div className="col-span-2">
                   <Input
                     value={editName}
                     onChange={(e) => setEditName(e.target.value)}
-                    placeholder="Your name"
+                    placeholder={t("settings.yourName")}
                   />
                 </div>
               ) : (
@@ -222,7 +271,7 @@ function ProfileTab() {
             {/* Email (read-only) */}
             <div className="grid grid-cols-3 gap-4 items-center">
               <Label className="text-sm text-muted-foreground flex items-center gap-2">
-                <Mail className="size-4" /> Email
+                <Mail className="size-4" /> {t("common.email")}
               </Label>
               <span className="col-span-2 text-sm text-muted-foreground">
                 {profile?.email || sessionUser?.email || "—"}
@@ -232,14 +281,14 @@ function ProfileTab() {
             {/* Phone */}
             <div className="grid grid-cols-3 gap-4 items-center">
               <Label className="text-sm text-muted-foreground flex items-center gap-2">
-                <Phone className="size-4" /> Phone
+                <Phone className="size-4" /> {t("common.phone")}
               </Label>
               {isEditing ? (
                 <div className="col-span-2">
                   <Input
                     value={editPhone}
                     onChange={(e) => setEditPhone(e.target.value)}
-                    placeholder="Phone number"
+                    placeholder={t("settings.phonePlaceholder")}
                   />
                 </div>
               ) : (
@@ -247,21 +296,6 @@ function ProfileTab() {
                   {profile?.phone || "—"}
                 </span>
               )}
-            </div>
-
-            {/* Role (read-only) */}
-            <div className="grid grid-cols-3 gap-4 items-center">
-              <Label className="text-sm text-muted-foreground flex items-center gap-2">
-                <Shield className="size-4" /> Role
-              </Label>
-              <div className="col-span-2">
-                <Badge
-                  variant="outline"
-                  className="capitalize text-[#4B0A8F] border-[#D4B8E3] bg-[#F3ECF6] dark:text-[#8A40B0] dark:border-[#2A0C8F] dark:bg-[#1F0860]"
-                >
-                  {sessionUser?.role?.replace(/_/g, " ") || "—"}
-                </Badge>
-              </div>
             </div>
           </div>
         )}
@@ -274,9 +308,9 @@ function ProfileTab() {
             <Lock className="size-4 text-amber-600 dark:text-amber-400" />
           </div>
           <div>
-            <h2 className="text-lg font-semibold">Change Password</h2>
+            <h2 className="text-lg font-semibold">{t("auth.changePassword")}</h2>
             <p className="text-xs text-muted-foreground">
-              Update your password to keep your account secure
+              {t("settings.updatePwdSecure")}
             </p>
           </div>
         </div>
@@ -286,40 +320,40 @@ function ProfileTab() {
         <form onSubmit={handlePasswordChange} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="current-pwd" className="text-sm">
-              Current Password
+              {t("auth.currentPassword")}
             </Label>
             <Input
               id="current-pwd"
               type="password"
               value={pwdCurrent}
               onChange={(e) => setPwdCurrent(e.target.value)}
-              placeholder="Enter current password"
+              placeholder={t("settings.enterCurrentPwd")}
             />
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="new-pwd" className="text-sm">
-              New Password
+              {t("auth.newPassword")}
             </Label>
             <Input
               id="new-pwd"
               type="password"
               value={pwdNew}
               onChange={(e) => setPwdNew(e.target.value)}
-              placeholder="Min. 8 characters"
+              placeholder={t("settings.min8Chars")}
             />
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="confirm-pwd" className="text-sm">
-              Confirm New Password
+              {t("auth.confirmPassword")}
             </Label>
             <Input
               id="confirm-pwd"
               type="password"
               value={pwdConfirm}
               onChange={(e) => setPwdConfirm(e.target.value)}
-              placeholder="Re-enter new password"
+              placeholder={t("settings.reenterPwd")}
             />
           </div>
 
@@ -335,12 +369,12 @@ function ProfileTab() {
             {pwdMutation.isPending ? (
               <>
                 <Loader2 className="size-4 animate-spin mr-2" />
-                Changing...
+                {t("settings.changing")}
               </>
             ) : (
               <>
                 <Lock className="size-4 mr-2" />
-                Change Password
+                {t("auth.changePassword")}
               </>
             )}
           </Button>
@@ -351,6 +385,7 @@ function ProfileTab() {
 }
 
 function OrganizationTab() {
+  const { t } = useTranslation();
   const { navigateTo } = useAppStore();
 
   const { data: stats, isLoading } = useQuery({
@@ -382,7 +417,7 @@ function OrganizationTab() {
           </div>
           <div>
             <h2 className="text-lg font-semibold">Shabab360</h2>
-            <p className="text-xs text-muted-foreground">Program Operations Platform</p>
+            <p className="text-xs text-muted-foreground">{t("settings.platformDesc")}</p>
           </div>
         </div>
 
@@ -414,13 +449,13 @@ function OrganizationTab() {
 
       {/* Quick links */}
       <div className="rounded-xl border bg-card p-6 space-y-4">
-        <h2 className="text-lg font-semibold">Quick Links</h2>
+        <h2 className="text-lg font-semibold">{t("settings.quickLinks")}</h2>
         <Separator />
         <div className="space-y-2">
           {[
-            { label: "Manage Cities", page: "admin-cities" as const, desc: "Add, edit, and manage cities" },
-            { label: "Manage Parks", page: "admin-parks" as const, desc: "View and manage parks" },
-            { label: "Manage Users", page: "admin-users" as const, desc: "Staff accounts and roles" },
+            { label: t("settings.manageCities"), page: "admin-cities" as const, desc: t("settings.manageCitiesDesc") },
+            { label: t("settings.manageParks"), page: "admin-parks" as const, desc: t("settings.manageParksDesc") },
+            { label: t("settings.manageUsers"), page: "admin-users" as const, desc: t("settings.manageUsersDesc") },
           ].map((link) => (
             <button
               key={link.page}
@@ -441,13 +476,14 @@ function OrganizationTab() {
 }
 
 function PreferencesTab() {
+  const { t } = useTranslation();
   const { theme, setTheme } = useTheme();
-  const { sidebarOpen, toggleSidebar } = useAppStore();
+  const { language, setLanguage, sidebarOpen, toggleSidebar } = useAppStore();
 
   const themeOptions = [
-    { value: "light", label: "Light", icon: Sun },
-    { value: "dark", label: "Dark", icon: Moon },
-    { value: "system", label: "System", icon: Monitor },
+    { value: "light", label: t("settings.lightMode"), icon: Sun },
+    { value: "dark", label: t("settings.darkMode"), icon: Moon },
+    { value: "system", label: t("common.system"), icon: Monitor },
   ] as const;
 
   return (
@@ -459,11 +495,11 @@ function PreferencesTab() {
     >
       {/* Theme */}
       <div className="rounded-xl border bg-card p-6 space-y-4">
-        <h2 className="text-lg font-semibold">Appearance</h2>
+        <h2 className="text-lg font-semibold">{t("settings.appearance")}</h2>
         <Separator />
 
         <div className="space-y-3">
-          <Label className="text-sm text-muted-foreground">Theme</Label>
+          <Label className="text-sm text-muted-foreground">{t("settings.theme")}</Label>
           <div className="grid grid-cols-3 gap-3">
             {themeOptions.map((opt) => {
               const isActive = theme === opt.value;
@@ -494,7 +530,7 @@ function PreferencesTab() {
 
       {/* Sidebar */}
       <div className="rounded-xl border bg-card p-6 space-y-4">
-        <h2 className="text-lg font-semibold">Sidebar</h2>
+        <h2 className="text-lg font-semibold">{t("settings.sidebar")}</h2>
         <Separator />
 
         <div className="flex items-center justify-between">
@@ -506,12 +542,12 @@ function PreferencesTab() {
             )}
             <div>
               <p className="text-sm font-medium">
-                {sidebarOpen ? "Expanded" : "Collapsed"}
+                {sidebarOpen ? t("settings.expanded") : t("settings.collapsed")}
               </p>
               <p className="text-xs text-muted-foreground">
                 {sidebarOpen
-                  ? "Show full sidebar with labels"
-                  : "Show only icons in the sidebar"}
+                  ? t("settings.showFullSidebar")
+                  : t("settings.showIconsOnly")}
               </p>
             </div>
           </div>
@@ -521,31 +557,259 @@ function PreferencesTab() {
           />
         </div>
       </div>
+
+      {/* Language */}
+      <div className="rounded-xl border bg-card p-6 space-y-4">
+        <div className="flex items-center justify-between py-3">
+          <div className="flex items-center gap-3">
+            <Globe className="size-4 text-muted-foreground" />
+            <div>
+              <p className="text-sm font-medium">{t("settings.language")}</p>
+            </div>
+          </div>
+          <Select value={language} onValueChange={(v) => { setLanguage(v as "en" | "ur"); toast.success(t("settings.languageChanged")); }}>
+            <SelectTrigger className="w-32">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="en">English</SelectItem>
+              <SelectItem value="ur">اردو</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      {/* Notification Preferences */}
+      <NotificationPreferencesSection />
     </motion.div>
   );
 }
 
+function NotificationPreferencesSection() {
+  const { t } = useTranslation();
+  type PrefKey = "email" | "inApp" | "push" | "attendance" | "fees" | "announcements";
+
+  function getStoredPrefs() {
+    if (typeof window === "undefined") return {};
+    const stored = localStorage.getItem("shabab360-notif-prefs");
+    if (stored) {
+      try {
+        return JSON.parse(stored) as Record<string, boolean>;
+      } catch {
+        // ignore parse errors
+      }
+    }
+    return {};
+  }
+
+  const [emailNotifs, setEmailNotifs] = useState(() => getStoredPrefs().email ?? true);
+  const [inAppNotifs, setInAppNotifs] = useState(() => getStoredPrefs().inApp ?? true);
+  const [pushNotifs, setPushNotifs] = useState(() => getStoredPrefs().push ?? false);
+  const [attendanceAlerts, setAttendanceAlerts] = useState(() => getStoredPrefs().attendance ?? true);
+  const [feeReminders, setFeeReminders] = useState(() => getStoredPrefs().fees ?? true);
+  const [announcementAlerts, setAnnouncementAlerts] = useState(() => getStoredPrefs().announcements ?? true);
+
+  function updatePref(key: PrefKey, value: boolean) {
+    const prefs = getStoredPrefs();
+    prefs[key] = value;
+    localStorage.setItem("shabab360-notif-prefs", JSON.stringify(prefs));
+
+    if (key === "email") setEmailNotifs(value);
+    else if (key === "inApp") setInAppNotifs(value);
+    else if (key === "push") setPushNotifs(value);
+    else if (key === "attendance") setAttendanceAlerts(value);
+    else if (key === "fees") setFeeReminders(value);
+    else if (key === "announcements") setAnnouncementAlerts(value);
+
+    toast.success(t("settings.saved"));
+  }
+
+  const toggleItems = [
+    { key: "email" as PrefKey, label: t("settings.emailNotif"), desc: t("settings.emailNotifDesc"), icon: Mail, checked: emailNotifs },
+    { key: "push" as PrefKey, label: t("settings.pushNotif"), desc: t("settings.pushNotifDesc"), icon: Smartphone, checked: pushNotifs },
+    { key: "attendance" as PrefKey, label: t("settings.attendanceAlerts"), desc: t("settings.attendanceAlertsDesc"), icon: CalendarCheck, checked: attendanceAlerts },
+    { key: "fees" as PrefKey, label: t("settings.feeReminders"), desc: t("settings.feeRemindersDesc"), icon: Receipt, checked: feeReminders },
+    { key: "announcements" as PrefKey, label: t("settings.announcementAlerts"), desc: t("settings.announcementAlertsDesc"), icon: Megaphone, checked: announcementAlerts },
+    { key: "inApp" as PrefKey, label: t("settings.inAppNotifications"), desc: t("settings.inAppNotifDesc"), icon: Bell, checked: inAppNotifs },
+  ];
+
+  return (
+    <div className="rounded-xl border bg-card p-6 space-y-4">
+      <div className="flex items-center gap-2">
+        <Bell className="size-5 text-[#4B0A8F] dark:text-[#8A40B0]" />
+        <div>
+          <h2 className="text-lg font-semibold">{t("settings.notificationPreferences")}</h2>
+          <p className="text-xs text-muted-foreground">
+            {t("settings.controlNotifications")}
+          </p>
+        </div>
+      </div>
+      <Separator />
+
+      <div className="space-y-4">
+        {toggleItems.map((item) => (
+          <div key={item.key} className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center justify-center size-9 rounded-lg bg-[#F3ECF6] dark:bg-[#1F086080]">
+                <item.icon className="size-4 text-[#4B0A8F] dark:text-[#8A40B0]" />
+              </div>
+              <div>
+                <p className="text-sm font-medium">{item.label}</p>
+                <p className="text-xs text-muted-foreground">
+                  {item.desc}
+                </p>
+              </div>
+            </div>
+            <Switch
+              checked={item.checked}
+              onCheckedChange={(v) => updatePref(item.key, v)}
+            />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function DangerZoneSection() {
+  const { t } = useTranslation();
+
+  function handleExportData() {
+    try {
+      const data: Record<string, unknown> = {};
+      // Gather all localStorage data related to the app
+      const keys = Object.keys(localStorage).filter((k) => k.startsWith("shabab360-"));
+      for (const key of keys) {
+        try {
+          data[key] = JSON.parse(localStorage.getItem(key) || "");
+        } catch {
+          data[key] = localStorage.getItem(key);
+        }
+      }
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "shabab360-my-data.json";
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success(t("settings.dataExported"));
+    } catch {
+      toast.error(t("settings.exportFailed"));
+    }
+  }
+
+  function handleClearLocalData() {
+    try {
+      const keys = Object.keys(localStorage).filter((k) => k.startsWith("shabab360-"));
+      for (const key of keys) {
+        localStorage.removeItem(key);
+      }
+      toast.success(t("settings.localDataCleared"));
+    } catch {
+      toast.error(t("settings.clearFailed"));
+    }
+  }
+
+  return (
+    <div className="rounded-xl border-2 border-red-200 dark:border-red-800/50 bg-card p-6 space-y-4">
+      <div className="flex items-center gap-2">
+        <div className="flex items-center justify-center size-9 rounded-lg bg-red-100 dark:bg-red-950/50">
+          <AlertTriangle className="size-5 text-red-600 dark:text-red-400" />
+        </div>
+        <div>
+          <h2 className="text-lg font-semibold text-red-700 dark:text-red-400">{t("settings.dangerZone")}</h2>
+          <p className="text-xs text-muted-foreground">
+            {t("settings.dangerZoneDesc")}
+          </p>
+        </div>
+      </div>
+      <Separator />
+
+      <div className="space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <p className="text-sm font-medium">{t("settings.requestAccountDeletion")}</p>
+            <p className="text-xs text-muted-foreground">
+              {t("settings.requestAccountDeletionDesc")}
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="border-red-200 text-red-700 hover:bg-red-50 hover:text-red-700 dark:border-red-800/50 dark:text-red-400 dark:hover:bg-red-950/50 dark:hover:text-red-400 shrink-0"
+            onClick={() => toast.info(t("settings.contactAdmin"))}
+          >
+            <Trash2 className="size-4 mr-1.5" />
+            {t("settings.deleteAccount")}
+          </Button>
+        </div>
+
+        <Separator />
+
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <p className="text-sm font-medium">{t("settings.exportData")}</p>
+            <p className="text-xs text-muted-foreground">
+              {t("settings.exportMyDataDesc")}
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportData}
+          >
+            <Download className="size-4 mr-1.5" />
+            {t("settings.exportDataBtn")}
+          </Button>
+        </div>
+
+        <Separator />
+
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <p className="text-sm font-medium">{t("settings.clearData")}</p>
+            <p className="text-xs text-muted-foreground">
+              {t("settings.clearLocalDataDesc")}
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="border-red-200 text-red-700 hover:bg-red-50 hover:text-red-700 dark:border-red-800/50 dark:text-red-400 dark:hover:bg-red-950/50 dark:hover:text-red-400"
+            onClick={handleClearLocalData}
+          >
+            <HardDrive className="size-4 mr-1.5" />
+            {t("settings.clearDataBtn")}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function SettingsPage() {
+  const { t } = useTranslation();
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Settings"
-        description="Manage your account and preferences"
+        title={t("settings.title")}
+        description={t("settings.profileDesc")}
       />
 
       <Tabs defaultValue="profile" className="w-full">
         <TabsList className="w-full sm:w-auto">
           <TabsTrigger value="profile" className="gap-2">
             <User className="size-4" />
-            <span className="hidden sm:inline">Profile</span>
+            <span className="hidden sm:inline">{t("settings.profile")}</span>
           </TabsTrigger>
           <TabsTrigger value="organization" className="gap-2">
             <Building2 className="size-4" />
-            <span className="hidden sm:inline">Organization</span>
+            <span className="hidden sm:inline">{t("settings.organization")}</span>
           </TabsTrigger>
           <TabsTrigger value="preferences" className="gap-2">
             <Sun className="size-4" />
-            <span className="hidden sm:inline">Preferences</span>
+            <span className="hidden sm:inline">{t("settings.preferences")}</span>
           </TabsTrigger>
         </TabsList>
 
@@ -561,6 +825,11 @@ export function SettingsPage() {
           <PreferencesTab />
         </TabsContent>
       </Tabs>
+
+      {/* Danger Zone — always visible below all tabs */}
+      <div className="max-w-2xl">
+        <DangerZoneSection />
+      </div>
     </div>
   );
 }

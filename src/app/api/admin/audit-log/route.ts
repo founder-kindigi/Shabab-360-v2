@@ -11,16 +11,32 @@ export async function GET(request: NextRequest) {
   const action = searchParams.get("action") || undefined;
   const entityType = searchParams.get("entityType") || undefined;
   const userId = searchParams.get("userId") || undefined;
+  const search = searchParams.get("search") || undefined;
   const from = searchParams.get("from") || undefined;
   const to = searchParams.get("to") || undefined;
-  const limit = Math.min(Number(searchParams.get("limit") || 50), 200);
-  const offset = Number(searchParams.get("offset") || 0);
+  const sort = searchParams.get("sort") || "createdAt";
+  const order = searchParams.get("order") || "desc";
+
+  // Support both page/pageSize and limit/offset
+  const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
+  const pageSize = Math.min(Math.max(1, parseInt(searchParams.get("pageSize") || "20", 10)), 100);
+  const legacyLimit = Math.min(Number(searchParams.get("limit") || 0), 200);
+  const legacyOffset = Number(searchParams.get("offset") || 0);
+
+  // If legacy limit/offset are used, use them; otherwise use page/pageSize
+  const limit = legacyLimit > 0 ? legacyLimit : pageSize;
+  const offset = legacyLimit > 0 ? legacyOffset : (page - 1) * pageSize;
 
   const where: Record<string, unknown> = {};
 
   if (action) where.action = action;
   if (entityType) where.entityType = entityType;
   if (userId) where.userId = userId;
+
+  // Search by user name
+  if (search) {
+    where.user = { name: { contains: search, mode: "insensitive" } };
+  }
 
   if (from || to) {
     where.createdAt = {};
@@ -34,10 +50,16 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  const [logs, total] = await Promise.all([
+  // Build orderBy
+  const allowedSortFields = ["createdAt", "action", "entityType"] as const;
+  const sortField = allowedSortFields.includes(sort as any) ? sort : "createdAt";
+  const sortOrder = order === "asc" ? "asc" : "desc";
+  const orderBy: Record<string, string> = { [sortField]: sortOrder };
+
+  const [logs, totalItems] = await Promise.all([
     db.auditLog.findMany({
       where,
-      orderBy: { createdAt: "desc" },
+      orderBy,
       take: limit,
       skip: offset,
       include: {
@@ -49,5 +71,16 @@ export async function GET(request: NextRequest) {
     db.auditLog.count({ where }),
   ]);
 
-  return NextResponse.json({ data: logs, total });
+  const totalPages = Math.ceil(totalItems / limit);
+  const effectivePage = legacyLimit > 0 ? Math.floor(legacyOffset / limit) + 1 : page;
+
+  return NextResponse.json({
+    data: logs,
+    pagination: {
+      page: effectivePage,
+      pageSize: limit,
+      totalItems,
+      totalPages,
+    },
+  });
 }

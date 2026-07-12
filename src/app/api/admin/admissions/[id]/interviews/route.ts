@@ -86,8 +86,8 @@ export async function POST(
       },
     });
 
-    // If interview completed, move application to "interviewed" status
-    if (interview.status === "completed" && application.status === "reviewing") {
+    // If interview completed/passed/failed/conditional, move application to "interviewed" status
+    if (interview.status !== "scheduled" && (application.status === "interview_scheduled" || application.status === "reviewing")) {
       await db.admissionApplication.update({
         where: { id },
         data: { status: "interviewed" },
@@ -117,11 +117,11 @@ export async function POST(
     },
   });
 
-  // If application is submitted, move to reviewing
-  if (application.status === "submitted") {
+  // If application is submitted or screening, move to interview_scheduled
+  if (application.status === "submitted" || application.status === "screening") {
     await db.admissionApplication.update({
       where: { id },
-      data: { status: "reviewing" },
+      data: { status: "interview_scheduled" },
     });
   }
 

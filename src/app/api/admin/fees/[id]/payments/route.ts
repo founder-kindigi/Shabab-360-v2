@@ -7,9 +7,7 @@ import { z } from "zod";
 const createPaymentSchema = z.object({
   participantId: z.string().min(1, "Participant is required"),
   amount: z.number().positive("Amount must be positive"),
-  method: z.enum(["cash", "bank", "online", "other"], {
-    errorMap: () => ({ message: "Method must be cash, bank, online, or other" }),
-  }),
+  method: z.enum(["cash", "bank", "online", "other"]),
   notes: z.string().optional(),
 });
 
@@ -116,8 +114,17 @@ export async function POST(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
+  // Fetch fee event with batch → park → city for receipt context
   const feeEvent = await db.feeEvent.findUnique({
     where: { id: feeEventId, isActive: true },
+    include: {
+      batch: {
+        select: {
+          name: true,
+          park: { select: { name: true } },
+        },
+      },
+    },
   });
   if (!feeEvent) {
     return NextResponse.json({ error: "Fee event not found" }, { status: 404 });
@@ -161,7 +168,12 @@ export async function POST(
     },
     include: {
       participant: {
-        select: { id: true, name: true, phone: true, group: { select: { name: true } } },
+        select: {
+          id: true,
+          name: true,
+          phone: true,
+          group: { select: { name: true } },
+        },
       },
     },
   });
@@ -180,5 +192,28 @@ export async function POST(
     },
   });
 
-  return NextResponse.json(payment, { status: 201 });
+  // Build receipt data for immediate frontend printing
+  const receiptData = {
+    receiptNo,
+    date: new Date().toLocaleDateString("en-GB", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+      timeZone: "Asia/Karachi",
+    }),
+    studentName: payment.participant.name,
+    groupName: payment.participant.group?.name ?? "—",
+    batchName: feeEvent.batch.name,
+    parkName: feeEvent.batch.park.name,
+    feeTitle: feeEvent.title,
+    amount: payment.amount,
+    method: payment.method,
+    recordedBy: user.name ?? "Admin",
+    notes: payment.notes ?? undefined,
+  };
+
+  return NextResponse.json(
+    { ...payment, receiptData },
+    { status: 201 }
+  );
 }

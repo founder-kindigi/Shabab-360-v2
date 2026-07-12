@@ -1,11 +1,13 @@
 "use client";
 
-import { useState, useRef } from "react";
-import { motion } from "framer-motion";
+import { useState, useRef, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { signIn } from "next-auth/react";
 import { Card, CardContent } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useAppStore } from "@/stores/useAppStore";
-import { Eye, EyeOff, Shield, Lock, Mail } from "lucide-react";
+import { Eye, EyeOff, Shield, Lock, Mail, XCircle, Loader2 } from "lucide-react";
+import { useTranslation } from "@/lib/i18n";
 
 const DEMO_ACCOUNTS = [
   { email: "super_admin@shabab360.pk", role: "Super Admin", color: "#4B0A8F" },
@@ -44,20 +46,46 @@ export function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [shaking, setShaking] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
   const { navigateTo } = useAppStore();
+  const { t } = useTranslation();
+
+  // Restore remember me and email from localStorage
+  useEffect(() => {
+    const savedEmail = localStorage.getItem("shabab360-remember-email");
+    const savedRemember = localStorage.getItem("shabab360-remember-me");
+    if (savedRemember === "true" && savedEmail) {
+      setEmail(savedEmail);
+      setRememberMe(true);
+    }
+  }, []);
+
+  function triggerShake() {
+    setShaking(true);
+    setTimeout(() => setShaking(false), 600);
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
 
     if (!email.trim() || !password.trim()) {
-      setError("Please enter both email and password.");
+      setError(t("auth.enterBoth"));
       triggerShake();
       return;
+    }
+
+    // Persist email if remember me is checked
+    if (rememberMe) {
+      localStorage.setItem("shabab360-remember-email", email.trim());
+      localStorage.setItem("shabab360-remember-me", "true");
+    } else {
+      localStorage.removeItem("shabab360-remember-email");
+      localStorage.removeItem("shabab360-remember-me");
     }
 
     setLoading(true);
@@ -69,11 +97,11 @@ export function LoginPage() {
       });
 
       if (result.error) {
-        setError(result.error === "CredentialsSignin" ? "Invalid email or password" : "Login failed. Please try again.");
+        setError(result.error === "CredentialsSignin" ? t("auth.invalidCredentials") : t("auth.loginFailed"));
         triggerShake();
       }
     } catch {
-      setError("An unexpected error occurred. Please try again.");
+      setError(t("auth.unexpectedError"));
       triggerShake();
     } finally {
       setLoading(false);
@@ -116,13 +144,13 @@ export function LoginPage() {
           <Card className="border-border/60 shadow-xl backdrop-blur-sm bg-white/80 dark:bg-card/80">
             <CardContent className="p-6 pt-8">
               <div className="text-center mb-6">
-                <h2 className="text-xl font-semibold text-foreground">Welcome Back</h2>
-                <p className="text-sm text-muted-foreground mt-1">Enter your credentials to access your account</p>
+                <h2 className="text-xl font-semibold text-foreground">{t("auth.welcomeBack")}</h2>
+                <p className="text-sm text-muted-foreground mt-1">{t("auth.enterCredentials")}</p>
               </div>
 
               <form ref={formRef} onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <label className="text-sm font-medium text-foreground leading-none">Email Address</label>
+                  <label className="text-sm font-medium text-foreground leading-none">{t("auth.email")}</label>
                   <div className="relative mt-1.5">
                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <input
@@ -136,14 +164,14 @@ export function LoginPage() {
                 </div>
 
                 <div>
-                  <label className="text-sm font-medium text-foreground leading-none">Password</label>
+                  <label className="text-sm font-medium text-foreground leading-none">{t("auth.password")}</label>
                   <div className="relative mt-1.5">
                     <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <input
                       type={showPassword ? "text" : "password"}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      placeholder="Enter your password"
+                      placeholder={t("auth.passwordPlaceholder")}
                       className="w-full h-11 pl-10 pr-10 rounded-lg border border-input bg-background/50 text-sm focus-visible:ring-[#A0006B]/30 focus-visible:border-[#A0006B] focus-visible:ring-2 focus-visible:ring-offset-1 outline-none transition-colors placeholder:text-muted-foreground"
                     />
                     <button
@@ -156,16 +184,19 @@ export function LoginPage() {
                   </div>
                 </div>
 
-                {error && (
-                  <motion.p
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: "auto" }}
-                    exit={{ opacity: 0, height: 0 }}
-                    className="text-sm text-red-500 bg-red-50 dark:bg-red-950/30 rounded-lg px-3 py-2"
-                  >
-                    {error}
-                  </motion.p>
-                )}
+                <AnimatePresence>
+                  {error && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -4 }}
+                      className="flex items-start gap-2.5 text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800/50 rounded-lg px-3 py-2.5"
+                    >
+                      <XCircle className="size-4 shrink-0 mt-0.5" />
+                      <span>{error}</span>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
 
                 {/* Submit */}
                 <button
@@ -173,25 +204,37 @@ export function LoginPage() {
                   disabled={loading}
                   className="w-full h-11 bg-gradient-to-r from-[#4B0A8F] to-[#A0006B] hover:opacity-90 text-white font-medium rounded-lg shadow-[#4B0A8F]/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
-                  {loading && (
-                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-white/30" />
+                  {loading ? (
+                    <>
+                      <Loader2 className="size-4 animate-spin" />
+                      {t("auth.signingIn")}
+                    </>
+                  ) : (
+                    t("auth.signIn")
                   )}
-                  {loading ? "Signing in..." : "Sign In"}
                 </button>
 
-                <div className="text-center pt-1">
+                <div className="flex items-center justify-between">
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <Checkbox
+                      checked={rememberMe}
+                      onCheckedChange={(v) => setRememberMe(v === true)}
+                      className="size-4"
+                    />
+                    <span className="text-xs text-muted-foreground">{t("auth.rememberMe")}</span>
+                  </label>
                   <button
                     type="button"
                     onClick={() => navigateTo("reset-password")}
                     className="text-xs text-muted-foreground hover:text-[#4B0A8F] dark:hover:text-[#8A40B0] transition-colors"
                   >
-                    Forgot password?
+                    {t("auth.resetPassword")}
                   </button>
                 </div>
 
                 {/* Demo Accounts Quick Login */}
                 <div className="mt-3">
-                  <p className="text-xs text-muted-foreground text-center mb-2">Quick Login — Click a role to sign in</p>
+                  <p className="text-xs text-muted-foreground text-center mb-2">{t("auth.quickLogin")}</p>
                   <div className="bg-muted/30 rounded-lg p-3 grid grid-cols-1 sm:grid-cols-2 gap-1.5">
                     {DEMO_ACCOUNTS.map((account) => (
                       <button
@@ -225,7 +268,7 @@ export function LoginPage() {
           transition={{ delay: 0.5 }}
           className="text-center text-xs text-muted-foreground/60 mt-8"
         >
-          Shabab360 v2 · Built for the Shabab program
+          Shabab360 v2 · {t("auth.builtFor")}
         </motion.p>
       </motion.div>
     </div>

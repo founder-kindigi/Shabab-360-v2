@@ -27,7 +27,6 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Determine park scope from staffMeta
     const staffMeta = await db.staffMeta.findUnique({
       where: { userId: user.id },
       select: {
@@ -62,13 +61,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "No park assigned" }, { status: 403 });
     }
 
-    // Parse query params
     const { searchParams } = new URL(request.url);
     const search = searchParams.get("search")?.trim() || "";
     const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
     const pageSize = Math.min(100, Math.max(1, parseInt(searchParams.get("pageSize") || "20", 10)));
 
-    // Get park info
     const park = await db.park.findUnique({
       where: { id: parkId },
       include: { city: { select: { name: true } } },
@@ -78,7 +75,6 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Park not found" }, { status: 404 });
     }
 
-    // Get all active groups in the park
     const groups = await db.group.findMany({
       where: {
         batch: { parkId, isActive: true },
@@ -102,7 +98,6 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Get all participants in these groups with their guardian links
     const participants = await db.participant.findMany({
       where: { groupId: { in: allGroupIds } },
       include: {
@@ -115,7 +110,6 @@ export async function GET(request: NextRequest) {
       orderBy: { name: "asc" },
     });
 
-    // Build a map: guardianId -> { guardian, children[] }
     const guardianMap = new Map<string, {
       id: string;
       name: string;
@@ -163,7 +157,6 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Convert to array and apply search filter
     let guardians = Array.from(guardianMap.values());
 
     if (search) {
@@ -172,25 +165,19 @@ export async function GET(request: NextRequest) {
         (g) =>
           g.name.toLowerCase().includes(s) ||
           g.phone.includes(s) ||
-          g.cnic?.includes(s) === true
+          (g.cnic && g.cnic.includes(s))
       );
     }
 
-    // Sort by name
     guardians.sort((a, b) => a.name.localeCompare(b.name));
 
-    // Get total for pagination
     const total = guardians.length;
-
-    // Paginate
     const paginatedGuardians = guardians.slice((page - 1) * pageSize, page * pageSize);
 
-    // Get 30-day attendance stats for all children of the paginated guardians
     const todayStart = todayPKT();
     const todayEnd = endOfTodayPKT();
     const thirtyDaysAgo = new Date(todayStart.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-    // Collect all participant IDs from paginated guardians' children
     const allChildParticipantIds: string[] = [];
     for (const g of paginatedGuardians) {
       for (const c of g.children) {
@@ -198,7 +185,6 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Fetch attendance records for these participants
     const thirtyDayRecords = allChildParticipantIds.length > 0
       ? await db.attendanceRecord.findMany({
           where: {
@@ -215,7 +201,6 @@ export async function GET(request: NextRequest) {
         })
       : [];
 
-    // Build per-participant stats
     const participantStats = new Map<
       string,
       { present: number; absent: number; late: number; excused: number; total: number }
@@ -233,7 +218,6 @@ export async function GET(request: NextRequest) {
       participantStats.set(rec.participantId, existing);
     }
 
-    // Build final response with attendance rates
     const data = paginatedGuardians.map((g) => {
       const childrenWithRates = g.children.map((c) => {
         const stats = participantStats.get(c.participantId_att) || {
@@ -282,6 +266,87 @@ export async function GET(request: NextRequest) {
     console.error("Park guardians error:", error);
     return NextResponse.json(
       { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}
+
+// ==================== POST: Link Guardian to Participant ====================
+
+export async function POST(request: NextRequest) {
+  const session = await getServerSession(authOptions);
+  const user = session?.user as SessionUser | undefined;
+
+  if (!session || !user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const allowedRoles = ["park_admin", "park_lead", "murabbi"];
+  if (!user.role || !allowedRoles.includes(user.role)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  try {
+    const body = await request.json();
+    const { guardianId, participantId, relation } = body;
+
+    if (!guardianId || !participantId) {
+      return NextResponse.json({ error: "Guardian ID and Participant ID are required" }, { status: 400 });
+    }
+
+    // Verify participant belongs to the user's park
+    const staffMeta = await db.staffMeta.findUnique({
+      where: { userId: user.id },
+      select: { assignedParkId: true, assignedGroupId: true, role: true },
+    });
+
+    if (!staffMeta?.assignedParkId) {
+      return NextResponse.json({ error: "No park assigned" }, { status: 403 });
+    }
+
+    const participant = await db.participant.findUnique({
+      where: { id: participantId },
+      include: { group: { include: { batch: { select: { parkId: true } } } } },
+    });
+
+    if (!participant || participant.group.batch.parkId !== staffMeta.assignedParkId) {
+      return NextResponse.json({ error: "Invalid participant" }, { status: 400 });
+    }
+
+    // Verify guardian exists
+    const guardian = await db.guardian.findUnique({
+      where: { id: guardianId },
+    });
+
+    if (!guardian) {
+      return NextResponse.json({ error: "Guardian not found" }, { status: 404 });
+    }
+
+    // Check if link already exists
+    const existing = await db.guardianChild.findUnique({
+      where: {
+        guardianId_participantId: { guardianId, participantId },
+      },
+    });
+
+    if (existing) {
+      return NextResponse.json({ error: "Guardian is already linked to this participant" }, { status: 409 });
+    }
+
+    // Create the link
+    await db.guardianChild.create({
+      data: {
+        guardianId,
+        participantId,
+        relation: relation || null,
+      },
+    });
+
+    return NextResponse.json({ success: true }, { status: 201 });
+  } catch (error) {
+    console.error("Link guardian error:", error);
+    return NextResponse.json(
+      { error: "Failed to link guardian" },
       { status: 500 }
     );
   }

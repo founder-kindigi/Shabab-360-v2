@@ -27,11 +27,15 @@ import {
   Clock,
   X,
   UserPlus,
+  UserCircle,
+  Bell,
 } from "lucide-react";
 import { type LucideIcon, motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
+import { OnlineStatus } from "@/components/shared/online-status";
+import { useTranslation } from "@/lib/i18n";
 
-interface NavItem {
+export interface NavItem {
   id: PageId;
   label: string;
   icon: LucideIcon;
@@ -54,92 +58,131 @@ function getNavSections(items: NavItem[]): { section: string | null; items: NavI
   return sections;
 }
 
+// Nav item config: key maps to translation keys
+const navConfig: Record<string, { tKey: string; section: string }> = {
+  "admin-dashboard": { tKey: "nav.dashboard", section: "overview" },
+  "admin-cities": { tKey: "nav.cities", section: "organization" },
+  "admin-parks": { tKey: "nav.parks", section: "organization" },
+  "admin-batches": { tKey: "nav.batches", section: "organization" },
+  "admin-groups": { tKey: "nav.groups", section: "organization" },
+  "admin-people": { tKey: "nav.people", section: "people" },
+  "admin-students": { tKey: "nav.students", section: "people" },
+  "admin-guardians": { tKey: "nav.guardians", section: "people" },
+  "admin-attendance-events": { tKey: "nav.attendance", section: "operations" },
+  "admin-users": { tKey: "nav.users", section: "operations" },
+  "admin-access": { tKey: "nav.access", section: "operations" },
+  "admin-admissions": { tKey: "nav.admissions", section: "operations" },
+  "admin-fees": { tKey: "nav.fees", section: "operations" },
+  "admin-announcements": { tKey: "nav.announcements", section: "communication" },
+  "admin-reports": { tKey: "nav.reports", section: "communication" },
+  "admin-audit-log": { tKey: "nav.auditLog", section: "system" },
+  "notifications": { tKey: "nav.notifications", section: "system" },
+  "admin-settings": { tKey: "nav.settings", section: "system" },
+  "city-head-dashboard": { tKey: "nav.dashboard", section: "overview" },
+  "park-dashboard": { tKey: "nav.dashboard", section: "overview" },
+  "park-attendance": { tKey: "nav.attendance", section: "daily" },
+  "park-roster": { tKey: "nav.roster", section: "daily" },
+  "park-participants": { tKey: "nav.participants", section: "directory" },
+  "park-guardians": { tKey: "nav.families", section: "directory" },
+  "park-schedule": { tKey: "nav.schedule", section: "directory" },
+  "murabbi-dashboard": { tKey: "nav.dashboard", section: "overview" },
+  "murabbi-groups": { tKey: "nav.myGroups", section: "overview" },
+  "guardian-dashboard": { tKey: "nav.dashboard", section: "overview" },
+  "guardian-history": { tKey: "nav.attendanceHistory", section: "tracking" },
+  "guardian-schedule": { tKey: "nav.schedule", section: "tracking" },
+  "guardian-fees": { tKey: "nav.fees", section: "tracking" },
+  "guardian-announcements": { tKey: "nav.announcements", section: "updates" },
+  "student-dashboard": { tKey: "nav.dashboard", section: "overview" },
+  "student-history": { tKey: "nav.myAttendance", section: "tracking" },
+  "student-schedule": { tKey: "nav.schedule", section: "tracking" },
+  "student-fees": { tKey: "nav.fees", section: "tracking" },
+  "student-announcements": { tKey: "nav.announcements", section: "updates" },
+  "student-profile": { tKey: "nav.profile", section: "updates" },
+};
+
+const sectionTKeys: Record<string, string> = {
+  overview: "nav.section.overview",
+  organization: "nav.section.organization",
+  people: "nav.section.people",
+  operations: "nav.section.operations",
+  communication: "nav.section.communication",
+  system: "nav.section.system",
+  daily: "nav.section.daily",
+  directory: "nav.section.directory",
+  group: "nav.section.group",
+  tracking: "nav.section.tracking",
+  updates: "nav.section.updates",
+};
+
+const iconMap: Record<string, LucideIcon> = {
+  "admin-dashboard": LayoutDashboard,
+  "admin-cities": Building2,
+  "admin-parks": TreePine,
+  "admin-batches": CalendarCheck,
+  "admin-groups": Users,
+  "admin-people": Users,
+  "admin-students": GraduationCap,
+  "admin-guardians": ShieldCheck,
+  "admin-attendance-events": CalendarCheck,
+  "admin-users": UserCog,
+  "admin-access": UserPlus,
+  "admin-admissions": FileText,
+  "admin-fees": DollarSign,
+  "admin-announcements": Megaphone,
+  "admin-reports": BarChart3,
+  "admin-audit-log": ScrollText,
+  "notifications": Bell,
+  "admin-settings": Settings,
+  "city-head-dashboard": LayoutDashboard,
+  "park-dashboard": LayoutDashboard,
+  "park-attendance": CalendarCheck,
+  "park-roster": ClipboardList,
+  "park-participants": GraduationCap,
+  "park-guardians": ShieldCheck,
+  "park-schedule": Clock,
+  "murabbi-dashboard": LayoutDashboard,
+  "murabbi-groups": Users,
+  "guardian-dashboard": LayoutDashboard,
+  "guardian-history": ClipboardList,
+  "guardian-schedule": Clock,
+  "guardian-fees": DollarSign,
+  "guardian-announcements": Megaphone,
+  "student-dashboard": LayoutDashboard,
+  "student-history": ClipboardList,
+  "student-schedule": Clock,
+  "student-fees": DollarSign,
+  "student-announcements": Megaphone,
+  "student-profile": UserCircle,
+};
+
+const roleNavPages: Record<string, PageId[]> = {
+  super_admin: ["admin-dashboard","admin-cities","admin-parks","admin-batches","admin-groups","admin-people","admin-students","admin-guardians","admin-attendance-events","admin-users","admin-access","admin-admissions","admin-fees","admin-announcements","admin-reports","notifications","admin-audit-log","admin-settings"],
+  program_admin: ["admin-dashboard","admin-cities","admin-parks","admin-batches","admin-groups","admin-people","admin-students","admin-guardians","admin-attendance-events","admin-users","admin-access","admin-admissions","admin-fees","admin-announcements","admin-reports","notifications","admin-audit-log","admin-settings"],
+  city_head: ["city-head-dashboard","admin-cities","admin-parks","admin-batches","admin-groups","admin-people","admin-students","admin-attendance-events","admin-announcements","admin-reports","notifications"],
+  park_admin: ["park-dashboard","park-attendance","park-roster","park-participants","park-guardians","park-schedule","notifications"],
+  park_lead: ["park-dashboard","park-attendance","park-roster","park-participants","park-guardians","park-schedule","notifications"],
+  murabbi: ["murabbi-dashboard","murabbi-groups","park-attendance","park-roster","park-participants","notifications"],
+  guardian: ["guardian-dashboard","guardian-history","guardian-schedule","guardian-fees","guardian-announcements"],
+  student: ["student-dashboard","student-history","student-schedule","student-fees","student-announcements","student-profile"],
+};
+
 // Navigation configuration per role tier
-function getNavItems(role: string | undefined): NavItem[] {
+export function getNavItems(role: string | undefined, t: (key: string) => string): NavItem[] {
   if (!role) return [];
 
-  // Super Admin & Program Admin — full access
-  if (["super_admin", "program_admin"].includes(role)) {
-    return [
-      { id: "admin-dashboard", label: "Dashboard", icon: LayoutDashboard, section: "overview" },
-      { id: "admin-cities", label: "Cities", icon: Building2, section: "organization" },
-      { id: "admin-parks", label: "Parks", icon: TreePine, section: "organization" },
-      { id: "admin-batches", label: "Batches", icon: CalendarCheck, section: "organization" },
-      { id: "admin-groups", label: "Groups", icon: Users, section: "organization" },
-      { id: "admin-people", label: "People", icon: Users, section: "people" },
-      { id: "admin-students", label: "Students", icon: GraduationCap, section: "people" },
-      { id: "admin-guardians", label: "Guardians", icon: ShieldCheck, section: "people" },
-      { id: "admin-attendance-events", label: "Attendance", icon: CalendarCheck, section: "operations" },
-      { id: "admin-users", label: "Users", icon: UserCog, section: "operations" },
-      { id: "admin-access", label: "Access Provisioning", icon: UserPlus, section: "operations" },
-      { id: "admin-admissions", label: "Admissions", icon: FileText, section: "operations" },
-      { id: "admin-fees", label: "Fees", icon: DollarSign, section: "operations" },
-      { id: "admin-announcements", label: "Announcements", icon: Megaphone, section: "communication" },
-      { id: "admin-reports", label: "Reports", icon: BarChart3, section: "communication" },
-      { id: "admin-audit-log", label: "Audit Log", icon: ScrollText, section: "system" },
-      { id: "admin-settings", label: "Settings", icon: Settings, section: "system" },
-    ];
-  }
+  const pages = roleNavPages[role];
+  if (!pages) return [];
 
-  // City Head — city-scoped admin
-  if (role === "city_head") {
-    return [
-      { id: "city-head-dashboard", label: "Dashboard", icon: LayoutDashboard, section: "overview" },
-      { id: "admin-cities", label: "My City", icon: Building2, section: "organization" },
-      { id: "admin-parks", label: "Parks", icon: TreePine, section: "organization" },
-      { id: "admin-batches", label: "Batches", icon: CalendarCheck, section: "organization" },
-      { id: "admin-groups", label: "Groups", icon: Users, section: "organization" },
-      { id: "admin-people", label: "People", icon: Users, section: "people" },
-      { id: "admin-students", label: "Students", icon: GraduationCap, section: "people" },
-      { id: "admin-attendance-events", label: "Attendance", icon: CalendarCheck, section: "operations" },
-      { id: "admin-announcements", label: "Announcements", icon: Megaphone, section: "communication" },
-      { id: "admin-reports", label: "Reports", icon: BarChart3, section: "communication" },
-    ];
-  }
-
-  // Park Admin & Park Lead — park-scoped
-  if (["park_admin", "park_lead"].includes(role)) {
-    return [
-      { id: "park-dashboard", label: "Dashboard", icon: LayoutDashboard, section: "overview" },
-      { id: "park-attendance", label: "Attendance", icon: CalendarCheck, section: "daily" },
-      { id: "park-roster", label: "Roster", icon: ClipboardList, section: "daily" },
-      { id: "park-participants", label: "Participants", icon: GraduationCap, section: "directory" },
-      { id: "park-guardians", label: "Families", icon: ShieldCheck, section: "directory" },
-      { id: "park-schedule", label: "Schedule", icon: Clock, section: "directory" },
-    ];
-  }
-
-  // Murabbi — group-scoped
-  if (role === "murabbi") {
-    return [
-      { id: "murabbi-dashboard", label: "Dashboard", icon: LayoutDashboard, section: "overview" },
-      { id: "park-attendance", label: "Attendance", icon: CalendarCheck, section: "daily" },
-      { id: "park-roster", label: "Roster", icon: ClipboardList, section: "daily" },
-      { id: "park-participants", label: "My Group", icon: GraduationCap, section: "group" },
-    ];
-  }
-
-  // Guardian
-  if (role === "guardian") {
-    return [
-      { id: "guardian-dashboard", label: "Dashboard", icon: LayoutDashboard, section: "overview" },
-      { id: "guardian-history", label: "Attendance History", icon: ClipboardList, section: "tracking" },
-      { id: "guardian-schedule", label: "Schedule", icon: Clock, section: "tracking" },
-      { id: "guardian-announcements", label: "Announcements", icon: Megaphone, section: "updates" },
-    ];
-  }
-
-  // Student
-  if (role === "student") {
-    return [
-      { id: "student-dashboard", label: "Dashboard", icon: LayoutDashboard, section: "overview" },
-      { id: "student-history", label: "My Attendance", icon: ClipboardList, section: "tracking" },
-      { id: "student-schedule", label: "Schedule", icon: Clock, section: "tracking" },
-      { id: "student-announcements", label: "Announcements", icon: Megaphone, section: "updates" },
-    ];
-  }
-
-  return [];
+  return pages.map((pageId) => {
+    const config = navConfig[pageId];
+    const icon = iconMap[pageId] || LayoutDashboard;
+    return {
+      id: pageId,
+      label: config ? t(config.tKey) : pageId,
+      icon,
+      section: config?.section || null,
+    };
+  });
 }
 
 // Role display labels
@@ -231,11 +274,13 @@ function SidebarNavItem({
 function DesktopSidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
   const { currentPage, navigateTo } = useAppStore();
   const { data: session } = useSession();
-  const user = session?.user as { role?: string; name?: string; email?: string } | undefined;
-  const navItems = getNavItems(user?.role);
+  const { t } = useTranslation();
+  const user = session?.user as { role?: string; name?: string; email?: string; id?: string } | undefined;
+  const navItems = getNavItems(user?.role, t);
 
   return (
     <motion.aside
+      data-tour="sidebar"
       initial={false}
       animate={{ width: collapsed ? 64 : 256 }}
       transition={{ duration: 0.2, ease: "easeInOut" }}
@@ -272,7 +317,7 @@ function DesktopSidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
               {group.section && !collapsed && (
                 <div className="flex items-center gap-2 px-3 pt-4 pb-1.5">
                   <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-medium">
-                    {group.section}
+                    {t(sectionTKeys[group.section || ""] || group.section)}
                   </p>
                   <div className="flex-1 h-px bg-border/60" />
                 </div>
@@ -308,7 +353,10 @@ function DesktopSidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
               className="overflow-hidden"
             >
               <div className="rounded-lg bg-muted/50 px-3 py-2 mb-2">
-                <p className="text-xs font-medium truncate">{user?.name || "User"}</p>
+                <div className="flex items-center gap-1.5">
+                  {user?.id && <OnlineStatus userId={user.id} />}
+                  <p className="text-xs font-medium truncate">{user?.name || "User"}</p>
+                </div>
                 <p className="text-[10px] text-muted-foreground truncate">{user?.email}</p>
                 <span className="inline-flex items-center gap-1 mt-1 rounded-full bg-[#F3ECF6] px-2 py-0.5 text-[10px] font-medium text-[#4B0A8F] dark:bg-[#1F086080] dark:text-[#8A40B0] capitalize">
                   {getRoleLabel(user?.role)}
@@ -332,7 +380,7 @@ function DesktopSidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
           >
             <ChevronLeft className="size-4" />
           </motion.div>
-          {!collapsed && <span>Collapse</span>}
+          {!collapsed && <span>{t("app.collapse")}</span>}
         </button>
 
         {/* Sign out */}
@@ -343,10 +391,10 @@ function DesktopSidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
             "text-muted-foreground hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/50 dark:hover:text-red-400",
             collapsed && "justify-center px-2"
           )}
-          title={collapsed ? "Sign Out" : undefined}
+          title={collapsed ? t("auth.signOut") : undefined}
         >
           <LogOut className="size-4 shrink-0" />
-          {!collapsed && <span>Sign Out</span>}
+          {!collapsed && <span>{t("auth.signOut")}</span>}
         </button>
       </div>
     </motion.aside>
@@ -354,6 +402,11 @@ function DesktopSidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
 }
 
 // Mobile sidebar (Sheet)
+function getTranslatedSection(section: string | null, t: (key: string) => string): string {
+  if (!section) return "";
+  return t(sectionTKeys[section] || section);
+}
+
 function MobileSidebar({
   open,
   onOpenChange,
@@ -363,8 +416,9 @@ function MobileSidebar({
 }) {
   const { currentPage, navigateTo } = useAppStore();
   const { data: session } = useSession();
-  const user = session?.user as { role?: string; name?: string; email?: string } | undefined;
-  const navItems = getNavItems(user?.role);
+  const { t } = useTranslation();
+  const user = session?.user as { role?: string; name?: string; email?: string; id?: string } | undefined;
+  const navItems = getNavItems(user?.role, t);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -384,6 +438,7 @@ function MobileSidebar({
             size="icon"
             className="size-8"
             onClick={() => onOpenChange(false)}
+            aria-label="Close sidebar"
           >
             <X className="size-4" />
           </Button>
@@ -391,7 +446,10 @@ function MobileSidebar({
 
         {/* User info */}
         <div className="px-4 py-3 border-b bg-muted/30">
-          <p className="text-sm font-medium truncate">{user?.name || "User"}</p>
+          <div className="flex items-center gap-2">
+            {user?.id && <OnlineStatus userId={user.id} />}
+            <p className="text-sm font-medium truncate">{user?.name || "User"}</p>
+          </div>
           <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
           <span className="inline-flex items-center gap-1 mt-1 rounded-full bg-[#F3ECF6] px-2 py-0.5 text-[10px] font-medium text-[#4B0A8F] dark:bg-[#1F086080] dark:text-[#8A40B0] capitalize">
             {getRoleLabel(user?.role)}
@@ -406,7 +464,7 @@ function MobileSidebar({
                 {group.section && (
                   <div className="flex items-center gap-2 px-3 pt-4 pb-1.5">
                     <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-medium">
-                      {group.section}
+                      {getTranslatedSection(group.section, t)}
                     </p>
                     <div className="flex-1 h-px bg-border/60" />
                   </div>
@@ -451,7 +509,7 @@ function MobileSidebar({
             className="flex items-center gap-3 w-full rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/50 dark:hover:text-red-400 transition-colors"
           >
             <LogOut className="size-4 shrink-0" />
-            <span>Sign Out</span>
+            <span>{t("auth.signOut")}</span>
           </button>
         </div>
       </SheetContent>

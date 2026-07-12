@@ -3,6 +3,7 @@
 import { useState, useMemo, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
+import { format } from "date-fns";
 import { PageHeader } from "@/components/layout/page-header";
 import { EmptyState } from "@/components/layout/empty-state";
 import { Button } from "@/components/ui/button";
@@ -52,6 +53,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { toast } from "sonner";
 import { useDebounce } from "@/hooks/use-debounce";
 import { formatPKT } from "@/lib/timezone";
@@ -62,7 +66,6 @@ import {
   Eye,
   Phone,
   MapPin,
-  LayoutGrid,
   List,
   X,
   FileText,
@@ -73,7 +76,7 @@ import {
   GraduationCap,
   CheckCircle2,
   XCircle,
-  ArrowRightLeft,
+  ArrowRight,
   Users,
   Clock,
   Star,
@@ -81,7 +84,16 @@ import {
   UserX,
   FolderInput,
   CalendarPlus,
+  Copy,
+  Check,
+  AlertTriangle,
+  Shield,
+  Video,
+  Award,
+  LayoutGrid,
+  ArrowRightLeft,
 } from "lucide-react";
+import { DocumentUpload } from "@/components/shared/document-upload";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -150,32 +162,41 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; 
     darkBg: "dark:bg-slate-800",
     darkText: "dark:text-slate-300",
   },
-  reviewing: {
-    label: "In Review",
-    color: "text-[#A0006B]",
-    bg: "bg-[#A0006B]/10",
-    border: "border-[#A0006B]/20",
-    dot: "bg-[#A0006B]",
-    darkBg: "dark:bg-[#A0006B]/20",
-    darkText: "dark:text-[#D4B8E3]",
+  screening: {
+    label: "Screening",
+    color: "text-amber-700",
+    bg: "bg-amber-50",
+    border: "border-amber-200",
+    dot: "bg-amber-500",
+    darkBg: "dark:bg-amber-950/50",
+    darkText: "dark:text-amber-400",
+  },
+  interview_scheduled: {
+    label: "Interview Scheduled",
+    color: "text-blue-700",
+    bg: "bg-blue-50",
+    border: "border-blue-200",
+    dot: "bg-blue-500",
+    darkBg: "dark:bg-blue-950/50",
+    darkText: "dark:text-blue-400",
   },
   interviewed: {
     label: "Interviewed",
-    color: "text-[#6B20A0]",
-    bg: "bg-[#6B20A0]/10",
-    border: "border-[#6B20A0]/20",
-    dot: "bg-[#6B20A0]",
-    darkBg: "dark:bg-[#6B20A0]/20",
-    darkText: "dark:text-[#C08ADF]",
-  },
-  accepted: {
-    label: "Accepted",
     color: "text-[#4B0A8F]",
     bg: "bg-[#4B0A8F]/10",
     border: "border-[#4B0A8F]/20",
     dot: "bg-[#4B0A8F]",
     darkBg: "dark:bg-[#4B0A8F]/20",
     darkText: "dark:text-[#8A40B0]",
+  },
+  accepted: {
+    label: "Accepted",
+    color: "text-green-700",
+    bg: "bg-green-50",
+    border: "border-green-200",
+    dot: "bg-green-500",
+    darkBg: "dark:bg-green-950/50",
+    darkText: "dark:text-green-400",
   },
   rejected: {
     label: "Rejected",
@@ -188,24 +209,52 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; 
   },
   enrolled: {
     label: "Enrolled",
-    color: "text-[#166534]",
-    bg: "bg-[#166534]/10",
-    border: "border-[#166534]/20",
-    dot: "bg-[#166534]",
-    darkBg: "dark:bg-[#166534]/20",
-    darkText: "dark:text-[#4ade80]",
+    color: "text-emerald-700",
+    bg: "bg-emerald-50",
+    border: "border-emerald-200",
+    dot: "bg-emerald-500",
+    darkBg: "dark:bg-emerald-950/50",
+    darkText: "dark:text-emerald-400",
   },
 };
 
-const KANBAN_STATUSES = ["submitted", "reviewing", "interviewed", "accepted"];
+const PIPELINE_STATUSES = [
+  "submitted",
+  "screening",
+  "interview_scheduled",
+  "interviewed",
+  "accepted",
+  "rejected",
+  "enrolled",
+] as const;
+
+// Display pipeline for visual flow (excludes rejected/enrolled)
+const VISUAL_PIPELINE = [
+  "submitted",
+  "screening",
+  "interview_scheduled",
+  "interviewed",
+  "accepted",
+  "rejected",
+] as const;
 
 const STATUS_FLOW: Record<string, string[]> = {
-  submitted: ["reviewing", "rejected"],
-  reviewing: ["interviewed", "submitted", "rejected"],
-  interviewed: ["accepted", "reviewing", "rejected"],
-  accepted: ["enrolled", "interviewed", "rejected"],
+  submitted: ["screening", "rejected"],
+  screening: ["interview_scheduled", "rejected", "submitted"],
+  interview_scheduled: ["interviewed", "rejected", "screening"],
+  interviewed: ["accepted", "rejected", "interview_scheduled"],
+  accepted: ["enrolled", "rejected", "interviewed"],
   rejected: ["submitted"],
   enrolled: [],
+};
+
+// Map current status → next logical "advance" status
+const NEXT_STATUS_MAP: Record<string, string> = {
+  submitted: "screening",
+  screening: "interview_scheduled",
+  interview_scheduled: "interviewed",
+  interviewed: "accepted",
+  accepted: "enrolled",
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -232,6 +281,35 @@ function getAge(dob: string | null): string {
   const m = now.getMonth() - d.getMonth();
   if (m < 0 || (m === 0 && now.getDate() < d.getDate())) age--;
   return `${age}y`;
+}
+
+function getInterviewResultBadge(status: string) {
+  if (status === "passed") {
+    return (
+      <Badge className="text-[10px] bg-green-50 text-green-700 border-green-200 dark:bg-green-950/50 dark:text-green-400">
+        <CheckCircle2 className="size-3 mr-0.5" /> Pass
+      </Badge>
+    );
+  }
+  if (status === "failed") {
+    return (
+      <Badge className="text-[10px] bg-red-50 text-red-700 border-red-200 dark:bg-red-950/50 dark:text-red-400">
+        <XCircle className="size-3 mr-0.5" /> Fail
+      </Badge>
+    );
+  }
+  if (status === "conditional") {
+    return (
+      <Badge className="text-[10px] bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/50 dark:text-amber-400">
+        <AlertTriangle className="size-3 mr-0.5" /> Conditional
+      </Badge>
+    );
+  }
+  return (
+    <Badge variant="outline" className="text-[10px] bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/50 dark:text-blue-400">
+      <Clock className="size-3 mr-0.5" /> Scheduled
+    </Badge>
+  );
 }
 
 // ─── Animations ──────────────────────────────────────────────────────────────
@@ -267,6 +345,11 @@ export function AdmissionsPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [enrollOpen, setEnrollOpen] = useState(false);
   const [interviewOpen, setInterviewOpen] = useState(false);
+  const [recordResultsOpen, setRecordResultsOpen] = useState(false);
+  const [rejectOpen, setRejectOpen] = useState(false);
+
+  // Copy tracking
+  const [copied, setCopied] = useState(false);
 
   // Create form
   const [createForm, setCreateForm] = useState({
@@ -279,21 +362,30 @@ export function AdmissionsPage() {
     cityId: "",
     preferredParkId: "",
     notes: "",
+    emergencyContact: "",
+    emergencyPhone: "",
+    previousEducation: "",
+    reference: "",
   });
+  const [createErrors, setCreateErrors] = useState<Record<string, string>>({});
 
-  // Interview form
-  const [interviewForm, setInterviewForm] = useState({
-    scheduledDate: "",
-    scheduledTime: "",
-    conductedBy: "",
-  });
+  // Interview schedule form
+  const [interviewDate, setInterviewDate] = useState<Date | undefined>(undefined);
+  const [interviewTime, setInterviewTime] = useState("");
+  const [interviewConductedBy, setInterviewConductedBy] = useState("");
+  const [interviewNotes, setInterviewNotes] = useState("");
 
-  // Score form
+  // Score/Record results form
   const [scoreForm, setScoreForm] = useState({
     score1: "",
     score2: "",
     score3: "",
   });
+  const [interviewResult, setInterviewResult] = useState<"passed" | "failed" | "conditional">("passed");
+  const [scoreNotes, setScoreNotes] = useState("");
+
+  // Reject form
+  const [rejectReason, setRejectReason] = useState("");
 
   // Enroll form
   const [enrollForm, setEnrollForm] = useState({
@@ -322,7 +414,7 @@ export function AdmissionsPage() {
       if (statusFilter && statusFilter !== "all") params.set("status", statusFilter);
       if (cityFilter) params.set("cityId", cityFilter);
       params.set("page", String(page));
-      params.set("pageSize", "50");
+      params.set("pageSize", viewMode === "kanban" ? "200" : "50");
       return fetch("/api/admin/admissions?" + params.toString()).then((r) => r.json());
     },
   });
@@ -353,43 +445,14 @@ export function AdmissionsPage() {
 
   // ─── Stats ───────────────────────────────────────────────────────────────
 
-  const stats = useMemo(() => {
-    const all = applicationsData?.data || [];
-    return {
-      total: all.length > 0 ? applicationsData.pagination.total : 0,
-      submitted: applicationsData?.pagination.total ?? 0,
-      reviewing: 0,
-      accepted: 0,
-    };
-  }, [applicationsData]);
-
-  // We need actual counts per status. Fetch them from all data.
-  const { data: allAppsForCounts } = useQuery<{ data: Application[] }>({
-    queryKey: ["admissions-counts"],
-    queryFn: () => fetch("/api/admin/admissions?pageSize=1").then((r) => r.json()).then(() => {
-      // We'll derive stats from the main data for now
-      return { data: [] };
-    }),
-  });
-
-  // Simpler: use the current loaded data stats
-  const statusCounts = useMemo(() => {
-    // We make individual count queries via the main query's pagination.total for specific statuses
-    // For now, derive from what we have
-    const counts: Record<string, number> = { submitted: 0, reviewing: 0, interviewed: 0, accepted: 0, rejected: 0, enrolled: 0 };
-    // Use the main data's total (which may be filtered), but also check if all statuses loaded
-    return counts;
-  }, []);
-
-  // Let's fetch counts for each pipeline status
   const { data: submittedCount } = useQuery<{ pagination: Pagination }>({
     queryKey: ["admissions-count", "submitted"],
     queryFn: () => fetch("/api/admin/admissions?status=submitted&pageSize=1").then((r) => r.json()),
     staleTime: 30 * 1000,
   });
-  const { data: reviewingCount } = useQuery<{ pagination: Pagination }>({
-    queryKey: ["admissions-count", "reviewing"],
-    queryFn: () => fetch("/api/admin/admissions?status=reviewing&pageSize=1").then((r) => r.json()),
+  const { data: screeningCount } = useQuery<{ pagination: Pagination }>({
+    queryKey: ["admissions-count", "screening"],
+    queryFn: () => fetch("/api/admin/admissions?status=screening&pageSize=1").then((r) => r.json()),
     staleTime: 30 * 1000,
   });
   const { data: acceptedCount } = useQuery<{ pagination: Pagination }>({
@@ -401,8 +464,8 @@ export function AdmissionsPage() {
   const statCards = [
     { label: "Total Applications", value: applicationsData?.pagination.total ?? 0, icon: FileText, color: "text-[#4B0A8F] dark:text-[#8A40B0]", bg: "bg-[#F3ECF6] dark:bg-[#1F086080]" },
     { label: "Submitted", value: submittedCount?.pagination.total ?? 0, icon: ClipboardCheck, color: "text-slate-600 dark:text-slate-400", bg: "bg-slate-100 dark:bg-slate-800" },
-    { label: "In Review", value: reviewingCount?.pagination.total ?? 0, icon: Clock, color: "text-[#A0006B] dark:text-[#D4B8E3]", bg: "bg-[#A0006B]/10 dark:bg-[#A0006B]/20" },
-    { label: "Accepted", value: acceptedCount?.pagination.total ?? 0, icon: CheckCircle2, color: "text-[#4B0A8F] dark:text-[#8A40B0]", bg: "bg-[#4B0A8F]/10 dark:bg-[#4B0A8F]/20" },
+    { label: "In Pipeline", value: (screeningCount?.pagination.total ?? 0), icon: Clock, color: "text-amber-600 dark:text-amber-400", bg: "bg-amber-50 dark:bg-amber-950/50" },
+    { label: "Accepted", value: acceptedCount?.pagination.total ?? 0, icon: CheckCircle2, color: "text-green-600 dark:text-green-400", bg: "bg-green-50 dark:bg-green-950/50" },
   ];
 
   // ─── Kanban grouping ─────────────────────────────────────────────────────
@@ -410,15 +473,14 @@ export function AdmissionsPage() {
   const applications = applicationsData?.data || [];
 
   const kanbanGroups = useMemo(() => {
-    const groups: Record<string, Application[]> = {
-      submitted: [],
-      reviewing: [],
-      interviewed: [],
-      accepted: [],
-    };
+    const groups: Record<string, Application[]> = {};
+    for (const s of PIPELINE_STATUSES) {
+      groups[s] = [];
+    }
     for (const app of applications) {
-      if (groups[app.status]) {
-        groups[app.status].push(app);
+      const key = PIPELINE_STATUSES.includes(app.status as any) ? app.status : "submitted";
+      if (groups[key]) {
+        groups[key].push(app);
       }
     }
     return groups;
@@ -439,7 +501,8 @@ export function AdmissionsPage() {
       }
       toast.success("Application created", { description: `Tracking code: ${data.trackingCode}` });
       setCreateOpen(false);
-      setCreateForm({ applicantName: "", applicantDOB: "", gender: "", guardianName: "", guardianPhone: "", guardianRelation: "", cityId: "", preferredParkId: "", notes: "" });
+      setCreateForm({ applicantName: "", applicantDOB: "", gender: "", guardianName: "", guardianPhone: "", guardianRelation: "", cityId: "", preferredParkId: "", notes: "", emergencyContact: "", emergencyPhone: "", previousEducation: "", reference: "" });
+      setCreateErrors({});
       queryClient.invalidateQueries({ queryKey: ["admissions"] });
       queryClient.invalidateQueries({ queryKey: ["admissions-count"] });
     },
@@ -500,10 +563,21 @@ export function AdmissionsPage() {
         toast.error("Interview action failed", { description: JSON.stringify(data.error) });
         return;
       }
-      toast.success(variables.data.score1 !== undefined ? "Interview scores saved" : "Interview scheduled");
-      setInterviewOpen(false);
-      setInterviewForm({ scheduledDate: "", scheduledTime: "", conductedBy: "" });
-      setScoreForm({ score1: "", score2: "", score3: "" });
+      const hasScores = variables.data.score1 !== undefined || variables.data.score2 !== undefined || variables.data.score3 !== undefined;
+      if (hasScores) {
+        toast.success("Interview results recorded");
+        setRecordResultsOpen(false);
+        setScoreForm({ score1: "", score2: "", score3: "" });
+        setScoreNotes("");
+        setInterviewResult("passed");
+      } else {
+        toast.success("Interview scheduled");
+        setInterviewOpen(false);
+        setInterviewDate(undefined);
+        setInterviewTime("");
+        setInterviewConductedBy("");
+        setInterviewNotes("");
+      }
       queryClient.invalidateQueries({ queryKey: ["admissions"] });
       queryClient.invalidateQueries({ queryKey: ["admissions-count"] });
       queryClient.invalidateQueries({ queryKey: ["admission-detail", variables.id] });
@@ -520,6 +594,18 @@ export function AdmissionsPage() {
   const handleOpenDetail = useCallback((app: Application) => {
     setSelectedApp(app);
     setSheetOpen(true);
+    setCopied(false);
+  }, []);
+
+  const handleCopyTracking = useCallback(async (code: string) => {
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopied(true);
+      toast.success("Tracking code copied");
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast.error("Failed to copy");
+    }
   }, []);
 
   const handleOpenEnroll = useCallback(() => {
@@ -540,17 +626,19 @@ export function AdmissionsPage() {
 
   const handleScheduleInterview = useCallback(() => {
     if (!selectedApp) return;
+    const dateStr = interviewDate ? format(interviewDate, "yyyy-MM-dd") : undefined;
     interviewMutation.mutate({
       id: selectedApp.id,
       data: {
-        scheduledDate: interviewForm.scheduledDate || undefined,
-        scheduledTime: interviewForm.scheduledTime || undefined,
-        conductedBy: interviewForm.conductedBy || undefined,
+        scheduledDate: dateStr,
+        scheduledTime: interviewTime || undefined,
+        conductedBy: interviewConductedBy || undefined,
+        notes: interviewNotes || undefined,
       },
     });
-  }, [selectedApp, interviewForm, interviewMutation]);
+  }, [selectedApp, interviewDate, interviewTime, interviewConductedBy, interviewNotes, interviewMutation]);
 
-  const handleSubmitScores = useCallback(() => {
+  const handleRecordResults = useCallback(() => {
     if (!selectedApp) return;
     interviewMutation.mutate({
       id: selectedApp.id,
@@ -558,11 +646,55 @@ export function AdmissionsPage() {
         score1: scoreForm.score1 ? Number(scoreForm.score1) : undefined,
         score2: scoreForm.score2 ? Number(scoreForm.score2) : undefined,
         score3: scoreForm.score3 ? Number(scoreForm.score3) : undefined,
+        status: interviewResult,
+        notes: scoreNotes || undefined,
       },
     });
-  }, [selectedApp, scoreForm, interviewMutation]);
+  }, [selectedApp, scoreForm, interviewResult, scoreNotes, interviewMutation]);
+
+  // Detail data (must be before handlers that reference it)
+  const detail = selectedDetail || selectedApp;
+
+  const handleAdvance = useCallback(() => {
+    if (!selectedApp || !detail) return;
+    const next = NEXT_STATUS_MAP[detail.status];
+    if (!next) return;
+    if (next === "enrolled") {
+      handleOpenEnroll();
+    } else {
+      updateMutation.mutate({ id: detail.id, data: { status: next } });
+    }
+  }, [selectedApp, detail, updateMutation, handleOpenEnroll]);
+
+  const handleReject = useCallback(() => {
+    if (!selectedApp || !detail) return;
+    if (!rejectReason.trim()) {
+      toast.error("Please provide a rejection reason");
+      return;
+    }
+    const existingNotes = detail.notes || "";
+    const newNotes = existingNotes
+      ? `${existingNotes}\n\nRejection reason: ${rejectReason}`
+      : `Rejection reason: ${rejectReason}`;
+    updateMutation.mutate({
+      id: detail.id,
+      data: { status: "rejected", notes: newNotes },
+    });
+    setRejectOpen(false);
+    setRejectReason("");
+  }, [selectedApp, detail, rejectReason, updateMutation]);
 
   const handleCreate = useCallback(() => {
+    const errors: Record<string, string> = {};
+    if (!createForm.applicantName.trim()) errors.applicantName = "Applicant name is required";
+    if (!createForm.guardianName.trim()) errors.guardianName = "Guardian name is required";
+    if (!createForm.guardianPhone.trim()) errors.guardianPhone = "Guardian phone is required";
+    else if (createForm.guardianPhone.trim().length < 5) errors.guardianPhone = "Phone must be at least 5 characters";
+    if (Object.keys(errors).length > 0) {
+      setCreateErrors(errors);
+      return;
+    }
+    setCreateErrors({});
     createMutation.mutate(createForm);
   }, [createForm, createMutation]);
 
@@ -572,7 +704,17 @@ export function AdmissionsPage() {
     return parks.filter((p) => p.cityId === createForm.cityId);
   }, [createForm.cityId, parks]);
 
-  const detail = selectedDetail || selectedApp;
+  const canAdvance = detail && NEXT_STATUS_MAP[detail.status] && detail.status !== "rejected" && detail.status !== "enrolled";
+  const canReject = detail && detail.status !== "rejected" && detail.status !== "enrolled";
+  const canEnroll = detail && detail.status === "accepted" && !detail.convertedParticipantId;
+  const hasScheduledInterview = detail?.interviews?.some((i) => i.status === "scheduled") ?? false;
+
+  const totalScore = useMemo(() => {
+    const s1 = scoreForm.score1 ? Number(scoreForm.score1) : 0;
+    const s2 = scoreForm.score2 ? Number(scoreForm.score2) : 0;
+    const s3 = scoreForm.score3 ? Number(scoreForm.score3) : 0;
+    return s1 + s2 + s3;
+  }, [scoreForm]);
 
   // ─── Render ─────────────────────────────────────────────────────────────
 
@@ -654,58 +796,62 @@ export function AdmissionsPage() {
                 Clear
               </Button>
             )}
-            <div className="hidden sm:flex items-center border-l border-border pl-2 ml-1">
-              <Button
-                variant={viewMode === "kanban" ? "secondary" : "ghost"}
-                size="icon"
-                className="size-8"
-                onClick={() => setViewMode("kanban")}
-              >
-                <LayoutGrid className="size-4" />
-              </Button>
-              <Button
-                variant={viewMode === "list" ? "secondary" : "ghost"}
-                size="icon"
-                className="size-8"
-                onClick={() => setViewMode("list")}
-              >
-                <List className="size-4" />
-              </Button>
-            </div>
           </div>
-          {/* Mobile view toggle */}
-          <div className="flex sm:hidden items-center gap-1 mt-2">
-            <span className="text-xs text-muted-foreground mr-1">View:</span>
-            <Button
-              variant={viewMode === "kanban" ? "secondary" : "ghost"}
-              size="sm"
-              className="h-7 text-xs"
-              onClick={() => setViewMode("kanban")}
-            >
-              <LayoutGrid className="size-3.5 mr-1" />
-              Pipeline
-            </Button>
-            <Button
-              variant={viewMode === "list" ? "secondary" : "ghost"}
-              size="sm"
-              className="h-7 text-xs"
-              onClick={() => setViewMode("list")}
-            >
-              <List className="size-3.5 mr-1" />
-              List
-            </Button>
+          <div className="flex items-center justify-between mt-2">
+            <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as "kanban" | "list")}>
+              <TabsList className="h-8">
+                <TabsTrigger value="kanban" className="text-xs gap-1.5 px-3">
+                  <LayoutGrid className="size-3.5" />
+                  Pipeline
+                </TabsTrigger>
+                <TabsTrigger value="list" className="text-xs gap-1.5 px-3">
+                  <List className="size-3.5" />
+                  Table
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+            {viewMode === "kanban" && (
+              <span className="text-[10px] text-muted-foreground">
+                {applications.length} applications
+              </span>
+            )}
           </div>
         </CardContent>
       </Card>
 
+      {/* Pipeline Status Pills */}
+      {!isLoading && viewMode === "kanban" && !statusFilter && !debouncedSearch && !cityFilter ? (
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          {VISUAL_PIPELINE.map((status) => {
+            const cfg = STATUS_CONFIG[status];
+            const count = (kanbanGroups[status] || []).length;
+            return (
+              <div
+                key={status}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-medium whitespace-nowrap ${cfg.bg} ${cfg.border} ${cfg.color} ${cfg.darkBg} ${cfg.darkText}`}
+              >
+                <span className={`size-2 rounded-full ${cfg.dot}`} />
+                {cfg.label}
+                <span className="font-bold">{count}</span>
+              </div>
+            );
+          })}
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-medium whitespace-nowrap bg-slate-100 border-slate-200 text-slate-700 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300">
+            <span className="size-2 rounded-full bg-emerald-500" />
+            Enrolled
+            <span className="font-bold">{(kanbanGroups["enrolled"] || []).length}</span>
+          </div>
+        </div>
+      ) : null}
+
       {/* Content */}
       {isLoading ? (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {KANBAN_STATUSES.map((s) => (
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-3">
+          {PIPELINE_STATUSES.map((s) => (
             <div key={s} className="space-y-3">
-              <Skeleton className="h-8 w-32" />
-              {[1, 2, 3].map((i) => (
-                <Skeleton key={i} className="h-32 w-full rounded-xl" />
+              <Skeleton className="h-8 w-28" />
+              {[1, 2].map((i) => (
+                <Skeleton key={i} className="h-24 w-full rounded-xl" />
               ))}
             </div>
           ))}
@@ -828,6 +974,7 @@ export function AdmissionsPage() {
                 </Select>
               </div>
             </div>
+            <Separator />
             <div className="space-y-2">
               <Label className="text-xs font-medium">Notes</Label>
               <Textarea
@@ -837,9 +984,66 @@ export function AdmissionsPage() {
                 onChange={(e) => setCreateForm((f) => ({ ...f, notes: e.target.value }))}
               />
             </div>
+            <Separator />
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Additional Information</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-xs font-medium">Emergency Contact Name</Label>
+                <Input
+                  placeholder="Emergency contact name"
+                  value={createForm.emergencyContact}
+                  onChange={(e) => setCreateForm((f) => ({ ...f, emergencyContact: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs font-medium">Emergency Contact Phone</Label>
+                <Input
+                  placeholder="Emergency contact phone"
+                  value={createForm.emergencyPhone}
+                  onChange={(e) => setCreateForm((f) => ({ ...f, emergencyPhone: e.target.value }))}
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs font-medium">Previous Education</Label>
+              <Input
+                placeholder="Last school / institution attended"
+                value={createForm.previousEducation}
+                onChange={(e) => setCreateForm((f) => ({ ...f, previousEducation: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs font-medium">Reference</Label>
+              <Input
+                placeholder="Referral name or source"
+                value={createForm.reference}
+                onChange={(e) => setCreateForm((f) => ({ ...f, reference: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full border-dashed text-muted-foreground hover:text-foreground"
+                onClick={() => toast.info("Upload documents from the application detail view")}
+              >
+                <FolderInput className="size-4 mr-2" />
+                Upload Documents
+              </Button>
+              <p className="text-[10px] text-muted-foreground">Supports PDF, JPG, PNG (max 5MB each)</p>
+            </div>
+            <p className="text-[10px] text-muted-foreground">Tip: You can also upload documents after creating the application, from its detail view.</p>
+            {Object.keys(createErrors).length > 0 && (
+              <div className="rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900 p-3">
+                <p className="text-xs font-medium text-red-700 dark:text-red-400 mb-1">Please fix the following errors:</p>
+                {Object.entries(createErrors).map(([field, msg]) => (
+                  <p key={field} className="text-xs text-red-600 dark:text-red-400">• {msg}</p>
+                ))}
+              </div>
+            )}
           </div>
           <DialogFooter className="pt-2">
-            <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => { setCreateOpen(false); setCreateErrors({}); }}>Cancel</Button>
             <Button
               onClick={handleCreate}
               disabled={createMutation.isPending || !createForm.applicantName || !createForm.guardianName || !createForm.guardianPhone}
@@ -852,7 +1056,7 @@ export function AdmissionsPage() {
       </Dialog>
 
       {/* ─── Detail Sheet ─── */}
-      <Sheet open={sheetOpen} onOpenChange={(open) => { setSheetOpen(open); if (!open) setSelectedApp(null); }}>
+      <Sheet open={sheetOpen} onOpenChange={(open) => { setSheetOpen(open); if (!open) { setSelectedApp(null); setCopied(false); } }}>
         <SheetContent className="w-full sm:max-w-lg p-0 overflow-y-auto">
           {detailLoading ? (
             <div className="p-6 space-y-4">
@@ -869,19 +1073,33 @@ export function AdmissionsPage() {
                     <div className="size-10 rounded-xl bg-[#F3ECF6] dark:bg-[#1F086080] flex items-center justify-center text-sm font-bold text-[#4B0A8F] dark:text-[#8A40B0] shrink-0">
                       {getInitials(detail.applicantName)}
                     </div>
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <p className="font-semibold truncate">{detail.applicantName}</p>
-                      <p className="text-xs text-muted-foreground font-mono">{detail.trackingCode}</p>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <p className="text-xs text-muted-foreground font-mono">{detail.trackingCode}</p>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="size-5 shrink-0 hover:bg-transparent"
+                          onClick={() => handleCopyTracking(detail.trackingCode)}
+                        >
+                          {copied ? (
+                            <Check className="size-3 text-green-600 dark:text-green-400" />
+                          ) : (
+                            <Copy className="size-3 text-muted-foreground" />
+                          )}
+                        </Button>
+                      </div>
                     </div>
                   </SheetTitle>
                   <SheetDescription className="text-left">
-                    Submitted on {formatPKT(new Date(detail.createdAt))}
+                    Applied on {formatPKT(new Date(detail.createdAt))}
                   </SheetDescription>
                 </SheetHeader>
                 <div className="flex items-center gap-2 mt-3">
                   {getStatusBadge(detail.status)}
                   {detail.convertedParticipant && (
-                    <Badge variant="outline" className="text-[11px] text-[#166534] border-[#166534]/20 bg-[#166534]/10">
+                    <Badge variant="outline" className="text-[11px] text-emerald-700 border-emerald-200 bg-emerald-50 dark:bg-emerald-950/50 dark:text-emerald-400">
                       <CheckCircle2 className="size-3 mr-1" />
                       Enrolled
                     </Badge>
@@ -891,6 +1109,7 @@ export function AdmissionsPage() {
 
               <ScrollArea className="h-[calc(100vh-220px)]">
                 <div className="p-6 space-y-6">
+
                   {/* Status Timeline */}
                   <StatusTimeline
                     currentStatus={detail.status}
@@ -978,56 +1197,66 @@ export function AdmissionsPage() {
                     </>
                   )}
 
-                  {/* Interviews */}
+                  {/* Interviews Section */}
                   <Separator className="bg-border/50" />
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
                       <h4 className="text-sm font-semibold flex items-center gap-2">
-                        <Calendar className="size-4 text-[#6B20A0] dark:text-[#C08ADF]" />
+                        <Video className="size-4 text-[#4B0A8F] dark:text-[#8A40B0]" />
                         Interviews ({(detail.interviews || []).length})
                       </h4>
                       {detail.status !== "enrolled" && detail.status !== "rejected" && (
-                        <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setInterviewOpen(true)}>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 text-xs border-[#4B0A8F]/20 text-[#4B0A8F] hover:bg-[#4B0A8F]/10"
+                          onClick={() => setInterviewOpen(true)}
+                        >
                           <CalendarPlus className="size-3.5 mr-1" />
-                          Schedule
+                          Schedule Interview
                         </Button>
                       )}
                     </div>
+
                     {(!detail.interviews || detail.interviews.length === 0) ? (
-                      <p className="text-sm text-muted-foreground py-3 text-center">No interviews scheduled</p>
+                      <div className="text-center py-6 border border-dashed border-border/50 rounded-lg">
+                        <Calendar className="size-8 mx-auto text-muted-foreground/40 mb-2" />
+                        <p className="text-sm text-muted-foreground">No interviews scheduled yet</p>
+                        {detail.status === "submitted" || detail.status === "screening" ? (
+                          <p className="text-xs text-muted-foreground mt-1">Advance to schedule an interview</p>
+                        ) : null}
+                      </div>
                     ) : (
                       <div className="space-y-2">
                         {detail.interviews.map((intv) => (
                           <Card key={intv.id} className="border-border/50 shadow-none">
                             <CardContent className="p-3 space-y-2">
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                  <Badge variant="outline" className={`text-[10px] ${intv.status === "completed" ? "bg-[#4B0A8F]/10 text-[#4B0A8F] border-[#4B0A8F]/20 dark:text-[#8A40B0]" : "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-400"}`}>
-                                    {intv.status === "completed" ? "Completed" : "Scheduled"}
-                                  </Badge>
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  {getInterviewResultBadge(intv.status)}
                                   {intv.conductedBy && (
                                     <span className="text-xs text-muted-foreground">by {intv.conductedBy}</span>
                                   )}
                                 </div>
-                                {intv.totalScore !== null && (
-                                  <Badge className="bg-[#F3ECF6] text-[#4B0A8F] border-[#D4B8E3] dark:bg-[#1F086080] dark:text-[#8A40B0] text-xs">
+                                {intv.totalScore !== null && intv.totalScore !== undefined && (
+                                  <Badge className="bg-[#F3ECF6] text-[#4B0A8F] border-[#D4B8E3] dark:bg-[#1F086080] dark:text-[#8A40B0] text-xs shrink-0">
                                     <Star className="size-3 mr-1" />
-                                    {intv.totalScore}/300
+                                    {intv.totalScore}
                                   </Badge>
                                 )}
                               </div>
                               <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                                {intv.scheduledDate && <span>{formatPKT(new Date(intv.scheduledDate))}</span>}
-                                {intv.scheduledTime && <span>at {intv.scheduledTime}</span>}
+                                {intv.scheduledDate && <span className="flex items-center gap-1"><Calendar className="size-3" />{formatPKT(new Date(intv.scheduledDate))}</span>}
+                                {intv.scheduledTime && <span className="flex items-center gap-1"><Clock className="size-3" />{intv.scheduledTime}</span>}
                               </div>
-                              {intv.score1 !== null && (
+                              {intv.score1 !== null && intv.score1 !== undefined && (
                                 <div className="flex gap-3 text-xs">
                                   <span className="text-muted-foreground">Scores:</span>
-                                  <span>{intv.score1} / {intv.score2} / {intv.score3}</span>
+                                  <span className="font-medium">{intv.score1} / {intv.score2} / {intv.score3}</span>
                                 </div>
                               )}
                               {intv.notes && (
-                                <p className="text-xs text-muted-foreground">{intv.notes}</p>
+                                <p className="text-xs text-muted-foreground bg-muted/50 rounded-md px-2 py-1">{intv.notes}</p>
                               )}
                             </CardContent>
                           </Card>
@@ -1097,10 +1326,10 @@ export function AdmissionsPage() {
                       <Separator className="bg-border/50" />
                       <div className="space-y-2">
                         <h4 className="text-sm font-semibold flex items-center gap-2">
-                          <UserCheck className="size-4 text-[#166534]" />
+                          <UserCheck className="size-4 text-emerald-600" />
                           Enrolled Participant
                         </h4>
-                        <Card className="border-[#166534]/20 shadow-none">
+                        <Card className="border-emerald-200 shadow-none">
                           <CardContent className="p-3 text-sm space-y-1">
                             <p className="font-medium">{detail.convertedParticipant.name}</p>
                             <p className="text-xs text-muted-foreground">
@@ -1112,44 +1341,66 @@ export function AdmissionsPage() {
                     </>
                   )}
 
-                  {/* Action Buttons */}
+                  {/* Documents Section */}
+                  <Separator className="bg-border/50" />
+                  <div className="space-y-3">
+                    <h4 className="text-sm font-semibold flex items-center gap-2">
+                      <FileText className="size-4 text-[#4B0A8F] dark:text-[#8A40B0]" />
+                      Documents
+                    </h4>
+                    {detail && (
+                      <DocumentUpload
+                        entityType="admission"
+                        entityId={detail.id}
+                        maxFiles={10}
+                      />
+                    )}
+                  </div>
+
+                  {/* Actions Section */}
                   <Separator className="bg-border/50" />
                   <div className="space-y-3">
                     <h4 className="text-sm font-semibold">Actions</h4>
                     <div className="flex flex-wrap gap-2">
-                      {STATUS_FLOW[detail.status]?.map((nextStatus) => {
-                        const cfg = STATUS_CONFIG[nextStatus];
-                        const isReject = nextStatus === "rejected";
-                        const isEnroll = nextStatus === "enrolled";
+                      {/* Advance to Next Stage */}
+                      {canAdvance && (
+                        <Button
+                          size="sm"
+                          className="h-8 text-xs bg-[#4B0A8F] hover:bg-[#4B0A8F]/90 text-white"
+                          onClick={handleAdvance}
+                          disabled={updateMutation.isPending}
+                        >
+                          <ArrowRight className="size-3.5 mr-1.5" />
+                          {NEXT_STATUS_MAP[detail.status] === "enrolled"
+                            ? "Convert to Participant"
+                            : `Advance to ${STATUS_CONFIG[NEXT_STATUS_MAP[detail.status]]?.label || "Next Stage"}`}
+                        </Button>
+                      )}
 
-                        if (isEnroll) {
-                          return (
-                            <Button
-                              key={nextStatus}
-                              size="sm"
-                              className="h-8 text-xs bg-[#166534] hover:bg-[#166534]/90 text-white"
-                              onClick={handleOpenEnroll}
-                              disabled={!!detail.convertedParticipantId}
-                            >
-                              <FolderInput className="size-3.5 mr-1" />
-                              Enroll Student
-                            </Button>
-                          );
-                        }
+                      {/* Enroll (when accepted and not yet enrolled) */}
+                      {canEnroll && !canAdvance && (
+                        <Button
+                          size="sm"
+                          className="h-8 text-xs bg-emerald-600 hover:bg-emerald-600/90 text-white"
+                          onClick={handleOpenEnroll}
+                        >
+                          <FolderInput className="size-3.5 mr-1.5" />
+                          Convert to Participant
+                        </Button>
+                      )}
 
-                        return (
-                          <Button
-                            key={nextStatus}
-                            size="sm"
-                            variant={isReject ? "destructive" : "outline"}
-                            className={`h-8 text-xs ${!isReject ? `${cfg.bg} ${cfg.color} ${cfg.border} border hover:${cfg.bg} hover:${cfg.darkBg}` : ""}`}
-                            onClick={() => handleMoveStatus(detail, nextStatus)}
-                          >
-                            {isReject ? <UserX className="size-3.5 mr-1" /> : <ArrowRightLeft className="size-3.5 mr-1" />}
-                            Move to {cfg.label}
-                          </Button>
-                        );
-                      })}
+                      {/* Reject */}
+                      {canReject && (
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          className="h-8 text-xs"
+                          onClick={() => setRejectOpen(true)}
+                        >
+                          <UserX className="size-3.5 mr-1.5" />
+                          Reject
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1164,34 +1415,60 @@ export function AdmissionsPage() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <CalendarPlus className="size-5 text-[#6B20A0] dark:text-[#C08ADF]" />
+              <div className="size-8 rounded-lg bg-blue-50 dark:bg-blue-950/50 flex items-center justify-center">
+                <CalendarPlus className="size-4 text-blue-600 dark:text-blue-400" />
+              </div>
               Schedule Interview
             </DialogTitle>
             <DialogDescription>Set the date, time, and interviewer for this application.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label className="text-xs font-medium">Interview Date</Label>
-              <Input
-                type="date"
-                value={interviewForm.scheduledDate}
-                onChange={(e) => setInterviewForm((f) => ({ ...f, scheduledDate: e.target.value }))}
-              />
+              <Label className="text-xs font-medium">Interview Date *</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start text-left font-normal h-9"
+                  >
+                    <Calendar className="mr-2 h-4 w-4 text-muted-foreground" />
+                    {interviewDate ? format(interviewDate, "dd MMM yyyy") : "Pick a date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarComponent
+                    mode="single"
+                    selected={interviewDate}
+                    onSelect={setInterviewDate}
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
             <div className="space-y-2">
               <Label className="text-xs font-medium">Interview Time</Label>
               <Input
                 type="time"
-                value={interviewForm.scheduledTime}
-                onChange={(e) => setInterviewForm((f) => ({ ...f, scheduledTime: e.target.value }))}
+                className="h-9"
+                value={interviewTime}
+                onChange={(e) => setInterviewTime(e.target.value)}
               />
             </div>
             <div className="space-y-2">
               <Label className="text-xs font-medium">Conducted By</Label>
               <Input
                 placeholder="Interviewer name"
-                value={interviewForm.conductedBy}
-                onChange={(e) => setInterviewForm((f) => ({ ...f, conductedBy: e.target.value }))}
+                className="h-9"
+                value={interviewConductedBy}
+                onChange={(e) => setInterviewConductedBy(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs font-medium">Notes</Label>
+              <Textarea
+                placeholder="Any notes for the interview..."
+                rows={2}
+                value={interviewNotes}
+                onChange={(e) => setInterviewNotes(e.target.value)}
               />
             </div>
           </div>
@@ -1199,8 +1476,8 @@ export function AdmissionsPage() {
             <Button variant="outline" onClick={() => setInterviewOpen(false)}>Cancel</Button>
             <Button
               onClick={handleScheduleInterview}
-              disabled={interviewMutation.isPending}
-              className="bg-[#6B20A0] hover:bg-[#6B20A0]/90 text-white"
+              disabled={interviewMutation.isPending || !interviewDate}
+              className="bg-blue-600 hover:bg-blue-600/90 text-white"
             >
               {interviewMutation.isPending ? "Scheduling..." : "Schedule Interview"}
             </Button>
@@ -1208,15 +1485,169 @@ export function AdmissionsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* ─── Enrollment Dialog ─── */}
+      {/* ─── Record Interview Results Dialog ─── */}
+      <Dialog open={recordResultsOpen} onOpenChange={setRecordResultsOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <div className="size-8 rounded-lg bg-[#F3ECF6] dark:bg-[#1F086080] flex items-center justify-center">
+                <Award className="size-4 text-[#4B0A8F] dark:text-[#8A40B0]" />
+              </div>
+              Record Interview Results
+            </DialogTitle>
+            <DialogDescription>Enter the interview scores and result for this applicant.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {/* Scores */}
+            <div className="space-y-3">
+              <Label className="text-xs font-medium">Scores (0–10 each)</Label>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] text-muted-foreground">Score 1</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    max="10"
+                    placeholder="0-10"
+                    className="h-9 text-sm text-center"
+                    value={scoreForm.score1}
+                    onChange={(e) => setScoreForm((f) => ({ ...f, score1: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] text-muted-foreground">Score 2</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    max="10"
+                    placeholder="0-10"
+                    className="h-9 text-sm text-center"
+                    value={scoreForm.score2}
+                    onChange={(e) => setScoreForm((f) => ({ ...f, score2: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] text-muted-foreground">Score 3</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    max="10"
+                    placeholder="0-10"
+                    className="h-9 text-sm text-center"
+                    value={scoreForm.score3}
+                    onChange={(e) => setScoreForm((f) => ({ ...f, score3: e.target.value }))}
+                  />
+                </div>
+              </div>
+              {/* Total Score */}
+              <div className="flex items-center justify-center gap-2 py-2 px-3 bg-muted/50 rounded-lg">
+                <span className="text-xs text-muted-foreground">Total Score:</span>
+                <span className={`text-lg font-bold ${totalScore >= 20 ? "text-green-600 dark:text-green-400" : totalScore >= 15 ? "text-amber-600 dark:text-amber-400" : "text-red-600 dark:text-red-400"}`}>
+                  {totalScore}
+                </span>
+                <span className="text-xs text-muted-foreground">/ 30</span>
+              </div>
+            </div>
+
+            {/* Result Status */}
+            <div className="space-y-2">
+              <Label className="text-xs font-medium">Result *</Label>
+              <Select value={interviewResult} onValueChange={(v) => setInterviewResult(v as "passed" | "failed" | "conditional")}>
+                <SelectTrigger className="h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="passed">
+                    <span className="flex items-center gap-2">
+                      <CheckCircle2 className="size-3.5 text-green-600 dark:text-green-400" /> Pass
+                    </span>
+                  </SelectItem>
+                  <SelectItem value="failed">
+                    <span className="flex items-center gap-2">
+                      <XCircle className="size-3.5 text-red-600 dark:text-red-400" /> Fail
+                    </span>
+                  </SelectItem>
+                  <SelectItem value="conditional">
+                    <span className="flex items-center gap-2">
+                      <AlertTriangle className="size-3.5 text-amber-600 dark:text-amber-400" /> Conditional
+                    </span>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Notes */}
+            <div className="space-y-2">
+              <Label className="text-xs font-medium">Notes</Label>
+              <Textarea
+                placeholder="Interview notes and observations..."
+                rows={3}
+                value={scoreNotes}
+                onChange={(e) => setScoreNotes(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRecordResultsOpen(false)}>Cancel</Button>
+            <Button
+              onClick={handleRecordResults}
+              disabled={interviewMutation.isPending}
+              className="bg-[#4B0A8F] hover:bg-[#4B0A8F]/90 text-white"
+            >
+              {interviewMutation.isPending ? "Saving..." : "Save Results"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── Reject Dialog ─── */}
+      <Dialog open={rejectOpen} onOpenChange={setRejectOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <div className="size-8 rounded-lg bg-red-50 dark:bg-red-950/50 flex items-center justify-center">
+                <AlertTriangle className="size-4 text-red-600 dark:text-red-400" />
+              </div>
+              Reject Application
+            </DialogTitle>
+            <DialogDescription>
+              This will mark <span className="font-semibold">{selectedApp?.applicantName}</span> as rejected. Please provide a reason.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label className="text-xs font-medium">Rejection Reason *</Label>
+              <Textarea
+                placeholder="Explain why this application is being rejected..."
+                rows={4}
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                className="resize-none"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setRejectOpen(false); setRejectReason(""); }}>Cancel</Button>
+            <Button
+              variant="destructive"
+              onClick={handleReject}
+              disabled={updateMutation.isPending || !rejectReason.trim()}
+            >
+              {updateMutation.isPending ? "Rejecting..." : "Reject Application"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── Enrollment / Convert to Participant Dialog ─── */}
       <Dialog open={enrollOpen} onOpenChange={setEnrollOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <div className="size-8 rounded-lg bg-[#166534]/10 flex items-center justify-center">
-                <FolderInput className="size-4 text-[#166534]" />
+              <div className="size-8 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 flex items-center justify-center">
+                <FolderInput className="size-4 text-emerald-600 dark:text-emerald-400" />
               </div>
-              Enroll Student
+              Convert to Participant
             </DialogTitle>
             <DialogDescription>
               Select a group to enroll <span className="font-semibold">{selectedApp?.applicantName}</span> into the program.
@@ -1230,7 +1661,7 @@ export function AdmissionsPage() {
                 <SelectContent>
                   {(groups || []).map((g) => (
                     <SelectItem key={g.id} value={g.id}>
-                      {g.name} — {g.batch.name} / {g.batch.park.name}
+                      <span className="truncate">{g.name} — {g.batch.name} / {g.batch.park.name}</span>
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -1252,9 +1683,9 @@ export function AdmissionsPage() {
             <Button
               onClick={handleEnroll}
               disabled={enrollMutation.isPending || !enrollForm.groupId}
-              className="bg-[#166534] hover:bg-[#166534]/90 text-white"
+              className="bg-emerald-600 hover:bg-emerald-600/90 text-white"
             >
-              {enrollMutation.isPending ? "Enrolling..." : "Enroll Student"}
+              {enrollMutation.isPending ? "Enrolling..." : "Convert to Participant"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1263,7 +1694,39 @@ export function AdmissionsPage() {
   );
 }
 
-// ─── Kanban View ─────────────────────────────────────────────────────────────
+// ─── Mini Pipeline Progress ────────────────────────────────────────────────
+
+const PROGRESS_STEPS = ["submitted", "screening", "interview_scheduled", "interviewed", "accepted", "enrolled"];
+
+function PipelineProgress({ currentStatus }: { currentStatus: string }) {
+  const currentIndex = PROGRESS_STEPS.indexOf(currentStatus);
+  const isRejected = currentStatus === "rejected";
+
+  return (
+    <div className="flex items-center gap-0.5">
+      {PROGRESS_STEPS.map((step, idx) => {
+        const isActive = idx <= currentIndex && !isRejected;
+        const isCurrent = step === currentStatus;
+        const stepCfg = STATUS_CONFIG[step];
+        return (
+          <div key={step} className="flex-1 flex items-center">
+            <div
+              className={`h-1.5 w-full rounded-full transition-colors ${
+                isRejected
+                  ? "bg-red-300 dark:bg-red-800"
+                  : isActive
+                    ? `${stepCfg.dot}`
+                    : "bg-border/50"
+              } ${isCurrent && !isRejected ? "ring-1 ring-offset-1 ring-offset-background rounded-full " + stepCfg.dot.replace("bg-", "ring-") : ""}`}
+            />
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── Kanban / Pipeline View ──────────────────────────────────────────────────
 
 function KanbanView({
   groups,
@@ -1275,8 +1738,8 @@ function KanbanView({
   onMoveStatus: (app: Application, status: string) => void;
 }) {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-      {KANBAN_STATUSES.map((status) => {
+    <div className="flex gap-3 overflow-x-auto pb-4 -mx-1 px-1">
+      {PIPELINE_STATUSES.map((status) => {
         const cfg = STATUS_CONFIG[status];
         const apps = groups[status] || [];
         return (
@@ -1284,24 +1747,28 @@ function KanbanView({
             key={status}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4 }}
-            className="space-y-3"
+            transition={{ duration: 0.3 }}
+            className="min-w-[240px] w-[240px] shrink-0 space-y-3"
           >
-            {/* Column header */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className={`size-2.5 rounded-full ${cfg.dot}`} />
-                <h3 className="text-sm font-semibold">{cfg.label}</h3>
+            {/* Column header with color-coded styling */}
+            <div className="sticky top-0 bg-background z-10 pb-1">
+              <div className={`flex items-center justify-between px-3 py-2 rounded-lg border-l-4 ${cfg.border} ${cfg.bg} ${cfg.darkBg}`}>
+                <div className="flex items-center gap-2">
+                  <span className={`size-2.5 rounded-full ${cfg.dot}`} />
+                  <h3 className={`text-xs font-semibold ${cfg.color} ${cfg.darkText}`}>{cfg.label}</h3>
+                </div>
+                <span className={`text-xs font-bold rounded-full px-2 py-0.5 ${cfg.color} ${cfg.darkText}`}>
+                  {apps.length}
+                </span>
               </div>
-              <Badge variant="secondary" className="text-[10px] h-5 min-w-[20px] flex items-center justify-center rounded-full">
-                {apps.length}
-              </Badge>
             </div>
 
             {/* Cards */}
-            <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-1">
+            <div className="space-y-2 max-h-[calc(100vh-380px)] overflow-y-auto pr-1">
               {apps.length === 0 && (
-                <div className="text-center py-8 text-xs text-muted-foreground">No applications</div>
+                <div className="text-center py-6 text-[10px] text-muted-foreground bg-muted/20 rounded-lg border border-dashed border-border/50">
+                  No applications
+                </div>
               )}
               <AnimatePresence>
                 {apps.map((app) => (
@@ -1312,21 +1779,21 @@ function KanbanView({
                     exit={{ opacity: 0, scale: 0.95 }}
                     transition={{ duration: 0.2 }}
                   >
-                    <Card className={`border ${cfg.border} shadow-none hover:shadow-sm transition-shadow cursor-pointer ${cfg.darkBg}`}>
-                      <CardContent className="p-3 space-y-2.5">
+                    <Card className={`border shadow-none hover:shadow-sm transition-all cursor-pointer hover:border-[#4B0A8F]/30 ${cfg.bg} ${cfg.darkBg}`}>
+                      <CardContent className="p-3 space-y-2">
                         {/* Header */}
                         <div className="flex items-start justify-between gap-2">
                           <button
                             className="text-left min-w-0 flex-1"
                             onClick={() => onView(app)}
                           >
-                            <p className="text-xs font-mono text-muted-foreground">{app.trackingCode}</p>
-                            <p className="text-sm font-semibold truncate">{app.applicantName}</p>
+                            <p className="text-[10px] font-mono text-muted-foreground">{app.trackingCode}</p>
+                            <p className="text-xs font-semibold truncate mt-0.5">{app.applicantName}</p>
                           </button>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="size-7 shrink-0">
-                                <MoreHorizontal className="size-4" />
+                              <Button variant="ghost" size="icon" className="size-6 shrink-0">
+                                <MoreHorizontal className="size-3.5" />
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
@@ -1339,7 +1806,7 @@ function KanbanView({
                                 <DropdownMenuItem
                                   key={ns}
                                   onClick={() => onMoveStatus(app, ns)}
-                                  className={ns === "rejected" ? "text-red-600 focus:text-red-600" : ""}
+                                  className={ns === "rejected" ? "text-red-600 dark:text-red-400 focus:text-red-600 dark:focus:text-red-400" : ""}
                                 >
                                   {ns === "rejected" ? <UserX className="size-3.5 mr-2" /> : <ArrowRightLeft className="size-3.5 mr-2" />}
                                   Move to {STATUS_CONFIG[ns].label}
@@ -1350,30 +1817,39 @@ function KanbanView({
                         </div>
 
                         {/* Info */}
-                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
                           <Users className="size-3 shrink-0" />
                           <span className="truncate">{app.guardianName}</span>
                         </div>
 
-                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                          <Phone className="size-3 shrink-0" />
-                          <span>{app.guardianPhone}</span>
-                        </div>
-
-                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
                           <MapPin className="size-3 shrink-0" />
                           <span className="truncate">{app.city?.name || "No city"}{app.preferredPark ? ` · ${app.preferredPark.name}` : ""}</span>
                         </div>
 
+                        {/* Mini Pipeline Progress Indicator */}
+                        <PipelineProgress currentStatus={app.status} />
+
                         {/* Footer */}
                         <div className="flex items-center justify-between pt-1">
-                          <span className="text-[10px] text-muted-foreground">{formatPKT(new Date(app.createdAt), "dd MMM")}</span>
-                          {app.interviews.length > 0 && (
-                            <Badge variant="outline" className="text-[10px] h-5 bg-[#6B20A0]/10 text-[#6B20A0] border-[#6B20A0]/20 dark:text-[#C08ADF]">
-                              <Star className="size-2.5 mr-0.5" />
-                              {app.interviews[0].totalScore ?? "Pending"}
-                            </Badge>
-                          )}
+                          <span className="text-[9px] text-muted-foreground">{formatPKT(new Date(app.createdAt), "dd MMM")}</span>
+                          <div className="flex items-center gap-1">
+                            {app.interviews.length > 0 && app.interviews[0].totalScore !== null && app.interviews[0].totalScore !== undefined && (
+                              <Badge variant="outline" className="text-[9px] h-4 bg-[#4B0A8F]/10 text-[#4B0A8F] border-[#4B0A8F]/20 dark:text-[#8A40B0] px-1.5">
+                                <Star className="size-2 mr-0.5" />
+                                {app.interviews[0].totalScore}
+                              </Badge>
+                            )}
+                            {NEXT_STATUS_MAP[app.status] && app.status !== "rejected" && app.status !== "enrolled" && (
+                              <Button
+                                size="icon"
+                                className="size-5 h-5 bg-[#4B0A8F] hover:bg-[#4B0A8F]/80 text-white rounded-full"
+                                onClick={(e) => { e.stopPropagation(); onMoveStatus(app, NEXT_STATUS_MAP[app.status]); }}
+                              >
+                                <ArrowRight className="size-2.5" />
+                              </Button>
+                            )}
+                          </div>
                         </div>
                       </CardContent>
                     </Card>
@@ -1388,7 +1864,7 @@ function KanbanView({
   );
 }
 
-// ─── List View ───────────────────────────────────────────────────────────────
+// ─── List / Table View ───────────────────────────────────────────────────────
 
 function ListView({
   applications,
@@ -1456,8 +1932,8 @@ function ListView({
                   <TableCell>{getStatusBadge(app.status)}</TableCell>
                   <TableCell>
                     {app.interviews.length > 0 ? (
-                      <Badge variant="outline" className="text-[10px] bg-[#6B20A0]/10 text-[#6B20A0] border-[#6B20A0]/20 dark:text-[#C08ADF]">
-                        {app.interviews[0].totalScore ? `${app.interviews[0].totalScore}/300` : "Pending"}
+                      <Badge variant="outline" className="text-[10px] bg-[#4B0A8F]/10 text-[#4B0A8F] border-[#4B0A8F]/20 dark:text-[#8A40B0]">
+                        {app.interviews[0].totalScore ? `${app.interviews[0].totalScore}` : "Pending"}
                       </Badge>
                     ) : (
                       <span className="text-xs text-muted-foreground">None</span>
@@ -1481,7 +1957,7 @@ function ListView({
                           <DropdownMenuItem
                             key={ns}
                             onClick={(e) => { e.stopPropagation(); onMoveStatus(app, ns); }}
-                            className={ns === "rejected" ? "text-red-600 focus:text-red-600" : ""}
+                            className={ns === "rejected" ? "text-red-600 dark:text-red-400 focus:text-red-600 dark:focus:text-red-400" : ""}
                           >
                             {ns === "rejected" ? <UserX className="size-3.5 mr-2" /> : <ArrowRightLeft className="size-3.5 mr-2" />}
                             Move to {STATUS_CONFIG[ns].label}
@@ -1575,7 +2051,7 @@ function ListView({
 
 // ─── Status Timeline ─────────────────────────────────────────────────────────
 
-const PIPELINE_STEPS = ["submitted", "reviewing", "interviewed", "accepted", "enrolled"];
+const PIPELINE_STEPS = ["submitted", "screening", "interview_scheduled", "interviewed", "accepted", "enrolled"];
 
 function StatusTimeline({ currentStatus, createdAt, updatedAt }: { currentStatus: string; createdAt: string; updatedAt: string }) {
   const currentIndex = PIPELINE_STEPS.indexOf(currentStatus);
@@ -1591,13 +2067,13 @@ function StatusTimeline({ currentStatus, createdAt, updatedAt }: { currentStatus
           const cfg = STATUS_CONFIG[step];
           const isReached = idx <= currentIndex;
           const isCurrent = step === currentStatus;
-          const isRejected = currentStatus === "rejected" && step === "rejected";
+          const isRejected = currentStatus === "rejected" && idx === 0;
 
-          // For rejected, we still show the full pipeline but mark rejected
-          if (isRejected) {
+          // Show rejected indicator at the top if rejected
+          if (isRejected && currentStatus === "rejected") {
             const rejCfg = STATUS_CONFIG.rejected;
             return (
-              <div key="rejected" className="flex items-center gap-3 py-1">
+              <div key="rejected-marker" className="flex items-center gap-3 py-1 mb-1">
                 <div className="flex flex-col items-center">
                   <div className={`size-6 rounded-full flex items-center justify-center ${rejCfg.bg} ${rejCfg.border} border`}>
                     <XCircle className={`size-3.5 ${rejCfg.color}`} />
@@ -1610,6 +2086,9 @@ function StatusTimeline({ currentStatus, createdAt, updatedAt }: { currentStatus
               </div>
             );
           }
+
+          // Skip the second "rejected" render
+          if (currentStatus === "rejected" && idx > 0) return null;
 
           return (
             <div key={step} className="flex items-start gap-3">

@@ -4,15 +4,21 @@ import { db } from "@/lib/db";
 import { z } from "zod";
 import { logAudit } from "@/lib/audit";
 
-const VALID_STATUSES = ["submitted", "reviewing", "interviewed", "accepted", "rejected", "enrolled"] as const;
+const VALID_STATUSES = ["submitted", "screening", "interview_scheduled", "interviewed", "accepted", "rejected", "enrolled"] as const;
 
 const STATUS_FLOW: Record<string, string[]> = {
-  submitted: ["reviewing", "rejected"],
-  reviewing: ["interviewed", "rejected", "submitted"],
-  interviewed: ["accepted", "rejected", "reviewing"],
+  submitted: ["screening", "rejected"],
+  screening: ["interview_scheduled", "rejected", "submitted"],
+  interview_scheduled: ["interviewed", "rejected", "screening"],
+  interviewed: ["accepted", "rejected", "interview_scheduled"],
   accepted: ["enrolled", "rejected", "interviewed"],
   rejected: ["submitted"],
   enrolled: [],
+};
+
+// Legacy alias mapping for old status names
+const STATUS_ALIASES: Record<string, string> = {
+  reviewing: "screening",
 };
 
 const patchSchema = z.object({

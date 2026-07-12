@@ -45,6 +45,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { useDebounce } from "@/hooks/use-debounce";
 import { formatPKT } from "@/lib/timezone";
+import { ExportButton } from "@/components/shared/export-button";
+import { GuardianDetailSheet } from "@/components/modules/admin/guardian-detail-sheet";
+import { ParticipantDetailSheet } from "@/components/modules/admin/participant-detail-sheet";
 import {
   Plus,
   Search,
@@ -61,7 +64,14 @@ import {
   IdCard,
   User,
   X,
+  Eye,
+  UserCheck,
+  UserX,
+  Send,
+  Check,
 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { BulkActionToolbar, type BulkAction } from "@/components/shared/bulk-action-toolbar";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -107,7 +117,7 @@ interface Guardian {
 interface Pagination {
   page: number;
   pageSize: number;
-  total: number;
+  totalItems: number;
   totalPages: number;
 }
 
@@ -153,20 +163,26 @@ export function GuardiansPage() {
 
   const debouncedSearch = useDebounce(search, 300);
 
+  // Selection
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
   // Reset page on filter change
   const handleSearchChange = useCallback((val: string) => {
     setSearch(val);
     setPage(1);
+    setSelectedIds(new Set());
   }, []);
 
   const handleCityFilterChange = useCallback((val: string) => {
     setCityId(val);
     setPage(1);
+    setSelectedIds(new Set());
   }, []);
 
   const handleStateChange = useCallback((val: string) => {
     setState(val);
     setPage(1);
+    setSelectedIds(new Set());
   }, []);
 
   // Dialogs
@@ -174,7 +190,25 @@ export function GuardiansPage() {
   const [editOpen, setEditOpen] = useState(false);
   const [linkChildOpen, setLinkChildOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [inviteOpen, setInviteOpen] = useState(false);
+
+  // Invite form
+  const [inviteName, setInviteName] = useState("");
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [invitePhone, setInvitePhone] = useState("");
+  const [inviteCnic, setInviteCnic] = useState("");
+  const [inviteAddress, setInviteAddress] = useState("");
+  const [inviteRelationship, setInviteRelationship] = useState("");
+  const [inviteCode, setInviteCode] = useState("");
+  const [inviteErrors, setInviteErrors] = useState<Record<string, string>>({});
   const [selectedGuardian, setSelectedGuardian] = useState<Guardian | null>(null);
+  const [selectedDetailId, setSelectedDetailId] = useState<string | null>(null);
+
+  // Participant detail sheet (child click)
+  const [childDetailOpen, setChildDetailOpen] = useState(false);
+  const [childDetailId, setChildDetailId] = useState<string | null>(null);
+  const [childDetailName, setChildDetailName] = useState("");
 
   // Create/Edit form
   const [formName, setFormName] = useState("");
@@ -182,6 +216,87 @@ export function GuardiansPage() {
   const [formCnic, setFormCnic] = useState("");
   const [formAddress, setFormAddress] = useState("");
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+
+  // ─── Batch Mutation ─────────────────────────────────────────────────────
+
+  const batchMutation = useMutation({
+    mutationFn: (body: { action: string; guardianIds: string[] }) =>
+      fetch("/api/admin/guardians/batch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      }).then((r) => {
+        if (!r.ok) return r.json().then((e) => Promise.reject(e));
+        return r.json();
+      }),
+    onSuccess: (result, vars) => {
+      queryClient.invalidateQueries({ queryKey: ["admin-guardians"] });
+      setSelectedIds(new Set());
+      const label = vars.action === "activate" ? "activated" : vars.action === "deactivate" ? "deactivated" : "invited";
+      toast.success(`${result.success} guardian${result.success !== 1 ? "s" : ""} ${label} successfully`);
+      if (result.failed > 0) {
+        toast.warning(`${result.failed} operation${result.failed !== 1 ? "s" : ""} failed`);
+      }
+    },
+    onError: (err: any) => {
+      toast.error(err.error || "Batch operation failed");
+    },
+  });
+
+  // ─── Invite Mutation ─────────────────────────────────────────────────────
+
+  const inviteMutation = useMutation({
+    mutationFn: (body: Record<string, string>) =>
+      fetch("/api/admin/guardians/invite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      }).then((r) => {
+        if (!r.ok) return r.json().then((e) => Promise.reject(e));
+        return r.json();
+      }),
+    onSuccess: (data) => {
+      setInviteCode(data.invitationCode);
+      queryClient.invalidateQueries({ queryKey: ["admin-guardians"] });
+      toast.success("Guardian invited successfully", {
+        description: `Invitation code: ${data.invitationCode}`,
+      });
+    },
+    onError: (err: any) => {
+      if (err.error) {
+        if (typeof err.error === "object") setInviteErrors(err.error);
+        else toast.error(err.error);
+      } else {
+        toast.error("Failed to invite guardian");
+      }
+    },
+  });
+
+  function closeInviteDialog() {
+    setInviteOpen(false);
+    setInviteName("");
+    setInviteEmail("");
+    setInvitePhone("");
+    setInviteCnic("");
+    setInviteAddress("");
+    setInviteRelationship("");
+    setInviteCode("");
+    setInviteErrors({});
+  }
+
+  function handleInviteSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setInviteErrors({});
+    setInviteCode("");
+    inviteMutation.mutate({
+      name: inviteName.trim(),
+      email: inviteEmail.trim() || undefined,
+      phone: invitePhone.trim(),
+      cnic: inviteCnic.trim() || undefined,
+      address: inviteAddress.trim() || undefined,
+      relationship: inviteRelationship,
+    });
+  }
 
   // Link child
   const [childSearch, setChildSearch] = useState("");
@@ -229,6 +344,27 @@ export function GuardiansPage() {
 
   const guardians = data?.data || [];
   const pagination = data?.pagination;
+
+  // Selection helpers (after data is available)
+  const allRowIds = guardians.map((g) => g.id);
+  const allSelected = selectedIds.size > 0 && allRowIds.length > 0 && allRowIds.every((id) => selectedIds.has(id));
+
+  const toggleAll = useCallback(() => {
+    if (allSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(allRowIds));
+    }
+  }, [allSelected, allRowIds]);
+
+  const toggleRow = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
 
   // ─── Mutations ───────────────────────────────────────────────────────────
 
@@ -370,6 +506,23 @@ export function GuardiansPage() {
     setDeleteOpen(true);
   }
 
+  function openDetailSheet(guardian: Guardian) {
+    setSelectedDetailId(guardian.id);
+    setSelectedGuardian(guardian);
+    setDetailOpen(true);
+  }
+
+  function closeDetailSheet() {
+    setDetailOpen(false);
+    setSelectedDetailId(null);
+  }
+
+  function handleChildClick(participantId: string, participantName: string) {
+    setChildDetailId(participantId);
+    setChildDetailName(participantName);
+    setChildDetailOpen(true);
+  }
+
   // ─── Submit handlers ─────────────────────────────────────────────────────
 
   function handleCreateSubmit(e: React.FormEvent) {
@@ -420,13 +573,43 @@ export function GuardiansPage() {
         title="Guardians"
         description="Manage family contacts and participant links"
         actions={
-          <Button
-            onClick={openCreateDialog}
-            className="bg-[#4B0A8F] hover:bg-[#4B0A8FE6] text-white"
-          >
-            <Plus className="size-4 mr-2" />
-            Add Guardian
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setInviteOpen(true)}
+              className="border-[#D4B8E3] text-[#4B0A8F] hover:bg-[#F3ECF6] dark:border-[#2A0C8F] dark:text-[#8A40B0] dark:hover:bg-[#1F086080]"
+            >
+              <UserPlus className="size-4 mr-2" />
+              Invite Guardian
+            </Button>
+            <ExportButton
+              data={guardians.map((g) => ({
+                name: g.name,
+                phone: g.phone,
+                cnic: g.cnic ?? "",
+                address: g.address ?? "",
+                childrenCount: g.children?.length ?? 0,
+                status: g.isActive ? "Active" : "Inactive",
+              }))}
+              filename="guardians"
+              columns={[
+                { key: "name", header: "Name" },
+                { key: "phone", header: "Phone" },
+                { key: "cnic", header: "CNIC" },
+                { key: "address", header: "Address" },
+                { key: "childrenCount", header: "Children Count" },
+                { key: "status", header: "Status" },
+              ]}
+              disabled={isLoading}
+            />
+            <Button
+              onClick={openCreateDialog}
+              className="bg-[#4B0A8F] hover:bg-[#4B0A8FE6] text-white"
+            >
+              <Plus className="size-4 mr-2" />
+              Add Guardian
+            </Button>
+          </div>
         }
       />
 
@@ -468,11 +651,26 @@ export function GuardiansPage() {
           </div>
           {pagination && (
             <div className="mt-3 text-xs text-muted-foreground">
-              Showing {guardians.length} of {pagination.total} guardians
+              Showing {guardians.length} of {pagination.totalItems} guardians
             </div>
           )}
         </CardContent>
       </Card>
+
+      {/* Bulk Action Toolbar */}
+      <BulkActionToolbar
+        selectedIds={Array.from(selectedIds)}
+        onClearSelection={() => setSelectedIds(new Set())}
+        actions={[
+          { key: "activate", label: "Activate", icon: UserCheck, confirmMessage: `Are you sure you want to activate ${selectedIds.size} guardian${selectedIds.size !== 1 ? "s" : ""}?` },
+          { key: "deactivate", label: "Deactivate", icon: UserX, variant: "destructive", confirmMessage: `Are you sure you want to deactivate ${selectedIds.size} guardian${selectedIds.size !== 1 ? "s" : ""}? This action can be reversed.` },
+          { key: "send-invite", label: "Send Invites", icon: Send, confirmMessage: `Send portal invitations to ${selectedIds.size} guardian${selectedIds.size !== 1 ? "s" : ""}?` },
+        ]}
+        onAction={(action) => {
+          batchMutation.mutate({ action, guardianIds: Array.from(selectedIds) });
+        }}
+        isLoading={batchMutation.isPending}
+      />
 
       {/* Loading */}
       {isLoading && (
@@ -495,6 +693,15 @@ export function GuardiansPage() {
               transition={{ duration: 0.2 }}
             >
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Select all row (desktop) */}
+                <div className="hidden md:flex items-center gap-2 col-span-2 pb-1">
+                  <Checkbox
+                    checked={allSelected}
+                    onCheckedChange={toggleAll}
+                    aria-label="Select all guardians"
+                  />
+                  <span className="text-xs text-muted-foreground">Select all on this page</span>
+                </div>
                 {guardians.map((guardian, idx) => (
                   <motion.div
                     key={guardian.id}
@@ -502,12 +709,20 @@ export function GuardiansPage() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.15, delay: idx * 0.03 }}
                   >
-                    <Card className="border-[#D4B8E3] dark:border-[#2A0C8F] overflow-hidden">
+                    <Card className="border-[#D4B8E3] dark:border-[#2A0C8F] overflow-hidden cursor-pointer hover:shadow-md transition-shadow" onClick={() => openDetailSheet(guardian)}>
                       {/* Header */}
                       <div className="flex items-start justify-between p-4 pb-3">
                         <div className="flex items-center gap-3 min-w-0">
-                          <div className="rounded-full bg-[#F3ECF6] dark:bg-[#1F086080] flex items-center justify-center size-11 text-sm font-semibold text-[#4B0A8F] dark:text-[#8A40B0] shrink-0">
+                          <div className="relative shrink-0" onClick={(e) => e.stopPropagation()}>
+                            <Checkbox
+                              checked={selectedIds.has(guardian.id)}
+                              onCheckedChange={() => toggleRow(guardian.id)}
+                              className="absolute -top-1 -left-1 size-5"
+                              aria-label={`Select ${guardian.name}`}
+                            />
+                            <div className="rounded-full bg-[#F3ECF6] dark:bg-[#1F086080] flex items-center justify-center size-11 text-sm font-semibold text-[#4B0A8F] dark:text-[#8A40B0]">
                             {getInitials(guardian.name)}
+                          </div>
                           </div>
                           <div className="min-w-0">
                             <div className="flex items-center gap-2">
@@ -538,22 +753,26 @@ export function GuardiansPage() {
                           </div>
                         </div>
                         <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
+                          <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
                             <Button variant="ghost" size="icon" className="size-7 shrink-0">
                               <MoreHorizontal className="size-4" />
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => openEditDialog(guardian)} className="cursor-pointer">
+                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openDetailSheet(guardian); }} className="cursor-pointer">
+                              <Eye className="size-4 mr-2" />
+                              View Details
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openEditDialog(guardian); }} className="cursor-pointer">
                               <Pencil className="size-4 mr-2" />
                               Edit
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => openLinkChildDialog(guardian)} className="cursor-pointer">
+                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openLinkChildDialog(guardian); }} className="cursor-pointer">
                               <UserPlus className="size-4 mr-2" />
                               Manage Children
                             </DropdownMenuItem>
                             {guardian.isActive && (
-                              <DropdownMenuItem onClick={() => openDeleteDialog(guardian)} className="text-red-600 focus:text-red-600 cursor-pointer">
+                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openDeleteDialog(guardian); }} className="text-red-600 focus:text-red-600 cursor-pointer">
                                 <Trash2 className="size-4 mr-2" />
                                 Deactivate
                               </DropdownMenuItem>
@@ -582,7 +801,7 @@ export function GuardiansPage() {
                             variant="ghost"
                             size="sm"
                             className="size-6 text-[#4B0A8F] dark:text-[#8A40B0] h-auto p-0"
-                            onClick={() => openLinkChildDialog(guardian)}
+                            onClick={(e) => { e.stopPropagation(); openLinkChildDialog(guardian); }}
                           >
                             <UserPlus className="size-3.5" />
                           </Button>
@@ -637,7 +856,7 @@ export function GuardiansPage() {
                       size="icon"
                       className="size-8"
                       disabled={pagination.page <= 1}
-                      onClick={() => setPage((p) => p - 1)}
+                      onClick={() => { setPage((p) => p - 1); setSelectedIds(new Set()); }}
                     >
                       <ChevronLeft className="size-4" />
                     </Button>
@@ -646,7 +865,7 @@ export function GuardiansPage() {
                       size="icon"
                       className="size-8"
                       disabled={pagination.page >= pagination.totalPages}
-                      onClick={() => setPage((p) => p + 1)}
+                      onClick={() => { setPage((p) => p + 1); setSelectedIds(new Set()); }}
                     >
                       <ChevronRight className="size-4" />
                     </Button>
@@ -940,6 +1159,177 @@ export function GuardiansPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Invite Guardian Dialog */}
+      <Dialog open={inviteOpen} onOpenChange={(open) => { if (!open) closeInviteDialog(); else setInviteOpen(true); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <div className="size-8 rounded-lg bg-[#F3ECF6] dark:bg-[#1F086080] flex items-center justify-center">
+                <UserPlus className="size-4 text-[#4B0A8F] dark:text-[#8A40B0]" />
+              </div>
+              Invite Guardian
+            </DialogTitle>
+            <DialogDescription>
+              Create a guardian account with login credentials. An invitation code will be generated.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleInviteSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="invite-name" className="text-xs font-medium">Full Name *</Label>
+              <Input
+                id="invite-name"
+                placeholder="Guardian name"
+                value={inviteName}
+                onChange={(e) => setInviteName(e.target.value)}
+                autoFocus
+              />
+              {inviteErrors.name && (
+                <p className="text-xs text-destructive">
+                  {Array.isArray(inviteErrors.name) ? inviteErrors.name[0] : inviteErrors.name}
+                </p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="invite-email" className="text-xs font-medium">Email (optional)</Label>
+              <Input
+                id="invite-email"
+                type="email"
+                placeholder="guardian@example.com"
+                value={inviteEmail}
+                onChange={(e) => setInviteEmail(e.target.value)}
+              />
+              {inviteErrors.email && (
+                <p className="text-xs text-destructive">
+                  {Array.isArray(inviteErrors.email) ? inviteErrors.email[0] : inviteErrors.email}
+                </p>
+              )}
+              <p className="text-[10px] text-muted-foreground">If not provided, a system email will be generated from the phone number.</p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="invite-phone" className="text-xs font-medium">Phone *</Label>
+              <Input
+                id="invite-phone"
+                placeholder="Phone number"
+                value={invitePhone}
+                onChange={(e) => setInvitePhone(e.target.value)}
+              />
+              {inviteErrors.phone && (
+                <p className="text-xs text-destructive">
+                  {Array.isArray(inviteErrors.phone) ? inviteErrors.phone[0] : inviteErrors.phone}
+                </p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="invite-cnic" className="text-xs font-medium">CNIC (optional)</Label>
+              <Input
+                id="invite-cnic"
+                placeholder="e.g. 35201-XXXXXXX-X"
+                value={inviteCnic}
+                onChange={(e) => setInviteCnic(e.target.value)}
+              />
+              {inviteErrors.cnic && (
+                <p className="text-xs text-destructive">
+                  {Array.isArray(inviteErrors.cnic) ? inviteErrors.cnic[0] : inviteErrors.cnic}
+                </p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="invite-address" className="text-xs font-medium">Address (optional)</Label>
+              <Input
+                id="invite-address"
+                placeholder="Street address"
+                value={inviteAddress}
+                onChange={(e) => setInviteAddress(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="invite-relationship" className="text-xs font-medium">Relationship *</Label>
+              <Select value={inviteRelationship} onValueChange={setInviteRelationship}>
+                <SelectTrigger id="invite-relationship">
+                  <SelectValue placeholder="Select relationship" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Father">Father</SelectItem>
+                  <SelectItem value="Mother">Mother</SelectItem>
+                  <SelectItem value="Guardian">Guardian</SelectItem>
+                  <SelectItem value="Other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+              {inviteErrors.relationship && (
+                <p className="text-xs text-destructive">
+                  {Array.isArray(inviteErrors.relationship) ? inviteErrors.relationship[0] : inviteErrors.relationship}
+                </p>
+              )}
+            </div>
+
+            {/* Invitation Code Display */}
+            {inviteCode && (
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="rounded-lg border-2 border-dashed border-[#4B0A8F]/30 bg-[#F3ECF6] dark:bg-[#1F086080] p-4 text-center"
+              >
+                <p className="text-xs text-muted-foreground mb-1">Invitation Code</p>
+                <p className="text-2xl font-mono font-bold tracking-[0.3em] text-[#4B0A8F] dark:text-[#8A40B0]">{inviteCode}</p>
+                <p className="text-[10px] text-muted-foreground mt-2">Share this code with the guardian. They can use it as their initial password to log in.</p>
+              </motion.div>
+            )}
+
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={closeInviteDialog} disabled={inviteMutation.isPending}>
+                {inviteCode ? "Close" : "Cancel"}
+              </Button>
+              {!inviteCode && (
+                <Button
+                  type="submit"
+                  className="bg-[#A0006B] hover:bg-[#A0006B]/90 text-white"
+                  disabled={inviteMutation.isPending || !inviteName.trim() || !invitePhone.trim() || !inviteRelationship}
+                >
+                  {inviteMutation.isPending ? "Inviting..." : "Send Invitation"}
+                </Button>
+              )}
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Guardian Detail Sheet */}
+      <GuardianDetailSheet
+        open={detailOpen}
+        onOpenChange={(open) => {
+          if (!open) closeDetailSheet();
+          else setDetailOpen(true);
+        }}
+        guardianId={selectedDetailId}
+        guardianName={selectedGuardian?.name}
+        onEdit={selectedGuardian ? () => {
+          closeDetailSheet();
+          openEditDialog(selectedGuardian);
+        } : undefined}
+        onLinkChild={selectedGuardian ? () => {
+          closeDetailSheet();
+          openLinkChildDialog(selectedGuardian);
+        } : undefined}
+        onChildClick={(participantId, participantName) => {
+          handleChildClick(participantId, participantName);
+        }}
+      />
+
+      {/* Child (Participant) Detail Sheet */}
+      <ParticipantDetailSheet
+        open={childDetailOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            setChildDetailOpen(false);
+            setChildDetailId(null);
+          } else {
+            setChildDetailOpen(true);
+          }
+        }}
+        participantId={childDetailId}
+        participantName={childDetailName}
+      />
     </div>
   );
 }

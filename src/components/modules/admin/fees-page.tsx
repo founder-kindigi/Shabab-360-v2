@@ -26,6 +26,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Sheet,
   SheetContent,
@@ -83,8 +84,14 @@ import {
   ChevronRight,
   X,
   CreditCard,
+  Layers,
+  Search,
+  Printer,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTranslation } from "@/lib/i18n";
+import { ExportButton } from "@/components/shared/export-button";
+import { FeeReceipt, type FeeReceiptData } from "@/components/shared/fee-receipt";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -210,6 +217,7 @@ function getMethodBadge(method: string): string {
 // ---------------------------------------------------------------------------
 
 export function FeesPage() {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
 
   // Filter state
@@ -225,6 +233,22 @@ export function FeesPage() {
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
+  const [batchGenOpen, setBatchGenOpen] = useState(false);
+
+  // Receipt dialog state
+  const [receiptOpen, setReceiptOpen] = useState(false);
+  const [receiptPaymentId, setReceiptPaymentId] = useState<string | null>(null);
+
+  // Batch generate state
+  const [bgTitle, setBgTitle] = useState("");
+  const [bgFeeType, setBgFeeType] = useState("");
+  const [bgAmount, setBgAmount] = useState("");
+  const [bgDueDate, setBgDueDate] = useState("");
+  const [bgSelectedIds, setBgSelectedIds] = useState<string[]>([]);
+  const [bgCityId, setBgCityId] = useState("");
+  const [bgParkId, setBgParkId] = useState("");
+  const [bgSearch, setBgSearch] = useState("");
+  const [bgErrors, setBgErrors] = useState<Record<string, string>>({});
 
   // Form state
   const [formBatchId, setFormBatchId] = useState("");
@@ -306,6 +330,51 @@ export function FeesPage() {
     staleTime: 30000,
     enabled: createOpen && !!formParkId,
   });
+
+  // Batch generate queries
+  const { data: bgParks } = useQuery<ParkOption[]>({
+    queryKey: ["batch-gen-parks", bgCityId],
+    queryFn: () => {
+      const url = bgCityId
+        ? `/api/admin/parks?cityId=${bgCityId}`
+        : "/api/admin/parks";
+      return fetch(url).then((r) => r.json());
+    },
+    staleTime: 30000,
+    enabled: batchGenOpen,
+  });
+
+  const { data: bgBatches } = useQuery<BatchOption[]>({
+    queryKey: ["batch-gen-batches", bgParkId],
+    queryFn: () => {
+      const url = bgParkId
+        ? `/api/admin/batches?parkId=${bgParkId}`
+        : "/api/admin/batches";
+      return fetch(url).then((r) => r.json());
+    },
+    staleTime: 30000,
+    enabled: batchGenOpen && !!bgParkId,
+  });
+
+  // Filtered batches for the generate dialog
+  const filteredBgBatches = useMemo(() => {
+    let list = bgBatches || [];
+    if (bgCityId && bgParks) {
+      const parkIds = new Set(bgParks.filter(p => p.cityId === bgCityId).map(p => p.id));
+      list = list.filter(b => parkIds.has(b.parkId));
+    }
+    if (bgSearch.trim()) {
+      const s = bgSearch.toLowerCase();
+      list = list.filter(b => b.name.toLowerCase().includes(s));
+    }
+    return list;
+  }, [bgBatches, bgParks, bgCityId, bgSearch]);
+
+  const filteredBgParks = useMemo(() => {
+    if (!bgParks) return [];
+    if (!bgCityId) return bgParks;
+    return bgParks.filter(p => p.cityId === bgCityId);
+  }, [bgParks, bgCityId]);
 
   // Fee events
   const queryParams = useMemo(() => {
@@ -447,11 +516,22 @@ export function FeesPage() {
         if (!r.ok) return r.json().then((e) => Promise.reject(e));
         return r.json();
       }),
-    onSuccess: () => {
+    onSuccess: (res: any) => {
       queryClient.invalidateQueries({ queryKey: ["admin-fee-detail"] });
       queryClient.invalidateQueries({ queryKey: ["admin-fees"] });
-      toast.success("Payment recorded successfully");
       resetPaymentForm();
+
+      if (res.receiptData) {
+        toast.success("Payment recorded successfully", {
+          action: {
+            label: "Print Receipt",
+            onClick: () => generateReceipt(res.receiptData as ReceiptData),
+          },
+          duration: 8000,
+        });
+      } else {
+        toast.success("Payment recorded successfully");
+      }
     },
     onError: (err: any) => {
       if (err.error) {
@@ -462,6 +542,41 @@ export function FeesPage() {
         }
       } else {
         toast.error("Failed to record payment");
+      }
+    },
+  });
+
+  // Batch generate mutation
+  const batchGenMutation = useMutation({
+    mutationFn: (data: {
+      batchIds: string[];
+      title: string;
+      feeType: string;
+      amount: number;
+      dueDate?: string;
+    }) =>
+      fetch("/api/admin/fees/batch-create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      }).then((r) => {
+        if (!r.ok) return r.json().then((e) => Promise.reject(e));
+        return r.json();
+      }),
+    onSuccess: (res) => {
+      queryClient.invalidateQueries({ queryKey: ["admin-fees"] });
+      toast.success(`Generated ${res.created} fee events successfully${res.failed > 0 ? ` (${res.failed} failed)` : ""}`);
+      closeBatchGenDialog();
+    },
+    onError: (err: any) => {
+      if (err.error) {
+        if (typeof err.error === "object") {
+          setBgErrors(err.error);
+        } else {
+          toast.error(err.error);
+        }
+      } else {
+        toast.error("Failed to generate fee events");
       }
     },
   });
@@ -497,6 +612,27 @@ export function FeesPage() {
     setPage(1);
   }
 
+  // Receipt data query
+  const { data: receiptData, isLoading: receiptLoading } = useQuery<FeeReceiptData>({
+    queryKey: ["payment-receipt", receiptPaymentId],
+    queryFn: () =>
+      fetch(`/api/admin/payments/${receiptPaymentId}/receipt`).then((r) => {
+        if (!r.ok) throw new Error("Failed to load receipt");
+        return r.json();
+      }),
+    enabled: receiptOpen && !!receiptPaymentId,
+  });
+
+  function openReceiptDialog(paymentId: string) {
+    setReceiptPaymentId(paymentId);
+    setReceiptOpen(true);
+  }
+
+  function closeReceiptDialog() {
+    setReceiptOpen(false);
+    setReceiptPaymentId(null);
+  }
+
   // ---- Dialog helpers ----
   function closeCreateDialog() {
     setCreateOpen(false);
@@ -508,6 +644,52 @@ export function FeesPage() {
     setFormAmount("");
     setFormDueDate("");
     setFormErrors({});
+  }
+
+  function closeBatchGenDialog() {
+    setBatchGenOpen(false);
+    setBgTitle("");
+    setBgFeeType("");
+    setBgAmount("");
+    setBgDueDate("");
+    setBgSelectedIds([]);
+    setBgCityId("");
+    setBgParkId("");
+    setBgSearch("");
+    setBgErrors({});
+  }
+
+  function toggleBgBatch(batchId: string) {
+    setBgSelectedIds((prev) =>
+      prev.includes(batchId)
+        ? prev.filter((id) => id !== batchId)
+        : [...prev, batchId]
+    );
+  }
+
+  function toggleAllBgBatches() {
+    if (bgSelectedIds.length === filteredBgBatches.length) {
+      setBgSelectedIds([]);
+    } else {
+      setBgSelectedIds(filteredBgBatches.map((b) => b.id));
+    }
+  }
+
+  function handleBatchGenSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setBgErrors({});
+    if (bgSelectedIds.length === 0) {
+      setBgErrors({ batchIds: "Select at least one batch" });
+      return;
+    }
+    const payload: any = {
+      batchIds: bgSelectedIds,
+      title: bgTitle.trim(),
+      feeType: bgFeeType,
+      amount: parseFloat(bgAmount),
+    };
+    if (bgDueDate) payload.dueDate = bgDueDate;
+    batchGenMutation.mutate(payload);
   }
 
   function openEditDialog(fe: FeeEventItem) {
@@ -680,7 +862,7 @@ export function FeesPage() {
             <div className="flex items-center justify-center size-8 rounded-lg bg-[#F3ECF6] dark:bg-[#1F086080]">
               <TrendingUp className="size-4 text-[#4B0A8F] dark:text-[#B87EE0]" />
             </div>
-            <span className="text-xs text-muted-foreground font-medium">Collection Rate</span>
+            <span className="text-xs text-muted-foreground font-medium">{t("fees.collectionProgress")}</span>
           </div>
           {isLoading ? (
             <Skeleton className="h-7 w-16" />
@@ -703,7 +885,7 @@ export function FeesPage() {
           <Label className="text-xs text-muted-foreground mb-1 block">City</Label>
           <Select value={filterCityId} onValueChange={handleFilterCityChange}>
             <SelectTrigger className="h-9 text-sm">
-              <SelectValue placeholder="All Cities" />
+              <SelectValue placeholder={t("fees.allCitiesFilter")} />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="__all__">All Cities</SelectItem>
@@ -715,13 +897,13 @@ export function FeesPage() {
         </div>
 
         <div className="min-w-[140px] flex-1 sm:flex-none">
-          <Label className="text-xs text-muted-foreground mb-1 block">Park</Label>
+          <Label className="text-xs text-muted-foreground mb-1 block">{t("fees.park")}</Label>
           <Select value={filterParkId} onValueChange={handleFilterParkChange}>
             <SelectTrigger className="h-9 text-sm">
-              <SelectValue placeholder="All Parks" />
+              <SelectValue placeholder={t("fees.allParks")} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="__all__">All Parks</SelectItem>
+              <SelectItem value="__all__">{t("fees.allParks")}</SelectItem>
               {filteredParks.map((p) => (
                 <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
               ))}
@@ -730,13 +912,13 @@ export function FeesPage() {
         </div>
 
         <div className="min-w-[140px] flex-1 sm:flex-none">
-          <Label className="text-xs text-muted-foreground mb-1 block">Batch</Label>
+          <Label className="text-xs text-muted-foreground mb-1 block">{t("fees.batch")}</Label>
           <Select value={filterBatchId} onValueChange={handleFilterBatchChange}>
             <SelectTrigger className="h-9 text-sm">
-              <SelectValue placeholder="All Batches" />
+              <SelectValue placeholder={t("fees.allBatches")} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="__all__">All Batches</SelectItem>
+              <SelectItem value="__all__">{t("fees.allBatches")}</SelectItem>
               {filteredBatches.map((b) => (
                 <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
               ))}
@@ -745,41 +927,87 @@ export function FeesPage() {
         </div>
 
         <div className="min-w-[130px]">
-          <Label className="text-xs text-muted-foreground mb-1 block">Fee Type</Label>
+          <Label className="text-xs text-muted-foreground mb-1 block">{t("fees.feeType")}</Label>
           <Select value={filterFeeType} onValueChange={(v) => { setFilterFeeType(v === "__all__" ? "" : v); setPage(1); }}>
             <SelectTrigger className="h-9 text-sm">
-              <SelectValue placeholder="All Types" />
+              <SelectValue placeholder={t("fees.allTypes")} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="__all__">All Types</SelectItem>
-              <SelectItem value="tuition">Tuition</SelectItem>
-              <SelectItem value="admission">Admission</SelectItem>
-              <SelectItem value="other">Other</SelectItem>
+              <SelectItem value="__all__">{t("fees.allTypes")}</SelectItem>
+              <SelectItem value="tuition">{t("fees.tuition")}</SelectItem>
+              <SelectItem value="admission">{t("fees.admission")}</SelectItem>
+              <SelectItem value="other">{t("fees.other")}</SelectItem>
             </SelectContent>
           </Select>
         </div>
 
         <div className="min-w-[110px]">
-          <Label className="text-xs text-muted-foreground mb-1 block">Status</Label>
+          <Label className="text-xs text-muted-foreground mb-1 block">{t("common.status")}</Label>
           <Select value={filterStatus} onValueChange={(v) => { setFilterStatus(v); setPage(1); }}>
             <SelectTrigger className="h-9 text-sm">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="active">Active</SelectItem>
-              <SelectItem value="all">All</SelectItem>
+              <SelectItem value="active">{t("fees.active")}</SelectItem>
+              <SelectItem value="all">{t("common.all")}</SelectItem>
             </SelectContent>
           </Select>
         </div>
 
-        <Button
-          size="sm"
-          className="h-9 bg-[#4B0A8F] hover:bg-[#3A0870] text-white shrink-0"
-          onClick={() => setCreateOpen(true)}
-        >
-          <Plus className="size-4 mr-1.5" />
-          New Fee
-        </Button>
+        <div className="flex items-center gap-2 ml-auto shrink-0">
+          <Button
+            variant="outline"
+            size="sm"
+            className="no-print"
+            onClick={() => window.print()}
+          >
+            <Printer className="size-4 mr-1.5" />
+            {t("common.print")}
+          </Button>
+          <ExportButton
+            data={feeEvents.map((f) => ({
+              title: f.title,
+              batch: f.batch?.name ?? "",
+              feeType: f.feeType,
+              amount: f.amount,
+              dueDate: f.dueDate
+                ? new Date(f.dueDate).toLocaleDateString("en-PK", { timeZone: "Asia/Karachi" })
+                : "",
+              status: f.isActive ? "Active" : "Inactive",
+              totalPaid: f.totalPaid,
+              totalParticipants: f.totalParticipants,
+            }))}
+            filename="fees"
+            columns={[
+              { key: "title", header: "Fee Title" },
+              { key: "batch", header: "Batch" },
+              { key: "feeType", header: "Type" },
+              { key: "amount", header: "Amount" },
+              { key: "dueDate", header: "Due Date" },
+              { key: "status", header: "Status" },
+              { key: "totalPaid", header: "Total Paid" },
+              { key: "totalParticipants", header: "Total Participants" },
+            ]}
+            disabled={isLoading}
+          />
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-9 border-[#A0006B]/40 text-[#A0006B] hover:bg-[#A0006B]/10 dark:text-[#E06BAF] dark:border-[#A0006B]/40 dark:hover:bg-[#A0006B]/20"
+            onClick={() => setBatchGenOpen(true)}
+          >
+            <Layers className="size-4 mr-1.5" />
+            <span className="hidden sm:inline">{t("fees.generate")}</span>
+          </Button>
+          <Button
+            size="sm"
+            className="h-9 bg-[#4B0A8F] hover:bg-[#3A0870] text-white"
+            onClick={() => setCreateOpen(true)}
+          >
+            <Plus className="size-4 mr-1.5" />
+            <span className="hidden sm:inline">{t("fees.create")}</span>
+          </Button>
+        </div>
       </motion.div>
 
       {/* Fee Events Table / Cards */}
@@ -804,8 +1032,8 @@ export function FeesPage() {
         ) : feeEvents.length === 0 ? (
           <EmptyState
             icon={DollarSign}
-            title="No Fee Events"
-            description="Create your first fee event to start tracking collections."
+            title={t("fees.noFeeEvents")}
+            description={t("fees.noFeeEventsDesc")}
           />
         ) : (
           <>
@@ -814,13 +1042,13 @@ export function FeesPage() {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-[#F3ECF6]/50 dark:bg-[#1F086080]/50 hover:bg-[#F3ECF6]/50 dark:hover:bg-[#1F086080]/50">
-                    <TableHead className="text-xs font-semibold">Title</TableHead>
-                    <TableHead className="text-xs font-semibold">Batch / Park / City</TableHead>
-                    <TableHead className="text-xs font-semibold">Type</TableHead>
-                    <TableHead className="text-xs font-semibold text-right">Amount</TableHead>
-                    <TableHead className="text-xs font-semibold">Due Date</TableHead>
-                    <TableHead className="text-xs font-semibold">Progress</TableHead>
-                    <TableHead className="text-xs font-semibold text-center">Paid</TableHead>
+                    <TableHead className="text-xs font-semibold">{t("fees.titleCol")}</TableHead>
+                    <TableHead className="text-xs font-semibold">{t("fees.batchParkCity")}</TableHead>
+                    <TableHead className="text-xs font-semibold">{t("fees.typeCol")}</TableHead>
+                    <TableHead className="text-xs font-semibold text-right">{t("fees.amount")}</TableHead>
+                    <TableHead className="text-xs font-semibold">{t("fees.dueDate")}</TableHead>
+                    <TableHead className="text-xs font-semibold">{t("fees.progress")}</TableHead>
+                    <TableHead className="text-xs font-semibold text-center">{t("fees.paid")}</TableHead>
                     <TableHead className="text-xs font-semibold w-12"></TableHead>
                   </TableRow>
                 </TableHeader>
@@ -892,19 +1120,19 @@ export function FeesPage() {
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="w-40">
                             <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openDetailSheet(fe); }}>
-                              <Eye className="size-4 mr-2" /> View Details
+                              <Eye className="size-4 mr-2" /> {t("fees.viewDetails")}
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openDetailSheet(fe); }}>
-                              <CreditCard className="size-4 mr-2" /> Record Payment
+                              <CreditCard className="size-4 mr-2" /> {t("fees.recordPayment")}
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openEditDialog(fe); }}>
-                              <Pencil className="size-4 mr-2" /> Edit
+                              <Pencil className="size-4 mr-2" /> {t("common.edit")}
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               className="text-red-600 focus:text-red-600"
                               onClick={(e) => { e.stopPropagation(); openDeleteDialog(fe); }}
                             >
-                              <Trash2 className="size-4 mr-2" /> Deactivate
+                              <Trash2 className="size-4 mr-2" /> {t("fees.deactivateFeeBtn")}
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -997,13 +1225,13 @@ export function FeesPage() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openEditDialog(fe); }}>
-                          <Pencil className="size-4 mr-2" /> Edit
+                          <Pencil className="size-4 mr-2" /> {t("common.edit")}
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           className="text-red-600 focus:text-red-600"
                           onClick={(e) => { e.stopPropagation(); openDeleteDialog(fe); }}
                         >
-                          <Trash2 className="size-4 mr-2" /> Deactivate
+                          <Trash2 className="size-4 mr-2" /> {t("fees.deactivateFeeBtn")}
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -1044,12 +1272,199 @@ export function FeesPage() {
         )}
       </motion.div>
 
+      {/* ============ BATCH GENERATE FEES DIALOG ============ */}
+      <Dialog open={batchGenOpen} onOpenChange={(open) => { if (!open) closeBatchGenDialog(); }}>
+        <DialogContent className="sm:max-w-lg max-h-[85vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="text-lg flex items-center gap-2">
+              <Layers className="size-5 text-[#A0006B] dark:text-[#E06BAF]" />
+              {t("fees.generateFeesForMultiple")}
+            </DialogTitle>
+            <DialogDescription>{t("fees.generateFeesDesc")}</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleBatchGenSubmit} className="flex-1 overflow-y-auto space-y-4 pr-1">
+            <div className="space-y-2">
+              <Label className="text-sm">Title</Label>
+              <Input
+                className="h-9"
+                placeholder="e.g., January 2025 Tuition"
+                value={bgTitle}
+                onChange={(e) => setBgTitle(e.target.value)}
+              />
+              {bgErrors.title && (
+                <p className="text-xs text-[#FF0015]">{bgErrors.title}</p>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label className="text-sm">Fee Type</Label>
+                <Select value={bgFeeType} onValueChange={setBgFeeType}>
+                  <SelectTrigger className="h-9">
+                    <SelectValue placeholder="Select type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="monthly">Monthly</SelectItem>
+                    <SelectItem value="registration">Registration</SelectItem>
+                    <SelectItem value="exam">Exam</SelectItem>
+                    <SelectItem value="special">Special</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+                {bgErrors.feeType && (
+                  <p className="text-xs text-[#FF0015]">{bgErrors.feeType}</p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-sm">Amount (PKR)</Label>
+                <Input
+                  type="number"
+                  className="h-9 font-mono"
+                  placeholder="0"
+                  min="1"
+                  step="1"
+                  value={bgAmount}
+                  onChange={(e) => setBgAmount(e.target.value)}
+                />
+                {bgErrors.amount && (
+                  <p className="text-xs text-[#FF0015]">{bgErrors.amount}</p>
+                )}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-sm">Due Date (optional)</Label>
+              <Input
+                type="date"
+                className="h-9"
+                value={bgDueDate}
+                onChange={(e) => setBgDueDate(e.target.value)}
+              />
+            </div>
+
+            <Separator />
+
+            {/* Batch selection */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-semibold">Target Batches</Label>
+                {bgSelectedIds.length > 0 && (
+                  <Badge variant="outline" className="text-xs font-mono border-[#4B0A8F]/30 text-[#4B0A8F] dark:text-[#B87EE0]">
+                    {bgSelectedIds.length} selected
+                  </Badge>
+                )}
+              </div>
+
+              {/* City / Park filters */}
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <Select value={bgCityId} onValueChange={(v) => { setBgCityId(v === "__all__" ? "" : v); setBgParkId(""); setBgSelectedIds([]); }}>
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue placeholder="Filter by City" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__all__">All Cities</SelectItem>
+                      {cities?.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex-1">
+                  <Select value={bgParkId} onValueChange={(v) => { setBgParkId(v === "__all__" ? "" : v); setBgSelectedIds([]); }}>
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue placeholder="Filter by Park" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__all__">All Parks</SelectItem>
+                      {filteredBgParks.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Search */}
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
+                <Input
+                  className="h-8 pl-8 text-xs"
+                  placeholder="Search batches..."
+                  value={bgSearch}
+                  onChange={(e) => setBgSearch(e.target.value)}
+                />
+              </div>
+
+              {bgErrors.batchIds && (
+                <p className="text-xs text-[#FF0015]">{bgErrors.batchIds}</p>
+              )}
+
+              {/* Batch list */}
+              <div className="rounded-lg border max-h-48 overflow-y-auto">
+                {!bgParkId ? (
+                  <div className="p-4 text-center text-xs text-muted-foreground">
+                    Select a park to see batches
+                  </div>
+                ) : filteredBgBatches.length === 0 ? (
+                  <div className="p-4 text-center text-xs text-muted-foreground">
+                    No batches found
+                  </div>
+                ) : (
+                  <>
+                    <div className="sticky top-0 bg-muted/80 backdrop-blur-sm px-3 py-2 border-b flex items-center gap-2">
+                      <Checkbox
+                        checked={bgSelectedIds.length === filteredBgBatches.length && filteredBgBatches.length > 0}
+                        onCheckedChange={toggleAllBgBatches}
+                        className="size-3.5"
+                      />
+                      <span className="text-xs font-medium text-muted-foreground">
+                        Select All ({filteredBgBatches.length})
+                      </span>
+                    </div>
+                    <div className="divide-y">
+                      {filteredBgBatches.map((b) => (
+                        <label
+                          key={b.id}
+                          className="flex items-center gap-2.5 px-3 py-2 hover:bg-muted/30 cursor-pointer transition-colors"
+                        >
+                          <Checkbox
+                            checked={bgSelectedIds.includes(b.id)}
+                            onCheckedChange={() => toggleBgBatch(b.id)}
+                            className="size-3.5"
+                          />
+                          <span className="text-xs font-medium truncate">{b.name}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+
+            <DialogFooter className="pt-2">
+              <Button type="button" variant="outline" onClick={closeBatchGenDialog}>
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={batchGenMutation.isPending || bgSelectedIds.length === 0}
+                className="bg-[#A0006B] hover:bg-[#800055] text-white"
+              >
+                {batchGenMutation.isPending ? t("fees.generating") : t("fees.generateFor", { n: bgSelectedIds.length, plural: bgSelectedIds.length !== 1 ? "es" : "" })}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
       {/* ============ CREATE FEE EVENT DIALOG ============ */}
       <Dialog open={createOpen} onOpenChange={(open) => { if (!open) closeCreateDialog(); }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-lg">Create Fee Event</DialogTitle>
-            <DialogDescription>Add a new fee event for a batch to track collections.</DialogDescription>
+            <DialogTitle className="text-lg">{t("fees.createFeeEvent")}</DialogTitle>
+            <DialogDescription>{t("fees.createFeeDesc")}</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleCreateSubmit} className="space-y-4">
             <div className="space-y-2">
@@ -1168,7 +1583,7 @@ export function FeesPage() {
                 disabled={createMutation.isPending}
                 className="bg-[#4B0A8F] hover:bg-[#3A0870] text-white"
               >
-                {createMutation.isPending ? "Creating..." : "Create Fee Event"}
+                {createMutation.isPending ? t("fees.creating") : t("fees.createFeeEvent")}
               </Button>
             </DialogFooter>
           </form>
@@ -1179,8 +1594,8 @@ export function FeesPage() {
       <Dialog open={editOpen} onOpenChange={(open) => { if (!open) closeEditDialog(); }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-lg">Edit Fee Event</DialogTitle>
-            <DialogDescription>Update fee event details.</DialogDescription>
+            <DialogTitle className="text-lg">{t("fees.editFee")}</DialogTitle>
+            <DialogDescription>{t("fees.editFeeDesc")}</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleEditSubmit} className="space-y-4">
             <div className="space-y-2">
@@ -1245,7 +1660,7 @@ export function FeesPage() {
                 disabled={updateMutation.isPending}
                 className="bg-[#4B0A8F] hover:bg-[#3A0870] text-white"
               >
-                {updateMutation.isPending ? "Saving..." : "Save Changes"}
+                {updateMutation.isPending ? t("fees.saving") : t("students.saveChanges")}
               </Button>
             </DialogFooter>
           </form>
@@ -1256,7 +1671,7 @@ export function FeesPage() {
       <AlertDialog open={deleteOpen} onOpenChange={(open) => { if (!open) { setDeleteOpen(false); setSelectedFeeEvent(null); } }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Deactivate Fee Event</AlertDialogTitle>
+            <AlertDialogTitle>{t("fees.deactivateFee")}</AlertDialogTitle>
             <AlertDialogDescription>
               Are you sure you want to deactivate &ldquo;{selectedFeeEvent?.title}&rdquo;?
               This will mark it as inactive. Existing payment records will be preserved.
@@ -1269,7 +1684,7 @@ export function FeesPage() {
               onClick={() => selectedFeeEvent && deleteMutation.mutate(selectedFeeEvent.id)}
               disabled={deleteMutation.isPending}
             >
-              {deleteMutation.isPending ? "Deactivating..." : "Deactivate"}
+              {deleteMutation.isPending ? t("fees.deactivating") : t("fees.deactivateFeeBtn")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -1323,7 +1738,7 @@ export function FeesPage() {
                 {/* Collection Progress */}
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <h4 className="text-sm font-semibold">Collection Progress</h4>
+                    <h4 className="text-sm font-semibold">{t("fees.collectionProgress")}</h4>
                     <span className={cn(
                       "text-lg font-bold tabular-nums",
                       feeDetail.rate >= 80 ? "text-green-600 dark:text-green-400" :
@@ -1336,24 +1751,24 @@ export function FeesPage() {
                   <Progress value={Math.min(feeDetail.rate, 100)} className="h-3 [&>div]:rounded-full" />
                   <div className="flex items-center justify-between text-xs text-muted-foreground">
                     <span>
-                      <span className="font-mono font-semibold text-foreground">{formatPKR(feeDetail.totalPaid)}</span> collected
+                      <span className="font-mono font-semibold text-foreground">{formatPKR(feeDetail.totalPaid)}</span> {t("fees.collected")}
                     </span>
                     <span>
-                      of <span className="font-mono font-semibold text-foreground">{formatPKR(feeDetail.totalExpected)}</span> expected
+                      {t("common.of")} <span className="font-mono font-semibold text-foreground">{formatPKR(feeDetail.totalExpected)}</span> {t("fees.expected")}
                     </span>
                   </div>
                   <div className="flex items-center gap-4 text-xs text-muted-foreground pt-1">
                     <span className="flex items-center gap-1">
                       <Users className="size-3" />
-                      {feeDetail.totalParticipants} participants
+                      {feeDetail.totalParticipants} {t("fees.participants")}
                     </span>
                     <span className="flex items-center gap-1">
                       <CheckCircle2 className="size-3 text-green-500" />
-                      {feeDetail.paidCount} paid
+                      {feeDetail.paidCount} {t("fees.paid")}
                     </span>
                     <span className="flex items-center gap-1">
                       <AlertTriangle className="size-3 text-[#FF0015]" />
-                      {feeDetail.totalParticipants - feeDetail.paidCount} unpaid
+                      {feeDetail.totalParticipants - feeDetail.paidCount} {t("fees.unpaid")}
                     </span>
                   </div>
                 </div>
@@ -1364,7 +1779,7 @@ export function FeesPage() {
                 <div className="space-y-3">
                   <h4 className="text-sm font-semibold flex items-center gap-2">
                     <CreditCard className="size-4 text-[#4B0A8F] dark:text-[#B87EE0]" />
-                    Record Payment
+                    {t("fees.recordPayment")}
                   </h4>
                   <form onSubmit={handlePaymentSubmit} className="space-y-3 p-3 rounded-lg border bg-[#F3ECF6]/20 dark:bg-[#1F086080]/20">
                     <div className="space-y-1.5">
@@ -1376,7 +1791,7 @@ export function FeesPage() {
                         <SelectContent>
                           {feeDetail.unpaidParticipants.length === 0 ? (
                             <div className="px-2 py-3 text-xs text-muted-foreground text-center">
-                              All participants have paid
+                              {t("fees.allParticipantsHavePaid")}
                             </div>
                           ) : (
                             feeDetail.unpaidParticipants.map((p) => (
@@ -1446,7 +1861,7 @@ export function FeesPage() {
                       disabled={paymentMutation.isPending || !payParticipantId || !payAmount || !payMethod}
                       className="w-full bg-[#4B0A8F] hover:bg-[#3A0870] text-white"
                     >
-                      {paymentMutation.isPending ? "Recording..." : "Record Payment"}
+                      {paymentMutation.isPending ? t("fees.recording") : t("fees.recordPayment")}
                     </Button>
                   </form>
                 </div>
@@ -1457,11 +1872,11 @@ export function FeesPage() {
                 <div className="space-y-3">
                   <h4 className="text-sm font-semibold flex items-center gap-2">
                     <Receipt className="size-4 text-[#A0006B] dark:text-[#E06BAF]" />
-                    Payment History ({feeDetail.payments.length})
+                    {t("fees.paymentHistoryCount", { n: feeDetail.payments.length })}
                   </h4>
                   {feeDetail.payments.length === 0 ? (
                     <p className="text-xs text-muted-foreground py-4 text-center">
-                      No payments recorded yet
+                      {t("fees.noPaymentsRecorded")}
                     </p>
                   ) : (
                     <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
@@ -1498,6 +1913,17 @@ export function FeesPage() {
                           {payment.notes && (
                             <p className="text-[10px] text-muted-foreground italic mt-1">{payment.notes}</p>
                           )}
+                          <div className="flex justify-end pt-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 w-6 p-0 text-muted-foreground hover:text-[#4B0A8F] dark:hover:text-[#B87EE0]"
+                              onClick={() => openReceiptDialog(payment.id)}
+                              title="View Receipt"
+                            >
+                              <Receipt className="size-3.5" />
+                            </Button>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -1510,12 +1936,12 @@ export function FeesPage() {
                 <div className="space-y-3 pb-6">
                   <h4 className="text-sm font-semibold flex items-center gap-2">
                     <AlertTriangle className="size-4 text-[#FF0015] dark:text-[#FF4D4D]" />
-                    Unpaid Participants ({feeDetail.unpaidParticipants.length})
+                    {t("fees.unpaidParticipants")} ({feeDetail.unpaidParticipants.length})
                   </h4>
                   {feeDetail.unpaidParticipants.length === 0 ? (
                     <div className="flex items-center gap-2 text-xs text-green-600 dark:text-green-400 py-3">
                       <CheckCircle2 className="size-4" />
-                      All participants have paid!
+                      {t("fees.allParticipantsHavePaid")}
                     </div>
                   ) : (
                     <div className="space-y-1.5 max-h-48 overflow-y-auto">
@@ -1524,7 +1950,7 @@ export function FeesPage() {
                           <div className="min-w-0 flex-1">
                             <p className="text-sm font-medium truncate">{p.name}</p>
                             <p className="text-[10px] text-muted-foreground">
-                              {p.group?.name || "No group"}{p.phone ? ` · ${p.phone}` : ""}
+                              {p.group?.name || t("fees.noGroup")}
                             </p>
                           </div>
                           <Button
@@ -1545,6 +1971,29 @@ export function FeesPage() {
           ) : null}
         </SheetContent>
       </Sheet>
+
+      {/* Receipt Dialog */}
+      <Dialog open={receiptOpen} onOpenChange={(open) => { if (!open) closeReceiptDialog(); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-[#4B0A8F] dark:text-[#B87EE0]">
+              <Receipt className="size-5" />
+              Fee Receipt
+            </DialogTitle>
+            <DialogDescription>
+              View and print the payment receipt
+            </DialogDescription>
+          </DialogHeader>
+          {receiptLoading && (
+            <div className="flex items-center justify-center py-12">
+              <div className="text-sm text-muted-foreground animate-pulse">Loading receipt…</div>
+            </div>
+          )}
+          {!receiptLoading && receiptData && (
+            <FeeReceipt data={receiptData} onClose={closeReceiptDialog} />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

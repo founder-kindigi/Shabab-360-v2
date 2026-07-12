@@ -42,7 +42,7 @@ function useShortcutGroups(): ShortcutGroup[] {
         },
         {
           keys: ["⌘", "K"],
-          description: "Focus search input",
+          description: "Open command palette",
         },
         {
           keys: ["Esc"],

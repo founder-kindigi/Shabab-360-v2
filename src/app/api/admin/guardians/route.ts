@@ -21,11 +21,10 @@ export async function GET(request: NextRequest) {
   const search = searchParams.get("search") || undefined;
   const cityId = searchParams.get("cityId") || undefined;
   const state = searchParams.get("state") || undefined;
-  const page = parseInt(searchParams.get("page") || "1", 10);
-  const pageSize = Math.min(
-    parseInt(searchParams.get("pageSize") || "20", 10),
-    100
-  );
+  const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
+  const pageSize = Math.min(100, Math.max(1, parseInt(searchParams.get("pageSize") || "20", 10)));
+  const sort = searchParams.get("sort") || "createdAt";
+  const order = searchParams.get("order") || "desc";
 
   const where: any = {};
 
@@ -33,12 +32,19 @@ export async function GET(request: NextRequest) {
     where.OR = [
       { name: { contains: search } },
       { phone: { contains: search } },
+      { cnic: { contains: search } },
     ];
   }
 
   if (state && state !== "all") {
     where.isActive = state === "active";
   }
+
+  // Build orderBy
+  const allowedSortFields = ["name", "createdAt"] as const;
+  const sortField = allowedSortFields.includes(sort as any) ? sort : "createdAt";
+  const sortOrder = order === "asc" ? "asc" : "desc";
+  const orderBy: any = { [sortField]: sortOrder };
 
   // If cityId is provided, filter guardians who have children in that city
   let guardianIdsInCity: string[] | undefined;
@@ -58,7 +64,7 @@ export async function GET(request: NextRequest) {
     if (guardianIdsInCity.length === 0) {
       return NextResponse.json({
         data: [],
-        pagination: { page, pageSize, total: 0, totalPages: 0 },
+        pagination: { page, pageSize, totalItems: 0, totalPages: 0 },
       });
     }
     where.id = { in: guardianIdsInCity };
@@ -66,7 +72,9 @@ export async function GET(request: NextRequest) {
 
   const thirtyDaysAgo = subDays(new Date(), 30);
 
-  const [guardians, total] = await Promise.all([
+  const skip = (page - 1) * pageSize;
+
+  const [guardians, totalItems] = await Promise.all([
     db.guardian.findMany({
       where,
       include: {
@@ -97,8 +105,8 @@ export async function GET(request: NextRequest) {
           },
         },
       },
-      orderBy: { createdAt: "desc" },
-      skip: (page - 1) * pageSize,
+      orderBy,
+      skip,
       take: pageSize,
     }),
     db.guardian.count({ where }),
@@ -156,8 +164,8 @@ export async function GET(request: NextRequest) {
     pagination: {
       page,
       pageSize,
-      total,
-      totalPages: Math.ceil(total / pageSize),
+      totalItems,
+      totalPages: Math.ceil(totalItems / pageSize),
     },
   });
 }

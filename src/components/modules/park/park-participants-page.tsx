@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, useCallback } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Search,
@@ -18,6 +18,9 @@ import {
   ChevronRight,
   Calendar,
   X,
+  Plus,
+  TrendingUp,
+  UserPlus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
@@ -37,7 +40,16 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { toast } from "sonner";
 
 // ==================== TYPES ====================
 
@@ -64,6 +76,7 @@ type Participant = {
   guardianPhone: string | null;
   guardianRelation: string | null;
   attendance30Day: Attendance30Day;
+  lastAttendanceDate: string | null;
   _idx: number;
 };
 
@@ -78,6 +91,8 @@ type ParticipantsResponse = {
   pagination: { page: number; pageSize: number; total: number; totalPages: number };
   totalActive: number;
   totalInactive: number;
+  newThisMonth: number;
+  weeklyAttendanceRate: number;
   park: { id: string; name: string; city: string };
   groups: GroupOption[];
 };
@@ -167,26 +182,108 @@ function calculateAge(dob: string | null): string {
   return `${age} yrs`;
 }
 
+function formatRelativeDate(iso: string | null): string {
+  if (!iso) return "Never";
+  const d = new Date(iso);
+  const now = new Date();
+  const diffMs = now.getTime() - d.getTime();
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  if (diffDays === 0) return "Today";
+  if (diffDays === 1) return "Yesterday";
+  if (diffDays < 7) return `${diffDays} days ago`;
+  if (diffDays < 30) return `${Math.floor(diffDays / 7)} week${Math.floor(diffDays / 7) > 1 ? "s" : ""} ago`;
+  return formatDate(iso);
+}
+
+// ==================== STATS ROW ====================
+
+function StatsRow({
+  totalActive,
+  totalInactive,
+  newThisMonth,
+  weeklyRate,
+  total,
+}: {
+  totalActive: number;
+  totalInactive: number;
+  newThisMonth: number;
+  weeklyRate: number;
+  total: number;
+}) {
+  const stats = [
+    {
+      label: "Total",
+      value: total,
+      icon: Users,
+      color: "text-[#4B0A8F] dark:text-[#D4B8E3]",
+      bg: "bg-[#F3ECF6] dark:bg-[#1F086080]",
+    },
+    {
+      label: "New This Month",
+      value: newThisMonth,
+      icon: UserPlus,
+      color: "text-[#A0006B] dark:text-[#D4B8E3]",
+      bg: "bg-[#A0006B]/10 dark:bg-[#A0006B]/20",
+    },
+    {
+      label: "Active",
+      value: totalActive,
+      icon: Users,
+      color: "text-green-600 dark:text-green-400",
+      bg: "bg-green-500/10",
+    },
+    {
+      label: "Weekly Attendance",
+      value: `${weeklyRate}%`,
+      icon: TrendingUp,
+      color: weeklyRate >= 70 ? "text-green-600 dark:text-green-400" : "text-amber-600 dark:text-amber-400",
+      bg: weeklyRate >= 70 ? "bg-green-500/10" : "bg-amber-500/10",
+    },
+  ];
+
+  return (
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      {stats.map((s, i) => (
+        <motion.div
+          key={s.label}
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, delay: i * 0.05 }}
+          className="rounded-xl border bg-card p-3 flex items-center gap-3"
+        >
+          <div className={cn("size-9 rounded-lg flex items-center justify-center shrink-0", s.bg)}>
+            <s.icon className={cn("size-4", s.color)} />
+          </div>
+          <div>
+            <p className="text-lg font-bold leading-none">{s.value}</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">{s.label}</p>
+          </div>
+        </motion.div>
+      ))}
+    </div>
+  );
+}
+
 // ==================== SKELETON LOADING ====================
 
 function ParticipantsSkeleton() {
   return (
     <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div className="space-y-2">
-          <Skeleton className="h-7 w-40" />
-          <Skeleton className="h-4 w-56" />
-        </div>
-        <div className="flex gap-2">
-          <Skeleton className="h-10 w-full sm:w-64" />
-          <Skeleton className="h-10 w-10 hidden sm:block" />
-          <Skeleton className="h-10 w-10 hidden sm:block" />
-        </div>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="rounded-xl border bg-card p-3 flex items-center gap-3">
+            <Skeleton className="size-9 rounded-lg shrink-0" />
+            <div className="space-y-1.5">
+              <Skeleton className="h-5 w-12" />
+              <Skeleton className="h-3 w-16" />
+            </div>
+          </div>
+        ))}
       </div>
-      <div className="flex gap-2 flex-wrap">
-        <Skeleton className="h-8 w-32" />
-        <Skeleton className="h-8 w-28" />
-        <Skeleton className="h-8 w-24" />
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+        <Skeleton className="h-9 w-full sm:w-64" />
+        <Skeleton className="h-9 w-full sm:w-40" />
+        <Skeleton className="h-9 w-10 shrink-0" />
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {Array.from({ length: 6 }).map((_, i) => (
@@ -200,7 +297,6 @@ function ParticipantsSkeleton() {
             </div>
             <div className="space-y-1.5">
               <Skeleton className="h-3 w-full" />
-              <Skeleton className="h-3 w-3/4" />
               <Skeleton className="h-1.5 w-full rounded-full" />
             </div>
           </div>
@@ -227,6 +323,170 @@ function RateMiniBar({ rate }: { rate: number }) {
         {rate}%
       </span>
     </div>
+  );
+}
+
+// ==================== ADD PARTICIPANT DIALOG ====================
+
+function AddParticipantDialog({
+  open,
+  onClose,
+  groups,
+}: {
+  open: boolean;
+  onClose: () => void;
+  groups: GroupOption[];
+}) {
+  const queryClient = useQueryClient();
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [gender, setGender] = useState("");
+  const [dateOfBirth, setDateOfBirth] = useState("");
+  const [groupId, setGroupId] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async () => {
+    if (!name.trim() || !groupId) {
+      toast.error("Name and group are required");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/park/participants", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: name.trim(),
+          phone: phone.trim() || undefined,
+          gender: gender || undefined,
+          dateOfBirth: dateOfBirth || undefined,
+          groupId,
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Failed to create participant");
+      }
+
+      toast.success("Participant added successfully");
+      queryClient.invalidateQueries({ queryKey: ["park-participants"] });
+      handleClose();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to add participant");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleClose = () => {
+    setName("");
+    setPhone("");
+    setGender("");
+    setDateOfBirth("");
+    setGroupId("");
+    onClose();
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && handleClose()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Add Participant</DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4 py-2">
+          <div className="space-y-2">
+            <Label htmlFor="add-name">Name *</Label>
+            <Input
+              id="add-name"
+              placeholder="Participant name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="h-9 text-sm"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label htmlFor="add-phone">Phone</Label>
+              <Input
+                id="add-phone"
+                placeholder="03XX-XXXXXXX"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                className="h-9 text-sm"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="add-gender">Gender</Label>
+              <Select value={gender} onValueChange={setGender}>
+                <SelectTrigger className="h-9 text-sm">
+                  <SelectValue placeholder="Select" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="male">Male</SelectItem>
+                  <SelectItem value="female">Female</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label htmlFor="add-dob">Date of Birth</Label>
+              <Input
+                id="add-dob"
+                type="date"
+                value={dateOfBirth}
+                onChange={(e) => setDateOfBirth(e.target.value)}
+                className="h-9 text-sm"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="add-group">Group *</Label>
+              <Select value={groupId} onValueChange={setGroupId}>
+                <SelectTrigger className="h-9 text-sm">
+                  <SelectValue placeholder="Select group" />
+                </SelectTrigger>
+                <SelectContent>
+                  {groups.map((g) => (
+                    <SelectItem key={g.id} value={g.id}>
+                      {g.name} ({g.batchName})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" size="sm" onClick={handleClose} disabled={submitting}>
+            Cancel
+          </Button>
+          <Button
+            size="sm"
+            onClick={handleSubmit}
+            disabled={submitting || !name.trim() || !groupId}
+            className="bg-[#4B0A8F] hover:bg-[#3A0872] text-white"
+          >
+            {submitting ? (
+              <>
+                <Loader2 className="size-3.5 mr-1.5 animate-spin" />
+                Adding...
+              </>
+            ) : (
+              <>
+                <Plus className="size-3.5 mr-1.5" />
+                Add Participant
+              </>
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -280,12 +540,12 @@ function ParticipantGridCard({
           </Badge>
         </div>
         <div className="flex items-center justify-between">
-          <span className="text-muted-foreground/70">Batch</span>
-          <span className="text-[11px] text-foreground/70">{p.batchName}</span>
-        </div>
-        <div className="flex items-center justify-between">
           <span className="text-muted-foreground/70">30-Day Rate</span>
           <RateMiniBar rate={p.attendance30Day.rate} />
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-muted-foreground/70">Last Attendance</span>
+          <span className="text-[11px] text-foreground/70">{formatRelativeDate(p.lastAttendanceDate)}</span>
         </div>
         {p.guardianName && (
           <div className="flex items-center gap-1 pt-1 border-t border-border/50">
@@ -320,7 +580,8 @@ function ParticipantTableRow({
       initial={{ opacity: 0, y: 4 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2, delay: index * 0.02 }}
-      className="group border-b last:border-b-0 transition-colors hover:bg-[#F3ECF6]/50 dark:hover:bg-[#1F0860]/20"
+      className="group border-b last:border-b-0 transition-colors hover:bg-[#F3ECF6]/50 dark:hover:bg-[#1F0860]/20 cursor-pointer"
+      onClick={onView}
     >
       <td className="py-2.5 px-3">
         <div className="flex items-center gap-3">
@@ -349,14 +610,14 @@ function ParticipantTableRow({
           {p.groupName}
         </Badge>
       </td>
-      <td className="py-2.5 px-3 hidden xl:table-cell">
-        <span className="text-xs text-muted-foreground">{p.batchName}</span>
-      </td>
+      <td className="py-2.5 px-3">{getStateBadge(p.state)}</td>
       <td className="py-2.5 px-3">
         <RateMiniBar rate={p.attendance30Day.rate} />
       </td>
-      <td className="py-2.5 px-3">{getStateBadge(p.state)}</td>
-      <td className="py-2.5 px-3 hidden md:table-cell">
+      <td className="py-2.5 px-3 hidden md:table-cell text-xs text-muted-foreground">
+        {formatRelativeDate(p.lastAttendanceDate)}
+      </td>
+      <td className="py-2.5 px-3 hidden lg:table-cell">
         <span className="text-xs text-muted-foreground">
           {p.guardianName || "—"}
         </span>
@@ -366,7 +627,7 @@ function ParticipantTableRow({
           variant="ghost"
           size="sm"
           className="h-7 px-2 text-xs text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity"
-          onClick={onView}
+          onClick={(e) => { e.stopPropagation(); onView(); }}
         >
           <Eye className="size-3.5 mr-1" />
           View
@@ -467,6 +728,10 @@ function DetailSheet({
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Joined</span>
                 <span className="font-medium">{formatDate(participant.joinedAt)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Last Attendance</span>
+                <span className="font-medium">{formatRelativeDate(participant.lastAttendanceDate)}</span>
               </div>
             </div>
           </section>
@@ -583,6 +848,7 @@ export function ParkParticipantsPage() {
   const [sortBy, setSortBy] = useState("name");
   const [sortOrder, setSortOrder] = useState("asc");
   const [detailParticipant, setDetailParticipant] = useState<Participant | null>(null);
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
 
   const { data, isLoading, error, refetch } = useQuery<ParticipantsResponse>({
     queryKey: ["park-participants", search, groupId, stateFilter, page, pageSize, sortBy, sortOrder],
@@ -605,7 +871,6 @@ export function ParkParticipantsPage() {
     staleTime: 30000,
   });
 
-  // Reset page on filter changes
   const handleSearchSubmit = useCallback(() => {
     setSearch(searchInput.trim());
     setPage(1);
@@ -671,18 +936,25 @@ export function ParkParticipantsPage() {
             {data.park.name}{" "}
             <span className="text-muted-foreground/60">· {data.park.city}</span>
           </p>
-          <div className="flex items-center gap-3 mt-1.5">
-            <span className="text-xs text-muted-foreground">
-              <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-500 mr-1" />
-              <span className="font-semibold text-foreground">{data.totalActive}</span> active
-            </span>
-            <span className="text-xs text-muted-foreground">
-              <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-500 mr-1" />
-              <span className="font-semibold text-foreground">{data.totalInactive}</span> inactive
-            </span>
-          </div>
         </div>
+        <Button
+          size="sm"
+          onClick={() => setAddDialogOpen(true)}
+          className="bg-[#4B0A8F] hover:bg-[#3A0872] text-white shrink-0"
+        >
+          <Plus className="size-3.5 mr-1.5" />
+          Add Participant
+        </Button>
       </div>
+
+      {/* Stats Row */}
+      <StatsRow
+        totalActive={data.totalActive}
+        totalInactive={data.totalInactive}
+        newThisMonth={data.newThisMonth}
+        weeklyRate={data.weeklyAttendanceRate}
+        total={data.totalActive + data.totalInactive}
+      />
 
       {/* Search + Filter Bar */}
       <div className="flex flex-col sm:flex-row gap-2">
@@ -705,7 +977,29 @@ export function ParkParticipantsPage() {
           )}
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          {/* View toggle */}
+          <Select value={groupId} onValueChange={handleGroupChange}>
+            <SelectTrigger className="w-[160px] h-9 text-xs">
+              <SelectValue placeholder="All Groups" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Groups</SelectItem>
+              {data.groups.map((g) => (
+                <SelectItem key={g.id} value={g.id}>
+                  {g.name} ({g.batchName})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={stateFilter} onValueChange={handleStateChange}>
+            <SelectTrigger className="w-[120px] h-9 text-xs">
+              <SelectValue placeholder="All States" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All States</SelectItem>
+              <SelectItem value="active">Active</SelectItem>
+              <SelectItem value="inactive">Inactive</SelectItem>
+            </SelectContent>
+          </Select>
           <div className="flex items-center border rounded-lg overflow-hidden">
             <button
               onClick={() => handleViewToggle("grid")}
@@ -733,38 +1027,6 @@ export function ParkParticipantsPage() {
         </div>
       </div>
 
-      {/* Filter Row */}
-      <div className="flex items-center gap-2 flex-wrap">
-        <Select value={groupId} onValueChange={handleGroupChange}>
-          <SelectTrigger className="w-[160px] h-8 text-xs">
-            <SelectValue placeholder="All Groups" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Groups</SelectItem>
-            {data.groups.map((g) => (
-              <SelectItem key={g.id} value={g.id}>
-                {g.name} ({g.batchName})
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={stateFilter} onValueChange={handleStateChange}>
-          <SelectTrigger className="w-[120px] h-8 text-xs">
-            <SelectValue placeholder="All States" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All States</SelectItem>
-            <SelectItem value="active">Active</SelectItem>
-            <SelectItem value="inactive">Inactive</SelectItem>
-          </SelectContent>
-        </Select>
-        {data.pagination.total > 0 && (
-          <span className="text-xs text-muted-foreground ml-auto">
-            {data.pagination.total} participant{data.pagination.total !== 1 ? "s" : ""}
-          </span>
-        )}
-      </div>
-
       {/* Content */}
       {participants.length === 0 ? (
         <motion.div
@@ -779,7 +1041,7 @@ export function ParkParticipantsPage() {
             {search ? "No participants match your search" : "No participants yet"}
           </p>
           <p className="text-xs text-muted-foreground">
-            {search ? "Try a different name or phone number." : "Participants will appear here once enrolled in groups."}
+            {search ? "Try a different name or phone number." : "Click 'Add Participant' to get started."}
           </p>
         </motion.div>
       ) : viewMode === "grid" ? (
@@ -812,10 +1074,10 @@ export function ParkParticipantsPage() {
                 <tr className="border-b bg-muted/30">
                   <SortableHeader label="Participant" field="name" sortField={sortBy} sortOrder={sortOrder} onSort={handleSort} />
                   <th className="py-2 px-3 text-left text-[11px] font-medium text-muted-foreground uppercase tracking-wider hidden lg:table-cell">Group</th>
-                  <th className="py-2 px-3 text-left text-[11px] font-medium text-muted-foreground uppercase tracking-wider hidden xl:table-cell">Batch</th>
-                  <SortableHeader label="Rate" field="rate" sortField={sortBy} sortOrder={sortOrder} onSort={handleSort} />
                   <SortableHeader label="State" field="state" sortField={sortBy} sortOrder={sortOrder} onSort={handleSort} />
-                  <th className="py-2 px-3 text-left text-[11px] font-medium text-muted-foreground uppercase tracking-wider hidden md:table-cell">Guardian</th>
+                  <SortableHeader label="Rate" field="rate" sortField={sortBy} sortOrder={sortOrder} onSort={handleSort} />
+                  <th className="py-2 px-3 text-left text-[11px] font-medium text-muted-foreground uppercase tracking-wider hidden md:table-cell">Last Att.</th>
+                  <th className="py-2 px-3 text-left text-[11px] font-medium text-muted-foreground uppercase tracking-wider hidden lg:table-cell">Guardian</th>
                   <th className="py-2 px-3 w-16" />
                 </tr>
               </thead>
@@ -884,6 +1146,13 @@ export function ParkParticipantsPage() {
         participant={detailParticipant}
         open={!!detailParticipant}
         onClose={() => setDetailParticipant(null)}
+      />
+
+      {/* Add Participant Dialog */}
+      <AddParticipantDialog
+        open={addDialogOpen}
+        onClose={() => setAddDialogOpen(false)}
+        groups={data.groups}
       />
     </div>
   );

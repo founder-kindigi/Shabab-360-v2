@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import { PageHeader } from "@/components/layout/page-header";
-import { EmptyState } from "@/components/layout/empty-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -34,33 +33,20 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import {
   Plus,
-  Search,
-  MoreHorizontal,
   Pencil,
   Trash2,
-  MapPin,
   TreePine,
   CalendarCheck,
   Users,
+  MapPin,
 } from "lucide-react";
+import {
+  SortableDataTable,
+  type Column,
+} from "@/components/shared/sortable-data-table";
 
 interface CityOption {
   id: string;
@@ -285,6 +271,103 @@ export function ParksPage() {
     ? cities?.filter((c) => c.id === user?.assignedCityId) || []
     : cities || [];
 
+  // Column definitions for SortableDataTable
+  const columns: Column<Park>[] = [
+    {
+      key: "name",
+      header: "Park",
+      render: (park) => (
+        <div className="flex items-center gap-3">
+          <div className="rounded-lg bg-[#F3ECF6] p-2 dark:bg-[#1F0860]">
+            <TreePine className="size-4 text-[#4B0A8F] dark:text-[#8A40B0]" />
+          </div>
+          <span className="font-medium text-sm">{park.name}</span>
+        </div>
+      ),
+      mobileRender: (park) => (
+        <div className="flex items-start justify-between">
+          <div className="flex items-center gap-3">
+            <div className="rounded-lg bg-[#F3ECF6] p-2 dark:bg-[#1F0860]">
+              <TreePine className="size-4 text-[#4B0A8F] dark:text-[#8A40B0]" />
+            </div>
+            <div>
+              <p className="font-medium text-sm">{park.name}</p>
+              <p className="text-xs text-muted-foreground">
+                {park.city.name}
+              </p>
+            </div>
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: "city",
+      header: "City",
+      render: (park) => (
+        <span className="text-sm text-muted-foreground">
+          {park.city.name}
+        </span>
+      ),
+    },
+    {
+      key: "batches",
+      header: "Batches",
+      className: "text-center",
+      render: (park) => (
+        <span className="inline-flex items-center justify-center rounded-full bg-[#F3ECF6] px-2.5 py-0.5 text-xs font-medium text-[#4B0A8F] dark:bg-[#1F0860] dark:text-[#8A40B0]">
+          {park._count.batches}
+        </span>
+      ),
+    },
+    {
+      key: "groups",
+      header: "Groups",
+      className: "text-center",
+      render: () => (
+        <span className="inline-flex items-center justify-center rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
+          —
+        </span>
+      ),
+    },
+    {
+      key: "address",
+      header: "Address",
+      render: (park) => (
+        <span className="text-sm text-muted-foreground truncate max-w-[200px] inline-block">
+          {park.address || (
+            <span className="italic text-xs">Not set</span>
+          )}
+        </span>
+      ),
+    },
+    {
+      key: "status",
+      header: "Status",
+      className: "text-center",
+      render: () => (
+        <Badge
+          variant="outline"
+          className="text-[#4B0A8F] border-[#D4B8E3] bg-[#F3ECF6] dark:text-[#8A40B0] dark:border-[#2A0C8F] dark:bg-[#1F0860]"
+        >
+          Active
+        </Badge>
+      ),
+    },
+  ];
+
+  // Filter definitions
+  const filterDefs = !isCityHead && availableCities.length > 1
+    ? [
+        {
+          key: "city",
+          label: "Cities",
+          options: availableCities.map((c) => ({ value: c.id, label: c.name })),
+          value: cityFilter,
+          onChange: setCityFilter,
+        },
+      ]
+    : undefined;
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -301,233 +384,38 @@ export function ParksPage() {
         }
       />
 
-      {/* Search + City filter */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-          <Input
-            placeholder="Search parks..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9"
-          />
-        </div>
-        {!isCityHead && availableCities.length > 1 && (
-          <Select value={cityFilter} onValueChange={setCityFilter}>
-            <SelectTrigger className="w-full sm:w-[200px]">
-              <SelectValue placeholder="Filter by city" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Cities</SelectItem>
-              {availableCities.map((c) => (
-                <SelectItem key={c.id} value={c.id}>
-                  {c.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
-      </div>
-
-      {/* Loading state */}
-      {isLoading && (
-        <div className="space-y-3">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <Skeleton key={i} className="h-14 w-full rounded-lg" />
-          ))}
-        </div>
-      )}
-
-      {/* Desktop table */}
-      {!isLoading && filtered && filtered.length > 0 && (
-        <>
-          {/* Desktop view */}
-          <div className="hidden md:block rounded-xl border bg-card overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/50 hover:bg-muted/50">
-                  <TableHead className="text-xs font-medium text-muted-foreground">
-                    Park
-                  </TableHead>
-                  <TableHead className="text-xs font-medium text-muted-foreground">
-                    City
-                  </TableHead>
-                  <TableHead className="text-xs font-medium text-muted-foreground text-center">
-                    Batches
-                  </TableHead>
-                  <TableHead className="text-xs font-medium text-muted-foreground text-center">
-                    Groups
-                  </TableHead>
-                  <TableHead className="text-xs font-medium text-muted-foreground">
-                    Address
-                  </TableHead>
-                  <TableHead className="text-xs font-medium text-muted-foreground text-center">
-                    Status
-                  </TableHead>
-                  <TableHead className="w-12" />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filtered.map((park) => (
-                  <TableRow
-                    key={park.id}
-                    className="hover:bg-muted/30 transition-colors"
-                  >
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <div className="rounded-lg bg-[#F3ECF6] p-2 dark:bg-[#1F0860]">
-                          <TreePine className="size-4 text-[#4B0A8F] dark:text-[#8A40B0]" />
-                        </div>
-                        <span className="font-medium text-sm">{park.name}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <span className="text-sm text-muted-foreground">
-                        {park.city.name}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <span className="inline-flex items-center justify-center rounded-full bg-[#F3ECF6] px-2.5 py-0.5 text-xs font-medium text-[#4B0A8F] dark:bg-[#1F0860] dark:text-[#8A40B0]">
-                        {park._count.batches}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <span className="inline-flex items-center justify-center rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
-                        —
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <span className="text-sm text-muted-foreground truncate max-w-[200px] inline-block">
-                        {park.address || (
-                          <span className="italic text-xs">Not set</span>
-                        )}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <Badge
-                        variant="outline"
-                        className="text-[#4B0A8F] border-[#D4B8E3] bg-[#F3ECF6] dark:text-[#8A40B0] dark:border-[#2A0C8F] dark:bg-[#1F0860]"
-                      >
-                        Active
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="size-8"
-                          >
-                            <MoreHorizontal className="size-4" />
-                            <span className="sr-only">Actions</span>
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem
-                            onClick={() => openEditDialog(park)}
-                            className="cursor-pointer"
-                          >
-                            <Pencil className="size-4 mr-2" />
-                            Edit
-                          </DropdownMenuItem>
-                          {canDelete && (
-                            <DropdownMenuItem
-                              onClick={() => openDeleteDialog(park)}
-                              className="text-red-600 focus:text-red-600 cursor-pointer"
-                            >
-                              <Trash2 className="size-4 mr-2" />
-                              Deactivate
-                            </DropdownMenuItem>
-                          )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-
-          {/* Mobile cards */}
-          <div className="md:hidden space-y-3">
-            {filtered.map((park) => (
-              <div
-                key={park.id}
-                className="rounded-xl border bg-card p-4 space-y-3"
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="rounded-lg bg-[#F3ECF6] p-2 dark:bg-[#1F0860]">
-                      <TreePine className="size-4 text-[#4B0A8F] dark:text-[#8A40B0]" />
-                    </div>
-                    <div>
-                      <p className="font-medium text-sm">{park.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {park.city.name}
-                      </p>
-                    </div>
-                  </div>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="size-8">
-                        <MoreHorizontal className="size-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem
-                        onClick={() => openEditDialog(park)}
-                        className="cursor-pointer"
-                      >
-                        <Pencil className="size-4 mr-2" />
-                        Edit
-                      </DropdownMenuItem>
-                      {canDelete && (
-                        <DropdownMenuItem
-                          onClick={() => openDeleteDialog(park)}
-                          className="text-red-600 focus:text-red-600 cursor-pointer"
-                        >
-                          <Trash2 className="size-4 mr-2" />
-                          Deactivate
-                        </DropdownMenuItem>
-                      )}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-                {park.address && (
-                  <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                    <MapPin className="size-3.5 shrink-0" />
-                    <span className="truncate">{park.address}</span>
-                  </div>
-                )}
-                <div className="flex items-center gap-4 text-sm">
-                  <div className="flex items-center gap-1.5 text-muted-foreground">
-                    <CalendarCheck className="size-3.5" />
-                    <span>{park._count.batches} batches</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 text-muted-foreground">
-                    <Users className="size-3.5" />
-                    <span>— groups</span>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
-
-      {/* Empty state */}
-      {!isLoading && filtered && filtered.length === 0 && (
-        <EmptyState
-          icon={TreePine}
-          title={search ? "No parks found" : "No parks yet"}
-          description={
-            search
-              ? "Try adjusting your search query."
-              : "Create your first park to start organizing your program."
+      <SortableDataTable<Park>
+        columns={columns}
+        data={filtered || []}
+        isLoading={isLoading}
+        search={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Search parks..."
+        filters={filterDefs}
+        actions={(park) => {
+          const items: { label: string; icon?: React.ComponentType<{ className?: string }>; onClick: () => void; destructive?: boolean }[] = [
+            { label: "Edit", icon: Pencil, onClick: () => openEditDialog(park) },
+          ];
+          if (canDelete) {
+            items.push({
+              label: "Deactivate",
+              icon: Trash2,
+              onClick: () => openDeleteDialog(park),
+              destructive: true,
+            });
           }
-        />
-      )}
+          return items;
+        }}
+        emptyIcon={TreePine}
+        emptyTitle={search ? "No parks found" : "No parks yet"}
+        emptyDescription={
+          search
+            ? "Try adjusting your search query."
+            : "Create your first park to start organizing your program."
+        }
+        getRowId={(park) => park.id}
+        skeletonRows={3}
+      />
 
       {/* Create Dialog */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>

@@ -36,6 +36,8 @@ export async function GET(request: NextRequest) {
 
   const { searchParams } = new URL(request.url);
   const roleFilter = searchParams.get("role") || undefined;
+  const search = searchParams.get("search") || undefined;
+  const priority = searchParams.get("priority") || undefined;
 
   const now = new Date();
   const thirtyDaysAgo = subDays(now, 30);
@@ -52,6 +54,19 @@ export async function GET(request: NextRequest) {
   // Filter by target role if provided
   if (roleFilter) {
     where.targetRoles = { contains: roleFilter };
+  }
+
+  // Filter by priority
+  if (priority) {
+    where.priority = priority;
+  }
+
+  // Search by title or content
+  if (search) {
+    where.OR = [
+      { title: { contains: search, mode: "insensitive" } },
+      { content: { contains: search, mode: "insensitive" } },
+    ];
   }
 
   const announcements = await db.announcement.findMany({

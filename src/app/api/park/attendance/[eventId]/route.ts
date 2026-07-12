@@ -313,6 +313,26 @@ export async function POST(
       });
     }
 
+    // ─── Dispatch real-time notification (non-blocking) ─────────────────────
+    fetch("http://localhost:3004/notify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        type: "attendance:updated",
+        data: {
+          eventId,
+          participantId,
+          participantName: participant.name,
+          status: record.status,
+          markedBy: staffMeta?.id,
+          markedByName: staffMeta?.user?.name || null,
+          isUpdate: !!existingRecord,
+        },
+      }),
+    }).catch(() => {
+      // Non-blocking — notification service may be unavailable
+    });
+
     return NextResponse.json({
       success: true,
       record: {

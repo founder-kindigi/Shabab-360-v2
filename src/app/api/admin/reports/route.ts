@@ -3,7 +3,7 @@ import { requireRole } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
 import { PKT, toZonedTime, formatPKT, todayPKT } from "@/lib/timezone";
-import { startOfDay, subDays, format, startOfWeek, subWeeks, startOfMonth, endOfMonth, eachDayOfInterval, parseISO } from "date-fns";
+import { startOfDay, subDays, format, startOfWeek, subWeeks, startOfMonth, endOfMonth, eachDayOfInterval, parseISO, subMonths } from "date-fns";
 
 export async function GET(request: NextRequest) {
   const authError = await requireRole(["super_admin", "program_admin"]);
@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
     newValues: { type, cityId, parkId, days },
   }).catch(() => {});
 
-  const validTypes = ["attendance-overview", "city-comparison", "park-comparison", "trend"];
+  const validTypes = ["attendance-overview", "city-comparison", "park-comparison", "trend", "fee-by-park", "registration-report", "staff-report"];
   if (!validTypes.includes(type)) {
     return NextResponse.json({ error: "Invalid report type" }, { status: 400 });
   }
@@ -42,6 +42,12 @@ export async function GET(request: NextRequest) {
       return getParkComparison(startDateUTC, cityId);
     case "trend":
       return getTrend(startDateUTC, days, cityId, parkId);
+    case "fee-by-park":
+      return getFeeByPark(cityId);
+    case "registration-report":
+      return getRegistrationReport(startDateUTC);
+    case "staff-report":
+      return getStaffReport();
     default:
       return NextResponse.json({ error: "Invalid report type" }, { status: 400 });
   }
@@ -179,6 +185,37 @@ async function getAttendanceOverview(startDateUTC: Date, cityId?: string, parkId
     }))
     .sort((a, b) => a.dayIndex - b.dayIndex);
 
+  // City attendance rates
+  const cityRates = await db.$queryRaw<Array<{ cityName: string; cityId: string; totalRecords: number; attended: number; rate: number }>>`
+    SELECT 
+      c.name as cityName,
+      c.id as cityId,
+      COUNT(DISTINCT ar.id) as totalRecords,
+      SUM(CASE WHEN ar.status = 'present' OR ar.status = 'late' THEN 1 ELSE 0 END) as attended,
+      ROUND(100.0 * SUM(CASE WHEN ar.status = 'present' OR ar.status = 'late' THEN 1 ELSE 0 END) / COUNT(DISTINCT ar.id), 1) as rate
+    FROM cities c
+    JOIN parks p ON p.cityId = c.id
+    JOIN batches b ON b.parkId = p.id
+    JOIN groups g ON g.batchId = b.id
+    JOIN attendance_events ae ON ae.groupId = g.id
+    JOIN attendance_records ar ON ar.eventId = ae.id
+    WHERE ae.eventDate >= ${startDateUTC}
+    GROUP BY c.id
+    ORDER BY rate DESC
+  `;
+
+  // Total fees collected
+  const feeResult = await db.$queryRaw<Array<{ total: number }>>`
+    SELECT COALESCE(SUM(py.amount), 0) as total
+    FROM payments py
+    JOIN fee_events fe ON fe.id = py.feeEventId
+    JOIN batches b ON b.id = fe.batchId
+    JOIN parks p ON p.id = b.parkId
+    JOIN cities c ON c.id = p.cityId
+    WHERE py.createdAt >= ${startDateUTC}
+  `;
+  const totalFeesCollected = feeResult[0]?.total || 0;
+
   return NextResponse.json({
     totalEvents,
     totalRecords,
@@ -193,6 +230,14 @@ async function getAttendanceOverview(startDateUTC: Date, cityId?: string, parkId
     },
     dayOfWeekBreakdown,
     activeParticipants: totalParticipants,
+    cityAttendanceRates: cityRates.map(r => ({
+      cityId: r.cityId,
+      cityName: r.cityName,
+      rate: Number(r.rate),
+      totalRecords: Number(r.totalRecords),
+      attended: Number(r.attended),
+    })),
+    totalFeesCollected: Number(totalFeesCollected),
   });
 }
 
@@ -403,4 +448,158 @@ async function getTrend(startDateUTC: Date, days: number, cityId?: string, parkI
     }));
 
   return NextResponse.json(weeklyTrend);
+}
+
+async function getFeeByPark(cityId?: string) {
+  const whereClause = cityId ? `WHERE c.id = ${cityId}` : "";
+  const parkFees = await db.$queryRaw<Array<{ parkName: string; parkId: string; cityName: string; totalCollected: number }>>`
+    SELECT 
+      p.name as parkName,
+      p.id as parkId,
+      c.name as cityName,
+      SUM(py.amount) as totalCollected
+    FROM parks p
+    JOIN cities c ON c.id = p.cityId
+    JOIN batches b ON b.parkId = p.id
+    JOIN fee_events fe ON fe.batchId = b.id
+    JOIN payments py ON py.feeEventId = fe.id
+    ${whereClause}
+    GROUP BY p.id
+    ORDER BY totalCollected DESC
+    LIMIT 10
+  `;
+
+  return NextResponse.json(
+    parkFees.map(r => ({
+      parkId: r.parkId,
+      parkName: r.parkName,
+      cityName: r.cityName,
+      totalCollected: Number(r.totalCollected),
+    }))
+  );
+}
+
+async function getRegistrationReport(startDateUTC: Date) {
+  const nowPKT = toZonedTime(new Date(), PKT);
+
+  // Registrations per month (last 12 months)
+  const twelveMonthsAgo = subMonths(startOfMonth(nowPKT), 11);
+  const participants = await db.participant.findMany({
+    where: { createdAt: { gte: twelveMonthsAgo } },
+    select: { id: true, gender: true, state: true, joinedAt: true, group: { select: { batch: { select: { park: { select: { id: true, cityId: true, name: true, city: { select: { id: true, name: true } } } } } } } } },
+    orderBy: { joinedAt: "asc" },
+  });
+
+  // Monthly registrations
+  const monthMap = new Map<string, number>();
+  for (const p of participants) {
+    const pDate = toZonedTime(p.joinedAt, PKT);
+    const key = format(pDate, "yyyy-MM");
+    const label = format(pDate, "MMM yyyy");
+    monthMap.set(key, (monthMap.get(key) || 0) + 1);
+  }
+  const monthlyRegistrations = Array.from(monthMap.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([, count], i, arr) => {
+      const key = Array.from(monthMap.keys()).sort()[i];
+      const pDate = parseISO(key + "-01");
+      return { label: format(pDate, "yyyy-MM"), value: count };
+    });
+
+  // Gender distribution
+  const genderMap = new Map<string, number>();
+  for (const p of participants) {
+    const g = p.gender || "unknown";
+    genderMap.set(g, (genderMap.get(g) || 0) + 1);
+  }
+  const genderDistribution = Array.from(genderMap.entries())
+    .map(([gender, count]) => ({ gender, count }))
+    .sort((a, b) => b.count - a.count);
+
+  // State distribution
+  const stateMap = new Map<string, number>();
+  for (const p of participants) {
+    stateMap.set(p.state, (stateMap.get(p.state) || 0) + 1);
+  }
+  const stateDistribution = Array.from(stateMap.entries())
+    .map(([state, count]) => ({ state, count }))
+    .sort((a, b) => b.count - a.count);
+
+  // City-wise distribution
+  const cityMap = new Map<string, { cityId: string; cityName: string; count: number }>();
+  for (const p of participants) {
+    const city = p.group?.batch?.park?.city;
+    if (city) {
+      const existing = cityMap.get(city.id) || { cityId: city.id, cityName: city.name, count: 0 };
+      existing.count++;
+      cityMap.set(city.id, existing);
+    }
+  }
+  const cityDistribution = Array.from(cityMap.values()).sort((a, b) => b.count - a.count);
+
+  return NextResponse.json({
+    monthlyRegistrations,
+    genderDistribution,
+    stateDistribution,
+    cityDistribution,
+    totalParticipants: participants.length,
+  });
+}
+
+async function getStaffReport() {
+  // Staff by role
+  const staffByRole = await db.staffMeta.groupBy({
+    by: ["role"],
+    _count: { id: true },
+    orderBy: { _count: { id: "desc" } },
+  });
+
+  // Staff growth over time (monthly, last 12 months)
+  const nowPKT = toZonedTime(new Date(), PKT);
+  const twelveMonthsAgo = subMonths(startOfMonth(nowPKT), 11);
+
+  const allStaff = await db.staffMeta.findMany({
+    where: { createdAt: { gte: twelveMonthsAgo } },
+    select: { createdAt: true, isActive: true, role: true, assignedParkId: true },
+    orderBy: { createdAt: "asc" },
+  });
+
+  // Monthly growth
+  const monthMap = new Map<string, { label: string; count: number }>();
+  for (const s of allStaff) {
+    const pDate = toZonedTime(s.createdAt, PKT);
+    const key = format(pDate, "yyyy-MM");
+    const label = format(pDate, "MMM yyyy");
+    const existing = monthMap.get(key) || { label, count: 0 };
+    existing.count++;
+    monthMap.set(key, existing);
+  }
+  const staffGrowth = Array.from(monthMap.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([key, data]) => ({ label: key, value: data.count }));
+
+  // Assignment coverage: how many parks have staff assigned
+  const totalParks = await db.park.count({ where: { isActive: true } });
+  const parksWithStaff = await db.staffMeta.groupBy({
+    by: ["assignedParkId"],
+    where: { assignedParkId: { not: null }, isActive: true },
+  });
+  const assignedParks = parksWithStaff.filter(p => p.assignedParkId !== null).length;
+
+  // Total counts
+  const totalStaff = await db.staffMeta.count();
+  const activeStaff = await db.staffMeta.count({ where: { isActive: true } });
+
+  return NextResponse.json({
+    staffByRole: staffByRole.map(r => ({ role: r.role, count: r._count.id })),
+    staffGrowth,
+    assignmentCoverage: {
+      totalParks,
+      parksWithStaff: assignedParks,
+      coveragePercent: totalParks > 0 ? Math.round((assignedParks / totalParks) * 100) : 0,
+    },
+    totalStaff,
+    activeStaff,
+    inactiveStaff: totalStaff - activeStaff,
+  });
 }

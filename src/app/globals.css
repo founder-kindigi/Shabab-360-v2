@@ -169,6 +169,11 @@
 }
 
 /* ── Shimmer skeleton keyframes ── */
+@keyframes pulse-dot {
+  0%, 100% { transform: scale(1); opacity: 0.4; }
+  50% { transform: scale(1.5); opacity: 0; }
+}
+
 @keyframes shimmer {
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }
@@ -203,4 +208,55 @@
 }
 [data-sonner-toast][data-type="error"] {
   border-left-color: #ef4444 !important;
+}
+
+/* ── Print Styles ── */
+@media print {
+  /* Hide non-printable elements */
+  .no-print, header, .sidebar, [data-radix-popper-content-wrapper] {
+    display: none !important;
+  }
+
+  /* Full width for print */
+  main, .print-area {
+    margin: 0 !important;
+    padding: 0.5cm !important;
+    max-width: 100% !important;
+  }
+
+  /* Better table printing */
+  table {
+    font-size: 10pt !important;
+    width: 100% !important;
+  }
+
+  /* Show borders */
+  th, td {
+    border: 1px solid #ccc !important;
+    padding: 4px 8px !important;
+  }
+
+  /* Avoid page breaks inside elements */
+  tr, .card {
+    page-break-inside: avoid !important;
+  }
+
+  /* Print backgrounds */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Attendance report print: show all responsive-hidden table columns */
+  .print-area td.hidden,
+  .print-area th.hidden {
+    display: table-cell !important;
+  }
+
+  /* Remove max-height scroll in print */
+  .print-area .overflow-y-auto,
+  .print-area .overflow-x-auto {
+    max-height: none !important;
+    overflow: visible !important;
+  }
 }

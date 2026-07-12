@@ -45,7 +45,6 @@ export async function GET(request: NextRequest) {
     }
 
     if (staffMeta.role === "murabbi" && staffMeta.assignedGroupId) {
-      // Murabbi: get park from their group
       const group = await db.group.findUnique({
         where: { id: staffMeta.assignedGroupId },
         include: { batch: { select: { parkId: true } } },
@@ -100,14 +99,7 @@ export async function GET(request: NextRequest) {
       orderBy: { name: "asc" },
     });
 
-    // Today's date range in PKT
-    const todayStart = todayPKT();
-    const todayEnd = endOfTodayPKT();
-
-    // 30 days ago in PKT
-    const thirtyDaysAgo = new Date(todayStart.getTime() - 30 * 24 * 60 * 60 * 1000);
-
-    // Collect all group IDs and participant IDs we need
+    // Collect all group IDs
     const allGroupIds: string[] = [];
     for (const batch of batches) {
       for (const group of batch.groups) {
@@ -116,18 +108,54 @@ export async function GET(request: NextRequest) {
     }
 
     if (allGroupIds.length === 0) {
+      // Count all participants in park's groups for summary
+      const allParkGroups = await db.group.findMany({
+        where: { batch: { parkId, isActive: true }, isActive: true },
+        select: { id: true },
+      });
+      const allParkGroupIds = allParkGroups.map(g => g.id);
+      const [totalAll, activeAll, inactiveAll, onLeaveAll] = await Promise.all([
+        db.participant.count({ where: { groupId: { in: allParkGroupIds } } }),
+        db.participant.count({ where: { groupId: { in: allParkGroupIds }, state: "active" } }),
+        db.participant.count({ where: { groupId: { in: allParkGroupIds }, state: "inactive" } }),
+        db.participant.count({ where: { groupId: { in: allParkGroupIds }, state: "on_leave" } }),
+      ]);
+
       return NextResponse.json({
         park: { id: park.id, name: park.name, city: park.city?.name || "Unknown" },
         batches: [],
-        totalParticipants: 0,
-        activeGroups: 0,
+        totalParticipants: totalAll,
+        activeParticipants: activeAll,
+        inactiveParticipants: inactiveAll,
+        onLeaveParticipants: onLeaveAll,
+        activeGroups: allParkGroupIds.length,
       });
     }
 
-    // Build participant where clause
+    // Count participants by state for the summary bar (all groups in park, not filtered)
+    const allParkGroups = await db.group.findMany({
+      where: { batch: { parkId, isActive: true }, isActive: true },
+      select: { id: true },
+    });
+    const allParkGroupIds = allParkGroups.map(g => g.id);
+    const [totalCount, activeCount, inactiveCount, onLeaveCount] = await Promise.all([
+      db.participant.count({ where: { groupId: { in: allParkGroupIds } } }),
+      db.participant.count({ where: { groupId: { in: allParkGroupIds }, state: "active" } }),
+      db.participant.count({ where: { groupId: { in: allParkGroupIds }, state: "inactive" } }),
+      db.participant.count({ where: { groupId: { in: allParkGroupIds }, state: "on_leave" } }),
+    ]);
+
+    // Today's date range in PKT
+    const todayStart = todayPKT();
+    const todayEnd = endOfTodayPKT();
+
+    // 30 days ago in PKT
+    const thirtyDaysAgo = new Date(todayStart.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+    // Build participant where clause - include active and on_leave
     const participantWhere: any = {
       groupId: { in: allGroupIds },
-      state: "active",
+      state: { in: ["active", "on_leave"] },
     };
     if (search) {
       participantWhere.OR = [
@@ -164,7 +192,6 @@ export async function GET(request: NextRequest) {
           select: {
             participantId: true,
             status: true,
-            eventId: true,
           },
         })
       : [];
@@ -189,11 +216,7 @@ export async function GET(request: NextRequest) {
 
     for (const rec of thirtyDayRecords) {
       const existing = participantStats.get(rec.participantId) || {
-        present: 0,
-        absent: 0,
-        late: 0,
-        excused: 0,
-        total: 0,
+        present: 0, absent: 0, late: 0, excused: 0, total: 0,
       };
       existing.total++;
       if (rec.status === "present") existing.present++;
@@ -233,29 +256,21 @@ export async function GET(request: NextRequest) {
     }
 
     // Build response
-    let totalParticipants = 0;
+    let totalInRoster = 0;
     const activeGroups = allGroupIds.length;
 
     const batchData = batches.map((batch) => {
       const groupsData = batch.groups.map((group) => {
         const groupParticipants = participantsByGroup.get(group.id) || [];
-        totalParticipants += groupParticipants.length;
+        totalInRoster += groupParticipants.length;
 
-        // Calculate group avg rate
         let groupRate = 0;
-        const totalEventsInGroup = eventsPerGroup.get(group.id) || 0;
 
         const participantList = groupParticipants.map((p, idx) => {
           const stats = participantStats.get(p.id) || {
-            present: 0,
-            absent: 0,
-            late: 0,
-            excused: 0,
-            total: 0,
+            present: 0, absent: 0, late: 0, excused: 0, total: 0,
           };
           const rate = stats.total > 0 ? Math.round(((stats.present + stats.late) / stats.total) * 100) : 0;
-
-          // Accumulate for group avg
           groupRate += rate;
 
           const guardian = p.guardianLinks.length > 0 ? p.guardianLinks[0].guardian : null;
@@ -266,6 +281,7 @@ export async function GET(request: NextRequest) {
             phone: p.phone,
             gender: p.gender,
             dateOfBirth: p.dateOfBirth?.toISOString() || null,
+            address: p.address || null,
             state: p.state,
             joinedAt: p.joinedAt.toISOString(),
             guardianName: guardian?.name || null,
@@ -278,7 +294,6 @@ export async function GET(request: NextRequest) {
               rate,
             },
             todayStatus: todayStatus.get(p.id) || null,
-            // Index for avatar coloring
             _idx: idx,
           };
         });
@@ -303,7 +318,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       park: { id: park.id, name: park.name, city: park.city?.name || "Unknown" },
       batches: batchData,
-      totalParticipants,
+      totalParticipants: totalCount,
+      activeParticipants: activeCount,
+      inactiveParticipants: inactiveCount,
+      onLeaveParticipants: onLeaveCount,
       activeGroups,
     });
   } catch (error) {

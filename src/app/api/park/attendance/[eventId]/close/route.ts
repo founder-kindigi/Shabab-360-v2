@@ -88,6 +88,18 @@ export async function PATCH(
       newValues: JSON.stringify({ reason, closedByName: staffMeta?.user?.name }),
     });
 
+    // ─── Dispatch real-time notification (non-blocking) ─────────────────────
+    fetch("http://localhost:3004/notify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        type: "attendance:updated",
+        data: { eventId, status: "closed", closedByName: staffMeta?.user?.name },
+      }),
+    }).catch(() => {
+      // Non-blocking — notification service may be unavailable
+    });
+
     return NextResponse.json({
       success: true,
       event: {

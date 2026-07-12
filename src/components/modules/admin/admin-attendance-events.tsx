@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { format as formatDate } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
 import { PageHeader } from "@/components/layout/page-header";
 import { EmptyState } from "@/components/layout/empty-state";
@@ -28,7 +29,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { format } from "date-fns";
 import { formatPKT } from "@/lib/timezone";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -38,10 +38,20 @@ import {
   Lock,
   Loader2,
   MapPin,
+  Printer,
   TreePine,
   Users,
   X,
 } from "lucide-react";
+import { ExportButton } from "@/components/shared/export-button";
+import {
+  Dialog,
+  DialogContent,
+} from "@/components/ui/dialog";
+import {
+  AttendanceReportPrint,
+  type AttendanceReportData,
+} from "@/components/shared/attendance-report-print";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -154,6 +164,11 @@ export function AdminAttendanceEvents() {
   const [toOpen, setToOpen] = useState(false);
   const [limit, setLimit] = useState(PAGE_LIMIT);
 
+  /* ---- Print report state ---- */
+  const [printOpen, setPrintOpen] = useState(false);
+  const [reportData, setReportData] = useState<AttendanceReportData | null>(null);
+  const [reportLoading, setReportLoading] = useState(false);
+
   /* ---- Cities query ---- */
   const { data: citiesData } = useQuery<{ data: CityOption[] }>({
     queryKey: ["admin-cities-list"],
@@ -248,6 +263,68 @@ export function AdminAttendanceEvents() {
       <PageHeader
         title="Attendance Events"
         description="Monitor attendance across all parks"
+        actions={
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 hover:bg-[#F3ECF6] dark:hover:bg-[#1F086080]"
+              onClick={async () => {
+                setPrintOpen(true);
+                setReportLoading(true);
+                setReportData(null);
+                try {
+                  const params = new URLSearchParams();
+                  if (cityId) params.set("cityId", cityId);
+                  if (parkId) params.set("parkId", parkId);
+                  if (dateFrom) params.set("from", formatDate(dateFrom, "yyyy-MM-dd"));
+                  if (dateTo) params.set("to", formatDate(dateTo, "yyyy-MM-dd"));
+                  const res = await fetch(`/api/admin/reports/attendance-report?${params}`);
+                  if (res.ok) {
+                    const json = await res.json();
+                    setReportData(json);
+                  }
+                } catch {
+                  /* silently fail */
+                } finally {
+                  setReportLoading(false);
+                }
+              }}
+              disabled={isLoading}
+            >
+              <Printer className="size-3.5" />
+              <span className="hidden sm:inline">Print Report</span>
+            </Button>
+            <ExportButton
+              data={visibleEvents.map((e) => ({
+                title: e.title,
+                group: e.groupName,
+                date: e.eventDate
+                  ? new Date(e.eventDate).toLocaleDateString("en-PK", { timeZone: "Asia/Karachi" })
+                  : "",
+                status: e.isClosed ? "Closed" : "Open",
+                presentCount: e.presentCount,
+                absentCount: e.absentCount,
+                total: e.participantCount,
+                rate: e.participantCount > 0
+                  ? Math.round((e.presentCount / e.participantCount) * 100)
+                  : 0,
+              }))}
+              filename="attendance-events"
+              columns={[
+                { key: "title", header: "Event Title" },
+                { key: "group", header: "Group" },
+                { key: "date", header: "Date" },
+                { key: "status", header: "Status" },
+                { key: "presentCount", header: "Present Count" },
+                { key: "absentCount", header: "Absent Count" },
+                { key: "total", header: "Total" },
+                { key: "rate", header: "Rate%" },
+              ]}
+              disabled={isLoading}
+            />
+          </div>
+        }
       />
 
       {/* Summary cards */}
@@ -648,13 +725,32 @@ export function AdminAttendanceEvents() {
           }
         />
       )}
+
+      {/* Print Report Dialog */}
+      <Dialog open={printOpen} onOpenChange={(v) => { if (!v) setPrintOpen(false); }}>
+        <DialogContent className="max-w-5xl w-[95vw] max-h-[90vh] overflow-y-auto no-print-on-children p-0">
+          {reportLoading && (
+            <div className="flex items-center justify-center py-20 gap-3">
+              <Loader2 className="size-5 animate-spin text-[#4B0A8F]" />
+              <span className="text-sm text-muted-foreground">Generating report...</span>
+            </div>
+          )}
+          {!reportLoading && reportData && (
+            <AttendanceReportPrint
+              report={reportData}
+              onClose={() => setPrintOpen(false)}
+            />
+          )}
+          {!reportLoading && !reportData && (
+            <div className="flex items-center justify-center py-20">
+              <p className="text-sm text-muted-foreground">Failed to load report data.</p>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
-
-/* ------------------------------------------------------------------ */
-/*  Summary Card                                                       */
-/* ------------------------------------------------------------------ */
 
 function SummaryCard({
   label,

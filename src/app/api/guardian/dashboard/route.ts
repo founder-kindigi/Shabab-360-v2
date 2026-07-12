@@ -145,6 +145,74 @@ export async function GET() {
         title: r.event.title,
       }));
 
+      // 7-day sparkline data (per-day rates for last 7 days)
+      const sparkline7Day: number[] = [];
+      for (let i = 6; i >= 0; i--) {
+        const dayDate = new Date(todayStart.getTime() - i * 24 * 60 * 60 * 1000);
+        const dayEnd = new Date(dayDate.getTime() + 24 * 60 * 60 * 1000 - 1);
+        const dayRecords = records30.filter((r) => {
+          const ed = new Date(r.event.eventDate);
+          return ed >= dayDate && ed <= dayEnd;
+        });
+        const dayEvents = [...new Set(dayRecords.map((r) => r.eventId))];
+        const dayPresent = dayRecords.filter((r) => r.status === "present" || r.status === "late").length;
+        sparkline7Day.push(dayEvents.length > 0 ? Math.round((dayPresent / dayEvents.length) * 100) : 0);
+      }
+
+      // Today's attendance status for this child
+      const todayRecords = records30.filter((r) => {
+        const ed = new Date(r.event.eventDate);
+        return ed >= todayStart && ed <= todayEnd;
+      });
+      // Prefer present > late > excused > absent if multiple events
+      const statusPriority = ["present", "late", "excused", "absent"];
+      let todayStatus: string | null = null;
+      for (const tr of todayRecords) {
+        if (!todayStatus || statusPriority.indexOf(tr.status) < statusPriority.indexOf(todayStatus)) {
+          todayStatus = tr.status;
+        }
+      }
+
+      // Fee status for this child
+      const nowPKTDate = nowPKT;
+      const childFeeEvents = await db.feeEvent.findMany({
+        where: {
+          batchId: p.group?.batchId || "",
+          isActive: true,
+        },
+        select: { id: true, title: true, amount: true, dueDate: true },
+      });
+
+      const childFeeEventIds = childFeeEvents.map((f) => f.id);
+      let totalExpected = childFeeEvents.reduce((sum, f) => sum + f.amount, 0);
+      let totalPaid = 0;
+      let upcomingFees = 0;
+      let overdueFees = 0;
+
+      if (childFeeEventIds.length > 0) {
+        const payments = await db.payment.findMany({
+          where: {
+            participantId: p.id,
+            feeEventId: { in: childFeeEventIds },
+          },
+          select: { feeEventId: true, amount: true },
+        });
+        totalPaid = payments.reduce((sum, pay) => sum + pay.amount, 0);
+
+        // Check per-fee-event status
+        const paidEventIds = new Set(payments.map((pay) => pay.feeEventId));
+        for (const fe of childFeeEvents) {
+          if (paidEventIds.has(fe.id)) continue; // already paid
+          if (fe.dueDate && new Date(fe.dueDate) < nowPKTDate) {
+            overdueFees++;
+          } else {
+            upcomingFees++;
+          }
+        }
+      }
+
+      const outstanding = Math.max(totalExpected - totalPaid, 0);
+
       children.push({
         id: p.id,
         name: p.name,
@@ -153,6 +221,8 @@ export async function GET() {
         parkName: p.group?.batch?.park?.name || null,
         cityName: p.group?.batch?.park?.city?.name || null,
         groupId,
+        todayStatus,
+        sparkline7Day,
         attendance: {
           totalEvents30,
           present30,
@@ -162,6 +232,13 @@ export async function GET() {
           rate30,
           rate7,
           last5,
+        },
+        fees: {
+          totalExpected: Math.round(totalExpected),
+          totalPaid: Math.round(totalPaid),
+          outstanding: Math.round(outstanding),
+          upcomingFees,
+          overdueFees,
         },
       });
     }
@@ -223,6 +300,34 @@ export async function GET() {
       todayEvents: todayEventsFormatted,
       unreadAnnouncements,
       todayDate: formatPKT(new Date(), "dd MMM yyyy"),
+      feesSummary: {
+        totalPaidThisMonth: Math.round(
+          children.reduce((sum, c) => sum + (c.fees?.totalPaid || 0), 0)
+        ),
+        totalOutstanding: Math.round(
+          children.reduce((sum, c) => sum + (c.fees?.outstanding || 0), 0)
+        ),
+      },
+      recentAnnouncements: await db.announcement.findMany({
+        where: {
+          targetRoles: { contains: "guardian" },
+        },
+        orderBy: { createdAt: "desc" },
+        take: 3,
+        select: {
+          id: true,
+          title: true,
+          content: true,
+          createdAt: true,
+        },
+      }).then((anns) =>
+        anns.map((a) => ({
+          id: a.id,
+          title: a.title,
+          content: a.content?.slice(0, 120) || "",
+          createdAt: a.createdAt.toISOString(),
+        }))
+      ),
     });
   } catch (error) {
     console.error("Guardian dashboard error:", error);

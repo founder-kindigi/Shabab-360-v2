@@ -42,16 +42,26 @@ import {
   Zap,
   Shield,
   BarChart3,
+  Wallet,
+  UserPlus,
+  TrendingUp,
 } from "lucide-react";
+import { AttendanceChart } from "@/components/shared/attendance-chart";
+import { Sparkline } from "@/components/shared/sparkline";
+import { DonutChart } from "@/components/shared/donut-chart";
+import { BarChart } from "@/components/shared/bar-chart";
+import { WelcomeWidget } from "@/components/shared/welcome-widget";
+import { ActivityFeed } from "@/components/shared/activity-feed";
+import { useTranslation } from "@/lib/i18n";
 import type { PageId } from "@/stores/useAppStore";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-function getGreeting(): string {
+function getGreeting(t: (key: string) => string): string {
   const hour = toPKT(new Date()).getHours();
-  if (hour < 12) return "Good morning";
-  if (hour < 17) return "Good afternoon";
-  return "Good evening";
+  if (hour < 12) return t("dashboard.goodMorning");
+  if (hour < 17) return t("dashboard.goodAfternoon");
+  return t("dashboard.goodEvening");
 }
 
 function formatPKTDate(): string {
@@ -101,6 +111,12 @@ function getInitials(name: string | null | undefined): string {
   return name.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
 }
 
+function formatPKR(amount: number): string {
+  if (amount >= 100000) return `Rs ${(amount / 100000).toFixed(1)}L`;
+  if (amount >= 1000) return `Rs ${(amount / 1000).toFixed(1)}K`;
+  return `Rs ${amount.toLocaleString()}`;
+}
+
 // ── Animation variants ───────────────────────────────────────────────────────
 
 const containerVariants = {
@@ -120,11 +136,11 @@ const scaleIn = {
 
 // ── Quick actions config ────────────────────────────────────────────────────
 
-const quickActions: { label: string; description: string; icon: typeof MapPin; page: PageId; color: string; pending?: number }[] = [
-  { label: "Cities", description: "Manage locations", icon: MapPin, page: "admin-cities", color: "from-[#2A0C8F] via-[#A0006B] to-[#FF0015]", pending: 0 },
-  { label: "Parks", description: "Park operations", icon: TreePine, page: "admin-parks", color: "from-sky-500 to-blue-500", pending: 0 },
-  { label: "Users", description: "Staff accounts", icon: Users, page: "admin-users", color: "from-violet-500 to-purple-500", pending: 0 },
-  { label: "Reports", description: "Analytics", icon: BarChart3, page: "admin-reports", color: "from-amber-500 to-orange-500", pending: 0 },
+const quickActionsConfig: { tKey: string; descKey: string; icon: typeof MapPin; page: PageId; color: string }[] = [
+  { tKey: "nav.cities", descKey: "dashboard.manageLocations", icon: MapPin, page: "admin-cities", color: "from-[#2A0C8F] via-[#A0006B] to-[#FF0015]" },
+  { tKey: "nav.parks", descKey: "dashboard.parkOperations", icon: TreePine, page: "admin-parks", color: "from-sky-500 to-blue-500" },
+  { tKey: "nav.users", descKey: "dashboard.staffAccounts", icon: Users, page: "admin-users", color: "from-violet-500 to-purple-500" },
+  { tKey: "nav.reports", descKey: "dashboard.analytics", icon: BarChart3, page: "admin-reports", color: "from-amber-500 to-orange-500" },
 ];
 
 // ── Animated gradient keyframes (injected once) ─────────────────────────────
@@ -171,7 +187,8 @@ const bannerParticles = Array.from({ length: 12 }, (_, i) => ({
 // ── Greeting Card ────────────────────────────────────────────────────────────
 
 function GreetingCard({ name, activeBatches }: { name: string; activeBatches?: number }) {
-  const greeting = useMemo(() => getGreeting(), []);
+  const { t } = useTranslation();
+  const greeting = useMemo(() => getGreeting(t), [t]);
   const pktDate = useMemo(() => formatPKTDate(), []);
   const [pktTime, setPktTime] = useState("");
 
@@ -319,6 +336,7 @@ const roleColors: Record<string, string> = {
 export function AdminDashboard() {
   const { data: session } = useSession();
   const { selectedCityId, selectedParkId, setSelectedCity, navigateTo } = useAppStore();
+  const { t } = useTranslation();
   const user = session?.user as { role?: string; name?: string } | undefined;
   const isHQ = ["super_admin", "program_admin"].includes(user?.role || "");
 
@@ -352,6 +370,7 @@ export function AdminDashboard() {
 
     return (
       <motion.div
+        data-tour="dashboard"
         className="space-y-6"
         variants={containerVariants}
         initial="hidden"
@@ -360,26 +379,145 @@ export function AdminDashboard() {
         {/* A. Greeting */}
         <GreetingCard name={user?.name || "Admin"} activeBatches={data.activeBatches} />
 
+        {/* A2. Welcome Widget */}
+        <motion.div variants={itemVariants}>
+          <WelcomeWidget />
+        </motion.div>
+
         {/* B. Metric Cards */}
         <motion.div
+          data-tour="dashboard-cards"
           variants={itemVariants}
           className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 md:gap-4"
         >
-          <DataCard title="Cities" value={data.cities} icon={Building2} variant="brand" />
-          <DataCard title="Parks" value={data.parks} icon={TreePine} variant="sky" />
-          <DataCard title="Batches" value={data.batches} icon={CalendarCheck} variant="amber" />
-          <DataCard title="Groups" value={data.groups} icon={UsersRound} variant="violet" />
-          <DataCard title="Shabab" value={data.participants} icon={GraduationCap} variant="rose" />
-          <DataCard title="Staff" value={data.staff} icon={UserCog} variant="slate" />
+          <DataCard title={t("nav.cities")} value={data.cities} icon={Building2} variant="brand" />
+          <DataCard title={t("nav.parks")} value={data.parks} icon={TreePine} variant="sky" />
+          <DataCard title={t("nav.batches")} value={data.batches} icon={CalendarCheck} variant="amber" />
+          <DataCard title={t("nav.groups")} value={data.groups} icon={UsersRound} variant="violet" />
+          <DataCard title={t("dashboard.totalStudents")} value={data.participants} icon={GraduationCap} variant="rose" />
+          <DataCard title={t("nav.users")} value={data.staff} icon={UserCog} variant="slate" />
         </motion.div>
+
+        {/* B2. Today's Attendance Card with Sparkline */}
+        {data.todayAttendance && (
+          <motion.div variants={itemVariants}>
+            <Card className="overflow-hidden">
+              <CardHeader className="pb-3 bg-muted/20 border-b">
+                <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                  <CalendarCheck className="size-4 text-[#4B0A8F]" />
+                  {t("dashboard.todayAttendance")}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-4 px-4">
+                <div className="flex items-center gap-6 flex-wrap">
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-[#4B0A8F] dark:text-[#8A40B0]">
+                      {data.todayAttendance.present}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground font-medium mt-0.5">{t("dashboard.present")}</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-[#A0006B]">
+                      {data.todayAttendance.late}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground font-medium mt-0.5">{t("dashboard.late")}</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-[#FF0015]">
+                      {data.todayAttendance.absent}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground font-medium mt-0.5">{t("dashboard.absent")}</p>
+                  </div>
+                  <div className="ml-auto">
+                    {data.attendanceTrend && data.attendanceTrend.length > 1 && (
+                      <Sparkline
+                        data={data.attendanceTrend.slice(-7).map((d: any) => d.present)}
+                        width={90}
+                        height={32}
+                        color="#4B0A8F"
+                        showTrend
+                      />
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+
+        {/* B3. Attendance Trend Chart */}
+        {data.attendanceTrend && data.attendanceTrend.length > 0 && (
+          <motion.div variants={itemVariants}>
+            <Card className="overflow-hidden">
+              <CardHeader className="pb-2 bg-muted/20 border-b">
+                <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                  <BarChart3 className="size-4 text-[#4B0A8F]" />
+                  {t("dashboard.attendanceTrend")}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-2 px-4">
+                <AttendanceChart data={data.attendanceTrend} height={220} />
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+
+        {/* B4. Trends Section — Registration & Fee Collection */}
+        {(data.registrationTrend || data.feeCollectionTrend) && (
+          <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+            {/* Registration Trend */}
+            {data.registrationTrend && data.registrationTrend.length > 0 && (
+              <Card className="overflow-hidden">
+                <CardHeader className="pb-2 bg-muted/20 border-b">
+                  <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                    <UserPlus className="size-4 text-[#4B0A8F]" />
+                    {t("dashboard.registrationTrend")}
+                    <Badge variant="secondary" className="ml-auto text-[10px] h-5 px-1.5">
+                      {data.registrationTrend.reduce((s: number, d: any) => s + d.count, 0)} {t("dashboard.registrationTotal")}
+                    </Badge>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-3 px-4 pb-4">
+                  <BarChart
+                    data={data.registrationTrend.map((d: any) => ({ label: d.month, value: d.count }))}
+                    height={160}
+                    barColor="#4B0A8F"
+                  />
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Fee Collection Trend */}
+            {data.feeCollectionTrend && data.feeCollectionTrend.length > 0 && (
+              <Card className="overflow-hidden">
+                <CardHeader className="pb-2 bg-muted/20 border-b">
+                  <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                    <TrendingUp className="size-4 text-[#A0006B]" />
+                    {t("dashboard.feeCollection")}
+                    <Badge variant="secondary" className="ml-auto text-[10px] h-5 px-1.5">
+                      {formatPKR(data.feeCollectionTrend.reduce((s: number, d: any) => s + d.total, 0))}
+                    </Badge>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-3 px-4 pb-4">
+                  <BarChart
+                    data={data.feeCollectionTrend.map((d: any) => ({ label: d.month, value: d.total }))}
+                    height={160}
+                    barColor="#A0006B"
+                    valueFormatter={(v) => formatPKR(v)}
+                  />
+                </CardContent>
+              </Card>
+            )}
+          </motion.div>
+        )}
 
         {/* C. Quick Actions */}
         <motion.div variants={itemVariants}>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-            {quickActions.map((action, aIdx) => {
+            {quickActionsConfig.map((action, aIdx) => {
               const ActionIcon = action.icon;
               const isPrimary = aIdx === 0;
-              const hasPending = (action.pending ?? 0) > 0;
               return (
                 <motion.button
                   key={action.page}
@@ -398,19 +536,93 @@ export function AdminDashboard() {
                   <div className={cn("rounded-lg p-2 w-fit mb-3 bg-gradient-to-br text-white shadow-sm", action.color)}>
                     <ActionIcon className="size-4" />
                   </div>
-                  <p className="text-sm font-semibold">{action.label}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">{action.description}</p>
-                  {/* Notification badge for pending items */}
-                  {hasPending && (
-                    <span className="absolute top-3 right-3 flex items-center justify-center size-5 rounded-full bg-red-500 text-white text-[10px] font-bold shadow-sm">
-                      {action.pending}
-                    </span>
-                  )}
+                  <p className="text-sm font-semibold">{t(action.tKey)}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{t(action.descKey)}</p>
                   <ArrowRight className="absolute bottom-4 right-4 size-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
                 </motion.button>
               );
             })}
           </div>
+        </motion.div>
+
+        {/* Two new charts row: Gender Distribution + Fee Summary */}
+        <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Gender Distribution Donut */}
+          <Card className="overflow-hidden">
+            <CardHeader className="pb-2 bg-muted/20 border-b">
+              <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                <Users className="size-4 text-[#4B0A8F]" />
+                {t("dashboard.genderDistribution")}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-4 flex items-center justify-center px-4 pb-4">
+              <DonutChart
+                segments={[
+                  { label: t("dashboard.male"), value: data.genderDistribution?.male || 0, color: "#4B0A8F" },
+                  { label: t("dashboard.female"), value: data.genderDistribution?.female || 0, color: "#A0006B" },
+                  { label: t("dashboard.unknown"), value: data.genderDistribution?.unknown || 0, color: "#D4B8E3" },
+                ]}
+                size={150}
+                strokeWidth={24}
+                centerValue={`${data.participants}`}
+                centerLabel={t("common.total")}
+              />
+            </CardContent>
+          </Card>
+
+          {/* Fee Collection Summary */}
+          <Card className="overflow-hidden">
+            <CardHeader className="pb-2 bg-muted/20 border-b">
+              <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                <Wallet className="size-4 text-[#4B0A8F]" />
+                {t("dashboard.feeCollectionSummary")}
+                {data.feeSummary && (
+                  <Badge variant="secondary" className="ml-auto text-[10px] h-5 px-1.5">
+                    {data.feeSummary.collectionRate}%
+                  </Badge>
+                )}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-4 px-4 pb-4 space-y-4">
+              {data.feeSummary ? (
+                <>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-[10px] text-muted-foreground font-medium">{t("dashboard.totalExpected")}</p>
+                      <p className="text-lg font-bold tabular-nums">{formatPKR(data.feeSummary.totalExpected)}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-muted-foreground font-medium">{t("dashboard.totalCollected")}</p>
+                      <p className="text-lg font-bold tabular-nums text-[#4B0A8F] dark:text-[#8A40B0]">{formatPKR(data.feeSummary.totalCollected)}</p>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground">{t("dashboard.collectionProgress")}</span>
+                      <span className="font-semibold">{data.feeSummary.collectionRate}%</span>
+                    </div>
+                    <Progress
+                      value={data.feeSummary.collectionRate}
+                      className="h-2.5"
+                    />
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-full text-xs text-[#4B0A8F] hover:text-[#4B0A8F] dark:text-[#8A40B0] dark:hover:text-[#8A40B0] h-8"
+                    onClick={() => navigateTo("admin-fees")}
+                  >
+                    View Fees Management
+                    <ArrowRight className="size-3.5 ml-1" />
+                  </Button>
+                </>
+              ) : (
+                <div className="py-4 text-center">
+                  <p className="text-sm text-muted-foreground">No fee data available</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </motion.div>
 
         {/* Two-column layout */}
@@ -608,12 +820,76 @@ export function AdminDashboard() {
 
         {/* Metric Cards */}
         <motion.div variants={itemVariants} className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4">
-          <DataCard title="Parks" value={data.parks} icon={TreePine} variant="sky" />
-          <DataCard title="Batches" value={data.batches} icon={CalendarCheck} variant="amber" />
-          <DataCard title="Groups" value={data.groups} icon={UsersRound} variant="violet" />
-          <DataCard title="Shabab" value={data.participants} icon={GraduationCap} variant="rose" />
-          <DataCard title="Events" value={data.attendanceEvents} icon={Activity} variant="brand" />
+          <DataCard title={t("nav.parks")} value={data.parks} icon={TreePine} variant="sky" />
+          <DataCard title={t("nav.batches")} value={data.batches} icon={CalendarCheck} variant="amber" />
+          <DataCard title={t("nav.groups")} value={data.groups} icon={UsersRound} variant="violet" />
+          <DataCard title={t("dashboard.totalStudents")} value={data.participants} icon={GraduationCap} variant="rose" />
+          <DataCard title={t("dashboard.events")} value={data.attendanceEvents} icon={Activity} variant="brand" />
         </motion.div>
+
+        {/* Today's Attendance Card with Sparkline */}
+        {data.todayAttendance && (
+          <motion.div variants={itemVariants}>
+            <Card className="overflow-hidden">
+              <CardHeader className="pb-3 bg-muted/20 border-b">
+                <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                  <CalendarCheck className="size-4 text-[#4B0A8F]" />
+                  Today&apos;s Attendance
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-4 px-4">
+                <div className="flex items-center gap-6 flex-wrap">
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-[#4B0A8F] dark:text-[#8A40B0]">
+                      {data.todayAttendance.present}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground font-medium mt-0.5">{t("dashboard.present")}</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-[#A0006B]">
+                      {data.todayAttendance.late}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground font-medium mt-0.5">{t("dashboard.late")}</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-[#FF0015]">
+                      {data.todayAttendance.absent}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground font-medium mt-0.5">{t("dashboard.absent")}</p>
+                  </div>
+                  <div className="ml-auto">
+                    {data.attendanceTrend && data.attendanceTrend.length > 1 && (
+                      <Sparkline
+                        data={data.attendanceTrend.slice(-7).map((d: any) => d.present)}
+                        width={90}
+                        height={32}
+                        color="#4B0A8F"
+                        showTrend
+                      />
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+
+        {/* Attendance Trend Chart */}
+        {data.attendanceTrend && data.attendanceTrend.length > 0 && (
+          <motion.div variants={itemVariants}>
+            <Card className="overflow-hidden">
+              <CardHeader className="pb-2 bg-muted/20 border-b">
+                <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                  <BarChart3 className="size-4 text-[#4B0A8F]" />
+                  {t("dashboard.attendanceTrend")}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-2 px-4">
+                <AttendanceChart data={data.attendanceTrend} height={220} />
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Parks breakdown */}
@@ -707,12 +983,76 @@ export function AdminDashboard() {
 
         {/* Metric Cards */}
         <motion.div variants={itemVariants} className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4">
-          <DataCard title="Groups" value={data.groups} icon={UsersRound} variant="violet" />
-          <DataCard title="Shabab" value={data.participants} icon={GraduationCap} variant="rose" />
-          <DataCard title="Today" value={data.todayEvents} icon={CalendarCheck} variant="brand" />
-          <DataCard title="Open" value={data.openEvents} icon={Clock} variant="amber" />
-          <DataCard title="Total Events" value={data.totalEvents} icon={Activity} variant="sky" />
+          <DataCard title={t("nav.groups")} value={data.groups} icon={UsersRound} variant="violet" />
+          <DataCard title={t("dashboard.totalStudents")} value={data.participants} icon={GraduationCap} variant="rose" />
+          <DataCard title={t("time.today")} value={data.todayEvents} icon={CalendarCheck} variant="brand" />
+          <DataCard title={t("dashboard.openEvents")} value={data.openEvents} icon={Clock} variant="amber" />
+          <DataCard title={t("dashboard.totalEvents")} value={data.totalEvents} icon={Activity} variant="sky" />
         </motion.div>
+
+        {/* Today's Attendance + Sparkline */}
+        {data.todayAttendance && (
+          <motion.div variants={itemVariants}>
+            <Card className="overflow-hidden">
+              <CardHeader className="pb-3 bg-muted/20 border-b">
+                <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                  <CalendarCheck className="size-4 text-[#4B0A8F]" />
+                  Today&apos;s Attendance
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-4 px-4">
+                <div className="flex items-center gap-6 flex-wrap">
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-[#4B0A8F] dark:text-[#8A40B0]">
+                      {data.todayAttendance.present}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground font-medium mt-0.5">Present</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-[#A0006B]">
+                      {data.todayAttendance.late}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground font-medium mt-0.5">Late</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-[#FF0015]">
+                      {data.todayAttendance.absent}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground font-medium mt-0.5">Absent</p>
+                  </div>
+                  <div className="ml-auto">
+                    {data.attendanceTrend && data.attendanceTrend.length > 1 && (
+                      <Sparkline
+                        data={data.attendanceTrend.slice(-7).map((d: any) => d.present)}
+                        width={90}
+                        height={32}
+                        color="#4B0A8F"
+                        showTrend
+                      />
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+
+        {/* Attendance Trend Chart */}
+        {data.attendanceTrend && data.attendanceTrend.length > 0 && (
+          <motion.div variants={itemVariants}>
+            <Card className="overflow-hidden">
+              <CardHeader className="pb-2 bg-muted/20 border-b">
+                <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                  <BarChart3 className="size-4 text-[#4B0A8F]" />
+                  Attendance Trend (14 Days)
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-2 px-4">
+                <AttendanceChart data={data.attendanceTrend} height={220} />
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
 
         {/* Status Cards */}
         <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-2 gap-4">

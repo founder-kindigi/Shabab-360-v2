@@ -1,21 +1,22 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Search,
   Phone,
-  Eye,
   ShieldCheck,
   Loader2,
   Users,
   ChevronLeft,
   ChevronRight,
-  User,
   MapPin,
   CreditCard,
   X,
+  Link2,
+  User,
+  Baby,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
@@ -35,7 +36,16 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { toast } from "sonner";
 
 // ==================== TYPES ====================
 
@@ -73,6 +83,14 @@ type GuardiansResponse = {
   park: { id: string; name: string; city: string };
 };
 
+type GuardianSearchResult = {
+  id: string;
+  name: string;
+  phone: string;
+  cnic: string | null;
+  address: string | null;
+};
+
 // ==================== CONSTANTS ====================
 
 const AVATAR_COLORS = [
@@ -100,12 +118,6 @@ function getRateBadgeBg(rate: number): string {
   if (rate >= 80) return "bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20";
   if (rate >= 50) return "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20";
   return "bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20";
-}
-
-function getRateTextColor(rate: number): string {
-  if (rate >= 80) return "text-green-600 dark:text-green-400";
-  if (rate >= 50) return "text-amber-600 dark:text-amber-400";
-  return "text-red-600 dark:text-red-400";
 }
 
 function getStateBadge(state: string) {
@@ -146,7 +158,10 @@ function GuardiansSkeleton() {
           <Skeleton className="h-7 w-36" />
           <Skeleton className="h-4 w-52" />
         </div>
-        <Skeleton className="h-10 w-full sm:w-72" />
+      </div>
+      <div className="flex gap-2">
+        <Skeleton className="h-9 w-full sm:max-w-sm" />
+        <Skeleton className="h-9 w-32 shrink-0" />
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {Array.from({ length: 4 }).map((_, i) => (
@@ -179,6 +194,232 @@ function GuardiansSkeleton() {
   );
 }
 
+// ==================== LINK GUARDIAN DIALOG ====================
+
+function LinkGuardianDialog({
+  open,
+  onClose,
+  parkParticipants,
+}: {
+  open: boolean;
+  onClose: () => void;
+  parkParticipants: { id: string; name: string; groupName: string }[];
+}) {
+  const queryClient = useQueryClient();
+  const [phoneSearch, setPhoneSearch] = useState("");
+  const [selectedGuardian, setSelectedGuardian] = useState<GuardianSearchResult | null>(null);
+  const [selectedParticipantId, setSelectedParticipantId] = useState("");
+  const [relation, setRelation] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const { data: searchResults, isLoading: searchLoading } = useQuery<{
+    results: GuardianSearchResult[];
+  }>({
+    queryKey: ["guardian-search", phoneSearch],
+    queryFn: async () => {
+      const res = await fetch(`/api/park/guardians/search?phone=${encodeURIComponent(phoneSearch)}`);
+      if (!res.ok) throw new Error("Search failed");
+      return res.json();
+    },
+    enabled: phoneSearch.length >= 3,
+    staleTime: 5000,
+  });
+
+  const handleClose = () => {
+    setPhoneSearch("");
+    setSelectedGuardian(null);
+    setSelectedParticipantId("");
+    setRelation("");
+    onClose();
+  };
+
+  const handleSubmit = async () => {
+    if (!selectedGuardian || !selectedParticipantId) {
+      toast.error("Please select a guardian and a participant");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/park/guardians", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          guardianId: selectedGuardian.id,
+          participantId: selectedParticipantId,
+          relation: relation || undefined,
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Failed to link guardian");
+      }
+
+      toast.success("Guardian linked successfully");
+      queryClient.invalidateQueries({ queryKey: ["park-guardians"] });
+      handleClose();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to link guardian");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && handleClose()}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Link Guardian to Participant</DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4 py-2">
+          {/* Step 1: Search guardian by phone */}
+          <div className="space-y-2">
+            <Label>Search Guardian by Phone</Label>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+              <Input
+                placeholder="Type phone number (min 3 chars)..."
+                value={phoneSearch}
+                onChange={(e) => {
+                  setPhoneSearch(e.target.value);
+                  setSelectedGuardian(null);
+                }}
+                className="pl-9 h-9 text-sm"
+              />
+              {phoneSearch && (
+                <button
+                  onClick={() => { setPhoneSearch(""); setSelectedGuardian(null); }}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  <X className="size-3.5" />
+                </button>
+              )}
+            </div>
+
+            {selectedGuardian && (
+              <div className="rounded-lg border bg-[#F3ECF6] dark:bg-[#1F086080] p-3 flex items-center gap-3">
+                <div
+                  className="size-9 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0"
+                  style={{ backgroundColor: "#A0006B" }}
+                >
+                  {getInitials(selectedGuardian.name)}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold truncate">{selectedGuardian.name}</p>
+                  <p className="text-xs text-muted-foreground">{selectedGuardian.phone}</p>
+                </div>
+                <span className="text-[10px] text-green-600 dark:text-green-400 font-medium">Selected</span>
+              </div>
+            )}
+
+            {phoneSearch.length >= 3 && !selectedGuardian && (
+              <div className="max-h-40 overflow-y-auto rounded-lg border">
+                {searchLoading ? (
+                  <div className="p-3 text-center">
+                    <Loader2 className="size-4 animate-spin mx-auto text-muted-foreground" />
+                  </div>
+                ) : (searchResults?.results?.length || 0) === 0 ? (
+                  <div className="p-3 text-center text-xs text-muted-foreground">
+                    No guardians found with this phone
+                  </div>
+                ) : (
+                  <div className="divide-y">
+                    {searchResults?.results.map((g) => (
+                      <button
+                        key={g.id}
+                        onClick={() => setSelectedGuardian(g)}
+                        className={cn(
+                          "w-full flex items-center gap-3 p-2.5 text-left hover:bg-muted/50 transition-colors",
+                          selectedGuardian?.id === g.id && "bg-[#F3ECF6] dark:bg-[#1F086080]"
+                        )}
+                      >
+                        <div
+                          className="size-8 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0"
+                          style={{ backgroundColor: AVATAR_COLORS[g.name.length % AVATAR_COLORS.length] }}
+                        >
+                          {getInitials(g.name)}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium truncate">{g.name}</p>
+                          <p className="text-[11px] text-muted-foreground">{g.phone}</p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Step 2: Select participant */}
+          <div className="space-y-2">
+            <Label>Select Participant</Label>
+            <Select value={selectedParticipantId} onValueChange={setSelectedParticipantId}>
+              <SelectTrigger className="h-9 text-sm">
+                <SelectValue placeholder="Choose participant..." />
+              </SelectTrigger>
+              <SelectContent>
+                {parkParticipants.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>
+                    {p.name} — {p.groupName}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Step 3: Relation (optional) */}
+          <div className="space-y-2">
+            <Label>Relation (optional)</Label>
+            <Select value={relation} onValueChange={setRelation}>
+              <SelectTrigger className="h-9 text-sm">
+                <SelectValue placeholder="Select relation" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="father">Father</SelectItem>
+                <SelectItem value="mother">Mother</SelectItem>
+                <SelectItem value="brother">Brother</SelectItem>
+                <SelectItem value="sister">Sister</SelectItem>
+                <SelectItem value="uncle">Uncle</SelectItem>
+                <SelectItem value="aunt">Aunt</SelectItem>
+                <SelectItem value="grandfather">Grandfather</SelectItem>
+                <SelectItem value="grandmother">Grandmother</SelectItem>
+                <SelectItem value="other">Other</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" size="sm" onClick={handleClose} disabled={submitting}>
+            Cancel
+          </Button>
+          <Button
+            size="sm"
+            onClick={handleSubmit}
+            disabled={submitting || !selectedGuardian || !selectedParticipantId}
+            className="bg-[#4B0A8F] hover:bg-[#3A0872] text-white"
+          >
+            {submitting ? (
+              <>
+                <Loader2 className="size-3.5 mr-1.5 animate-spin" />
+                Linking...
+              </>
+            ) : (
+              <>
+                <Link2 className="size-3.5 mr-1.5" />
+                Link Guardian
+              </>
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ==================== FAMILY CARD ====================
 
 function FamilyCard({
@@ -199,8 +440,9 @@ function FamilyCard({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, delay: index * 0.04 }}
       whileHover={{ y: -2, boxShadow: "0 8px 25px -5px rgba(75,10,143,0.12)" }}
-      className="rounded-xl border bg-card overflow-hidden transition-colors hover:border-[#4B0A8F]/30 dark:hover:border-[#8A40B0]/30"
+      className="rounded-xl border bg-card overflow-hidden transition-colors hover:border-[#4B0A8F]/30 dark:hover:border-[#8A40B0]/30 cursor-pointer"
       style={{ borderLeftWidth: "3px", borderLeftColor: "#4B0A8F" }}
+      onClick={onView}
     >
       {/* Guardian Info */}
       <div className="p-4">
@@ -217,6 +459,17 @@ function FamilyCard({
               <span className="flex items-center gap-1">
                 <Phone className="size-3" />
                 {guardian.phone}
+              </span>
+            </div>
+            <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
+              <span className="flex items-center gap-1">
+                <Baby className="size-3" />
+                <Badge
+                  variant="secondary"
+                  className="bg-[#A0006B]/10 text-[#A0006B] dark:text-[#D4B8E3] text-[10px] px-1.5 py-0 border-0 font-semibold"
+                >
+                  {guardian.childrenCount} {guardian.childrenCount === 1 ? "child" : "children"}
+                </Badge>
               </span>
             </div>
             {guardian.cnic && (
@@ -241,15 +494,11 @@ function FamilyCard({
           <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
             Children ({guardian.childrenCount})
           </span>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-6 px-2 text-[10px] text-[#4B0A8F] dark:text-[#8A40B0] hover:bg-[#F3ECF6] dark:hover:bg-[#1F086080]"
-            onClick={onView}
-          >
-            <Eye className="size-3 mr-1" />
-            View
-          </Button>
+          {moreCount > 0 && (
+            <span className="text-[10px] text-[#4B0A8F] dark:text-[#8A40B0]">
+              +{moreCount} more
+            </span>
+          )}
         </div>
         <div className="space-y-2">
           {displayChildren.map((child, cIdx) => (
@@ -261,7 +510,10 @@ function FamilyCard({
                 {getInitials(child.name)}
               </div>
               <div className="flex-1 min-w-0">
-                <span className="text-xs font-medium truncate block">{child.name}</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs font-medium truncate block">{child.name}</span>
+                  {getStateBadge(child.state)}
+                </div>
                 <span className="text-[10px] text-muted-foreground">{child.groupName}</span>
               </div>
               <Badge
@@ -272,14 +524,6 @@ function FamilyCard({
               </Badge>
             </div>
           ))}
-          {moreCount > 0 && (
-            <button
-              onClick={onView}
-              className="text-[11px] text-[#4B0A8F] dark:text-[#8A40B0] hover:underline pl-8"
-            >
-              +{moreCount} more child{moreCount > 1 ? "ren" : ""}
-            </button>
-          )}
         </div>
       </div>
     </motion.div>
@@ -417,6 +661,36 @@ function GuardianDetailSheet({
   );
 }
 
+// ==================== EMPTY STATE ====================
+
+function EmptyState({ isSearch }: { isSearch: boolean }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="flex flex-col items-center justify-center py-20 text-center"
+    >
+      <div className="size-16 rounded-full bg-[#F3ECF6] dark:bg-[#1F086080] flex items-center justify-center mb-4">
+        <ShieldCheck className="size-8 text-[#4B0A8F] dark:text-[#D4B8E3]" />
+      </div>
+      <h3 className="text-base font-semibold text-foreground mb-1">
+        {isSearch ? "No families match your search" : "No families linked yet"}
+      </h3>
+      <p className="text-sm text-muted-foreground max-w-xs">
+        {isSearch
+          ? "Try a different name or phone number."
+          : "Families will appear here once guardians are linked to participants. Use the 'Link Guardian' button to get started."}
+      </p>
+      {!isSearch && (
+        <div className="mt-4 px-4 py-2 rounded-lg border border-dashed border-muted-foreground/30 text-xs text-muted-foreground flex items-center gap-2">
+          <Link2 className="size-3.5" />
+          <span>Click &quot;Link Guardian&quot; above to connect a guardian to a participant</span>
+        </div>
+      )}
+    </motion.div>
+  );
+}
+
 // ==================== MAIN COMPONENT ====================
 
 export function ParkGuardiansPage() {
@@ -425,6 +699,7 @@ export function ParkGuardiansPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [detailGuardian, setDetailGuardian] = useState<Guardian | null>(null);
+  const [linkDialogOpen, setLinkDialogOpen] = useState(false);
 
   const { data, isLoading, error, refetch } = useQuery<GuardiansResponse>({
     queryKey: ["park-guardians", search, page, pageSize],
@@ -449,6 +724,7 @@ export function ParkGuardiansPage() {
   }, [searchInput]);
 
   const totalPages = data?.pagination.totalPages || 0;
+  const guardians = data?.data || [];
 
   // ==================== RENDER ====================
 
@@ -472,8 +748,6 @@ export function ParkGuardiansPage() {
 
   if (!data) return null;
 
-  const guardians = data.data;
-
   return (
     <div className="space-y-4">
       {/* Header Section */}
@@ -488,6 +762,14 @@ export function ParkGuardiansPage() {
             <span className="font-semibold text-foreground">{data.pagination.total}</span> famil{data.pagination.total !== 1 ? "ies" : "y"} linked to park participants
           </p>
         </div>
+        <Button
+          size="sm"
+          onClick={() => setLinkDialogOpen(true)}
+          className="bg-[#4B0A8F] hover:bg-[#3A0872] text-white shrink-0"
+        >
+          <Link2 className="size-3.5 mr-1.5" />
+          Link Guardian
+        </Button>
       </div>
 
       {/* Search Bar */}
@@ -512,21 +794,7 @@ export function ParkGuardiansPage() {
 
       {/* Content */}
       {guardians.length === 0 ? (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="flex flex-col items-center justify-center py-16 text-center"
-        >
-          <div className="size-12 rounded-full bg-[#F3ECF6] dark:bg-[#1F086080] flex items-center justify-center mb-3">
-            <ShieldCheck className="size-6 text-[#4B0A8F] dark:text-[#D4B8E3]" />
-          </div>
-          <p className="text-sm font-medium text-foreground mb-1">
-            {search ? "No families match your search" : "No families linked yet"}
-          </p>
-          <p className="text-xs text-muted-foreground">
-            {search ? "Try a different name or phone number." : "Families will appear here once guardians are linked to participants."}
-          </p>
-        </motion.div>
+        <EmptyState isSearch={!!search} />
       ) : (
         <AnimatePresence mode="popLayout">
           <motion.div
@@ -598,6 +866,13 @@ export function ParkGuardiansPage() {
         guardian={detailGuardian}
         open={!!detailGuardian}
         onClose={() => setDetailGuardian(null)}
+      />
+
+      {/* Link Guardian Dialog */}
+      <LinkGuardianDialog
+        open={linkDialogOpen}
+        onClose={() => setLinkDialogOpen(false)}
+        parkParticipants={[]}
       />
     </div>
   );

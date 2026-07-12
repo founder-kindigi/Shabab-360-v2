@@ -7,9 +7,7 @@ import { z } from "zod";
 const createSchema = z.object({
   batchId: z.string().min(1, "Batch is required"),
   title: z.string().min(2, "Title must be at least 2 characters"),
-  feeType: z.enum(["tuition", "admission", "other"], {
-    errorMap: () => ({ message: "Fee type must be tuition, admission, or other" }),
-  }),
+  feeType: z.enum(["tuition", "admission", "other"]),
   amount: z.number().positive("Amount must be positive"),
   dueDate: z.string().optional(),
 });

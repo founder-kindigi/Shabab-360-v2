@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/layout/empty-state";
-import { formatPKT } from "@/lib/timezone";
+import { formatPKT, toPKT } from "@/lib/timezone";
 import { cn } from "@/lib/utils";
 import {
   GraduationCap,
@@ -27,7 +27,12 @@ import {
   AlertTriangle,
   CalendarDays,
   Megaphone,
+  Wallet,
+  User,
+  Clock,
+  Timer,
 } from "lucide-react";
+import { HeatmapCalendar } from "@/components/shared/heatmap-calendar";
 
 // ─── Types ───────────────────────────────────────────────────────────
 
@@ -57,6 +62,12 @@ type RecentRecord = {
   groupName: string;
 };
 
+type HeatmapDay = {
+  day: number;
+  dayOfWeek: number;
+  status: string | null;
+};
+
 type DashboardData = {
   participant: {
     id: string;
@@ -83,6 +94,19 @@ type DashboardData = {
   streak: { current: number; longest: number };
   dailyTrend: DailyTrend[];
   todayDate: string;
+  feeSummary?: {
+    totalExpected: number;
+    totalPaid: number;
+    outstanding: number;
+    nextDueDate: string | null;
+  };
+  heatmapData: HeatmapDay[];
+  upcomingEvent: {
+    id: string;
+    title: string;
+    eventDate: string;
+    eventDateFormatted: string;
+  } | null;
 };
 
 // ─── Animation Config ────────────────────────────────────────────────
@@ -185,6 +209,22 @@ function statusBadgeWide(status: string | null) {
   }
 }
 
+function getTimeUntil(targetDate: string): string {
+  const now = new Date();
+  const target = new Date(targetDate);
+  const diff = target.getTime() - now.getTime();
+
+  if (diff <= 0) return "Today";
+
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+  const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+
+  if (days > 0) return `${days}d ${hours}h`;
+  if (hours > 0) return `${hours}h`;
+  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+  return `${minutes}m`;
+}
+
 // ─── Component ───────────────────────────────────────────────────────
 
 export function StudentDashboard() {
@@ -214,7 +254,7 @@ export function StudentDashboard() {
             <Skeleton key={i} className="h-28 rounded-xl" />
           ))}
         </div>
-        <Skeleton className="h-44 rounded-xl" />
+        <Skeleton className="h-48 rounded-xl" />
         <Skeleton className="h-64 rounded-xl" />
         <Skeleton className="h-20 rounded-xl" />
       </div>
@@ -256,8 +296,19 @@ export function StudentDashboard() {
 
   const hasTrendData = dailyTrend.some((d) => d.hasEvent);
 
+  // Convert heatmapData to Record<string, string> for HeatmapCalendar
+  const heatmapMap: Record<string, string> = {};
+  const pktNow = toPKT(new Date());
+  const currentYear = pktNow.getFullYear();
+  const currentMonth = pktNow.getMonth();
+  for (const day of data.heatmapData) {
+    const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-${String(day.day).padStart(2, "0")}`;
+    heatmapMap[dateStr] = day.status ?? "";
+  }
+
   return (
     <motion.div
+      data-tour="dashboard"
       variants={stagger}
       initial="hidden"
       animate="visible"
@@ -266,7 +317,6 @@ export function StudentDashboard() {
       {/* ─── 1. Greeting Banner ─────────────────────────────────── */}
       <motion.div variants={fadeUp}>
         <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-[#2A0C8F] via-[#A0006B] to-[#FF0015] px-5 py-5 text-white shadow-lg">
-          {/* Decorative shapes */}
           <div className="absolute -top-8 -right-8 size-32 rounded-full bg-white/10" />
           <div className="absolute -bottom-6 -right-6 size-20 rounded-full bg-white/5" />
           <div className="absolute top-1/2 -right-12 size-24 rounded-full bg-white/5" />
@@ -468,7 +518,219 @@ export function StudentDashboard() {
         />
       </motion.div>
 
-      {/* ─── 5. Weekly Trend (7-day CSS bar chart) ──────────────── */}
+      {/* ─── 3. Attendance Heatmap Calendar ────────────────────── */}
+      <motion.div variants={fadeUp}>
+        <Card className="overflow-hidden border-border">
+          <CardContent className="p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold">Attendance History</h3>
+              <Badge variant="outline" className="text-[10px] font-normal">
+                {formatPKT(new Date(), "MMMM yyyy")}
+              </Badge>
+            </div>
+
+            <HeatmapCalendar data={heatmapMap} months={6} />
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      {/* ─── 4. Fee Status Card ────────────────────────────────── */}
+      {data.feeSummary && (data.feeSummary.totalExpected > 0 || data.feeSummary.outstanding > 0) && (
+        <motion.div variants={fadeUp}>
+          <Card
+            className="overflow-hidden border-border cursor-pointer hover:border-[#D4B8E3] dark:hover:border-[#2A0C8F99] transition-colors"
+            onClick={() => navigateTo("student-fees")}
+          >
+            <CardContent className="p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <Wallet className="size-4 text-[#4B0A8F] dark:text-[#8A40B0]" />
+                <h3 className="text-sm font-semibold">Fee Status</h3>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-0.5">
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
+                    Total
+                  </p>
+                  <p className="text-sm font-bold tabular-nums">
+                    Rs {data.feeSummary.totalExpected.toLocaleString()}
+                  </p>
+                </div>
+                <div className="space-y-0.5">
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
+                    Paid
+                  </p>
+                  <p className="text-sm font-bold tabular-nums text-[#4B0A8F] dark:text-[#8A40B0]">
+                    Rs {data.feeSummary.totalPaid.toLocaleString()}
+                  </p>
+                </div>
+                <div className="space-y-0.5">
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
+                    Remaining
+                  </p>
+                  <p className={cn(
+                    "text-sm font-bold tabular-nums",
+                    data.feeSummary.outstanding > 0
+                      ? "text-red-600 dark:text-red-400"
+                      : "text-[#4B0A8F] dark:text-[#8A40B0]"
+                  )}>
+                    Rs {data.feeSummary.outstanding.toLocaleString()}
+                  </p>
+                </div>
+              </div>
+
+              {/* Fee progress bar */}
+              {data.feeSummary.totalExpected > 0 && (
+                <div>
+                  <div className="flex items-center justify-between text-[10px] mb-1.5">
+                    <span className="text-muted-foreground">
+                      {data.feeSummary.totalExpected > 0
+                        ? `${Math.round((data.feeSummary.totalPaid / data.feeSummary.totalExpected) * 100)}% paid`
+                        : ""}
+                    </span>
+                  </div>
+                  <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+                    <div
+                      className={cn(
+                        "h-full rounded-full transition-all duration-500",
+                        data.feeSummary.outstanding === 0
+                          ? "bg-[#4B0A8F]"
+                          : data.feeSummary.totalPaid / data.feeSummary.totalExpected >= 0.5
+                            ? "bg-amber-500"
+                            : "bg-red-500"
+                      )}
+                      style={{
+                        width: `${data.feeSummary.totalExpected > 0
+                          ? Math.round((data.feeSummary.totalPaid / data.feeSummary.totalExpected) * 100)
+                          : 0}%`
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {data.feeSummary.nextDueDate && (
+                <div className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400">
+                  <Clock className="size-3" />
+                  <span>Next due: {data.feeSummary.nextDueDate}</span>
+                </div>
+              )}
+
+              {data.feeSummary.outstanding === 0 && data.feeSummary.totalExpected > 0 && (
+                <p className="text-xs text-[#4B0A8F] dark:text-[#8A40B0] font-medium">
+                  ✅ All fees paid!
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
+
+      {/* ─── 5. Upcoming Event with Countdown ───────────────────── */}
+      {data.upcomingEvent && (
+        <motion.div variants={fadeUp}>
+          <Card className="overflow-hidden border-[#D4B8E3] dark:border-[#2A0C8F99]">
+            <CardContent className="p-4 flex items-center gap-4">
+              <div className="flex items-center justify-center size-12 rounded-xl bg-[#F3ECF6] dark:bg-[#1F086080] shrink-0">
+                <Timer className="size-6 text-[#4B0A8F] dark:text-[#8A40B0]" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-[10px] uppercase tracking-wider text-[#4B0A8F] dark:text-[#8A40B0] font-semibold">
+                  Next Event
+                </p>
+                <p className="text-sm font-bold truncate">{data.upcomingEvent.title}</p>
+                <p className="text-xs text-muted-foreground">{data.upcomingEvent.eventDateFormatted}</p>
+              </div>
+              <div className="text-right shrink-0">
+                <p className="text-lg font-bold text-[#4B0A8F] dark:text-[#8A40B0] tabular-nums">
+                  {getTimeUntil(data.upcomingEvent.eventDate)}
+                </p>
+                <p className="text-[10px] text-muted-foreground">remaining</p>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
+
+      {/* ─── 6. Today's Session Card ────────────────────────────── */}
+      <motion.div variants={fadeUp}>
+        <Card className="overflow-hidden border-border">
+          <CardContent className="p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold">Today&apos;s Session</h3>
+              {todayEvent && (
+                <Badge
+                  className={cn(
+                    "text-[10px] font-semibold px-2 py-0.5",
+                    todayEvent.status === "Open"
+                      ? "bg-[#F3ECF6] text-[#4B0A8F] dark:bg-[#1F086080] dark:text-[#8A40B0]"
+                      : "bg-muted text-muted-foreground"
+                  )}
+                >
+                  {todayEvent.status}
+                </Badge>
+              )}
+            </div>
+
+            {todayEvent ? (
+              <>
+                <p className="text-sm font-medium">{todayEvent.title}</p>
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Users className="size-3" />
+                  <span>{todayEvent.groupName}</span>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <span className="text-xs text-muted-foreground">Your status:</span>
+                  {todayEvent.myStatus ? (
+                    statusBadgeWide(todayEvent.myStatus)
+                  ) : (
+                    <span className="text-xs text-muted-foreground italic">
+                      Not yet marked
+                    </span>
+                  )}
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between text-[11px] mb-1.5">
+                    <span className="text-muted-foreground">
+                      {todayEvent.markedCount}/{todayEvent.participantCount} marked
+                    </span>
+                    <span className={cn("font-semibold", rateColor(todayEvent.progress))}>
+                      {todayEvent.progress}%
+                    </span>
+                  </div>
+                  <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+                    <div
+                      className={cn(
+                        "h-full rounded-full transition-all duration-500",
+                        progressColor(todayEvent.progress)
+                      )}
+                      style={{ width: `${todayEvent.progress}%` }}
+                    />
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="flex items-center gap-3 py-2">
+                <div className="flex items-center justify-center size-10 rounded-full bg-muted">
+                  <CalendarX className="size-5 text-muted-foreground" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">
+                    No session today
+                  </p>
+                  <p className="text-xs text-muted-foreground/70">
+                    There is no attendance event scheduled for today
+                  </p>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      {/* ─── 7. Weekly Trend ──────────────────────────────────────── */}
       <motion.div variants={fadeUp}>
         <Card className="overflow-hidden border-border">
           <CardContent className="p-4 space-y-4">
@@ -490,7 +752,6 @@ export function StudentDashboard() {
                     key={day.date}
                     className="flex flex-col items-center gap-1.5 flex-1"
                   >
-                    {/* Rate label */}
                     <span
                       className={cn(
                         "text-[10px] sm:text-xs font-semibold tabular-nums",
@@ -500,7 +761,6 @@ export function StudentDashboard() {
                       {day.hasEvent ? `${day.rate}%` : "—"}
                     </span>
 
-                    {/* Bar */}
                     <div className="w-full flex-1 flex items-end">
                       <div
                         className="w-full rounded-t-sm bg-muted/50 relative overflow-hidden"
@@ -520,7 +780,6 @@ export function StudentDashboard() {
                       </div>
                     </div>
 
-                    {/* Day label */}
                     <span
                       className={cn(
                         "text-[10px] sm:text-xs font-medium",
@@ -539,7 +798,7 @@ export function StudentDashboard() {
         </Card>
       </motion.div>
 
-      {/* ─── 6. Recent Attendance ───────────────────────────────── */}
+      {/* ─── 8. Recent Attendance ───────────────────────────────── */}
       <motion.div variants={fadeUp} className="space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold">Recent Attendance</h3>
@@ -572,14 +831,12 @@ export function StudentDashboard() {
                       i < recentRecords.length - 1 && "border-b border-border/50"
                     )}
                   >
-                    {/* Date */}
                     <div className="w-20 sm:w-24 shrink-0">
                       <p className="text-xs font-medium text-foreground">
                         {record.date}
                       </p>
                     </div>
 
-                    {/* Event info */}
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium truncate">
                         {record.eventTitle}
@@ -589,7 +846,6 @@ export function StudentDashboard() {
                       </p>
                     </div>
 
-                    {/* Status badge */}
                     <div className="shrink-0">{statusBadge(record.status)}</div>
                   </motion.div>
                 ))}
@@ -610,16 +866,33 @@ export function StudentDashboard() {
         )}
       </motion.div>
 
-      {/* ─── 7. Quick Actions ───────────────────────────────────── */}
+      {/* ─── 9. Quick Actions ───────────────────────────────────── */}
       <motion.div variants={fadeUp}>
+        <h3 className="text-sm font-semibold mb-3">Quick Actions</h3>
         <div className="grid grid-cols-2 gap-3">
+          <Button
+            variant="outline"
+            className="h-12 justify-start gap-3 px-4 text-sm font-medium hover:border-[#D4B8E3] hover:bg-[#F3ECF6] dark:hover:border-[#2A0C8F99] dark:hover:bg-[#1F08604D]"
+            onClick={() => navigateTo("student-fees")}
+          >
+            <Wallet className="size-4 text-[#4B0A8F] dark:text-[#8A40B0]" />
+            View Fees
+          </Button>
           <Button
             variant="outline"
             className="h-12 justify-start gap-3 px-4 text-sm font-medium hover:border-[#D4B8E3] hover:bg-[#F3ECF6] dark:hover:border-[#2A0C8F99] dark:hover:bg-[#1F08604D]"
             onClick={() => navigateTo("student-schedule")}
           >
             <CalendarDays className="size-4 text-[#4B0A8F] dark:text-[#8A40B0]" />
-            My Schedule
+            View Schedule
+          </Button>
+          <Button
+            variant="outline"
+            className="h-12 justify-start gap-3 px-4 text-sm font-medium hover:border-[#D4B8E3] hover:bg-[#F3ECF6] dark:hover:border-[#2A0C8F99] dark:hover:bg-[#1F08604D]"
+            onClick={() => navigateTo("student-profile")}
+          >
+            <User className="size-4 text-[#4B0A8F] dark:text-[#8A40B0]" />
+            My Profile
           </Button>
           <Button
             variant="outline"

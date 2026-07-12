@@ -183,6 +183,26 @@ export async function POST(req: Request) {
       }),
     });
 
+    // ─── Dispatch real-time notification (non-blocking) ─────────────────────
+    if (processed > 0) {
+      fetch("http://localhost:3004/notify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "attendance:updated",
+          data: {
+            eventId: mutations[0]?.eventId,
+            syncCount: processed,
+            markedBy: staffMeta?.id,
+            markedByName: staffMeta?.user?.name || null,
+            isSync: true,
+          },
+        }),
+      }).catch(() => {
+        // Non-blocking
+      });
+    }
+
     return NextResponse.json({
       results,
       summary: { total: mutations.length, processed, failed },

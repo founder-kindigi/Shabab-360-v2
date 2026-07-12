@@ -10,9 +10,16 @@ export async function GET(request: NextRequest) {
   if (authError) return authError;
 
   const { searchParams } = new URL(request.url);
+
+  // Stats-only mode
+  if (searchParams.get("stats") === "true") {
+    return getStats();
+  }
+
   const search = searchParams.get("search") || undefined;
   const role = searchParams.get("role") || undefined;
   const cityId = searchParams.get("cityId") || undefined;
+  const parkId = searchParams.get("parkId") || undefined;
   const isActiveParam = searchParams.get("isActive");
   const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
 
@@ -21,31 +28,43 @@ export async function GET(request: NextRequest) {
     staffMeta: { isNot: null },
   };
 
-  // Search across name, email, phone
+  // Search across name, email
   if (search) {
     where.OR = [
       { name: { contains: search } },
       { email: { contains: search } },
-      { phone: { contains: search } },
     ];
   }
 
+  // Build staffMeta where
+  const metaWhere: Record<string, unknown> = {};
+
   // Filter by role
   if (role) {
-    (where.staffMeta as Record<string, unknown>).role = role;
+    metaWhere.role = role;
   }
 
   // Filter by city
   if (cityId) {
-    (where.staffMeta as Record<string, unknown>).assignedCityId = cityId;
+    metaWhere.assignedCityId = cityId;
+  }
+
+  // Filter by park
+  if (parkId) {
+    metaWhere.assignedParkId = parkId;
   }
 
   // Filter by active status
   if (isActiveParam === "true") {
-    (where.staffMeta as Record<string, unknown>).isActive = true;
+    metaWhere.isActive = true;
     where.isActive = true;
   } else if (isActiveParam === "false") {
-    (where.staffMeta as Record<string, unknown>).isActive = false;
+    metaWhere.isActive = false;
+  }
+
+  // Merge metaWhere into where
+  if (Object.keys(metaWhere).length > 0) {
+    (where.staffMeta as Record<string, unknown>) = { ...metaWhere };
   }
 
   const [staff, total] = await Promise.all([
@@ -57,7 +76,9 @@ export async function GET(request: NextRequest) {
         email: true,
         phone: true,
         isActive: true,
+        mustResetPwd: true,
         createdAt: true,
+        updatedAt: true,
         staffMeta: {
           select: {
             id: true,
@@ -92,4 +113,34 @@ export async function GET(request: NextRequest) {
       totalPages: Math.ceil(total / PAGE_SIZE),
     },
   });
+}
+
+async function getStats() {
+  const allStaff = await db.user.findMany({
+    where: { staffMeta: { isNot: null } },
+    select: {
+      isActive: true,
+      staffMeta: {
+        select: { isActive: true, role: true },
+      },
+    },
+  });
+
+  const total = allStaff.length;
+  const active = allStaff.filter(
+    (s) => s.isActive && s.staffMeta.isActive
+  ).length;
+  const inactive = total - active;
+
+  // Count by role
+  const roleMap = new Map<string, number>();
+  for (const s of allStaff) {
+    const r = s.staffMeta.role;
+    roleMap.set(r, (roleMap.get(r) || 0) + 1);
+  }
+  const byRole = Array.from(roleMap.entries())
+    .map(([role, count]) => ({ role, count }))
+    .sort((a, b) => b.count - a.count);
+
+  return NextResponse.json({ total, active, inactive, byRole });
 }

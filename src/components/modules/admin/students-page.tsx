@@ -28,13 +28,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-} from "@/components/ui/sheet";
+import { ParticipantDetailSheet } from "@/components/modules/admin/participant-detail-sheet";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -60,6 +54,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { useDebounce } from "@/hooks/use-debounce";
 import { formatPKT } from "@/lib/timezone";
+import { useTranslation } from "@/lib/i18n";
+import { ExportButton } from "@/components/shared/export-button";
 import {
   Plus,
   Search,
@@ -68,13 +64,19 @@ import {
   Trash2,
   Eye,
   GraduationCap,
-  Phone,
   MapPin,
   ChevronLeft,
   ChevronRight,
   User,
-  Calendar,
+  UserCheck,
+  UserX,
+  FolderInput,
+  Download,
+  Check,
 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { BulkActionToolbar, type BulkAction } from "@/components/shared/bulk-action-toolbar";
+import { exportToCSV } from "@/lib/csv-export";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -133,7 +135,7 @@ interface Student {
 interface Pagination {
   page: number;
   pageSize: number;
-  total: number;
+  totalItems: number;
   totalPages: number;
 }
 
@@ -165,6 +167,7 @@ function getRateBarColor(rate: number | null) {
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export function StudentsPage() {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
 
   // Filters
@@ -177,10 +180,14 @@ export function StudentsPage() {
 
   const debouncedSearch = useDebounce(search, 300);
 
+  // Selection
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
   // Reset page on filter change
   const handleSearchChange = useCallback((val: string) => {
     setSearch(val);
     setPage(1);
+    setSelectedIds(new Set());
   }, []);
 
   const handleCityChange = useCallback((val: string) => {
@@ -188,22 +195,26 @@ export function StudentsPage() {
     setParkId("");
     setGroupId("");
     setPage(1);
+    setSelectedIds(new Set());
   }, []);
 
   const handleParkChange = useCallback((val: string) => {
     setParkId(val);
     setGroupId("");
     setPage(1);
+    setSelectedIds(new Set());
   }, []);
 
   const handleGroupChange = useCallback((val: string) => {
     setGroupId(val);
     setPage(1);
+    setSelectedIds(new Set());
   }, []);
 
   const handleStateChange = useCallback((val: string) => {
     setState(val);
     setPage(1);
+    setSelectedIds(new Set());
   }, []);
 
   // Dialogs
@@ -211,7 +222,10 @@ export function StudentsPage() {
   const [editOpen, setEditOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [moveGroupOpen, setMoveGroupOpen] = useState(false);
+  const [moveGroupId, setMoveGroupId] = useState("");
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+  const [selectedDetailId, setSelectedDetailId] = useState<string | null>(null);
 
   // Form state
   const [formName, setFormName] = useState("");
@@ -278,6 +292,53 @@ export function StudentsPage() {
 
   const students = data?.data || [];
   const pagination = data?.pagination;
+
+  // Selection helpers
+  const allRowIds = students.map((s) => s.id);
+  const allSelected = selectedIds.size > 0 && allRowIds.length > 0 && allRowIds.every((id) => selectedIds.has(id));
+
+  const toggleAll = useCallback(() => {
+    if (allSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(allRowIds));
+    }
+  }, [allSelected, allRowIds]);
+
+  const toggleRow = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  // ─── Batch Mutation ──────────────────────────────────────────────────────
+
+  const batchMutation = useMutation({
+    mutationFn: (body: { action: string; participantIds: string[]; groupId?: string }) =>
+      fetch("/api/admin/students/batch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      }).then((r) => {
+        if (!r.ok) return r.json().then((e) => Promise.reject(e));
+        return r.json();
+      }),
+    onSuccess: (result, vars) => {
+      queryClient.invalidateQueries({ queryKey: ["admin-students"] });
+      setSelectedIds(new Set());
+      const label = vars.action === "activate" ? "activated" : vars.action === "deactivate" ? "deactivated" : vars.action === "change-group" ? "moved" : "exported";
+      toast.success(`${result.success} student${result.success !== 1 ? "s" : ""} ${label} successfully`);
+      if (result.failed > 0) {
+        toast.warning(`${result.failed} operation${result.failed !== 1 ? "s" : ""} failed`);
+      }
+    },
+    onError: (err: any) => {
+      toast.error(err.error || "Batch operation failed");
+    },
+  });
 
   // ─── Mutations ───────────────────────────────────────────────────────────
 
@@ -389,8 +450,14 @@ export function StudentsPage() {
   }
 
   function openDetailSheet(student: Student) {
+    setSelectedDetailId(student.id);
     setSelectedStudent(student);
     setDetailOpen(true);
+  }
+
+  function closeDetailSheet() {
+    setDetailOpen(false);
+    setSelectedDetailId(null);
   }
 
   function openDeleteDialog(student: Student) {
@@ -444,16 +511,42 @@ export function StudentsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Students"
-        description="Manage participant profiles and assignments"
+        title={t("students.title")}
+        description={t("students.manageDesc")}
         actions={
-          <Button
-            onClick={openCreateDialog}
-            className="bg-[#4B0A8F] hover:bg-[#4B0A8FE6] text-white"
-          >
-            <Plus className="size-4 mr-2" />
-            Add Student
-          </Button>
+          <div className="flex items-center gap-2">
+            <ExportButton
+              data={students.map((s) => ({
+                name: s.name,
+                phone: s.phone ?? "",
+                gender: s.gender ?? "",
+                group: s.group?.name ?? "",
+                park: s.group?.batch?.park?.name ?? "",
+                city: s.group?.batch?.park?.city?.name ?? "",
+                status: s.state,
+                joinDate: s.joinedAt ? new Date(s.joinedAt).toLocaleDateString("en-PK", { timeZone: "Asia/Karachi" }) : "",
+              }))}
+              filename="students"
+              columns={[
+                { key: "name", header: "Name" },
+                { key: "phone", header: "Phone" },
+                { key: "gender", header: "Gender" },
+                { key: "group", header: "Group" },
+                { key: "park", header: "Park" },
+                { key: "city", header: "City" },
+                { key: "status", header: "Status" },
+                { key: "joinDate", header: "Join Date" },
+              ]}
+              disabled={isLoading}
+            />
+            <Button
+              onClick={openCreateDialog}
+              className="bg-[#4B0A8F] hover:bg-[#4B0A8FE6] text-white"
+            >
+              <Plus className="size-4 mr-2" />
+              {t("students.addStudent")}
+            </Button>
+          </div>
         }
       />
 
@@ -465,7 +558,7 @@ export function StudentsPage() {
             <div className="relative flex-1 min-w-0">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
               <Input
-                placeholder="Search by name or phone..."
+                placeholder={t("students.searchPlaceholder")}
                 value={search}
                 onChange={(e) => handleSearchChange(e.target.value)}
                 className="pl-9"
@@ -475,7 +568,7 @@ export function StudentsPage() {
             {/* City */}
             <Select value={cityId} onValueChange={handleCityChange}>
               <SelectTrigger className="w-full sm:w-[160px]">
-                <SelectValue placeholder="All Cities" />
+                <SelectValue placeholder={t("students.allCities")} />
               </SelectTrigger>
               <SelectContent>
                 {cities?.map((c) => (
@@ -489,7 +582,7 @@ export function StudentsPage() {
             {/* Park */}
             <Select value={parkId} onValueChange={handleParkChange} disabled={!cityId}>
               <SelectTrigger className="w-full sm:w-[160px]">
-                <SelectValue placeholder={cityId ? "All Parks" : "Select city first"} />
+                <SelectValue placeholder={cityId ? t("students.allParks") : t("students.selectCityFirst")} />
               </SelectTrigger>
               <SelectContent>
                 {parks?.map((p) => (
@@ -503,7 +596,7 @@ export function StudentsPage() {
             {/* Group */}
             <Select value={groupId} onValueChange={handleGroupChange} disabled={!parkId}>
               <SelectTrigger className="w-full sm:w-[160px]">
-                <SelectValue placeholder={parkId ? "All Groups" : "Select park first"} />
+                <SelectValue placeholder={parkId ? t("students.allGroups") : t("students.selectParkFirst")} />
               </SelectTrigger>
               <SelectContent>
                 {filteredGroups.map((g) => (
@@ -520,9 +613,9 @@ export function StudentsPage() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All States</SelectItem>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="inactive">Inactive</SelectItem>
+                <SelectItem value="all">{t("students.allStates")}</SelectItem>
+                <SelectItem value="active">{t("common.active")}</SelectItem>
+                <SelectItem value="inactive">{t("common.inactive")}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -530,11 +623,58 @@ export function StudentsPage() {
           {/* Results count */}
           {pagination && (
             <div className="mt-3 text-xs text-muted-foreground">
-              Showing {students.length} of {pagination.total} students
+              Showing {students.length} of {pagination.totalItems} students
             </div>
           )}
         </CardContent>
       </Card>
+
+      {/* Bulk Action Toolbar */}
+      <BulkActionToolbar
+        selectedIds={Array.from(selectedIds)}
+        onClearSelection={() => setSelectedIds(new Set())}
+        actions={[
+          { key: "activate", label: "Activate", icon: UserCheck, confirmMessage: `Are you sure you want to activate ${selectedIds.size} student${selectedIds.size !== 1 ? "s" : ""}?` },
+          { key: "deactivate", label: "Deactivate", icon: UserX, variant: "destructive", confirmMessage: `Are you sure you want to deactivate ${selectedIds.size} student${selectedIds.size !== 1 ? "s" : ""}? This action can be reversed.` },
+          { key: "change-group", label: "Move to Group", icon: FolderInput },
+          { key: "export", label: "Export CSV", icon: Download },
+        ]}
+        onAction={(action) => {
+          if (action === "change-group") {
+            setMoveGroupOpen(true);
+          } else if (action === "export") {
+            const selected = students.filter((s) => selectedIds.has(s.id));
+            exportToCSV(
+              selected.map((s) => ({
+                name: s.name,
+                phone: s.phone ?? "",
+                gender: s.gender ?? "",
+                group: s.group?.name ?? "",
+                park: s.group?.batch?.park?.name ?? "",
+                city: s.group?.batch?.park?.city?.name ?? "",
+                status: s.state,
+                joinDate: s.joinedAt ? new Date(s.joinedAt).toLocaleDateString("en-PK", { timeZone: "Asia/Karachi" }) : "",
+              })),
+              "selected-students",
+              [
+                { key: "name", header: "Name" },
+                { key: "phone", header: "Phone" },
+                { key: "gender", header: "Gender" },
+                { key: "group", header: "Group" },
+                { key: "park", header: "Park" },
+                { key: "city", header: "City" },
+                { key: "status", header: "Status" },
+                { key: "joinDate", header: "Join Date" },
+              ]
+            );
+            setSelectedIds(new Set());
+            toast.success(`${selected.length} student${selected.length !== 1 ? "s" : ""} exported`);
+          } else {
+            batchMutation.mutate({ action, participantIds: Array.from(selectedIds) });
+          }
+        }}
+        isLoading={batchMutation.isPending}
+      />
 
       {/* Loading */}
       {isLoading && (
@@ -561,14 +701,21 @@ export function StudentsPage() {
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-muted/50 hover:bg-muted/50">
-                      <TableHead className="text-xs font-medium text-muted-foreground">Student</TableHead>
-                      <TableHead className="text-xs font-medium text-muted-foreground">Phone</TableHead>
-                      <TableHead className="text-xs font-medium text-muted-foreground">Gender</TableHead>
-                      <TableHead className="text-xs font-medium text-muted-foreground">Hierarchy</TableHead>
-                      <TableHead className="text-xs font-medium text-muted-foreground">Guardian(s)</TableHead>
-                      <TableHead className="text-xs font-medium text-muted-foreground">Attendance (30d)</TableHead>
-                      <TableHead className="text-xs font-medium text-muted-foreground">State</TableHead>
-                      <TableHead className="text-xs font-medium text-muted-foreground">Joined</TableHead>
+                      <TableHead className="w-10">
+                        <Checkbox
+                          checked={allSelected}
+                          onCheckedChange={toggleAll}
+                          aria-label="Select all"
+                        />
+                      </TableHead>
+                      <TableHead className="text-xs font-medium text-muted-foreground">{t("students.student")}</TableHead>
+                      <TableHead className="text-xs font-medium text-muted-foreground">{t("common.phone")}</TableHead>
+                      <TableHead className="text-xs font-medium text-muted-foreground">{t("students.gender")}</TableHead>
+                      <TableHead className="text-xs font-medium text-muted-foreground">{t("students.hierarchy")}</TableHead>
+                      <TableHead className="text-xs font-medium text-muted-foreground">{t("students.guardians")}</TableHead>
+                      <TableHead className="text-xs font-medium text-muted-foreground">{t("students.attendance30d")}</TableHead>
+                      <TableHead className="text-xs font-medium text-muted-foreground">{t("students.state")}</TableHead>
+                      <TableHead className="text-xs font-medium text-muted-foreground">{t("students.joined")}</TableHead>
                       <TableHead className="w-12" />
                     </TableRow>
                   </TableHeader>
@@ -576,8 +723,16 @@ export function StudentsPage() {
                     {students.map((student) => (
                       <TableRow
                         key={student.id}
-                        className="hover:bg-muted/30 transition-colors"
+                        className="hover:bg-muted/30 transition-colors cursor-pointer"
+                        onClick={() => openDetailSheet(student)}
                       >
+                        <TableCell onClick={(e) => e.stopPropagation()}>
+                          <Checkbox
+                            checked={selectedIds.has(student.id)}
+                            onCheckedChange={() => toggleRow(student.id)}
+                            aria-label={`Select ${student.name}`}
+                          />
+                        </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-3">
                             <div className="rounded-full bg-[#F3ECF6] dark:bg-[#1F086080] flex items-center justify-center size-9 text-xs font-semibold text-[#4B0A8F] dark:text-[#8A40B0] shrink-0">
@@ -640,7 +795,7 @@ export function StudentsPage() {
                                 : "text-muted-foreground border-muted bg-muted/50"
                             }
                           >
-                            {student.state}
+                            {student.state === "active" ? t("common.active") : t("common.inactive")}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-xs text-muted-foreground">
@@ -649,32 +804,32 @@ export function StudentsPage() {
                         <TableCell>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="size-8">
+                              <Button variant="ghost" size="icon" className="size-8" onClick={(e) => e.stopPropagation()}>
                                 <MoreHorizontal className="size-4" />
-                                <span className="sr-only">Actions</span>
+                                <span className="sr-only">{t("common.actions")}</span>
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                               <DropdownMenuItem
-                                onClick={() => openDetailSheet(student)}
+                                onClick={(e) => { e.stopPropagation(); openDetailSheet(student); }}
                                 className="cursor-pointer"
                               >
                                 <Eye className="size-4 mr-2" />
-                                View Details
+                                {t("students.viewDetails")}
                               </DropdownMenuItem>
                               <DropdownMenuItem
-                                onClick={() => openEditDialog(student)}
+                                onClick={(e) => { e.stopPropagation(); openEditDialog(student); }}
                                 className="cursor-pointer"
                               >
                                 <Pencil className="size-4 mr-2" />
-                                Edit
+                                {t("common.edit")}
                               </DropdownMenuItem>
                               <DropdownMenuItem
-                                onClick={() => openDeleteDialog(student)}
+                                onClick={(e) => { e.stopPropagation(); openDeleteDialog(student); }}
                                 className="text-red-600 focus:text-red-600 cursor-pointer"
                               >
                                 <Trash2 className="size-4 mr-2" />
-                                Deactivate
+                                {t("students.deactivate")}
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
@@ -694,15 +849,23 @@ export function StudentsPage() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.15 }}
                   >
-                    <Card className="p-4 space-y-3">
+                    <Card className="p-4 space-y-3 cursor-pointer hover:border-[#D4B8E3] dark:hover:border-[#2A0C8F] transition-colors" onClick={() => openDetailSheet(student)}>
                       <div className="flex items-start justify-between">
                         <div className="flex items-center gap-3 min-w-0">
-                          <div className="rounded-full bg-[#F3ECF6] dark:bg-[#1F086080] flex items-center justify-center size-10 text-sm font-semibold text-[#4B0A8F] dark:text-[#8A40B0] shrink-0">
+                          <div className="relative shrink-0" onClick={(e) => e.stopPropagation()}>
+                            <Checkbox
+                              checked={selectedIds.has(student.id)}
+                              onCheckedChange={() => toggleRow(student.id)}
+                              className="absolute -top-1 -left-1 size-5"
+                              aria-label={`Select ${student.name}`}
+                            />
+                            <div className="rounded-full bg-[#F3ECF6] dark:bg-[#1F086080] flex items-center justify-center size-10 text-sm font-semibold text-[#4B0A8F] dark:text-[#8A40B0]">
                             {getInitials(student.name)}
+                          </div>
                           </div>
                           <div className="min-w-0">
                             <p className="font-medium text-sm truncate">{student.name}</p>
-                            <p className="text-xs text-muted-foreground">{student.phone || "No phone"}</p>
+                            <p className="text-xs text-muted-foreground">{student.phone || t("students.noPhone")}</p>
                           </div>
                         </div>
                         <div className="flex items-center gap-1">
@@ -718,20 +881,20 @@ export function StudentsPage() {
                           </Badge>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="size-7">
+                              <Button variant="ghost" size="icon" className="size-7" onClick={(e) => e.stopPropagation()}>
                                 <MoreHorizontal className="size-4" />
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => openDetailSheet(student)} className="cursor-pointer">
+                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openDetailSheet(student); }} className="cursor-pointer">
                                 <Eye className="size-4 mr-2" />
                                 View
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => openEditDialog(student)} className="cursor-pointer">
+                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openEditDialog(student); }} className="cursor-pointer">
                                 <Pencil className="size-4 mr-2" />
                                 Edit
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => openDeleteDialog(student)} className="text-red-600 focus:text-red-600 cursor-pointer">
+                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openDeleteDialog(student); }} className="text-red-600 focus:text-red-600 cursor-pointer">
                                 <Trash2 className="size-4 mr-2" />
                                 Deactivate
                               </DropdownMenuItem>
@@ -747,7 +910,7 @@ export function StudentsPage() {
 
                       {student.guardians.length > 0 && (
                         <div className="text-xs text-muted-foreground">
-                          <span className="font-medium text-foreground">Guardian: </span>
+                          <span className="font-medium text-foreground">{t("students.guardian")}: </span>
                           {student.guardians.map((g) => g.name).join(", ")}
                         </div>
                       )}
@@ -773,7 +936,7 @@ export function StudentsPage() {
               {pagination && pagination.totalPages > 1 && (
                 <div className="flex items-center justify-between pt-2">
                   <p className="text-xs text-muted-foreground">
-                    Page {pagination.page} of {pagination.totalPages}
+                    {t("students.pageOf", { n: pagination.page, total: pagination.totalPages })}
                   </p>
                   <div className="flex items-center gap-1">
                     <Button
@@ -807,11 +970,11 @@ export function StudentsPage() {
             >
               <EmptyState
                 icon={GraduationCap}
-                title={debouncedSearch || cityId || parkId || groupId ? "No students found" : "No students yet"}
+                title={debouncedSearch || cityId || parkId || groupId ? t("students.noStudentsFound") : t("students.noStudentsYet")}
                 description={
                   debouncedSearch || cityId || parkId || groupId
-                    ? "Try adjusting your filters."
-                    : "Add your first student to start tracking participants."
+                    ? t("students.tryAdjustingFilters")
+                    : t("students.addFirstStudent")
                 }
               />
             </motion.div>
@@ -823,17 +986,17 @@ export function StudentsPage() {
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Add Student</DialogTitle>
+            <DialogTitle>{t("students.addStudent")}</DialogTitle>
             <DialogDescription>
-              Create a new participant and assign to a group.
+              {t("students.createDesc")}
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleCreateSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="create-name">Full Name *</Label>
+              <Label htmlFor="create-name">{t("students.fullName")} *</Label>
               <Input
                 id="create-name"
-                placeholder="Student name"
+                placeholder={t("students.studentName")}
                 value={formName}
                 onChange={(e) => setFormName(e.target.value)}
                 autoFocus
@@ -845,29 +1008,29 @@ export function StudentsPage() {
               )}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="create-phone">Phone</Label>
+              <Label htmlFor="create-phone">{t("common.phone")}</Label>
               <Input
                 id="create-phone"
-                placeholder="Phone number"
+                placeholder={t("students.phoneNumber")}
                 value={formPhone}
                 onChange={(e) => setFormPhone(e.target.value)}
               />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
-                <Label htmlFor="create-gender">Gender</Label>
+                <Label htmlFor="create-gender">{t("students.gender")}</Label>
                 <Select value={formGender} onValueChange={setFormGender}>
                   <SelectTrigger id="create-gender">
-                    <SelectValue placeholder="Select gender" />
+                    <SelectValue placeholder={t("students.selectGender")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="male">Male</SelectItem>
-                    <SelectItem value="female">Female</SelectItem>
+                    <SelectItem value="male">{t("students.male")}</SelectItem>
+                    <SelectItem value="female">{t("students.female")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="create-dob">Date of Birth</Label>
+                <Label htmlFor="create-dob">{t("students.dateOfBirth")}</Label>
                 <Input
                   id="create-dob"
                   type="date"
@@ -877,10 +1040,10 @@ export function StudentsPage() {
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="create-group">Group *</Label>
+              <Label htmlFor="create-group">{t("students.group")} *</Label>
               <Select value={formGroupId} onValueChange={setFormGroupId}>
                 <SelectTrigger id="create-group">
-                  <SelectValue placeholder="Select group" />
+                  <SelectValue placeholder={t("students.selectGroup")} />
                 </SelectTrigger>
                 <SelectContent className="max-h-64">
                   {allGroups?.map((g) => (
@@ -898,14 +1061,14 @@ export function StudentsPage() {
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={closeCreateDialog} disabled={createMutation.isPending}>
-                Cancel
+                {t("common.cancel")}
               </Button>
               <Button
                 type="submit"
                 className="bg-[#4B0A8F] hover:bg-[#4B0A8FE6] text-white"
                 disabled={createMutation.isPending || !formName.trim() || !formGroupId}
               >
-                {createMutation.isPending ? "Creating..." : "Create Student"}
+                {createMutation.isPending ? t("students.creating") : t("students.createStudent")}
               </Button>
             </DialogFooter>
           </form>
@@ -916,9 +1079,9 @@ export function StudentsPage() {
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Edit Student</DialogTitle>
+            <DialogTitle>{t("students.editStudent")}</DialogTitle>
             <DialogDescription>
-              Update student information and group assignment.
+              {t("students.editDesc")}
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleEditSubmit} className="space-y-4">
@@ -1003,14 +1166,14 @@ export function StudentsPage() {
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={closeEditDialog} disabled={updateMutation.isPending}>
-                Cancel
+                {t("common.cancel")}
               </Button>
               <Button
                 type="submit"
                 className="bg-[#4B0A8F] hover:bg-[#4B0A8FE6] text-white"
                 disabled={updateMutation.isPending}
               >
-                {updateMutation.isPending ? "Saving..." : "Save Changes"}
+                {updateMutation.isPending ? t("students.saving") : t("students.saveChanges")}
               </Button>
             </DialogFooter>
           </form>
@@ -1018,135 +1181,64 @@ export function StudentsPage() {
       </Dialog>
 
       {/* Detail Sheet */}
-      <Sheet open={detailOpen} onOpenChange={setDetailOpen}>
-        <SheetContent>
-          <SheetHeader>
-            <SheetTitle>Student Details</SheetTitle>
-            <SheetDescription>Complete participant information</SheetDescription>
-          </SheetHeader>
-          {selectedStudent && (
-            <div className="mt-6 space-y-6">
-              {/* Avatar + Name */}
-              <div className="flex items-center gap-4">
-                <div className="rounded-full bg-[#F3ECF6] dark:bg-[#1F086080] flex items-center justify-center size-16 text-xl font-bold text-[#4B0A8F] dark:text-[#8A40B0]">
-                  {getInitials(selectedStudent.name)}
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold">{selectedStudent.name}</h3>
-                  <div className="flex items-center gap-2 mt-1">
-                    <Badge
-                      variant="outline"
-                      className={
-                        selectedStudent.state === "active"
-                          ? "text-[#4B0A8F] border-[#D4B8E3] bg-[#F3ECF6] dark:text-[#8A40B0] dark:border-[#2A0C8F] dark:bg-[#1F0860]"
-                          : "text-muted-foreground border-muted bg-muted/50"
-                      }
-                    >
-                      {selectedStudent.state}
-                    </Badge>
-                    {selectedStudent.gender && (
-                      <span className="text-xs text-muted-foreground capitalize">{selectedStudent.gender}</span>
-                    )}
-                  </div>
-                </div>
-              </div>
+      <ParticipantDetailSheet
+        open={detailOpen}
+        onOpenChange={(open) => {
+          if (!open) closeDetailSheet();
+          else setDetailOpen(true);
+        }}
+        participantId={selectedDetailId}
+        participantName={selectedStudent?.name}
+        onEdit={selectedStudent ? () => {
+          closeDetailSheet();
+          openEditDialog(selectedStudent);
+        } : undefined}
+      />
 
-              {/* Info Grid */}
-              <div className="grid gap-4">
-                {selectedStudent.phone && (
-                  <div className="flex items-center gap-3">
-                    <div className="rounded-lg bg-[#F3ECF6] p-2 dark:bg-[#1F086080]">
-                      <Phone className="size-4 text-[#4B0A8F] dark:text-[#8A40B0]" />
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Phone</p>
-                      <p className="text-sm font-medium">{selectedStudent.phone}</p>
-                    </div>
-                  </div>
-                )}
-
-                {selectedStudent.dateOfBirth && (
-                  <div className="flex items-center gap-3">
-                    <div className="rounded-lg bg-[#F3ECF6] p-2 dark:bg-[#1F086080]">
-                      <Calendar className="size-4 text-[#4B0A8F] dark:text-[#8A40B0]" />
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Date of Birth</p>
-                      <p className="text-sm font-medium">{formatPKT(new Date(selectedStudent.dateOfBirth))}</p>
-                    </div>
-                  </div>
-                )}
-
-                <div className="flex items-center gap-3">
-                  <div className="rounded-lg bg-[#F3ECF6] p-2 dark:bg-[#1F086080]">
-                    <Calendar className="size-4 text-[#4B0A8F] dark:text-[#8A40B0]" />
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Joined</p>
-                    <p className="text-sm font-medium">{formatPKT(new Date(selectedStudent.joinedAt))}</p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <div className="rounded-lg bg-[#F3ECF6] p-2 dark:bg-[#1F086080]">
-                    <MapPin className="size-4 text-[#4B0A8F] dark:text-[#8A40B0]" />
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Location</p>
-                    <p className="text-sm font-medium">
-                      {selectedStudent.group.name} → {selectedStudent.group.batch.name} → {selectedStudent.group.batch.park.name} → {selectedStudent.group.batch.park.city.name}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Attendance */}
-              <div className="space-y-2">
-                <p className="text-sm font-medium">30-Day Attendance</p>
-                <div className="flex items-center gap-3">
-                  <div className="flex-1 h-2.5 bg-muted rounded-full overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all ${getRateBarColor(selectedStudent.attendanceRate)}`}
-                      style={{ width: `${selectedStudent.attendanceRate ?? 0}%` }}
-                    />
-                  </div>
-                  <span className={`text-sm font-semibold px-2 py-0.5 rounded ${getRateColor(selectedStudent.attendanceRate)}`}>
-                    {selectedStudent.attendanceRate !== null ? `${selectedStudent.attendanceRate}%` : "N/A"}
-                  </span>
-                </div>
-                {selectedStudent.attendanceTotal > 0 && (
-                  <p className="text-xs text-muted-foreground">
-                    {selectedStudent.attendancePresent} present out of {selectedStudent.attendanceTotal} events
-                  </p>
-                )}
-              </div>
-
-              {/* Guardians */}
-              {selectedStudent.guardians.length > 0 && (
-                <div className="space-y-2">
-                  <p className="text-sm font-medium">Guardians</p>
-                  <div className="space-y-2">
-                    {selectedStudent.guardians.map((g) => (
-                      <div key={g.id} className="flex items-center gap-3 p-2 rounded-lg bg-muted/50">
-                        <div className="rounded-full bg-[#D4B8E3] dark:bg-[#1F086080] flex items-center justify-center size-8 text-xs font-semibold text-[#4B0A8F] dark:text-[#8A40B0]">
-                          {getInitials(g.name)}
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium">{g.name}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {g.phone}
-                            {g.relation && ` · ${g.relation}`}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+      {/* Move to Group Dialog */}
+      <Dialog open={moveGroupOpen} onOpenChange={(open) => { setMoveGroupOpen(open); if (!open) setMoveGroupId(""); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("students.moveStudentsToGroup", { n: selectedIds.size })}</DialogTitle>
+            <DialogDescription>
+              {t("students.moveStudentsDesc")}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>{t("students.targetGroup")}</Label>
+              <Select value={moveGroupId} onValueChange={setMoveGroupId}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder={t("students.selectGroup")} />
+                </SelectTrigger>
+                <SelectContent className="max-h-64">
+                  {allGroups?.map((g) => (
+                    <SelectItem key={g.id} value={g.id}>
+                      {g.name} — {g.batch.name} ({g.batch.park.name})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-          )}
-        </SheetContent>
-      </Sheet>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setMoveGroupOpen(false)} disabled={batchMutation.isPending}>
+              {t("common.cancel")}
+            </Button>
+            <Button
+              className="bg-[#4B0A8F] hover:bg-[#4B0A8FE6] text-white"
+              disabled={!moveGroupId || batchMutation.isPending}
+              onClick={() => {
+                batchMutation.mutate({ action: "change-group", participantIds: Array.from(selectedIds), groupId: moveGroupId });
+                setMoveGroupOpen(false);
+                setMoveGroupId("");
+              }}
+            >
+              {batchMutation.isPending ? t("students.moving") : t("students.moveStudents")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Delete Confirmation */}
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
@@ -1168,7 +1260,7 @@ export function StudentsPage() {
                 setSelectedStudent(null);
               }}
             >
-              Cancel
+              {t("common.cancel")}
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
@@ -1177,7 +1269,7 @@ export function StudentsPage() {
               className="bg-red-600 hover:bg-red-700 text-white"
               disabled={deleteMutation.isPending}
             >
-              {deleteMutation.isPending ? "Deactivating..." : "Deactivate"}
+              {deleteMutation.isPending ? t("students.deactivating") : t("students.deactivate")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

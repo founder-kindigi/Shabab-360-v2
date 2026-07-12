@@ -4,7 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { todayPKT, endOfTodayPKT, formatPKT, toPKT } from "@/lib/timezone";
 import { logAudit } from "@/lib/audit";
-import { subDays } from "date-fns";
+import { subDays, startOfMonth, endOfMonth } from "date-fns";
 
 
 type SessionUser = {
@@ -60,9 +60,58 @@ export async function GET() {
     const todayEnd = endOfTodayPKT();
 
     // ── Date ranges ──
-    const thirtyDaysAgo = subDays(todayStart, 29); // 30 days inclusive
-    const sevenDaysAgo = subDays(todayStart, 6);   // 7 days inclusive
-    const ninetyDaysAgo = subDays(todayStart, 89);  // 90 days inclusive
+    const thirtyDaysAgo = subDays(todayStart, 29);
+    const sevenDaysAgo = subDays(todayStart, 6);
+    const ninetyDaysAgo = subDays(todayStart, 89);
+
+    // ── Monthly heatmap: get all records for current month ──
+    const monthStartPKT = startOfMonth(todayStart);
+    const monthEndPKT = endOfMonth(todayStart);
+
+    const recordsThisMonth = await db.attendanceRecord.findMany({
+      where: {
+        participantId: participant.id,
+        event: {
+          groupId,
+          eventDate: { gte: monthStartPKT, lte: monthEndPKT },
+        },
+      },
+      include: {
+        event: {
+          select: { eventDate: true },
+        },
+      },
+    });
+
+    // Build a map: dateKey -> status (last status if multiple events per day)
+    const monthStatusMap = new Map<string, string>();
+    for (const r of recordsThisMonth) {
+      const dateKey = formatPKT(new Date(r.event.eventDate), "yyyy-MM-dd");
+      // If there are multiple events, prefer present > late > excused > absent
+      const existing = monthStatusMap.get(dateKey);
+      if (!existing) {
+        monthStatusMap.set(dateKey, r.status);
+      } else {
+        const priority = ["present", "late", "excused", "absent"];
+        if (priority.indexOf(r.status) < priority.indexOf(existing)) {
+          monthStatusMap.set(dateKey, r.status);
+        }
+      }
+    }
+
+    // Generate array of { day, dayOfWeek, status } for each day of the month
+    const daysInMonth = monthEndPKT.getDate();
+    const heatmapData: Array<{ day: number; dayOfWeek: number; status: string | null }> = [];
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dayDate = new Date(monthStartPKT.getFullYear(), monthStartPKT.getMonth(), d);
+      const dateKey = formatPKT(dayDate, "yyyy-MM-dd");
+      const status = monthStatusMap.get(dateKey) || null;
+      heatmapData.push({
+        day: d,
+        dayOfWeek: dayDate.getDay(), // 0=Sun
+        status,
+      });
+    }
 
     // ── Attendance records in last 30 days ──
     const records30 = await db.attendanceRecord.findMany({
@@ -87,7 +136,6 @@ export async function GET() {
     const excused30 = records30.filter((r) => r.status === "excused").length;
     const total30 = records30.length;
 
-    // 30-day rate: (present + late) / total
     const rate30 = total30 > 0 ? Math.round(((present30 + late30) / total30) * 100) : 0;
 
     // ── 7-day rate ──
@@ -100,8 +148,7 @@ export async function GET() {
     const total7 = records7.length;
     const rate7 = total7 > 0 ? Math.round(((present7 + late7) / total7) * 100) : 0;
 
-    // ── Current streak (consecutive days with "present" going backwards from today) ──
-    // Build a map of date -> statuses for all records in last 90 days
+    // ── Current streak ──
     const records90 = await db.attendanceRecord.findMany({
       where: {
         participantId: participant.id,
@@ -124,7 +171,6 @@ export async function GET() {
       dateStatusMap.set(dateKey, existing);
     }
 
-    // Current streak: walk backwards from today
     let currentStreak = 0;
     for (let i = 0; i <= 90; i++) {
       const dayDate = subDays(todayStart, i);
@@ -133,16 +179,12 @@ export async function GET() {
       if (statuses && statuses.some((s) => s === "present")) {
         currentStreak++;
       } else {
-        // If there was no event on this day, skip it (don't break)
-        // Only break if there was an event but no "present"
         if (statuses) break;
       }
     }
 
-    // Longest streak in last 90 days
     let longestStreak = 0;
     let tempStreak = 0;
-    // Build sorted array of unique dates from 90 days ago to today
     const allDates: string[] = [];
     for (let i = 89; i >= 0; i--) {
       const dayDate = subDays(todayStart, i);
@@ -154,10 +196,8 @@ export async function GET() {
         tempStreak++;
         if (tempStreak > longestStreak) longestStreak = tempStreak;
       } else if (statuses) {
-        // Had event but not present -> break
         tempStreak = 0;
       }
-      // No event -> don't reset
     }
 
     // ── Today's event ──
@@ -189,7 +229,6 @@ export async function GET() {
         where: { groupId, state: "active" },
       });
 
-      // Find this student's record for today's event
       const myRecord = await db.attendanceRecord.findUnique({
         where: {
           eventId_participantId: {
@@ -214,6 +253,29 @@ export async function GET() {
       };
     }
 
+    // ── Upcoming events (next attendance event) ──
+    const upcomingEvents = await db.attendanceEvent.findMany({
+      where: {
+        groupId,
+        eventDate: { gt: todayEnd },
+        isClosed: false,
+      },
+      orderBy: { eventDate: "asc" },
+      take: 1,
+      select: {
+        id: true,
+        title: true,
+        eventDate: true,
+      },
+    });
+
+    const upcomingEvent = upcomingEvents.length > 0 ? {
+      id: upcomingEvents[0].id,
+      title: upcomingEvents[0].title,
+      eventDate: upcomingEvents[0].eventDate.toISOString(),
+      eventDateFormatted: formatPKT(new Date(upcomingEvents[0].eventDate), "EEE, dd MMM yyyy"),
+    } : null;
+
     // ── Last 10 attendance records ──
     const recentRecords = records30.slice(0, 10).map((r) => ({
       date: formatPKT(new Date(r.event.eventDate), "dd MMM yyyy"),
@@ -223,7 +285,7 @@ export async function GET() {
       groupName: participant.group.name,
     }));
 
-    // ── 7-day daily trend for weekly chart ──
+    // ── 7-day daily trend ──
     const dailyTrend: Array<{ date: string; label: string; rate: number; hasEvent: boolean }> = [];
     for (let i = 6; i >= 0; i--) {
       const dayDate = subDays(todayStart, i);
@@ -238,6 +300,50 @@ export async function GET() {
       const rate = hasEvent ? Math.round((presentCount / dayRecords.length) * 100) : 0;
       dailyTrend.push({ date: dateKey, label, rate, hasEvent });
     }
+
+    // ── Fee summary with next due date ──
+    const batchId = participant.group.batchId;
+    const feeEvents = await db.feeEvent.findMany({
+      where: { batchId, isActive: true },
+      select: { id: true, title: true, amount: true, dueDate: true },
+      orderBy: { dueDate: "asc" },
+    });
+    const feeEventIds = feeEvents.map((f) => f.id);
+    const totalExpected = feeEvents.reduce((sum, f) => sum + f.amount, 0);
+
+    let totalPaid = 0;
+    let nextDueDate: string | null = null;
+
+    if (feeEventIds.length > 0) {
+      const paymentSum = await db.payment.aggregate({
+        where: {
+          participantId: participant.id,
+          feeEventId: { in: feeEventIds },
+        },
+        _sum: { amount: true },
+      });
+      totalPaid = paymentSum._sum.amount || 0;
+
+      // Find next unpaid fee event
+      const paidEventIds = new Set(
+        (await db.payment.findMany({
+          where: {
+            participantId: participant.id,
+            feeEventId: { in: feeEventIds },
+          },
+          select: { feeEventId: true },
+        })).map((p) => p.feeEventId)
+      );
+
+      for (const fe of feeEvents) {
+        if (!paidEventIds.has(fe.id)) {
+          nextDueDate = fe.dueDate ? formatPKT(new Date(fe.dueDate), "dd MMM yyyy") : null;
+          break;
+        }
+      }
+    }
+
+    const outstanding = Math.max(totalExpected - totalPaid, 0);
 
     return NextResponse.json({
       participant: {
@@ -268,6 +374,14 @@ export async function GET() {
       },
       dailyTrend,
       todayDate: formatPKT(new Date(), "EEEE, dd MMMM yyyy"),
+      feeSummary: {
+        totalExpected: Math.round(totalExpected),
+        totalPaid: Math.round(totalPaid),
+        outstanding: Math.round(outstanding),
+        nextDueDate,
+      },
+      heatmapData,
+      upcomingEvent,
     });
   } catch (error) {
     console.error("Student dashboard error:", error);

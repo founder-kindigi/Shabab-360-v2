@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,9 +17,44 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogClose,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { UserPlus, ArrowRight, Users, Mail, Phone, UserCog, Shield } from "lucide-react";
+import {
+  UserPlus,
+  ArrowRight,
+  Users,
+  Mail,
+  Phone,
+  UserCog,
+  Shield,
+  Search,
+  MoreHorizontal,
+  Pencil,
+  KeyRound,
+  UserCheck,
+  UserX,
+  CheckCircle2,
+  XCircle,
+  AlertTriangle,
+  FilterX,
+} from "lucide-react";
 import { useAppStore } from "@/stores/useAppStore";
+import { cn } from "@/lib/utils";
 import type { UserRole } from "@/types";
 
 // ─── Types ───────────────────────────────────────────────────────
@@ -86,6 +121,17 @@ const ROLE_COLORS: Record<string, string> = {
   student: "#FF0015",
 };
 
+const ROLE_BADGE_DARK: Record<string, string> = {
+  super_admin: "#8A40B0",
+  program_admin: "#D4B8E3",
+  city_head: "#A060D0",
+  park_admin: "#B070D0",
+  park_lead: "#6040C0",
+  murabbi: "#FF4060",
+  guardian: "#9A8AAA",
+  student: "#FF5050",
+};
+
 // Roles that show city selector
 const CITY_ROLES = ["city_head", "park_admin", "park_lead", "murabbi", "guardian"];
 // Roles that show park selector
@@ -116,10 +162,78 @@ function formatDate(dateStr: string) {
   });
 }
 
+function getUserStatus(user: UserWithMeta): "active" | "inactive" | "pending_reset" {
+  if (!user.isActive || (user.staffMeta && !user.staffMeta.isActive)) return "inactive";
+  if (user.mustResetPwd) return "pending_reset";
+  return "active";
+}
+
+function StatusBadge({ status }: { status: "active" | "inactive" | "pending_reset" }) {
+  switch (status) {
+    case "active":
+      return (
+        <Badge className="bg-emerald-500/10 text-emerald-600 border-0 dark:text-emerald-400 dark:bg-emerald-500/20 text-[10px] font-semibold px-2 py-0.5 gap-1">
+          <CheckCircle2 className="size-3" />
+          Active
+        </Badge>
+      );
+    case "inactive":
+      return (
+        <Badge className="bg-red-500/10 text-red-600 border-0 dark:text-red-400 dark:bg-red-500/20 text-[10px] font-semibold px-2 py-0.5 gap-1">
+          <XCircle className="size-3" />
+          Inactive
+        </Badge>
+      );
+    case "pending_reset":
+      return (
+        <Badge className="bg-amber-500/10 text-amber-600 border-0 dark:text-amber-400 dark:bg-amber-500/20 text-[10px] font-semibold px-2 py-0.5 gap-1">
+          <KeyRound className="size-3" />
+          Pending Reset
+        </Badge>
+      );
+  }
+}
+
+function RoleBadge({ role }: { role: string }) {
+  const color = ROLE_COLORS[role] || "#6B5A7A";
+  const darkColor = ROLE_BADGE_DARK[role] || "#9A8AAA";
+  const label = role
+    .split("_")
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+
+  return (
+    <Badge
+      variant="outline"
+      className="text-[10px] px-2 py-0.5 font-semibold leading-tight"
+      style={{
+        borderColor: `color-mix(in srgb, ${color} 60%, transparent)`,
+        color: color,
+        backgroundColor: color + "12",
+      }}
+    >
+      <span
+        className="inline-block w-1.5 h-1.5 rounded-full mr-1.5 shrink-0"
+        style={{ backgroundColor: color }}
+      />
+      {label}
+    </Badge>
+  );
+}
+
 const fadeUp = {
   initial: { opacity: 0, y: 16 },
   animate: { opacity: 1, y: 0 },
   transition: { duration: 0.3 },
+};
+
+const listItem = {
+  hidden: { opacity: 0, x: 8 },
+  visible: (i: number) => ({
+    opacity: 1,
+    x: 0,
+    transition: { delay: i * 0.04, duration: 0.25, ease: "easeOut" },
+  }),
 };
 
 // ─── Component ───────────────────────────────────────────────────
@@ -137,6 +251,15 @@ export function AccessProvisioningPage() {
   const [formParkId, setFormParkId] = useState("");
   const [formGroupId, setFormGroupId] = useState("");
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+
+  // Search state for recent invites
+  const [searchQuery, setSearchQuery] = useState("");
+
+  // Quick action dialog
+  const [actionDialog, setActionDialog] = useState<{
+    type: "deactivate" | "activate" | "reset_pwd";
+    user: UserWithMeta;
+  } | null>(null);
 
   // ─── Data fetching ─────────────────────────────────────────────
 
@@ -195,13 +318,25 @@ export function AccessProvisioningPage() {
     enabled: batchIds.length > 0,
   });
 
-  // Fetch recent invites (last 10 users)
-  const { data: recentUsers, isLoading: recentLoading } = useQuery<UserWithMeta[]>({
+  // Fetch recent invites (last 20 users for search/filter)
+  const { data: _recentData, isLoading: recentLoading } = useQuery<{ data: UserWithMeta[] }>({
     queryKey: ["admin-recent-invites"],
     queryFn: () =>
-      fetch("/api/admin/users?limit=10").then((r) => r.json()),
+      fetch("/api/admin/users?pageSize=20").then((r) => r.json()),
     staleTime: 15000,
   });
+  const recentUsers = _recentData?.data || [];
+
+  // Filtered users by search
+  const filteredUsers = useMemo(() => {
+    if (!searchQuery.trim()) return recentUsers;
+    const q = searchQuery.toLowerCase().trim();
+    return recentUsers.filter(
+      (u) =>
+        (u.name && u.name.toLowerCase().includes(q)) ||
+        u.email.toLowerCase().includes(q)
+    );
+  }, [recentUsers, searchQuery]);
 
   // ─── Mutations ─────────────────────────────────────────────────
 
@@ -244,6 +379,53 @@ export function AccessProvisioningPage() {
       } else {
         toast.error("Failed to create user");
       }
+    },
+  });
+
+  // Quick action mutations
+  const toggleActiveMutation = useMutation({
+    mutationFn: ({ userId, isActive }: { userId: string; isActive: boolean }) =>
+      fetch(`/api/admin/users/${userId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isActive }),
+      }).then((r) => {
+        if (!r.ok) return r.json().then((e) => Promise.reject(e));
+        return r.json();
+      }),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-recent-invites"] });
+      toast.success(
+        variables.isActive
+          ? "User activated successfully"
+          : "User deactivated successfully"
+      );
+      setActionDialog(null);
+    },
+    onError: () => {
+      toast.error("Failed to update user status");
+    },
+  });
+
+  const resetPwdMutation = useMutation({
+    mutationFn: (userId: string) =>
+      fetch(`/api/admin/users/${userId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mustResetPwd: true }),
+      }).then((r) => {
+        if (!r.ok) return r.json().then((e) => Promise.reject(e));
+        return r.json();
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-recent-invites"] });
+      toast.success("Password reset triggered. User will be prompted on next login.");
+      setActionDialog(null);
+    },
+    onError: () => {
+      toast.error("Failed to trigger password reset");
     },
   });
 
@@ -348,13 +530,13 @@ export function AccessProvisioningPage() {
         {/* ─── Left Panel: Create User Form (3 cols) ─── */}
         <motion.div {...fadeUp} className="lg:col-span-3 space-y-6">
           {/* Personal Info */}
-          <Card className="border-border/60">
+          <Card className="border-border/60 bg-card">
             <CardHeader className="pb-4">
               <CardTitle className="text-base font-semibold flex items-center gap-2">
                 <Users className="size-4 text-[#4B0A8F] dark:text-[#8A40B0]" />
                 Personal Information
               </CardTitle>
-              <CardDescription className="text-xs">
+              <CardDescription className="text-xs text-muted-foreground">
                 Enter the user&apos;s basic details
               </CardDescription>
             </CardHeader>
@@ -421,13 +603,13 @@ export function AccessProvisioningPage() {
           </Card>
 
           {/* Role & Assignment */}
-          <Card className="border-border/60">
+          <Card className="border-border/60 bg-card">
             <CardHeader className="pb-4">
               <CardTitle className="text-base font-semibold flex items-center gap-2">
                 <Shield className="size-4 text-[#A0006B] dark:text-[#C94D99]" />
                 Role & Assignment
               </CardTitle>
-              <CardDescription className="text-xs">
+              <CardDescription className="text-xs text-muted-foreground">
                 Assign a role and organizational scope
               </CardDescription>
             </CardHeader>
@@ -470,7 +652,7 @@ export function AccessProvisioningPage() {
                 )}
               </motion.div>
 
-              {/* City select — shown for city_head, park_admin, park_lead, murabbi, guardian */}
+              {/* City select */}
               {formRole && CITY_ROLES.includes(formRole) && (
                 <motion.div
                   initial={{ opacity: 0, height: 0 }}
@@ -499,7 +681,7 @@ export function AccessProvisioningPage() {
                 </motion.div>
               )}
 
-              {/* Park select — shown for park_admin, park_lead, murabbi, student */}
+              {/* Park select */}
               {formRole && PARK_ROLES.includes(formRole) && (
                 <motion.div
                   initial={{ opacity: 0, height: 0 }}
@@ -608,19 +790,21 @@ export function AccessProvisioningPage() {
           transition={{ delay: 0.15 }}
           className="lg:col-span-2"
         >
-          <Card className="border-border/60 h-full">
+          <Card className="border-border/60 bg-card h-full flex flex-col">
             <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <div>
+              <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0">
                   <CardTitle className="text-base font-semibold">Recent Invites</CardTitle>
-                  <CardDescription className="text-xs mt-0.5">
-                    Last 10 created users
+                  <CardDescription className="text-xs mt-0.5 text-muted-foreground">
+                    {recentUsers.length > 0
+                      ? `${recentUsers.length} users total`
+                      : "Last 20 created users"}
                   </CardDescription>
                 </div>
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-xs text-[#4B0A8F] hover:text-[#6B20A0] hover:bg-[#F3ECF6] dark:text-[#8A40B0] dark:hover:bg-[#1F086080]"
+                  className="text-xs text-[#4B0A8F] hover:text-[#6B20A0] hover:bg-[#F3ECF6] dark:text-[#8A40B0] dark:hover:bg-[#1F086080] shrink-0"
                   onClick={() => navigateTo("admin-users")}
                 >
                   View All
@@ -628,7 +812,20 @@ export function AccessProvisioningPage() {
                 </Button>
               </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="flex-1 flex flex-col min-h-0">
+              {/* ─── Search Bar ──────────────────────────────────── */}
+              {recentUsers.length > 0 && (
+                <div className="relative mb-3">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
+                  <Input
+                    placeholder="Search by name or email..."
+                    className="h-8 pl-8 text-xs"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                </div>
+              )}
+
               {recentLoading ? (
                 <div className="space-y-3">
                   {Array.from({ length: 5 }).map((_, i) => (
@@ -641,73 +838,349 @@ export function AccessProvisioningPage() {
                     </div>
                   ))}
                 </div>
-              ) : recentUsers && recentUsers.length > 0 ? (
-                <div className="space-y-1 max-h-[480px] overflow-y-auto custom-scrollbar">
-                  {recentUsers.map((user) => {
-                    const roleColor = ROLE_COLORS[user.staffMeta?.role || ""] || "#6B5A7A";
-                    const roleLabel = user.staffMeta?.role
-                      ? user.staffMeta.role
-                          .split("_")
-                          .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-                          .join(" ")
-                      : "Unknown";
-                    return (
-                      <motion.div
-                        key={user.id}
-                        initial={{ opacity: 0, x: 8 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-muted/50 transition-colors"
-                      >
-                        {/* Avatar initials */}
-                        <div
-                          className="flex items-center justify-center size-9 rounded-full text-white text-xs font-semibold shrink-0"
-                          style={{ backgroundColor: roleColor }}
-                        >
-                          {getInitials(user.name, user.email)}
-                        </div>
+              ) : filteredUsers.length > 0 ? (
+                <div className="flex-1 overflow-y-auto custom-scrollbar -mx-1 px-1">
+                  {/* ─── Desktop Table View ──────────────────────── */}
+                  <div className="hidden md:block">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b border-border text-[10px] uppercase tracking-wider text-muted-foreground">
+                          <th className="text-left pb-2 pl-2 font-medium">User</th>
+                          <th className="text-left pb-2 font-medium">Role</th>
+                          <th className="text-left pb-2 font-medium">Status</th>
+                          <th className="text-right pb-2 pr-1 font-medium">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border/50">
+                        <AnimatePresence>
+                          {filteredUsers.map((user, i) => {
+                            const status = getUserStatus(user);
+                            const role = user.staffMeta?.role || "";
+                            return (
+                              <motion.tr
+                                key={user.id}
+                                custom={i}
+                                variants={listItem}
+                                initial="hidden"
+                                animate="visible"
+                                className="group"
+                              >
+                                <td className="py-2.5 pl-2">
+                                  <div className="flex items-center gap-2.5">
+                                    <div
+                                      className="flex items-center justify-center size-8 rounded-full text-white text-[10px] font-semibold shrink-0"
+                                      style={{ backgroundColor: ROLE_COLORS[role] || "#6B5A7A" }}
+                                    >
+                                      {getInitials(user.name, user.email)}
+                                    </div>
+                                    <div className="min-w-0">
+                                      <p className="text-xs font-medium truncate text-foreground">
+                                        {user.name || "No name"}
+                                      </p>
+                                      <p className="text-[10px] text-muted-foreground truncate">
+                                        {user.email}
+                                      </p>
+                                    </div>
+                                  </div>
+                                </td>
+                                <td className="py-2.5">
+                                  {role ? (
+                                    <RoleBadge role={role} />
+                                  ) : (
+                                    <span className="text-[10px] text-muted-foreground">—</span>
+                                  )}
+                                </td>
+                                <td className="py-2.5">
+                                  <StatusBadge status={status} />
+                                </td>
+                                <td className="py-2.5 pr-1 text-right">
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="size-7 p-0 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground"
+                                      >
+                                        <MoreHorizontal className="size-4" />
+                                      </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end" className="w-48">
+                                      <DropdownMenuItem
+                                        onClick={() => navigateTo("admin-users")}
+                                        className="text-xs gap-2"
+                                      >
+                                        <Pencil className="size-3.5" />
+                                        Edit Assignment
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem
+                                        onClick={() =>
+                                          setActionDialog({ type: "reset_pwd", user })
+                                        }
+                                        className="text-xs gap-2"
+                                      >
+                                        <KeyRound className="size-3.5" />
+                                        Reset Password
+                                      </DropdownMenuItem>
+                                      <DropdownMenuSeparator />
+                                      {status === "active" || status === "pending_reset" ? (
+                                        <DropdownMenuItem
+                                          onClick={() =>
+                                            setActionDialog({ type: "deactivate", user })
+                                          }
+                                          className="text-xs gap-2 text-red-600 dark:text-red-400 focus:text-red-600 dark:focus:text-red-400"
+                                        >
+                                          <UserX className="size-3.5" />
+                                          Deactivate User
+                                        </DropdownMenuItem>
+                                      ) : (
+                                        <DropdownMenuItem
+                                          onClick={() =>
+                                            setActionDialog({ type: "activate", user })
+                                          }
+                                          className="text-xs gap-2 text-emerald-600 dark:text-emerald-400 focus:text-emerald-600 dark:focus:text-emerald-400"
+                                        >
+                                          <UserCheck className="size-3.5" />
+                                          Activate User
+                                        </DropdownMenuItem>
+                                      )}
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
+                                </td>
+                              </motion.tr>
+                            );
+                          })}
+                        </AnimatePresence>
+                      </tbody>
+                    </table>
+                  </div>
 
-                        {/* Info */}
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">
-                            {user.name || "No name"}
-                          </p>
-                          <p className="text-xs text-muted-foreground truncate">
-                            {user.email}
-                          </p>
-                        </div>
-
-                        {/* Role badge + date */}
-                        <div className="flex flex-col items-end gap-1 shrink-0">
-                          <Badge
-                            variant="outline"
-                            className="text-[10px] px-1.5 py-0 leading-tight font-medium"
-                            style={{
-                              borderColor: roleColor,
-                              color: roleColor,
-                              backgroundColor: roleColor + "15",
-                            }}
+                  {/* ─── Mobile Card View ───────────────────────── */}
+                  <div className="md:hidden space-y-2">
+                    <AnimatePresence>
+                      {filteredUsers.map((user, i) => {
+                        const status = getUserStatus(user);
+                        const role = user.staffMeta?.role || "";
+                        return (
+                          <motion.div
+                            key={user.id}
+                            custom={i}
+                            variants={listItem}
+                            initial="hidden"
+                            animate="visible"
+                            className="rounded-lg border border-border/60 bg-card p-3 space-y-2"
                           >
-                            {roleLabel}
-                          </Badge>
-                          <span className="text-[10px] text-muted-foreground">
-                            {formatDate(user.createdAt)}
-                          </span>
-                        </div>
-                      </motion.div>
-                    );
-                  })}
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                <div
+                                  className="flex items-center justify-center size-9 rounded-full text-white text-[10px] font-semibold shrink-0"
+                                  style={{
+                                    backgroundColor: ROLE_COLORS[role] || "#6B5A7A",
+                                  }}
+                                >
+                                  {getInitials(user.name, user.email)}
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="text-xs font-medium truncate text-foreground">
+                                    {user.name || "No name"}
+                                  </p>
+                                  <p className="text-[10px] text-muted-foreground truncate">
+                                    {user.email}
+                                  </p>
+                                </div>
+                              </div>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="size-7 p-0 text-muted-foreground hover:text-foreground shrink-0"
+                                  >
+                                    <MoreHorizontal className="size-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-48">
+                                  <DropdownMenuItem
+                                    onClick={() => navigateTo("admin-users")}
+                                    className="text-xs gap-2"
+                                  >
+                                    <Pencil className="size-3.5" />
+                                    Edit Assignment
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    onClick={() =>
+                                      setActionDialog({ type: "reset_pwd", user })
+                                    }
+                                    className="text-xs gap-2"
+                                  >
+                                    <KeyRound className="size-3.5" />
+                                    Reset Password
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  {status === "active" || status === "pending_reset" ? (
+                                    <DropdownMenuItem
+                                      onClick={() =>
+                                        setActionDialog({ type: "deactivate", user })
+                                      }
+                                      className="text-xs gap-2 text-red-600 dark:text-red-400 focus:text-red-600 dark:focus:text-red-400"
+                                    >
+                                      <UserX className="size-3.5" />
+                                      Deactivate User
+                                    </DropdownMenuItem>
+                                  ) : (
+                                    <DropdownMenuItem
+                                      onClick={() =>
+                                        setActionDialog({ type: "activate", user })
+                                      }
+                                      className="text-xs gap-2 text-emerald-600 dark:text-emerald-400 focus:text-emerald-600 dark:focus:text-emerald-400"
+                                    >
+                                      <UserCheck className="size-3.5" />
+                                      Activate User
+                                    </DropdownMenuItem>
+                                  )}
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              {role && <RoleBadge role={role} />}
+                              <StatusBadge status={status} />
+                            </div>
+                          </motion.div>
+                        );
+                      })}
+                    </AnimatePresence>
+                  </div>
                 </div>
+              ) : recentUsers.length > 0 && searchQuery ? (
+                /* ─── No search results ───────────────────────────── */
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="flex-1 flex flex-col items-center justify-center py-8 text-center"
+                >
+                  <div className="rounded-2xl bg-muted/60 p-4 ring-1 ring-border mb-3">
+                    <FilterX className="size-6 text-muted-foreground/60" />
+                  </div>
+                  <p className="text-sm font-medium text-foreground">No matches found</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    No users match &quot;{searchQuery}&quot;
+                  </p>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-xs mt-3 text-[#4B0A8F] dark:text-[#8A40B0]"
+                    onClick={() => setSearchQuery("")}
+                  >
+                    Clear search
+                  </Button>
+                </motion.div>
               ) : (
-                <div className="text-center py-8 text-muted-foreground">
-                  <Users className="size-8 mx-auto mb-2 opacity-40" />
-                  <p className="text-sm">No users created yet</p>
-                  <p className="text-xs mt-0.5">Invite your first team member</p>
+                /* ─── Empty state ──────────────────────────────────── */
+                <div className="flex-1 flex flex-col items-center justify-center py-8 text-center">
+                  <div className="rounded-2xl bg-muted/60 p-5 ring-1 ring-border mb-3">
+                    <Users className="size-8 text-muted-foreground/60" />
+                  </div>
+                  <p className="text-sm font-medium text-foreground">
+                    No users created yet
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Invite your first team member using the form
+                  </p>
                 </div>
               )}
             </CardContent>
           </Card>
         </motion.div>
       </div>
+
+      {/* ─── Quick Action Confirmation Dialog ────────────────────── */}
+      <Dialog
+        open={!!actionDialog}
+        onOpenChange={(open) => !open && setActionDialog(null)}
+      >
+        <DialogContent className="bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-foreground">
+              {actionDialog?.type === "deactivate" && (
+                <UserX className="size-4 text-red-500" />
+              )}
+              {actionDialog?.type === "activate" && (
+                <UserCheck className="size-4 text-emerald-500" />
+              )}
+              {actionDialog?.type === "reset_pwd" && (
+                <KeyRound className="size-4 text-amber-500" />
+              )}
+              {actionDialog?.type === "deactivate" && "Deactivate User"}
+              {actionDialog?.type === "activate" && "Activate User"}
+              {actionDialog?.type === "reset_pwd" && "Reset Password"}
+            </DialogTitle>
+            <DialogDescription className="text-muted-foreground">
+              {actionDialog?.type === "deactivate" &&
+                `Are you sure you want to deactivate ${actionDialog?.user.name || actionDialog?.user.email}? They will lose access to the system.`}
+              {actionDialog?.type === "activate" &&
+                `Are you sure you want to activate ${actionDialog?.user.name || actionDialog?.user.email}? They will regain access to the system.`}
+              {actionDialog?.type === "reset_pwd" &&
+                `Trigger a password reset for ${actionDialog?.user.name || actionDialog?.user.email}? They will be prompted to set a new password on next login.`}
+            </DialogDescription>
+          </DialogHeader>
+          {actionDialog?.type === "deactivate" && (
+            <div className="rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800/50 p-3">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="size-4 text-red-500 dark:text-red-400 shrink-0 mt-0.5" />
+                <p className="text-xs text-red-700 dark:text-red-300">
+                  This action can be reversed by activating the user later.
+                </p>
+              </div>
+            </div>
+          )}
+          <DialogFooter className="gap-2">
+            <DialogClose asChild>
+              <Button variant="outline" size="sm" className="text-xs">
+                Cancel
+              </Button>
+            </DialogClose>
+            {actionDialog?.type === "deactivate" && (
+              <Button
+                size="sm"
+                className="text-xs bg-red-600 hover:bg-red-700 text-white"
+                disabled={toggleActiveMutation.isPending}
+                onClick={() =>
+                  toggleActiveMutation.mutate({
+                    userId: actionDialog.user.id,
+                    isActive: false,
+                  })
+                }
+              >
+                {toggleActiveMutation.isPending ? "Deactivating..." : "Deactivate"}
+              </Button>
+            )}
+            {actionDialog?.type === "activate" && (
+              <Button
+                size="sm"
+                className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+                disabled={toggleActiveMutation.isPending}
+                onClick={() =>
+                  toggleActiveMutation.mutate({
+                    userId: actionDialog.user.id,
+                    isActive: true,
+                  })
+                }
+              >
+                {toggleActiveMutation.isPending ? "Activating..." : "Activate"}
+              </Button>
+            )}
+            {actionDialog?.type === "reset_pwd" && (
+              <Button
+                size="sm"
+                className="text-xs bg-amber-600 hover:bg-amber-700 text-white"
+                disabled={resetPwdMutation.isPending}
+                onClick={() => resetPwdMutation.mutate(actionDialog.user.id)}
+              >
+                {resetPwdMutation.isPending ? "Triggering..." : "Reset Password"}
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -41,7 +41,7 @@ export async function GET(
   // Scope check
   const isHQ = ["super_admin", "program_admin"].includes(user.role || "");
   if (!isHQ && user.role === "city_head" && user.assignedCityId) {
-    if (batch.park.cityId !== user.assignedCityId) {
+    if (batch.park.city.id !== user.assignedCityId) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
   } else if (
