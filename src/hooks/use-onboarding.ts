@@ -44,7 +44,7 @@ const TOUR_STEPS: Record<string, TourStep[]> = {
       target: "[data-tour='notifications']",
       title: "Notifications",
       description:
-        "Stay updated with real-time notifications. The bell icon shows unread count and live updates via WebSocket.",
+        "Stay updated with notifications. The bell icon shows your unread count and refreshes securely in the background.",
       position: "left",
     },
     {

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireRole, requireAuth } from "@/lib/auth/authorize";
+import { requireRole, requireAuth, requireCapability } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
 import { z } from "zod";
 import { logAudit } from "@/lib/audit";
@@ -16,6 +16,8 @@ export async function POST(request: NextRequest) {
 
   const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
+  const capabilityAuth = await requireCapability("students.manage");
+  if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
   const body = await request.json();
   const parsed = batchSchema.safeParse(body);
@@ -31,7 +33,7 @@ export async function POST(request: NextRequest) {
   // Validate all IDs exist
   const existing = await db.participant.findMany({
     where: { id: { in: participantIds } },
-    select: { id: true },
+    select: { id: true, userId: true, state: true },
   });
 
   const existingIds = new Set(existing.map((p) => p.id));
@@ -70,9 +72,23 @@ export async function POST(request: NextRequest) {
   try {
     if (action === "activate" || action === "deactivate") {
       const newState = action === "activate" ? "active" : "inactive";
-      const result = await db.participant.updateMany({
-        where: { id: { in: participantIds } },
-        data: { state: newState },
+      const userIdsToRevoke = newState === "inactive"
+        ? existing.flatMap((participant) =>
+            participant.state !== "inactive" && participant.userId ? [participant.userId] : []
+          )
+        : [];
+      const result = await db.$transaction(async (tx) => {
+        const updated = await tx.participant.updateMany({
+          where: { id: { in: participantIds } },
+          data: { state: newState },
+        });
+        if (userIdsToRevoke.length > 0) {
+          await tx.user.updateMany({
+            where: { id: { in: userIdsToRevoke } },
+            data: { tokenVersion: { increment: 1 } },
+          });
+        }
+        return updated;
       });
       success = result.count;
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { format as formatDate } from "date-fns";
+import { format } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
 import { PageHeader } from "@/components/layout/page-header";
 import { EmptyState } from "@/components/layout/empty-state";
@@ -277,8 +277,8 @@ export function AdminAttendanceEvents() {
                   const params = new URLSearchParams();
                   if (cityId) params.set("cityId", cityId);
                   if (parkId) params.set("parkId", parkId);
-                  if (dateFrom) params.set("from", formatDate(dateFrom, "yyyy-MM-dd"));
-                  if (dateTo) params.set("to", formatDate(dateTo, "yyyy-MM-dd"));
+                  if (dateFrom) params.set("from", format(dateFrom, "yyyy-MM-dd"));
+                  if (dateTo) params.set("to", format(dateTo, "yyyy-MM-dd"));
                   const res = await fetch(`/api/admin/reports/attendance-report?${params}`);
                   if (res.ok) {
                     const json = await res.json();

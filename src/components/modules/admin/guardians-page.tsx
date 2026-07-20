@@ -253,7 +253,14 @@ export function GuardiansPage() {
   // ─── Invite Mutation ─────────────────────────────────────────────────────
 
   const inviteMutation = useMutation({
-    mutationFn: (body: Record<string, string>) =>
+    mutationFn: (body: {
+      name: string;
+      phone: string;
+      email?: string;
+      cnic?: string;
+      address?: string;
+      relationship: string;
+    }) =>
       fetch("/api/admin/guardians/invite", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -263,10 +270,10 @@ export function GuardiansPage() {
         return r.json();
       }),
     onSuccess: (data) => {
-      setInviteCode(data.invitationCode);
+      setInviteCode(data.temporaryPassword);
       queryClient.invalidateQueries({ queryKey: ["admin-guardians"] });
       toast.success("Guardian invited successfully", {
-        description: `Invitation code: ${data.invitationCode}`,
+        description: "Temporary password is shown once in the invitation dialog.",
       });
     },
     onError: (err: any) => {
@@ -376,7 +383,12 @@ export function GuardiansPage() {
   // ─── Mutations ───────────────────────────────────────────────────────────
 
   const createMutation = useMutation({
-    mutationFn: (body: Record<string, string>) =>
+    mutationFn: (body: {
+      name: string;
+      phone: string;
+      cnic?: string;
+      address?: string;
+    }) =>
       fetch("/api/admin/guardians", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1285,9 +1297,9 @@ export function GuardiansPage() {
                 animate={{ opacity: 1, y: 0 }}
                 className="rounded-lg border-2 border-dashed border-[#4B0A8F]/30 bg-[#F3ECF6] dark:bg-[#1F086080] p-4 text-center"
               >
-                <p className="text-xs text-muted-foreground mb-1">Invitation Code</p>
+                <p className="text-xs text-muted-foreground mb-1">Temporary Password (show once)</p>
                 <p className="text-2xl font-mono font-bold tracking-[0.3em] text-[#4B0A8F] dark:text-[#8A40B0]">{inviteCode}</p>
-                <p className="text-[10px] text-muted-foreground mt-2">Share this code with the guardian. They can use it as their initial password to log in.</p>
+                <p className="text-[10px] text-muted-foreground mt-2">Share this securely with the guardian. They must reset it before accessing the app.</p>
               </motion.div>
             )}
 

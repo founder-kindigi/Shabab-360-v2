@@ -1,32 +1,48 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth/authorize";
+import { Prisma } from "@prisma/client";
+import { requireAuth, requireCapability } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
+import { fromCents, moneyToNumber, roundToCents, toCents } from "@/lib/money";
 import { z } from "zod";
 
 const createPaymentSchema = z.object({
   participantId: z.string().min(1, "Participant is required"),
-  amount: z.number().positive("Amount must be positive"),
+  amount: z.number().finite().positive("Amount must be positive").refine(
+    (amount) => toCents(amount) !== null,
+    "Amount can have at most two decimal places"
+  ),
   method: z.enum(["cash", "bank", "online", "other"]),
-  notes: z.string().optional(),
-  waivedAmount: z.number().min(0).optional(),
+  notes: z.string().trim().max(1000).optional(),
+  waivedAmount: z.number().finite().min(0).optional().default(0),
 });
 
-async function generateReceiptNo(prefix: string = "RCP"): Promise<string> {
-  const year = new Date().getFullYear();
+class PaymentError extends Error {
+  constructor(message: string, readonly status: 400 | 404 | 409) {
+    super(message);
+  }
+}
+
+async function generateReceiptNo(
+  tx: Prisma.TransactionClient,
+  prefix: string = "RCP"
+): Promise<string> {
   const currentPKT = new Date(
     new Date().toLocaleString("en-US", { timeZone: "Asia/Karachi" })
   );
   const pktYear = currentPKT.getFullYear();
 
-  // Upsert the receipt sequence
-  const seq = await db.receiptSequence.upsert({
+  const seq = await tx.receiptSequence.upsert({
     where: { prefix_year: { prefix, year: pktYear } },
     create: { prefix, year: pktYear, counter: 1 },
     update: { counter: { increment: 1 } },
   });
 
   return `${prefix}-${pktYear}-${String(seq.counter).padStart(4, "0")}`;
+}
+
+function isTransactionConflict(error: unknown): boolean {
+  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2034";
 }
 
 export async function GET(
@@ -36,6 +52,8 @@ export async function GET(
   const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
   const { user } = auth;
+  const capabilityAuth = await requireCapability("fees.manage");
+  if (capabilityAuth instanceof NextResponse) return capabilityAuth;
   const { id } = await params;
 
   if (!["super_admin", "program_admin"].includes(user.role || "")) {
@@ -92,10 +110,14 @@ export async function GET(
       : [];
 
   // Calculate paid amounts per participant
-  const effectiveAmount = feeEvent.amount - (feeEvent.discountAmount || 0);
+  const discountAmount = moneyToNumber(feeEvent.discountAmount);
+  const effectiveAmount = moneyToNumber(feeEvent.amount) - discountAmount;
   const paidMap = new Map<string, number>();
   for (const p of feeEvent.payments) {
-    paidMap.set(p.participantId, (paidMap.get(p.participantId) || 0) + p.amount);
+    paidMap.set(
+      p.participantId,
+      (paidMap.get(p.participantId) || 0) + moneyToNumber(p.amount)
+    );
   }
 
   // Participants who are fully paid
@@ -120,6 +142,8 @@ export async function GET(
   // Attach remaining balance to payments
   const paymentsWithInfo = feeEvent.payments.map((p) => ({
     ...p,
+    amount: moneyToNumber(p.amount),
+    waivedAmount: moneyToNumber(p.waivedAmount),
     remainingBalance: Math.max(0, effectiveAmount - (paidMap.get(p.participantId) || 0)),
     totalPaid: paidMap.get(p.participantId) || 0,
     effectiveAmount,
@@ -129,7 +153,7 @@ export async function GET(
     payments: paymentsWithInfo,
     unpaidParticipants: participantsWithBalance,
     effectiveAmount,
-    discountAmount: feeEvent.discountAmount || 0,
+    discountAmount,
   });
 }
 
@@ -140,29 +164,15 @@ export async function POST(
   const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
   const { user } = auth;
+  const capabilityAuth = await requireCapability("fees.manage");
+  if (capabilityAuth instanceof NextResponse) return capabilityAuth;
   const { id: feeEventId } = await params;
 
   if (!["super_admin", "program_admin"].includes(user.role || "")) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  // Fetch fee event with batch → park → city for receipt context
-  const feeEvent = await db.feeEvent.findUnique({
-    where: { id: feeEventId, isActive: true },
-    include: {
-      batch: {
-        select: {
-          name: true,
-          park: { select: { name: true } },
-        },
-      },
-    },
-  });
-  if (!feeEvent) {
-    return NextResponse.json({ error: "Fee event not found" }, { status: 404 });
-  }
-
-  const body = await request.json();
+  const body = await request.json().catch(() => null);
   const parsed = createPaymentSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
@@ -171,89 +181,152 @@ export async function POST(
     );
   }
 
-  // Check remaining balance (allow partial payments)
-  const effectiveAmount = feeEvent.amount - (feeEvent.discountAmount || 0);
-  const previousPayments = await db.payment.aggregate({
-    where: { feeEventId, participantId: parsed.data.participantId },
-    _sum: { amount: true },
-  });
-  const totalPaid = previousPayments._sum.amount || 0;
-  const remaining = effectiveAmount - totalPaid;
-
-  if (parsed.data.amount > remaining + 0.01) {
+  const amountCents = toCents(parsed.data.amount);
+  const waivedAmountCents = toCents(parsed.data.waivedAmount);
+  if (amountCents === null || waivedAmountCents === null) {
+    return NextResponse.json({ error: { amount: ["Invalid amount precision"] } }, { status: 400 });
+  }
+  if (waivedAmountCents !== 0) {
     return NextResponse.json(
-      { error: { amount: [`Amount exceeds remaining balance of Rs. ${remaining.toLocaleString()}`] } },
+      { error: { waivedAmount: ["Use the fee-event waiver instead of a per-payment waiver"] } },
       { status: 400 }
     );
   }
 
-  const isPartial = parsed.data.amount < remaining - 0.01;
-
-  // Generate receipt number
-  const receiptNo = await generateReceiptNo();
-
-  const payment = await db.payment.create({
-    data: {
-      feeEventId,
-      participantId: parsed.data.participantId,
-      amount: parsed.data.amount,
-      method: parsed.data.method,
-      receiptNo,
-      recordedBy: user.id,
-      notes: parsed.data.notes,
-      isPartial,
-      waivedAmount: parsed.data.waivedAmount || 0,
-    },
-    include: {
-      participant: {
-        select: {
-          id: true,
-          name: true,
-          phone: true,
-          group: { select: { name: true } },
+  try {
+    const result = await db.$transaction(async (tx) => {
+      const feeEvent = await tx.feeEvent.findUnique({
+        where: { id: feeEventId, isActive: true },
+        include: {
+          batch: {
+            select: {
+              name: true,
+              park: { select: { name: true } },
+            },
+          },
         },
+      });
+      if (!feeEvent) throw new PaymentError("Fee event not found", 404);
+
+      const participant = await tx.participant.findFirst({
+        where: {
+          id: parsed.data.participantId,
+          state: "active",
+          group: { batchId: feeEvent.batchId },
+        },
+      });
+      if (!participant) {
+        throw new PaymentError("Participant is not active in this fee event's batch", 409);
+      }
+
+      const effectiveAmountCents = roundToCents(
+        moneyToNumber(feeEvent.amount) - moneyToNumber(feeEvent.discountAmount)
+      );
+      if (effectiveAmountCents < 0) {
+        throw new PaymentError("Fee event has an invalid discounted amount", 400);
+      }
+
+      const previousPayments = await tx.payment.aggregate({
+        where: { feeEventId, participantId: participant.id },
+        _sum: { amount: true },
+      });
+      const totalPaidCents = roundToCents(moneyToNumber(previousPayments._sum.amount));
+      const remainingCents = Math.max(0, effectiveAmountCents - totalPaidCents);
+      if (amountCents > remainingCents) {
+        throw new PaymentError(
+          `Amount exceeds remaining balance of Rs. ${fromCents(remainingCents).toLocaleString()}`,
+          400
+        );
+      }
+
+      const isPartial = amountCents < remainingCents;
+      const receiptNo = await generateReceiptNo(tx);
+      const payment = await tx.payment.create({
+        data: {
+          feeEventId,
+          participantId: participant.id,
+          amount: fromCents(amountCents),
+          method: parsed.data.method,
+          receiptNo,
+          recordedBy: user.id,
+          notes: parsed.data.notes || null,
+          isPartial,
+          waivedAmount: 0,
+        },
+        include: {
+          participant: {
+            select: {
+              id: true,
+              name: true,
+              phone: true,
+              group: { select: { name: true } },
+            },
+          },
+        },
+      });
+
+      return { feeEvent, payment, receiptNo, isPartial, remainingCents };
+    }, {
+      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+      maxWait: 5_000,
+      timeout: 10_000,
+    });
+
+    await logAudit({
+      userId: user.id,
+      action: "create",
+      entityType: "payment",
+      entityId: result.payment.id,
+      newValues: {
+        feeEventId,
+        participantId: parsed.data.participantId,
+        amount: moneyToNumber(result.payment.amount),
+        isPartial: result.isPartial,
+        remainingBalance: result.isPartial ? fromCents(result.remainingCents - amountCents) : 0,
+        method: parsed.data.method,
+        receiptNo: result.receiptNo,
       },
-    },
-  });
+    });
 
-  await logAudit({
-    userId: user.id,
-    action: "create",
-    entityType: "payment",
-    entityId: payment.id,
-    newValues: {
-      feeEventId,
-      participantId: parsed.data.participantId,
-      amount: parsed.data.amount,
-      isPartial,
-      remainingBalance: isPartial ? Math.max(0, remaining - parsed.data.amount) : 0,
-      method: parsed.data.method,
-      receiptNo,
-    },
-  });
+    const receiptData = {
+      receiptNo: result.receiptNo,
+      date: new Date().toLocaleDateString("en-GB", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+        timeZone: "Asia/Karachi",
+      }),
+      studentName: result.payment.participant.name,
+      groupName: result.payment.participant.group?.name ?? "—",
+      batchName: result.feeEvent.batch.name,
+      parkName: result.feeEvent.batch.park.name,
+      feeTitle: result.feeEvent.title,
+      amount: moneyToNumber(result.payment.amount),
+      method: result.payment.method,
+      recordedBy: user.name ?? "Admin",
+      notes: result.payment.notes ?? undefined,
+    };
 
-  // Build receipt data for immediate frontend printing
-  const receiptData = {
-    receiptNo,
-    date: new Date().toLocaleDateString("en-GB", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-      timeZone: "Asia/Karachi",
-    }),
-    studentName: payment.participant.name,
-    groupName: payment.participant.group?.name ?? "—",
-    batchName: feeEvent.batch.name,
-    parkName: feeEvent.batch.park.name,
-    feeTitle: feeEvent.title,
-    amount: payment.amount,
-    method: payment.method,
-    recordedBy: user.name ?? "Admin",
-    notes: payment.notes ?? undefined,
-  };
-
-  return NextResponse.json(
-    { ...payment, receiptData },
-    { status: 201 }
-  );
+    return NextResponse.json(
+      {
+        ...result.payment,
+        amount: moneyToNumber(result.payment.amount),
+        waivedAmount: moneyToNumber(result.payment.waivedAmount),
+        receiptData,
+      },
+      { status: 201 }
+    );
+  } catch (error) {
+    if (error instanceof PaymentError) {
+      return NextResponse.json({ error: { amount: [error.message] } }, { status: error.status });
+    }
+    if (isTransactionConflict(error)) {
+      return NextResponse.json(
+        { error: { amount: ["A concurrent payment was recorded. Refresh the balance and try again."] } },
+        { status: 409 }
+      );
+    }
+    console.error("Payment creation error:", error);
+    return NextResponse.json({ error: "Unable to record payment" }, { status: 500 });
+  }
 }

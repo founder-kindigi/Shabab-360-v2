@@ -1,47 +1,38 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { requireAuth, requireCapability, requireResourceScope } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
 
-type SessionUser = {
-  id?: string;
-  role?: string;
-  assignedCityId?: string | null;
-  assignedParkId?: string | null;
-  assignedGroupId?: string | null;
-};
+const VALID_STATUSES = ["present", "absent", "late", "excused"] as const;
+const EDIT_ROLES = ["super_admin", "program_admin", "park_admin", "park_lead"] as const;
 
-const VALID_STATUSES = ["present", "absent", "late", "excused"];
-const EDIT_ROLES = ["admin", "park_admin", "park_lead"];
+function isAttendanceStatus(
+  status: string
+): status is (typeof VALID_STATUSES)[number] {
+  return (VALID_STATUSES as readonly string[]).includes(status);
+}
 
 /**
  * PATCH /api/park/attendance/[eventId]/records/[recordId]
  * Edit an existing attendance record with a required reason.
- * Only available to admin and park_admin/park_lead roles.
+ * Only available to HQ staff and park administrators/leads.
  */
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ eventId: string; recordId: string }> }
 ) {
   const { eventId, recordId } = await params;
-  const session = await getServerSession(authOptions);
-  const user = session?.user as SessionUser | undefined;
-
-  if (!session || !user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  // Only admin and park_admin/park_lead can edit records with reasons
-  if (!user.role || !EDIT_ROLES.includes(user.role)) {
-    return NextResponse.json({ error: "Forbidden — only admin and park leads can edit records" }, { status: 403 });
-  }
+  const auth = await requireAuth();
+  if (auth instanceof NextResponse) return auth;
+  const { user } = auth;
+  const capabilityAuth = await requireCapability("attendance.correct");
+  if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
   try {
     const body = await req.json();
     const { status, editReason } = body as { status?: string; editReason?: string };
 
-    if (!status || !VALID_STATUSES.includes(status)) {
+    if (!status || !isAttendanceStatus(status)) {
       return NextResponse.json({ error: "Invalid or missing status" }, { status: 400 });
     }
 
@@ -68,13 +59,12 @@ export async function PATCH(
       return NextResponse.json({ error: "Record not found" }, { status: 404 });
     }
 
-    // Scope check
-    if (user.role !== "admin") {
-      const parkId = record.event.group.batch.parkId;
-      if (user.assignedParkId && user.assignedParkId !== parkId) {
-        return NextResponse.json({ error: "Forbidden — record not in your scope" }, { status: 403 });
-      }
-    }
+    const scopeError = requireResourceScope(
+      user,
+      { parkId: record.event.group.batch.parkId, groupId: record.event.groupId },
+      EDIT_ROLES
+    );
+    if (scopeError) return scopeError;
 
     // Get staff meta
     const staffMeta = await db.staffMeta.findUnique({

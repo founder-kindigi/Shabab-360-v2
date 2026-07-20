@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireRole, requireAuth } from "@/lib/auth/authorize";
+import { requireCapability, requireRole } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
 import Papa from "papaparse";
@@ -16,11 +16,11 @@ const VALID_ROLES = [
 ];
 
 function generatePassword(): string {
-  // Generate a secure 8-character password
+  // Generate a temporary password that meets the account policy.
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#";
   let password = "";
-  const bytes = crypto.randomBytes(8);
-  for (let i = 0; i < 8; i++) {
+  const bytes = crypto.randomBytes(16);
+  for (let i = 0; i < 16; i++) {
     password += chars[bytes[i] % chars.length];
   }
   return password;
@@ -29,6 +29,9 @@ function generatePassword(): string {
 export async function POST(request: NextRequest) {
   const authError = await requireRole(["super_admin", "program_admin"]);
   if (authError) return authError;
+
+  const auth = await requireCapability("access.scope.manage");
+  if (auth instanceof NextResponse) return auth;
 
   try {
     const formData = await request.formData();
@@ -222,16 +225,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Log audit
-    const auth = await requireAuth();
-    if (!(auth instanceof NextResponse)) {
-      logAudit({
-        userId: auth.user.id,
-        action: "IMPORT_USERS",
-        entityType: "User",
-        entityId: null,
-        newValues: JSON.stringify({ success, errors: errors.length, total: rows.length }),
-      });
-    }
+    await logAudit({
+      userId: auth.user.id,
+      action: "IMPORT_USERS",
+      entityType: "User",
+      newValues: { success, errors: errors.length, total: rows.length },
+    });
 
     return NextResponse.json({
       success,

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireRole, requireAuth, requireCityScope } from "@/lib/auth/authorize";
+import { requireRole, requireAuth, requireCapability, requireCityScope } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
 import { z } from "zod";
@@ -20,12 +20,19 @@ export async function GET(
   const { id } = await params;
   const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
+  const capabilityAuth = await requireCapability("organisation.manage");
+  if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
   const park = await db.park.findUnique({
     where: { id },
     include: {
       city: { select: { id: true, name: true } },
-      _count: { select: { batches: true, groups: true } },
+      _count: { select: { batches: true } },
+      batches: {
+        select: {
+          _count: { select: { groups: true } },
+        },
+      },
     },
   });
 
@@ -40,7 +47,14 @@ export async function GET(
     }
   }
 
-  return NextResponse.json(park);
+  const { batches, ...parkData } = park;
+  return NextResponse.json({
+    ...parkData,
+    _count: {
+      ...park._count,
+      groups: batches.reduce((total, batch) => total + batch._count.groups, 0),
+    },
+  });
 }
 
 export async function PATCH(
@@ -53,6 +67,8 @@ export async function PATCH(
   const { id } = await params;
   const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
+  const capabilityAuth = await requireCapability("organisation.manage");
+  if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
   const existing = await db.park.findUnique({ where: { id } });
   if (!existing) {
@@ -107,6 +123,8 @@ export async function DELETE(
   const { id } = await params;
   const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
+  const capabilityAuth = await requireCapability("organisation.manage");
+  if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
   const existing = await db.park.findUnique({ where: { id } });
   if (!existing) {

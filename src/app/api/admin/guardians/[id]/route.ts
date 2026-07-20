@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireRole, requireAuth } from "@/lib/auth/authorize";
+import { requireRole, requireAuth, requireCapability } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
 import { z } from "zod";
 import { logAudit } from "@/lib/audit";
@@ -22,6 +22,8 @@ export async function PATCH(
 
   const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
+  const capabilityAuth = await requireCapability("guardians.manage");
+  if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
   const { id } = await params;
 
@@ -51,6 +53,10 @@ export async function PATCH(
   if (cnic !== undefined) data.cnic = cnic || null;
   if (address !== undefined) data.address = address || null;
   if (isActive !== undefined) data.isActive = isActive;
+  const revokeUserSession = isActive === false && existing.isActive && existing.userId;
+  if (revokeUserSession) {
+    data.user = { update: { tokenVersion: { increment: 1 } } };
+  }
 
   // Update children links if participantIds provided
   if (participantIds !== undefined) {
@@ -104,6 +110,8 @@ export async function DELETE(
 
   const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
+  const capabilityAuth = await requireCapability("guardians.manage");
+  if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
   const { id } = await params;
 
@@ -114,7 +122,12 @@ export async function DELETE(
 
   const guardian = await db.guardian.update({
     where: { id },
-    data: { isActive: false },
+    data: {
+      isActive: false,
+      ...(existing.userId
+        ? { user: { update: { tokenVersion: { increment: 1 } } } }
+        : {}),
+    },
   });
 
   await logAudit({

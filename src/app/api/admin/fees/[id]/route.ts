@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth/authorize";
+import { requireAuth, requireCapability } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
+import { moneyToNumber } from "@/lib/money";
 import { z } from "zod";
 
 const updateSchema = z.object({
@@ -19,6 +20,8 @@ export async function GET(
   const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
   const { user } = auth;
+  const capabilityAuth = await requireCapability("fees.manage");
+  if (capabilityAuth instanceof NextResponse) return capabilityAuth;
   const { id } = await params;
 
   if (!["super_admin", "program_admin"].includes(user.role || "")) {
@@ -67,8 +70,11 @@ export async function GET(
     (sum, g) => sum + g._count.participants,
     0
   );
-  const totalPaid = feeEvent.payments.reduce((sum, p) => sum + p.amount, 0);
-  const totalExpected = feeEvent.amount * totalParticipants;
+  const totalPaid = feeEvent.payments.reduce(
+    (sum, payment) => sum + moneyToNumber(payment.amount),
+    0
+  );
+  const totalExpected = moneyToNumber(feeEvent.amount) * totalParticipants;
   const rate = totalExpected > 0 ? (totalPaid / totalExpected) * 100 : 0;
 
   const now = new Date();
@@ -105,6 +111,13 @@ export async function GET(
 
   return NextResponse.json({
     ...feeEvent,
+    amount: moneyToNumber(feeEvent.amount),
+    discountAmount: moneyToNumber(feeEvent.discountAmount),
+    payments: feeEvent.payments.map((payment) => ({
+      ...payment,
+      amount: moneyToNumber(payment.amount),
+      waivedAmount: moneyToNumber(payment.waivedAmount),
+    })),
     totalPaid,
     totalExpected,
     totalParticipants,
@@ -122,6 +135,8 @@ export async function PATCH(
   const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
   const { user } = auth;
+  const capabilityAuth = await requireCapability("fees.manage");
+  if (capabilityAuth instanceof NextResponse) return capabilityAuth;
   const { id } = await params;
 
   if (!["super_admin", "program_admin"].includes(user.role || "")) {
@@ -150,7 +165,7 @@ export async function PATCH(
   const old = {
     title: existing.title,
     feeType: existing.feeType,
-    amount: existing.amount,
+    amount: moneyToNumber(existing.amount),
     dueDate: existing.dueDate,
     isActive: existing.isActive,
   };
@@ -166,7 +181,11 @@ export async function PATCH(
     newValues: parsed.data,
   });
 
-  return NextResponse.json(updated);
+  return NextResponse.json({
+    ...updated,
+    amount: moneyToNumber(updated.amount),
+    discountAmount: moneyToNumber(updated.discountAmount),
+  });
 }
 
 export async function DELETE(
@@ -176,6 +195,8 @@ export async function DELETE(
   const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
   const { user } = auth;
+  const capabilityAuth = await requireCapability("fees.manage");
+  if (capabilityAuth instanceof NextResponse) return capabilityAuth;
   const { id } = await params;
 
   if (!["super_admin", "program_admin"].includes(user.role || "")) {

@@ -1,0 +1,64 @@
+name: Verification
+
+on:
+  pull_request:
+    branches:
+      - main
+      - dev
+      - 'codex/**'
+  workflow_dispatch:
+
+# Set permissions to read-only for security (least-privilege)
+permissions:
+  contents: read
+
+# Avoid running redundant builds for the same PR
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Validate Application
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Generate Prisma Client
+        run: npm run db:generate
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm run test
+
+      - name: Production build
+        run: npm run build
+
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Guard sensitive tracked files
+        run: |
+          sensitive_files="$(git ls-files | awk '$0 != ".env.example" && ($0 ~ /^\.env($|\.)/ || $0 ~ /^db\/.*\.db($|-)/)')"
+          if [[ -n "$sensitive_files" ]]; then
+            echo "Sensitive local files must not be tracked:"
+            echo "$sensitive_files"
+            exit 1
+          fi

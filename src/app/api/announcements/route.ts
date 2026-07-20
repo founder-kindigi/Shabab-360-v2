@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireRole, requireAuth } from "@/lib/auth/authorize";
+import { requireRole, requireAuth, requireCapability } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
+import {
+  optionalQueryText,
+  queryParamsToObject,
+  queryValidationError,
+} from "@/lib/api/query-params";
 import { z } from "zod";
 import { subDays } from "date-fns";
 
@@ -26,48 +31,47 @@ const createSchema = z.object({
   expiresAt: z.string().datetime().optional().nullable(),
 });
 
-export async function GET(request: NextRequest) {
-  const authError = await requireAuth();
-  if (authError instanceof NextResponse) return authError;
+const listQuerySchema = z.object({
+  role: z.enum(VALID_ROLES).optional(),
+  search: optionalQueryText(),
+  priority: z.enum(["urgent", "normal", "low"]).optional(),
+});
 
+export async function GET(request: NextRequest) {
   const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
   const { user } = auth;
 
   const { searchParams } = new URL(request.url);
-  const roleFilter = searchParams.get("role") || undefined;
-  const search = searchParams.get("search") || undefined;
-  const priority = searchParams.get("priority") || undefined;
+  const parsedQuery = listQuerySchema.safeParse(queryParamsToObject(searchParams));
+  if (!parsedQuery.success) {
+    return NextResponse.json(queryValidationError(parsedQuery.error), { status: 400 });
+  }
+  const { role: roleFilter, search, priority } = parsedQuery.data;
 
   const now = new Date();
   const thirtyDaysAgo = subDays(now, 30);
 
   // Build where clause: non-expired or created in last 30 days
   const where: any = {
-    OR: [
-      { expiresAt: null },
-      { expiresAt: { gt: now } },
-    ],
     createdAt: { gte: thirtyDaysAgo },
+    AND: [
+      {
+        OR: [
+          { expiresAt: null },
+          { expiresAt: { gt: now } },
+        ],
+      },
+      ...(roleFilter ? [{ targetRoles: { contains: roleFilter } }] : []),
+      ...(priority ? [{ priority }] : []),
+      ...(search
+        ? [{ OR: [
+          { title: { contains: search, mode: "insensitive" } },
+          { content: { contains: search, mode: "insensitive" } },
+        ] }]
+        : []),
+    ],
   };
-
-  // Filter by target role if provided
-  if (roleFilter) {
-    where.targetRoles = { contains: roleFilter };
-  }
-
-  // Filter by priority
-  if (priority) {
-    where.priority = priority;
-  }
-
-  // Search by title or content
-  if (search) {
-    where.OR = [
-      { title: { contains: search, mode: "insensitive" } },
-      { content: { contains: search, mode: "insensitive" } },
-    ];
-  }
 
   const announcements = await db.announcement.findMany({
     where,
@@ -131,6 +135,8 @@ export async function POST(request: NextRequest) {
   const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
   const { user } = auth;
+  const capabilityAuth = await requireCapability("announcements.manage");
+  if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
   const body = await request.json();
   const parsed = createSchema.safeParse(body);

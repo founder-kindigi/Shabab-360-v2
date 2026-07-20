@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth/authorize";
+import { requireAuth, requireCapability } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
 
@@ -11,6 +11,8 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
   const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
   const { user } = auth;
+  const capabilityAuth = await requireCapability("announcements.manage");
+  if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
   const { id } = await params;
 

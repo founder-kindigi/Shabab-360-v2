@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { requireCapability } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
 import { todayPKT, endOfTodayPKT, formatPKT, toPKT } from "@/lib/timezone";
 import { logAudit } from "@/lib/audit";
@@ -14,6 +15,21 @@ type SessionUser = {
   assignedGroupId?: string | null;
 };
 
+type TodayEvent = {
+  id: string;
+  title: string;
+  isClosed: boolean;
+  participantCount: number;
+  markedCount: number;
+  progress: number;
+  counts: {
+    present: number;
+    absent: number;
+    late: number;
+    excused: number;
+  };
+};
+
 export async function GET() {
   const session = await getServerSession(authOptions);
   const user = session?.user as SessionUser | undefined;
@@ -25,6 +41,8 @@ export async function GET() {
   if (user.role !== "murabbi") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
+  const capabilityAuth = await requireCapability("dashboard.view");
+  if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
   if (!user.assignedGroupId) {
     return NextResponse.json(
@@ -85,7 +103,7 @@ export async function GET() {
     });
 
     // Get attendance records breakdown for today's events
-    let todayEvent = null;
+    let todayEvent: TodayEvent | null = null;
     if (todayEvents.length > 0) {
       const evt = todayEvents[0];
       const records = await db.attendanceRecord.findMany({

@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Menu, LogOut, User, ChevronDown, Construction, Settings, Sun, Moon, Search } from "lucide-react";
 import { useTheme } from "next-themes";
+import { useNotificationPolling } from "@/hooks/use-realtime-notifications";
 
 // ── Lazy-loaded page components (code splitting) ──────────────────────
 const AdminDashboard = lazy(() => import("@/components/modules/admin/admin-dashboard").then(m => ({ default: m.AdminDashboard })));
@@ -35,6 +36,7 @@ const AnnouncementsPage = lazy(() => import("@/components/modules/admin/announce
 const SettingsPage = lazy(() => import("@/components/modules/admin/settings-page").then(m => ({ default: m.SettingsPage })));
 const ReportsPage = lazy(() => import("@/components/modules/admin/reports-page").then(m => ({ default: m.ReportsPage })));
 const AccessProvisioningPage = lazy(() => import("@/components/modules/admin/access-provisioning-page").then(m => ({ default: m.AccessProvisioningPage })));
+const AccessManagementPage = lazy(() => import("@/components/modules/admin/access-management-page").then(m => ({ default: m.AccessManagementPage })));
 const FeesPage = lazy(() => import("@/components/modules/admin/fees-page").then(m => ({ default: m.FeesPage })));
 const NotificationsPage = lazy(() => import("@/components/modules/admin/notifications-page").then(m => ({ default: m.NotificationsPage })));
 const AdmissionsPage = lazy(() => import("@/components/modules/admin/admissions-page").then(m => ({ default: m.AdmissionsPage })));
@@ -109,6 +111,7 @@ const pageTitles: Record<PageId, string> = {
   "admin-settings": "Settings",
   "admin-users": "Users",
   "admin-access": "Access Provisioning",
+  "admin-access-management": "Access Management",
   "admin-admissions": "Admissions",
   "admin-fees": "Fees",
   "admin-announcements": "Announcements",
@@ -216,6 +219,8 @@ function PageContentInner({ pageId }: { pageId: PageId }) {
       return <UsersPage />;
     case "admin-access":
       return <AccessProvisioningPage />;
+    case "admin-access-management":
+      return <AccessManagementPage />;
     case "admin-audit-log":
       return <AuditLogPage />;
     case "notifications":
@@ -318,7 +323,6 @@ export function AppShell() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const { currentPage, navigateTo } = useAppStore();
   const { data: session } = useSession();
-  const sessionUserId = (session?.user as { id?: string } | undefined)?.id;
   const user = session?.user as {
     name?: string;
     email?: string;
@@ -329,29 +333,11 @@ export function AppShell() {
   // Onboarding tour
   const { isActive: tourActive, completeTour, skipTour, steps: tourSteps } = useOnboarding(userRole);
 
-  // Read avatar from localStorage — updated via event listener only
-  const [userAvatar, setUserAvatar] = useState<string | null>(() => {
-    if (typeof window === "undefined") return null;
-    if (!sessionUserId) return null;
-    return localStorage.getItem(`avatar-${sessionUserId}`);
-  });
-
-  // Listen for avatar updates via custom event
-  useEffect(() => {
-    const handler = () => {
-      if (!sessionUserId) return;
-      const saved = localStorage.getItem(`avatar-${sessionUserId}`);
-      setUserAvatar(saved);
-    };
-    window.addEventListener("avatar-updated", handler);
- return () => window.removeEventListener("avatar-updated", handler);
-  }, [sessionUserId]);
-
   // Keyboard shortcuts
   useKeyboardShortcuts();
 
-  // Real-time notifications (WebSocket)
-  useRealtimeNotifications();
+  // Vercel-compatible authenticated notification polling.
+  useNotificationPolling();
 
   // Close mobile sidebar on Escape
   useEffect(() => {
@@ -426,17 +412,9 @@ export function AppShell() {
                 variant="ghost"
                 className="flex items-center gap-2 px-2 h-9"
               >
-                {userAvatar ? (
-                  <img
-                    src={userAvatar}
-                    alt="Avatar"
-                    className="size-7 rounded-full object-cover"
-                  />
-                ) : (
-                  <div className="flex items-center justify-center size-7 rounded-full bg-[#F3ECF6] dark:bg-[#1F086080]">
-                    <User className="size-3.5 text-[#4B0A8F] dark:text-[#8A40B0]" />
-                  </div>
-                )}
+                <div className="flex items-center justify-center size-7 rounded-full bg-[#F3ECF6] dark:bg-[#1F086080]">
+                  <User className="size-3.5 text-[#4B0A8F] dark:text-[#8A40B0]" />
+                </div>
                 <div className="hidden sm:flex flex-col items-start text-left">
                   <span className="text-xs font-medium leading-tight truncate max-w-[120px]">
                     {user?.name || "User"}

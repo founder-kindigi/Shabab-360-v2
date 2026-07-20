@@ -2,14 +2,28 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import type { UserRole, StaffRole } from "@/types";
+import {
+  ATTENDANCE_ROLES,
+  canAccessResourceScope,
+  isHqRole,
+  isStaffRole,
+  ORGANIZATION_MANAGEMENT_ROLES,
+  STAFF_ROLES,
+  type ResourceScope,
+  type SessionUser,
+} from "@/lib/auth/scope";
+import { userHasCapability } from "@/lib/auth/capability-access";
+import type { AccessCapability } from "@/lib/auth/capabilities";
 
-type SessionUser = {
-  id?: string;
-  role?: string;
-  assignedCityId?: string | null;
-  assignedParkId?: string | null;
-  assignedGroupId?: string | null;
+export {
+  ATTENDANCE_ROLES,
+  ORGANIZATION_MANAGEMENT_ROLES,
+  STAFF_ROLES,
+  canAccessResourceScope,
+  isHqRole,
+  isStaffRole,
 };
+export type { ResourceScope, SessionUser };
 
 /**
  * Check if the current user has one of the allowed roles.
@@ -27,6 +41,10 @@ export async function requireRole(roles: (UserRole | StaffRole)[]): Promise<Next
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
+  if (user.mustResetPwd) {
+    return NextResponse.json({ error: "Password reset required" }, { status: 403 });
+  }
+
   return null;
 }
 
@@ -41,61 +59,59 @@ export async function requireAuth(): Promise<{ user: SessionUser } | NextRespons
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  if (user.mustResetPwd) {
+    return NextResponse.json({ error: "Password reset required" }, { status: 403 });
+  }
+
   return { user };
+}
+
+/**
+ * Enforce a module capability before any resource-scope check. This is not a
+ * substitute for requireResourceScope on city, park, group, or record data.
+ */
+export async function requireCapability(
+  capability: AccessCapability
+): Promise<{ user: SessionUser } | NextResponse> {
+  const auth = await requireAuth();
+  if (auth instanceof NextResponse) return auth;
+
+  if (!(await userHasCapability(auth.user, capability))) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  return auth;
+}
+
+export function requireResourceScope(
+  user: SessionUser,
+  scope: ResourceScope,
+  allowedRoles: readonly StaffRole[] = STAFF_ROLES
+): NextResponse | null {
+  if (!canAccessResourceScope(user, scope, allowedRoles)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  return null;
 }
 
 /**
  * Check if the user's assigned city matches the required cityId.
  */
 export function requireCityScope(user: SessionUser, cityId: string): boolean {
-  // Super admin and program admin bypass city scope
-  if (user.role === "super_admin" || user.role === "program_admin") {
-    return true;
-  }
-  // City head must match their assigned city
-  if (user.role === "city_head") {
-    return user.assignedCityId === cityId;
-  }
-  // Park staff inherit city scope from their park
-  if (user.role === "park_admin" || user.role === "park_lead" || user.role === "murabbi") {
-    // Will be checked via park scope
-    return true;
-  }
-  return false;
+  return canAccessResourceScope(user, { cityId });
 }
 
 /**
  * Check if the user's assigned park matches the required parkId.
  */
 export function requireParkScope(user: SessionUser, parkId: string): boolean {
-  if (user.role === "super_admin" || user.role === "program_admin") {
-    return true;
-  }
-  if (user.role === "city_head") {
-    // City head can access all parks in their city - checked at query level
-    return true;
-  }
-  if (user.role === "park_admin" || user.role === "park_lead") {
-    return user.assignedParkId === parkId;
-  }
-  if (user.role === "murabbi") {
-    return user.assignedParkId === parkId;
-  }
-  return false;
+  return canAccessResourceScope(user, { parkId });
 }
 
 /**
  * Check if the user's assigned group matches the required groupId.
  */
 export function requireGroupScope(user: SessionUser, groupId: string): boolean {
-  if (user.role === "super_admin" || user.role === "program_admin") {
-    return true;
-  }
-  if (user.role === "city_head" || user.role === "park_admin" || user.role === "park_lead") {
-    return true;
-  }
-  if (user.role === "murabbi") {
-    return user.assignedGroupId === groupId;
-  }
-  return false;
+  return canAccessResourceScope(user, { groupId });
 }

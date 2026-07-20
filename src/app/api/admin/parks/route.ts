@@ -1,14 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth/authorize";
+import { requireAuth, requireCapability } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
+import {
+  optionalIdentifier,
+  queryParamsToObject,
+  queryValidationError,
+} from "@/lib/api/query-params";
+import { z } from "zod";
+
+const listQuerySchema = z.object({
+  cityId: optionalIdentifier(),
+});
 
 export async function GET(request: NextRequest) {
   const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
   const { user } = auth;
+  const capabilityAuth = await requireCapability("organisation.manage");
+  if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
   const { searchParams } = new URL(request.url);
-  const cityId = searchParams.get("cityId") || undefined;
+  const parsedQuery = listQuerySchema.safeParse(queryParamsToObject(searchParams));
+  if (!parsedQuery.success) {
+    return NextResponse.json(queryValidationError(parsedQuery.error), { status: 400 });
+  }
+  const { cityId } = parsedQuery.data;
 
   const isHQ = ["super_admin", "program_admin"].includes(user.role || "");
 

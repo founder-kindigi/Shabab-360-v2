@@ -1,8 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireRole, requireAuth } from "@/lib/auth/authorize";
+import { requireRole, requireAuth, requireCapability } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
 import { z } from "zod";
 import { logAudit } from "@/lib/audit";
+import {
+  optionalIdentifier,
+  optionalQueryText,
+  paginatedQuerySchema,
+  queryParamsToObject,
+  queryValidationError,
+} from "@/lib/api/query-params";
 import { subDays } from "date-fns";
 
 const createSchema = z.object({
@@ -13,18 +20,26 @@ const createSchema = z.object({
   userId: z.string().optional(),
 });
 
+const guardianListQuerySchema = paginatedQuerySchema().extend({
+  search: optionalQueryText(),
+  cityId: optionalIdentifier(),
+  state: z.enum(["active", "inactive"]).optional(),
+  sort: z.enum(["name", "createdAt"]).default("createdAt"),
+  order: z.enum(["asc", "desc"]).default("desc"),
+});
+
 export async function GET(request: NextRequest) {
   const authError = await requireRole(["super_admin", "program_admin"]);
   if (authError) return authError;
+  const capabilityAuth = await requireCapability("guardians.manage");
+  if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
   const { searchParams } = new URL(request.url);
-  const search = searchParams.get("search") || undefined;
-  const cityId = searchParams.get("cityId") || undefined;
-  const state = searchParams.get("state") || undefined;
-  const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
-  const pageSize = Math.min(100, Math.max(1, parseInt(searchParams.get("pageSize") || "20", 10)));
-  const sort = searchParams.get("sort") || "createdAt";
-  const order = searchParams.get("order") || "desc";
+  const query = guardianListQuerySchema.safeParse(queryParamsToObject(searchParams));
+  if (!query.success) {
+    return NextResponse.json(queryValidationError(query.error), { status: 400 });
+  }
+  const { search, cityId, state, page, pageSize, sort, order } = query.data;
 
   const where: any = {};
 
@@ -36,15 +51,12 @@ export async function GET(request: NextRequest) {
     ];
   }
 
-  if (state && state !== "all") {
+  if (state) {
     where.isActive = state === "active";
   }
 
   // Build orderBy
-  const allowedSortFields = ["name", "createdAt"] as const;
-  const sortField = allowedSortFields.includes(sort as any) ? sort : "createdAt";
-  const sortOrder = order === "asc" ? "asc" : "desc";
-  const orderBy: any = { [sortField]: sortOrder };
+  const orderBy: any = { [sort]: order };
 
   // If cityId is provided, filter guardians who have children in that city
   let guardianIdsInCity: string[] | undefined;
@@ -176,6 +188,8 @@ export async function POST(request: NextRequest) {
 
   const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
+  const capabilityAuth = await requireCapability("guardians.manage");
+  if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
   const body = await request.json();
   const parsed = createSchema.safeParse(body);

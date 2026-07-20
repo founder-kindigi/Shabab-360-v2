@@ -2,6 +2,31 @@ import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
 import { formatPKT } from "@/lib/timezone";
+import { z } from "zod";
+
+const profileUpdateSchema = z
+  .object({
+    name: z.string().trim().min(2).optional(),
+    phone: z.string().trim().max(30).optional(),
+    address: z.string().trim().max(500).optional(),
+  })
+  .strict();
+
+type AttendanceSummary = {
+  total: number;
+  present: number;
+  absent: number;
+  late: number;
+  excused: number;
+  rate: number;
+};
+
+type UserProfile = {
+  id: string;
+  name: string | null;
+  email: string;
+  phone: string | null;
+};
 
 export async function GET() {
   const auth = await requireAuth();
@@ -39,7 +64,7 @@ export async function GET() {
   });
 
   // Compute attendance summary
-  let attendanceSummary = null;
+  let attendanceSummary: AttendanceSummary | null = null;
   if (participant) {
     const records = participant.attendanceRecords;
     const total = records.length;
@@ -81,23 +106,26 @@ export async function PATCH(request: Request) {
   if (auth instanceof NextResponse) return auth;
   const { user } = auth;
 
-  const body = await request.json();
-  const { name, phone, address } = body as {
-    name?: string;
-    phone?: string;
-    address?: string;
-  };
+  const body = await request.json().catch(() => null);
+  const parsed = profileUpdateSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: parsed.error.issues.map((issue) => issue.message).join(", ") },
+      { status: 400 }
+    );
+  }
+  const { name, phone, address } = parsed.data;
 
-  const userData: Record<string, string> = {};
-  if (name !== undefined) userData.name = name.trim();
-  if (phone !== undefined) userData.phone = phone.trim() || null;
+  const userData: { name?: string; phone?: string | null } = {};
+  if (name !== undefined) userData.name = name;
+  if (phone !== undefined) userData.phone = phone || null;
 
   if (Object.keys(userData).length === 0 && address === undefined) {
     return NextResponse.json({ error: "No fields to update" }, { status: 400 });
   }
 
   // Update user record
-  let updatedUser = null;
+  let updatedUser: UserProfile | null = null;
   if (Object.keys(userData).length > 0) {
     updatedUser = await db.user.update({
       where: { id: user.id },
@@ -114,13 +142,13 @@ export async function PATCH(request: Request) {
     if (participant) {
       await db.participant.update({
         where: { id: participant.id },
-        data: { address: address.trim() || null },
+        data: { address: address || null },
       });
     }
   }
 
   // Also sync name/phone to participant if student
-  if ((userData.name || userData.phone) && user.role === "student") {
+  if ((userData.name !== undefined || userData.phone !== undefined) && user.role === "student") {
     const participant = await db.participant.findFirst({
       where: { userId: user.id },
     });

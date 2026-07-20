@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireRole, requireAuth } from "@/lib/auth/authorize";
+import { requireCapability, requireRole, requireResourceScope } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
 import Papa from "papaparse";
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
+import { participantProfileFieldsFromCsv, participantProfileFieldsSchema } from "@/lib/participants/profile-fields";
 
 export async function POST(request: NextRequest) {
   const authError = await requireRole([
@@ -15,6 +17,10 @@ export async function POST(request: NextRequest) {
     "murabbi",
   ]);
   if (authError) return authError;
+
+  const auth = await requireCapability("students.manage");
+  if (auth instanceof NextResponse) return auth;
+  const { user } = auth;
 
   try {
     const formData = await request.formData();
@@ -103,6 +109,7 @@ export async function POST(request: NextRequest) {
 
     let success = 0;
     const errors: { row: number; message: string }[] = [];
+    const generatedPasswords: { row: number; name: string; email: string; password: string }[] = [];
 
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
@@ -119,6 +126,11 @@ export async function POST(request: NextRequest) {
         const phone = row["phone"] || row["Phone"] || "";
         const gender = row["gender"] || row["Gender"] || "";
         const dateOfBirth = row["dateOfBirth"] || row["DateOfBirth"] || row["date_of_birth"] || "";
+        const profileFields = participantProfileFieldsSchema.safeParse(participantProfileFieldsFromCsv(row));
+        if (!profileFields.success) {
+          errors.push({ row: rowNum, message: profileFields.error.issues[0]?.message ?? "Invalid age or grade/class" });
+          continue;
+        }
         const groupName = row["group"] || row["Group"] || row["groupName"] || "";
         const cityName = row["city"] || row["City"] || "";
         const parkName = row["park"] || row["Park"] || "";
@@ -164,80 +176,106 @@ export async function POST(request: NextRequest) {
           continue;
         }
 
-        // Create User account if email is provided
-        let userId: string | undefined;
-        if (email) {
-          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-          if (!emailRegex.test(email)) {
-            errors.push({ row: rowNum, message: `Invalid email format: "${email}"` });
-            continue;
-          }
-
-          const existingUser = await db.user.findUnique({ where: { email } });
-          if (existingUser) {
-            userId = existingUser.id;
-          } else {
-            const password = Math.random().toString(36).slice(-8);
-            const hash = await bcrypt.hash(password, 10);
-            const newUser = await db.user.create({
-              data: {
-                email,
-                passwordHash: hash,
-                name,
-                phone: phone || null,
-                mustResetPwd: true,
-              },
-            });
-            userId = newUser.id;
-          }
+        if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+          errors.push({ row: rowNum, message: `Invalid email format: "${email}"` });
+          continue;
         }
+
+        const scopeError = requireResourceScope(user, {
+          cityId: group.batch.park.cityId,
+          parkId: group.batch.parkId,
+          groupId: group.id,
+        });
+        if (scopeError) return scopeError;
+
+        // Hash before opening the transaction so bcrypt does not hold a SQLite write lock.
+        const generatedTemporaryPassword = email
+          ? crypto.randomBytes(24).toString("base64url")
+          : undefined;
+        const generatedPasswordHash = generatedTemporaryPassword
+          ? await bcrypt.hash(generatedTemporaryPassword, 12)
+          : undefined;
 
         // Handle guardian
         const guardianName = row["guardianName"] || row["Guardian Name"] || row["guardian_name"] || "";
         const guardianPhone = row["guardianPhone"] || row["Guardian Phone"] || row["guardian_phone"] || "";
         const guardianCNIC = row["guardianCNIC"] || row["Guardian CNIC"] || row["guardian_cnic"] || "";
 
-        let guardianId: string | undefined;
-        if (guardianName && guardianPhone) {
-          // Try to find existing guardian by phone
-          const existingGuardian = await db.guardian.findFirst({
-            where: { phone: guardianPhone },
+        const createdPassword = await db.$transaction(async (tx) => {
+          let userId: string | undefined;
+          let temporaryPassword: string | undefined;
+
+          if (email) {
+            const existingUser = await tx.user.findUnique({ where: { email } });
+            if (existingUser) {
+              userId = existingUser.id;
+            } else {
+              temporaryPassword = generatedTemporaryPassword;
+              const newUser = await tx.user.create({
+                data: {
+                  email,
+                  passwordHash: generatedPasswordHash!,
+                  name,
+                  phone: phone || null,
+                  mustResetPwd: true,
+                },
+              });
+              userId = newUser.id;
+            }
+          }
+
+          let guardianId: string | undefined;
+          if (guardianName && guardianPhone) {
+            const existingGuardian = await tx.guardian.findFirst({
+              where: { phone: guardianPhone },
+            });
+
+            if (existingGuardian) {
+              guardianId = existingGuardian.id;
+            } else {
+              const newGuardian = await tx.guardian.create({
+                data: {
+                  name: guardianName,
+                  phone: guardianPhone,
+                  cnic: guardianCNIC || null,
+                },
+              });
+              guardianId = newGuardian.id;
+            }
+          }
+
+          const participant = await tx.participant.create({
+            data: {
+              name,
+              phone: phone || null,
+              gender: gender || null,
+              dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
+              age: profileFields.data.age ?? null,
+              gradeClass: profileFields.data.gradeClass ?? null,
+              groupId: group.id,
+              userId: userId || null,
+              state: "active",
+            },
           });
 
-          if (existingGuardian) {
-            guardianId = existingGuardian.id;
-          } else {
-            const newGuardian = await db.guardian.create({
+          if (guardianId) {
+            await tx.guardianChild.create({
               data: {
-                name: guardianName,
-                phone: guardianPhone,
-                cnic: guardianCNIC || null,
+                guardianId,
+                participantId: participant.id,
               },
             });
-            guardianId = newGuardian.id;
           }
-        }
 
-        // Create Participant
-        const participant = await db.participant.create({
-          data: {
-            name,
-            phone: phone || null,
-            gender: gender || null,
-            dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
-            groupId: group.id,
-            userId: userId || null,
-            state: "active",
-          },
+          return temporaryPassword;
         });
 
-        // Link guardian to participant if applicable
-        if (guardianId) {
-          await db.guardianChild.create({
-            data: {
-              guardianId,
-              participantId: participant.id,
-            },
+        if (createdPassword) {
+          generatedPasswords.push({
+            row: rowNum,
+            name,
+            email,
+            password: createdPassword,
           });
         }
 
@@ -249,21 +287,18 @@ export async function POST(request: NextRequest) {
     }
 
     // Log audit
-    const auth = await requireAuth();
-    if (!(auth instanceof NextResponse)) {
-      logAudit({
-        userId: auth.user.id,
-        action: "IMPORT_PARTICIPANTS",
-        entityType: "Participant",
-        entityId: null,
-        newValues: JSON.stringify({ success, errors: errors.length, total: rows.length }),
-      });
-    }
+    await logAudit({
+      userId: user.id,
+      action: "IMPORT_PARTICIPANTS",
+      entityType: "Participant",
+      newValues: { success, errors: errors.length, total: rows.length },
+    });
 
     return NextResponse.json({
       success,
       errors,
       total: rows.length,
+      generatedPasswords,
     });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Unknown server error";

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth/authorize";
+import { requireAuth, requireCapability } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
+import { moneyToNumber } from "@/lib/money";
 import { z } from "zod";
 
 const waiverSchema = z.object({
@@ -16,6 +17,8 @@ export async function POST(
   const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
   const { user } = auth;
+  const capabilityAuth = await requireCapability("fees.manage");
+  if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
   if (!["super_admin", "program_admin"].includes(user.role || "")) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -45,7 +48,7 @@ export async function POST(
     return NextResponse.json({ error: "Fee event not found" }, { status: 404 });
   }
 
-  if (discountAmount > feeEvent.amount) {
+  if (discountAmount > moneyToNumber(feeEvent.amount)) {
     return NextResponse.json(
       { error: "Discount cannot exceed the fee amount" },
       { status: 400 }
@@ -69,9 +72,9 @@ export async function POST(
     action: "fee_waiver",
     entityType: "FeeEvent",
     entityId: id,
-    details: {
+    newValues: {
       feeTitle: feeEvent.title,
-      originalAmount: feeEvent.amount,
+      originalAmount: moneyToNumber(feeEvent.amount),
       discountAmount,
       waiverReason,
       parkId: feeEvent.batch?.parkId,
@@ -81,7 +84,11 @@ export async function POST(
 
   return NextResponse.json({
     success: true,
-    data: updated,
+    data: {
+      ...updated,
+      amount: moneyToNumber(updated.amount),
+      discountAmount: moneyToNumber(updated.discountAmount),
+    },
     message: `Waiver of Rs. ${discountAmount.toLocaleString()} applied`,
   });
 }
@@ -94,6 +101,8 @@ export async function DELETE(
   const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
   const { user } = auth;
+  const capabilityAuth = await requireCapability("fees.manage");
+  if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
   if (!["super_admin", "program_admin"].includes(user.role || "")) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -121,7 +130,10 @@ export async function DELETE(
     action: "fee_waiver_removed",
     entityType: "FeeEvent",
     entityId: id,
-    details: { previousDiscount: feeEvent.discountAmount, feeTitle: feeEvent.title },
+    newValues: {
+      previousDiscount: moneyToNumber(feeEvent.discountAmount),
+      feeTitle: feeEvent.title,
+    },
   });
 
   return NextResponse.json({ success: true, message: "Waiver removed" });

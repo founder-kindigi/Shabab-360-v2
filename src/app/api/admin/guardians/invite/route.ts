@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireRole, requireAuth } from "@/lib/auth/authorize";
+import { requireRole, requireAuth, requireCapability } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
 import { z } from "zod";
 import { logAudit } from "@/lib/audit";
@@ -12,38 +12,8 @@ const inviteSchema = z.object({
   phone: z.string().min(5, "Phone must be at least 5 characters"),
   cnic: z.string().optional(),
   address: z.string().optional(),
-  relationship: z.enum(["Father", "Mother", "Guardian", "Other"], {
-    errorMap: () => ({ message: "Please select a valid relationship" }),
-  }),
+  relationship: z.enum(["Father", "Mother", "Guardian", "Other"]),
 });
-
-function generateInviteCode(): string {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  const bytes = crypto.randomBytes(6);
-  return Array.from(bytes)
-    .map((b) => chars[b % chars.length])
-    .join("");
-}
-
-function generateRandomPassword(): string {
-  const lower = "abcdefghijkmnopqrstuvwxyz";
-  const upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";
-  const digits = "23456789";
-  const special = "!@#$%&*";
-  const all = lower + upper + digits + special;
-  const bytes = crypto.randomBytes(12);
-  let pwd = "";
-  for (const b of bytes) {
-    pwd += all[b % all.length];
-  }
-  // Ensure at least one of each type
-  const arr = pwd.split("");
-  arr[0] = upper[Math.floor(Math.random() * upper.length)];
-  arr[1] = lower[Math.floor(Math.random() * lower.length)];
-  arr[2] = digits[Math.floor(Math.random() * digits.length)];
-  arr[3] = special[Math.floor(Math.random() * special.length)];
-  return arr.join("");
-}
 
 function generateEmailFromPhone(phone: string): string {
   const cleaned = phone.replace(/[^0-9]/g, "");
@@ -56,6 +26,8 @@ export async function POST(request: NextRequest) {
 
   const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
+  const capabilityAuth = await requireCapability("guardians.manage");
+  if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
   const body = await request.json();
   const parsed = inviteSchema.safeParse(body);
@@ -67,10 +39,9 @@ export async function POST(request: NextRequest) {
   }
 
   const { name, email, phone, cnic, address, relationship } = parsed.data;
-  const invitationCode = generateInviteCode();
   const userEmail = email || generateEmailFromPhone(phone);
-  const password = generateRandomPassword();
-  const passwordHash = await bcrypt.hash(invitationCode, 12);
+  const temporaryPassword = crypto.randomBytes(24).toString("base64url");
+  const passwordHash = await bcrypt.hash(temporaryPassword, 12);
 
   // Check for existing user with same email
   const existingUser = await db.user.findUnique({ where: { email: userEmail } });
@@ -119,7 +90,6 @@ export async function POST(request: NextRequest) {
         phone,
         cnic: cnic || null,
         address: address || null,
-        occupation: relationship || null,
       },
     });
 
@@ -131,14 +101,14 @@ export async function POST(request: NextRequest) {
     action: "invite_guardian",
     entityType: "guardian",
     entityId: result.guardian.id,
-    newValues: { name, email: userEmail, phone, cnic, address, relationship, invitationCode },
+    newValues: { name, email: userEmail, phone, cnic, address, relationship },
   });
 
   return NextResponse.json(
     {
       guardian: result.guardian,
       user: result.user,
-      invitationCode,
+      temporaryPassword,
       relationship,
     },
     { status: 201 }

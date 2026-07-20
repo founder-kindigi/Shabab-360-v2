@@ -27,10 +27,14 @@ export function OfflineQueuePanel() {
 
   // Auto-expand if there are failed items
   useEffect(() => {
-    if (failedCount > 0) {
+    if (failedCount === 0) return;
+
+    const timer = window.setTimeout(() => {
       setOpen(true);
-      loadFailedItems();
-    }
+      void loadFailedItems();
+    }, 0);
+
+    return () => window.clearTimeout(timer);
   }, [failedCount, loadFailedItems]);
 
   const handleSync = async () => {

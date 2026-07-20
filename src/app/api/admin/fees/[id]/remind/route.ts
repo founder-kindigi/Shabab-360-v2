@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth/authorize";
+import { requireAuth, requireCapability } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
 import { sendFeeReminder } from "@/lib/email-service";
+import { moneyToNumber } from "@/lib/money";
+import { z } from "zod";
+
+const reminderSchema = z.object({
+  participantIds: z.array(z.string().min(1)).max(1_000).optional(),
+});
 
 export async function POST(
   request: NextRequest,
@@ -11,16 +17,25 @@ export async function POST(
   const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
   const { user } = auth;
+  const capabilityAuth = await requireCapability("fees.manage");
+  if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
-  if (!["super_admin", "program_admin", "park_admin"].includes(user.role || "")) {
+  if (!["super_admin", "program_admin"].includes(user.role || "")) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const { id } = await params;
 
   // Parse body for optional target participant IDs (empty = remind all unpaid)
-  const body = await request.json().catch(() => ({}));
-  const { participantIds }: { participantIds?: string[] } = body;
+  const body = await request.json().catch(() => null);
+  const parsed = reminderSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: parsed.error.issues.map((issue) => issue.message).join(", ") },
+      { status: 400 }
+    );
+  }
+  const { participantIds } = parsed.data;
 
   // Find fee event with batch info
   const feeEvent = await db.feeEvent.findUnique({
@@ -30,11 +45,17 @@ export async function POST(
         include: {
           park: true,
           groups: {
+            where: { isActive: true },
             include: {
               participants: {
+                where: { state: "active" },
                 include: {
-                  guardian: {
-                    include: { user: { select: { email: true } } },
+                  guardianLinks: {
+                    include: {
+                      guardian: {
+                        include: { user: { select: { email: true } } },
+                      },
+                    },
                   },
                 },
               },
@@ -61,12 +82,13 @@ export async function POST(
   for (const payment of feeEvent.payments) {
     paidByParticipant.set(
       payment.participantId,
-      (paidByParticipant.get(payment.participantId) || 0) + payment.amount
+      (paidByParticipant.get(payment.participantId) || 0) + moneyToNumber(payment.amount)
     );
   }
 
   // Filter to unpaid or partially paid
-  const effectiveAmount = feeEvent.amount - feeEvent.discountAmount;
+  const effectiveAmount =
+    moneyToNumber(feeEvent.amount) - moneyToNumber(feeEvent.discountAmount);
   let targets = uniqueParticipants.filter((p) => {
     const paid = paidByParticipant.get(p.id) || 0;
     return paid < effectiveAmount;
@@ -94,12 +116,19 @@ export async function POST(
     const amountDue = Math.max(0, effectiveAmount - paid);
 
     try {
-      await sendFeeReminder(
-        participant.guardian || null,
-        feeEvent.title,
-        amountDue
-      );
-      sentCount++;
+      if (participant.guardianLinks.length === 0) {
+        errors.push(`${participant.name}: no linked guardian`);
+        continue;
+      }
+
+      for (const link of participant.guardianLinks) {
+        const notificationId = await sendFeeReminder(
+          link.guardian,
+          feeEvent.title,
+          amountDue
+        );
+        if (notificationId) sentCount++;
+      }
     } catch (err) {
       errors.push(`${participant.name}: ${err instanceof Error ? err.message : "Failed"}`);
     }
@@ -120,7 +149,7 @@ export async function POST(
     action: "fee_reminder_sent",
     entityType: "FeeEvent",
     entityId: id,
-    details: {
+    newValues: {
       feeTitle: feeEvent.title,
       sentCount,
       totalTargets: targets.length,

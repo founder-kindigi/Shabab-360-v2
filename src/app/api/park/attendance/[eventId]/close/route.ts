@@ -1,36 +1,20 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { requireAuth, requireCapability, requireResourceScope } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
 
-type SessionUser = {
-  id?: string;
-  role?: string;
-  assignedCityId?: string | null;
-  assignedParkId?: string | null;
-  assignedGroupId?: string | null;
-};
+const EVENT_SUPERVISOR_ROLES = ["park_admin", "park_lead"] as const;
 
 export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ eventId: string }> }
 ) {
   const { eventId } = await params;
-  const session = await getServerSession(authOptions);
-  const user = session?.user as SessionUser | undefined;
-
-  if (!session || !user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  // Only park_admin and park_lead can close events
-  if (user.role !== "park_admin" && user.role !== "park_lead") {
-    return NextResponse.json(
-      { error: "Forbidden - only park_admin and park_lead can close events" },
-      { status: 403 }
-    );
-  }
+  const auth = await requireAuth();
+  if (auth instanceof NextResponse) return auth;
+  const { user } = auth;
+  const capabilityAuth = await requireCapability("attendance.correct");
+  if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
   try {
     const body = await req.json();
@@ -62,9 +46,12 @@ export async function PATCH(
     }
 
     // Scope check
-    if (user.assignedParkId !== event.group.batch.parkId) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    const scopeError = requireResourceScope(
+      user,
+      { parkId: event.group.batch.parkId, groupId: event.groupId },
+      EVENT_SUPERVISOR_ROLES
+    );
+    if (scopeError) return scopeError;
 
     const staffMeta = await db.staffMeta.findUnique({
       where: { userId: user.id },
@@ -80,24 +67,12 @@ export async function PATCH(
       },
     });
 
-    logAudit({
+    await logAudit({
       userId: user.id,
       action: "event_close",
       entityType: "attendance_events",
       entityId: eventId,
-      newValues: JSON.stringify({ reason, closedByName: staffMeta?.user?.name }),
-    });
-
-    // ─── Dispatch real-time notification (non-blocking) ─────────────────────
-    fetch("http://localhost:3004/notify", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        type: "attendance:updated",
-        data: { eventId, status: "closed", closedByName: staffMeta?.user?.name },
-      }),
-    }).catch(() => {
-      // Non-blocking — notification service may be unavailable
+      newValues: { reason, closedByName: staffMeta?.user?.name },
     });
 
     return NextResponse.json({

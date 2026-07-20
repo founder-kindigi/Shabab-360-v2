@@ -1,0 +1,18 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$(git rev-parse --show-toplevel)/.codex/hooks/session-context.mjs\"",
+            "commandWindows": "powershell -NoProfile -Command \"$null = [Console]::In.ReadToEnd(); $root = git rev-parse --show-toplevel; node (Join-Path $root '.codex/hooks/session-context.mjs')\"",
+            "timeout": 10,
+            "statusMessage": "Loading concise Shabab 360 context"
+          }
+        ]
+      }
+    ]
+  }
+}

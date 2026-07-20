@@ -1,8 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { requireCapability } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
 import { todayPKT, endOfTodayPKT } from "@/lib/timezone";
+import {
+  optionalIdentifier,
+  optionalQueryText,
+  queryParamsToObject,
+  queryValidationError,
+} from "@/lib/api/query-params";
+import { z } from "zod";
+
+const listQuerySchema = z.object({
+  search: optionalQueryText(),
+  groupId: optionalIdentifier(),
+  batchId: optionalIdentifier(),
+});
 
 type SessionUser = {
   id?: string;
@@ -25,6 +39,8 @@ export async function GET(request: NextRequest) {
   if (!user.role || !allowedRoles.includes(user.role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
+  const capabilityAuth = await requireCapability("people.view");
+  if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
   try {
     // Determine park scope from staffMeta
@@ -62,11 +78,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "No park assigned" }, { status: 403 });
     }
 
-    // Parse query params
-    const { searchParams } = new URL(request.url);
-    const search = searchParams.get("search")?.trim() || "";
-    const filterGroupId = searchParams.get("groupId") || null;
-    const filterBatchId = searchParams.get("batchId") || null;
+    const query = listQuerySchema.safeParse(queryParamsToObject(new URL(request.url).searchParams));
+    if (!query.success) {
+      return NextResponse.json(queryValidationError(query.error), { status: 400 });
+    }
+    const { search = "", groupId: filterGroupId, batchId: filterBatchId } = query.data;
 
     // Get park info
     const park = await db.park.findUnique({

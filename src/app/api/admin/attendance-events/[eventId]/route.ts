@@ -1,27 +1,20 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { requireCapability, requireResourceScope, requireRole } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
 
-type SessionUser = {
-  id?: string;
-  role?: string;
-  assignedCityId?: string | null;
-  assignedParkId?: string | null;
-  assignedGroupId?: string | null;
-};
+const ALLOWED_ROLES = ["super_admin", "program_admin", "city_head", "park_admin", "park_lead"] as const;
 
 export async function GET(
   _req: Request,
   { params }: { params: Promise<{ eventId: string }> }
 ) {
   const { eventId } = await params;
-  const session = await getServerSession(authOptions);
-  const user = session?.user as SessionUser | undefined;
+  const roleError = await requireRole([...ALLOWED_ROLES]);
+  if (roleError) return roleError;
 
-  if (!session || !user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const auth = await requireCapability("attendance.mark");
+  if (auth instanceof NextResponse) return auth;
+  const { user } = auth;
 
   try {
     const event = await db.attendanceEvent.findUnique({
@@ -44,6 +37,13 @@ export async function GET(
     if (!event) {
       return NextResponse.json({ error: "Event not found" }, { status: 404 });
     }
+
+    const scopeError = requireResourceScope(user, {
+      cityId: event.group.batch.park.cityId,
+      parkId: event.group.batch.parkId,
+      groupId: event.groupId,
+    });
+    if (scopeError) return scopeError;
 
     const statusCounts = { present: 0, absent: 0, late: 0, excused: 0 };
     for (const r of event.records) {

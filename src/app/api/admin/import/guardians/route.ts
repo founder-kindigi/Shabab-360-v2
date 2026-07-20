@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireRole, requireAuth } from "@/lib/auth/authorize";
+import { requireCapability, requireRole } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
 import Papa from "papaparse";
@@ -14,6 +14,9 @@ export async function POST(request: NextRequest) {
     "murabbi",
   ]);
   if (authError) return authError;
+
+  const auth = await requireCapability("guardians.manage");
+  if (auth instanceof NextResponse) return auth;
 
   try {
     const formData = await request.formData();
@@ -121,16 +124,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Log audit
-    const auth = await requireAuth();
-    if (!(auth instanceof NextResponse)) {
-      logAudit({
-        userId: auth.user.id,
-        action: "IMPORT_GUARDIANS",
-        entityType: "Guardian",
-        entityId: null,
-        newValues: JSON.stringify({ success, errors: errors.length, total: rows.length }),
-      });
-    }
+    await logAudit({
+      userId: auth.user.id,
+      action: "IMPORT_GUARDIANS",
+      entityType: "Guardian",
+      newValues: { success, errors: errors.length, total: rows.length },
+    });
 
     return NextResponse.json({
       success,

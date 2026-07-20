@@ -1,42 +1,43 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { requireCapability, requireRole } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
 import { todayPKT, endOfTodayPKT, fromPKT, formatPKT } from "@/lib/timezone";
 import { logAudit } from "@/lib/audit";
+import {
+  MAX_IDENTIFIER_LENGTH,
+  optionalDateOnly,
+  optionalInteger,
+  queryParamsToObject,
+  queryValidationError,
+} from "@/lib/api/query-params";
+import { z } from "zod";
 
-type SessionUser = {
-  id?: string;
-  role?: string;
-  name?: string;
-};
+const historyQuerySchema = z
+  .object({
+    participantId: z.string().trim().min(1).max(MAX_IDENTIFIER_LENGTH),
+    from: optionalDateOnly(),
+    to: optionalDateOnly(),
+    limit: optionalInteger(1, 100).default(30),
+  })
+  .refine(({ from, to }) => !from || !to || from <= to, {
+    path: ["to"],
+    message: "to must be on or after from",
+  });
 
 export async function GET(request: NextRequest) {
-  const session = await getServerSession(authOptions);
-  const user = session?.user as SessionUser | undefined;
+  const roleError = await requireRole(["guardian"]);
+  if (roleError) return roleError;
 
-  if (!session || !user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  if (user.role !== "guardian") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const auth = await requireCapability("reports.view");
+  if (auth instanceof NextResponse) return auth;
+  const { user } = auth;
 
   const { searchParams } = new URL(request.url);
-  const participantId = searchParams.get("participantId");
-  const fromStr = searchParams.get("from");
-  const toStr = searchParams.get("to");
-  const limitParam = searchParams.get("limit");
-
-  if (!participantId) {
-    return NextResponse.json(
-      { error: "participantId is required" },
-      { status: 400 }
-    );
+  const parsedQuery = historyQuerySchema.safeParse(queryParamsToObject(searchParams));
+  if (!parsedQuery.success) {
+    return NextResponse.json(queryValidationError(parsedQuery.error), { status: 400 });
   }
-
-  const limit = Math.min(Math.max(parseInt(limitParam || "30", 10) || 30, 1), 100);
+  const { participantId, from: fromStr, to: toStr, limit } = parsedQuery.data;
 
   try {
     // Verify the participant belongs to this guardian

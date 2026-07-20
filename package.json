@@ -3,14 +3,26 @@
   "version": "0.2.0",
   "private": true,
   "scripts": {
-    "dev": "next dev -p 3000 2>&1 | tee dev.log",
-    "build": "next build && cp -r .next/static .next/standalone/.next/ && cp -r public .next/standalone/ && cp -r db prisma .next/standalone/ 2>/dev/null; true",
-    "start": "NEXTAUTH_SECRET=${NEXTAUTH_SECRET:-shabab360-dev-secret-change-in-production} NEXTAUTH_URL=${NEXTAUTH_URL:-http://localhost:3000} NODE_OPTIONS='--max-old-space-size=512' node .next/standalone/server.js -p 3000 2>&1 | tee server.log",
+    "dev": "next dev -p 3000",
+    "build": "next build",
+    "build:postgres": "npm run db:postgres:generate && next build",
+    "prestart": "node -e \"if (!process.env.NEXTAUTH_SECRET) { console.error('NEXTAUTH_SECRET must be set'); process.exit(1); }\"",
+    "start": "next start -p 3000",
     "lint": "eslint .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
     "db:push": "prisma db push",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:reset": "prisma migrate reset",
+    "db:postgres:generate": "prisma generate --schema prisma/postgres/schema.prisma",
+    "db:postgres:validate": "prisma validate --schema prisma/postgres/schema.prisma",
+    "db:postgres:deploy": "prisma migrate deploy --schema prisma/postgres/schema.prisma",
+    "bootstrap:super-admin": "node scripts/bootstrap-super-admin.cjs",
+    "db:reset:staging-data": "node scripts/reset-staging-data.cjs",
+    "db:migrate:sqlite-to-postgres": "node scripts/migrate-sqlite-to-postgres.cjs",
+    "db:reconcile:sqlite-to-postgres": "node scripts/reconcile-sqlite-to-postgres.cjs",
     "seed": "bun run prisma/seed.ts"
   },
   "dependencies": {
@@ -80,7 +92,6 @@
     "react-syntax-highlighter": "^15.6.1",
     "recharts": "^2.15.4",
     "sharp": "^0.34.3",
-    "socket.io-client": "^4.8.3",
     "sonner": "^2.0.6",
     "tailwind-merge": "^3.3.1",
     "tailwindcss-animate": "^1.0.7",
@@ -100,6 +111,7 @@
     "eslint-config-next": "^16.1.1",
     "tailwindcss": "4.1.18",
     "tw-animate-css": "^1.3.5",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^3.2.7"
   }
 }

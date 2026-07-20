@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireRole, requireAuth } from "@/lib/auth/authorize";
+import { requireRole, requireAuth, requireCapability } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
 import { z } from "zod";
 import { logAudit } from "@/lib/audit";
+import { admissionAdditionalFieldsShape } from "@/lib/admissions/validation";
 
 const VALID_STATUSES = ["submitted", "screening", "interview_scheduled", "interviewed", "accepted", "rejected", "enrolled"] as const;
 
@@ -31,6 +32,7 @@ const patchSchema = z.object({
   cityId: z.string().nullable().optional(),
   preferredParkId: z.string().nullable().optional(),
   notes: z.string().nullable().optional(),
+  ...admissionAdditionalFieldsShape,
   status: z.enum(VALID_STATUSES).optional(),
   // Enrollment fields
   groupId: z.string().min(1).optional(),
@@ -90,6 +92,8 @@ export async function PATCH(
 
   const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
+  const capabilityAuth = await requireCapability("admissions.manage");
+  if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
   const { id } = await params;
 
@@ -229,6 +233,10 @@ export async function PATCH(
   if (data.cityId !== undefined) updateData.cityId = data.cityId;
   if (data.preferredParkId !== undefined) updateData.preferredParkId = data.preferredParkId;
   if (data.notes !== undefined) updateData.notes = data.notes;
+  if (data.emergencyContact !== undefined) updateData.emergencyContact = data.emergencyContact;
+  if (data.emergencyPhone !== undefined) updateData.emergencyPhone = data.emergencyPhone;
+  if (data.previousEducation !== undefined) updateData.previousEducation = data.previousEducation;
+  if (data.reference !== undefined) updateData.reference = data.reference;
   if (data.status !== undefined) updateData.status = data.status;
 
   const application = await db.admissionApplication.update({

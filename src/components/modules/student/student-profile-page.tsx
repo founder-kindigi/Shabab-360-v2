@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { motion } from "framer-motion";
+import { motion, type Variants } from "framer-motion";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -76,19 +76,19 @@ type ProfileResponse = {
 
 // ─── Animation Config ────────────────────────────────────────────────
 
-const stagger = {
+const stagger: Variants = {
   hidden: {},
   visible: { transition: { staggerChildren: 0.06 } },
 };
 
-const fadeUp = {
+const fadeUp: Variants = {
   hidden: { opacity: 0, y: 16 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.4, ease: "easeOut" } },
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────
 
-const genderLabel = (g: string | null) => {
+const genderLabel = (g: string | null | undefined) => {
   if (!g) return "—";
   return g.charAt(0).toUpperCase() + g.slice(1);
 };

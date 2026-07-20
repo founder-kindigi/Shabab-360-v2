@@ -1,14 +1,56 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { requireCapability } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
 import { todayPKT, endOfTodayPKT, formatPKT, toPKT } from "@/lib/timezone";
 import { logAudit } from "@/lib/audit";
+import { moneyToNumber } from "@/lib/money";
 
 type SessionUser = {
   id?: string;
   role?: string;
   name?: string;
+};
+
+type GuardianDashboardChild = {
+  id: string;
+  name: string;
+  groupName: string | null;
+  batchName: string | null;
+  parkName: string | null;
+  cityName: string | null;
+  groupId: string;
+  todayStatus: string | null;
+  sparkline7Day: number[];
+  attendance: {
+    totalEvents30: number;
+    present30: number;
+    absent30: number;
+    late30: number;
+    excused30: number;
+    rate30: number;
+    rate7: number;
+    last5: Array<{ date: string; status: string; title: string }>;
+  };
+  fees: {
+    totalExpected: number;
+    totalPaid: number;
+    outstanding: number;
+    upcomingFees: number;
+    overdueFees: number;
+  };
+};
+
+type GuardianDashboardTodayEvent = {
+  id: string;
+  title: string;
+  isClosed: boolean;
+  groupName: string;
+  parkName: string | null;
+  markedCount: number;
+  participantCount: number;
+  progress: number;
 };
 
 export async function GET() {
@@ -22,6 +64,8 @@ export async function GET() {
   if (user.role !== "guardian") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
+  const capabilityAuth = await requireCapability("dashboard.view");
+  if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
   try {
     // Fire audit log (fire-and-forget)
@@ -84,7 +128,7 @@ export async function GET() {
     ];
 
     // Build children data with attendance stats
-    const children = [];
+    const children: GuardianDashboardChild[] = [];
 
     for (const gc of guardianChildren) {
       const p = gc.participant;
@@ -184,7 +228,10 @@ export async function GET() {
       });
 
       const childFeeEventIds = childFeeEvents.map((f) => f.id);
-      let totalExpected = childFeeEvents.reduce((sum, f) => sum + f.amount, 0);
+      let totalExpected = childFeeEvents.reduce(
+        (sum, feeEvent) => sum + moneyToNumber(feeEvent.amount),
+        0
+      );
       let totalPaid = 0;
       let upcomingFees = 0;
       let overdueFees = 0;
@@ -197,7 +244,10 @@ export async function GET() {
           },
           select: { feeEventId: true, amount: true },
         });
-        totalPaid = payments.reduce((sum, pay) => sum + pay.amount, 0);
+        totalPaid = payments.reduce(
+          (sum, payment) => sum + moneyToNumber(payment.amount),
+          0
+        );
 
         // Check per-fee-event status
         const paidEventIds = new Set(payments.map((pay) => pay.feeEventId));
@@ -259,7 +309,7 @@ export async function GET() {
     });
 
     // Get participant counts per group for progress calculation
-    const todayEventsFormatted = [];
+    const todayEventsFormatted: GuardianDashboardTodayEvent[] = [];
     for (const evt of todayEvents) {
       const totalParticipants = await db.participant.count({
         where: { groupId: evt.groupId, state: "active" },

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth/authorize";
+import { requireAuth, requireCapability } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
 import { z } from "zod";
@@ -19,6 +19,8 @@ export async function POST(request: NextRequest) {
   const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
   const { user } = auth;
+  const capabilityAuth = await requireCapability("fees.manage");
+  if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
   if (!["super_admin", "program_admin"].includes(user.role || "")) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });

@@ -87,8 +87,6 @@ type GuardianSearchResult = {
   id: string;
   name: string;
   phone: string;
-  cnic: string | null;
-  address: string | null;
 };
 
 // ==================== CONSTANTS ====================
@@ -211,6 +209,7 @@ function LinkGuardianDialog({
   const [selectedParticipantId, setSelectedParticipantId] = useState("");
   const [relation, setRelation] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const phoneDigitCount = phoneSearch.replace(/\D/g, "").length;
 
   const { data: searchResults, isLoading: searchLoading } = useQuery<{
     results: GuardianSearchResult[];
@@ -221,7 +220,7 @@ function LinkGuardianDialog({
       if (!res.ok) throw new Error("Search failed");
       return res.json();
     },
-    enabled: phoneSearch.length >= 3,
+    enabled: phoneDigitCount >= 10 && phoneDigitCount <= 15,
     staleTime: 5000,
   });
 
@@ -280,7 +279,7 @@ function LinkGuardianDialog({
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
               <Input
-                placeholder="Type phone number (min 3 chars)..."
+                placeholder="Enter complete phone number..."
                 value={phoneSearch}
                 onChange={(e) => {
                   setPhoneSearch(e.target.value);
@@ -314,7 +313,7 @@ function LinkGuardianDialog({
               </div>
             )}
 
-            {phoneSearch.length >= 3 && !selectedGuardian && (
+            {phoneDigitCount >= 10 && phoneDigitCount <= 15 && !selectedGuardian && (
               <div className="max-h-40 overflow-y-auto rounded-lg border">
                 {searchLoading ? (
                   <div className="p-3 text-center">
@@ -331,8 +330,7 @@ function LinkGuardianDialog({
                         key={g.id}
                         onClick={() => setSelectedGuardian(g)}
                         className={cn(
-                          "w-full flex items-center gap-3 p-2.5 text-left hover:bg-muted/50 transition-colors",
-                          selectedGuardian?.id === g.id && "bg-[#F3ECF6] dark:bg-[#1F086080]"
+                          "w-full flex items-center gap-3 p-2.5 text-left hover:bg-muted/50 transition-colors"
                         )}
                       >
                         <div

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth, requireRole } from "@/lib/auth/authorize";
+import { canAccessResourceScope, requireAuth, requireCapability, requireRole } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
+import { moneyToNumber } from "@/lib/money";
 
 export async function GET(
   _request: NextRequest,
@@ -18,6 +19,8 @@ export async function GET(
 
   const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
+  const capabilityAuth = await requireCapability("guardians.manage");
+  if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
   const { id } = await params;
 
@@ -63,6 +66,19 @@ export async function GET(
     return NextResponse.json({ error: "Guardian not found" }, { status: 404 });
   }
 
+  const canAccessAllChildren =
+    guardian.children.length > 0 &&
+    guardian.children.every((child) =>
+      canAccessResourceScope(auth.user, {
+        cityId: child.participant.group.batch.park.cityId,
+        parkId: child.participant.group.batch.parkId,
+        groupId: child.participant.group.id,
+      })
+    );
+  if (!canAccessAllChildren) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   // ─── Fee Summary across all children ──────────────────────────────────
   const participantIds = guardian.children.map((c) => c.participantId);
 
@@ -95,7 +111,9 @@ export async function GET(
       select: { id: true, amount: true, dueDate: true },
     });
 
-    totalExpected = feeEvents.reduce((sum, f) => sum + f.amount, 0) * participantIds.length;
+    totalExpected =
+      feeEvents.reduce((sum, feeEvent) => sum + moneyToNumber(feeEvent.amount), 0) *
+      participantIds.length;
 
     // Count overdue: fee events with dueDate in the past that don't have a payment for each child
     const now = new Date();
@@ -144,13 +162,13 @@ export async function GET(
       orderBy: { createdAt: "desc" },
     });
 
-    totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
+    totalPaid = payments.reduce((sum, payment) => sum + moneyToNumber(payment.amount), 0);
 
     // Recent payments (last 5)
     recentPayments = payments.slice(0, 5).map((p) => ({
       childName: p.participant.name,
       feeEventTitle: p.feeEvent.title,
-      amount: p.amount,
+      amount: moneyToNumber(p.amount),
       method: p.method,
       receiptNo: p.receiptNo,
       date: p.createdAt.toISOString(),

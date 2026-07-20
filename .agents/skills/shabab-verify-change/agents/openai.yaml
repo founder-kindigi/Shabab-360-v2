@@ -1,0 +1,4 @@
+interface:
+  display_name: "Verify Shabab Change"
+  short_description: "Run focused Shabab 360 quality checks"
+  default_prompt: "Use $shabab-verify-change to verify the current Shabab 360 changes."

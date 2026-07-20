@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth/authorize";
+import { requireCapability, requireResourceScope, requireRole } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
 import { formatPKT } from "@/lib/timezone";
 
@@ -9,20 +9,18 @@ const ADMIN_ROLES = [
   "city_head",
   "park_admin",
   "park_lead",
-];
+] as const;
 
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ participantId: string }> }
 ) {
-  const auth = await requireAuth();
+  const roleError = await requireRole([...ADMIN_ROLES]);
+  if (roleError) return roleError;
+
+  const auth = await requireCapability("reports.view");
   if (auth instanceof NextResponse) return auth;
   const { user } = auth;
-
-  // Admin-only access
-  if (!user.role || !ADMIN_ROLES.includes(user.role)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
 
   const { participantId } = await params;
 
@@ -51,26 +49,13 @@ export async function GET(
     );
   }
 
-  // Scope check
-  const isHQ = ["super_admin", "program_admin"].includes(user.role);
   const batch = participant.group.batch;
-
-  if (!isHQ) {
-    if (
-      user.role === "city_head" &&
-      user.assignedCityId &&
-      batch.park.city.id !== user.assignedCityId
-    ) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-    if (
-      ["park_admin", "park_lead"].includes(user.role || "") &&
-      user.assignedParkId &&
-      batch.park.id !== user.assignedParkId
-    ) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-  }
+  const scopeError = requireResourceScope(user, {
+    cityId: batch.park.city.id,
+    parkId: batch.park.id,
+    groupId: participant.groupId,
+  });
+  if (scopeError) return scopeError;
 
   // Fetch attendance events for the group
   const attendanceEvents = await db.attendanceEvent.findMany({

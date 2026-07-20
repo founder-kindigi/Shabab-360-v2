@@ -1,207 +1,161 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { ATTENDANCE_ROLES, canAccessResourceScope, requireAuth, requireCapability } from "@/lib/auth/authorize";
+import { checkAttendanceAlerts } from "@/lib/attendance-alerts";
 import { db } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
-import { parseISO } from "date-fns";
+import { isValid, parseISO } from "date-fns";
 
-type SessionUser = {
-  id?: string;
-  role?: string;
-  assignedCityId?: string | null;
-  assignedParkId?: string | null;
-  assignedGroupId?: string | null;
+const VALID_STATUSES = ["present", "absent", "late", "excused"] as const;
+type AttendanceStatus = (typeof VALID_STATUSES)[number];
+
+type SyncMutation = {
+  mutationId: string | null;
+  eventId: string | null;
+  participantId: string | null;
+  status: AttendanceStatus | null;
+  markedAt: Date | null;
 };
 
-const VALID_STATUSES = ["present", "absent", "late", "excused"];
-const ALLOWED_ROLES = ["park_admin", "park_lead", "murabbi"];
+type SyncResult = {
+  mutationId: string | null;
+  status: "processed" | "failed";
+  recordId: string | null;
+  error: string | null;
+};
+
+function parseMutation(value: unknown): SyncMutation {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return { mutationId: null, eventId: null, participantId: null, status: null, markedAt: null };
+  }
+
+  const mutation = value as Record<string, unknown>;
+  const status = typeof mutation.status === "string" && VALID_STATUSES.includes(mutation.status as AttendanceStatus)
+    ? mutation.status as AttendanceStatus
+    : null;
+  const parsedMarkedAt = typeof mutation.markedAt === "string" ? parseISO(mutation.markedAt) : null;
+
+  return {
+    mutationId: typeof mutation.mutationId === "string" ? mutation.mutationId : null,
+    eventId: typeof mutation.eventId === "string" ? mutation.eventId : null,
+    participantId: typeof mutation.participantId === "string" ? mutation.participantId : null,
+    status,
+    markedAt: parsedMarkedAt && isValid(parsedMarkedAt) ? parsedMarkedAt : null,
+  };
+}
 
 export async function POST(req: Request) {
-  const session = await getServerSession(authOptions);
-  const user = session?.user as SessionUser | undefined;
-
-  if (!session || !user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  if (!user.role || !ALLOWED_ROLES.includes(user.role)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const auth = await requireAuth();
+  if (auth instanceof NextResponse) return auth;
+  const { user } = auth;
+  const capabilityAuth = await requireCapability("attendance.mark");
+  if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
   try {
     const body = await req.json();
-    const { mutations } = body;
+    const mutations = body?.mutations;
 
-    if (!mutations || !Array.isArray(mutations)) {
-      return NextResponse.json(
-        { error: "mutations array required" },
-        { status: 400 }
-      );
+    if (!Array.isArray(mutations)) {
+      return NextResponse.json({ error: "mutations array required" }, { status: 400 });
     }
-
     if (mutations.length > 50) {
-      return NextResponse.json(
-        { error: "Max 50 mutations per sync request" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Max 50 mutations per sync request" }, { status: 400 });
     }
 
-    const staffMeta = await db.staffMeta.findUnique({
-      where: { userId: user.id },
-    });
+    const staffMeta = await db.staffMeta.findUnique({ where: { userId: user.id } });
+    const results: SyncResult[] = [];
 
-    const results = [];
-
-    for (const mutation of mutations) {
+    for (const rawMutation of mutations) {
+      const mutation = parseMutation(rawMutation);
       const { mutationId, eventId, participantId, status, markedAt } = mutation;
 
-      // Validate
-      if (!VALID_STATUSES.includes(status)) {
+      if (!mutationId || !eventId || !participantId || !status) {
         results.push({
           mutationId,
           status: "failed",
           recordId: null,
-          error: "Invalid status",
+          error: "mutationId, eventId, participantId, and a valid status are required",
         });
+        continue;
+      }
+      if (typeof (rawMutation as Record<string, unknown>).markedAt === "string" && !markedAt) {
+        results.push({ mutationId, status: "failed", recordId: null, error: "Invalid markedAt" });
         continue;
       }
 
       try {
-        // Fetch event for scope check
         const event = await db.attendanceEvent.findUnique({
           where: { id: eventId },
           include: { group: { include: { batch: true } } },
         });
-
         if (!event) {
-          results.push({
-            mutationId,
-            status: "failed",
-            recordId: null,
-            error: "Event not found",
-          });
+          results.push({ mutationId, status: "failed", recordId: null, error: "Event not found" });
           continue;
         }
-
-        // Scope check
-        if (user.role === "murabbi") {
-          if (user.assignedGroupId !== event.groupId) {
-            results.push({
-              mutationId,
-              status: "failed",
-              recordId: null,
-              error: "Forbidden",
-            });
-            continue;
-          }
-        } else {
-          if (user.assignedParkId !== event.group.batch.parkId) {
-            results.push({
-              mutationId,
-              status: "failed",
-              recordId: null,
-              error: "Forbidden",
-            });
-            continue;
-          }
+        if (!canAccessResourceScope(
+          user,
+          { parkId: event.group.batch.parkId, groupId: event.groupId },
+          ATTENDANCE_ROLES
+        )) {
+          results.push({ mutationId, status: "failed", recordId: null, error: "Forbidden" });
+          continue;
         }
-
         if (event.isClosed) {
-          results.push({
-            mutationId,
-            status: "failed",
-            recordId: null,
-            error: "Event is closed",
-          });
+          results.push({ mutationId, status: "failed", recordId: null, error: "Event is closed" });
           continue;
         }
 
-        // Verify participant
         const participant = await db.participant.findFirst({
-          where: {
-            id: participantId,
-            groupId: event.groupId,
-            state: "active",
-          },
+          where: { id: participantId, groupId: event.groupId, state: "active" },
         });
-
         if (!participant) {
-          results.push({
-            mutationId,
-            status: "failed",
-            recordId: null,
-            error: "Participant not in this group",
-          });
+          results.push({ mutationId, status: "failed", recordId: null, error: "Participant not in this group" });
           continue;
         }
 
-        // Upsert
         const record = await db.attendanceRecord.upsert({
-          where: {
-            eventId_participantId: { eventId, participantId },
-          },
+          where: { eventId_participantId: { eventId, participantId } },
           create: {
             eventId,
             participantId,
             status,
             markedBy: staffMeta?.id,
-            markedAt: markedAt ? parseISO(markedAt) : new Date(),
+            markedAt: markedAt ?? new Date(),
           },
           update: {
             status,
             markedBy: staffMeta?.id,
-            markedAt: markedAt ? parseISO(markedAt) : new Date(),
+            markedAt: markedAt ?? new Date(),
           },
         });
 
-        results.push({
-          mutationId,
-          status: "processed",
-          recordId: record.id,
-          error: null,
-        });
-      } catch (err) {
+        if (status === "absent") {
+          try {
+            await checkAttendanceAlerts(participantId, eventId);
+          } catch (error) {
+            console.error("Attendance alert evaluation failed during sync:", error);
+          }
+        }
+
+        results.push({ mutationId, status: "processed", recordId: record.id, error: null });
+      } catch (error) {
         results.push({
           mutationId,
           status: "failed",
           recordId: null,
-          error: err instanceof Error ? err.message : "Processing error",
+          error: error instanceof Error ? error.message : "Processing error",
         });
       }
     }
 
-    const processed = results.filter((r) => r.status === "processed").length;
-    const failed = results.filter((r) => r.status === "failed").length;
+    const processed = results.filter((result) => result.status === "processed").length;
+    const failed = results.filter((result) => result.status === "failed").length;
 
-    logAudit({
+    await logAudit({
       userId: user.id,
       action: "attendance_sync",
       entityType: "attendance_records",
-      newValues: JSON.stringify({
-        total: mutations.length,
-        processed,
-        failed,
-      }),
+      newValues: { total: mutations.length, processed, failed },
     });
-
-    // ─── Dispatch real-time notification (non-blocking) ─────────────────────
-    if (processed > 0) {
-      fetch("http://localhost:3004/notify", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          type: "attendance:updated",
-          data: {
-            eventId: mutations[0]?.eventId,
-            syncCount: processed,
-            markedBy: staffMeta?.id,
-            markedByName: staffMeta?.user?.name || null,
-            isSync: true,
-          },
-        }),
-      }).catch(() => {
-        // Non-blocking
-      });
-    }
 
     return NextResponse.json({
       results,
@@ -209,9 +163,6 @@ export async function POST(req: Request) {
     });
   } catch (error) {
     console.error("Sync error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

@@ -23,6 +23,7 @@ import {
   Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { fetchJsonArray } from "@/lib/api/fetch-json-array";
 
 // ---------------------------------------------------------------------------
 // Types matching API response shapes
@@ -52,6 +53,7 @@ interface GroupItem {
   id: string;
   name: string;
   batchId: string;
+  batch: { id: string; name: string };
   _count: { participants: number };
 }
 
@@ -230,9 +232,10 @@ export function ScopeSelector() {
   const {
     data: cities = [],
     isLoading: citiesLoading,
+    isError: citiesError,
   } = useQuery<CityItem[]>({
     queryKey: ["scope-cities"],
-    queryFn: () => fetch("/api/admin/cities").then((r) => r.json()),
+    queryFn: () => fetchJsonArray<CityItem>("/api/admin/cities"),
     enabled: visible && mode === "full" && sessionStatus === "authenticated",
     staleTime: 5 * 60 * 1000,
   });
@@ -241,9 +244,10 @@ export function ScopeSelector() {
   const {
     data: allParks = [],
     isLoading: parksLoading,
+    isError: parksError,
   } = useQuery<ParkItem[]>({
     queryKey: ["scope-parks"],
-    queryFn: () => fetch("/api/admin/parks").then((r) => r.json()),
+    queryFn: () => fetchJsonArray<ParkItem>("/api/admin/parks"),
     enabled: visible && sessionStatus === "authenticated",
     staleTime: 5 * 60 * 1000,
   });
@@ -260,10 +264,10 @@ export function ScopeSelector() {
   const {
     data: batches = [],
     isLoading: batchesLoading,
+    isError: batchesError,
   } = useQuery<BatchItem[]>({
     queryKey: ["scope-batches", selectedParkId],
-    queryFn: () =>
-      fetch(`/api/admin/batches?parkId=${selectedParkId}`).then((r) => r.json()),
+    queryFn: () => fetchJsonArray<BatchItem>(`/api/admin/batches?parkId=${selectedParkId}`),
     enabled: visible && !!selectedParkId && sessionStatus === "authenticated",
     staleTime: 5 * 60 * 1000,
   });
@@ -272,10 +276,10 @@ export function ScopeSelector() {
   const {
     data: groups = [],
     isLoading: groupsLoading,
+    isError: groupsError,
   } = useQuery<GroupItem[]>({
     queryKey: ["scope-groups", selectedBatchId],
-    queryFn: () =>
-      fetch(`/api/admin/groups?batchId=${selectedBatchId}`).then((r) => r.json()),
+    queryFn: () => fetchJsonArray<GroupItem>(`/api/admin/groups?batchId=${selectedBatchId}`),
     enabled: visible && !!selectedBatchId && sessionStatus === "authenticated",
     staleTime: 5 * 60 * 1000,
   });
@@ -284,9 +288,10 @@ export function ScopeSelector() {
   const {
     data: murabbiGroups = [],
     isLoading: murabbiGroupsLoading,
+    isError: murabbiGroupsError,
   } = useQuery<GroupItem[]>({
     queryKey: ["scope-murabbi-group"],
-    queryFn: () => fetch("/api/admin/groups").then((r) => r.json()),
+    queryFn: () => fetchJsonArray<GroupItem>("/api/admin/groups"),
     enabled: visible && mode === "read_only" && sessionStatus === "authenticated",
     staleTime: 5 * 60 * 1000,
   });
@@ -340,6 +345,16 @@ export function ScopeSelector() {
   // -----------------------------------------------------------------------
 
   if (!visible || sessionStatus === "loading") return null;
+
+  if (citiesError || parksError || batchesError || groupsError || murabbiGroupsError) {
+    return (
+      <nav aria-label="Scope selector" className="rounded-xl border bg-card p-3 md:p-4">
+        <p role="alert" className="text-sm text-destructive">
+          Scope filters are unavailable. Refresh to try again.
+        </p>
+      </nav>
+    );
+  }
 
   // -----------------------------------------------------------------------
   // Handlers

@@ -1,8 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { requireCapability } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
 import { todayPKT, endOfTodayPKT } from "@/lib/timezone";
+import {
+  optionalQueryText,
+  paginatedQuerySchema,
+  queryParamsToObject,
+  queryValidationError,
+} from "@/lib/api/query-params";
+
+const listQuerySchema = paginatedQuerySchema().extend({
+  search: optionalQueryText(),
+});
 
 type SessionUser = {
   id?: string;
@@ -25,6 +36,8 @@ export async function GET(request: NextRequest) {
   if (!user.role || !allowedRoles.includes(user.role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
+  const capabilityAuth = await requireCapability("guardians.manage");
+  if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
   try {
     const staffMeta = await db.staffMeta.findUnique({
@@ -61,10 +74,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "No park assigned" }, { status: 403 });
     }
 
-    const { searchParams } = new URL(request.url);
-    const search = searchParams.get("search")?.trim() || "";
-    const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
-    const pageSize = Math.min(100, Math.max(1, parseInt(searchParams.get("pageSize") || "20", 10)));
+    const query = listQuerySchema.safeParse(queryParamsToObject(new URL(request.url).searchParams));
+    if (!query.success) {
+      return NextResponse.json(queryValidationError(query.error), { status: 400 });
+    }
+    const { search = "", page, pageSize } = query.data;
 
     const park = await db.park.findUnique({
       where: { id: parkId },
@@ -285,6 +299,8 @@ export async function POST(request: NextRequest) {
   if (!user.role || !allowedRoles.includes(user.role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
+  const capabilityAuth = await requireCapability("guardians.manage");
+  if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
   try {
     const body = await request.json();

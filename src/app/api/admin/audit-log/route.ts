@@ -1,31 +1,56 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireRole } from "@/lib/auth/authorize";
+import { requireRole, requireCapability } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
 import { fromPKT } from "@/lib/timezone";
+import { z } from "zod";
+import {
+  MAX_LIST_OFFSET,
+  optionalDateOnly,
+  optionalIdentifier,
+  optionalInteger,
+  optionalQueryText,
+  paginatedQuerySchema,
+  queryParamsToObject,
+  queryValidationError,
+} from "@/lib/api/query-params";
+
+const auditLogQuerySchema = paginatedQuerySchema().extend({
+  action: optionalQueryText(64),
+  entityType: optionalQueryText(64),
+  userId: optionalIdentifier(),
+  search: optionalQueryText(),
+  from: optionalDateOnly(),
+  to: optionalDateOnly(),
+  sort: z.enum(["createdAt", "action", "entityType"]).default("createdAt"),
+  order: z.enum(["asc", "desc"]).default("desc"),
+  limit: optionalInteger(1, 200),
+  offset: optionalInteger(0, MAX_LIST_OFFSET),
+}).refine(
+  ({ limit, offset }) => offset === undefined || limit !== undefined,
+  { path: ["offset"], message: "offset requires limit" }
+).refine(
+  ({ from, to }) => !from || !to || from <= to,
+  { path: ["to"], message: "to must be on or after from" }
+);
 
 export async function GET(request: NextRequest) {
   const authError = await requireRole(["super_admin", "program_admin"]);
   if (authError) return authError;
+  const capabilityAuth = await requireCapability("audit.view");
+  if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
   const { searchParams } = new URL(request.url);
-  const action = searchParams.get("action") || undefined;
-  const entityType = searchParams.get("entityType") || undefined;
-  const userId = searchParams.get("userId") || undefined;
-  const search = searchParams.get("search") || undefined;
-  const from = searchParams.get("from") || undefined;
-  const to = searchParams.get("to") || undefined;
-  const sort = searchParams.get("sort") || "createdAt";
-  const order = searchParams.get("order") || "desc";
+  const query = auditLogQuerySchema.safeParse(queryParamsToObject(searchParams));
+  if (!query.success) {
+    return NextResponse.json(queryValidationError(query.error), { status: 400 });
+  }
 
-  // Support both page/pageSize and limit/offset
-  const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
-  const pageSize = Math.min(Math.max(1, parseInt(searchParams.get("pageSize") || "20", 10)), 100);
-  const legacyLimit = Math.min(Number(searchParams.get("limit") || 0), 200);
-  const legacyOffset = Number(searchParams.get("offset") || 0);
+  const { action, entityType, userId, search, from, to, sort, order, page, pageSize } = query.data;
+  const usesLegacyPagination = query.data.limit !== undefined;
 
   // If legacy limit/offset are used, use them; otherwise use page/pageSize
-  const limit = legacyLimit > 0 ? legacyLimit : pageSize;
-  const offset = legacyLimit > 0 ? legacyOffset : (page - 1) * pageSize;
+  const limit = query.data.limit ?? pageSize;
+  const offset = usesLegacyPagination ? (query.data.offset ?? 0) : (page - 1) * pageSize;
 
   const where: Record<string, unknown> = {};
 
@@ -50,37 +75,38 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // Build orderBy
-  const allowedSortFields = ["createdAt", "action", "entityType"] as const;
-  const sortField = allowedSortFields.includes(sort as any) ? sort : "createdAt";
-  const sortOrder = order === "asc" ? "asc" : "desc";
-  const orderBy: Record<string, string> = { [sortField]: sortOrder };
+  const orderBy: Record<string, string> = { [sort]: order };
 
-  const [logs, totalItems] = await Promise.all([
-    db.auditLog.findMany({
-      where,
-      orderBy,
-      take: limit,
-      skip: offset,
-      include: {
-        user: {
-          select: { id: true, name: true, email: true },
+  try {
+    const [logs, totalItems] = await Promise.all([
+      db.auditLog.findMany({
+        where,
+        orderBy,
+        take: limit,
+        skip: offset,
+        include: {
+          user: {
+            select: { id: true, name: true, email: true },
+          },
         },
+      }),
+      db.auditLog.count({ where }),
+    ]);
+
+    const totalPages = Math.ceil(totalItems / limit);
+    const effectivePage = usesLegacyPagination ? Math.floor(offset / limit) + 1 : page;
+
+    return NextResponse.json({
+      data: logs,
+      pagination: {
+        page: effectivePage,
+        pageSize: limit,
+        totalItems,
+        totalPages,
       },
-    }),
-    db.auditLog.count({ where }),
-  ]);
-
-  const totalPages = Math.ceil(totalItems / limit);
-  const effectivePage = legacyLimit > 0 ? Math.floor(legacyOffset / limit) + 1 : page;
-
-  return NextResponse.json({
-    data: logs,
-    pagination: {
-      page: effectivePage,
-      pageSize: limit,
-      totalItems,
-      totalPages,
-    },
-  });
+    });
+  } catch (error) {
+    console.error("Audit log query failed:", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }

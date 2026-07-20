@@ -1,33 +1,20 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { requireAuth, requireCapability, requireResourceScope } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
 
-type SessionUser = {
-  id?: string;
-  role?: string;
-  assignedCityId?: string | null;
-  assignedParkId?: string | null;
-  assignedGroupId?: string | null;
-};
-
-const ALLOWED_ROLES = ["park_admin", "park_lead"];
+const EVENT_SUPERVISOR_ROLES = ["park_admin", "park_lead"] as const;
 
 export async function DELETE(
   _req: Request,
   { params }: { params: Promise<{ eventId: string }> }
 ) {
   const { eventId } = await params;
-  const session = await getServerSession(authOptions);
-  const user = session?.user as SessionUser | undefined;
-
-  if (!session || !user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  if (!user.role || !ALLOWED_ROLES.includes(user.role)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const auth = await requireAuth();
+  if (auth instanceof NextResponse) return auth;
+  const { user } = auth;
+  const capabilityAuth = await requireCapability("attendance.correct");
+  if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
   try {
     // Fetch event for scope check
@@ -48,9 +35,12 @@ export async function DELETE(
     }
 
     // Scope check
-    if (user.assignedParkId && user.assignedParkId !== event.group.batch.parkId) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    const scopeError = requireResourceScope(
+      user,
+      { parkId: event.group.batch.parkId, groupId: event.groupId },
+      EVENT_SUPERVISOR_ROLES
+    );
+    if (scopeError) return scopeError;
 
     // Count records before deletion for audit
     const count = await db.attendanceRecord.count({
@@ -66,14 +56,14 @@ export async function DELETE(
       where: { eventId },
     });
 
-    logAudit({
+    await logAudit({
       userId: user.id,
       action: "attendance_reset",
       entityType: "attendance_records",
-      newValues: JSON.stringify({
+      newValues: {
         eventId,
         deletedCount: result.count,
-      }),
+      },
     });
 
     return NextResponse.json({

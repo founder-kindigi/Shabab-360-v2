@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { requireAuth } from "@/lib/auth/authorize";
+import { requireCapability, requireRole } from "@/lib/auth/authorize";
 import { logAudit } from "@/lib/audit";
 import { formatPKT } from "@/lib/timezone";
 
@@ -12,13 +12,12 @@ type SessionUser = {
 };
 
 export async function GET() {
-  const auth = await requireAuth();
+  const roleError = await requireRole(["murabbi"]);
+  if (roleError) return roleError;
+
+  const auth = await requireCapability("people.view");
   if (auth instanceof NextResponse) return auth;
   const user = auth.user as SessionUser;
-
-  if (user.role !== "murabbi") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
 
   try {
     // Fire audit log

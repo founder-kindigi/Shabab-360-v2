@@ -1,8 +1,32 @@
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth/authorize";
+import { requireAuth, requireCapability } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
 import { formatPKT } from "@/lib/timezone";
-import { parseISO, isValid, subDays } from "date-fns";
+import { parseISO, subDays } from "date-fns";
+import {
+  optionalDateOnly,
+  optionalIdentifier,
+  queryParamsToObject,
+  queryValidationError,
+} from "@/lib/api/query-params";
+import { z } from "zod";
+
+const attendanceReportQuerySchema = z
+  .object({
+    cityId: optionalIdentifier(),
+    parkId: optionalIdentifier(),
+    groupId: optionalIdentifier(),
+    from: optionalDateOnly(),
+    to: optionalDateOnly(),
+  })
+  .refine(
+    ({ from, to }) => !from || !to || from <= to,
+    { message: "from must be on or before to", path: ["to"] }
+  )
+  .refine(
+    ({ from, to }) => !from || !to || Date.parse(to) - Date.parse(from) <= 366 * 24 * 60 * 60 * 1000,
+    { message: "Date range must not exceed 366 days", path: ["to"] }
+  );
 
 type SessionUser = {
   id?: string;
@@ -25,18 +49,19 @@ export async function GET(req: Request) {
   const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
   const { user } = auth;
+  const capabilityAuth = await requireCapability("reports.view");
+  if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
   if (!user.role || !ALLOWED_ROLES.includes(user.role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   try {
-    const { searchParams } = new URL(req.url);
-    const cityId = searchParams.get("cityId");
-    const parkId = searchParams.get("parkId");
-    const groupId = searchParams.get("groupId");
-    const from = searchParams.get("from");
-    const to = searchParams.get("to");
+    const query = attendanceReportQuerySchema.safeParse(queryParamsToObject(new URL(req.url).searchParams));
+    if (!query.success) {
+      return NextResponse.json(queryValidationError(query.error), { status: 400 });
+    }
+    const { cityId, parkId, groupId, from, to } = query.data;
 
     /* ---- Scope filtering ---- */
     const parkWhere: Record<string, unknown> = {};
@@ -46,6 +71,8 @@ export async function GET(req: Request) {
       parkWhere.id = user.assignedParkId;
     } else if (cityId) {
       parkWhere.cityId = cityId;
+    } else if (parkId) {
+      parkWhere.id = parkId;
     }
 
     const batchWhere: Record<string, unknown> = {};
@@ -68,23 +95,17 @@ export async function GET(req: Request) {
     }
 
     if (from) {
-      const parsed = parseISO(from);
-      if (isValid(parsed)) {
-        eventWhere.eventDate = {
-          ...(eventWhere.eventDate as Record<string, unknown> || {}),
-          gte: parsed,
-        };
-      }
+      eventWhere.eventDate = {
+        ...(eventWhere.eventDate as Record<string, unknown> || {}),
+        gte: parseISO(from),
+      };
     }
 
     if (to) {
-      const parsed = parseISO(to);
-      if (isValid(parsed)) {
-        eventWhere.eventDate = {
-          ...(eventWhere.eventDate as Record<string, unknown> || {}),
-          lte: parsed,
-        };
-      }
+      eventWhere.eventDate = {
+        ...(eventWhere.eventDate as Record<string, unknown> || {}),
+        lte: parseISO(to),
+      };
     }
 
     /* ---- Fetch attendance records with full joins ---- */

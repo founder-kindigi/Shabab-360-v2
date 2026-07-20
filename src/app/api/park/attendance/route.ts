@@ -1,55 +1,69 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { ATTENDANCE_ROLES, requireAuth, requireCapability, requireResourceScope } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
+import { logAudit } from "@/lib/audit";
 import { todayPKT, endOfTodayPKT, formatPKT, fromPKT } from "@/lib/timezone";
 import { parseISO, isValid } from "date-fns";
+import {
+  optionalDateOnly,
+  optionalIdentifier,
+  queryParamsToObject,
+  queryValidationError,
+} from "@/lib/api/query-params";
+import { z } from "zod";
 
-type SessionUser = {
-  id?: string;
-  role?: string;
-  assignedCityId?: string | null;
-  assignedParkId?: string | null;
-  assignedGroupId?: string | null;
-};
-
-const VALID_STATUSES = ["present", "absent", "late", "excused"];
-const ALLOWED_ROLES = ["park_admin", "park_lead", "murabbi"];
+const listQuerySchema = z.object({
+  parkId: optionalIdentifier(),
+  date: optionalDateOnly(),
+  status: z.enum(["open", "closed"]).optional(),
+});
 
 export async function GET(req: Request) {
-  const session = await getServerSession(authOptions);
-  const user = session?.user as SessionUser | undefined;
-
-  if (!session || !user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  if (!user.role || !ALLOWED_ROLES.includes(user.role)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const auth = await requireAuth();
+  if (auth instanceof NextResponse) return auth;
+  const { user } = auth;
 
   try {
-    const { searchParams } = new URL(req.url);
-    const parkId = searchParams.get("parkId") || user.assignedParkId;
-    const dateParam = searchParams.get("date");
-    const statusFilter = searchParams.get("status");
-
-    if (!parkId) {
-      return NextResponse.json({ error: "parkId required" }, { status: 400 });
+    const query = listQuerySchema.safeParse(queryParamsToObject(new URL(req.url).searchParams));
+    if (!query.success) {
+      return NextResponse.json(queryValidationError(query.error), { status: 400 });
     }
+    let parkId = query.data.parkId || user.assignedParkId;
+    const dateParam = query.data.date;
+    const statusFilter = query.data.status;
 
-    // Scope check
+    let groupIds: string[];
     if (user.role === "murabbi") {
-      if (!user.assignedGroupId) {
-        return NextResponse.json(
-          { error: "No group assigned" },
-          { status: 403 }
-        );
+      const scopeError = requireResourceScope(
+        user,
+        { groupId: user.assignedGroupId },
+        ATTENDANCE_ROLES
+      );
+      if (scopeError) return scopeError;
+
+      const group = await db.group.findUnique({
+        where: { id: user.assignedGroupId! },
+        select: { batch: { select: { parkId: true } } },
+      });
+      if (!group) {
+        return NextResponse.json({ error: "Assigned group not found" }, { status: 403 });
       }
+      parkId = group.batch.parkId;
+      groupIds = [user.assignedGroupId!];
     } else {
-      // park_admin/park_lead: must match their park
-      if (user.assignedParkId && user.assignedParkId !== parkId) {
-        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-      }
+      if (!parkId) return NextResponse.json({ error: "parkId required" }, { status: 400 });
+      const scopeError = requireResourceScope(user, { parkId }, ATTENDANCE_ROLES);
+      if (scopeError) return scopeError;
+
+      const batches = await db.batch.findMany({
+        where: { parkId, isActive: true },
+        select: { id: true },
+      });
+      const groups = await db.group.findMany({
+        where: { batchId: { in: batches.map((batch) => batch.id) }, isActive: true },
+        select: { id: true },
+      });
+      groupIds = groups.map((group) => group.id);
     }
 
     // Determine date range
@@ -70,23 +84,6 @@ export async function GET(req: Request) {
     } else {
       startDate = todayPKT();
       endDate = endOfTodayPKT();
-    }
-
-    // Get group IDs in scope
-    let groupIds: string[];
-
-    if (user.role === "murabbi") {
-      groupIds = [user.assignedGroupId!];
-    } else {
-      const batches = await db.batch.findMany({
-        where: { parkId, isActive: true },
-        select: { id: true },
-      });
-      const groups = await db.group.findMany({
-        where: { batchId: { in: batches.map((b) => b.id) }, isActive: true },
-        select: { id: true },
-      });
-      groupIds = groups.map((g) => g.id);
     }
 
     // Build where clause
@@ -175,21 +172,17 @@ export async function GET(req: Request) {
  * POST: Create a new attendance event for a group.
  */
 export async function POST(req: Request) {
-  const session = await getServerSession(authOptions);
-  const user = session?.user as SessionUser | undefined;
-
-  if (!session || !user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  if (!user.role || !ALLOWED_ROLES.includes(user.role)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const auth = await requireAuth();
+  if (auth instanceof NextResponse) return auth;
+  const { user } = auth;
+  const capabilityAuth = await requireCapability("attendance.mark");
+  if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
   try {
     const body = await req.json();
     const { groupId, title, eventDate } = body;
 
-    if (!groupId || !title) {
+    if (typeof groupId !== "string" || typeof title !== "string" || !groupId || !title.trim()) {
       return NextResponse.json(
         { error: "groupId and title are required" },
         { status: 400 }
@@ -206,18 +199,19 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Group not found" }, { status: 404 });
     }
 
-    if (user.role === "murabbi") {
-      if (user.assignedGroupId !== groupId) {
-        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-      }
-    } else {
-      if (user.assignedParkId !== group.batch.parkId) {
-        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-      }
-    }
+    const scopeError = requireResourceScope(
+      user,
+      { parkId: group.batch.parkId, groupId },
+      ATTENDANCE_ROLES
+    );
+    if (scopeError) return scopeError;
 
     // Check if event already exists for this group+date
-    const date = eventDate ? fromPKT(parseISO(eventDate)) : todayPKT();
+    const parsedDate = typeof eventDate === "string" ? parseISO(eventDate) : null;
+    if (parsedDate && !isValid(parsedDate)) {
+      return NextResponse.json({ error: "Invalid eventDate" }, { status: 400 });
+    }
+    const date = parsedDate ? fromPKT(parsedDate) : todayPKT();
     const existingEvent = await db.attendanceEvent.findFirst({
       where: {
         groupId,
@@ -235,17 +229,17 @@ export async function POST(req: Request) {
     const event = await db.attendanceEvent.create({
       data: {
         groupId,
-        title,
+        title: title.trim(),
         eventDate: date,
       },
     });
 
-    logAudit({
+    await logAudit({
       userId: user.id,
       action: "event_create",
       entityType: "attendance_events",
       entityId: event.id,
-      newValues: JSON.stringify({ groupId, title, eventDate: event.eventDate }),
+      newValues: { groupId, title: title.trim(), eventDate: event.eventDate.toISOString() },
     });
 
     return NextResponse.json({ success: true, event }, { status: 201 });

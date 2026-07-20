@@ -1,35 +1,20 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { ATTENDANCE_ROLES, requireAuth, requireCapability, requireResourceScope } from "@/lib/auth/authorize";
+import { checkAttendanceAlerts } from "@/lib/attendance-alerts";
 import { db } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
-import { parseISO, isValid } from "date-fns";
-
-type SessionUser = {
-  id?: string;
-  role?: string;
-  assignedCityId?: string | null;
-  assignedParkId?: string | null;
-  assignedGroupId?: string | null;
-};
+import { parseISO } from "date-fns";
 
 const VALID_STATUSES = ["present", "absent", "late", "excused"];
-const ALLOWED_ROLES = ["park_admin", "park_lead", "murabbi"];
 
 export async function GET(
   _req: Request,
   { params }: { params: Promise<{ eventId: string }> }
 ) {
   const { eventId } = await params;
-  const session = await getServerSession(authOptions);
-  const user = session?.user as SessionUser | undefined;
-
-  if (!session || !user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  if (!user.role || !ALLOWED_ROLES.includes(user.role)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const auth = await requireAuth();
+  if (auth instanceof NextResponse) return auth;
+  const { user } = auth;
 
   try {
     // Fetch event with group to get the park
@@ -48,23 +33,12 @@ export async function GET(
       return NextResponse.json({ error: "Event not found" }, { status: 404 });
     }
 
-    // Scope check
-    const parkId = event.group.batch.parkId;
-    if (user.role === "murabbi") {
-      if (user.assignedGroupId !== event.groupId) {
-        return NextResponse.json(
-          { error: "Forbidden - event not in your scope" },
-          { status: 403 }
-        );
-      }
-    } else {
-      if (user.assignedParkId && user.assignedParkId !== parkId) {
-        return NextResponse.json(
-          { error: "Forbidden - event not in your scope" },
-          { status: 403 }
-        );
-      }
-    }
+    const scopeError = requireResourceScope(
+      user,
+      { parkId: event.group.batch.parkId, groupId: event.groupId },
+      ATTENDANCE_ROLES
+    );
+    if (scopeError) return scopeError;
 
     // Get all active participants in the group
     const participants = await db.participant.findMany({
@@ -163,15 +137,11 @@ export async function POST(
   { params }: { params: Promise<{ eventId: string }> }
 ) {
   const { eventId } = await params;
-  const session = await getServerSession(authOptions);
-  const user = session?.user as SessionUser | undefined;
-
-  if (!session || !user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  if (!user.role || !ALLOWED_ROLES.includes(user.role)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const auth = await requireAuth();
+  if (auth instanceof NextResponse) return auth;
+  const { user } = auth;
+  const capabilityAuth = await requireCapability("attendance.mark");
+  if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
   try {
     const body = await req.json();
@@ -200,17 +170,12 @@ export async function POST(
       return NextResponse.json({ error: "Event not found" }, { status: 404 });
     }
 
-    // Scope check
-    if (user.role === "murabbi") {
-      if (user.assignedGroupId !== event.groupId) {
-        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-      }
-    } else {
-      const parkId = event.group.batch.parkId;
-      if (user.assignedParkId && user.assignedParkId !== parkId) {
-        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-      }
-    }
+    const scopeError = requireResourceScope(
+      user,
+      { parkId: event.group.batch.parkId, groupId: event.groupId },
+      ATTENDANCE_ROLES
+    );
+    if (scopeError) return scopeError;
 
     // Check if event is closed
     if (event.isClosed) {
@@ -243,6 +208,7 @@ export async function POST(
     // Get staff meta ID for the marker
     const staffMeta = await db.staffMeta.findUnique({
       where: { userId: user.id },
+      include: { user: { select: { name: true } } },
     });
 
     // Upsert the attendance record
@@ -275,19 +241,19 @@ export async function POST(
         },
       });
 
-      logAudit({
+      await logAudit({
         userId: user.id,
         action: "attendance_update",
         entityType: "attendance_records",
         entityId: record.id,
-        oldValues: JSON.stringify({
+        oldValues: {
           status: existingRecord.status,
-        }),
-        newValues: JSON.stringify({
+        },
+        newValues: {
           status,
           editReason,
           mutationId,
-        }),
+        },
       });
     } else {
       // Create new
@@ -301,47 +267,25 @@ export async function POST(
         },
       });
 
-      logAudit({
+      await logAudit({
         userId: user.id,
         action: "attendance_mark",
         entityType: "attendance_records",
         entityId: record.id,
-        newValues: JSON.stringify({
+        newValues: {
           status,
           mutationId,
-        }),
+        },
       });
     }
 
-    // ─── Dispatch real-time notification (non-blocking) ─────────────────────
-    fetch("http://localhost:3004/notify", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        type: "attendance:updated",
-        data: {
-          eventId,
-          participantId,
-          participantName: participant.name,
-          status: record.status,
-          markedBy: staffMeta?.id,
-          markedByName: staffMeta?.user?.name || null,
-          isUpdate: !!existingRecord,
-        },
-      }),
-    }).catch(() => {
-      // Non-blocking — notification service may be unavailable
-    });
-
-    // ─── Check absence alerts (non-blocking) ──────────────────────────────
+    // Alert evaluation runs in-process so it cannot fail on a relative server fetch.
     if (status === "absent") {
-      fetch("/api/park/attendance/check-alerts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ participantId, eventId }),
-      }).catch(() => {
-        // Non-blocking — alert check should not block the response
-      });
+      try {
+        await checkAttendanceAlerts(participantId, eventId);
+      } catch (error) {
+        console.error("Attendance alert evaluation failed:", error);
+      }
     }
 
     return NextResponse.json({

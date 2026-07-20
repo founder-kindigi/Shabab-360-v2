@@ -56,12 +56,16 @@ export function LoginPage() {
 
   // Restore remember me and email from localStorage
   useEffect(() => {
-    const savedEmail = localStorage.getItem("shabab360-remember-email");
-    const savedRemember = localStorage.getItem("shabab360-remember-me");
-    if (savedRemember === "true" && savedEmail) {
-      setEmail(savedEmail);
-      setRememberMe(true);
-    }
+    const timer = window.setTimeout(() => {
+      const savedEmail = localStorage.getItem("shabab360-remember-email");
+      const savedRemember = localStorage.getItem("shabab360-remember-me");
+      if (savedRemember === "true" && savedEmail) {
+        setEmail(savedEmail);
+        setRememberMe(true);
+      }
+    }, 0);
+
+    return () => window.clearTimeout(timer);
   }, []);
 
   function triggerShake() {
@@ -96,7 +100,7 @@ export function LoginPage() {
         redirect: false,
       });
 
-      if (result.error) {
+      if (result?.error) {
         setError(result.error === "CredentialsSignin" ? t("auth.invalidCredentials") : t("auth.loginFailed"));
         triggerShake();
       }

@@ -1,51 +1,66 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { requireCapability, requireRole } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
-import { todayPKT, endOfTodayPKT, formatPKT } from "@/lib/timezone";
+import { todayPKT } from "@/lib/timezone";
 import { parseISO, isValid, subDays } from "date-fns";
+import { z } from "zod";
+import {
+  MAX_LIST_OFFSET,
+  optionalDateOnly,
+  optionalIdentifier,
+  optionalQueryText,
+  queryParamsToObject,
+  queryValidationError,
+} from "@/lib/api/query-params";
 
-type SessionUser = {
-  id?: string;
-  role?: string;
-  assignedCityId?: string | null;
-  assignedParkId?: string | null;
-  assignedGroupId?: string | null;
-};
+const ALLOWED_ROLES = ["super_admin", "program_admin", "city_head", "park_admin", "park_lead"] as const;
 
-const ALLOWED_ROLES = ["super_admin", "program_admin", "city_head", "park_admin", "park_lead"];
+const attendanceEventsQuerySchema = z.object({
+  cityId: optionalIdentifier(),
+  parkId: optionalIdentifier(),
+  groupId: optionalIdentifier(),
+  search: optionalQueryText(),
+  dateFrom: optionalDateOnly(),
+  dateTo: optionalDateOnly(),
+  isClosed: z.enum(["true", "false"]).optional(),
+  limit: z.coerce.number().int().min(1).max(1_000).default(50),
+  offset: z.coerce.number().int().min(0).max(MAX_LIST_OFFSET).default(0),
+}).refine(
+  ({ dateFrom, dateTo }) => !dateFrom || !dateTo || dateFrom <= dateTo,
+  { path: ["dateTo"], message: "dateTo must be on or after dateFrom" }
+);
 
 export async function GET(req: Request) {
-  const session = await getServerSession(authOptions);
-  const user = session?.user as SessionUser | undefined;
+  const roleError = await requireRole([...ALLOWED_ROLES]);
+  if (roleError) return roleError;
 
-  if (!session || !user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  if (!user.role || !ALLOWED_ROLES.includes(user.role)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const auth = await requireCapability("attendance.mark");
+  if (auth instanceof NextResponse) return auth;
+  const { user } = auth;
 
   try {
     const { searchParams } = new URL(req.url);
-    const cityId = searchParams.get("cityId");
-    const parkId = searchParams.get("parkId");
-    const groupId = searchParams.get("groupId");
-    const search = searchParams.get("search");
-    const dateFrom = searchParams.get("dateFrom");
-    const dateTo = searchParams.get("dateTo");
-    const isClosed = searchParams.get("isClosed");
-    const limit = parseInt(searchParams.get("limit") || "50");
-    const offset = parseInt(searchParams.get("offset") || "0");
+    const query = attendanceEventsQuerySchema.safeParse(queryParamsToObject(searchParams));
+    if (!query.success) {
+      return NextResponse.json(queryValidationError(query.error), { status: 400 });
+    }
+    const { cityId, parkId, groupId, search, dateFrom, dateTo, isClosed, limit, offset } = query.data;
 
     // Build scope-based where clauses
     const parkWhere: Record<string, unknown> = {};
     if (user.role === "city_head") {
+      if (!user.assignedCityId || (cityId && cityId !== user.assignedCityId)) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
       parkWhere.cityId = user.assignedCityId;
     } else if (user.role === "park_admin" || user.role === "park_lead") {
+      if (!user.assignedParkId || (parkId && parkId !== user.assignedParkId)) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
       parkWhere.id = user.assignedParkId;
-    } else if (cityId) {
-      parkWhere.cityId = cityId;
+    } else {
+      if (cityId) parkWhere.cityId = cityId;
+      if (parkId) parkWhere.id = parkId;
     }
 
     // Filter groups

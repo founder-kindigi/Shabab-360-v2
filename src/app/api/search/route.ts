@@ -1,7 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth/authorize";
+import { isHqRole, isStaffRole, requireCapability, type SessionUser } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
+import {
+  optionalInteger,
+  optionalQueryText,
+  queryParamsToObject,
+  queryValidationError,
+} from "@/lib/api/query-params";
 import type { Prisma } from "@prisma/client";
+import { z } from "zod";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -15,31 +22,115 @@ interface SearchResult {
   url: string;
 }
 
+type SearchScope =
+  | { kind: "hq" }
+  | { kind: "city"; cityId: string }
+  | { kind: "park"; parkId: string }
+  | { kind: "group"; groupId: string };
+
+const searchQuerySchema = z.object({
+  q: optionalQueryText().default(""),
+  limit: optionalInteger(1, 50).default(20),
+});
+
+function resolveSearchScope(user: SessionUser): SearchScope | null {
+  if (!isStaffRole(user.role)) {
+    return null;
+  }
+  if (isHqRole(user.role)) {
+    return { kind: "hq" };
+  }
+  if (user.role === "city_head" && user.assignedCityId) {
+    return { kind: "city", cityId: user.assignedCityId };
+  }
+  if ((user.role === "park_admin" || user.role === "park_lead") && user.assignedParkId) {
+    return { kind: "park", parkId: user.assignedParkId };
+  }
+  if (user.role === "murabbi" && user.assignedGroupId) {
+    return { kind: "group", groupId: user.assignedGroupId };
+  }
+  return null;
+}
+
+function participantScope(scope: SearchScope): Prisma.ParticipantWhereInput {
+  if (scope.kind === "city") return { group: { batch: { park: { cityId: scope.cityId } } } };
+  if (scope.kind === "park") return { group: { batch: { parkId: scope.parkId } } };
+  if (scope.kind === "group") return { groupId: scope.groupId };
+  return {};
+}
+
+function guardianScope(scope: SearchScope): Prisma.GuardianWhereInput {
+  if (scope.kind === "hq") return {};
+  return { children: { some: { participant: participantScope(scope) } } };
+}
+
+function batchScope(scope: SearchScope): Prisma.BatchWhereInput {
+  if (scope.kind === "city") return { park: { cityId: scope.cityId } };
+  if (scope.kind === "park") return { parkId: scope.parkId };
+  if (scope.kind === "group") return { groups: { some: { id: scope.groupId } } };
+  return {};
+}
+
+function groupScope(scope: SearchScope): Prisma.GroupWhereInput {
+  if (scope.kind === "city") return { batch: { park: { cityId: scope.cityId } } };
+  if (scope.kind === "park") return { batch: { parkId: scope.parkId } };
+  if (scope.kind === "group") return { id: scope.groupId };
+  return {};
+}
+
+function staffScope(scope: SearchScope): Prisma.UserWhereInput | null {
+  if (scope.kind === "group") return null;
+  if (scope.kind === "city") {
+    return {
+      staffMeta: {
+        is: {
+          OR: [
+            { assignedCityId: scope.cityId },
+            { assignedPark: { is: { cityId: scope.cityId } } },
+          ],
+        },
+      },
+    };
+  }
+  if (scope.kind === "park") {
+    return { staffMeta: { is: { assignedParkId: scope.parkId } } };
+  }
+  return {};
+}
+
 // ---------------------------------------------------------------------------
 // GET /api/search?q=...&limit=20
 // ---------------------------------------------------------------------------
 
 export async function GET(request: NextRequest) {
-  const auth = await requireAuth();
+  const auth = await requireCapability("people.view");
   if (auth instanceof NextResponse) return auth;
 
+  const scope = resolveSearchScope(auth.user);
+  if (!scope) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   const { searchParams } = new URL(request.url);
-  const q = (searchParams.get("q") || "").trim().toLowerCase();
-  const limit = Math.min(Number(searchParams.get("limit")) || 20, 50);
+  const parsedQuery = searchQuerySchema.safeParse(queryParamsToObject(searchParams));
+  if (!parsedQuery.success) {
+    return NextResponse.json(queryValidationError(parsedQuery.error), { status: 400 });
+  }
+  const q = parsedQuery.data.q.toLowerCase();
+  const limit = parsedQuery.data.limit;
 
   if (q.length < 2) {
     return NextResponse.json({ results: [], total: 0 });
   }
-
   const perEntityLimit = Math.ceil(limit / 5);
 
   try {
     const [participants, guardians, staff, batches, groups] = await Promise.all([
-      searchParticipants(q, perEntityLimit),
-      searchGuardians(q, perEntityLimit),
-      searchStaff(q, perEntityLimit),
-      searchBatches(q, perEntityLimit),
-      searchGroups(q, perEntityLimit),
+      searchParticipants(q, perEntityLimit, scope),
+      searchGuardians(q, perEntityLimit, scope),
+      searchStaff(q, perEntityLimit, scope),
+      searchBatches(q, perEntityLimit, scope),
+      searchGroups(q, perEntityLimit, scope),
     ]);
 
     const results: SearchResult[] = [
@@ -63,13 +154,19 @@ export async function GET(request: NextRequest) {
 
 async function searchParticipants(
   q: string,
-  limit: number
+  limit: number,
+  scope: SearchScope
 ): Promise<SearchResult[]> {
   const where: Prisma.ParticipantWhereInput = {
-    isActive: true,
-    OR: [
-      { name: { contains: q, mode: "insensitive" } },
-      { phone: { contains: q } },
+    state: "active",
+    AND: [
+      participantScope(scope),
+      {
+        OR: [
+          { name: { contains: q } },
+          { phone: { contains: q } },
+        ],
+      },
     ],
   };
 
@@ -102,14 +199,19 @@ async function searchParticipants(
 
 async function searchGuardians(
   q: string,
-  limit: number
+  limit: number,
+  scope: SearchScope
 ): Promise<SearchResult[]> {
   const where: Prisma.GuardianWhereInput = {
     isActive: true,
-    OR: [
-      { name: { contains: q, mode: "insensitive" } },
-      { phone: { contains: q } },
-      { cnic: { contains: q } },
+    AND: [
+      guardianScope(scope),
+      {
+        OR: [
+          { name: { contains: q } },
+          { phone: { contains: q } },
+        ],
+      },
     ],
   };
 
@@ -119,8 +221,6 @@ async function searchGuardians(
       id: true,
       name: true,
       phone: true,
-      cnic: true,
-      children: { take: 1, select: { participant: { select: { name: true } } } },
     },
     take: limit,
   });
@@ -129,24 +229,30 @@ async function searchGuardians(
     type: "guardian" as const,
     id: r.id,
     title: r.name,
-    subtitle:
-      r.cnic || r.phone || (r.children[0]?.participant.name
-        ? `Guardian of ${r.children[0].participant.name}`
-        : ""),
+    subtitle: r.phone || "",
     url: "admin-guardians",
   }));
 }
 
 async function searchStaff(
   q: string,
-  limit: number
+  limit: number,
+  scope: SearchScope
 ): Promise<SearchResult[]> {
+  const scopedStaff = staffScope(scope);
+  if (!scopedStaff) return [];
+
   const where: Prisma.UserWhereInput = {
     isActive: true,
-    staffMeta: { isNot: null },
-    OR: [
-      { name: { contains: q, mode: "insensitive" } },
-      { email: { contains: q, mode: "insensitive" } },
+    AND: [
+      { staffMeta: { is: { isActive: true } } },
+      scopedStaff,
+      {
+        OR: [
+          { name: { contains: q } },
+          { email: { contains: q } },
+        ],
+      },
     ],
   };
 
@@ -183,11 +289,14 @@ async function searchStaff(
 
 async function searchBatches(
   q: string,
-  limit: number
+  limit: number,
+  scope: SearchScope
 ): Promise<SearchResult[]> {
+  if (scope.kind === "group") return [];
+
   const where: Prisma.BatchWhereInput = {
     isActive: true,
-    name: { contains: q, mode: "insensitive" },
+    AND: [batchScope(scope), { name: { contains: q } }],
   };
 
   const rows = await db.batch.findMany({
@@ -220,11 +329,12 @@ async function searchBatches(
 
 async function searchGroups(
   q: string,
-  limit: number
+  limit: number,
+  scope: SearchScope
 ): Promise<SearchResult[]> {
   const where: Prisma.GroupWhereInput = {
     isActive: true,
-    name: { contains: q, mode: "insensitive" },
+    AND: [groupScope(scope), { name: { contains: q } }],
   };
 
   const rows = await db.group.findMany({

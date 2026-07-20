@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth, requireRole } from "@/lib/auth/authorize";
+import { requireAuth, requireCapability, requireResourceScope, requireRole } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
+import { moneyToNumber } from "@/lib/money";
 
 export async function GET(
   _request: NextRequest,
@@ -18,6 +19,8 @@ export async function GET(
 
   const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
+  const capabilityAuth = await requireCapability("students.manage");
+  if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
   const { id } = await params;
 
@@ -54,6 +57,13 @@ export async function GET(
   if (!participant) {
     return NextResponse.json({ error: "Participant not found" }, { status: 404 });
   }
+
+  const scopeError = requireResourceScope(auth.user, {
+    cityId: participant.group.batch.park.cityId,
+    parkId: participant.group.batch.parkId,
+    groupId: participant.groupId,
+  });
+  if (scopeError) return scopeError;
 
   // ─── Attendance Summary ──────────────────────────────────────────────
   const attendanceRecords = await db.attendanceRecord.findMany({
@@ -113,7 +123,10 @@ export async function GET(
   });
 
   const totalFees = batchFeeEvents.length;
-  const totalExpected = batchFeeEvents.reduce((sum, f) => sum + f.amount, 0);
+  const totalExpected = batchFeeEvents.reduce(
+    (sum, feeEvent) => sum + moneyToNumber(feeEvent.amount),
+    0
+  );
 
   // Get all payments for this participant
   const payments = await db.payment.findMany({
@@ -147,13 +160,13 @@ export async function GET(
     }
   }
 
-  const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
+  const totalPaid = payments.reduce((sum, payment) => sum + moneyToNumber(payment.amount), 0);
   const outstanding = totalExpected - totalPaid;
 
   // Recent payments (last 5 for the card, 10 for the tab)
   const recentPayments = payments.slice(0, 5).map((p) => ({
     feeEventTitle: p.feeEvent.title,
-    amount: p.amount,
+      amount: moneyToNumber(p.amount),
     method: p.method,
     receiptNo: p.receiptNo,
     date: p.createdAt.toISOString(),

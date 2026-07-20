@@ -60,6 +60,11 @@ import { toast } from "sonner";
 import { useDebounce } from "@/hooks/use-debounce";
 import { formatPKT } from "@/lib/timezone";
 import {
+  ADMISSION_FIELD_LIMITS,
+  validateAdmissionAdditionalFields,
+} from "@/lib/admissions/fields";
+import type { AdmissionAdditionalFields } from "@/lib/admissions/fields";
+import {
   Plus,
   Search,
   MoreHorizontal,
@@ -92,8 +97,8 @@ import {
   Award,
   LayoutGrid,
   ArrowRightLeft,
+  Pencil,
 } from "lucide-react";
-import { DocumentUpload } from "@/components/shared/document-upload";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -134,6 +139,10 @@ interface Application {
   preferredParkId: string | null;
   status: string;
   notes: string | null;
+  emergencyContact: string | null;
+  emergencyPhone: string | null;
+  previousEducation: string | null;
+  reference: string | null;
   convertedParticipantId: string | null;
   createdAt: string;
   updatedAt: string;
@@ -148,6 +157,70 @@ interface Pagination {
   pageSize: number;
   total: number;
   totalPages: number;
+}
+
+const EMPTY_ADDITIONAL_FIELDS: AdmissionAdditionalFields = {
+  emergencyContact: "",
+  emergencyPhone: "",
+  previousEducation: "",
+  reference: "",
+};
+
+function AdditionalFieldsForm({
+  fields,
+  errors,
+  onChange,
+}: {
+  fields: AdmissionAdditionalFields;
+  errors: Record<string, string>;
+  onChange: (field: keyof AdmissionAdditionalFields, value: string) => void;
+}) {
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label className="text-xs font-medium">Emergency Contact Name</Label>
+          <Input
+            placeholder="Emergency contact name"
+            value={fields.emergencyContact}
+            maxLength={ADMISSION_FIELD_LIMITS.emergencyContact}
+            aria-invalid={Boolean(errors.emergencyContact)}
+            onChange={(event) => onChange("emergencyContact", event.target.value)}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label className="text-xs font-medium">Emergency Contact Phone</Label>
+          <Input
+            placeholder="Emergency contact phone"
+            value={fields.emergencyPhone}
+            maxLength={ADMISSION_FIELD_LIMITS.emergencyPhone}
+            aria-invalid={Boolean(errors.emergencyPhone)}
+            onChange={(event) => onChange("emergencyPhone", event.target.value)}
+          />
+        </div>
+      </div>
+      <div className="space-y-2">
+        <Label className="text-xs font-medium">Previous Education</Label>
+        <Input
+          placeholder="Last school / institution attended"
+          value={fields.previousEducation}
+          maxLength={ADMISSION_FIELD_LIMITS.previousEducation}
+          aria-invalid={Boolean(errors.previousEducation)}
+          onChange={(event) => onChange("previousEducation", event.target.value)}
+        />
+      </div>
+      <div className="space-y-2">
+        <Label className="text-xs font-medium">Reference</Label>
+        <Input
+          placeholder="Referral name or source"
+          value={fields.reference}
+          maxLength={ADMISSION_FIELD_LIMITS.reference}
+          aria-invalid={Boolean(errors.reference)}
+          onChange={(event) => onChange("reference", event.target.value)}
+        />
+      </div>
+    </div>
+  );
 }
 
 // ─── Status Config ───────────────────────────────────────────────────────────
@@ -343,6 +416,7 @@ export function AdmissionsPage() {
   const [selectedApp, setSelectedApp] = useState<Application | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
+  const [editAdditionalOpen, setEditAdditionalOpen] = useState(false);
   const [enrollOpen, setEnrollOpen] = useState(false);
   const [interviewOpen, setInterviewOpen] = useState(false);
   const [recordResultsOpen, setRecordResultsOpen] = useState(false);
@@ -362,12 +436,13 @@ export function AdmissionsPage() {
     cityId: "",
     preferredParkId: "",
     notes: "",
-    emergencyContact: "",
-    emergencyPhone: "",
-    previousEducation: "",
-    reference: "",
+    ...EMPTY_ADDITIONAL_FIELDS,
   });
   const [createErrors, setCreateErrors] = useState<Record<string, string>>({});
+  const [editAdditionalForm, setEditAdditionalForm] = useState<AdmissionAdditionalFields>({
+    ...EMPTY_ADDITIONAL_FIELDS,
+  });
+  const [editAdditionalErrors, setEditAdditionalErrors] = useState<Record<string, string>>({});
 
   // Interview schedule form
   const [interviewDate, setInterviewDate] = useState<Date | undefined>(undefined);
@@ -501,7 +576,7 @@ export function AdmissionsPage() {
       }
       toast.success("Application created", { description: `Tracking code: ${data.trackingCode}` });
       setCreateOpen(false);
-      setCreateForm({ applicantName: "", applicantDOB: "", gender: "", guardianName: "", guardianPhone: "", guardianRelation: "", cityId: "", preferredParkId: "", notes: "", emergencyContact: "", emergencyPhone: "", previousEducation: "", reference: "" });
+      setCreateForm({ applicantName: "", applicantDOB: "", gender: "", guardianName: "", guardianPhone: "", guardianRelation: "", cityId: "", preferredParkId: "", notes: "", ...EMPTY_ADDITIONAL_FIELDS });
       setCreateErrors({});
       queryClient.invalidateQueries({ queryKey: ["admissions"] });
       queryClient.invalidateQueries({ queryKey: ["admissions-count"] });
@@ -655,6 +730,39 @@ export function AdmissionsPage() {
   // Detail data (must be before handlers that reference it)
   const detail = selectedDetail || selectedApp;
 
+  const handleOpenEditAdditional = useCallback(() => {
+    if (!detail) return;
+
+    setEditAdditionalForm({
+      emergencyContact: detail.emergencyContact || "",
+      emergencyPhone: detail.emergencyPhone || "",
+      previousEducation: detail.previousEducation || "",
+      reference: detail.reference || "",
+    });
+    setEditAdditionalErrors({});
+    setEditAdditionalOpen(true);
+  }, [detail]);
+
+  const handleSaveAdditional = useCallback(() => {
+    if (!detail) return;
+
+    const errors = validateAdmissionAdditionalFields(editAdditionalForm);
+    if (Object.keys(errors).length > 0) {
+      setEditAdditionalErrors(errors);
+      return;
+    }
+
+    setEditAdditionalErrors({});
+    updateMutation.mutate(
+      { id: detail.id, data: { ...editAdditionalForm } },
+      {
+        onSuccess: (data) => {
+          if (!data.error) setEditAdditionalOpen(false);
+        },
+      }
+    );
+  }, [detail, editAdditionalForm, updateMutation]);
+
   const handleAdvance = useCallback(() => {
     if (!selectedApp || !detail) return;
     const next = NEXT_STATUS_MAP[detail.status];
@@ -690,6 +798,7 @@ export function AdmissionsPage() {
     if (!createForm.guardianName.trim()) errors.guardianName = "Guardian name is required";
     if (!createForm.guardianPhone.trim()) errors.guardianPhone = "Guardian phone is required";
     else if (createForm.guardianPhone.trim().length < 5) errors.guardianPhone = "Phone must be at least 5 characters";
+    Object.assign(errors, validateAdmissionAdditionalFields(createForm));
     if (Object.keys(errors).length > 0) {
       setCreateErrors(errors);
       return;
@@ -986,53 +1095,11 @@ export function AdmissionsPage() {
             </div>
             <Separator />
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Additional Information</p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label className="text-xs font-medium">Emergency Contact Name</Label>
-                <Input
-                  placeholder="Emergency contact name"
-                  value={createForm.emergencyContact}
-                  onChange={(e) => setCreateForm((f) => ({ ...f, emergencyContact: e.target.value }))}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label className="text-xs font-medium">Emergency Contact Phone</Label>
-                <Input
-                  placeholder="Emergency contact phone"
-                  value={createForm.emergencyPhone}
-                  onChange={(e) => setCreateForm((f) => ({ ...f, emergencyPhone: e.target.value }))}
-                />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label className="text-xs font-medium">Previous Education</Label>
-              <Input
-                placeholder="Last school / institution attended"
-                value={createForm.previousEducation}
-                onChange={(e) => setCreateForm((f) => ({ ...f, previousEducation: e.target.value }))}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-xs font-medium">Reference</Label>
-              <Input
-                placeholder="Referral name or source"
-                value={createForm.reference}
-                onChange={(e) => setCreateForm((f) => ({ ...f, reference: e.target.value }))}
-              />
-            </div>
-            <div className="space-y-2">
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full border-dashed text-muted-foreground hover:text-foreground"
-                onClick={() => toast.info("Upload documents from the application detail view")}
-              >
-                <FolderInput className="size-4 mr-2" />
-                Upload Documents
-              </Button>
-              <p className="text-[10px] text-muted-foreground">Supports PDF, JPG, PNG (max 5MB each)</p>
-            </div>
-            <p className="text-[10px] text-muted-foreground">Tip: You can also upload documents after creating the application, from its detail view.</p>
+            <AdditionalFieldsForm
+              fields={createForm}
+              errors={createErrors}
+              onChange={(field, value) => setCreateForm((current) => ({ ...current, [field]: value }))}
+            />
             {Object.keys(createErrors).length > 0 && (
               <div className="rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900 p-3">
                 <p className="text-xs font-medium text-red-700 dark:text-red-400 mb-1">Please fix the following errors:</p>
@@ -1050,6 +1117,39 @@ export function AdmissionsPage() {
               className="bg-[#4B0A8F] hover:bg-[#4B0A8F]/90 text-white"
             >
               {createMutation.isPending ? "Creating..." : "Create Application"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={editAdditionalOpen} onOpenChange={setEditAdditionalOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Edit Additional Information</DialogTitle>
+            <DialogDescription>
+              Update the admission-only contact, education, and referral details.
+            </DialogDescription>
+          </DialogHeader>
+          <AdditionalFieldsForm
+            fields={editAdditionalForm}
+            errors={editAdditionalErrors}
+            onChange={(field, value) => setEditAdditionalForm((current) => ({ ...current, [field]: value }))}
+          />
+          {Object.keys(editAdditionalErrors).length > 0 && (
+            <div className="rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900 p-3">
+              {Object.entries(editAdditionalErrors).map(([field, message]) => (
+                <p key={field} className="text-xs text-red-600 dark:text-red-400">{message}</p>
+              ))}
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditAdditionalOpen(false)}>Cancel</Button>
+            <Button
+              onClick={handleSaveAdditional}
+              disabled={updateMutation.isPending}
+              className="bg-[#4B0A8F] hover:bg-[#4B0A8F]/90 text-white"
+            >
+              {updateMutation.isPending ? "Saving..." : "Save Changes"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1187,6 +1287,44 @@ export function AdmissionsPage() {
                     </div>
                   </div>
 
+                  <Separator className="bg-border/50" />
+
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <h4 className="text-sm font-semibold flex items-center gap-2">
+                        <GraduationCap className="size-4 text-[#4B0A8F] dark:text-[#8A40B0]" />
+                        Additional Information
+                      </h4>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-xs"
+                        onClick={handleOpenEditAdditional}
+                      >
+                        <Pencil className="size-3 mr-1" />
+                        Edit
+                      </Button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      <div>
+                        <p className="text-xs text-muted-foreground">Emergency Contact</p>
+                        <p className="font-medium">{detail.emergencyContact || "—"}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Emergency Phone</p>
+                        <p className="font-medium">{detail.emergencyPhone || "—"}</p>
+                      </div>
+                      <div className="col-span-2">
+                        <p className="text-xs text-muted-foreground">Previous Education</p>
+                        <p className="font-medium">{detail.previousEducation || "—"}</p>
+                      </div>
+                      <div className="col-span-2">
+                        <p className="text-xs text-muted-foreground">Reference</p>
+                        <p className="font-medium">{detail.reference || "—"}</p>
+                      </div>
+                    </div>
+                  </div>
+
                   {detail.notes && (
                     <>
                       <Separator className="bg-border/50" />
@@ -1310,7 +1448,7 @@ export function AdmissionsPage() {
                           <Button
                             size="sm"
                             className="h-7 text-xs bg-[#6B20A0] hover:bg-[#6B20A0]/90 text-white"
-                            onClick={handleSubmitScores}
+                            onClick={handleRecordResults}
                             disabled={interviewMutation.isPending}
                           >
                             Submit Scores
@@ -1348,13 +1486,9 @@ export function AdmissionsPage() {
                       <FileText className="size-4 text-[#4B0A8F] dark:text-[#8A40B0]" />
                       Documents
                     </h4>
-                    {detail && (
-                      <DocumentUpload
-                        entityType="admission"
-                        entityId={detail.id}
-                        maxFiles={10}
-                      />
-                    )}
+                    <p className="rounded-lg border border-dashed p-3 text-xs text-muted-foreground">
+                      Document uploads are unavailable until private Storage is configured for the pilot.
+                    </p>
                   </div>
 
                   {/* Actions Section */}

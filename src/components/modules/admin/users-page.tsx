@@ -37,8 +37,6 @@ import {
   Plus,
   KeyRound,
   UserCog,
-  Eye,
-  EyeOff,
   MapPin,
   Building2,
   Users,
@@ -50,7 +48,6 @@ import {
 } from "lucide-react";
 import type { StaffRole } from "@/types";
 import { useDebounce } from "@/hooks/use-debounce";
-import { OnlineStatus } from "@/components/shared/online-status";
 import {
   SortableDataTable,
   type Column,
@@ -152,6 +149,7 @@ export function UsersPage() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [resetPwdOpen, setResetPwdOpen] = useState(false);
   const [assignRoleOpen, setAssignRoleOpen] = useState(false);
+  const [temporaryPassword, setTemporaryPassword] = useState<string | null>(null);
   const [assignRole, setAssignRole] = useState<StaffRole | "">("");
   const [selectedUser, setSelectedUser] = useState<UserWithMeta | null>(null);
 
@@ -161,13 +159,11 @@ export function UsersPage() {
   // Form state
   const [formName, setFormName] = useState("");
   const [formEmail, setFormEmail] = useState("");
-  const [formPassword, setFormPassword] = useState("");
   const [formPhone, setFormPhone] = useState("");
   const [formRole, setFormRole] = useState<StaffRole | "">("");
   const [formCityId, setFormCityId] = useState("");
   const [formParkId, setFormParkId] = useState("");
   const [formGroupId, setFormGroupId] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   // Fetch users
@@ -259,14 +255,13 @@ export function UsersPage() {
     mutationFn: (data: {
       name: string;
       email: string;
-      password: string;
       role: StaffRole;
       phone?: string;
       assignedCityId?: string;
       assignedParkId?: string;
       assignedGroupId?: string;
     }) =>
-      fetch("/api/admin/users", {
+      fetch("/api/admin/invite", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
@@ -274,10 +269,11 @@ export function UsersPage() {
         if (!r.ok) return r.json().then((e) => Promise.reject(e));
         return r.json();
       }),
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["admin-users"] });
-      toast.success("User created successfully");
       closeCreateDialog();
+      setTemporaryPassword(data.temporaryPassword);
+      toast.success("User created. Share the temporary password securely.");
     },
     onError: (err: any) => {
       if (err.error) {
@@ -405,13 +401,11 @@ export function UsersPage() {
   function resetForm() {
     setFormName("");
     setFormEmail("");
-    setFormPassword("");
     setFormPhone("");
     setFormRole("");
     setFormCityId("");
     setFormParkId("");
     setFormGroupId("");
-    setShowPassword(false);
     setFormErrors({});
   }
 
@@ -434,8 +428,6 @@ export function UsersPage() {
     setFormCityId(user.staffMeta?.assignedCityId || "");
     setFormParkId(user.staffMeta?.assignedParkId || "");
     setFormGroupId(user.staffMeta?.assignedGroupId || "");
-    setFormPassword("");
-    setShowPassword(false);
     setFormErrors({});
     setEditOpen(true);
   }
@@ -474,7 +466,6 @@ export function UsersPage() {
     const payload: any = {
       name: formName.trim(),
       email: formEmail.trim(),
-      password: formPassword,
       role: formRole,
     };
     if (formPhone.trim()) payload.phone = formPhone.trim();
@@ -530,9 +521,6 @@ export function UsersPage() {
             <div className="flex items-center justify-center size-9 rounded-full bg-[#F3ECF6] dark:bg-[#1F0860] text-[#4B0A8F] dark:text-[#8A40B0] text-xs font-bold shrink-0">
               {getInitials(user.name, user.email)}
             </div>
-            <span className="absolute -bottom-0.5 -right-0.5">
-              <OnlineStatus userId={user.id} />
-            </span>
           </div>
           <div className="min-w-0">
             <p className="font-medium text-sm truncate">
@@ -551,9 +539,6 @@ export function UsersPage() {
               <div className="flex items-center justify-center size-10 rounded-full bg-[#F3ECF6] dark:bg-[#1F0860] text-[#4B0A8F] dark:text-[#8A40B0] text-sm font-bold shrink-0">
                 {getInitials(user.name, user.email)}
               </div>
-              <span className="absolute -bottom-0.5 -right-0.5">
-                <OnlineStatus userId={user.id} />
-              </span>
             </div>
             <div className="min-w-0">
               <p className="font-medium text-sm truncate">
@@ -846,8 +831,8 @@ export function UsersPage() {
           <DialogHeader>
             <DialogTitle>Create User</DialogTitle>
             <DialogDescription>
-              Add a new staff member. They will be prompted to change their
-              password on first login.
+              Add a new staff member. A secure temporary password will be shown
+              once and must be changed on first login.
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleCreateSubmit} className="space-y-4">
@@ -882,38 +867,6 @@ export function UsersPage() {
                   {Array.isArray(formErrors.email)
                     ? formErrors.email[0]
                     : formErrors.email}
-                </p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="create-password">Password</Label>
-              <div className="relative">
-                <Input
-                  id="create-password"
-                  type={showPassword ? "text" : "password"}
-                  placeholder="Minimum 8 characters"
-                  value={formPassword}
-                  onChange={(e) => setFormPassword(e.target.value)}
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="absolute right-1 top-1/2 -translate-y-1/2 size-7"
-                  onClick={() => setShowPassword(!showPassword)}
-                >
-                  {showPassword ? (
-                    <EyeOff className="size-3.5" />
-                  ) : (
-                    <Eye className="size-3.5" />
-                  )}
-                </Button>
-              </div>
-              {formErrors.password && (
-                <p className="text-xs text-destructive">
-                  {Array.isArray(formErrors.password)
-                    ? formErrors.password[0]
-                    : formErrors.password}
                 </p>
               )}
             </div>
@@ -1068,10 +1021,33 @@ export function UsersPage() {
                 className="bg-[#4B0A8F] hover:bg-[#4B0A8FE6] text-white"
                 disabled={createMutation.isPending}
               >
-                {createMutation.isPending ? "Creating..." : "Create User"}
+                {createMutation.isPending ? "Creating..." : "Create and Generate Password"}
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={temporaryPassword !== null}
+        onOpenChange={(open) => {
+          if (!open) setTemporaryPassword(null);
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Temporary Password</DialogTitle>
+            <DialogDescription>
+              Share this credential securely now. It will not be shown again, and
+              the user must change it at first login.
+            </DialogDescription>
+          </DialogHeader>
+          <code className="block rounded-md bg-muted px-3 py-3 text-center text-sm break-all">
+            {temporaryPassword}
+          </code>
+          <DialogFooter>
+            <Button onClick={() => setTemporaryPassword(null)}>I have saved it</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

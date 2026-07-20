@@ -76,6 +76,8 @@ export const PARTICIPANT_FIELDS: ImportField[] = [
   { key: "phone", label: "Phone", required: false, type: "string" },
   { key: "gender", label: "Gender", required: false, type: "string" },
   { key: "dateOfBirth", label: "DateOfBirth", required: false, type: "date" },
+  { key: "age", label: "Age", required: false, type: "number" },
+  { key: "gradeClass", label: "GradeClass", required: false, type: "string" },
   { key: "group", label: "Group", required: true, type: "string" },
   { key: "city", label: "City", required: false, type: "string" },
   { key: "park", label: "Park", required: false, type: "string" },
@@ -110,6 +112,8 @@ export const EXAMPLE_ROWS: Record<ImportType, Record<string, string>[]> = {
       Phone: "03001234567",
       Gender: "Male",
       DateOfBirth: "2010-05-15",
+      Age: "16",
+      GradeClass: "10th",
       Group: "Group A",
       City: "Karachi",
       Park: "Park North",
@@ -124,6 +128,8 @@ export const EXAMPLE_ROWS: Record<ImportType, Record<string, string>[]> = {
       Phone: "03009876543",
       Gender: "Female",
       DateOfBirth: "2011-03-22",
+      Age: "15",
+      GradeClass: "9th",
       Group: "Group A",
       City: "",
       Park: "",
@@ -363,7 +369,7 @@ export function ImportDialog({
     generateErrorCSV(errors);
   }, [importResult]);
 
-  // Download passwords (for user imports)
+  // Download credentials shown only in the current import result.
   const handleDownloadPasswords = useCallback(() => {
     if (!importResult?.generatedPasswords) return;
     const pwds = importResult.generatedPasswords;
@@ -379,7 +385,7 @@ export function ImportDialog({
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = "imported-user-passwords.csv";
+    link.download = "imported-account-passwords.csv";
     link.click();
     URL.revokeObjectURL(url);
   }, [importResult]);
@@ -754,7 +760,7 @@ export function ImportDialog({
                   </div>
                 )}
 
-                {/* Generated Passwords (users only) */}
+                {/* Generated passwords are available only in the current import result. */}
                 {importResult.generatedPasswords &&
                   importResult.generatedPasswords.length > 0 && (
                     <div className="rounded-lg border border-[#D4B8E3] bg-[#F3ECF6] p-3 dark:border-[#2A0C8F] dark:bg-[#1F086080]">
@@ -781,7 +787,7 @@ export function ImportDialog({
                         </Button>
                       </div>
                       <p className="text-xs text-muted-foreground">
-                        These passwords must be distributed to users securely.
+                        These passwords must be distributed securely and are only shown in this result.
                         All users will be required to reset their password on
                         first login.
                       </p>

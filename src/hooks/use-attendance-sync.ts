@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useCallback, useState } from "react";
+import { useEffect, useCallback, useState } from "react";
 import { useOnlineStatus } from "@/hooks/use-online-status";
 import {
   offlineDB,
@@ -23,9 +23,11 @@ export interface SyncResult {
   failed: number;
 }
 
+// The roster and queue panel can both mount this hook, so they must share one sync lock.
+let activeQueueSync: Promise<SyncResult> | null = null;
+
 export function useAttendanceSync() {
   const isOnline = useOnlineStatus();
-  const isSyncing = useRef(false);
   const [pendingCount, setPendingCount] = useState(0);
   const [failedCount, setFailedCount] = useState(0);
   const [lastSyncError, setLastSyncError] = useState<string | null>(null);
@@ -40,62 +42,6 @@ export function useAttendanceSync() {
       // Dexie may not be available in SSR
     }
   }, []);
-
-  // Auto-sync when coming back online
-  useEffect(() => {
-    if (isOnline) {
-      syncNow();
-    }
-  }, [isOnline]);
-
-  // Periodic count refresh
-  useEffect(() => {
-    refreshCounts();
-    const interval = setInterval(refreshCounts, 3000);
-    return () => clearInterval(interval);
-  }, [refreshCounts]);
-
-  /**
-   * Submit a single attendance mark. Queues offline if needed.
-   */
-  const markAttendance = useCallback(
-    async (params: {
-      eventId: string;
-      participantId: string;
-      status: AttendanceStatus;
-    }): Promise<{ success: boolean; error?: string }> => {
-      const mutationId = uuidv4();
-      const markedAt = new Date().toISOString();
-
-      if (!VALID_STATUSES.includes(params.status)) {
-        return { success: false, error: `Invalid status: ${params.status}` };
-      }
-
-      // Optimistic - always queue first
-      await offlineDB.queue.add({
-        mutationId,
-        eventId: params.eventId,
-        participantId: params.participantId,
-        status: params.status,
-        markedAt,
-        queuedAt: new Date().toISOString(),
-        retryCount: 0,
-        lastError: null,
-        syncedAt: null,
-        state: "pending",
-      });
-
-      await refreshCounts();
-
-      // If online, try to sync immediately
-      if (isOnline) {
-        return syncSingle(mutationId);
-      }
-
-      return { success: true };
-    },
-    [isOnline, refreshCounts]
-  );
 
   /**
    * Sync a single mutation to the server.
@@ -152,13 +98,55 @@ export function useAttendanceSync() {
   );
 
   /**
+   * Submit a single attendance mark. Queues offline if needed.
+   */
+  const markAttendance = useCallback(
+    async (params: {
+      eventId: string;
+      participantId: string;
+      status: AttendanceStatus;
+    }): Promise<{ success: boolean; error?: string }> => {
+      const mutationId = uuidv4();
+      const markedAt = new Date().toISOString();
+
+      if (!VALID_STATUSES.includes(params.status)) {
+        return { success: false, error: `Invalid status: ${params.status}` };
+      }
+
+      // Optimistic - always queue first
+      await offlineDB.queue.add({
+        mutationId,
+        eventId: params.eventId,
+        participantId: params.participantId,
+        status: params.status,
+        markedAt,
+        queuedAt: new Date().toISOString(),
+        retryCount: 0,
+        lastError: null,
+        syncedAt: null,
+        state: "pending",
+      });
+
+      await refreshCounts();
+
+      // If online, try to sync immediately
+      if (isOnline) {
+        return syncSingle(mutationId);
+      }
+
+      return { success: true };
+    },
+    [isOnline, refreshCounts, syncSingle]
+  );
+
+  /**
    * Sync all pending items in a batch.
    */
-  const syncNow = useCallback(async (): Promise<SyncResult> => {
-    if (isSyncing.current) return { success: false, processed: 0, failed: 0 };
-    isSyncing.current = true;
+  const syncNow = useCallback((): Promise<SyncResult> => {
+    if (activeQueueSync) return activeQueueSync;
 
-    try {
+    const runningSync = (async (): Promise<SyncResult> => {
+      try {
       const items = await getPendingSyncItems();
       if (items.length === 0) {
         await clearSyncedItems();
@@ -216,15 +204,45 @@ export function useAttendanceSync() {
         processed: processedIds.length,
         failed: failedItems.length,
       };
-    } catch (error) {
-      setLastSyncError(
-        error instanceof Error ? error.message : "Sync failed"
-      );
-      await refreshCounts();
-      return { success: false, processed: 0, failed: 0 };
-    } finally {
-      isSyncing.current = false;
-    }
+      } catch (error) {
+        setLastSyncError(
+          error instanceof Error ? error.message : "Sync failed"
+        );
+        await refreshCounts();
+        return { success: false, processed: 0, failed: 0 };
+      } finally {
+        activeQueueSync = null;
+      }
+    })();
+
+    activeQueueSync = runningSync;
+    return runningSync;
+  }, [refreshCounts]);
+
+  // Auto-sync when coming back online after syncNow is initialized.
+  useEffect(() => {
+    if (!isOnline) return;
+
+    const timer = window.setTimeout(() => {
+      void syncNow();
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [isOnline, syncNow]);
+
+  // Refresh queue counters after mount and while the panel is active.
+  useEffect(() => {
+    const initialRefreshTimer = window.setTimeout(() => {
+      void refreshCounts();
+    }, 0);
+    const interval = window.setInterval(() => {
+      void refreshCounts();
+    }, 3000);
+
+    return () => {
+      window.clearTimeout(initialRefreshTimer);
+      window.clearInterval(interval);
+    };
   }, [refreshCounts]);
 
   /**

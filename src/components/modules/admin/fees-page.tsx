@@ -96,6 +96,7 @@ import { cn } from "@/lib/utils";
 import { useTranslation } from "@/lib/i18n";
 import { ExportButton } from "@/components/shared/export-button";
 import { FeeReceipt, type FeeReceiptData } from "@/components/shared/fee-receipt";
+import { generateReceipt, type ReceiptData } from "@/lib/pdf-receipt";
 
 // ---------------------------------------------------------------------------
 // Types

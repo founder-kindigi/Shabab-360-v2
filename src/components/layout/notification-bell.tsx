@@ -5,7 +5,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSession } from "next-auth/react";
 import { useAppStore } from "@/stores/useAppStore";
-import { useRealtimeNotifications } from "@/hooks/use-realtime-notifications";
 import { formatDistanceToNow } from "date-fns";
 import {
   Popover,
@@ -26,7 +25,6 @@ import {
   Volume2,
   VolumeX,
 } from "lucide-react";
-import { OnlineStatus } from "@/components/shared/online-status";
 import type { PageId } from "@/stores/useAppStore";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -200,9 +198,6 @@ export function NotificationBell() {
     }
   });
 
-  // Enable real-time notification updates via WebSocket
-  useRealtimeNotifications();
-
   const user = session?.user as {
     id?: string;
     role?: string;
@@ -215,8 +210,12 @@ export function NotificationBell() {
     unreadCount: number;
   }>({
     queryKey: ["notifications"],
-    queryFn: () => fetch("/api/notifications").then((r) => r.json()),
-    refetchInterval: 60000,
+    queryFn: async () => {
+      const response = await fetch("/api/notifications");
+      if (!response.ok) throw new Error("Failed to load notifications");
+      return response.json();
+    },
+    enabled: Boolean(user?.id),
     staleTime: 30000,
   });
 
@@ -347,7 +346,6 @@ export function NotificationBell() {
                   )}
                 </div>
                 <div className="flex items-center gap-1">
-                  {user?.id && <OnlineStatus userId={user.id} />}
                   {/* Sound toggle */}
                   <button
                     onClick={handleToggleSound}

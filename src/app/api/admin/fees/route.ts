@@ -1,8 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth/authorize";
+import { requireAuth, requireCapability } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
+import {
+  optionalIdentifier,
+  paginatedQuerySchema,
+  queryParamsToObject,
+  queryValidationError,
+} from "@/lib/api/query-params";
+import { Prisma } from "@prisma/client";
 import { z } from "zod";
+import { moneyToNumber } from "@/lib/money";
 
 const createSchema = z.object({
   batchId: z.string().min(1, "Batch is required"),
@@ -12,52 +20,70 @@ const createSchema = z.object({
   dueDate: z.string().optional(),
 });
 
+const listSchema = paginatedQuerySchema({ defaultPageSize: 20 }).extend({
+  cityId: optionalIdentifier(),
+  parkId: optionalIdentifier(),
+  batchId: optionalIdentifier(),
+  feeType: z.enum(["tuition", "admission", "other"]).optional(),
+  status: z.enum(["active", "all"]).default("active"),
+});
+
+function buildFeeEventWhere(filters: z.infer<typeof listSchema>): Prisma.FeeEventWhereInput {
+  const where: Prisma.FeeEventWhereInput = {};
+
+  if (filters.status === "active") where.isActive = true;
+  if (filters.batchId) where.batchId = filters.batchId;
+  if (filters.feeType) where.feeType = filters.feeType;
+
+  if (filters.cityId || filters.parkId) {
+    where.batch = {
+      park: {
+        ...(filters.cityId ? { cityId: filters.cityId } : {}),
+        ...(filters.parkId ? { id: filters.parkId } : {}),
+      },
+    };
+  }
+
+  return where;
+}
+
 export async function GET(request: NextRequest) {
   const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
   const { user } = auth;
+  const capabilityAuth = await requireCapability("fees.manage");
+  if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
   if (!["super_admin", "program_admin"].includes(user.role || "")) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const { searchParams } = new URL(request.url);
-  const cityId = searchParams.get("cityId") || undefined;
-  const parkId = searchParams.get("parkId") || undefined;
-  const batchId = searchParams.get("batchId") || undefined;
-  const feeType = searchParams.get("feeType") || undefined;
-  const status = searchParams.get("status") || "active";
-  const page = parseInt(searchParams.get("page") || "1", 10);
-  const limit = 20;
-
-  // Build where clause
-  const where: Record<string, unknown> = {};
-  if (status === "active") where.isActive = true;
-  if (batchId) where.batchId = batchId;
-  if (parkId) where.batch = { parkId };
-  if (cityId) where.batch = { park: { cityId } };
-  if (feeType) where.feeType = feeType;
-
-  // Combine park/city/batch filters
-  const combinedWhere: Record<string, unknown> = {};
-  if (status === "active") combinedWhere.isActive = true;
-  if (feeType) combinedWhere.feeType = feeType;
-
-  if (batchId) {
-    combinedWhere.batchId = batchId;
-  } else if (parkId) {
-    combinedWhere.batch = { parkId };
-  } else if (cityId) {
-    combinedWhere.batch = { park: { cityId } };
+  const parsedQuery = listSchema.safeParse(queryParamsToObject(searchParams));
+  if (!parsedQuery.success) {
+    return NextResponse.json(queryValidationError(parsedQuery.error), { status: 400 });
   }
 
-  const [feeEvents, total] = await Promise.all([
+  const { page, pageSize: limit } = parsedQuery.data;
+  const feeEventWhere = buildFeeEventWhere(parsedQuery.data);
+
+  // Keep page data bounded and let the database aggregate all matching totals.
+  const [feeEvents, feeEventSummary, paymentSummary] = await Promise.all([
     db.feeEvent.findMany({
-      where: combinedWhere,
+      where: feeEventWhere,
       orderBy: { createdAt: "desc" },
       skip: (page - 1) * limit,
       take: limit,
-      include: {
+      select: {
+        id: true,
+        batchId: true,
+        title: true,
+        feeType: true,
+        amount: true,
+        dueDate: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true,
         batch: {
           select: {
             id: true,
@@ -71,36 +97,69 @@ export async function GET(request: NextRequest) {
             },
           },
         },
-        payments: {
-          select: { id: true, amount: true },
-        },
       },
     }),
-    db.feeEvent.count({ where: combinedWhere }),
+    db.feeEvent.groupBy({
+      by: ["batchId"],
+      where: feeEventWhere,
+      _count: { _all: true },
+      _sum: { amount: true },
+    }),
+    db.payment.aggregate({
+      where: { feeEvent: { is: feeEventWhere } },
+      _sum: { amount: true },
+    }),
   ]);
 
-  // Get participant counts for each batch
-  const batchIds = [...new Set(feeEvents.map((f) => f.batchId))];
-  const batchParticipantCounts = await db.group.findMany({
-    where: { batchId: { in: batchIds }, isActive: true },
-    select: {
-      batchId: true,
-      _count: { select: { participants: { where: { state: "active" } } } },
-    },
-  });
+  const feeEventIds = feeEvents.map((feeEvent) => feeEvent.id);
+  const batchIds = [
+    ...new Set([
+      ...feeEvents.map((feeEvent) => feeEvent.batchId),
+      ...feeEventSummary.map((summary) => summary.batchId),
+    ]),
+  ];
+
+  const [batchParticipantCounts, pagePaymentTotals] = await Promise.all([
+    batchIds.length > 0
+      ? db.group.findMany({
+          where: { batchId: { in: batchIds }, isActive: true },
+          select: {
+            batchId: true,
+            _count: { select: { participants: { where: { state: "active" } } } },
+          },
+        })
+      : Promise.resolve([]),
+    feeEventIds.length > 0
+      ? db.payment.groupBy({
+          by: ["feeEventId"],
+          where: { feeEventId: { in: feeEventIds } },
+          _count: { _all: true },
+          _sum: { amount: true },
+        })
+      : Promise.resolve([]),
+  ]);
 
   const participantCountMap: Record<string, number> = {};
   for (const g of batchParticipantCounts) {
     participantCountMap[g.batchId] = (participantCountMap[g.batchId] || 0) + g._count.participants;
   }
 
+  const paymentTotals = new Map<string, { totalPaid: number; paidCount: number }>(
+    pagePaymentTotals.map((payment): [string, { totalPaid: number; paidCount: number }] => [
+      payment.feeEventId,
+      { totalPaid: moneyToNumber(payment._sum.amount), paidCount: payment._count._all },
+    ])
+  );
+
   const now = new Date();
 
   const enriched = feeEvents.map((fe) => {
-    const totalPaid = fe.payments.reduce((sum, p) => sum + p.amount, 0);
+    const paymentTotal = paymentTotals.get(fe.id);
+    const totalPaid = paymentTotal?.totalPaid || 0;
     const totalParticipants = participantCountMap[fe.batchId] || 0;
-    const totalExpected = fe.amount * totalParticipants;
-    const paidCount = fe.payments.length;
+    const amount = moneyToNumber(fe.amount);
+    const totalExpected = amount * totalParticipants;
+    const paidCount = paymentTotal?.paidCount || 0;
     const rate = totalExpected > 0 ? (totalPaid / totalExpected) * 100 : 0;
 
     let dueDateStatus: "overdue" | "upcoming" | "paid" | "none" = "none";
@@ -124,7 +183,7 @@ export async function GET(request: NextRequest) {
       batchId: fe.batchId,
       title: fe.title,
       feeType: fe.feeType,
-      amount: fe.amount,
+      amount,
       dueDate: fe.dueDate,
       isActive: fe.isActive,
       createdAt: fe.createdAt,
@@ -139,45 +198,24 @@ export async function GET(request: NextRequest) {
     };
   });
 
-  // Summary stats (for all matching, not just page)
-  const allFeeEvents = await db.feeEvent.findMany({
-    where: { ...combinedWhere, isActive: true },
-    include: {
-      payments: { select: { id: true, amount: true } },
-      batch: {
-        select: {
-          id: true,
-          groups: {
-            where: { isActive: true },
-            select: {
-              _count: { select: { participants: { where: { state: "active" } } } },
-            },
-          },
-        },
-      },
-    },
-  });
-
-  let summaryTotalEvents = allFeeEvents.length;
+  const summaryTotalEvents = feeEventSummary.reduce(
+    (total, summary) => total + summary._count._all,
+    0
+  );
   let summaryTotalExpected = 0;
-  let summaryTotalCollected = 0;
-
-  for (const fe of allFeeEvents) {
-    const totalParts = fe.batch.groups.reduce(
-      (sum, g) => sum + g._count.participants,
-      0
-    );
-    summaryTotalExpected += fe.amount * totalParts;
-    summaryTotalCollected += fe.payments.reduce((sum, p) => sum + p.amount, 0);
+  for (const summary of feeEventSummary) {
+    summaryTotalExpected +=
+      moneyToNumber(summary._sum.amount) * (participantCountMap[summary.batchId] || 0);
   }
+  const summaryTotalCollected = moneyToNumber(paymentSummary._sum.amount);
 
   return NextResponse.json({
     data: enriched,
     pagination: {
       page,
       limit,
-      total,
-      totalPages: Math.ceil(total / limit),
+      total: summaryTotalEvents,
+      totalPages: Math.ceil(summaryTotalEvents / limit),
     },
     summary: {
       totalFeeEvents: summaryTotalEvents,
@@ -195,6 +233,8 @@ export async function POST(request: NextRequest) {
   const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
   const { user } = auth;
+  const capabilityAuth = await requireCapability("fees.manage");
+  if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
   if (!["super_admin", "program_admin"].includes(user.role || "")) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -235,5 +275,8 @@ export async function POST(request: NextRequest) {
     newValues: parsed.data,
   });
 
-  return NextResponse.json(feeEvent, { status: 201 });
+  return NextResponse.json(
+    { ...feeEvent, amount: moneyToNumber(feeEvent.amount) },
+    { status: 201 }
+  );
 }

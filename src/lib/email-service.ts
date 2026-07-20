@@ -1,13 +1,11 @@
 import { db } from "@/lib/db";
+import {
+  assertNotificationContentSafe,
+  serializeNotificationMetadata,
+  type NotificationChannel,
+} from "@/lib/notification-security";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
-
-type NotificationChannel =
-  | "password_reset"
-  | "invite"
-  | "fee_reminder"
-  | "absence_alert"
-  | "admission_status";
 
 interface SendEmailParams {
   to: string;
@@ -27,6 +25,8 @@ interface SendEmailParams {
  */
 export async function sendEmail(params: SendEmailParams): Promise<string> {
   const { to, subject, body, channel, recipientId, data } = params;
+  assertNotificationContentSafe(channel, subject, body);
+  const serializedData = serializeNotificationMetadata(channel, data);
 
   const notification = await db.notification.create({
     data: {
@@ -36,13 +36,12 @@ export async function sendEmail(params: SendEmailParams): Promise<string> {
       recipientId: recipientId || null,
       subject,
       body,
-      data: data ? JSON.stringify(data) : null,
+      data: serializedData,
       status: "pending",
     },
   });
 
-  // In sandbox mode, log the notification for visibility
-  console.log(`[EMAIL-QUEUE] ${channel}: ${subject} → ${to}`);
+  console.log(`[EMAIL-QUEUE] ${channel}: ${notification.id}`);
 
   return notification.id;
 }
@@ -50,18 +49,14 @@ export async function sendEmail(params: SendEmailParams): Promise<string> {
 // ─── Template: Password Reset ─────────────────────────────────────────────────
 
 export async function sendPasswordReset(
-  user: { id: string; email: string; name: string | null },
-  resetUrl: string
+  user: { id: string; email: string; name: string | null }
 ): Promise<string> {
   const subject = "Shabab360 — Password Reset Request";
   const body = `Salam ${user.name || "User"},
 
 You (or someone else) requested a password reset for your Shabab360 account.
 
-Click the link below to set a new password:
-${resetUrl}
-
-This link will expire in 1 hour. If you did not request this, you can safely ignore this email.
+Secure recovery instructions must be delivered separately through the approved reset channel. If you did not request this, please contact your administrator.
 
 — Shabab360 Team`;
 
@@ -71,7 +66,29 @@ This link will expire in 1 hour. If you did not request this, you can safely ign
     body,
     channel: "password_reset",
     recipientId: user.id,
-    data: { resetUrl, userName: user.name },
+  });
+}
+
+// ─── Template: Password Change Confirmation ──────────────────────────────────
+
+export async function sendPasswordChangeConfirmation(
+  user: { id: string; email: string; name: string | null }
+): Promise<string> {
+  const subject = "Shabab360 - Your Password Was Changed";
+  const body = `Salam ${user.name || "User"},
+
+Your Shabab360 account password was changed successfully.
+
+If you did not make this change, please contact your administrator immediately.
+
+Shabab360 Team`;
+
+  return sendEmail({
+    to: user.email,
+    subject,
+    body,
+    channel: "password_changed",
+    recipientId: user.id,
   });
 }
 
@@ -79,18 +96,14 @@ This link will expire in 1 hour. If you did not request this, you can safely ign
 
 export async function sendInviteEmail(
   user: { id: string; email: string; name: string | null },
-  tempPassword: string,
   role: string
 ): Promise<string> {
   const subject = "Welcome to Shabab360 — Your Account is Ready";
   const body = `Salam ${user.name || "User"},
 
-Your Shabab360 account has been created. Here are your login credentials:
+Your Shabab360 account has been created. Please obtain your temporary sign-in credential from the administrator who invited you.
 
-  Email: ${user.email}
-  Password: ${tempPassword}
-
-Please log in at Shabab360 and change your password immediately after signing in.
+After signing in, you will be required to set a new password before accessing the application.
 
 Your role: ${role.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
 
@@ -102,14 +115,14 @@ Your role: ${role.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
     body,
     channel: "invite",
     recipientId: user.id,
-    data: { tempPassword, role, userName: user.name },
+    data: { role },
   });
 }
 
 // ─── Template: Absence Alert ──────────────────────────────────────────────────
 
 export async function sendAbsenceAlert(
-  guardian: { id?: string; userId?: string; name: string; phone: string; user?: { email: string | null } | null } | null,
+  guardian: { id?: string; userId?: string | null; name: string; phone: string; user?: { email: string | null } | null } | null,
   participant: { id: string; name: string },
   eventTitle: string,
   consecutiveAbsents: number,
@@ -143,11 +156,9 @@ Please contact the park administration for further details.
     recipientId: guardian.userId || guardian.id,
     data: {
       participantId: participant.id,
-      participantName: participant.name,
       consecutiveAbsents,
       level,
       threshold,
-      eventTitle,
     },
   });
 }
@@ -155,7 +166,7 @@ Please contact the park administration for further details.
 // ─── Template: Fee Reminder ───────────────────────────────────────────────────
 
 export async function sendFeeReminder(
-  guardian: { id?: string; userId?: string; name: string; user?: { email: string | null } | null } | null,
+  guardian: { id?: string; userId?: string | null; name: string; user?: { email: string | null } | null } | null,
   feeEventTitle: string,
   amountDue: number
 ): Promise<string | null> {
@@ -182,6 +193,5 @@ Please ensure timely payment to avoid any penalties.
     body,
     channel: "fee_reminder",
     recipientId: guardian.userId || guardian.id,
-    data: { feeEventTitle, amountDue },
   });
 }

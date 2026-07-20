@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireRole, requireAuth } from "@/lib/auth/authorize";
+import { requireRole, requireAuth, requireCapability } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
 import { z } from "zod";
 import { logAudit } from "@/lib/audit";
+import { participantProfileFieldsSchema } from "@/lib/participants/profile-fields";
 
 const updateSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters").optional(),
@@ -11,7 +12,7 @@ const updateSchema = z.object({
   dateOfBirth: z.string().optional(),
   state: z.string().optional(),
   groupId: z.string().min(1, "Group is required").optional(),
-});
+}).merge(participantProfileFieldsSchema);
 
 export async function PATCH(
   request: NextRequest,
@@ -22,6 +23,8 @@ export async function PATCH(
 
   const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
+  const capabilityAuth = await requireCapability("students.manage");
+  if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
   const { id } = await params;
 
@@ -47,7 +50,13 @@ export async function PATCH(
     data.dateOfBirth = parsed.data.dateOfBirth
       ? new Date(parsed.data.dateOfBirth)
       : null;
+  if (parsed.data.age !== undefined) data.age = parsed.data.age;
+  if (parsed.data.gradeClass !== undefined) data.gradeClass = parsed.data.gradeClass;
   if (parsed.data.state !== undefined) data.state = parsed.data.state;
+  const revokeUserSession = parsed.data.state === "inactive" && existing.state !== "inactive" && existing.userId;
+  if (revokeUserSession) {
+    data.user = { update: { tokenVersion: { increment: 1 } } };
+  }
   if (parsed.data.groupId !== undefined) {
     const group = await db.group.findUnique({
       where: { id: parsed.data.groupId, isActive: true },
@@ -75,6 +84,8 @@ export async function PATCH(
       name: existing.name,
       phone: existing.phone,
       gender: existing.gender,
+      age: existing.age,
+      gradeClass: existing.gradeClass,
       state: existing.state,
       groupId: existing.groupId,
     },
@@ -93,6 +104,8 @@ export async function DELETE(
 
   const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
+  const capabilityAuth = await requireCapability("students.manage");
+  if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
   const { id } = await params;
 
@@ -103,7 +116,12 @@ export async function DELETE(
 
   const participant = await db.participant.update({
     where: { id },
-    data: { state: "inactive" },
+    data: {
+      state: "inactive",
+      ...(existing.userId
+        ? { user: { update: { tokenVersion: { increment: 1 } } } }
+        : {}),
+    },
   });
 
   await logAudit({

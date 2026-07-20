@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import { useAppStore } from "@/stores/useAppStore";
-import { motion } from "framer-motion";
+import { motion, type Variants } from "framer-motion";
 import { DataCard } from "@/components/layout/data-card";
 import { EmptyState } from "@/components/layout/empty-state";
 import { Card, CardContent } from "@/components/ui/card";
@@ -90,12 +90,12 @@ type DashboardData = {
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
-const stagger = {
+const stagger: Variants = {
   hidden: {},
   visible: { transition: { staggerChildren: 0.07 } },
 };
 
-const fadeUp = {
+const fadeUp: Variants = {
   hidden: { opacity: 0, y: 16 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.4, ease: "easeOut" } },
 };

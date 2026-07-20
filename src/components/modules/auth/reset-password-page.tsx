@@ -1,13 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { useSession } from "next-auth/react";
+import { signOut, useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Loader2, Eye, EyeOff, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
+import {
+  getPasswordValidationError,
+  PASSWORD_MIN_LENGTH,
+} from "@/lib/auth/password-policy";
 
 export function ResetPasswordPage() {
   const { data: session } = useSession();
@@ -25,8 +29,9 @@ export function ResetPasswordPage() {
   function validate(): boolean {
     const newErrors: Record<string, string> = {};
 
-    if (newPassword.length < 8) {
-      newErrors.newPassword = "Password must be at least 8 characters";
+    const passwordError = getPasswordValidationError(newPassword);
+    if (passwordError) {
+      newErrors.newPassword = passwordError;
     }
     if (newPassword !== confirmPassword) {
       newErrors.confirmPassword = "Passwords do not match";
@@ -64,9 +69,9 @@ export function ResetPasswordPage() {
       setSuccess(true);
       toast.success("Password updated successfully");
 
-      // Reload the page to refresh session
+      // Resetting the password invalidates this session along with every other session.
       setTimeout(() => {
-        window.location.href = "/";
+        void signOut({ callbackUrl: "/" });
       }, 1500);
     } catch {
       toast.error("Something went wrong. Please try again.");
@@ -85,7 +90,7 @@ export function ResetPasswordPage() {
             </div>
             <h2 className="text-xl font-bold">Password Updated!</h2>
             <p className="text-sm text-muted-foreground">
-              Redirecting you to the dashboard...
+              Redirecting you to sign in...
             </p>
           </div>
         </div>
@@ -124,7 +129,7 @@ export function ResetPasswordPage() {
                   <Input
                     id="new-password"
                     type={showNew ? "text" : "password"}
-                    placeholder="Min. 8 characters"
+                    placeholder={`Minimum ${PASSWORD_MIN_LENGTH} characters`}
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
                     disabled={loading}

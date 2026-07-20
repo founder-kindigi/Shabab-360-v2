@@ -1,19 +1,44 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireRole } from "@/lib/auth/authorize";
+import { requireRole, requireCapability } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
 import { PKT, toZonedTime, formatPKT } from "@/lib/timezone";
 import { startOfMonth, subMonths, parseISO, isAfter, isBefore, endOfMonth } from "date-fns";
+import {
+  optionalDateOnly,
+  optionalIdentifier,
+  queryParamsToObject,
+  queryValidationError,
+} from "@/lib/api/query-params";
+import { z } from "zod";
+
+const feeReportQuerySchema = z
+  .object({
+    cityId: optionalIdentifier(),
+    parkId: optionalIdentifier(),
+    from: optionalDateOnly(),
+    to: optionalDateOnly(),
+    groupBy: z.enum(["month", "method", "type"]).default("month"),
+  })
+  .refine(
+    ({ from, to }) => !from || !to || from <= to,
+    { message: "from must be on or before to", path: ["to"] }
+  )
+  .refine(
+    ({ from, to }) => !from || !to || Date.parse(to) - Date.parse(from) <= 366 * 24 * 60 * 60 * 1000,
+    { message: "Date range must not exceed 366 days", path: ["to"] }
+  );
 
 export async function GET(request: NextRequest) {
   const authError = await requireRole(["super_admin", "program_admin"]);
   if (authError) return authError;
+  const capabilityAuth = await requireCapability("reports.view");
+  if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
-  const { searchParams } = new URL(request.url);
-  const cityId = searchParams.get("cityId") || undefined;
-  const parkId = searchParams.get("parkId") || undefined;
-  const fromStr = searchParams.get("from") || undefined;
-  const toStr = searchParams.get("to") || undefined;
-  const groupBy = searchParams.get("groupBy") || "month"; // month | method | type
+  const query = feeReportQuerySchema.safeParse(queryParamsToObject(new URL(request.url).searchParams));
+  if (!query.success) {
+    return NextResponse.json(queryValidationError(query.error), { status: 400 });
+  }
+  const { cityId, parkId, from: fromStr, to: toStr, groupBy } = query.data;
 
   // Parse date range
   let startDate: Date | undefined;

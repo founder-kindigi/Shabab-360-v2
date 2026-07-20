@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth/authorize";
+import { requireCapability, requireResourceScope } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
 import { formatPKT } from "@/lib/timezone";
 
@@ -7,14 +7,10 @@ export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = await requireAuth();
+  const auth = await requireCapability("fees.manage");
   if (auth instanceof NextResponse) return auth;
   const { user } = auth;
   const { id } = await params;
-
-  if (!["super_admin", "program_admin", "park_admin", "park_lead", "city_head", "murabbi"].includes(user.role || "")) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
 
   const payment = await db.payment.findUnique({
     where: { id },
@@ -25,7 +21,7 @@ export async function GET(
             include: {
               park: {
                 include: {
-                  city: { select: { name: true } },
+                  city: { select: { id: true, name: true } },
                 },
               },
             },
@@ -34,7 +30,7 @@ export async function GET(
       },
       participant: {
         include: {
-          group: { select: { name: true } },
+          group: { select: { id: true, name: true } },
         },
       },
     },
@@ -43,6 +39,13 @@ export async function GET(
   if (!payment) {
     return NextResponse.json({ error: "Payment not found" }, { status: 404 });
   }
+
+  const scopeError = requireResourceScope(user, {
+    cityId: payment.feeEvent.batch.park.city.id,
+    parkId: payment.feeEvent.batch.parkId,
+    groupId: payment.participant.groupId,
+  });
+  if (scopeError) return scopeError;
 
   // Fetch the recorder user name if recordedBy is set
   let recorderName = "System";

@@ -30,6 +30,11 @@ export const offlineDB = new ShababOfflineDB();
 
 const MAX_RETRIES = 5;
 
+/** Preserves the user's mutation order when multiple offline marks target one record. */
+export function orderSyncItems<T extends Pick<OfflineQueueItem, "queuedAt">>(items: T[]): T[] {
+  return [...items].sort((a, b) => a.queuedAt.localeCompare(b.queuedAt));
+}
+
 /**
  * Add an attendance mark to the offline queue.
  */
@@ -59,7 +64,7 @@ export async function getPendingSyncItems(): Promise<OfflineQueueItem[]> {
     .anyOf(["pending", "failed"])
     .filter((item) => item.retryCount < MAX_RETRIES)
     .toArray();
-  return items;
+  return orderSyncItems(items);
 }
 
 /**

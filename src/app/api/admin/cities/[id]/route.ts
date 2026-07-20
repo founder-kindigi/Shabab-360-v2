@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireRole, requireAuth } from "@/lib/auth/authorize";
+import { requireRole, requireAuth, requireCapability } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
 import { z } from "zod";
@@ -16,6 +16,8 @@ export async function GET(
 ) {
   const authError = await requireRole(["super_admin", "program_admin"]);
   if (authError) return authError;
+  const capabilityAuth = await requireCapability("organisation.manage");
+  if (capabilityAuth instanceof NextResponse) return capabilityAuth;
   const { id } = await params;
 
   const city = await db.city.findUnique({
@@ -33,6 +35,8 @@ export async function PATCH(
 ) {
   const authError = await requireRole(["super_admin", "program_admin"]);
   if (authError) return authError;
+  const capabilityAuth = await requireCapability("organisation.manage");
+  if (capabilityAuth instanceof NextResponse) return capabilityAuth;
   const { id } = await params;
 
   const existing = await db.city.findUnique({ where: { id } });
@@ -85,6 +89,8 @@ export async function DELETE(
 ) {
   const authError = await requireRole(["super_admin", "program_admin"]);
   if (authError) return authError;
+  const capabilityAuth = await requireCapability("organisation.manage");
+  if (capabilityAuth instanceof NextResponse) return capabilityAuth;
   const { id } = await params;
 
   const existing = await db.city.findUnique({ where: { id } });

@@ -247,8 +247,6 @@ export function AttendanceRoster() {
     participantName: string;
     currentStatus: AttendanceStatus | null;
   } | null>(null);
-  const canEditRecord = userRole === "admin" || userRole === "super_admin" || userRole === "program_admin" || userRole === "park_admin" || userRole === "park_lead";
-
   // Confirmation dialogs
   const [bulkConfirm, setBulkConfirm] = useState<{
     type: "present" | "absent" | "reset";
@@ -260,9 +258,12 @@ export function AttendanceRoster() {
   const lastClickedIdx = useRef<number | null>(null);
 
   // Optimistic local status overrides
-  const localStatusMap = useRef<Map<string, AttendanceStatus>>(new Map());
+  const [localStatusMap, setLocalStatusMap] = useState<Map<string, AttendanceStatus>>(
+    () => new Map()
+  );
 
   const userRole = (session?.user as { role?: string } | undefined)?.role;
+  const canEditRecord = userRole === "admin" || userRole === "super_admin" || userRole === "program_admin" || userRole === "park_admin" || userRole === "park_lead";
   const canClose = userRole === "park_admin" || userRole === "park_lead";
   const canReset = canClose;
 
@@ -350,8 +351,12 @@ export function AttendanceRoster() {
     },
     onError: (err: Error, variables) => {
       // Revert optimistic updates for failed batch
-      variables.participantIds.forEach((pid) => {
-        localStatusMap.current.delete(pid);
+      setLocalStatusMap((previous) => {
+        const next = new Map(previous);
+        variables.participantIds.forEach((participantId) => {
+          next.delete(participantId);
+        });
+        return next;
       });
       toast.error(err.message || "Batch operation failed");
     },
@@ -368,7 +373,7 @@ export function AttendanceRoster() {
       }),
     onMutate: () => {
       // Clear all local optimistic state
-      localStatusMap.current.clear();
+      setLocalStatusMap(new Map());
     },
     onSuccess: () => {
       toast.success("All attendance marks cleared");
@@ -413,7 +418,11 @@ export function AttendanceRoster() {
       if (!selectedEventId || !data?.event || data.event.isClosed) return;
 
       // Optimistic update
-      localStatusMap.current.set(participantId, status);
+      setLocalStatusMap((previous) => {
+        const next = new Map(previous);
+        next.set(participantId, status);
+        return next;
+      });
       setProcessingIds((prev) => new Set(prev).add(participantId));
 
       try {
@@ -423,7 +432,11 @@ export function AttendanceRoster() {
           status,
         });
         if (!result.success) {
-          localStatusMap.current.delete(participantId);
+          setLocalStatusMap((previous) => {
+            const next = new Map(previous);
+            next.delete(participantId);
+            return next;
+          });
           toast.error(result.error || "Failed to mark attendance");
         }
       } finally {
@@ -435,7 +448,7 @@ export function AttendanceRoster() {
         setTimeout(() => refetch(), 500);
       }
     },
-    [selectedEventId, data?.event, markAttendance, refetch]
+    [selectedEventId, data, markAttendance, refetch]
   );
 
   const handleCycleStatus = useCallback(
@@ -445,7 +458,11 @@ export function AttendanceRoster() {
 
       if (!nextStatus) {
         // Cycling back to null
-        localStatusMap.current.delete(participantId);
+        setLocalStatusMap((previous) => {
+          const next = new Map(previous);
+          next.delete(participantId);
+          return next;
+        });
         return;
       }
 
@@ -455,11 +472,11 @@ export function AttendanceRoster() {
   );
 
   const handleBulkMark = useCallback(
-    (status: AttendanceStatus) => {
+    (status: "present" | "absent") => {
       if (!data?.roster) return;
 
       const unmarked = data.roster.filter(
-        (r) => !r.status && !localStatusMap.current.has(r.participantId)
+        (r) => !r.status && !localStatusMap.has(r.participantId)
       );
 
       if (unmarked.length === 0) {
@@ -469,21 +486,25 @@ export function AttendanceRoster() {
 
       setBulkConfirm({ type: status, count: unmarked.length });
     },
-    [data?.roster]
+    [data, localStatusMap]
   );
 
   const confirmBulkMark = useCallback(() => {
-    if (!bulkConfirm || !data?.roster) return;
+    if (!bulkConfirm || bulkConfirm.type === "reset" || !data?.roster) return;
 
     const targetStatus = bulkConfirm.type;
     const unmarked = data.roster.filter(
-      (r) => !r.status && !localStatusMap.current.has(r.participantId)
+      (r) => !r.status && !localStatusMap.has(r.participantId)
     );
 
     const ids = unmarked.map((r) => r.participantId);
 
     // Optimistic: set all local statuses immediately
-    ids.forEach((pid) => localStatusMap.current.set(pid, targetStatus));
+    setLocalStatusMap((previous) => {
+      const next = new Map(previous);
+      ids.forEach((participantId) => next.set(participantId, targetStatus));
+      return next;
+    });
     setProcessingIds(new Set(ids));
 
     // Clear selection after bulk mark
@@ -500,7 +521,7 @@ export function AttendanceRoster() {
     );
 
     setBulkConfirm(null);
-  }, [bulkConfirm, data?.roster, batchSyncMutation]);
+  }, [bulkConfirm, data, localStatusMap, batchSyncMutation]);
 
   const confirmReset = useCallback(() => {
     setSelectedIds(new Set());
@@ -525,13 +546,18 @@ export function AttendanceRoster() {
 
   const handleRowClick = useCallback(
     (e: React.MouseEvent, index: number, participantId: string) => {
-      if (!data?.roster || isClosed) return;
+      if (!data?.roster || data.event.isClosed) return;
 
       if (e.shiftKey && lastClickedIdx.current !== null) {
         // Range select
         const start = Math.min(lastClickedIdx.current, index);
         const end = Math.max(lastClickedIdx.current, index);
-        const rangeIds = filteredRoster
+        const visibleRoster = data.roster.filter((item) => {
+          const matchesSearch = !search.trim() || item.participantName.toLowerCase().includes(search.toLowerCase());
+          const isUnmarked = !item.status && !localStatusMap.has(item.participantId);
+          return matchesSearch && (!showUnmarkedOnly || isUnmarked);
+        });
+        const rangeIds = visibleRoster
           .slice(start, end + 1)
           .map((r) => r.participantId);
 
@@ -558,7 +584,7 @@ export function AttendanceRoster() {
         lastClickedIdx.current = index;
       }
     },
-    [data?.roster, isClosed, filteredRoster]
+    [data, search, showUnmarkedOnly, localStatusMap]
   );
 
   const handleRangeMark = useCallback(
@@ -567,7 +593,11 @@ export function AttendanceRoster() {
       const ids = Array.from(selectedIds);
 
       // Optimistic
-      ids.forEach((pid) => localStatusMap.current.set(pid, status));
+      setLocalStatusMap((previous) => {
+        const next = new Map(previous);
+        ids.forEach((participantId) => next.set(participantId, status));
+        return next;
+      });
       setProcessingIds((prev) => {
         const next = new Set(prev);
         ids.forEach((id) => next.add(id));
@@ -609,18 +639,18 @@ export function AttendanceRoster() {
     }
     if (showUnmarkedOnly) {
       items = items.filter(
-        (r) => !r.status && !localStatusMap.current.has(r.participantId)
+        (r) => !r.status && !localStatusMap.has(r.participantId)
       );
     }
     return items;
-  }, [roster, search, showUnmarkedOnly]);
+  }, [roster, search, showUnmarkedOnly, localStatusMap]);
 
   // Merged status (server + optimistic local)
   const getStatus = useCallback(
     (item: RosterItem): AttendanceStatus | null => {
-      return localStatusMap.current.get(item.participantId) ?? item.status;
+      return localStatusMap.get(item.participantId) ?? item.status;
     },
-    []
+    [localStatusMap]
   );
 
   // Computed summary with optimistic updates
@@ -635,7 +665,7 @@ export function AttendanceRoster() {
     };
 
     for (const item of roster) {
-      const status = localStatusMap.current.get(item.participantId) ?? item.status;
+      const status = localStatusMap.get(item.participantId) ?? item.status;
       if (status && status in counts) {
         counts[status]++;
       } else {
@@ -644,14 +674,14 @@ export function AttendanceRoster() {
     }
 
     return counts;
-  }, [roster]);
+  }, [roster, localStatusMap]);
 
   const unmarkedCount = useMemo(
     () =>
       roster.filter(
-        (r) => !r.status && !localStatusMap.current.has(r.participantId)
+        (r) => !r.status && !localStatusMap.has(r.participantId)
       ).length,
-    [roster]
+    [roster, localStatusMap]
   );
 
   const hasMarkedRecords = serverSummary.total > 0 && serverSummary.unmarked < serverSummary.total;

@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, type MotionProps, type Variants } from "framer-motion";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -227,13 +227,13 @@ function RoleBadge({ role }: { role: string }) {
   );
 }
 
-const fadeUp = {
+const fadeUp: MotionProps = {
   initial: { opacity: 0, y: 16 },
   animate: { opacity: 1, y: 0 },
   transition: { duration: 0.3 },
 };
 
-const listItem = {
+const listItem: Variants = {
   hidden: { opacity: 0, x: 8 },
   visible: (i: number) => ({
     opacity: 1,
@@ -365,10 +365,12 @@ export function AccessProvisioningPage() {
         if (!r.ok) return r.json().then((e) => Promise.reject(e));
         return r.json();
       }),
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["admin-users"] });
       queryClient.invalidateQueries({ queryKey: ["admin-recent-invites"] });
-      toast.success("User invited successfully. Default password: Shabab@2024");
+      toast.success("User invited successfully", {
+        description: `Share this temporary password once: ${data.temporaryPassword}`,
+      });
       resetForm();
     },
     onError: (err: any) => {

@@ -115,6 +115,8 @@ interface Student {
   phone: string | null;
   gender: string | null;
   dateOfBirth: string | null;
+  age: number | null;
+  gradeClass: string | null;
   state: string;
   joinedAt: string;
   createdAt: string;
@@ -238,6 +240,8 @@ export function StudentsPage() {
   const [formPhone, setFormPhone] = useState("");
   const [formGender, setFormGender] = useState("");
   const [formDOB, setFormDOB] = useState("");
+  const [formAge, setFormAge] = useState("");
+  const [formGradeClass, setFormGradeClass] = useState("");
   const [formState, setFormState] = useState("active");
   const [formGroupId, setFormGroupId] = useState("");
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
@@ -349,7 +353,15 @@ export function StudentsPage() {
   // ─── Mutations ───────────────────────────────────────────────────────────
 
   const createMutation = useMutation({
-    mutationFn: (body: Record<string, string>) =>
+    mutationFn: (body: {
+      name: string;
+      groupId: string;
+      phone?: string;
+      gender?: string;
+      dateOfBirth?: string;
+      age?: string;
+      gradeClass?: string;
+    }) =>
       fetch("/api/admin/students", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -374,7 +386,7 @@ export function StudentsPage() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Record<string, string> }) =>
+    mutationFn: ({ id, data }: { id: string; data: Record<string, string | null> }) =>
       fetch(`/api/admin/students/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -422,6 +434,8 @@ export function StudentsPage() {
     setFormPhone("");
     setFormGender("");
     setFormDOB("");
+    setFormAge("");
+    setFormGradeClass("");
     setFormState("active");
     setFormGroupId("");
     setFormErrors({});
@@ -443,6 +457,8 @@ export function StudentsPage() {
         ? new Date(student.dateOfBirth).toISOString().split("T")[0]
         : ""
     );
+    setFormAge(student.age?.toString() || "");
+    setFormGradeClass(student.gradeClass || "");
     setFormState(student.state);
     setFormGroupId(student.group.id);
     setFormErrors({});
@@ -481,6 +497,8 @@ export function StudentsPage() {
       phone: formPhone.trim() || undefined,
       gender: formGender || undefined,
       dateOfBirth: formDOB || undefined,
+      age: formAge || undefined,
+      gradeClass: formGradeClass.trim() || undefined,
       groupId: formGroupId,
     });
   }
@@ -490,7 +508,7 @@ export function StudentsPage() {
     if (!selectedStudent) return;
     setFormErrors({});
 
-    const data: Record<string, string> = {};
+    const data: Record<string, string | null> = {};
     if (formName.trim() !== selectedStudent.name) data.name = formName.trim();
     if ((formPhone.trim() || null) !== (selectedStudent.phone || null))
       data.phone = formPhone.trim() || "";
@@ -504,6 +522,8 @@ export function StudentsPage() {
         : "";
       if (formDOB !== current) data.dateOfBirth = formDOB;
     }
+    if ((formAge || null) !== (selectedStudent.age?.toString() || null)) data.age = formAge || null;
+    if ((formGradeClass.trim() || null) !== (selectedStudent.gradeClass || null)) data.gradeClass = formGradeClass.trim() || null;
 
     if (Object.keys(data).length === 0) {
       closeEditDialog();
@@ -526,6 +546,8 @@ export function StudentsPage() {
                 name: s.name,
                 phone: s.phone ?? "",
                 gender: s.gender ?? "",
+                age: s.age ?? "",
+                gradeClass: s.gradeClass ?? "",
                 group: s.group?.name ?? "",
                 park: s.group?.batch?.park?.name ?? "",
                 city: s.group?.batch?.park?.city?.name ?? "",
@@ -1030,9 +1052,9 @@ export function StudentsPage() {
                 onChange={(e) => setFormPhone(e.target.value)}
               />
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <Label htmlFor="create-gender">{t("students.gender")}</Label>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label htmlFor="create-gender">{t("students.gender")}</Label>
                 <Select value={formGender} onValueChange={setFormGender}>
                   <SelectTrigger id="create-gender">
                     <SelectValue placeholder={t("students.selectGender")} />
@@ -1050,6 +1072,28 @@ export function StudentsPage() {
                   type="date"
                   value={formDOB}
                   onChange={(e) => setFormDOB(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="create-age">Age</Label>
+                <Input
+                  id="create-age"
+                  type="number"
+                  min="4"
+                  max="30"
+                  value={formAge}
+                  onChange={(e) => setFormAge(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="create-grade-class">Grade / Class</Label>
+                <Input
+                  id="create-grade-class"
+                  maxLength={64}
+                  value={formGradeClass}
+                  onChange={(e) => setFormGradeClass(e.target.value)}
                 />
               </div>
             </div>
@@ -1121,9 +1165,9 @@ export function StudentsPage() {
                 onChange={(e) => setFormPhone(e.target.value)}
               />
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <Label htmlFor="edit-gender">Gender</Label>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-gender">Gender</Label>
                 <Select value={formGender} onValueChange={setFormGender}>
                   <SelectTrigger id="edit-gender">
                     <SelectValue placeholder="Select gender" />
@@ -1141,6 +1185,28 @@ export function StudentsPage() {
                   type="date"
                   value={formDOB}
                   onChange={(e) => setFormDOB(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="edit-age">Age</Label>
+                <Input
+                  id="edit-age"
+                  type="number"
+                  min="4"
+                  max="30"
+                  value={formAge}
+                  onChange={(e) => setFormAge(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-grade-class">Grade / Class</Label>
+                <Input
+                  id="edit-grade-class"
+                  maxLength={64}
+                  value={formGradeClass}
+                  onChange={(e) => setFormGradeClass(e.target.value)}
                 />
               </div>
             </div>

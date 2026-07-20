@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAppStore } from "@/stores/useAppStore";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, type Variants } from "framer-motion";
 import { PageHeader } from "@/components/layout/page-header";
 import { DataCard } from "@/components/layout/data-card";
 import { EmptyState } from "@/components/layout/empty-state";
@@ -120,12 +120,12 @@ type DashboardData = {
 
 // ==================== ANIMATION VARIANTS ====================
 
-const stagger = {
+const stagger: Variants = {
   hidden: {},
   visible: { transition: { staggerChildren: 0.07 } },
 };
 
-const fadeUp = {
+const fadeUp: Variants = {
   hidden: { opacity: 0, y: 16 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.4, ease: "easeOut" } },
 };

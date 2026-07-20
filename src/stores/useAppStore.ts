@@ -26,6 +26,7 @@ export type PageId =
   | "admin-reports"
   | "admin-audit-log"
   | "admin-access"
+  | "admin-access-management"
   | "notifications"
   // Murabbi pages
   | "murabbi-dashboard"
@@ -54,6 +55,7 @@ export type PageId =
   | "guardian-fees";
 
 export type Language = "en" | "ur";
+const MAX_NAVIGATION_HISTORY = 25;
 
 function getInitialLanguage(): Language {
   if (typeof window === "undefined") return "en";
@@ -63,6 +65,7 @@ function getInitialLanguage(): Language {
 interface AppState {
   currentPage: PageId;
   previousPage: PageId | null;
+  navigationHistory: PageId[];
   navigateTo: (page: PageId) => void;
   goBack: () => void;
 
@@ -99,13 +102,38 @@ interface AppState {
 export const useAppStore = create<AppState>((set) => ({
   currentPage: "login",
   previousPage: null,
+  navigationHistory: [],
   navigateTo: (page) =>
-    set((state) => ({ currentPage: page, previousPage: state.currentPage })),
+    set((state) => {
+      if (page === state.currentPage) return state;
+
+      const navigationHistory = [...state.navigationHistory, state.currentPage].slice(
+        -MAX_NAVIGATION_HISTORY
+      );
+      return {
+        currentPage: page,
+        previousPage: state.currentPage,
+        navigationHistory,
+      };
+    }),
   goBack: () =>
-    set((state) => ({
-      currentPage: state.previousPage || "login",
-      previousPage: null,
-    })),
+    set((state) => {
+      const previousPage = state.navigationHistory.at(-1);
+      if (!previousPage) {
+        return {
+          currentPage: "login",
+          previousPage: null,
+          navigationHistory: [],
+        };
+      }
+
+      const navigationHistory = state.navigationHistory.slice(0, -1);
+      return {
+        currentPage: previousPage,
+        previousPage: navigationHistory.at(-1) || null,
+        navigationHistory,
+      };
+    }),
 
   selectedCityId: null,
   selectedParkId: null,

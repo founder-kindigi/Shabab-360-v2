@@ -102,7 +102,6 @@ export async function exportToExcel<T extends Record<string, unknown>>(
     cell.font = HEADER_FONT;
     cell.alignment = { vertical: "middle", horizontal: "left" };
     cell.border = BORDER_STYLE;
-    cell.padding = { top: 4, bottom: 4, left: 8, right: 8 };
   });
   headerRow.height = 28;
 
@@ -124,7 +123,6 @@ export async function exportToExcel<T extends Record<string, unknown>>(
       cell.font = { size: 10, name: "Segoe UI" };
       cell.alignment = { vertical: "middle", horizontal: "left" };
       cell.border = BORDER_STYLE;
-      cell.padding = { top: 3, bottom: 3, left: 8, right: 8 };
 
       // Alternate row shading
       if (row.number % 2 === 0) {

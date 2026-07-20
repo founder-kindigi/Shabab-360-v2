@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { useAppStore } from "@/stores/useAppStore";
 import { useTranslation } from "@/lib/i18n";
+import { PASSWORD_MIN_LENGTH } from "@/lib/auth/password-policy";
 import {
   Select,
   SelectContent,
@@ -55,7 +56,6 @@ import {
   Megaphone,
   Globe,
 } from "lucide-react";
-import { AvatarUpload } from "@/components/shared/avatar-upload";
 
 interface UserProfile {
   id: string;
@@ -160,7 +160,7 @@ function ProfileTab() {
       setPwdError(t("settings.allPwdRequired"));
       return;
     }
-    if (pwdNew.length < 8) {
+    if (pwdNew.length < PASSWORD_MIN_LENGTH) {
       setPwdError(t("auth.passwordMinLength"));
       return;
     }
@@ -187,11 +187,9 @@ function ProfileTab() {
       <div className="rounded-xl border bg-card p-6 space-y-4">
         <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4">
           {/* Avatar */}
-          <AvatarUpload
-            userId={sessionUser?.id || ""}
-            name={profile?.name || sessionUser?.name || ""}
-            size="lg"
-          />
+          <div className="flex size-24 shrink-0 items-center justify-center rounded-full bg-[#4B0A8F] text-3xl font-bold text-white shadow-lg">
+            {getInitials(profile?.name || sessionUser?.name)}
+          </div>
           <div className="text-center sm:text-left flex-1">
             <div className="flex flex-col sm:flex-row items-center sm:items-center gap-2">
               <h2 className="text-lg font-semibold">

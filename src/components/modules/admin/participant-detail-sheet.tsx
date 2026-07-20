@@ -243,8 +243,8 @@ function DetailSkeleton() {
       <Card>
         <CardContent className="p-4 space-y-3">
           <Skeleton className="h-9 w-64" />
-          {Array.from({ length: 5 }).map((i) => (
-            <Skeleton key={i} className="h-10 w-full" />
+          {Array.from({ length: 5 }).map((_, index) => (
+            <Skeleton key={index} className="h-10 w-full" />
           ))}
         </CardContent>
       </Card>

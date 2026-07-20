@@ -1,19 +1,47 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireRole } from "@/lib/auth/authorize";
+import { requireRole, requireCapability } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
+import { moneyToNumber } from "@/lib/money";
 import { PKT, toZonedTime, formatPKT, todayPKT } from "@/lib/timezone";
+import {
+  optionalIdentifier,
+  optionalInteger,
+  queryParamsToObject,
+  queryValidationError,
+} from "@/lib/api/query-params";
 import { startOfDay, subDays, format, startOfWeek, subWeeks, startOfMonth, endOfMonth, eachDayOfInterval, parseISO, subMonths } from "date-fns";
+import { z } from "zod";
+
+const reportTypes = [
+  "attendance-overview",
+  "city-comparison",
+  "park-comparison",
+  "trend",
+  "fee-by-park",
+  "registration-report",
+  "staff-report",
+] as const;
+
+const reportQuerySchema = z.object({
+  type: z.enum(reportTypes).default("attendance-overview"),
+  cityId: optionalIdentifier(),
+  parkId: optionalIdentifier(),
+  days: optionalInteger(1, 365).default(30),
+});
 
 export async function GET(request: NextRequest) {
   const authError = await requireRole(["super_admin", "program_admin"]);
   if (authError) return authError;
+  const capabilityAuth = await requireCapability("reports.view");
+  if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
   const { searchParams } = new URL(request.url);
-  const type = searchParams.get("type") || "attendance-overview";
-  const cityId = searchParams.get("cityId") || undefined;
-  const parkId = searchParams.get("parkId") || undefined;
-  const days = Math.min(Math.max(parseInt(searchParams.get("days") || "30", 10), 1), 365);
+  const parsedQuery = reportQuerySchema.safeParse(queryParamsToObject(searchParams));
+  if (!parsedQuery.success) {
+    return NextResponse.json(queryValidationError(parsedQuery.error), { status: 400 });
+  }
+  const { type, cityId, parkId, days } = parsedQuery.data;
 
   // Fire audit log (fire-and-forget)
   logAudit({
@@ -22,11 +50,6 @@ export async function GET(request: NextRequest) {
     entityId: type,
     newValues: { type, cityId, parkId, days },
   }).catch(() => {});
-
-  const validTypes = ["attendance-overview", "city-comparison", "park-comparison", "trend", "fee-by-park", "registration-report", "staff-report"];
-  if (!validTypes.includes(type)) {
-    return NextResponse.json({ error: "Invalid report type" }, { status: 400 });
-  }
 
   // Compute PKT date range
   const nowPKT = toZonedTime(new Date(), PKT);
@@ -75,7 +98,7 @@ async function getAttendanceOverview(startDateUTC: Date, cityId?: string, parkId
           batch: {
             select: {
               id: true,
-              park: { select: { id: true, cityId: true } },
+              park: { select: { id: true, cityId: true, city: { select: { id: true, name: true } } } },
             },
           },
         },
@@ -185,36 +208,40 @@ async function getAttendanceOverview(startDateUTC: Date, cityId?: string, parkId
     }))
     .sort((a, b) => a.dayIndex - b.dayIndex);
 
-  // City attendance rates
-  const cityRates = await db.$queryRaw<Array<{ cityName: string; cityId: string; totalRecords: number; attended: number; rate: number }>>`
-    SELECT 
-      c.name as cityName,
-      c.id as cityId,
-      COUNT(DISTINCT ar.id) as totalRecords,
-      SUM(CASE WHEN ar.status = 'present' OR ar.status = 'late' THEN 1 ELSE 0 END) as attended,
-      ROUND(100.0 * SUM(CASE WHEN ar.status = 'present' OR ar.status = 'late' THEN 1 ELSE 0 END) / COUNT(DISTINCT ar.id), 1) as rate
-    FROM cities c
-    JOIN parks p ON p.cityId = c.id
-    JOIN batches b ON b.parkId = p.id
-    JOIN groups g ON g.batchId = b.id
-    JOIN attendance_events ae ON ae.groupId = g.id
-    JOIN attendance_records ar ON ar.eventId = ae.id
-    WHERE ae.eventDate >= ${startDateUTC}
-    GROUP BY c.id
-    ORDER BY rate DESC
-  `;
+  const cityRateMap = new Map<string, { cityId: string; cityName: string; totalRecords: number; attended: number }>();
+  for (const event of events) {
+    const city = event.group.batch.park.city;
+    const existing = cityRateMap.get(city.id) || {
+      cityId: city.id,
+      cityName: city.name,
+      totalRecords: 0,
+      attended: 0,
+    };
 
-  // Total fees collected
-  const feeResult = await db.$queryRaw<Array<{ total: number }>>`
-    SELECT COALESCE(SUM(py.amount), 0) as total
-    FROM payments py
-    JOIN fee_events fe ON fe.id = py.feeEventId
-    JOIN batches b ON b.id = fe.batchId
-    JOIN parks p ON p.id = b.parkId
-    JOIN cities c ON c.id = p.cityId
-    WHERE py.createdAt >= ${startDateUTC}
-  `;
-  const totalFeesCollected = feeResult[0]?.total || 0;
+    for (const record of event.records) {
+      existing.totalRecords++;
+      if (record.status === "present" || record.status === "late") existing.attended++;
+    }
+    cityRateMap.set(city.id, existing);
+  }
+
+  const cityRates = Array.from(cityRateMap.values())
+    .map((city) => ({
+      ...city,
+      rate: city.totalRecords > 0 ? Math.round((city.attended / city.totalRecords) * 1000) / 10 : 0,
+    }))
+    .sort((a, b) => b.rate - a.rate);
+
+  const paymentWhere = {
+    createdAt: { gte: startDateUTC },
+    ...(parkId
+      ? { feeEvent: { batch: { parkId } } }
+      : cityId
+        ? { feeEvent: { batch: { park: { cityId } } } }
+        : {}),
+  };
+  const paymentTotal = await db.payment.aggregate({ where: paymentWhere, _sum: { amount: true } });
+  const totalFeesCollected = moneyToNumber(paymentTotal._sum.amount);
 
   return NextResponse.json({
     totalEvents,
@@ -451,30 +478,49 @@ async function getTrend(startDateUTC: Date, days: number, cityId?: string, parkI
 }
 
 async function getFeeByPark(cityId?: string) {
-  const whereClause = cityId ? `WHERE c.id = ${cityId}` : "";
-  const parkFees = await db.$queryRaw<Array<{ parkName: string; parkId: string; cityName: string; totalCollected: number }>>`
-    SELECT 
-      p.name as parkName,
-      p.id as parkId,
-      c.name as cityName,
-      SUM(py.amount) as totalCollected
-    FROM parks p
-    JOIN cities c ON c.id = p.cityId
-    JOIN batches b ON b.parkId = p.id
-    JOIN fee_events fe ON fe.batchId = b.id
-    JOIN payments py ON py.feeEventId = fe.id
-    ${whereClause}
-    GROUP BY p.id
-    ORDER BY totalCollected DESC
-    LIMIT 10
-  `;
+  const parks = await db.park.findMany({
+    where: cityId ? { cityId } : {},
+    select: {
+      id: true,
+      name: true,
+      city: { select: { name: true } },
+      batches: {
+        select: {
+          feeEvents: {
+            select: { payments: { select: { amount: true } } },
+          },
+        },
+      },
+    },
+  });
+
+  const parkFees = parks
+    .map((park) => ({
+      parkId: park.id,
+      parkName: park.name,
+      cityName: park.city.name,
+      totalCollected: park.batches.reduce(
+        (parkTotal, batch) =>
+          parkTotal + batch.feeEvents.reduce(
+            (feeTotal, feeEvent) => feeTotal + feeEvent.payments.reduce(
+              (paymentTotal, payment) => paymentTotal + moneyToNumber(payment.amount),
+              0,
+            ),
+            0,
+          ),
+        0,
+      ),
+    }))
+    .filter((park) => park.totalCollected > 0)
+    .sort((a, b) => b.totalCollected - a.totalCollected)
+    .slice(0, 10);
 
   return NextResponse.json(
     parkFees.map(r => ({
       parkId: r.parkId,
       parkName: r.parkName,
       cityName: r.cityName,
-      totalCollected: Number(r.totalCollected),
+      totalCollected: r.totalCollected,
     }))
   );
 }

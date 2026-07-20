@@ -1,22 +1,16 @@
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth/authorize";
+import { requireCapability, requireRole } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
+import { moneyToNumber } from "@/lib/money";
 import { formatPKT } from "@/lib/timezone";
 
-type SessionUser = {
-  id?: string;
-  role?: string;
-  name?: string;
-};
-
 export async function GET() {
-  const auth = await requireAuth();
+  const roleError = await requireRole(["student"]);
+  if (roleError) return roleError;
+
+  const auth = await requireCapability("reports.view");
   if (auth instanceof NextResponse) return auth;
   const { user } = auth;
-
-  if (user.role !== "student") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
 
   try {
     // Find participant linked to this user
@@ -57,23 +51,27 @@ export async function GET() {
 
     // Format fee events with payment status
     const formatted = feeEvents.map((fee) => {
-      const totalPaid = fee.payments.reduce((sum, p) => sum + p.amount, 0);
-      const paid = totalPaid >= fee.amount;
-      const partial = totalPaid > 0 && totalPaid < fee.amount;
+      const amount = moneyToNumber(fee.amount);
+      const totalPaid = fee.payments.reduce(
+        (sum, payment) => sum + moneyToNumber(payment.amount),
+        0
+      );
+      const paid = totalPaid >= amount;
+      const partial = totalPaid > 0 && totalPaid < amount;
 
       return {
         id: fee.id,
         title: fee.title,
         feeType: fee.feeType,
-        amount: fee.amount,
+        amount,
         dueDate: fee.dueDate ? formatPKT(new Date(fee.dueDate)) : null,
         status: paid ? "paid" : partial ? "partial" : "unpaid",
         totalPaid: Math.round(totalPaid * 100) / 100,
-        remaining: Math.round((fee.amount - totalPaid) * 100) / 100,
+        remaining: Math.round((amount - totalPaid) * 100) / 100,
         paymentCount: fee.payments.length,
         payments: fee.payments.map((p) => ({
           id: p.id,
-          amount: p.amount,
+          amount: moneyToNumber(p.amount),
           method: p.method,
           receiptNo: p.receiptNo,
           notes: p.notes,

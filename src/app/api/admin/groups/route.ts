@@ -1,24 +1,40 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth/authorize";
+import { requireAuth, requireCapability } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
 import { z } from "zod";
+import {
+  optionalIdentifier,
+  optionalQueryText,
+  queryParamsToObject,
+  queryValidationError,
+} from "@/lib/api/query-params";
 
 const createSchema = z.object({
   name: z.string().min(2, "Group name must be at least 2 characters"),
   batchId: z.string().min(1, "Batch is required"),
 });
 
+const groupListQuerySchema = z.object({
+  batchId: optionalIdentifier(),
+  parkId: optionalIdentifier(),
+  search: optionalQueryText(),
+  status: z.enum(["all", "active", "inactive"]).optional(),
+});
+
 export async function GET(request: NextRequest) {
   const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
   const { user } = auth;
+  const capabilityAuth = await requireCapability("organisation.manage");
+  if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
   const { searchParams } = new URL(request.url);
-  const batchId = searchParams.get("batchId") || undefined;
-  const parkId = searchParams.get("parkId") || undefined;
-  const search = searchParams.get("search") || undefined;
-  const status = searchParams.get("status") || undefined;
+  const query = groupListQuerySchema.safeParse(queryParamsToObject(searchParams));
+  if (!query.success) {
+    return NextResponse.json(queryValidationError(query.error), { status: 400 });
+  }
+  const { batchId, parkId, search, status } = query.data;
 
   const isHQ = ["super_admin", "program_admin"].includes(user.role || "");
 
@@ -79,6 +95,8 @@ export async function POST(request: NextRequest) {
   const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
   const { user } = auth;
+  const capabilityAuth = await requireCapability("organisation.manage");
+  if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
   const isHQ = ["super_admin", "program_admin"].includes(user.role || "");
 

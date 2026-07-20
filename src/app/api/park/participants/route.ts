@@ -1,8 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { requireCapability } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
 import { todayPKT, endOfTodayPKT } from "@/lib/timezone";
+import {
+  optionalIdentifier,
+  optionalQueryText,
+  paginatedQuerySchema,
+  queryParamsToObject,
+  queryValidationError,
+} from "@/lib/api/query-params";
+import { z } from "zod";
+
+const listQuerySchema = paginatedQuerySchema().extend({
+  search: optionalQueryText(),
+  groupId: optionalIdentifier(),
+  state: z.enum(["all", "active", "inactive", "on_leave"]).default("all"),
+  sortBy: z.enum(["name", "phone", "joinedAt", "state"]).default("name"),
+  sortOrder: z.enum(["asc", "desc"]).default("asc"),
+});
 
 type SessionUser = {
   id?: string;
@@ -25,6 +42,8 @@ export async function GET(request: NextRequest) {
   if (!user.role || !allowedRoles.includes(user.role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
+  const capabilityAuth = await requireCapability("people.view");
+  if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
   try {
     // Determine park scope from staffMeta
@@ -62,15 +81,19 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "No park assigned" }, { status: 403 });
     }
 
-    // Parse query params
-    const { searchParams } = new URL(request.url);
-    const search = searchParams.get("search")?.trim() || "";
-    const filterGroupId = searchParams.get("groupId") || null;
-    const stateFilter = searchParams.get("state") || "all";
-    const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
-    const pageSize = Math.min(100, Math.max(1, parseInt(searchParams.get("pageSize") || "20", 10)));
-    const sortBy = searchParams.get("sortBy") || "name";
-    const sortOrder = searchParams.get("sortOrder") === "desc" ? "desc" : "asc";
+    const query = listQuerySchema.safeParse(queryParamsToObject(new URL(request.url).searchParams));
+    if (!query.success) {
+      return NextResponse.json(queryValidationError(query.error), { status: 400 });
+    }
+    const {
+      search = "",
+      groupId: filterGroupId,
+      state: stateFilter,
+      page,
+      pageSize,
+      sortBy,
+      sortOrder,
+    } = query.data;
 
     // Get park info
     const park = await db.park.findUnique({
@@ -184,13 +207,13 @@ export async function GET(request: NextRequest) {
     const totalFiltered = await db.participant.count({ where: participantWhere });
 
     // Sort config
-    const orderByMap: Record<string, any> = {
+    const orderByMap: Record<typeof sortBy, any> = {
       name: { name: sortOrder },
       phone: { phone: sortOrder },
       joinedAt: { joinedAt: sortOrder },
       state: { state: sortOrder },
     };
-    const orderBy = orderByMap[sortBy] || { name: sortOrder };
+    const orderBy = orderByMap[sortBy];
 
     // Fetch paginated participants
     const participants = await db.participant.findMany({
@@ -333,6 +356,8 @@ export async function POST(request: NextRequest) {
   if (!user.role || !allowedRoles.includes(user.role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
+  const capabilityAuth = await requireCapability("students.manage");
+  if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
   try {
     const body = await request.json();

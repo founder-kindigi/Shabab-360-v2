@@ -1,32 +1,28 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { ATTENDANCE_ROLES, requireAuth, requireCapability, requireResourceScope } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
 import { formatPKT } from "@/lib/timezone";
+import {
+  optionalIdentifier,
+  queryParamsToObject,
+  queryValidationError,
+} from "@/lib/api/query-params";
+import { z } from "zod";
 
-type SessionUser = {
-  id?: string;
-  role?: string;
-  assignedCityId?: string | null;
-  assignedParkId?: string | null;
-  assignedGroupId?: string | null;
-};
-
-const ALLOWED_ROLES = ["park_admin", "park_lead", "murabbi"];
+const warningsQuerySchema = z.object({ groupId: optionalIdentifier() });
 
 export async function GET(req: Request) {
-  const session = await getServerSession(authOptions);
-  const user = session?.user as SessionUser | undefined;
+  const auth = await requireAuth();
+  if (auth instanceof NextResponse) return auth;
+  const { user } = auth;
+  const capabilityAuth = await requireCapability("attendance.mark");
+  if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
-  if (!session || !user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const query = warningsQuerySchema.safeParse(queryParamsToObject(new URL(req.url).searchParams));
+  if (!query.success) {
+    return NextResponse.json(queryValidationError(query.error), { status: 400 });
   }
-  if (!user.role || !ALLOWED_ROLES.includes(user.role)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-
-  const { searchParams } = new URL(req.url);
-  const groupId = searchParams.get("groupId");
+  const groupId = query.data.groupId;
 
   if (!groupId) {
     return NextResponse.json(
@@ -53,23 +49,12 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "Group not found" }, { status: 404 });
     }
 
-    const parkId = group.batch.parkId;
-
-    if (user.role === "murabbi") {
-      if (user.assignedGroupId !== groupId) {
-        return NextResponse.json(
-          { error: "Forbidden - group not in your scope" },
-          { status: 403 }
-        );
-      }
-    } else {
-      if (user.assignedParkId && user.assignedParkId !== parkId) {
-        return NextResponse.json(
-          { error: "Forbidden - group not in your scope" },
-          { status: 403 }
-        );
-      }
-    }
+    const scopeError = requireResourceScope(
+      user,
+      { parkId: group.batch.parkId, groupId },
+      ATTENDANCE_ROLES
+    );
+    if (scopeError) return scopeError;
 
     // Get batch settings for thresholds
     const settings = group.batch.settings || {

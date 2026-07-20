@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth/authorize";
+import { requireAuth, requireCapability } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
+import { calculateTotalExpectedFees } from "@/lib/fee-summary";
+import { moneyToNumber } from "@/lib/money";
 import { todayPKT, formatPKT } from "@/lib/timezone";
 
 /**
@@ -88,6 +90,8 @@ export async function GET(request: NextRequest) {
   const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
   const { user } = auth;
+  const capabilityAuth = await requireCapability("dashboard.view");
+  if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
   // Get user's scope
   const isHQ = ["super_admin", "program_admin"].includes(user.role || "");
@@ -172,19 +176,40 @@ export async function GET(request: NextRequest) {
     // Fee collection summary
     const feeEvents = await db.feeEvent.findMany({
       where: { isActive: true },
-      select: { id: true, amount: true },
+      select: { id: true, batchId: true, amount: true },
     });
     const feeEventIds = feeEvents.map((f) => f.id);
-    const totalExpected = feeEvents.reduce((sum, f) => sum + f.amount, 0);
+    const feeBatchIds = [...new Set(feeEvents.map((f) => f.batchId))];
 
-    let totalCollected = 0;
-    if (feeEventIds.length > 0) {
-      const paymentSum = await db.payment.aggregate({
-        where: { feeEventId: { in: feeEventIds } },
-        _sum: { amount: true },
-      });
-      totalCollected = paymentSum._sum.amount || 0;
-    }
+    const [activeGroups, paymentSum] = await Promise.all([
+      feeBatchIds.length > 0
+        ? db.group.findMany({
+            where: { batchId: { in: feeBatchIds }, isActive: true },
+            select: {
+              batchId: true,
+              _count: { select: { participants: { where: { state: "active" } } } },
+            },
+          })
+        : Promise.resolve([]),
+      feeEventIds.length > 0
+        ? db.payment.aggregate({
+            where: { feeEventId: { in: feeEventIds } },
+            _sum: { amount: true },
+          })
+        : Promise.resolve({ _sum: { amount: null } }),
+    ]);
+
+    const activeParticipantsByBatch = activeGroups.reduce<Record<string, number>>((counts, group) => {
+      counts[group.batchId] = (counts[group.batchId] || 0) + group._count.participants;
+      return counts;
+    }, {});
+    const totalExpected = calculateTotalExpectedFees(
+      feeEvents.map((event) => ({
+        amount: event.amount,
+        activeParticipantCount: activeParticipantsByBatch[event.batchId] || 0,
+      }))
+    );
+    const totalCollected = moneyToNumber(paymentSum._sum.amount);
 
     const collectionRate = totalExpected > 0 ? Math.round((totalCollected / totalExpected) * 100) : 0;
 
@@ -194,18 +219,17 @@ export async function GET(request: NextRequest) {
     twelveMonthsAgo.setDate(1);
     twelveMonthsAgo.setHours(0, 0, 0, 0);
 
-    const registrationRows: { month: string; count: number }[] = await db.$queryRaw`
-      SELECT
-        strftime('%Y-%m', joined_at) as month,
-        COUNT(*) as count
-      FROM participants
-      WHERE joined_at >= ${twelveMonthsAgo.toISOString()}
-      GROUP BY strftime('%Y-%m', joined_at)
-      ORDER BY month ASC
-    `;
+    const registrationRows = await db.participant.findMany({
+      where: { joinedAt: { gte: twelveMonthsAgo } },
+      select: { joinedAt: true },
+    });
 
     const registrationTrend: { month: string; count: number }[] = [];
-    const regMap = new Map(registrationRows.map((r) => [r.month, r.count]));
+    const regMap = new Map<string, number>();
+    for (const registration of registrationRows) {
+      const month = formatPKT(registration.joinedAt, "yyyy-MM");
+      regMap.set(month, (regMap.get(month) || 0) + 1);
+    }
     for (let i = 11; i >= 0; i--) {
       const d = new Date();
       d.setMonth(d.getMonth() - i);
@@ -219,18 +243,17 @@ export async function GET(request: NextRequest) {
     sixMonthsAgo.setDate(1);
     sixMonthsAgo.setHours(0, 0, 0, 0);
 
-    const feeRows: { month: string; total: number }[] = await db.$queryRaw`
-      SELECT
-        strftime('%Y-%m', p.created_at) as month,
-        SUM(p.amount) as total
-      FROM payments p
-      WHERE p.created_at >= ${sixMonthsAgo.toISOString()}
-      GROUP BY strftime('%Y-%m', p.created_at)
-      ORDER BY month ASC
-    `;
+    const feeRows = await db.payment.findMany({
+      where: { createdAt: { gte: sixMonthsAgo } },
+      select: { createdAt: true, amount: true },
+    });
 
     const feeCollectionTrend: { month: string; total: number }[] = [];
-    const feeMap = new Map(feeRows.map((r) => [r.month, r.total]));
+    const feeMap = new Map<string, number>();
+    for (const payment of feeRows) {
+      const month = formatPKT(payment.createdAt, "yyyy-MM");
+      feeMap.set(month, (feeMap.get(month) || 0) + moneyToNumber(payment.amount));
+    }
     for (let i = 5; i >= 0; i--) {
       const d = new Date();
       d.setMonth(d.getMonth() - i);

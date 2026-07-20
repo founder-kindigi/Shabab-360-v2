@@ -1,8 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireRole, requireAuth } from "@/lib/auth/authorize";
+import { requireRole, requireAuth, requireCapability } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
 import { z } from "zod";
 import { logAudit } from "@/lib/audit";
+import { admissionAdditionalFieldsShape } from "@/lib/admissions/validation";
+import {
+  optionalIdentifier,
+  optionalQueryText,
+  paginatedQuerySchema,
+  queryParamsToObject,
+  queryValidationError,
+} from "@/lib/api/query-params";
 
 const VALID_STATUSES = ["submitted", "screening", "interview_scheduled", "interviewed", "accepted", "rejected", "enrolled"];
 
@@ -16,6 +24,13 @@ const createSchema = z.object({
   cityId: z.string().optional(),
   preferredParkId: z.string().optional(),
   notes: z.string().optional(),
+  ...admissionAdditionalFieldsShape,
+});
+
+const admissionListQuerySchema = paginatedQuerySchema({ maxPageSize: 200 }).extend({
+  search: optionalQueryText(),
+  status: z.enum([...VALID_STATUSES, "reviewing"]).optional(),
+  cityId: optionalIdentifier(),
 });
 
 export async function GET(request: NextRequest) {
@@ -23,11 +38,11 @@ export async function GET(request: NextRequest) {
   if (authError) return authError;
 
   const { searchParams } = new URL(request.url);
-  const search = searchParams.get("search") || undefined;
-  const status = searchParams.get("status") || undefined;
-  const cityId = searchParams.get("cityId") || undefined;
-  const page = parseInt(searchParams.get("page") || "1", 10);
-  const pageSize = Math.min(parseInt(searchParams.get("pageSize") || "20", 10), 100);
+  const query = admissionListQuerySchema.safeParse(queryParamsToObject(searchParams));
+  if (!query.success) {
+    return NextResponse.json(queryValidationError(query.error), { status: 400 });
+  }
+  const { search, status, cityId, page, pageSize } = query.data;
 
   const where: Record<string, unknown> = {};
 
@@ -88,6 +103,8 @@ export async function POST(request: NextRequest) {
 
   const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
+  const capabilityAuth = await requireCapability("admissions.manage");
+  if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
   const body = await request.json();
   const parsed = createSchema.safeParse(body);
@@ -98,7 +115,21 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { applicantName, applicantDOB, gender, guardianName, guardianPhone, guardianRelation, cityId, preferredParkId, notes } = parsed.data;
+  const {
+    applicantName,
+    applicantDOB,
+    gender,
+    guardianName,
+    guardianPhone,
+    guardianRelation,
+    cityId,
+    preferredParkId,
+    notes,
+    emergencyContact,
+    emergencyPhone,
+    previousEducation,
+    reference,
+  } = parsed.data;
 
   // Generate tracking code: SHB-YYYY-NNNN
   const year = new Date().getFullYear();
@@ -131,6 +162,10 @@ export async function POST(request: NextRequest) {
       cityId: cityId || null,
       preferredParkId: preferredParkId || null,
       notes: notes || null,
+      emergencyContact: emergencyContact ?? null,
+      emergencyPhone: emergencyPhone ?? null,
+      previousEducation: previousEducation ?? null,
+      reference: reference ?? null,
     },
   });
 

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireRole, requireAuth } from "@/lib/auth/authorize";
+import { requireRole, requireAuth, requireCapability } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
-import { logAudit } from "@/lib/audit";
+import { createAuditLogData } from "@/lib/audit";
 import { z } from "zod";
 import type { StaffRole } from "@/types";
 
@@ -33,12 +33,14 @@ interface RouteParams {
 }
 
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
-  const authError = await requireRole(["super_admin", "program_admin"]);
+  const authError = await requireRole(["super_admin"]);
   if (authError) return authError;
 
   const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
   const { user: currentUser } = auth;
+  const capabilityAuth = await requireCapability("access.scope.manage");
+  if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
   const { id } = await params;
 
@@ -53,6 +55,20 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
   const data = parsed.data;
 
+  // Get old values for validation and audit before accepting scope changes.
+  const oldUser = await db.user.findUnique({
+    where: { id },
+    select: { name: true, email: true, phone: true, isActive: true, mustResetPwd: true },
+  });
+  if (!oldUser) {
+    return NextResponse.json({ error: "User not found" }, { status: 404 });
+  }
+
+  const oldMeta = await db.staffMeta.findUnique({
+    where: { userId: id },
+    select: { role: true, assignedCityId: true, assignedParkId: true, assignedGroupId: true, isActive: true },
+  });
+
   // Check email uniqueness if changing
   if (data.email) {
     const existing = await db.user.findFirst({
@@ -66,38 +82,78 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
   }
 
-  // Validate role-based assignments
-  const effectiveRole = data.role;
-  if (effectiveRole && ["city_head", "park_admin", "park_lead", "murabbi"].includes(effectiveRole)) {
-    if (!data.assignedCityId && data.assignedCityId !== null) {
-      // If they have a city-requiring role but no city assignment, check existing
-      const existingMeta = await db.staffMeta.findUnique({ where: { userId: id } });
-      if (!existingMeta?.assignedCityId && data.assignedCityId === undefined) {
-        return NextResponse.json(
-          { error: { assignedCityId: ["City assignment is required for this role"] } },
-          { status: 400 }
-        );
-      }
+  const hasStaffChanges =
+    data.role !== undefined ||
+    data.assignedCityId !== undefined ||
+    data.assignedParkId !== undefined ||
+    data.assignedGroupId !== undefined ||
+    data.staffMetaIsActive !== undefined;
+  const effectiveRole = data.role ?? oldMeta?.role;
+  const nextScope = {
+    cityId: data.assignedCityId === undefined ? oldMeta?.assignedCityId ?? null : data.assignedCityId,
+    parkId: data.assignedParkId === undefined ? oldMeta?.assignedParkId ?? null : data.assignedParkId,
+    groupId: data.assignedGroupId === undefined ? oldMeta?.assignedGroupId ?? null : data.assignedGroupId,
+  };
+
+  if (hasStaffChanges && !effectiveRole) {
+    return NextResponse.json(
+      { error: { role: ["A staff role is required when assigning staff access"] } },
+      { status: 400 }
+    );
+  }
+
+  if (effectiveRole && ["city_head", "park_admin", "park_lead", "murabbi"].includes(effectiveRole) && !nextScope.cityId) {
+    return NextResponse.json(
+      { error: { assignedCityId: ["City assignment is required for this role"] } },
+      { status: 400 }
+    );
+  }
+
+  if (effectiveRole && ["park_admin", "park_lead", "murabbi"].includes(effectiveRole) && !nextScope.parkId) {
+    return NextResponse.json(
+      { error: { assignedParkId: ["Park assignment is required for this role"] } },
+      { status: 400 }
+    );
+  }
+
+  if (effectiveRole === "murabbi" && !nextScope.groupId) {
+    return NextResponse.json(
+      { error: { assignedGroupId: ["Group assignment is required for murabbi role"] } },
+      { status: 400 }
+    );
+  }
+
+  if (nextScope.cityId) {
+    const city = await db.city.findUnique({ where: { id: nextScope.cityId }, select: { id: true } });
+    if (!city) {
+      return NextResponse.json({ error: { assignedCityId: ["City not found"] } }, { status: 400 });
     }
   }
 
-  if (effectiveRole && ["park_admin", "park_lead", "murabbi"].includes(effectiveRole)) {
-    if (!data.assignedParkId && data.assignedParkId !== null) {
-      const existingMeta = await db.staffMeta.findUnique({ where: { userId: id } });
-      if (!existingMeta?.assignedParkId && data.assignedParkId === undefined) {
-        return NextResponse.json(
-          { error: { assignedParkId: ["Park assignment is required for this role"] } },
-          { status: 400 }
-        );
-      }
+  if (nextScope.parkId) {
+    const park = await db.park.findUnique({ where: { id: nextScope.parkId }, select: { cityId: true } });
+    if (!park) {
+      return NextResponse.json({ error: { assignedParkId: ["Park not found"] } }, { status: 400 });
     }
-  }
-
-  if (effectiveRole === "murabbi" && !data.assignedGroupId && data.assignedGroupId !== null) {
-    const existingMeta = await db.staffMeta.findUnique({ where: { userId: id } });
-    if (!existingMeta?.assignedGroupId && data.assignedGroupId === undefined) {
+    if (nextScope.cityId && park.cityId !== nextScope.cityId) {
       return NextResponse.json(
-        { error: { assignedGroupId: ["Group assignment is required for murabbi role"] } },
+        { error: { assignedParkId: ["Park must belong to the assigned city"] } },
+        { status: 400 }
+      );
+    }
+  }
+
+  if (nextScope.groupId) {
+    const group = await db.group.findUnique({
+      where: { id: nextScope.groupId },
+      select: { batch: { select: { parkId: true } } },
+    });
+    if (!group) {
+      return NextResponse.json({ error: { assignedGroupId: ["Group not found"] } }, { status: 400 });
+    }
+    if (nextScope.parkId && group.batch.parkId !== nextScope.parkId) {
+      return NextResponse.json(
+        { error: { assignedGroupId: ["Group must belong to the assigned park"] } },
         { status: 400 }
       );
     }
@@ -111,16 +167,6 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     );
   }
 
-  // Get old values for audit
-  const oldUser = await db.user.findUnique({
-    where: { id },
-    select: { name: true, email: true, phone: true, isActive: true, mustResetPwd: true },
-  });
-  const oldMeta = await db.staffMeta.findUnique({
-    where: { userId: id },
-    select: { role: true, assignedCityId: true, assignedParkId: true, assignedGroupId: true, isActive: true },
-  });
-
   // Update user fields
   const userData: any = {};
   if (data.name !== undefined) userData.name = data.name;
@@ -129,48 +175,57 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   if (data.isActive !== undefined) userData.isActive = data.isActive;
   if (data.mustResetPwd !== undefined) userData.mustResetPwd = data.mustResetPwd;
 
-  if (Object.keys(userData).length > 0) {
-    await db.user.update({ where: { id }, data: userData });
-  }
+  const shouldInvalidateSessions =
+    hasStaffChanges ||
+    (data.isActive !== undefined && data.isActive !== oldUser.isActive) ||
+    (data.mustResetPwd !== undefined && data.mustResetPwd !== oldUser.mustResetPwd);
 
-  // Upsert staffMeta
-  const hasStaffChanges =
-    data.role !== undefined ||
-    data.assignedCityId !== undefined ||
-    data.assignedParkId !== undefined ||
-    data.assignedGroupId !== undefined ||
-    data.staffMetaIsActive !== undefined;
+  await db.$transaction(async (tx) => {
+    if (Object.keys(userData).length > 0 || shouldInvalidateSessions) {
+      await tx.user.update({
+        where: { id },
+        data: {
+          ...userData,
+          ...(shouldInvalidateSessions ? { tokenVersion: { increment: 1 } } : {}),
+        },
+      });
+    }
 
-  if (hasStaffChanges) {
-    const staffData: any = {};
-    if (data.role !== undefined) staffData.role = data.role;
-    if (data.assignedCityId !== undefined) staffData.assignedCityId = data.assignedCityId;
-    if (data.assignedParkId !== undefined) staffData.assignedParkId = data.assignedParkId;
-    if (data.assignedGroupId !== undefined) staffData.assignedGroupId = data.assignedGroupId;
-    if (data.staffMetaIsActive !== undefined) staffData.isActive = data.staffMetaIsActive;
+    if (hasStaffChanges) {
+      await tx.staffMeta.upsert({
+        where: { userId: id },
+        update: {
+          role: effectiveRole,
+          assignedCityId: nextScope.cityId,
+          assignedParkId: nextScope.parkId,
+          assignedGroupId: nextScope.groupId,
+          isActive: data.staffMetaIsActive ?? oldMeta?.isActive ?? true,
+        },
+        create: {
+          userId: id,
+          role: effectiveRole!,
+          assignedCityId: nextScope.cityId,
+          assignedParkId: nextScope.parkId,
+          assignedGroupId: nextScope.groupId,
+          isActive: data.staffMetaIsActive ?? true,
+        },
+      });
+    }
 
-    await db.staffMeta.upsert({
-      where: { userId: id },
-      update: staffData,
-      create: {
-        userId: id,
-        role: data.role || "park_lead",
-        assignedCityId: data.assignedCityId ?? null,
-        assignedParkId: data.assignedParkId ?? null,
-        assignedGroupId: data.assignedGroupId ?? null,
-        isActive: data.staffMetaIsActive ?? true,
-      },
+    await tx.auditLog.create({
+      data: createAuditLogData({
+        userId: currentUser.id,
+        action: "update",
+        entityType: "user",
+        entityId: id,
+        oldValues: { ...oldUser, ...oldMeta },
+        newValues: {
+          ...userData,
+          ...(hasStaffChanges ? { role: effectiveRole, ...nextScope } : {}),
+          ...(shouldInvalidateSessions ? { sessionInvalidated: true } : {}),
+        },
+      }),
     });
-  }
-
-  // Fire audit log
-  await logAudit({
-    userId: currentUser.id,
-    action: "update",
-    entityType: "user",
-    entityId: id,
-    oldValues: { ...oldUser, ...oldMeta },
-    newValues: { ...userData, ...(hasStaffChanges ? { role: data.role, assignedCityId: data.assignedCityId, assignedParkId: data.assignedParkId, assignedGroupId: data.assignedGroupId } : {}) },
   });
 
   // Return updated user
@@ -204,12 +259,14 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 }
 
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
-  const authError = await requireRole(["super_admin", "program_admin"]);
+  const authError = await requireRole(["super_admin"]);
   if (authError) return authError;
 
   const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
   const { user: currentUser } = auth;
+  const capabilityAuth = await requireCapability("access.scope.manage");
+  if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
   const { id } = await params;
 
@@ -226,24 +283,27 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
 
-  // Soft-delete: deactivate user and staffMeta
-  await db.user.update({
-    where: { id },
-    data: { isActive: false },
-  });
+  // Soft-delete and revoke existing JWTs atomically.
+  await db.$transaction(async (tx) => {
+    await tx.user.update({
+      where: { id },
+      data: { isActive: false, tokenVersion: { increment: 1 } },
+    });
 
-  await db.staffMeta.updateMany({
-    where: { userId: id },
-    data: { isActive: false },
-  });
+    await tx.staffMeta.updateMany({
+      where: { userId: id },
+      data: { isActive: false },
+    });
 
-  // Fire audit log
-  await logAudit({
-    userId: currentUser.id,
-    action: "delete",
-    entityType: "user",
-    entityId: id,
-    oldValues: { name: existingUser.name, email: existingUser.email },
+    await tx.auditLog.create({
+      data: createAuditLogData({
+        userId: currentUser.id,
+        action: "delete",
+        entityType: "user",
+        entityId: id,
+        oldValues: { name: existingUser.name, email: existingUser.email },
+      }),
+    });
   });
 
   return NextResponse.json({ success: true });

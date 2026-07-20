@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { requireCapability } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
 import { todayPKT, endOfTodayPKT, formatPKT } from "@/lib/timezone";
 
@@ -25,6 +26,8 @@ export async function GET() {
   if (!user.role || !allowedRoles.includes(user.role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
+  const capabilityAuth = await requireCapability("dashboard.view");
+  if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
   try {
     let parkId = user.assignedParkId;

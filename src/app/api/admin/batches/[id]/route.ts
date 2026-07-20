@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth/authorize";
+import { ORGANIZATION_MANAGEMENT_ROLES, requireAuth, requireCapability, requireResourceScope } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
 import { z } from "zod";
@@ -18,6 +18,8 @@ export async function GET(
   const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
   const { user } = auth;
+  const capabilityAuth = await requireCapability("organisation.manage");
+  if (capabilityAuth instanceof NextResponse) return capabilityAuth;
   const { id } = await params;
 
   const batch = await db.batch.findUnique({
@@ -38,21 +40,12 @@ export async function GET(
     return NextResponse.json({ error: "Batch not found" }, { status: 404 });
   }
 
-  // Scope check
-  const isHQ = ["super_admin", "program_admin"].includes(user.role || "");
-  if (!isHQ && user.role === "city_head" && user.assignedCityId) {
-    if (batch.park.city.id !== user.assignedCityId) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-  } else if (
-    !isHQ &&
-    ["park_admin", "park_lead", "murabbi"].includes(user.role || "") &&
-    user.assignedParkId
-  ) {
-    if (batch.parkId !== user.assignedParkId) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-  }
+  const scopeError = requireResourceScope(
+    user,
+    { cityId: batch.park.city.id, parkId: batch.parkId },
+    ORGANIZATION_MANAGEMENT_ROLES
+  );
+  if (scopeError) return scopeError;
 
   return NextResponse.json(batch);
 }
@@ -64,6 +57,8 @@ export async function PATCH(
   const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
   const { user } = auth;
+  const capabilityAuth = await requireCapability("organisation.manage");
+  if (capabilityAuth instanceof NextResponse) return capabilityAuth;
   const { id } = await params;
 
   const existing = await db.batch.findUnique({
@@ -74,21 +69,12 @@ export async function PATCH(
     return NextResponse.json({ error: "Batch not found" }, { status: 404 });
   }
 
-  // Scope check
-  const isHQ = ["super_admin", "program_admin"].includes(user.role || "");
-  if (!isHQ && user.role === "city_head" && user.assignedCityId) {
-    if (existing.park.cityId !== user.assignedCityId) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-  } else if (
-    !isHQ &&
-    ["park_admin", "park_lead", "murabbi"].includes(user.role || "") &&
-    user.assignedParkId
-  ) {
-    if (existing.parkId !== user.assignedParkId) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-  }
+  const scopeError = requireResourceScope(
+    user,
+    { cityId: existing.park.cityId, parkId: existing.parkId },
+    ORGANIZATION_MANAGEMENT_ROLES
+  );
+  if (scopeError) return scopeError;
 
   const body = await request.json();
   const parsed = updateSchema.safeParse(body);
@@ -133,6 +119,8 @@ export async function DELETE(
   const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
   const { user } = auth;
+  const capabilityAuth = await requireCapability("organisation.manage");
+  if (capabilityAuth instanceof NextResponse) return capabilityAuth;
   const { id } = await params;
 
   const existing = await db.batch.findUnique({
@@ -143,21 +131,12 @@ export async function DELETE(
     return NextResponse.json({ error: "Batch not found" }, { status: 404 });
   }
 
-  // Scope check
-  const isHQ = ["super_admin", "program_admin"].includes(user.role || "");
-  if (!isHQ && user.role === "city_head" && user.assignedCityId) {
-    if (existing.park.cityId !== user.assignedCityId) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-  } else if (
-    !isHQ &&
-    ["park_admin", "park_lead", "murabbi"].includes(user.role || "") &&
-    user.assignedParkId
-  ) {
-    if (existing.parkId !== user.assignedParkId) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-  }
+  const scopeError = requireResourceScope(
+    user,
+    { cityId: existing.park.cityId, parkId: existing.parkId },
+    ORGANIZATION_MANAGEMENT_ROLES
+  );
+  if (scopeError) return scopeError;
 
   await db.batch.update({ where: { id }, data: { isActive: false } });
 

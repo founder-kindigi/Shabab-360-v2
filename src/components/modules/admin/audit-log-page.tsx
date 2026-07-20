@@ -598,7 +598,7 @@ export function AuditLogPage() {
               {totalPages > 1 && (
                 <div className="flex items-center justify-between pt-2">
                   <p className="text-xs text-muted-foreground">
-                    {showFrom}–{showTo} of {total}
+                    {showFrom}–{showTo} of {totalItems}
                   </p>
                   <div className="flex items-center gap-1">
                     <Button

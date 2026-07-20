@@ -1,7 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth/authorize";
+import { requireCapability, requireResourceScope, requireRole } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
 import { formatPKT } from "@/lib/timezone";
+import {
+  optionalIdentifier,
+  queryParamsToObject,
+  queryValidationError,
+} from "@/lib/api/query-params";
+import { z } from "zod";
+
+const certificateQuerySchema = z.object({
+  batchId: optionalIdentifier(),
+});
 
 const ADMIN_ROLES = [
   "super_admin",
@@ -9,20 +19,21 @@ const ADMIN_ROLES = [
   "city_head",
   "park_admin",
   "park_lead",
-];
+] as const;
 
 export async function GET(request: NextRequest) {
-  const auth = await requireAuth();
+  const roleError = await requireRole([...ADMIN_ROLES]);
+  if (roleError) return roleError;
+
+  const auth = await requireCapability("reports.view");
   if (auth instanceof NextResponse) return auth;
   const { user } = auth;
 
-  // Admin-only access
-  if (!user.role || !ADMIN_ROLES.includes(user.role)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const query = certificateQuerySchema.safeParse(queryParamsToObject(new URL(request.url).searchParams));
+  if (!query.success) {
+    return NextResponse.json(queryValidationError(query.error), { status: 400 });
   }
-
-  const { searchParams } = new URL(request.url);
-  const batchId = searchParams.get("batchId");
+  const batchId = query.data.batchId;
 
   if (!batchId) {
     return NextResponse.json(
@@ -52,24 +63,11 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Batch not found" }, { status: 404 });
   }
 
-  // Scope check
-  const isHQ = ["super_admin", "program_admin"].includes(user.role);
-  if (!isHQ) {
-    if (
-      user.role === "city_head" &&
-      user.assignedCityId &&
-      batch.park.city.id !== user.assignedCityId
-    ) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-    if (
-      ["park_admin", "park_lead"].includes(user.role || "") &&
-      user.assignedParkId &&
-      batch.park.id !== user.assignedParkId
-    ) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-  }
+  const scopeError = requireResourceScope(user, {
+    cityId: batch.park.city.id,
+    parkId: batch.park.id,
+  });
+  if (scopeError) return scopeError;
 
   // Collect all group IDs and participant IDs
   const allParticipants: Array<{
@@ -132,7 +130,7 @@ export async function GET(request: NextRequest) {
     ? formatPKT(new Date(batch.endDate))
     : formatPKT(new Date());
 
-  const certificates = allParticipants.map((p, idx) => {
+  const certificates = allParticipants.map((p) => {
     const groupEvents = eventsByGroup.get(p.groupId) || [];
     const totalEvents = groupEvents.length;
     const presentEvents = presentByParticipant.get(p.id);

@@ -3,26 +3,27 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import bcrypt from "bcryptjs";
-import { sendPasswordReset } from "@/lib/email-service";
+import { sendPasswordChangeConfirmation } from "@/lib/email-service";
+import { isSameOriginRequest } from "@/lib/security/origin";
+import { z } from "zod";
+import { getPasswordValidationError } from "@/lib/auth/password-policy";
 
-// CSRF: validate Origin/Referer against configured NEXTAUTH_URL or localhost
-function isAllowedOrigin(origin: string | null, referer: string | null): boolean {
-  const allowed = process.env.NEXTAUTH_URL || "http://localhost:3000";
-  const url = origin || referer;
-  if (!url) return false;
-  try {
-    const parsed = new URL(url);
-    const allowedParsed = new URL(allowed);
-    return parsed.origin === allowedParsed.origin;
-  } catch {
-    return false;
-  }
-}
+const resetPasswordSchema = z.object({
+  currentPassword: z.string().min(1).optional(),
+  newPassword: z.string().superRefine((value, context) => {
+    const error = getPasswordValidationError(value);
+    if (error) context.addIssue({ code: "custom", message: error });
+  }),
+  confirmPassword: z.string(),
+}).refine(({ newPassword, confirmPassword }) => newPassword === confirmPassword, {
+  path: ["confirmPassword"],
+  message: "Passwords do not match",
+});
 
 export async function POST(request: Request) {
   try {
     // CSRF protection
-    if (!isAllowedOrigin(request.headers.get("origin"), request.headers.get("referer"))) {
+    if (!isSameOriginRequest(request)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -33,56 +34,38 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const body = await request.json();
-    const { currentPassword, newPassword, confirmPassword } = body as {
-      currentPassword?: string;
-      newPassword?: string;
-      confirmPassword?: string;
-    };
-
-    // Validate required fields
-    if (!currentPassword || typeof currentPassword !== "string") {
+    const parsed = resetPasswordSchema.safeParse(await request.json().catch(() => null));
+    if (!parsed.success) {
       return NextResponse.json(
-        { error: "Current password is required" },
+        { error: parsed.error.issues[0]?.message || "Invalid password request" },
         { status: 400 }
       );
     }
-
-    if (!newPassword || typeof newPassword !== "string") {
-      return NextResponse.json(
-        { error: "New password is required" },
-        { status: 400 }
-      );
-    }
-
-    if (newPassword.length < 8) {
-      return NextResponse.json(
-        { error: "Password must be at least 8 characters" },
-        { status: 400 }
-      );
-    }
-
-    if (newPassword !== confirmPassword) {
-      return NextResponse.json(
-        { error: "Passwords do not match" },
-        { status: 400 }
-      );
-    }
+    const { currentPassword, newPassword } = parsed.data;
 
     // Verify current password
     const existingUser = await db.user.findUnique({
       where: { id: user.id },
-      select: { passwordHash: true },
+      select: { id: true, email: true, name: true, passwordHash: true, mustResetPwd: true },
     });
     if (!existingUser) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
-    const valid = await bcrypt.compare(currentPassword, existingUser.passwordHash);
-    if (!valid) {
-      return NextResponse.json(
-        { error: "Current password is incorrect" },
-        { status: 400 }
-      );
+    if (!existingUser.mustResetPwd) {
+      if (!currentPassword) {
+        return NextResponse.json(
+          { error: "Current password is required" },
+          { status: 400 }
+        );
+      }
+
+      const valid = await bcrypt.compare(currentPassword, existingUser.passwordHash);
+      if (!valid) {
+        return NextResponse.json(
+          { error: "Current password is incorrect" },
+          { status: 400 }
+        );
+      }
     }
 
     // Hash new password and increment tokenVersion to invalidate all existing sessions
@@ -97,11 +80,12 @@ export async function POST(request: Request) {
       },
     });
 
-    // Queue password reset confirmation email (fire-and-forget)
-    sendPasswordReset(
-      { id: user.id, email: user.email, name: user.name },
-      "(password changed via authenticated session)"
-    ).catch(() => {});
+    // Confirmation emails never include a password or a reusable reset link.
+    sendPasswordChangeConfirmation({
+      id: existingUser.id,
+      email: existingUser.email,
+      name: existingUser.name,
+    }).catch(() => {});
 
     return NextResponse.json({ data: { success: true } });
   } catch {

@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { requireCapability } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
 import { todayPKT, endOfTodayPKT, formatPKT, toPKT } from "@/lib/timezone";
 import { logAudit } from "@/lib/audit";
+import { moneyToNumber } from "@/lib/money";
 import { subDays, startOfMonth, endOfMonth } from "date-fns";
 
 
@@ -24,6 +26,8 @@ export async function GET() {
   if (user.role !== "student") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
+  const capabilityAuth = await requireCapability("dashboard.view");
+  if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
   try {
     // Find participant linked to this user
@@ -309,7 +313,10 @@ export async function GET() {
       orderBy: { dueDate: "asc" },
     });
     const feeEventIds = feeEvents.map((f) => f.id);
-    const totalExpected = feeEvents.reduce((sum, f) => sum + f.amount, 0);
+    const totalExpected = feeEvents.reduce(
+      (sum, feeEvent) => sum + moneyToNumber(feeEvent.amount),
+      0
+    );
 
     let totalPaid = 0;
     let nextDueDate: string | null = null;
@@ -322,7 +329,7 @@ export async function GET() {
         },
         _sum: { amount: true },
       });
-      totalPaid = paymentSum._sum.amount || 0;
+      totalPaid = moneyToNumber(paymentSum._sum.amount);
 
       // Find next unpaid fee event
       const paidEventIds = new Set(

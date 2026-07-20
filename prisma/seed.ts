@@ -330,7 +330,13 @@ async function main() {
       const excusedCount = Math.round(shuffled.length * excusedRate);
 
       let idx = 0;
-      const records: { eventId: string; participantId: string; status: string; markedBy: string; markedAt: Date }[] = [];
+      const records: {
+        eventId: string;
+        participantId: string;
+        status: "present" | "absent" | "late" | "excused";
+        markedBy: string;
+        markedAt: Date;
+      }[] = [];
 
       // Present
       for (let i = 0; i < presentCount && idx < shuffled.length; i++, idx++) {
@@ -464,7 +470,7 @@ async function main() {
     .sort(() => Math.random() - 0.5)
     .slice(0, 4);
 
-  const paymentMethods = ["cash", "bank_transfer", "jazzcash", "easypaisa"];
+  const paymentMethods = ["cash", "bank_transfer", "jazzcash", "easypaisa"] as const;
   for (let i = 0; i < paymentParticipants.length; i++) {
     const paidDaysAgo = Math.floor(Math.random() * 10) + 1;
     await db.payment.create({

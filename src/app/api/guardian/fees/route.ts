@@ -1,22 +1,16 @@
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth/authorize";
+import { requireCapability, requireRole } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
+import { moneyToNumber } from "@/lib/money";
 import { formatPKT } from "@/lib/timezone";
 
-type SessionUser = {
-  id?: string;
-  role?: string;
-  name?: string;
-};
-
 export async function GET() {
-  const auth = await requireAuth();
+  const roleError = await requireRole(["guardian"]);
+  if (roleError) return roleError;
+
+  const auth = await requireCapability("reports.view");
   if (auth instanceof NextResponse) return auth;
   const { user } = auth;
-
-  if (user.role !== "guardian") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
 
   try {
     // Find guardian record linked to this user
@@ -84,23 +78,27 @@ export async function GET() {
           const childPayments = allPayments.filter(
             (pay) => pay.feeEventId === fee.id && pay.participantId === p.id
           );
-          const totalPaid = childPayments.reduce((sum, pay) => sum + pay.amount, 0);
-          const paid = totalPaid >= fee.amount;
-          const partial = totalPaid > 0 && totalPaid < fee.amount;
+          const amount = moneyToNumber(fee.amount);
+          const totalPaid = childPayments.reduce(
+            (sum, payment) => sum + moneyToNumber(payment.amount),
+            0
+          );
+          const paid = totalPaid >= amount;
+          const partial = totalPaid > 0 && totalPaid < amount;
 
           return {
             id: fee.id,
             title: fee.title,
             feeType: fee.feeType,
-            amount: fee.amount,
+            amount,
             dueDate: fee.dueDate ? formatPKT(new Date(fee.dueDate)) : null,
             status: paid ? "paid" : partial ? "partial" : "unpaid",
             totalPaid: Math.round(totalPaid * 100) / 100,
-            remaining: Math.round((fee.amount - totalPaid) * 100) / 100,
+            remaining: Math.round((amount - totalPaid) * 100) / 100,
             paymentCount: childPayments.length,
             payments: childPayments.map((pay) => ({
               id: pay.id,
-              amount: pay.amount,
+              amount: moneyToNumber(pay.amount),
               method: pay.method,
               receiptNo: pay.receiptNo,
               notes: pay.notes,

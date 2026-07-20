@@ -1,30 +1,33 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { requireCapability, requireRole } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
 import { toPKT, formatPKT } from "@/lib/timezone";
+import {
+  optionalInteger,
+  queryParamsToObject,
+  queryValidationError,
+} from "@/lib/api/query-params";
+import { z } from "zod";
 
-type SessionUser = {
-  id?: string;
-  role?: string;
-  name?: string;
-};
+const scheduleQuerySchema = z.object({
+  weekOffset: optionalInteger(-52, 52).default(0),
+});
 
 export async function GET(request: Request) {
-  const session = await getServerSession(authOptions);
-  const user = session?.user as SessionUser | undefined;
+  const roleError = await requireRole(["student"]);
+  if (roleError) return roleError;
 
-  if (!session || !user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  if (user.role !== "student") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const auth = await requireCapability("reports.view");
+  if (auth instanceof NextResponse) return auth;
+  const { user } = auth;
 
   try {
     const { searchParams } = new URL(request.url);
-    const weekOffset = parseInt(searchParams.get("weekOffset") || "0", 10);
+    const parsedQuery = scheduleQuerySchema.safeParse(queryParamsToObject(searchParams));
+    if (!parsedQuery.success) {
+      return NextResponse.json(queryValidationError(parsedQuery.error), { status: 400 });
+    }
+    const { weekOffset } = parsedQuery.data;
 
     // Find participant linked to user
     const participant = await db.participant.findFirst({

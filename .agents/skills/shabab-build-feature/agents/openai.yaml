@@ -1,0 +1,4 @@
+interface:
+  display_name: "Build Shabab Feature"
+  short_description: "Implement Shabab 360 features safely"
+  default_prompt: "Use $shabab-build-feature to implement this Shabab 360 feature end to end."

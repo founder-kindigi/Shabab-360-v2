@@ -29,10 +29,10 @@ import {
   UserPlus,
   UserCircle,
   Bell,
+  type LucideIcon,
 } from "lucide-react";
-import { type LucideIcon, motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { OnlineStatus } from "@/components/shared/online-status";
 import { useTranslation } from "@/lib/i18n";
 
 export interface NavItem {
@@ -50,7 +50,7 @@ function getNavSections(items: NavItem[]): { section: string | null; items: NavI
   for (const item of items) {
     if (item.section !== current) {
       sections.push({ section: item.section || null, items: [item] });
-      current = item.section;
+      current = item.section ?? null;
     } else {
       sections[sections.length - 1].items.push(item);
     }
@@ -71,6 +71,7 @@ const navConfig: Record<string, { tKey: string; section: string }> = {
   "admin-attendance-events": { tKey: "nav.attendance", section: "operations" },
   "admin-users": { tKey: "nav.users", section: "operations" },
   "admin-access": { tKey: "nav.access", section: "operations" },
+  "admin-access-management": { tKey: "nav.accessManagement", section: "system" },
   "admin-admissions": { tKey: "nav.admissions", section: "operations" },
   "admin-fees": { tKey: "nav.fees", section: "operations" },
   "admin-announcements": { tKey: "nav.announcements", section: "communication" },
@@ -126,6 +127,7 @@ const iconMap: Record<string, LucideIcon> = {
   "admin-attendance-events": CalendarCheck,
   "admin-users": UserCog,
   "admin-access": UserPlus,
+  "admin-access-management": ShieldCheck,
   "admin-admissions": FileText,
   "admin-fees": DollarSign,
   "admin-announcements": Megaphone,
@@ -156,7 +158,7 @@ const iconMap: Record<string, LucideIcon> = {
 };
 
 const roleNavPages: Record<string, PageId[]> = {
-  super_admin: ["admin-dashboard","admin-cities","admin-parks","admin-batches","admin-groups","admin-people","admin-students","admin-guardians","admin-attendance-events","admin-users","admin-access","admin-admissions","admin-fees","admin-announcements","admin-reports","notifications","admin-audit-log","admin-settings"],
+  super_admin: ["admin-dashboard","admin-cities","admin-parks","admin-batches","admin-groups","admin-people","admin-students","admin-guardians","admin-attendance-events","admin-users","admin-access","admin-admissions","admin-fees","admin-announcements","admin-reports","notifications","admin-audit-log","admin-access-management","admin-settings"],
   program_admin: ["admin-dashboard","admin-cities","admin-parks","admin-batches","admin-groups","admin-people","admin-students","admin-guardians","admin-attendance-events","admin-users","admin-access","admin-admissions","admin-fees","admin-announcements","admin-reports","notifications","admin-audit-log","admin-settings"],
   city_head: ["city-head-dashboard","admin-cities","admin-parks","admin-batches","admin-groups","admin-people","admin-students","admin-attendance-events","admin-announcements","admin-reports","notifications"],
   park_admin: ["park-dashboard","park-attendance","park-roster","park-participants","park-guardians","park-schedule","notifications"],
@@ -180,7 +182,7 @@ export function getNavItems(role: string | undefined, t: (key: string) => string
       id: pageId,
       label: config ? t(config.tKey) : pageId,
       icon,
-      section: config?.section || null,
+      section: config?.section,
     };
   });
 }
@@ -354,7 +356,6 @@ function DesktopSidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
             >
               <div className="rounded-lg bg-muted/50 px-3 py-2 mb-2">
                 <div className="flex items-center gap-1.5">
-                  {user?.id && <OnlineStatus userId={user.id} />}
                   <p className="text-xs font-medium truncate">{user?.name || "User"}</p>
                 </div>
                 <p className="text-[10px] text-muted-foreground truncate">{user?.email}</p>
@@ -447,7 +448,6 @@ function MobileSidebar({
         {/* User info */}
         <div className="px-4 py-3 border-b bg-muted/30">
           <div className="flex items-center gap-2">
-            {user?.id && <OnlineStatus userId={user.id} />}
             <p className="text-sm font-medium truncate">{user?.name || "User"}</p>
           </div>
           <p className="text-xs text-muted-foreground truncate">{user?.email}</p>

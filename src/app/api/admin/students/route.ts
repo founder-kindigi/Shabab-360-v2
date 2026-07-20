@@ -1,9 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireRole, requireAuth } from "@/lib/auth/authorize";
+import { requireRole, requireAuth, requireCapability } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
 import { z } from "zod";
 import { logAudit } from "@/lib/audit";
+import {
+  optionalIdentifier,
+  optionalQueryText,
+  paginatedQuerySchema,
+  queryParamsToObject,
+  queryValidationError,
+} from "@/lib/api/query-params";
 import { subDays } from "date-fns";
+import { participantProfileFieldsSchema } from "@/lib/participants/profile-fields";
 
 const createSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
@@ -11,23 +19,31 @@ const createSchema = z.object({
   gender: z.string().optional(),
   dateOfBirth: z.string().optional(),
   groupId: z.string().min(1, "Group is required"),
+}).merge(participantProfileFieldsSchema);
+
+const studentListQuerySchema = paginatedQuerySchema().extend({
+  search: optionalQueryText(),
+  cityId: optionalIdentifier(),
+  parkId: optionalIdentifier(),
+  groupId: optionalIdentifier(),
+  state: optionalQueryText(32),
+  gender: optionalQueryText(32),
+  sort: z.enum(["name", "joinedAt", "createdAt"]).default("createdAt"),
+  order: z.enum(["asc", "desc"]).default("desc"),
 });
 
 export async function GET(request: NextRequest) {
   const authError = await requireRole(["super_admin", "program_admin"]);
   if (authError) return authError;
+  const capabilityAuth = await requireCapability("students.manage");
+  if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
   const { searchParams } = new URL(request.url);
-  const search = searchParams.get("search") || undefined;
-  const cityId = searchParams.get("cityId") || undefined;
-  const parkId = searchParams.get("parkId") || undefined;
-  const groupId = searchParams.get("groupId") || undefined;
-  const state = searchParams.get("state") || undefined;
-  const gender = searchParams.get("gender") || undefined;
-  const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
-  const pageSize = Math.min(100, Math.max(1, parseInt(searchParams.get("pageSize") || "20", 10)));
-  const sort = searchParams.get("sort") || "createdAt";
-  const order = searchParams.get("order") || "desc";
+  const query = studentListQuerySchema.safeParse(queryParamsToObject(searchParams));
+  if (!query.success) {
+    return NextResponse.json(queryValidationError(query.error), { status: 400 });
+  }
+  const { search, cityId, parkId, groupId, state, gender, page, pageSize, sort, order } = query.data;
 
   // Build where clause
   const where: any = {};
@@ -59,10 +75,7 @@ export async function GET(request: NextRequest) {
   }
 
   // Build orderBy
-  const allowedSortFields = ["name", "joinedAt", "createdAt"] as const;
-  const sortField = allowedSortFields.includes(sort as any) ? sort : "createdAt";
-  const sortOrder = order === "asc" ? "asc" : "desc";
-  const orderBy: any = { [sortField]: sortOrder };
+  const orderBy: any = { [sort]: order };
 
   const thirtyDaysAgo = subDays(new Date(), 30);
   const skip = (page - 1) * pageSize;
@@ -119,6 +132,8 @@ export async function GET(request: NextRequest) {
       phone: s.phone,
       gender: s.gender,
       dateOfBirth: s.dateOfBirth,
+      age: s.age,
+      gradeClass: s.gradeClass,
       state: s.state,
       joinedAt: s.joinedAt,
       createdAt: s.createdAt,
@@ -164,6 +179,8 @@ export async function POST(request: NextRequest) {
 
   const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
+  const capabilityAuth = await requireCapability("students.manage");
+  if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
   const body = await request.json();
   const parsed = createSchema.safeParse(body);
@@ -174,7 +191,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { name, phone, gender, dateOfBirth, groupId } = parsed.data;
+  const { name, phone, gender, dateOfBirth, groupId, age, gradeClass } = parsed.data;
 
   // Validate group exists
   const group = await db.group.findUnique({
@@ -193,6 +210,8 @@ export async function POST(request: NextRequest) {
       phone: phone || null,
       gender: gender || null,
       dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
+      age: age ?? null,
+      gradeClass: gradeClass ?? null,
       groupId,
     },
   });
@@ -202,7 +221,7 @@ export async function POST(request: NextRequest) {
     action: "create",
     entityType: "participant",
     entityId: participant.id,
-    newValues: { name, phone, gender, dateOfBirth, groupId },
+    newValues: { name, phone, gender, dateOfBirth, age, gradeClass, groupId },
   });
 
   return NextResponse.json(participant, { status: 201 });

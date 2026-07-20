@@ -37,6 +37,7 @@ const pageSectionMap: Partial<Record<PageId, BreadcrumbSection>> = {
 
   // Admin – System
   "admin-audit-log": { section: "System", sectionPage: null },
+  "admin-access-management": { section: "System", sectionPage: null },
   "admin-settings": { section: "System", sectionPage: null },
 
   // Park – Daily
@@ -85,12 +86,15 @@ const pageTitles: Record<PageId, string> = {
   "admin-settings": "Settings",
   "admin-users": "Users",
   "admin-access": "Access Provisioning",
+  "admin-access-management": "Access Management",
   "admin-admissions": "Admissions",
   "admin-fees": "Fees",
   "admin-announcements": "Announcements",
   "admin-reports": "Reports",
   "admin-audit-log": "Audit Log",
+  notifications: "Notifications",
   "murabbi-dashboard": "Dashboard",
+  "murabbi-groups": "My Groups",
   "park-dashboard": "Dashboard",
   "park-attendance": "Attendance",
   "park-attendance-roster": "Mark Attendance",
@@ -102,10 +106,13 @@ const pageTitles: Record<PageId, string> = {
   "guardian-history": "History",
   "guardian-schedule": "Schedule",
   "guardian-announcements": "Announcements",
+  "guardian-fees": "Fees",
   "student-dashboard": "Dashboard",
   "student-history": "History",
   "student-schedule": "Schedule",
   "student-announcements": "Announcements",
+  "student-fees": "Fees",
+  "student-profile": "Profile",
 };
 
 // ─── Dashboard page per role ───

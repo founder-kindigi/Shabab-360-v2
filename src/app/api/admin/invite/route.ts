@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireRole, requireAuth } from "@/lib/auth/authorize";
+import { requireCapability, requireRole } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
 import { sendInviteEmail } from "@/lib/email-service";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
 
 const ALL_ROLES = [
   "super_admin",
@@ -21,7 +22,7 @@ const inviteSchema = z.object({
   email: z.string().email("Invalid email address"),
   name: z.string().min(2, "Name must be at least 2 characters"),
   phone: z.string().optional(),
-  role: z.enum(ALL_ROLES, { errorMap: () => ({ message: "Invalid role" }) }),
+  role: z.enum(ALL_ROLES),
   assignedCityId: z.string().optional(),
   assignedParkId: z.string().optional(),
   assignedGroupId: z.string().optional(),
@@ -39,7 +40,7 @@ export async function POST(request: NextRequest) {
   const authError = await requireRole(["super_admin", "program_admin"]);
   if (authError) return authError;
 
-  const auth = await requireAuth();
+  const auth = await requireCapability("access.scope.manage");
   if (auth instanceof NextResponse) return auth;
 
   // Parse and validate body
@@ -131,8 +132,9 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Hash default password
-  const passwordHash = await bcrypt.hash("Shabab@2024", 12);
+  // Display this once to the administrator; never persist it in a notification or audit log.
+  const temporaryPassword = crypto.randomBytes(24).toString("base64url");
+  const passwordHash = await bcrypt.hash(temporaryPassword, 12);
 
   // Create User + StaffMeta in a Prisma transaction
   const user = await db.$transaction(async (tx) => {
@@ -215,13 +217,11 @@ export async function POST(request: NextRequest) {
     newValues: { name, email, role, assignedCityId, assignedParkId, assignedGroupId },
   });
 
-  // Queue invite email with credentials (fire-and-forget)
-  const TEMP_PASSWORD = "Shabab@2024";
+  // Queue an invitation notice without credentials.
   sendInviteEmail(
     { id: user!.id, email: user!.email, name: user!.name },
-    TEMP_PASSWORD,
     role
   ).catch(() => {});
 
-  return NextResponse.json(user, { status: 201 });
+  return NextResponse.json({ user, temporaryPassword }, { status: 201 });
 }

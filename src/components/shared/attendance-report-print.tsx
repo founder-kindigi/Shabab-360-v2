@@ -29,7 +29,7 @@ interface AttendanceReportRow {
   markedAt: string;
 }
 
-interface AttendanceReportData {
+export interface AttendanceReportData {
   data: AttendanceReportRow[];
   summary: {
     totalEvents: number;

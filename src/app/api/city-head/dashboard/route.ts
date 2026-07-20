@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { requireCapability } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
 import { todayPKT, endOfTodayPKT, formatPKT } from "@/lib/timezone";
 import { logAudit } from "@/lib/audit";
+import { moneyToNumber } from "@/lib/money";
 
 type SessionUser = {
   id?: string;
@@ -25,6 +27,8 @@ export async function GET() {
   if (user.role !== "city_head") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
+  const capabilityAuth = await requireCapability("dashboard.view");
+  if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
   if (!user.assignedCityId) {
     return NextResponse.json({ error: "No city assigned" }, { status: 403 });
@@ -207,13 +211,6 @@ export async function GET() {
         eventDate: { gte: fourteenDaysAgo, lte: todayEnd },
         isClosed: true,
       },
-      include: {
-        _count: {
-          select: {
-            records: { where: { status: "present" } },
-          },
-        },
-      },
       select: {
         id: true,
         eventDate: true,
@@ -342,7 +339,10 @@ export async function GET() {
       where: { batchId: { in: allCityBatchIds }, isActive: true },
       select: { id: true, amount: true },
     });
-    const totalFeeExpected = cityFeeEvents.reduce((s, f) => s + f.amount, 0);
+    const totalFeeExpected = cityFeeEvents.reduce(
+      (sum, feeEvent) => sum + moneyToNumber(feeEvent.amount),
+      0
+    );
 
     // Payments collected this month
     let totalCollectedThisMonth = 0;
@@ -358,7 +358,7 @@ export async function GET() {
         },
         _sum: { amount: true },
       });
-      totalCollectedThisMonth = paymentsThisMonth._sum.amount || 0;
+      totalCollectedThisMonth = moneyToNumber(paymentsThisMonth._sum.amount);
 
       const allPayments = await db.payment.aggregate({
         where: {
@@ -366,7 +366,7 @@ export async function GET() {
         },
         _sum: { amount: true },
       });
-      const totalAllPaid = allPayments._sum.amount || 0;
+      const totalAllPaid = moneyToNumber(allPayments._sum.amount);
       totalPendingFees = Math.max(totalFeeExpected - totalAllPaid, 0);
     }
 

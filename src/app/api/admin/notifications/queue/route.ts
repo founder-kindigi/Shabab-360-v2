@@ -1,6 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireRole } from "@/lib/auth/authorize";
+import { requireCapability, requireRole } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
+import { z } from "zod";
+import {
+  optionalQueryText,
+  paginatedQuerySchema,
+  queryParamsToObject,
+  queryValidationError,
+} from "@/lib/api/query-params";
+
+const notificationStatusUpdateSchema = z.object({
+  ids: z.array(z.string().min(1)).min(1).max(1_000),
+  status: z.enum(["sent", "failed"]),
+});
+
+const notificationQueueQuerySchema = paginatedQuerySchema({ maxPageSize: 50 }).extend({
+  status: z.enum(["pending", "sent", "failed"]).optional(),
+  channel: optionalQueryText(64),
+});
 
 /**
  * GET /api/admin/notifications/queue
@@ -11,11 +28,15 @@ export async function GET(request: NextRequest) {
   const authError = await requireRole(["super_admin", "program_admin"]);
   if (authError) return authError;
 
+  const capabilityAuth = await requireCapability("settings.manage");
+  if (capabilityAuth instanceof NextResponse) return capabilityAuth;
+
   const { searchParams } = new URL(request.url);
-  const status = searchParams.get("status") || undefined;
-  const channel = searchParams.get("channel") || undefined;
-  const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
-  const pageSize = Math.min(50, Math.max(1, parseInt(searchParams.get("pageSize") || "20", 10)));
+  const query = notificationQueueQuerySchema.safeParse(queryParamsToObject(searchParams));
+  if (!query.success) {
+    return NextResponse.json(queryValidationError(query.error), { status: 400 });
+  }
+  const { status, channel, page, pageSize } = query.data;
 
   try {
     const where: Record<string, unknown> = {};
@@ -73,17 +94,19 @@ export async function PATCH(request: NextRequest) {
   const authError = await requireRole(["super_admin", "program_admin"]);
   if (authError) return authError;
 
+  const capabilityAuth = await requireCapability("settings.manage");
+  if (capabilityAuth instanceof NextResponse) return capabilityAuth;
+
   try {
-    const body = await request.json();
-    const { ids, status } = body as { ids?: string[]; status?: string };
-
-    if (!Array.isArray(ids) || ids.length === 0) {
-      return NextResponse.json({ error: "ids array is required" }, { status: 400 });
+    const body = await request.json().catch(() => null);
+    const parsed = notificationStatusUpdateSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: parsed.error.issues.map((issue) => issue.message).join(", ") },
+        { status: 400 }
+      );
     }
-
-    if (!["sent", "failed"].includes(status)) {
-      return NextResponse.json({ error: "status must be 'sent' or 'failed'" }, { status: 400 });
-    }
+    const { ids, status } = parsed.data;
 
     await db.notification.updateMany({
       where: { id: { in: ids } },

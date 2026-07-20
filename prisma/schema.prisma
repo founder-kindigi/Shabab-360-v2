@@ -10,16 +10,16 @@ datasource db {
 // ========== AUTH & USERS ==========
 
 model User {
-  id            String    @id @default(cuid())
-  email         String    @unique
-  passwordHash  String
-  name          String?
-  phone         String?
-  mustResetPwd  Boolean   @default(true)
-  tokenVersion  Int       @default(0)
-  isActive      Boolean   @default(true)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String?
+  phone        String?
+  mustResetPwd Boolean  @default(true)
+  tokenVersion Int      @default(0)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   staffMeta     StaffMeta?
   guardian      Guardian?
@@ -27,198 +27,244 @@ model User {
   auditLogs     AuditLog[]
   announcements Announcement[]
   notifications Notification[]
+  capabilityOverrides UserCapabilityOverride[]
 
   @@map("users")
 }
 
 model AuditLog {
-  id          String    @id @default(cuid())
-  userId      String?
-  action      String
-  entityType  String
-  entityId    String?
-  oldValues   String?
-  newValues   String?
-  reason      String?
-  createdAt   DateTime  @default(now())
+  id         String   @id @default(cuid())
+  userId     String?
+  action     String
+  entityType String
+  entityId   String?
+  oldValues  String?
+  newValues  String?
+  reason     String?
+  createdAt  DateTime @default(now())
 
-  user        User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@map("audit_log")
+}
+
+// ========== ACCESS MANAGEMENT ==========
+
+// Role-level exceptions extend or remove the version-controlled defaults in
+// src/lib/auth/capabilities.ts. The application validates fixed role and
+// capability values before writing either override table.
+model RoleCapabilityOverride {
+  id         String   @id @default(cuid())
+  role       String
+  capability String
+  effect     String
+  reason     String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([role, capability])
+  @@index([role])
+  @@map("role_capability_overrides")
+}
+
+// A single record is retained per user/capability so a revoke can be audited
+// without losing the original operational reason. Expired or inactive records
+// do not affect effective access.
+model UserCapabilityOverride {
+  id         String   @id @default(cuid())
+  userId     String
+  capability String
+  effect     String
+  reason     String
+  expiresAt  DateTime?
+  isActive   Boolean  @default(true)
+  revokedAt  DateTime?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, capability])
+  @@index([userId, isActive, expiresAt])
+  @@map("user_capability_overrides")
 }
 
 // ========== ORGANIZATIONAL HIERARCHY ==========
 
 model City {
-  id          String          @id @default(cuid())
-  name        String
-  code        String          @unique
-  isActive    Boolean         @default(true)
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
+  id        String   @id @default(cuid())
+  name      String
+  code      String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  parks                  Park[]
-  cityHeads              StaffMeta[]    @relation("CityHeadAssignment")
-  admissionApplications  AdmissionApplication[]
+  parks                 Park[]
+  cityHeads             StaffMeta[]            @relation("CityHeadAssignment")
+  admissionApplications AdmissionApplication[]
 
   @@map("cities")
 }
 
 model Park {
-  id          String          @id @default(cuid())
-  name        String
-  cityId      String
-  address     String?
-  isActive    Boolean         @default(true)
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
+  id        String   @id @default(cuid())
+  name      String
+  cityId    String
+  address   String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  city            City           @relation(fields: [cityId], references: [id], onDelete: Cascade)
-  batches                Batch[]
-  parkStaff              StaffMeta[]    @relation("ParkStaffAssignment")
-  admissionApplications  AdmissionApplication[]
+  city                  City                   @relation(fields: [cityId], references: [id], onDelete: Cascade)
+  batches               Batch[]
+  parkStaff             StaffMeta[]            @relation("ParkStaffAssignment")
+  admissionApplications AdmissionApplication[]
 
   @@map("parks")
 }
 
 model Batch {
-  id          String                    @id @default(cuid())
-  name        String
-  parkId      String
-  startDate   DateTime
-  endDate     DateTime?
-  isActive    Boolean                   @default(true)
-  createdAt   DateTime                  @default(now())
-  updatedAt   DateTime                  @updatedAt
+  id        String    @id @default(cuid())
+  name      String
+  parkId    String
+  startDate DateTime
+  endDate   DateTime?
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
-  park                    Park                    @relation(fields: [parkId], references: [id], onDelete: Cascade)
-  groups                  Group[]
-  settings                BatchSettings?
-  feeEvents               FeeEvent[]
+  park      Park           @relation(fields: [parkId], references: [id], onDelete: Cascade)
+  groups    Group[]
+  settings  BatchSettings?
+  feeEvents FeeEvent[]
 
   @@map("batches")
 }
 
 model Group {
-  id          String          @id @default(cuid())
-  name        String
-  batchId     String
-  isActive    Boolean         @default(true)
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
+  id        String   @id @default(cuid())
+  name      String
+  batchId   String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  batch            Batch               @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  batch            Batch             @relation(fields: [batchId], references: [id], onDelete: Cascade)
   participants     Participant[]
-  murabbis         StaffMeta[]         @relation("MurabbiAssignment")
+  murabbis         StaffMeta[]       @relation("MurabbiAssignment")
   attendanceEvents AttendanceEvent[]
 
+  @@index([batchId, isActive])
   @@map("groups")
 }
 
 // ========== PEOPLE ==========
 
 model StaffMeta {
-  id              String    @id @default(cuid())
-  userId          String    @unique
+  id              String   @id @default(cuid())
+  userId          String   @unique
   role            String
   assignedCityId  String?
   assignedParkId  String?
   assignedGroupId String?
-  isActive        Boolean   @default(true)
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
-  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  assignedCity    City?     @relation("CityHeadAssignment", fields: [assignedCityId], references: [id], onDelete: SetNull)
-  assignedPark    Park?     @relation("ParkStaffAssignment", fields: [assignedParkId], references: [id], onDelete: SetNull)
-  assignedGroup   Group?    @relation("MurabbiAssignment", fields: [assignedGroupId], references: [id], onDelete: SetNull)
+  user          User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assignedCity  City?  @relation("CityHeadAssignment", fields: [assignedCityId], references: [id], onDelete: SetNull)
+  assignedPark  Park?  @relation("ParkStaffAssignment", fields: [assignedParkId], references: [id], onDelete: SetNull)
+  assignedGroup Group? @relation("MurabbiAssignment", fields: [assignedGroupId], references: [id], onDelete: SetNull)
 
   @@map("staff_meta")
 }
 
 model Guardian {
-  id          String          @id @default(cuid())
-  userId      String?         @unique
-  name        String
-  phone       String
-  cnic        String?
-  address     String?
-  isActive    Boolean         @default(true)
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
+  id        String   @id @default(cuid())
+  userId    String?  @unique
+  name      String
+  phone     String
+  cnic      String?
+  address   String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  user        User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
-  children    GuardianChild[]
+  user     User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
+  children GuardianChild[]
 
   @@map("guardians")
 }
 
 model GuardianChild {
-  id            String      @id @default(cuid())
+  id            String   @id @default(cuid())
   guardianId    String
   participantId String
   relation      String?
-  createdAt     DateTime    @default(now())
+  createdAt     DateTime @default(now())
 
-  guardian      Guardian    @relation(fields: [guardianId], references: [id], onDelete: Cascade)
-  participant   Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  guardian    Guardian    @relation(fields: [guardianId], references: [id], onDelete: Cascade)
+  participant Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
 
   @@unique([guardianId, participantId])
   @@map("guardian_children")
 }
 
 model Participant {
-  id          String            @id @default(cuid())
-  userId      String?           @unique
+  id          String    @id @default(cuid())
+  userId      String?   @unique
   name        String
   phone       String?
   dateOfBirth DateTime?
+  age         Int?
+  gradeClass  String?
   gender      String?
   address     String?
   groupId     String
-  state       String            @default("active")
-  joinedAt    DateTime          @default(now())
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
+  state       String    @default("active")
+  joinedAt    DateTime  @default(now())
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
-  user                User?               @relation(fields: [userId], references: [id], onDelete: SetNull)
-  group               Group               @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  guardianLinks       GuardianChild[]
-  attendanceRecords   AttendanceRecord[]
-  payments            Payment[]
-  convertedFromApp    AdmissionApplication? @relation("ConvertedFrom")
+  user              User?                 @relation(fields: [userId], references: [id], onDelete: SetNull)
+  group             Group                 @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  guardianLinks     GuardianChild[]
+  attendanceRecords AttendanceRecord[]
+  payments          Payment[]
+  convertedFromApp  AdmissionApplication? @relation("ConvertedFrom")
 
+  @@index([groupId, state])
   @@map("participants")
 }
 
 // ========== ATTENDANCE ==========
 
 model BatchSettings {
-  id              String    @id @default(cuid())
-  batchId         String    @unique
-  warningAbsents  Int       @default(3)
-  dropoutAbsents  Int       @default(6)
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  id             String   @id @default(cuid())
+  batchId        String   @unique
+  warningAbsents Int      @default(3)
+  dropoutAbsents Int      @default(6)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-  batch           Batch     @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  batch Batch @relation(fields: [batchId], references: [id], onDelete: Cascade)
 
   @@map("batch_settings")
 }
 
 model AttendanceEvent {
-  id          String              @id @default(cuid())
-  groupId     String
-  title       String
-  eventDate   DateTime
-  isClosed    Boolean             @default(false)
-  closedAt    DateTime?
-  closedBy    String?
-  createdAt   DateTime            @default(now())
-  updatedAt   DateTime            @updatedAt
+  id        String    @id @default(cuid())
+  groupId   String
+  title     String
+  eventDate DateTime
+  isClosed  Boolean   @default(false)
+  closedAt  DateTime?
+  closedBy  String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
-  group       Group               @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  records     AttendanceRecord[]
+  group   Group              @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  records AttendanceRecord[]
 
   @@index([groupId, eventDate])
   @@index([eventDate])
@@ -226,18 +272,18 @@ model AttendanceEvent {
 }
 
 model AttendanceRecord {
-  id            String           @id @default(cuid())
+  id            String   @id @default(cuid())
   eventId       String
   participantId String
   status        String
   markedBy      String?
-  markedAt      DateTime         @default(now())
+  markedAt      DateTime @default(now())
   editReason    String?
-  createdAt     DateTime         @default(now())
-  updatedAt     DateTime         @updatedAt
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-  event         AttendanceEvent  @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  participant   Participant      @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  event       AttendanceEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  participant Participant     @relation(fields: [participantId], references: [id], onDelete: Cascade)
 
   @@unique([eventId, participantId])
   @@index([eventId])
@@ -248,54 +294,57 @@ model AttendanceRecord {
 // ========== FEES ==========
 
 model FeeEvent {
-  id          String      @id @default(cuid())
-  batchId     String
-  title       String
-  feeType     String
-  amount      Float
-  dueDate     DateTime?
-  discountAmount  Float       @default(0)
+  id             String    @id @default(cuid())
+  batchId        String
+  title          String
+  feeType        String
+  amount         Float
+  dueDate        DateTime?
+  discountAmount Float     @default(0)
   waiverReason   String?
   waivedBy       String?
   waivedAt       DateTime?
   reminderSentAt DateTime?
-  reminderCount  Int         @default(0)
-  isActive    Boolean     @default(true)
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  reminderCount  Int       @default(0)
+  isActive       Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
-  batch       Batch       @relation(fields: [batchId], references: [id], onDelete: Cascade)
-  payments    Payment[]
+  batch    Batch     @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  payments Payment[]
 
+  @@index([batchId, isActive, createdAt])
+  @@index([isActive, createdAt])
   @@map("fee_events")
 }
 
 model Payment {
-  id              String       @id @default(cuid())
-  feeEventId      String
-  participantId   String
-  amount          Float
-  method          String
-  receiptNo       String?      @unique
-  recordedBy      String?
-  notes           String?
-  isPartial       Boolean      @default(false)
-  waivedAmount    Float        @default(0)
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
+  id            String   @id @default(cuid())
+  feeEventId    String
+  participantId String
+  amount        Float
+  method        String
+  receiptNo     String?  @unique
+  recordedBy    String?
+  notes         String?
+  isPartial     Boolean  @default(false)
+  waivedAmount  Float    @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-  feeEvent        FeeEvent     @relation(fields: [feeEventId], references: [id], onDelete: Cascade)
-  participant     Participant  @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  feeEvent    FeeEvent    @relation(fields: [feeEventId], references: [id], onDelete: Cascade)
+  participant Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
 
+  @@index([feeEventId, participantId])
   @@map("payments")
 }
 
 model ReceiptSequence {
-  id        String    @id @default(cuid())
+  id        String   @id @default(cuid())
   prefix    String
   year      Int
-  counter   Int       @default(0)
-  updatedAt DateTime  @updatedAt
+  counter   Int      @default(0)
+  updatedAt DateTime @updatedAt
 
   @@unique([prefix, year])
   @@map("receipt_sequences")
@@ -304,8 +353,8 @@ model ReceiptSequence {
 // ========== ADMISSIONS ==========
 
 model AdmissionApplication {
-  id                     String                  @id @default(cuid())
-  trackingCode           String                  @unique
+  id                     String    @id @default(cuid())
+  trackingCode           String    @unique
   applicantName          String
   applicantDOB           DateTime?
   gender                 String?
@@ -314,36 +363,40 @@ model AdmissionApplication {
   guardianRelation       String?
   cityId                 String?
   preferredParkId        String?
-  status                 String                  @default("submitted")
+  status                 String    @default("submitted")
   notes                  String?
-  convertedParticipantId String?  @unique
-  createdAt              DateTime                @default(now())
-  updatedAt              DateTime                @updatedAt
+  emergencyContact       String?
+  emergencyPhone         String?
+  previousEducation      String?
+  reference              String?
+  convertedParticipantId String?   @unique
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
 
-  city                   City?                   @relation(fields: [cityId], references: [id], onDelete: SetNull)
-  preferredPark          Park?                   @relation(fields: [preferredParkId], references: [id], onDelete: SetNull)
-  interviews             AdmissionInterview[]
-  convertedParticipant   Participant?             @relation("ConvertedFrom", fields: [convertedParticipantId], references: [id])
+  city                 City?                @relation(fields: [cityId], references: [id], onDelete: SetNull)
+  preferredPark        Park?                @relation(fields: [preferredParkId], references: [id], onDelete: SetNull)
+  interviews           AdmissionInterview[]
+  convertedParticipant Participant?         @relation("ConvertedFrom", fields: [convertedParticipantId], references: [id])
 
   @@map("admission_applications")
 }
 
 model AdmissionInterview {
-  id              String                @id @default(cuid())
-  applicationId   String
-  scheduledDate   DateTime?
-  scheduledTime   String?
-  status          String                @default("scheduled")
-  score1          Int?
-  score2          Int?
-  score3          Int?
-  totalScore      Int?
-  notes           String?
-  conductedBy     String?
-  createdAt       DateTime               @default(now())
-  updatedAt       DateTime               @updatedAt
+  id            String    @id @default(cuid())
+  applicationId String
+  scheduledDate DateTime?
+  scheduledTime String?
+  status        String    @default("scheduled")
+  score1        Int?
+  score2        Int?
+  score3        Int?
+  totalScore    Int?
+  notes         String?
+  conductedBy   String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
-  application     AdmissionApplication  @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  application AdmissionApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
 
   @@map("admission_interviews")
 }
@@ -351,14 +404,14 @@ model AdmissionInterview {
 // ========== ANNOUNCEMENTS ==========
 
 model Announcement {
-  id          String     @id @default(cuid())
+  id          String    @id @default(cuid())
   title       String
   content     String
-  priority    String     @default("normal")
+  priority    String    @default("normal")
   targetRoles String
   authorId    String
-  author      User       @relation(fields: [authorId], references: [id])
-  createdAt   DateTime   @default(now())
+  author      User      @relation(fields: [authorId], references: [id])
+  createdAt   DateTime  @default(now())
   expiresAt   DateTime?
 
   @@map("announcements")
@@ -367,19 +420,19 @@ model Announcement {
 // ========== NOTIFICATIONS ==========
 
 model Notification {
-  id              String    @id @default(cuid())
-  type            String    @default("in_app") // "email" | "in_app" | "push"
-  channel         String                      // "password_reset" | "invite" | "fee_reminder" | "absence_alert" | "admission_status"
-  recipientId     String?
-  recipientEmail  String?
-  subject         String
-  body            String
-  data            String?                      // JSON metadata
-  status          String    @default("pending") // "pending" | "sent" | "failed"
-  sentAt          DateTime?
-  createdAt       DateTime  @default(now())
+  id             String    @id @default(cuid())
+  type           String    @default("in_app") // "email" | "in_app" | "push"
+  channel        String // "password_reset" | "invite" | "fee_reminder" | "absence_alert" | "admission_status"
+  recipientId    String?
+  recipientEmail String?
+  subject        String
+  body           String
+  data           String? // JSON metadata
+  status         String    @default("pending") // "pending" | "sent" | "failed"
+  sentAt         DateTime?
+  createdAt      DateTime  @default(now())
 
-  user            User?     @relation(fields: [recipientId], references: [id])
+  user User? @relation(fields: [recipientId], references: [id])
 
   @@index([recipientId])
   @@index([status])
@@ -389,13 +442,13 @@ model Notification {
 // ========== REPORT PRESETS ==========
 
 model ReportPreset {
-  id          String    @id @default(cuid())
-  userId      String
-  name        String
-  reportType  String
-  filters     String
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id         String   @id @default(cuid())
+  userId     String
+  name       String
+  reportType String
+  filters    String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   @@map("report_presets")
 }

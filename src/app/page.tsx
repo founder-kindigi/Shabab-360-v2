@@ -8,19 +8,38 @@ import { Toaster } from "@/components/ui/sonner";
 import { PageRouter } from "@/components/layout/page-router";
 import { LoadingState } from "@/components/layout/loading-state";
 import { useServiceWorker } from "@/hooks/use-service-worker";
+import {
+  QUERY_CACHE_TIME,
+  QUERY_RETRY_COUNT,
+  QUERY_STALE_TIMES,
+} from "@/lib/query-config";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: QUERY_STALE_TIMES.DEFAULT,
+      gcTime: QUERY_CACHE_TIME,
+      retry: QUERY_RETRY_COUNT,
+      refetchOnWindowFocus: false,
+    },
+    mutations: {
+      retry: 0,
+    },
+  },
+});
 
 function AuthenticatedApp() {
   const { data: session, status } = useSession();
   const { setUserRole, navigateTo, currentPage, userRole } = useAppStore();
   const wasAuthenticated = useRef(false);
+  const sessionUser = session?.user as { id?: string } | undefined;
+  const hasInvalidatedSession = status === "authenticated" && !sessionUser?.id;
 
   // Register PWA service worker (production only)
   useServiceWorker();
 
   useEffect(() => {
-    if (session?.user) {
+    if (session?.user && sessionUser?.id) {
       wasAuthenticated.current = true;
       const user = session.user as any;
 
@@ -57,7 +76,15 @@ function AuthenticatedApp() {
         }
       }
     }
-  }, [session?.user, setUserRole, navigateTo, currentPage]);
+  }, [session?.user, sessionUser?.id, setUserRole, navigateTo, currentPage]);
+
+  // Token-version invalidation leaves no usable identity in the JWT session.
+  // Clear it rather than presenting the account-provisioning screen.
+  useEffect(() => {
+    if (hasInvalidatedSession) {
+      void signOut({ callbackUrl: "/" });
+    }
+  }, [hasInvalidatedSession]);
 
   // When session is cleared AFTER being authenticated (sign out), reload
   useEffect(() => {
@@ -67,7 +94,9 @@ function AuthenticatedApp() {
     }
   }, [session, status]);
 
-  if (status === "loading") return <LoadingState message="Loading..." />;
+  if (status === "loading" || hasInvalidatedSession) {
+    return <LoadingState message="Signing you out..." />;
+  }
   if (!session) return <PageRouter />;
 
   const user = session.user as any;

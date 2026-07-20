@@ -1,36 +1,44 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { requireCapability, requireRole } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
 import { formatPKT, toPKT } from "@/lib/timezone";
 import { logAudit } from "@/lib/audit";
-import { subDays, parseISO } from "date-fns";
+import {
+  MAX_LIST_OFFSET,
+  optionalDateOnly,
+  optionalInteger,
+  queryParamsToObject,
+  queryValidationError,
+} from "@/lib/api/query-params";
+import { subDays } from "date-fns";
+import { z } from "zod";
 
-type SessionUser = {
-  id?: string;
-  role?: string;
-};
+const historyQuerySchema = z
+  .object({
+    from: optionalDateOnly(),
+    to: optionalDateOnly(),
+    limit: optionalInteger(1, 100).default(30),
+    offset: optionalInteger(0, MAX_LIST_OFFSET).default(0),
+  })
+  .refine(({ from, to }) => !from || !to || from <= to, {
+    path: ["to"],
+    message: "to must be on or after from",
+  });
 
 export async function GET(request: Request) {
-  const session = await getServerSession(authOptions);
-  const user = session?.user as SessionUser | undefined;
+  const roleError = await requireRole(["student"]);
+  if (roleError) return roleError;
 
-  if (!session || !user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  if (user.role !== "student") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const auth = await requireCapability("reports.view");
+  if (auth instanceof NextResponse) return auth;
+  const { user } = auth;
 
   const { searchParams } = new URL(request.url);
-  const fromParam = searchParams.get("from");
-  const toParam = searchParams.get("to");
-  const limitParam = searchParams.get("limit");
-  const offsetParam = searchParams.get("offset");
-
-  const limit = Math.min(Math.max(parseInt(limitParam || "30", 10), 1), 100);
-  const offset = Math.max(parseInt(offsetParam || "0", 10), 0);
+  const parsedQuery = historyQuerySchema.safeParse(queryParamsToObject(searchParams));
+  if (!parsedQuery.success) {
+    return NextResponse.json(queryValidationError(parsedQuery.error), { status: 400 });
+  }
+  const { from: fromParam, to: toParam, limit, offset } = parsedQuery.data;
 
   try {
     // Find participant
@@ -52,8 +60,8 @@ export async function GET(request: Request) {
 
     // Build date range filter
     const defaultFrom = subDays(new Date(), 29);
-    const from = fromParam ? parseISO(fromParam) : defaultFrom;
-    const to = toParam ? parseISO(toParam) : new Date();
+    const from = fromParam ? new Date(fromParam) : defaultFrom;
+    const to = toParam ? new Date(toParam) : new Date();
 
     // Fetch records with pagination
     const whereClause = {

@@ -16,6 +16,11 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Shabab360 - Program Operations",
   description: "Shabab360 Program Operations Platform",
+  robots: {
+    index: false,
+    follow: false,
+    nocache: true,
+  },
   other: {
     "theme-color": "#4B0A8F",
   },
