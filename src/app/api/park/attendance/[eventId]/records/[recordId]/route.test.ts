@@ -58,7 +58,7 @@ describe("PATCH /api/park/attendance/[eventId]/records/[recordId]", () => {
     expect(mocks.requireResourceScope).toHaveBeenCalledWith(
       expect.objectContaining({ id: "park-admin" }),
       { parkId: "park-2", groupId: "group-2" },
-      ["super_admin", "program_admin", "park_admin", "park_lead"]
+      ["super_admin", "program_admin", "park_lead"]
     );
     expect(mocks.staffMetaFindUnique).not.toHaveBeenCalled();
     expect(mocks.recordUpdate).not.toHaveBeenCalled();

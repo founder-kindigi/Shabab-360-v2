@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
 
 const VALID_STATUSES = ["present", "absent", "late", "excused"] as const;
-const EDIT_ROLES = ["super_admin", "program_admin", "park_admin", "park_lead"] as const;
+const EDIT_ROLES = ["super_admin", "program_admin", "park_lead"] as const;
 
 function isAttendanceStatus(
   status: string
@@ -15,7 +15,7 @@ function isAttendanceStatus(
 /**
  * PATCH /api/park/attendance/[eventId]/records/[recordId]
  * Edit an existing attendance record with a required reason.
- * Only available to HQ staff and park administrators/leads.
+ * Only available to HQ staff and the assigned Park Lead.
  */
 export async function PATCH(
   req: NextRequest,

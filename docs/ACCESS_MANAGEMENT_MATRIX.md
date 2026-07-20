@@ -9,8 +9,8 @@
 1. Every user has a canonical role. The role grants a default set of module capabilities.
 2. A named-user override may grant or remove a module capability beyond the role default, but only within the user's existing approved organization scope.
 3. An override never changes canonical role, city, park, group, participant, guardian, or financial scope. Those require separate, audited assignment changes.
-4. During soft launch, only Super Admin can create roles, assign scope, set role defaults, or create individual overrides.
-5. Later, a City Head may manage individual overrides only for eligible staff inside their own city. They will not manage Super Admin, Program Admin, City Head, global role defaults, or organization scope.
+4. During soft launch, Super Admin alone manages role defaults and individual capability overrides. A City Head may provision and manage Park Leads, Park Admins, and Murabbis inside the assigned city only.
+5. A City Head never manages Super Admin, Program Admin, City Head, global role defaults, individual capability overrides, Cities, or cross-city staff.
 6. Every access change is audited and invalidates the changed user's active sessions immediately.
 7. Unlisted modules and undecided sensitive actions are denied by default.
 
@@ -21,6 +21,7 @@ Access is granted to fixed capabilities. It is never free-text or a custom route
 | Code | Capability | Soft-launch status |
 | --- | --- | --- |
 | `dashboard.view` | Role dashboard and scoped operational summary | Available |
+| `organisation.view` | Scoped parks, batches, and groups | Available |
 | `organisation.manage` | Cities, parks, batches, and groups | Available foundation |
 | `people.view` | Scoped member directory and profiles | Available foundation |
 | `students.manage` | Scoped student roster and record management | Available foundation |
@@ -36,6 +37,7 @@ Access is granted to fixed capabilities. It is never free-text or a custom route
 | `access.role_defaults.manage` | Role-to-capability defaults | New Access Management module |
 | `access.user_overrides.manage` | Named-user capability overrides | New Access Management module |
 | `access.scope.manage` | Canonical role plus city, park, and group assignment | New Access Management module |
+| `access.city_staff.manage` | City-scoped staff provisioning and lifecycle actions | Available for City Head |
 
 Future modules, including events, planner, procurement, inventory, messaging, community, content, team attendance, Mashwara attendance, and safeguarding, have no soft-launch capability grants until their requirements and server enforcement are implemented.
 
@@ -44,21 +46,23 @@ Future modules, including events, planner, procurement, inventory, messaging, co
 | Capability | Super Admin | Program Admin | City Head | Park Lead | Park Admin | Murabbi | Guardian | Shabab |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | `dashboard.view` | Global | Global | City | Park | Park | Assigned groups | Linked children | Own |
-| `organisation.manage` | Global | Global | City | View park | View park | View assigned | - | - |
-| `people.view` | Global | Global | City | Park | Park | Assigned groups | Limited linked | Own |
-| `students.manage` | Global | Global | City | Park | Park | Assigned groups | - | Own profile request only |
-| `guardians.manage` | Global | Global | City | Park | Park | Assigned groups | Own record | - |
-| `admissions.manage` | Global | Global | City | View/recommend | Intake only | Interview input when assigned | Own application | Own application |
+| `organisation.view` | Global | Global | City | Assigned park | - | - | - | - |
+| `organisation.manage` | Global | Global | City | - | - | - | - | - |
+| `people.view` | Global | Global | City | - | - | - | Limited linked | Own |
+| `students.manage` | Global | Global | City | - | - | - | - | Own profile request only |
+| `guardians.manage` | Global | Global | City | - | - | - | Own record | - |
+| `admissions.manage` | Global | Global | City | - | - | - | Own application | Own application |
 | `attendance.mark` | Global | Global oversight | City | Park | Park | Assigned groups | - | - |
 | `attendance.correct` | Global | Global oversight | City | Park | - | - | - | - |
-| `fees.manage` | Global | Global | City | View only | Collection when assigned | - | View linked | View own |
-| `announcements.manage` | Global | Global | City | Park | - | Assigned groups | - | - |
-| `reports.view` | Global | Global | City | Park operational | Park operational | Assigned groups | Linked children | Own |
+| `fees.manage` | Global | Global | City | - | - | - | View linked | View own |
+| `announcements.manage` | Global | Global | City | - | - | - | - | - |
+| `reports.view` | Global | Global | City | - | - | - | Linked children | Own |
 | `audit.view` | Global | Global read-only | - | - | - | - | - | - |
 | `settings.manage` | Global | Global limited | - | - | - | - | - | - |
 | `access.role_defaults.manage` | Global | - | - | - | - | - | - | - |
-| `access.user_overrides.manage` | Global | - | Future: city staff only | - | - | - | - | - |
+| `access.user_overrides.manage` | Global | - | - | - | - | - | - | - |
 | `access.scope.manage` | Global | - | - | - | - | - | - | - |
+| `access.city_staff.manage` | Global | - | City staff only | - | - | - | - | - |
 
 `Global` means global only where the capability is appropriate. Server-side sensitive-data rules and resource scope checks still apply. `City`, `Park`, and `Assigned groups` must match the current user's database assignment. `-` means denied.
 
@@ -86,18 +90,19 @@ Future modules, including events, planner, procurement, inventory, messaging, co
 | Action | Super Admin | Program Admin | City Head | Other roles |
 | --- | --- | --- | --- | --- |
 | Manage role defaults | Allow | Deny | Deny | Deny |
-| Assign canonical roles and scope | Allow | Deny | Deny | Deny |
+| Assign canonical roles and scope | Allow | Deny | Park Lead, Park Admin, and Murabbi in own city | Deny |
 | Create, edit, revoke user overrides | Allow | Deny | Deny | Deny |
 | Read access-change audit | Allow | Read-only | Deny | Deny |
 
-### Later City Head delegation
+### City Head staff delegation
 
-This is intentionally disabled for soft launch. It can only be enabled after tests and UAT prove city isolation.
+This delegation is enabled only for the narrow, server-enforced lifecycle
+actions below. City isolation remains a staging UAT gate.
 
-| Action | Future City Head boundary |
+| Action | City Head boundary |
 | --- | --- |
-| Manage user overrides | Only active Park Leads, Park Admins, and Murabbis assigned to the same city |
-| Assign canonical roles or scope | Deny |
+| Provision, activate, deactivate, reset, assign role or scope | Only Park Leads, Park Admins, and Murabbis assigned to the same city |
+| Manage user overrides | Deny |
 | Edit global role defaults | Deny |
 | Manage Super Admin, Program Admin, or City Head access | Deny |
 | Grant global/sensitive capabilities | Deny |
@@ -121,4 +126,4 @@ This is intentionally disabled for soft launch. It can only be enabled after tes
 4. Build the Super Admin Access Management workspace.
 5. Add tests, migration/reconciliation tests, and role-based browser UAT.
 6. Enable only the available soft-launch capabilities.
-7. Consider City Head delegation only after a separate owner approval and city-isolation UAT.
+7. Complete City Head city-isolation UAT before expanding delegation beyond the approved staff lifecycle boundary.

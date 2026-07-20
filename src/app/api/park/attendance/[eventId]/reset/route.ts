@@ -3,7 +3,7 @@ import { requireAuth, requireCapability, requireResourceScope } from "@/lib/auth
 import { db } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
 
-const EVENT_SUPERVISOR_ROLES = ["park_admin", "park_lead"] as const;
+const EVENT_SUPERVISOR_ROLES = ["park_lead"] as const;
 
 export async function DELETE(
   _req: Request,

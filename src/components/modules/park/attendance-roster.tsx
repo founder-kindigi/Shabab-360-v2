@@ -263,8 +263,8 @@ export function AttendanceRoster() {
   );
 
   const userRole = (session?.user as { role?: string } | undefined)?.role;
-  const canEditRecord = userRole === "admin" || userRole === "super_admin" || userRole === "program_admin" || userRole === "park_admin" || userRole === "park_lead";
-  const canClose = userRole === "park_admin" || userRole === "park_lead";
+  const canEditRecord = userRole === "admin" || userRole === "super_admin" || userRole === "program_admin" || userRole === "park_lead";
+  const canClose = userRole === "park_lead";
   const canReset = canClose;
 
   // ─── Fetch roster ────────────────────────────────────────────────────────
