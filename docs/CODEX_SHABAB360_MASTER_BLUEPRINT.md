@@ -447,6 +447,28 @@ These concepts must be distinct:
 Events require scope, audience, venue, capacity, cost, consent/safety needs,
 responsible people, assistants, checklist/tasks, status, and post-event review.
 
+### 8.6.1 Weekly Mashwara
+
+Mashwara is a recurring staff meeting, not merely an attendance event. It must
+be created at city, park, or collaboration-team scope and retain an immutable
+record of what was agreed. Each meeting requires:
+
+- schedule, scope, facilitator, attendees, agenda and meeting link/location;
+- attendance where required, marked only by the authorised meeting lead;
+- Karguzari/MoM entries covering progress, decisions, blockers, risks and
+  follow-up; each entry records its author and timestamps;
+- action items assigned to one or more collaboration teams, with an optional
+  accountable staff member, due date, status, priority and completion evidence;
+- a review/close workflow so completed minutes cannot be silently rewritten;
+- linked planner activities, calendar entries and notifications where relevant;
+- city/park/team-scoped visibility, audit history and notifications that never
+  reveal private notes outside the recipient's authorised scope.
+
+Team membership may allow a member to see and update the team's assigned work,
+but it never grants access to a meeting outside the user's city, park or
+explicit team scope. Staff-only meeting chat and document attachments remain
+separate, pending approved retention, moderation and private-storage rules.
+
 The venue model must support a regular primary location and approved backup or
 indoor locations. Where operationally justified, it should record venue type,
 capacity, operating hours, permissions, facilities such as water/restrooms and

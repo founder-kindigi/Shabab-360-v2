@@ -112,6 +112,10 @@ Last consolidated: 2026-07-18. Verify changing facts against the checkout before
   plus a State Life School park override. The owner will map staff into the
   five collaboration teams in the portal; no workbook-based membership
   inference is allowed. No planner rows have been written to staging.
+- Weekly Mashwara is an approved future module: scoped recurring meetings,
+  attendance where needed, Karguzari/MoM, decisions and collaboration-team
+  action items. It requires immutable review/audit behavior and never lets team
+  membership expand hierarchy scope.
 - Owner delivery order: first perform a real-data stabilization pass over the
   existing Lahore-backed roles, workflows, UI, errors, scope boundaries, and
   operational gaps. Record retain/remove/modify findings and complete staging

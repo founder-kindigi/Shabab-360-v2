@@ -654,6 +654,8 @@ These tasks require their matching owner decisions and
 | `CAL-301` | P1 | `PENDING` | `SESSION-202`, `CONTENT-302` | Implement forward calendar, recurrence and batch planner |
 | `EVENT-301` | P1 | `PENDING` | `CAL-301`, `VENUE-301`, `SAFE-203` | Implement activities/events, consent, capacity and attendance links |
 | `PLAN-301` | P1 | `PENDING` | `EVENT-301` | Implement responsibility tasks, owners, deadlines and evidence |
+| `MASHWARA-301` | P1 | `PENDING` | `SESSION-202`, `ORG-202` | Design scoped weekly Mashwara, Karguzari/MoM, decision, action-item and review model |
+| `MASHWARA-302` | P1 | `PENDING` | `MASHWARA-301`, `CAL-301` | Implement recurring meetings, MoM, team-assigned tasks, notification and audit flows |
 | `DELIVERY-REPORT-301` | P1 | `PENDING` | Phase 4 modules | Report plan versus delivery, participation and responsibility completion |
 | `DELIVERY-UAT-301` | P1 | `PENDING` | Phase 4 modules | Run complete batch-planning and delivery UAT |
 
