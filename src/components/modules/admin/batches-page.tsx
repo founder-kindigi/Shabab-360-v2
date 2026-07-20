@@ -343,9 +343,7 @@ export function BatchesPage() {
   const canCreate =
     user?.role === "super_admin" ||
     user?.role === "program_admin" ||
-    user?.role === "city_head" ||
-    user?.role === "park_admin" ||
-    user?.role === "park_lead";
+    user?.role === "city_head";
 
   // Column definitions for SortableDataTable
   const columns: Column<Batch>[] = [
@@ -458,7 +456,7 @@ export function BatchesPage() {
         search={search}
         onSearchChange={setSearch}
         searchPlaceholder="Search batches..."
-        actions={(batch) => [
+        actions={(batch) => canCreate ? [
           { label: "Edit", icon: Pencil, onClick: () => openEditDialog(batch) },
           {
             label: "Certificates",
@@ -471,7 +469,7 @@ export function BatchesPage() {
             onClick: () => openDeleteDialog(batch),
             destructive: true,
           },
-        ]}
+        ] : []}
         emptyIcon={CalendarRange}
         emptyTitle={search ? "No batches found" : "No batches yet"}
         emptyDescription={

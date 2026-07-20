@@ -47,6 +47,7 @@ import {
   SortableDataTable,
   type Column,
 } from "@/components/shared/sortable-data-table";
+import { fetchJsonArray } from "@/lib/api/fetch-json-array";
 
 interface CityOption {
   id: string;
@@ -89,8 +90,9 @@ export function ParksPage() {
   // Fetch cities for the select dropdown
   const { data: cities } = useQuery<CityOption[]>({
     queryKey: ["admin-cities-select"],
-    queryFn: () => fetch("/api/admin/cities").then((r) => r.json()),
+    queryFn: () => fetchJsonArray<CityOption>("/api/admin/cities"),
     staleTime: 60000,
+    enabled: !isCityHead,
   });
 
   // Fetch parks
@@ -102,7 +104,7 @@ export function ParksPage() {
         params.set("cityId", cityFilter);
       }
       const qs = params.toString();
-      return fetch(`/api/admin/parks${qs ? `?${qs}` : ""}`).then((r) => r.json());
+      return fetchJsonArray<Park>(`/api/admin/parks${qs ? `?${qs}` : ""}`);
     },
     staleTime: 30000,
   });
@@ -266,10 +268,8 @@ export function ParksPage() {
       (p.address && p.address.toLowerCase().includes(search.toLowerCase()))
   );
 
-  // Available cities for select (for city_head, only their assigned city)
-  const availableCities = isCityHead
-    ? cities?.filter((c) => c.id === user?.assignedCityId) || []
-    : cities || [];
+  const availableCities = cities || [];
+  const assignedCityName = parks?.[0]?.city.name || "Assigned city";
 
   // Column definitions for SortableDataTable
   const columns: Column<Park>[] = [
@@ -430,11 +430,12 @@ export function ParksPage() {
           <form onSubmit={handleCreateSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="create-city">City</Label>
-              <Select
-                value={formCityId}
-                onValueChange={setFormCityId}
-                disabled={isCityHead}
-              >
+              {isCityHead ? <>
+                <Input value={assignedCityName} disabled className="bg-muted" />
+                <p className="text-xs text-muted-foreground">
+                  Assigned city (cannot be changed)
+                </p>
+              </> : <Select value={formCityId} onValueChange={setFormCityId}>
                 <SelectTrigger id="create-city" className="w-full">
                   <SelectValue placeholder="Select a city" />
                 </SelectTrigger>
@@ -445,12 +446,7 @@ export function ParksPage() {
                     </SelectItem>
                   ))}
                 </SelectContent>
-              </Select>
-              {isCityHead && (
-                <p className="text-xs text-muted-foreground">
-                  Assigned city (cannot be changed)
-                </p>
-              )}
+              </Select>}
               {formErrors.cityId && (
                 <p className="text-xs text-destructive">{formErrors.cityId}</p>
               )}
@@ -524,9 +520,7 @@ export function ParksPage() {
             <div className="space-y-2">
               <Label>City</Label>
               <Input
-                value={
-                  availableCities.find((c) => c.id === formCityId)?.name || ""
-                }
+                value={selectedPark?.city.name || ""}
                 disabled
                 className="bg-muted"
               />
