@@ -160,10 +160,10 @@ const iconMap: Record<string, LucideIcon> = {
 const roleNavPages: Record<string, PageId[]> = {
   super_admin: ["admin-dashboard","admin-cities","admin-parks","admin-batches","admin-groups","admin-people","admin-students","admin-guardians","admin-attendance-events","admin-users","admin-access","admin-admissions","admin-fees","admin-announcements","admin-reports","notifications","admin-audit-log","admin-access-management","admin-settings"],
   program_admin: ["admin-dashboard","admin-cities","admin-parks","admin-batches","admin-groups","admin-people","admin-students","admin-guardians","admin-attendance-events","admin-users","admin-access","admin-admissions","admin-fees","admin-announcements","admin-reports","notifications","admin-audit-log","admin-settings"],
-  city_head: ["city-head-dashboard","admin-parks","admin-batches","admin-groups","admin-people","admin-students","admin-attendance-events","admin-announcements","admin-reports","notifications"],
-  park_admin: ["park-dashboard","park-attendance","park-roster","park-participants","park-guardians","park-schedule","notifications"],
-  park_lead: ["park-dashboard","park-attendance","park-roster","park-participants","park-guardians","park-schedule","notifications"],
-  murabbi: ["murabbi-dashboard","murabbi-groups","park-attendance","park-roster","park-participants","notifications"],
+  city_head: ["city-head-dashboard","admin-parks","admin-batches","admin-groups","admin-people","admin-students","admin-attendance-events","admin-access","admin-announcements","admin-reports","notifications"],
+  park_admin: ["park-dashboard","park-attendance","notifications"],
+  park_lead: ["park-dashboard","admin-groups","park-attendance","notifications"],
+  murabbi: ["murabbi-dashboard","park-attendance","notifications"],
   guardian: ["guardian-dashboard","guardian-history","guardian-schedule","guardian-fees","guardian-announcements"],
   student: ["student-dashboard","student-history","student-schedule","student-fees","student-announcements","student-profile"],
 };

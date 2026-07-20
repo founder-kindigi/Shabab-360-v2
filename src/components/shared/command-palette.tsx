@@ -78,19 +78,24 @@ function getNavItemsForRole(role: string | undefined): NavItemDef[] {
       { id: "admin-people", label: "People", icon: Users, section: "People" },
       { id: "admin-students", label: "Students", icon: GraduationCap, section: "People" },
       { id: "admin-attendance-events", label: "Attendance", icon: CalendarCheck, section: "Operations" },
+      { id: "admin-access", label: "Access Provisioning", icon: UserPlus, section: "Operations" },
       { id: "admin-announcements", label: "Announcements", icon: Megaphone, section: "Communication" },
       { id: "admin-reports", label: "Reports", icon: BarChart3, section: "Communication" },
     ];
   }
 
-  if (["park_admin", "park_lead"].includes(role)) {
+  if (role === "park_admin") {
     return [
       { id: "park-dashboard", label: "Dashboard", icon: LayoutDashboard, section: "Overview" },
       { id: "park-attendance", label: "Attendance", icon: CalendarCheck, section: "Daily" },
-      { id: "park-roster", label: "Roster", icon: ClipboardList, section: "Daily" },
-      { id: "park-participants", label: "Participants", icon: GraduationCap, section: "Directory" },
-      { id: "park-guardians", label: "Families", icon: ShieldCheck, section: "Directory" },
-      { id: "park-schedule", label: "Schedule", icon: Clock, section: "Directory" },
+    ];
+  }
+
+  if (role === "park_lead") {
+    return [
+      { id: "park-dashboard", label: "Dashboard", icon: LayoutDashboard, section: "Overview" },
+      { id: "admin-groups", label: "Groups", icon: Users, section: "Organization" },
+      { id: "park-attendance", label: "Attendance", icon: CalendarCheck, section: "Daily" },
     ];
   }
 
@@ -98,8 +103,6 @@ function getNavItemsForRole(role: string | undefined): NavItemDef[] {
     return [
       { id: "murabbi-dashboard", label: "Dashboard", icon: LayoutDashboard, section: "Overview" },
       { id: "park-attendance", label: "Attendance", icon: CalendarCheck, section: "Daily" },
-      { id: "park-roster", label: "Roster", icon: ClipboardList, section: "Daily" },
-      { id: "park-participants", label: "My Group", icon: GraduationCap, section: "Group" },
     ];
   }
 

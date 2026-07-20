@@ -85,6 +85,38 @@ The operating sequence is:
 
 No public production handover is currently approved.
 
+### Current Delivery Order (Owner Decision, 2026-07-20)
+
+The Lahore staging import is now the practical baseline for the next delivery
+phase. Before starting broad redesigns, new modules, or speculative features,
+complete a **real-data stabilization pass** across the current system:
+
+1. Review every existing role, page, workflow, scope boundary, dashboard, and
+   mobile UI against the imported Lahore data.
+2. Correct defects, empty/error states, misleading counts, inaccessible or
+   out-of-scope navigation, data-shape assumptions, and operational gaps that
+   prevent the current system from being useful.
+3. Verify the corrected current system through role-based staging UAT and
+   document what must be retained, removed, or changed.
+4. Only after this stabilization gate is accepted, begin the next product phase
+   to redesign and extend the system module by module from the approved gap
+   list.
+
+This sequence does not weaken security, authorization, migration, or data
+quality gates. New foundation work is allowed only where it is necessary to
+make the current Lahore-backed system operational.
+
+### Confirmed Current Role Boundaries (2026-07-20)
+
+- City Head operates below the city level, never manages Cities, and may manage
+  only Park Leads, Park Admins, and Murabbis within the assigned city.
+- Park Lead can view all groups and manage attendance in the assigned park.
+- Park Admin can mark attendance for all groups in the assigned park only.
+- Murabbi can mark attendance for the assigned group only.
+- City Head staff provisioning, activation, deactivation, reset, and scope
+  changes must be enforced on the server. It must never grant role-default or
+  individual capability-override administration, HQ roles, or cross-city access.
+
 ## 3. Programme Understanding
 
 Public research currently supports the following working understanding:

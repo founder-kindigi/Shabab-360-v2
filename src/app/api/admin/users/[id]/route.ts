@@ -13,6 +13,7 @@ const VALID_ROLES: StaffRole[] = [
   "park_lead",
   "murabbi",
 ];
+const CITY_HEAD_MANAGEABLE_ROLES: StaffRole[] = ["park_admin", "park_lead", "murabbi"];
 
 const updateSchema = z.object({
   name: z.string().min(2).optional(),
@@ -33,14 +34,20 @@ interface RouteParams {
 }
 
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
-  const authError = await requireRole(["super_admin"]);
+  const authError = await requireRole(["super_admin", "city_head"]);
   if (authError) return authError;
 
   const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
   const { user: currentUser } = auth;
-  const capabilityAuth = await requireCapability("access.scope.manage");
+  const isCityHead = currentUser.role === "city_head";
+  const capabilityAuth = await requireCapability(
+    isCityHead ? "access.city_staff.manage" : "access.scope.manage"
+  );
   if (capabilityAuth instanceof NextResponse) return capabilityAuth;
+  if (isCityHead && !currentUser.assignedCityId) {
+    return NextResponse.json({ error: "City Head scope is missing" }, { status: 403 });
+  }
 
   const { id } = await params;
 
@@ -66,7 +73,11 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
   const oldMeta = await db.staffMeta.findUnique({
     where: { userId: id },
-    select: { role: true, assignedCityId: true, assignedParkId: true, assignedGroupId: true, isActive: true },
+    select: {
+      role: true, assignedCityId: true, assignedParkId: true, assignedGroupId: true, isActive: true,
+      assignedPark: { select: { cityId: true } },
+      assignedGroup: { select: { batch: { select: { park: { select: { cityId: true } } } } } },
+    },
   });
 
   // Check email uniqueness if changing
@@ -94,6 +105,21 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     parkId: data.assignedParkId === undefined ? oldMeta?.assignedParkId ?? null : data.assignedParkId,
     groupId: data.assignedGroupId === undefined ? oldMeta?.assignedGroupId ?? null : data.assignedGroupId,
   };
+
+  if (isCityHead) {
+    const targetCityId = oldMeta?.assignedCityId
+      ?? oldMeta?.assignedPark?.cityId
+      ?? oldMeta?.assignedGroup?.batch.park.cityId;
+    if (!oldMeta || !CITY_HEAD_MANAGEABLE_ROLES.includes(oldMeta.role as StaffRole) || targetCityId !== currentUser.assignedCityId) {
+      return NextResponse.json({ error: "You can only manage staff in your assigned city" }, { status: 403 });
+    }
+    if (!effectiveRole || !CITY_HEAD_MANAGEABLE_ROLES.includes(effectiveRole as StaffRole)) {
+      return NextResponse.json({ error: "City Heads can only assign Park Lead, Park Admin, or Murabbi roles" }, { status: 403 });
+    }
+    if (nextScope.cityId !== currentUser.assignedCityId) {
+      return NextResponse.json({ error: "Staff must remain assigned to your city" }, { status: 403 });
+    }
+  }
 
   if (hasStaffChanges && !effectiveRole) {
     return NextResponse.json(

@@ -50,6 +50,7 @@ import {
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
+import { fetchJsonArray } from "@/lib/api/fetch-json-array";
 import {
   Plus,
   Search,
@@ -102,14 +103,14 @@ export function GroupsPage() {
   // Fetch batches for dropdown
   const { data: batchOptions } = useQuery<BatchOption[]>({
     queryKey: ["admin-batches-dropdown"],
-    queryFn: () => fetch("/api/admin/batches").then((r) => r.json()),
+    queryFn: () => fetchJsonArray<BatchOption>("/api/admin/batches"),
     staleTime: 30000,
   });
 
   // Fetch groups
   const { data: groups, isLoading } = useQuery<Group[]>({
     queryKey: ["admin-groups"],
-    queryFn: () => fetch("/api/admin/groups").then((r) => r.json()),
+    queryFn: () => fetchJsonArray<Group>("/api/admin/groups"),
     staleTime: 30000,
   });
 
@@ -260,16 +261,8 @@ export function GroupsPage() {
   });
 
   // Determine if user can create/edit/delete groups
-  const isMurabbi = user?.role === "murabbi";
-  const canCreate =
-    !isMurabbi &&
-    (user?.role === "super_admin" ||
-      user?.role === "program_admin" ||
-      user?.role === "city_head" ||
-      user?.role === "park_admin" ||
-      user?.role === "park_lead");
-
-  const canEditDelete = canCreate || isMurabbi;
+  const canCreate = ["super_admin", "program_admin", "city_head"].includes(user?.role || "");
+  const canEditDelete = canCreate;
 
   return (
     <div className="space-y-6">
@@ -407,7 +400,7 @@ export function GroupsPage() {
                               <Pencil className="size-4 mr-2" />
                               Edit
                             </DropdownMenuItem>
-                            {!isMurabbi && (
+                            {canEditDelete && (
                               <DropdownMenuItem
                                 onClick={() => openDeleteDialog(group)}
                                 className="text-red-600 focus:text-red-600 cursor-pointer"
@@ -460,7 +453,7 @@ export function GroupsPage() {
                           <Pencil className="size-4 mr-2" />
                           Edit
                         </DropdownMenuItem>
-                        {!isMurabbi && (
+                        {canEditDelete && (
                           <DropdownMenuItem
                             onClick={() => openDeleteDialog(group)}
                             className="text-red-600 focus:text-red-600 cursor-pointer"

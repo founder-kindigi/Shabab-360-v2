@@ -16,13 +16,22 @@ const userListQuerySchema = paginatedQuerySchema().extend({
   sort: z.enum(["name", "email", "createdAt"]).default("createdAt"),
   order: z.enum(["asc", "desc"]).default("desc"),
 });
+const CITY_HEAD_MANAGEABLE_ROLES = ["park_admin", "park_lead", "murabbi"];
 
 export async function GET(request: NextRequest) {
-  const authError = await requireRole(["super_admin", "program_admin"]);
+  const authError = await requireRole(["super_admin", "program_admin", "city_head"]);
   if (authError) return authError;
 
   const capabilityAuth = await requireCapability("people.view");
   if (capabilityAuth instanceof NextResponse) return capabilityAuth;
+  const isCityHead = capabilityAuth.user.role === "city_head";
+  if (isCityHead) {
+    const cityStaffCapability = await requireCapability("access.city_staff.manage");
+    if (cityStaffCapability instanceof NextResponse) return cityStaffCapability;
+    if (!capabilityAuth.user.assignedCityId) {
+      return NextResponse.json({ error: "City Head scope is missing" }, { status: 403 });
+    }
+  }
 
   const { searchParams } = new URL(request.url);
   const query = userListQuerySchema.safeParse(queryParamsToObject(searchParams));
@@ -34,9 +43,24 @@ export async function GET(request: NextRequest) {
   // Build where clause
   const where: any = {};
 
-  if (role) {
-    where.staffMeta = { ...where.staffMeta, role };
+  const staffFilters: any[] = [];
+  if (role) staffFilters.push({ staffMeta: { is: { role } } });
+  if (isCityHead) {
+    const cityId = capabilityAuth.user.assignedCityId!;
+    staffFilters.push({ staffMeta: { is: { role: { in: CITY_HEAD_MANAGEABLE_ROLES } } } });
+    staffFilters.push({
+      staffMeta: {
+        is: {
+          OR: [
+            { assignedCityId: cityId },
+            { assignedPark: { cityId } },
+            { assignedGroup: { batch: { park: { cityId } } } },
+          ],
+        },
+      },
+    });
   }
+  if (staffFilters.length > 0) where.AND = staffFilters;
 
   if (status === "active") {
     where.isActive = true;

@@ -34,6 +34,8 @@ describe("access capability policy", () => {
     expect(roleHasDefaultCapability("super_admin", "access.scope.manage")).toBe(true);
     expect(roleHasDefaultCapability("program_admin", "access.user_overrides.manage")).toBe(false);
     expect(roleHasDefaultCapability("city_head", "access.user_overrides.manage")).toBe(false);
+    expect(roleHasDefaultCapability("city_head", "access.city_staff.manage")).toBe(true);
+    expect(roleHasDefaultCapability("program_admin", "access.city_staff.manage")).toBe(false);
   });
 
   it("does not turn view-only or partial operational duties into broad management", () => {

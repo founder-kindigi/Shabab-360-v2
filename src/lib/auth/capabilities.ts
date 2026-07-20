@@ -6,6 +6,7 @@ import type { UserRole } from "@/types";
  */
 export const ACCESS_CAPABILITIES = [
   "dashboard.view",
+  "organisation.view",
   "organisation.manage",
   "people.view",
   "students.manage",
@@ -21,12 +22,14 @@ export const ACCESS_CAPABILITIES = [
   "access.role_defaults.manage",
   "access.user_overrides.manage",
   "access.scope.manage",
+  "access.city_staff.manage",
 ] as const;
 
 // Individual overrides must never grant audit, system-setting, or access
 // administration powers. Those remain role-level, Super Admin-controlled.
 export const USER_OVERRIDE_CAPABILITIES = [
   "dashboard.view",
+  "organisation.view",
   "organisation.manage",
   "people.view",
   "students.manage",
@@ -58,6 +61,7 @@ export const ROLE_DEFAULT_CAPABILITIES: Readonly<Record<UserRole, readonly Acces
   super_admin: superAdminCapabilities,
   program_admin: [
     "dashboard.view",
+    "organisation.view",
     "organisation.manage",
     "people.view",
     "students.manage",
@@ -73,6 +77,7 @@ export const ROLE_DEFAULT_CAPABILITIES: Readonly<Record<UserRole, readonly Acces
   ],
   city_head: [
     "dashboard.view",
+    "organisation.view",
     "organisation.manage",
     "people.view",
     "students.manage",
@@ -83,32 +88,22 @@ export const ROLE_DEFAULT_CAPABILITIES: Readonly<Record<UserRole, readonly Acces
     "fees.manage",
     "announcements.manage",
     "reports.view",
+    "access.city_staff.manage",
   ],
   park_lead: [
     "dashboard.view",
-    "people.view",
-    "students.manage",
+    "organisation.view",
     "guardians.manage",
     "attendance.mark",
     "attendance.correct",
-    "announcements.manage",
-    "reports.view",
   ],
   park_admin: [
     "dashboard.view",
-    "people.view",
-    "students.manage",
-    "guardians.manage",
     "attendance.mark",
-    "reports.view",
   ],
   murabbi: [
     "dashboard.view",
-    "people.view",
-    "students.manage",
     "attendance.mark",
-    "announcements.manage",
-    "reports.view",
   ],
   guardian: ["dashboard.view", "people.view", "guardians.manage", "reports.view"],
   student: ["dashboard.view", "people.view", "students.manage", "reports.view"],

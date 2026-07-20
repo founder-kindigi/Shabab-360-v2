@@ -34,14 +34,23 @@ const CITY_REQUIRED_ROLES = ["city_head", "park_admin", "park_lead", "murabbi"];
 const PARK_REQUIRED_ROLES = ["park_admin", "park_lead", "murabbi"];
 // Roles that require group assignment
 const GROUP_REQUIRED_ROLES = ["murabbi"];
+const CITY_HEAD_ASSIGNABLE_ROLES = ["park_admin", "park_lead", "murabbi"] as const;
 
 export async function POST(request: NextRequest) {
   // Auth check
-  const authError = await requireRole(["super_admin", "program_admin"]);
+  const authError = await requireRole(["super_admin", "program_admin", "city_head"]);
   if (authError) return authError;
 
   const auth = await requireCapability("access.scope.manage");
-  if (auth instanceof NextResponse) return auth;
+  const cityHeadAuth = await requireCapability("access.city_staff.manage");
+  const isCityHead = !(cityHeadAuth instanceof NextResponse) && cityHeadAuth.user.role === "city_head";
+  if (!isCityHead && auth instanceof NextResponse) return auth;
+  if (isCityHead && !cityHeadAuth.user.assignedCityId) {
+    return NextResponse.json({ error: "City Head scope is missing" }, { status: 403 });
+  }
+  const actorUserId = isCityHead
+    ? (cityHeadAuth as { user: { id: string } }).user.id
+    : (auth as { user: { id: string } }).user.id;
 
   // Parse and validate body
   const body = await request.json();
@@ -54,6 +63,15 @@ export async function POST(request: NextRequest) {
   }
 
   const { name, email, phone, role, assignedCityId, assignedParkId, assignedGroupId } = parsed.data;
+
+  if (isCityHead) {
+    if (!CITY_HEAD_ASSIGNABLE_ROLES.includes(role as (typeof CITY_HEAD_ASSIGNABLE_ROLES)[number])) {
+      return NextResponse.json({ error: "City Heads can only provision Park Leads, Park Admins, and Murabbis" }, { status: 403 });
+    }
+    if (assignedCityId !== cityHeadAuth.user.assignedCityId) {
+      return NextResponse.json({ error: "Staff must be assigned to your city" }, { status: 403 });
+    }
+  }
 
   // Validate role-scope requirements
   if (CITY_REQUIRED_ROLES.includes(role) && !assignedCityId) {
@@ -210,7 +228,7 @@ export async function POST(request: NextRequest) {
 
   // Fire audit log
   await logAudit({
-    userId: auth.user.id,
+    userId: actorUserId,
     action: "create",
     entityType: "user",
     entityId: user!.id,

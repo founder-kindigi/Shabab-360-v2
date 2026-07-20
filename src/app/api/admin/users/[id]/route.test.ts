@@ -138,6 +138,19 @@ describe("user session invalidation mutations", () => {
     expect(mocks.transaction).not.toHaveBeenCalled();
   });
 
+  it("denies a City Head attempting to manage staff outside their assigned city", async () => {
+    mocks.requireAuth.mockResolvedValue({
+      user: { id: "city-head-1", role: "city_head", assignedCityId: "city-2" },
+    });
+    mocks.userFindUnique.mockResolvedValue(oldUser);
+    mocks.staffMetaFindUnique.mockResolvedValue(oldMeta);
+
+    const response = await PATCH(request("PATCH", { isActive: false }), routeParams());
+
+    expect(response.status).toBe(403);
+    expect(mocks.transaction).not.toHaveBeenCalled();
+  });
+
   it("deactivates the account, staff access, and captured JWT in one transaction", async () => {
     mocks.userFindUnique.mockResolvedValue({ id: "user-1", ...oldUser });
 

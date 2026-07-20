@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
   const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
   const { user } = auth;
-  const capabilityAuth = await requireCapability("organisation.manage");
+  const capabilityAuth = await requireCapability("organisation.view");
   if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
   const { searchParams } = new URL(request.url);

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useSession } from "next-auth/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence, type MotionProps, type Variants } from "framer-motion";
 import { PageHeader } from "@/components/layout/page-header";
@@ -247,6 +248,12 @@ const listItem: Variants = {
 export function AccessProvisioningPage() {
   const queryClient = useQueryClient();
   const { navigateTo } = useAppStore();
+  const { data: session } = useSession();
+  const currentUser = session?.user as import("@/types").ShababUser | undefined;
+  const isCityHead = currentUser?.role === "city_head";
+  const availableRoles = isCityHead
+    ? ALL_ROLES.filter((role) => ["park_admin", "park_lead", "murabbi"].includes(role.value))
+    : ALL_ROLES;
 
   // Form state
   const [formName, setFormName] = useState("");
@@ -267,6 +274,7 @@ export function AccessProvisioningPage() {
     type: "deactivate" | "activate" | "reset_pwd";
     user: UserWithMeta;
   } | null>(null);
+  const cityScopeId = isCityHead ? currentUser?.assignedCityId || "" : formCityId;
 
   // ─── Data fetching ─────────────────────────────────────────────
 
@@ -278,19 +286,20 @@ export function AccessProvisioningPage() {
         .then((r) => r.json())
         .then((data) => data.map((c: any) => ({ id: c.id, name: c.name }))),
     staleTime: 60000,
+    enabled: !isCityHead,
   });
 
   // Fetch parks filtered by city
   const { data: parks } = useQuery<ParkOption[]>({
-    queryKey: ["admin-parks-dropdown", formCityId],
+    queryKey: ["admin-parks-dropdown", cityScopeId],
     queryFn: () =>
-      fetch(`/api/admin/parks${formCityId ? `?cityId=${formCityId}` : ""}`)
+      fetch(`/api/admin/parks${cityScopeId ? `?cityId=${cityScopeId}` : ""}`)
         .then((r) => r.json())
         .then((data) =>
           data.map((p: any) => ({ id: p.id, name: p.name, cityId: p.cityId }))
         ),
     staleTime: 30000,
-    enabled: !!formCityId,
+    enabled: !!cityScopeId,
   });
 
   // Fetch batches for park → group cascade
@@ -499,7 +508,7 @@ export function AccessProvisioningPage() {
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formEmail)) errors.email = "Invalid email format";
     if (!formRole) errors.role = "Role is required";
 
-    if (CITY_ROLES.includes(formRole) && !formCityId) {
+    if (CITY_ROLES.includes(formRole) && !cityScopeId) {
       errors.assignedCityId = "City is required for this role";
     }
     if (PARK_ROLES.includes(formRole) && !formParkId) {
@@ -519,21 +528,23 @@ export function AccessProvisioningPage() {
       email: formEmail.trim(),
       phone: formPhone.trim() || undefined,
       role: formRole as UserRole,
-      assignedCityId: formCityId || undefined,
+      assignedCityId: cityScopeId || undefined,
       assignedParkId: formParkId || undefined,
       assignedGroupId: formGroupId || undefined,
     });
   }
 
   const isSubmitting = inviteMutation.isPending;
-  const selectedRoleConfig = ALL_ROLES.find((r) => r.value === formRole);
+  const selectedRoleConfig = availableRoles.find((r) => r.value === formRole);
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Access Provisioning"
-        description="Create new user accounts and assign roles and permissions"
-        actions={
+        description={isCityHead
+          ? "Manage Park Leads, Park Admins, and Murabbis in your assigned city"
+          : "Create new user accounts and assign roles and permissions"}
+        actions={!isCityHead ? (
           <Button
             variant="outline"
             onClick={() => setImportOpen(true)}
@@ -542,7 +553,7 @@ export function AccessProvisioningPage() {
             <FolderInput className="size-4 mr-2" />
             Import Users
           </Button>
-        }
+        ) : undefined}
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
@@ -643,7 +654,7 @@ export function AccessProvisioningPage() {
                     <SelectValue placeholder="Select a role" />
                   </SelectTrigger>
                   <SelectContent>
-                    {ALL_ROLES.map((r) => (
+                    {availableRoles.map((r) => (
                       <SelectItem key={r.value} value={r.value}>
                         <span className="flex flex-col">
                           <span className="font-medium">{r.label}</span>
@@ -672,7 +683,7 @@ export function AccessProvisioningPage() {
               </motion.div>
 
               {/* City select */}
-              {formRole && CITY_ROLES.includes(formRole) && (
+              {formRole && CITY_ROLES.includes(formRole) && !isCityHead && (
                 <motion.div
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: "auto" }}
@@ -711,11 +722,11 @@ export function AccessProvisioningPage() {
                   <Label className="text-xs font-medium">
                     Park <span className="text-red-500">*</span>
                   </Label>
-                  <Select value={formParkId} onValueChange={handleParkChange} disabled={isSubmitting || !formCityId}>
+                  <Select value={formParkId} onValueChange={handleParkChange} disabled={isSubmitting || !cityScopeId}>
                     <SelectTrigger className="mt-1.5 h-10">
                       <SelectValue
                         placeholder={
-                          !formCityId
+                          !cityScopeId
                             ? "Select a city first"
                             : parks
                               ? "Select a park"
@@ -820,7 +831,7 @@ export function AccessProvisioningPage() {
                       : "Last 20 created users"}
                   </CardDescription>
                 </div>
-                <Button
+                {!isCityHead && <Button
                   variant="ghost"
                   size="sm"
                   className="text-xs text-[#4B0A8F] hover:text-[#6B20A0] hover:bg-[#F3ECF6] dark:text-[#8A40B0] dark:hover:bg-[#1F086080] shrink-0"
@@ -828,7 +839,7 @@ export function AccessProvisioningPage() {
                 >
                   View All
                   <ArrowRight className="size-3 ml-1" />
-                </Button>
+                </Button>}
               </div>
             </CardHeader>
             <CardContent className="flex-1 flex flex-col min-h-0">
@@ -924,13 +935,13 @@ export function AccessProvisioningPage() {
                                       </Button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end" className="w-48">
-                                      <DropdownMenuItem
+                                      {!isCityHead && <DropdownMenuItem
                                         onClick={() => navigateTo("admin-users")}
                                         className="text-xs gap-2"
                                       >
                                         <Pencil className="size-3.5" />
                                         Edit Assignment
-                                      </DropdownMenuItem>
+                                      </DropdownMenuItem>}
                                       <DropdownMenuItem
                                         onClick={() =>
                                           setActionDialog({ type: "reset_pwd", user })
@@ -1018,13 +1029,13 @@ export function AccessProvisioningPage() {
                                   </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end" className="w-48">
-                                  <DropdownMenuItem
+                                  {!isCityHead && <DropdownMenuItem
                                     onClick={() => navigateTo("admin-users")}
                                     className="text-xs gap-2"
                                   >
                                     <Pencil className="size-3.5" />
                                     Edit Assignment
-                                  </DropdownMenuItem>
+                                  </DropdownMenuItem>}
                                   <DropdownMenuItem
                                     onClick={() =>
                                       setActionDialog({ type: "reset_pwd", user })
