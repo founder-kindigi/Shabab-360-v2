@@ -40,6 +40,7 @@ describe("access capability policy", () => {
 
   it("does not turn view-only or partial operational duties into broad management", () => {
     expect(roleHasDefaultCapability("park_lead", "organisation.manage")).toBe(false);
+    expect(roleHasDefaultCapability("park_lead", "guardians.manage")).toBe(false);
     expect(roleHasDefaultCapability("park_lead", "fees.manage")).toBe(false);
     expect(roleHasDefaultCapability("park_admin", "admissions.manage")).toBe(false);
     expect(roleHasDefaultCapability("murabbi", "attendance.correct")).toBe(false);

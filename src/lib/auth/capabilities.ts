@@ -93,7 +93,6 @@ export const ROLE_DEFAULT_CAPABILITIES: Readonly<Record<UserRole, readonly Acces
   park_lead: [
     "dashboard.view",
     "organisation.view",
-    "guardians.manage",
     "attendance.mark",
     "attendance.correct",
   ],
