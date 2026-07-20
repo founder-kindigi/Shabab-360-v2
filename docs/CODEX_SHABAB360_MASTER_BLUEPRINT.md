@@ -410,6 +410,11 @@ Offline rules:
 
 ### 8.5 Content Planner And Murabbi Training
 
+- Owner-provided Batch 4 source plans have been reviewed. The workbook maps
+  Exercises/Sports to Sports, Skills to Skills, and Tadreeb to Tadreeb; it does
+  not define Media or Muawin content or memberships. See
+  `docs/product-discovery/CONTENT_PLANNER_SOURCE_ANALYSIS.md` before any import
+  or planner implementation.
 - Maintain Shabab class content under four official categories, still to be
   named and defined.
 - Plan content by batch, week, class/session, group type, age/class band, and
