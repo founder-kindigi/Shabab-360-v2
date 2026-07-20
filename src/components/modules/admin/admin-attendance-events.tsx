@@ -3,6 +3,7 @@
 import { useState, useCallback } from "react";
 import { format } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
+import { useSession } from "next-auth/react";
 import { PageHeader } from "@/components/layout/page-header";
 import { EmptyState } from "@/components/layout/empty-state";
 import { Button } from "@/components/ui/button";
@@ -52,6 +53,7 @@ import {
   AttendanceReportPrint,
   type AttendanceReportData,
 } from "@/components/shared/attendance-report-print";
+import { fetchJsonArray } from "@/lib/api/fetch-json-array";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -155,6 +157,9 @@ function MiniProgressBar({ value }: { value: number }) {
 /* ------------------------------------------------------------------ */
 
 export function AdminAttendanceEvents() {
+  const { data: session } = useSession();
+  const currentUser = session?.user as import("@/types").ShababUser | undefined;
+  const isCityHead = currentUser?.role === "city_head";
   const [cityId, setCityId] = useState("");
   const [parkId, setParkId] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
@@ -163,6 +168,7 @@ export function AdminAttendanceEvents() {
   const [fromOpen, setFromOpen] = useState(false);
   const [toOpen, setToOpen] = useState(false);
   const [limit, setLimit] = useState(PAGE_LIMIT);
+  const cityScopeId = isCityHead ? currentUser?.assignedCityId || "" : cityId;
 
   /* ---- Print report state ---- */
   const [printOpen, setPrintOpen] = useState(false);
@@ -170,26 +176,27 @@ export function AdminAttendanceEvents() {
   const [reportLoading, setReportLoading] = useState(false);
 
   /* ---- Cities query ---- */
-  const { data: citiesData } = useQuery<{ data: CityOption[] }>({
+  const { data: cities = [] } = useQuery<CityOption[]>({
     queryKey: ["admin-cities-list"],
-    queryFn: () => fetch("/api/admin/cities").then((r) => r.json()),
+    queryFn: () => fetchJsonArray<CityOption>("/api/admin/cities"),
     staleTime: 60_000,
+    enabled: !isCityHead,
   });
 
   /* ---- Parks query (depends on city) ---- */
-  const { data: parksData } = useQuery<{ data: ParkOption[] }>({
-    queryKey: ["admin-parks-list", cityId],
-    queryFn: () =>
-      fetch(`/api/admin/parks${cityId ? `?cityId=${cityId}` : ""}`).then((r) =>
-        r.json()
-      ),
+  const { data: parks = [] } = useQuery<ParkOption[]>({
+    queryKey: ["admin-parks-list", cityScopeId],
+    queryFn: () => fetchJsonArray<ParkOption>(
+      `/api/admin/parks${cityScopeId ? `?cityId=${cityScopeId}` : ""}`
+    ),
     staleTime: 60_000,
+    enabled: !!cityScopeId,
   });
 
   /* ---- Build query params ---- */
   const buildQueryParams = useCallback(() => {
     const params = new URLSearchParams();
-    if (cityId) params.set("cityId", cityId);
+    if (cityScopeId) params.set("cityId", cityScopeId);
     if (parkId) params.set("parkId", parkId);
     if (statusFilter)
       params.set("isClosed", statusFilter === "closed" ? "true" : "false");
@@ -198,7 +205,7 @@ export function AdminAttendanceEvents() {
     params.set("limit", String(limit));
     params.set("offset", "0");
     return params.toString();
-  }, [cityId, parkId, statusFilter, dateFrom, dateTo, limit]);
+  }, [cityScopeId, parkId, statusFilter, dateFrom, dateTo, limit]);
 
   /* ---- Events query ---- */
   const {
@@ -209,7 +216,7 @@ export function AdminAttendanceEvents() {
   } = useQuery<AttendanceEventsResponse>({
     queryKey: [
       "admin-attendance-events",
-      cityId,
+      cityScopeId,
       parkId,
       statusFilter,
       dateFrom,
@@ -275,7 +282,7 @@ export function AdminAttendanceEvents() {
                 setReportData(null);
                 try {
                   const params = new URLSearchParams();
-                  if (cityId) params.set("cityId", cityId);
+                  if (cityScopeId) params.set("cityId", cityScopeId);
                   if (parkId) params.set("parkId", parkId);
                   if (dateFrom) params.set("from", format(dateFrom, "yyyy-MM-dd"));
                   if (dateTo) params.set("to", format(dateTo, "yyyy-MM-dd"));
@@ -375,7 +382,7 @@ export function AdminAttendanceEvents() {
         </div>
         <div className="flex flex-wrap items-end gap-3">
           {/* City select */}
-          <div className="space-y-1.5">
+          {!isCityHead && <div className="space-y-1.5">
             <label className="text-xs font-medium text-muted-foreground">
               City
             </label>
@@ -392,14 +399,14 @@ export function AdminAttendanceEvents() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="__all__">All Cities</SelectItem>
-                {citiesData?.data?.map((city) => (
+                {cities.map((city) => (
                   <SelectItem key={city.id} value={city.id}>
                     {city.name}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-          </div>
+          </div>}
 
           {/* Park select */}
           <div className="space-y-1.5">
@@ -412,16 +419,16 @@ export function AdminAttendanceEvents() {
                 setParkId(v === "__all__" ? "" : v);
                 handleFilterChange();
               }}
-              disabled={!cityId}
+              disabled={!cityScopeId}
             >
               <SelectTrigger className="w-[160px] h-9 text-xs">
                 <SelectValue
-                  placeholder={cityId ? "All Parks" : "Select city first"}
+                  placeholder={cityScopeId ? "All Parks" : "Select city first"}
                 />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="__all__">All Parks</SelectItem>
-                {parksData?.data?.map((park) => (
+                {parks.map((park) => (
                   <SelectItem key={park.id} value={park.id}>
                     {park.name}
                   </SelectItem>
