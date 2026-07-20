@@ -20,6 +20,7 @@
     "db:postgres:validate": "prisma validate --schema prisma/postgres/schema.prisma",
     "db:postgres:deploy": "prisma migrate deploy --schema prisma/postgres/schema.prisma",
     "bootstrap:super-admin": "node scripts/bootstrap-super-admin.cjs",
+    "import:lahore:staging": "node scripts/import-lahore-batch-4-staging.cjs",
     "db:reset:staging-data": "node scripts/reset-staging-data.cjs",
     "db:migrate:sqlite-to-postgres": "node scripts/migrate-sqlite-to-postgres.cjs",
     "db:reconcile:sqlite-to-postgres": "node scripts/reconcile-sqlite-to-postgres.cjs",

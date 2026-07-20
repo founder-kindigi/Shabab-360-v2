@@ -209,8 +209,41 @@ The report intentionally withholds attendance status conversion until the comple
 - Age and grade/class are required participant fields for Lahore and need an approved schema destination before staging import.
 - Initial rollout is staff accounts only. Student and guardian accounts wait for verified contact and guardian-child mappings.
 - Sports, Skills, Tadreeb, Media, and Muawin are dedicated collaboration teams. They will hold documents, activity plans, and team discussions, while canonical role and hierarchy scope continue to govern application access.
+- Populated unnumbered student rows are accepted and use their workbook sheet/row reference as their staging import identifier.
+- A `Dropout` value uses the first corresponding workbook session date as the participant's effective dropout date. The marker itself and later attendance are not imported.
+- The one malformed attendance value is excluded rather than corrected during this import.
+- The blank Murabbi group assignment remains unassigned until a later nomination.
+- Source staff receive inactive, non-deliverable `example.invalid` placeholder-email records for Staging. They cannot sign in and must receive a verified email, approved canonical role, and complete scope before activation. Collaboration-team titles remain in the private import manifest until the multi-assignment/team schema exists.
+- The resulting guarded staging manifest contains 277 participants (254 numbered plus 23 accepted unnumbered rows), 51 inactive staff placeholders, 180 closed historical attendance events, and 2,967 attendance records. It excludes the malformed value, all attendance on/after a participant's first `Dropout` date, and future dates after 19 July 2026.
 
-No production or staging database data, real accounts, or attendance history has been created by this work.
+Before the approved execution below, this work had created no production or
+staging database data, real accounts, or attendance history.
+
+### Staging Execution Evidence (2026-07-20)
+
+The owner explicitly approved the guarded `shabab360-staging` execution. The
+import completed in one serializable transaction after the importer was changed
+to use bulk writes suitable for the Supabase Session Pooler. Aggregate-only
+reconciliation confirmed the expected target state:
+
+- 1 Lahore city, 6 parks, 6 Batch 4 records, and 13 groups.
+- 277 participants: 257 `active` and 20 `dropout`.
+- 180 closed historical attendance events and 2,967 attendance records.
+- Attendance totals: 838 present, 1,171 absent, 636 late, and 322 excused.
+- 51 inactive placeholder staff records plus one inactive import-service record;
+  the existing Super Admin remains active.
+
+The temporary local connection file was deleted after reconciliation. Pilot
+Production remains untouched; staging contains the imported Lahore dataset.
+
+### Collaboration-Team Foundation (2026-07-20)
+
+The additive collaboration-team migration is deployed to Staging. The five
+Lahore teams, `Sports`, `Skills`, `Tadreeb`, `Media`, and `Muawin`, were seeded
+idempotently. Verification confirmed five active teams, zero memberships, and
+no newly activated staff accounts. Team memberships and responsibility titles
+will be assigned only after the canonical role and hierarchy-scope nominations
+are approved; they never grant application access by themselves.
 
 ### Corrected Approved-Cutoff Dry Run (2026-07-20)
 

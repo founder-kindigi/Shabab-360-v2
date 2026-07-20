@@ -96,12 +96,24 @@ function readParkSheet(sheet, sheetName, parkName, startYear) {
     const nameValue = sheet.getCell(row, 2).value;
     if (!isSourceDataRow(sheet.getCell(row, 1).value)) {
       if (currentGroup && typeof nameValue === "string" && text(nameValue) && !nameValue.trim().startsWith("=")) {
+        const name = text(nameValue);
+        const phone = text(sheet.getCell(row, 3).value).replace(/^'/, "");
         const hasPhone = Boolean(text(sheet.getCell(row, 3).value));
         const age = text(sheet.getCell(row, 7).value);
         const grade = text(sheet.getCell(row, 8).value);
         const hasAttendance = attendanceColumns.some((column) => classifyStatus(sheet.getCell(row, column).value).kind !== "ignored");
         if (hasPhone || age || grade || hasAttendance) {
-          unnumberedCandidates.push({ sourceRef: `${sheetName}!${row}`, group: currentGroup.name, hasPhone, grade: grade || null });
+          unnumberedCandidates.push({
+            sourceRef: `${sheetName}!${row}`,
+            name,
+            phone,
+            fingerprint: sourceFingerprint(name, phone, parkName, currentGroup.name),
+            group: currentGroup.name,
+            hasPhone,
+            age: /^\d+$/.test(age) ? Number(age) : null,
+            grade: grade || null,
+            statuses: attendanceColumns.map((column, index) => ({ date: sessionDates[index], value: sheet.getCell(row, column).value })),
+          });
         }
       }
       continue;
@@ -111,15 +123,24 @@ function readParkSheet(sheet, sheetName, parkName, startYear) {
     const roleOrGrade = text(sheet.getCell(row, 8).value);
     const sourceRef = `${sheetName}!${row}`;
     if (!currentGroup) {
-      staff.push({ sourceRef, roleLabel: roleOrGrade, canonicalRole: canonicalStaffRole(roleOrGrade) });
+      staff.push({
+        sourceRef,
+        name,
+        phone: text(sheet.getCell(row, 3).value).replace(/^'/, ""),
+        roleLabel: roleOrGrade,
+        canonicalRole: canonicalStaffRole(roleOrGrade),
+      });
       continue;
     }
 
     const phone = text(sheet.getCell(row, 3).value).replace(/^'/, "");
     currentGroup.students.push({
       sourceRef,
+      name,
+      phone,
       fingerprint: sourceFingerprint(name, phone, parkName, currentGroup.name),
       hasPhone: Boolean(phone),
+      age: /^\d+$/.test(text(sheet.getCell(row, 7).value)) ? Number(text(sheet.getCell(row, 7).value)) : null,
       hasAge: Boolean(text(sheet.getCell(row, 7).value)),
       grade: roleOrGrade,
       statuses: attendanceColumns.map((column, index) => ({ date: sessionDates[index], value: sheet.getCell(row, column).value })),
@@ -271,7 +292,7 @@ async function main() {
   console.log(JSON.stringify({ mode: report.mode, writesPerformed: false, students: report.roster.students, proposedEvents: report.attendanceEligibility.proposedEvents, proposedRecords: report.attendanceEligibility.proposedRecords, blockingIssues: report.reconciliation.blockingIssues }, null, 2));
 }
 
-module.exports = { buildDryRunReport, classifyStatus, isSourceDataRow, parseSessionDates, readParkSheet, renderMarkdown };
+module.exports = { PARK_SHEETS, STATUS_MAP, buildDryRunReport, classifyStatus, isSourceDataRow, parseSessionDates, readParkSheet, renderMarkdown, text };
 
 if (require.main === module) {
   main().catch((error) => {

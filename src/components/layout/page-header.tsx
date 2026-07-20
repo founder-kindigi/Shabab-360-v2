@@ -13,6 +13,7 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { Building2, TreePine, CalendarCheck, Users } from "lucide-react";
+import { fetchJsonArray } from "@/lib/api/fetch-json-array";
 
 interface PageHeaderProps {
   title: string;
@@ -52,28 +53,28 @@ export function PageHeader({ title, description, actions }: PageHeaderProps) {
   // Fetch names for breadcrumb
   const { data: cities = [] } = useQuery<CityItem[]>({
     queryKey: ["header-cities"],
-    queryFn: () => fetch("/api/admin/cities").then((r) => r.json()),
+    queryFn: () => fetchJsonArray<CityItem>("/api/admin/cities"),
     enabled: hasScope,
     staleTime: 5 * 60 * 1000,
   });
 
   const { data: parks = [] } = useQuery<ParkItem[]>({
     queryKey: ["header-parks"],
-    queryFn: () => fetch("/api/admin/parks").then((r) => r.json()),
+    queryFn: () => fetchJsonArray<ParkItem>("/api/admin/parks"),
     enabled: hasScope,
     staleTime: 5 * 60 * 1000,
   });
 
   const { data: batches = [] } = useQuery<BatchItem[]>({
     queryKey: ["header-batches", selectedParkId],
-    queryFn: () => fetch(`/api/admin/batches?parkId=${selectedParkId}`).then((r) => r.json()),
+    queryFn: () => fetchJsonArray<BatchItem>(`/api/admin/batches?parkId=${selectedParkId}`),
     enabled: !!selectedParkId,
     staleTime: 5 * 60 * 1000,
   });
 
   const { data: groups = [] } = useQuery<GroupItem[]>({
     queryKey: ["header-groups", selectedBatchId],
-    queryFn: () => fetch(`/api/admin/groups?batchId=${selectedBatchId}`).then((r) => r.json()),
+    queryFn: () => fetchJsonArray<GroupItem>(`/api/admin/groups?batchId=${selectedBatchId}`),
     enabled: !!selectedBatchId,
     staleTime: 5 * 60 * 1000,
   });

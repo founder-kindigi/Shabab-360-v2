@@ -147,6 +147,7 @@ model City {
 
   parks                 Park[]
   cityHeads             StaffMeta[]            @relation("CityHeadAssignment")
+  collaborationTeams    CollaborationTeam[]
   admissionApplications AdmissionApplication[]
 
   @@map("cities")
@@ -219,8 +220,49 @@ model StaffMeta {
   assignedCity  City?  @relation("CityHeadAssignment", fields: [assignedCityId], references: [id], onDelete: SetNull)
   assignedPark  Park?  @relation("ParkStaffAssignment", fields: [assignedParkId], references: [id], onDelete: SetNull)
   assignedGroup Group? @relation("MurabbiAssignment", fields: [assignedGroupId], references: [id], onDelete: SetNull)
+  teamMemberships StaffTeamMembership[]
 
   @@map("staff_meta")
+}
+
+// Collaboration teams are operational groups, never login roles or scope grants.
+model CollaborationTeam {
+  id          String   @id @default(cuid())
+  cityId      String
+  name        String
+  code        String
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  city        City                  @relation(fields: [cityId], references: [id], onDelete: Cascade)
+  memberships StaffTeamMembership[]
+
+  @@unique([cityId, code])
+  @@index([cityId, isActive])
+  @@map("collaboration_teams")
+}
+
+// Keep team responsibility history without changing canonical role or hierarchy scope.
+model StaffTeamMembership {
+  id          String   @id @default(cuid())
+  staffMetaId String
+  teamId      String
+  title       String?
+  startedAt   DateTime @default(now())
+  endedAt     DateTime?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  staffMeta StaffMeta         @relation(fields: [staffMetaId], references: [id], onDelete: Cascade)
+  team      CollaborationTeam @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([staffMetaId, teamId, startedAt])
+  @@index([staffMetaId, isActive])
+  @@index([teamId, isActive])
+  @@map("staff_team_memberships")
 }
 
 model Guardian {

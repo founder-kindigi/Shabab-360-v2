@@ -95,6 +95,19 @@ Last consolidated: 2026-07-18. Verify changing facts against the checkout before
 - Owner approved a full `shabab360-staging` data clear before importing fresh Lahore data.
   The staging-locked reset command deletes all application rows, including audit/access
   records, but preserves schema and migration history. It must never target Pilot Production.
+- The owner accepted unnumbered Lahore Batch 4 roster rows, chose each workbook's first
+  `Dropout` date as effective, excluded the malformed attendance value, and deferred the
+  blank Murabbi assignment. A guarded staging-only importer now dry-runs at 277 participants,
+  51 inactive `example.invalid` staff placeholders, 180 historical events, and 2,967 attendance
+  records. The owner approved execution on 2026-07-20 and the atomic staging
+  import then completed and reconciled: 1 city, 6 parks, 6 batches, 13 groups,
+  277 participants (257 active, 20 dropout), 180 events, 2,967 records, 51
+  inactive staff placeholders, and the existing Super Admin. The temporary
+  local staging URI was deleted after verification.
+- The additive collaboration-team migration is deployed to staging. Lahore now
+  has Sports, Skills, Tadreeb, Media, and Muawin teams with zero memberships.
+  Team membership is intentionally separate from login role/scope, and no
+  placeholder staff account was activated.
 
 ## Invariants to preserve
 
