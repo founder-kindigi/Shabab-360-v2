@@ -82,10 +82,10 @@ The workbook contains two date-based session plans with these columns:
 
 ## Owner Inputs Needed Before Import
 
-1. Upload the team management sheet so staff can be mapped to Sports, Skills,
-   Tadreeb, Media, and Muawin.
-2. Confirm whether `State Life School` maps to an existing Lahore park and
-   whether it is an override or an independent plan.
+1. The owner will map staff to Sports, Skills, Tadreeb, Media, and Muawin in
+   the portal; no membership should be inferred from this workbook.
+2. Confirmed: `State Life School` is an existing Lahore park and its sheet is
+   a park-specific override, separate from the Lahore/Batch 4 template.
 3. Confirm who may draft, publish, revise, and mark delivery for each team.
 4. Approve the staff-only chat retention and moderation policy before chat is
    enabled.

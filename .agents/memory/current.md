@@ -108,6 +108,10 @@ Last consolidated: 2026-07-18. Verify changing facts against the checkout before
   has Sports, Skills, Tadreeb, Media, and Muawin teams with zero memberships.
   Team membership is intentionally separate from login role/scope, and no
   placeholder staff account was activated.
+- The Batch 4 content workbook is the approved source for a Lahore template
+  plus a State Life School park override. The owner will map staff into the
+  five collaboration teams in the portal; no workbook-based membership
+  inference is allowed. No planner rows have been written to staging.
 - Owner delivery order: first perform a real-data stabilization pass over the
   existing Lahore-backed roles, workflows, UI, errors, scope boundaries, and
   operational gaps. Record retain/remove/modify findings and complete staging
