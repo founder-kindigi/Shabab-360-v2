@@ -160,7 +160,7 @@ const iconMap: Record<string, LucideIcon> = {
 const roleNavPages: Record<string, PageId[]> = {
   super_admin: ["admin-dashboard","admin-cities","admin-parks","admin-batches","admin-groups","admin-people","admin-students","admin-guardians","admin-attendance-events","admin-users","admin-access","admin-admissions","admin-fees","admin-announcements","admin-reports","notifications","admin-audit-log","admin-access-management","admin-settings"],
   program_admin: ["admin-dashboard","admin-cities","admin-parks","admin-batches","admin-groups","admin-people","admin-students","admin-guardians","admin-attendance-events","admin-users","admin-access","admin-admissions","admin-fees","admin-announcements","admin-reports","notifications","admin-audit-log","admin-settings"],
-  city_head: ["city-head-dashboard","admin-cities","admin-parks","admin-batches","admin-groups","admin-people","admin-students","admin-attendance-events","admin-announcements","admin-reports","notifications"],
+  city_head: ["city-head-dashboard","admin-parks","admin-batches","admin-groups","admin-people","admin-students","admin-attendance-events","admin-announcements","admin-reports","notifications"],
   park_admin: ["park-dashboard","park-attendance","park-roster","park-participants","park-guardians","park-schedule","notifications"],
   park_lead: ["park-dashboard","park-attendance","park-roster","park-participants","park-guardians","park-schedule","notifications"],
   murabbi: ["murabbi-dashboard","murabbi-groups","park-attendance","park-roster","park-participants","notifications"],

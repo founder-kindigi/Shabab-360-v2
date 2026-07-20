@@ -72,7 +72,6 @@ function getNavItemsForRole(role: string | undefined): NavItemDef[] {
   if (role === "city_head") {
     return [
       { id: "city-head-dashboard", label: "Dashboard", icon: LayoutDashboard, section: "Overview" },
-      { id: "admin-cities", label: "My City", icon: Building2, section: "Organization" },
       { id: "admin-parks", label: "Parks", icon: TreePine, section: "Organization" },
       { id: "admin-batches", label: "Batches", icon: CalendarCheck, section: "Organization" },
       { id: "admin-groups", label: "Groups", icon: Users, section: "Organization" },
