@@ -297,9 +297,30 @@ export async function GET() {
       })
     );
 
-    // Recent activity: last 5 audit log entries
-    const recentActivity = await db.auditLog.findMany({
-      take: 10,
+    // Recent activity: audit log entries for users/entities in this city (Finding 2.1)
+    // Derive city staff through all supported hierarchy assignments (city, park, group)
+    const cityStaff = await db.staffMeta.findMany({
+      where: {
+        OR: [
+          { assignedCityId: cityId },
+          ...(parkIds.length > 0 ? [{ assignedParkId: { in: parkIds } }] : []),
+          ...(groupIds.length > 0 ? [{ assignedGroupId: { in: groupIds } }] : []),
+        ],
+      },
+      select: { userId: true },
+    });
+    const cityUserIds = cityStaff
+      .map((s) => s.userId)
+      .filter((id): id is string => !!id);
+
+    const cityAuditLogs = await db.auditLog.findMany({
+      take: 5,
+      where: {
+        OR: [
+          { entityType: "city", entityId: cityId },
+          { userId: { in: cityUserIds } },
+        ],
+      },
       orderBy: { createdAt: "desc" },
       select: {
         id: true,
@@ -310,17 +331,6 @@ export async function GET() {
         user: { select: { name: true, email: true } },
       },
     });
-
-    // Filter to last 5 relevant
-    const cityRelevantActivity = recentActivity.filter((log) => {
-      if (log.entityType === "city" && log.entityId === cityId) return true;
-      if (log.user) return true;
-      return false;
-    });
-
-    const activityToReturn = cityRelevantActivity.length >= 3
-      ? cityRelevantActivity.slice(0, 5)
-      : recentActivity.slice(0, 5);
 
     // ── Fees overview ──
     // Get all batch IDs in the city
@@ -388,7 +398,7 @@ export async function GET() {
       todayDate: formatPKT(new Date(), "yyyy-MM-dd"),
       todayEvents: todayEventsList,
       parkBreakdown,
-      recentActivity: activityToReturn.map((a) => ({
+      recentActivity: cityAuditLogs.map((a) => ({
         id: a.id,
         action: a.action,
         entityType: a.entityType,
