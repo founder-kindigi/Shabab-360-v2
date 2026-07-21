@@ -35,6 +35,8 @@ const event = {
   id: "event-1", groupId: "group-1", isClosed: false,
   group: { batch: { parkId: "park-1" } },
 };
+const EVENT_ID = "ckccccccccccccccccccccccc";
+const PARTICIPANT_ID = "ckaaaaaaaaaaaaaaaaaaaaaaa";
 
 function request(mutations: unknown) {
   return new Request("http://localhost/api/park/attendance/sync", {
@@ -48,14 +50,29 @@ describe("POST /api/park/attendance/sync", () => {
     mocks.requireAuth.mockResolvedValue({ user: { id: "staff-1", role: "park_admin", assignedParkId: "park-1" } });
     mocks.requireCapability.mockResolvedValue(null);
     mocks.staffMetaFindUnique.mockResolvedValue({ id: "staff-meta-1" });
-    mocks.eventFindUnique.mockResolvedValue(event);
-    mocks.participantFindFirst.mockResolvedValue({ id: "participant-1" });
+    mocks.eventFindUnique.mockResolvedValue({ ...event, id: EVENT_ID });
+    mocks.participantFindFirst.mockResolvedValue({ id: PARTICIPANT_ID });
     mocks.canAccessResourceScope.mockReturnValue(true);
     mocks.recordUpsert.mockResolvedValue({ id: "record-1" });
   });
 
   it("rejects a malformed sync request before querying staff data", async () => {
     const response = await POST(request({ mutationId: "not-an-array" }));
+
+    expect(response.status).toBe(400);
+    expect(mocks.staffMetaFindUnique).not.toHaveBeenCalled();
+  });
+
+  it("rejects an invalid markedAt payload before querying staff data", async () => {
+    const response = await POST(request([
+      {
+        mutationId: "mutation-1",
+        eventId: EVENT_ID,
+        participantId: PARTICIPANT_ID,
+        status: "present",
+        markedAt: "not-a-date",
+      },
+    ]));
 
     expect(response.status).toBe(400);
     expect(mocks.staffMetaFindUnique).not.toHaveBeenCalled();
@@ -76,7 +93,7 @@ describe("POST /api/park/attendance/sync", () => {
     mocks.canAccessResourceScope.mockReturnValue(false);
 
     const response = await POST(request([{
-      mutationId: "mutation-1", eventId: "event-1", participantId: "participant-1", status: "present",
+      mutationId: "mutation-1", eventId: EVENT_ID, participantId: PARTICIPANT_ID, status: "present",
     }]));
     const body = await response.json();
 
@@ -89,7 +106,7 @@ describe("POST /api/park/attendance/sync", () => {
     mocks.eventFindUnique.mockResolvedValue({ ...event, isClosed: true });
 
     const response = await POST(request([{
-      mutationId: "mutation-1", eventId: "event-1", participantId: "participant-1", status: "present",
+      mutationId: "mutation-1", eventId: EVENT_ID, participantId: PARTICIPANT_ID, status: "present",
     }]));
     const body = await response.json();
 
@@ -99,13 +116,31 @@ describe("POST /api/park/attendance/sync", () => {
 
   it("applies ordered mutations in request order so the latest status wins", async () => {
     const response = await POST(request([
-      { mutationId: "first", eventId: "event-1", participantId: "participant-1", status: "present" },
-      { mutationId: "latest", eventId: "event-1", participantId: "participant-1", status: "absent" },
+      { mutationId: "first", eventId: EVENT_ID, participantId: PARTICIPANT_ID, status: "present" },
+      { mutationId: "latest", eventId: EVENT_ID, participantId: PARTICIPANT_ID, status: "absent" },
     ]));
     const body = await response.json();
 
     expect(body.summary).toEqual({ total: 2, processed: 2, failed: 0 });
     expect(mocks.recordUpsert).toHaveBeenNthCalledWith(1, expect.objectContaining({ create: expect.objectContaining({ status: "present" }) }));
     expect(mocks.recordUpsert).toHaveBeenNthCalledWith(2, expect.objectContaining({ update: expect.objectContaining({ status: "absent" }) }));
+  });
+
+  it("returns a safe mutation error without leaking internal exception details", async () => {
+    mocks.recordUpsert.mockRejectedValue(new Error("Prisma write failed with internal detail"));
+
+    const response = await POST(request([
+      {
+        mutationId: "mutation-1",
+        eventId: EVENT_ID,
+        participantId: PARTICIPANT_ID,
+        status: "present",
+      },
+    ]));
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.results[0].error).toBe("Processing error");
+    expect(body.results[0].error).not.toContain("Prisma");
   });
 });

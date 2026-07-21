@@ -57,4 +57,18 @@ describe("PATCH /api/park/attendance/[eventId]/close", () => {
     );
     expect(mocks.eventUpdate).not.toHaveBeenCalled();
   });
+
+  it("rejects a non-string reason before reading the event", async () => {
+    const response = await PATCH(
+      new Request("http://localhost/api/park/attendance/event-2/close", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ reason: true }),
+      }),
+      { params: Promise.resolve({ eventId: "event-2" }) }
+    );
+
+    expect(response.status).toBe(400);
+    expect(mocks.eventFindUnique).not.toHaveBeenCalled();
+  });
 });

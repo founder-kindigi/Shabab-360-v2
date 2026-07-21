@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { ATTENDANCE_ROLES, requireAuth, requireCapability, requireResourceScope } from "@/lib/auth/authorize";
 import { AttendanceAlertError, checkAttendanceAlerts } from "@/lib/attendance-alerts";
 import { db } from "@/lib/db";
+import { checkAttendanceAlertsSchema } from "@/lib/attendance/schemas";
 
 export async function POST(req: Request) {
   const auth = await requireAuth();
@@ -10,12 +11,16 @@ export async function POST(req: Request) {
   if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
   try {
-    const body = await req.json();
-    const participantId = typeof body.participantId === "string" ? body.participantId : null;
-    const eventId = typeof body.eventId === "string" ? body.eventId : null;
-    if (!participantId || !eventId) {
-      return NextResponse.json({ error: "participantId and eventId are required" }, { status: 400 });
+    const parsedBody = checkAttendanceAlertsSchema.safeParse(
+      await req.json().catch(() => null)
+    );
+    if (!parsedBody.success) {
+      return NextResponse.json(
+        { error: parsedBody.error.issues[0]?.message || "Invalid request" },
+        { status: 400 }
+      );
     }
+    const { participantId, eventId } = parsedBody.data;
 
     const event = await db.attendanceEvent.findUnique({
       where: { id: eventId },
