@@ -387,13 +387,13 @@ To preserve the integrity of production/staging data, manual browser testing mus
 
 ### 12.1 Isolation Principles
 
-- **Prefixed Test Records:** All test records created during UAT (cities, parks, batches, groups) must use the prefix `UAT_TEST_` or `[UAT]` (e.g., `UAT_TEST_Batch_01`, `UAT_TEST_Group_01`, `UAT_TEST_Park_01`, city code `ISB` / `UAT_TEST_ISB`).
+- **Prefixed Test Records:** All test records created during UAT (cities, parks, batches, groups) must use the prefix `UAT_TEST_` or `[UAT]` (e.g., `UAT_TEST_Batch_01`, `UAT_TEST_Group_01`, `UAT_TEST_Park_01`, city code `UAT_TEST_ISB`).
 - **Lahore Real Data Protection:** Existing Lahore real data (1 city, 6 parks, 6 batches, 13 groups, 277 participants, 180 events, 2,967 attendance records) must NOT be modified, edited, or deleted during UAT. Real Lahore records are strictly read-only.
-- **Scoped Mutations:** All mutation scenarios (Create, Edit, Delete, Deactivate) must target only newly created `UAT_TEST_` records or the secondary test city (Islamabad / `UAT_TEST_ISB`).
+- **Scoped Mutations:** All mutation scenarios (Create, Edit, Delete, Deactivate) must target only newly created `UAT_TEST_` records (including `UAT_TEST_ISB`).
 
 ### 12.2 Cleanup Procedure
 
-- **Post-Test Cleanup:** Following completion of UAT scenarios, all test records with prefix `UAT_TEST_` or city `ISB` must be purged.
+- **Post-Test Cleanup:** Following completion of UAT scenarios, only test records explicitly created for UAT and carrying the `UAT_TEST_` prefix (including `UAT_TEST_ISB`) must be purged. Never purge records merely because they belong to city code `ISB`, as Islamabad may later contain real operational data.
 - **Staging Reset Safeguard:** If un-prefixed Lahore data is accidentally altered, restore staging to the reconciled Lahore baseline state using the approved staging reset/import workflow.
 
 ---
