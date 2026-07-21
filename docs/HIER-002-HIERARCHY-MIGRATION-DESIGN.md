@@ -74,8 +74,11 @@ Phase C: Contract (Final schema & separate contract migration to drop Batch.park
 ### Phase A: Expand Phase (Transitional Schema & Backfill)
 
 In Phase A, the database schema receives additive, non-breaking fields and backfilled data. Phase A **must explicitly use a transitional Prisma schema**, NOT the final target schema:
-- `Batch` retains `parkId` (nullable) and adds `cityId` (nullable initially).
-- `Group` retains `batchId` and adds `parkId` (nullable initially).
+- `Batch.parkId`: required (`String`), retained through Phase A and Phase B. Existing legacy relation remains required and is NOT changed to optional.
+- `Batch.cityId`: nullable (`String?`) during the initial additive/backfill phase.
+- `Group.batchId`: required (`String`), retained through Phase A and Phase B.
+- `Group.parkId`: nullable (`String?`) during the initial additive/backfill phase.
+- After zero-null reconciliation, `cityId` and `Group.parkId` become required (`NOT NULL`), while `Batch.parkId` remains until explicitly approved Phase C.
 - Both SQLite (`prisma/schema.prisma`) and staged PostgreSQL (`prisma/postgres/schema.prisma`) transition schemas remain strictly aligned.
 
 #### 1. Additive Fields & FK Constraints
@@ -162,9 +165,9 @@ Per project invariants, both SQLite (`prisma/schema.prisma`) and staged PostgreS
 model Batch {
   id        String   @id @default(cuid())
   name      String
-  parkId    String?  // Retained legacy field during Phase A & B
-  park      Park?    @relation(fields: [parkId], references: [id], onDelete: SetNull)
-  cityId    String?  // Additive field introduced in Phase A
+  parkId    String   // Required legacy field retained through Phase A & B
+  park      Park     @relation(fields: [parkId], references: [id], onDelete: Cascade)
+  cityId    String?  // Additive field (nullable during backfill phase)
   city      City?    @relation(fields: [cityId], references: [id], onDelete: Cascade)
   groups    Group[]
   isActive  Boolean  @default(true)
@@ -179,9 +182,9 @@ model Batch {
 model Group {
   id        String   @id @default(cuid())
   name      String
-  parkId    String?  // Additive field introduced in Phase A
+  parkId    String?  // Additive field (nullable during backfill phase)
   park      Park?    @relation(fields: [parkId], references: [id], onDelete: Cascade)
-  batchId   String   // Retained field
+  batchId   String   // Required legacy field retained through Phase A & B
   batch     Batch    @relation(fields: [batchId], references: [id], onDelete: Cascade)
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
