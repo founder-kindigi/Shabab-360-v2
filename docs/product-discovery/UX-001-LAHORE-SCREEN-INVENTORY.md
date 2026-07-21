@@ -127,8 +127,8 @@ Each screen is evaluated against operational usefulness, role hierarchy boundari
 #### Screen 08: Groups Management
 - **Page ID / Component:** `admin-groups` / [`src/components/modules/admin/groups-page.tsx`](src/components/modules/admin/groups-page.tsx)
 - **Roles:** `super_admin`, `program_admin`, `city_head` (city-scoped), `park_lead` (read-only assigned park)
-- **Status:** `Modify`
-- **Role / Scope Concern:** In current legacy code ([src/app/api/admin/groups/route.ts](src/app/api/admin/groups/route.ts) and [src/app/api/admin/groups/[id]/route.ts](src/app/api/admin/groups/[id]/route.ts)), Park Lead possesses `organisation.manage` capability and is permitted to create/edit groups in their assigned park. Under HIER-003, Phase B hierarchy refactoring will restrict Park Lead to view-only access for assigned-park groups, returning 403 on create/edit/delete.
+- **Status:** `Retain` (with HIER-003 UAT assertion)
+- **Role / Scope Concern:** Default `park_lead` capabilities ([src/lib/auth/capabilities.ts](src/lib/auth/capabilities.ts) line 93) include `organisation.view` only. Group mutation routes (`POST`/`PATCH`/`DELETE` in [src/app/api/admin/groups/route.ts](src/app/api/admin/groups/route.ts) line 90) require `organisation.manage`, denying Park Lead by default. Under HIER-003 UAT, assert that Park Lead receives `403 Forbidden` for group mutations, including after a capability override review.
 - **Data Dependency:** 13 Lahore groups.
 - **Operational Assessment:** Manages group naming, park/batch linking, and participant counts.
 - **Mobile & Responsive:** Clean mobile card layout with dropdown selectors.
@@ -322,8 +322,8 @@ Each screen is evaluated against operational usefulness, role hierarchy boundari
 #### Screen 25: Park Groups View
 - **Page ID / Component:** `admin-groups` (scoped) / [`src/components/modules/admin/groups-page.tsx`](src/components/modules/admin/groups-page.tsx)
 - **Roles:** `park_lead`
-- **Status:** `Modify`
-- **Role / Scope Concern:** Legacy code permits Park Lead group mutations (`organisation.manage`). Under Phase B hierarchy work (HIER-003), Park Lead will be restricted to view-only access for assigned-park groups.
+- **Status:** `Retain` (with HIER-003 UAT assertion)
+- **Role / Scope Concern:** Park Lead default capabilities ([src/lib/auth/capabilities.ts](src/lib/auth/capabilities.ts) line 93) include `organisation.view` only. Park Lead may view assigned-park groups and receives 403 Forbidden for group mutations (`POST`/`PATCH`/`DELETE`).
 - **Data Dependency:** Assigned park groups.
 - **Operational Assessment:** Read-only view of groups in the assigned park.
 - **Mobile & Responsive:** Mobile list view of park groups.
@@ -592,17 +592,12 @@ Each screen is evaluated against operational usefulness, role hierarchy boundari
 - **Empirical Finding:** The Zod `batchSchema` validates `name` and `startDate` but lacks a refinement check verifying `endDate >= startDate`. Creating a batch with `endDate < startDate` passes schema validation instead of returning a `400` validation error.
 - **Target Task:** `HIER-003`
 
-#### 2. Medium Severity: Legacy Park Lead Group Mutation Permitted
-- **Verified Code Location:** [`src/app/api/admin/groups/route.ts`](src/app/api/admin/groups/route.ts) and [`src/app/api/admin/groups/[id]/route.ts`](src/app/api/admin/groups/[id]/route.ts)
-- **Empirical Finding:** In current legacy code, `park_lead` role defaults include `organisation.manage`, permitting Park Lead to execute POST/PATCH/DELETE operations on groups in their assigned park. Under Phase B hierarchy work (`HIER-003`), group mutation will be restricted to City Head / Super Admin, and Park Lead group access will be restricted to view-only (`403 Forbidden` on mutation).
-- **Target Task:** `HIER-003`
-
-#### 3. Medium Severity: Mobile Viewport Table Scrolling in Reports & Audit Log
+#### 2. Medium Severity: Mobile Viewport Table Scrolling in Reports & Audit Log
 - **Verified Code Location:** [`src/components/modules/admin/reports-page.tsx`](src/components/modules/admin/reports-page.tsx) and [`src/components/modules/admin/audit-log-page.tsx`](src/components/modules/admin/audit-log-page.tsx)
 - **Empirical Finding:** Wide data tables require horizontal scrolling on narrow viewports (≤ 390px width). Responsive card list alternatives are recommended for mobile screens.
 - **Target Task:** `UX-003`
 
-#### 4. Low Severity: Guidance on Access Pending Screen for Unprovisioned Placeholders
+#### 3. Low Severity: Guidance on Access Pending Screen for Unprovisioned Placeholders
 - **Verified Code Location:** [`src/components/modules/auth/access-pending-page.tsx`](src/components/modules/auth/access-pending-page.tsx)
 - **Empirical Finding:** Unprovisioned staff placeholder accounts landing on `AccessPendingPage` receive generic text. Adding direct City Head contact links improves onboarding clarity.
 - **Target Task:** `AUTH-103`
@@ -611,11 +606,11 @@ Each screen is evaluated against operational usefulness, role hierarchy boundari
 
 ### 4.2 UAT & Phase B Hierarchy Recommendations
 
-1. **Park Admin API Direct Access Denial:**
-   - **Verification Strategy:** UI navigation ([src/components/layout/sidebar.tsx](src/components/layout/sidebar.tsx) line 164) correctly hides Batches and Groups links for `park_admin`. During HIER-003 browser UAT, assert that direct API attempts to GET/POST `/api/admin/batches` or `/api/admin/groups` by Park Admin return `403 Forbidden`.
+1. **Park Lead Group View-Only Policy & Mutation Denial Assertion:**
+   - **Verification Strategy:** In application code ([src/lib/auth/capabilities.ts](src/lib/auth/capabilities.ts) line 93), default `park_lead` capabilities include `organisation.view` only. Group mutation endpoints ([src/app/api/admin/groups/route.ts](src/app/api/admin/groups/route.ts) line 90) require `organisation.manage`, denying Park Lead by default. During HIER-003 browser UAT, assert that Park Lead may view assigned-park groups and receives `403 Forbidden` for all POST/PATCH/DELETE mutation attempts, including after any capability override review.
 
-2. **Park Lead View-Only Group Policy Assertion:**
-   - **Verification Strategy:** During HIER-003 browser UAT, assert that `park_lead` can view assigned-park groups but receives `403 Forbidden` on POST/PATCH/DELETE group requests.
+2. **Park Admin API Direct Access Denial:**
+   - **Verification Strategy:** UI navigation ([src/components/layout/sidebar.tsx](src/components/layout/sidebar.tsx) line 164) correctly hides Batches and Groups links for `park_admin`. During HIER-003 browser UAT, assert that direct API attempts to GET/POST `/api/admin/batches` or `/api/admin/groups` by Park Admin return `403 Forbidden`.
 
 3. **Lahore Participant Enriched Fields Display:**
    - **Verification Strategy:** Verify that `student-profile-page.tsx` renders the Lahore Batch 4 imported `age` and `gradeClass` fields.
