@@ -119,7 +119,7 @@ Before the approved fresh Lahore import, `db:reset:staging-data` may be used onl
 
 - Confirm the Super Admin's name and email.
 - Nominate the initial Program Admin, Lahore City Head, and each initial Park Lead, Park Admin, and Murabbi with their email, park, and group scope.
-- Confirm whether Batch 4 has one batch per park and the correct batch dates.
+- Confirm Batch 4's city-wide batch dates and the park assigned to each group.
 - Confirm which source dates are complete and eligible for historical import.
 - Export a Supabase production backup and record the restoration procedure.
 

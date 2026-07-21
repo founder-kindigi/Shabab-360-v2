@@ -44,9 +44,9 @@ Last consolidated: 2026-07-18. Verify changing facts against the checkout before
   role-to-module matrix and auditable individual grant/revoke overrides without
   ever bypassing hierarchy scope. Super Admin manages access during soft launch;
   City Head city-scoped override management is a future separately-tested
-  delegation. The current single staff assignment and park-owned Batch model do
-  not fully represent this target and require reviewed schema work before a
-  real authoritative import.
+  delegation. The current single staff assignment does not fully represent this
+  target. Batches are city-owned and groups link one batch to one park in the
+  same city; migration and API checks must preserve that invariant.
 - Access Management AM-001 through AM-005 are locally verified: fixed defaults,
   aligned override schemas/migration, fail-closed resolution, transactional APIs,
   Super Admin workspace, and capability enforcement alongside hierarchy scope.
@@ -112,10 +112,24 @@ Last consolidated: 2026-07-18. Verify changing facts against the checkout before
   plus a State Life School park override. The owner will map staff into the
   five collaboration teams in the portal; no workbook-based membership
   inference is allowed. No planner rows have been written to staging.
+- Calling-system policy is approved: Calling POC is a time-bounded Mashwara or
+  event responsibility, not a permanent city post or login role. The POC assigns
+  leads to approved Shabab callers. Rare cross-department help uses an
+  expiry-bound External Support Caller workspace with only explicitly assigned
+  leads, never general Shabab portal access. Pilot helper authentication uses
+  the existing email/password invite and forced first-login reset; OTP is
+  deferred. WhatsApp is manual via approved deep-link templates, unsuccessful
+  lead history retains for 12 months,
+  referral categories are catalogue-managed, and City Head CSV exports are
+  audited. Event teams such as Security, Parking and Welcome are also temporary
+  operational teams/titles, never login roles.
 - Weekly Mashwara is an approved future module: scoped recurring meetings,
   attendance where needed, Karguzari/MoM, decisions and collaboration-team
   action items. It requires immutable review/audit behavior and never lets team
-  membership expand hierarchy scope.
+  membership expand hierarchy scope. All active city team members receive
+  restricted participant access to city-scoped Mashwara. City Heads/HQ may
+  grant a revocable, audited, meeting-specific share to a selected same-city
+  active team member without changing general scope.
 - Owner delivery order: first perform a real-data stabilization pass over the
   existing Lahore-backed roles, workflows, UI, errors, scope boundaries, and
   operational gaps. Record retain/remove/modify findings and complete staging
@@ -125,6 +139,9 @@ Last consolidated: 2026-07-18. Verify changing facts against the checkout before
   groups and manages attendance in the assigned park; Park Admin marks only
   assigned-park attendance; Murabbi marks only the assigned group. Capability
   defaults and individual overrides remain Super Admin-only.
+- Stabilized City Head and park creation boundary: park creation API POST route is implemented;
+  Admissions, Students, Guardians, Reports, and People listing/mutation endpoints are secured
+  under City Head assignedCityId scoping filters. ESLint, typecheck, and all 258 tests pass.
 
 ## Invariants to preserve
 

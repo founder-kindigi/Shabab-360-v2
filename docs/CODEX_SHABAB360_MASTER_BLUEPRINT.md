@@ -180,7 +180,7 @@ All future work must follow these principles:
 
 The core operating hierarchy is:
 
-`National Programme -> City -> Park -> Batch -> Group -> Shabab`
+`National Programme -> City -> {Parks, Batches} -> Group (one Batch + one Park) -> Shabab`
 
 Cross-cutting dimensions are:
 
@@ -188,15 +188,21 @@ Cross-cutting dimensions are:
 - Team: Sports, Skills, Tadreeb, Media, or Muawin. A team is a collaboration
   group with its own documents, activity planning, and discussions; it is not a
   login role or a substitute for organisational scope.
+- Event responsibility: a time-bounded assignment from a Mashwara or event to
+  one or more existing portal members, teams or temporary event teams. Examples
+  include Calling POC, Security, Parking, Welcome, registration and transport.
+  These titles are not login roles and expire when the event responsibility
+  ends.
 - Programme activity: class, training, Mashwara, sport, trip, campaign, or
   ceremony.
 - Time: batch, term, calendar date, session, and event.
 
 ### Required structural rules
 
-- A city contains parks.
-- A park may run one or more batches over time.
-- A batch contains groups.
+- A city contains parks and city-wide batches.
+- A batch belongs to one city and may run across one or more parks in that city.
+- A group belongs to exactly one batch and one park; the batch and park must
+  belong to the same city.
 - A Shabab has one primary active group at a time, with assignment history
   retained.
 - Group suggestions are generated from approved age and class rules, but an
@@ -205,7 +211,12 @@ Cross-cutting dimensions are:
   authorised guardian/contact.
 - A staff member may need multiple roles, teams, parks, or groups. The current
   single `StaffMeta` assignment cannot be assumed to satisfy the final model.
-- Team membership and group membership are separate concepts.
+- Team membership and group membership are separate concepts. It never changes
+  a user's canonical role or general hierarchy scope.
+- Permanent collaboration teams and temporary event teams are separate. Event
+  teams may be created for a specific event and use only existing portal
+  members; they must carry event scope, start/end dates, responsible lead and
+  audit history.
 - All assignment changes must be dated and auditable.
 
 ## 6. Users, Roles, And Responsibility Boundaries
@@ -356,6 +367,15 @@ Required workflow:
 3. Schedule candidate and guardian interviews.
 4. Inform the family through call and a controlled WhatsApp handoff or future
    approved integration.
+   Calling must use a city-scoped queue with assignments, append-only contact
+   history, outcomes, follow-up tasks and approved message templates. One lead
+   remains one application throughout campaign, interview, orientation and
+   enrolment; spreadsheets must not duplicate the person at each stage.
+   A City Head/HQ-appointed Calling POC assigns work by availability to approved
+   Shabab callers in the same city. Rare cross-department help uses a temporary,
+   assignment-only external-caller workspace, not general Shabab portal access.
+   POC is an operational assignment, not a login role; callers see only their
+   own assigned leads and City Head CSV exports are audited.
 5. Conduct candidate and guardian interviews.
 6. Record structured rubric scores, reviewer remarks, recommendation, and
    decision authority.
@@ -446,6 +466,10 @@ These concepts must be distinct:
 
 Events require scope, audience, venue, capacity, cost, consent/safety needs,
 responsible people, assistants, checklist/tasks, status, and post-event review.
+Every event must support time-bounded responsibility assignments created from a
+Mashwara decision: accountable POC, team/title, assignees, due dates, status,
+handover, evidence and closure. Calling, Security, Parking, Welcome and other
+event teams are operational assignments, never login roles.
 
 ### 8.6.1 Weekly Mashwara
 
@@ -464,10 +488,18 @@ record of what was agreed. Each meeting requires:
 - city/park/team-scoped visibility, audit history and notifications that never
   reveal private notes outside the recipient's authorised scope.
 
-Team membership may allow a member to see and update the team's assigned work,
-but it never grants access to a meeting outside the user's city, park or
-explicit team scope. Staff-only meeting chat and document attachments remain
+Every active collaboration-team member in a city may access that city's
+city-scoped Mashwara. This grants only restricted participant access: read the
+meeting record, add permitted own MoM input, and update explicitly assigned
+tasks. It does not grant management, closing, attendance, or general hierarchy
+access. Team-scoped and park-scoped Mashwara remain restricted to their normal
+team/park audience. Staff-only meeting chat and document attachments remain
 separate, pending approved retention, moderation and private-storage rules.
+
+City Heads and HQ may explicitly share an individual Mashwara meeting with a
+specific active team member in the same city. That revocable, auditable share
+grants only the meeting-specific permission recorded on the share; it does not
+change the recipient's role, park/group scope, or access to other meetings.
 
 The venue model must support a regular primary location and approved backup or
 indoor locations. Where operationally justified, it should record venue type,
@@ -606,7 +638,8 @@ support, and privacy rules require owner approval.
 The active and staged schemas currently contain:
 
 - `User`, `StaffMeta`, and `AuditLog`.
-- `City`, `Park`, `Batch`, `Group`, and `BatchSettings`.
+- `City`, `Park`, city-owned `Batch`, park-and-batch `Group`, and
+  `BatchSettings`.
 - `Guardian`, `GuardianChild`, and `Participant`.
 - `AttendanceEvent` and `AttendanceRecord`.
 - `FeeEvent`, `Payment`, and `ReceiptSequence`.
