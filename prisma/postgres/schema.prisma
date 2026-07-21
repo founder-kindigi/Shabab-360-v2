@@ -146,6 +146,7 @@ model City {
   updatedAt DateTime @updatedAt
 
   parks                 Park[]
+  batches               Batch[]
   cityHeads             StaffMeta[]            @relation("CityHeadAssignment")
   collaborationTeams    CollaborationTeam[]
   contentPlans          ContentPlan[]
@@ -165,6 +166,7 @@ model Park {
 
   city                  City                   @relation(fields: [cityId], references: [id], onDelete: Cascade)
   batches               Batch[]
+  groups                Group[]
   contentPlans          ContentPlan[]
   parkStaff             StaffMeta[]            @relation("ParkStaffAssignment")
   admissionApplications AdmissionApplication[]
@@ -176,6 +178,7 @@ model Batch {
   id        String    @id @default(cuid())
   name      String
   parkId    String
+  cityId    String?
   startDate DateTime
   endDate   DateTime?
   isActive  Boolean   @default(true)
@@ -183,11 +186,13 @@ model Batch {
   updatedAt DateTime  @updatedAt
 
   park      Park           @relation(fields: [parkId], references: [id], onDelete: Cascade)
+  city      City?          @relation(fields: [cityId], references: [id], onDelete: Cascade)
   groups    Group[]
   settings  BatchSettings?
   feeEvents FeeEvent[]
   contentPlans ContentPlan[]
 
+  @@index([cityId, isActive])
   @@map("batches")
 }
 
@@ -195,16 +200,19 @@ model Group {
   id        String   @id @default(cuid())
   name      String
   batchId   String
+  parkId    String?
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   batch            Batch             @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  park             Park?             @relation(fields: [parkId], references: [id], onDelete: Cascade)
   participants     Participant[]
   murabbis         StaffMeta[]       @relation("MurabbiAssignment")
   attendanceEvents AttendanceEvent[]
 
   @@index([batchId, isActive])
+  @@index([parkId, batchId, isActive])
   @@map("groups")
 }
 
