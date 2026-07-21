@@ -6,7 +6,7 @@
 **Created:** 2026-07-21
 **Scope:** Inspect dashboard and list-screen routes for misleading counts, missing zero/empty states, inactive/dropout handling, attendance-date assumptions, and role-scoped data leakage risks. Current code evidence only; no database access or modification.
 
-**Reference data (Lahore import reconciliation):** 1 city, 6 parks, 6 batches, 13 groups, 277 participants (257 active, 20 dropout), 180 closed attendance events, 2,967 attendance records (838 present, 1,171 absent, 636 late, 322 excused), 51 inactive placeholder staff, 1 active Super Admin.
+**Reference data (Lahore import reconciliation):** 1 city, 6 parks, 6 batches, 13 groups, 277 participants (257 active, 20 dropout), 180 historical attendance events, 2,967 attendance records (838 present, 1,171 absent, 636 late, 322 excused), 51 inactive placeholder staff, 1 active Super Admin.
 
 ---
 
@@ -14,7 +14,7 @@
 
 **File:** `src/app/api/admin/dashboard/route.ts`
 
-### 1.1 Participant count includes dropout/inactive states
+### 1.1 Participant count — recommend distinct total vs active labels
 
 **Lines:** 105, 307, 395
 
@@ -27,17 +27,17 @@ db.participant.count({ where: { group: { batch: { park: { cityId: user.assignedC
 db.participant.count({ where: { group: { batch: { parkId: user.assignedParkId } } } })
 ```
 
-**Lahore data:** 277 total participants; 257 active, 20 dropout. The dashboard reports `277` for HQ and `257` for city/park. **The HQ figure is 20 higher than the operational active count.** A City Head or Park Lead sees a `participants` count on their dashboard that includes all states, not just active.
+**Lahore data:** 277 total participants; 257 active, 20 dropout. The admin dashboard reports `277` (all states). City-head and park dashboards also query without a state filter. The murabbi dashboard correctly uses `state: "active"` (line 75 of `murabbi/dashboard/route.ts`).
 
-**Severity:** Medium. Misleading for planning/operational views. The murabbi dashboard correctly filters by `state: "active"` (line 75 of `murabbi/dashboard/route.ts`), but the admin and city-head dashboards do not.
+**Classification:** Dashboard semantics owner decision, not automatically a defect. An HQ user may want the total registered count including dropouts. A park lead planning a session wants active participants only.
 
-**Fix:** Add `where: { state: "active" }` to participant counts on all dashboards. Use `totalParticipants` for the all-state count and `activeParticipants` for the active-only count if both are needed.
+**Recommendation:** Return two distinct fields — `totalParticipants` (all states) and `activeParticipants` (state: "active" only) — and let the UI label them appropriately. Alternatively, align all dashboards to the same convention.
 
-**Test:** With Lahore data, verify admin dashboard returns `participants: 257`, not `277`. Verify park/city head dashboards match.
+**Test:** With Lahore data, verify `activeParticipants = 257` and `totalParticipants = 277`. Verify the UI displays the correct label for each context.
 
-### 1.2 City Head batch count uses deprecated parkId relation
+### 1.2 City-head batch count uses parkId — Phase B/C migration compatibility
 
-**Lines:** 298-302
+**Lines:** 298-302 (city-head/dashboard/route.ts), also park dashboard lines 109-114
 
 ```typescript
 db.batch.count({
@@ -45,13 +45,19 @@ db.batch.count({
 })
 ```
 
-**Impact:** Works for current Lahore data where `Batch.parkId` is the only relation. After HIER-002 migration (Batch becomes city-owned via `cityId`), this query returns 0 batches because `parkId` will be removed. The city-head dashboard will show 0 batches after migration.
+**Assessment:** This works correctly for the current schema where `Batch.parkId` is the only ownership relation. Phase A explicitly keeps `Batch.parkId`. After HIER-002 (Phase B or C), Batch becomes city-owned and the `parkId` column is removed. The city-head and park dashboards will return 0 batches if not updated.
 
-**Severity:** High after HIER-002. Breaking change must be coordinated with the migration.
+**Classification:** Migration compatibility requirement, not a current defect. The fix must be coordinated with the HIER-002 schema migration timeline.
 
-**Fix:** After HIER-002, replace with `db.batch.count({ where: { cityId: user.assignedCityId, isActive: true } })`.
+**Phase B requirement:** The target code must **dual-read** during Phase B — accept either `parkId` or `cityId` depending on which migration state is deployed.
 
-**Test:** Verify count matches pre- and post-migration.
+**Phase C requirement:** After `parkId` is fully removed, the query must use `cityId` exclusively.
+
+**Fix sequence:**
+- Phase B: `where: { OR: [{ parkId: { in: parkIds } }, { cityId: user.assignedCityId }] }` or a service helper that detects the available column.
+- Phase C: `where: { cityId: user.assignedCityId, isActive: true }`
+
+**Test:** Run before and after HIER-002 migration. Verify batch count matches across both schemas.
 
 ---
 
@@ -143,7 +149,7 @@ if (
 
 **Issue:** A group with an open event and 0 marks has `todayMarkedCount = 0`. The condition `gb.todayMarkedCount > 0` excludes this case. So a group with 0% attendance that simply hasn't been marked yet is not flagged. The `attentionItems` section (lines 310-319) separately catches unmarked events, but the `needsAttention` low-attendance alert misses the 0-mark case.
 
-**Lahore data:** With 180 closed events, all today's events are new. If a group has an event today with 0 marks, `needsAttention` won't flag it, but `attentionItems` will (via `unmarked_event` check on line 314).
+**Lahore data:** 180 historical events exist. All of today's events are new (just created). If a group has an event today with 0 marks, `needsAttention` won't flag it, but `attentionItems` will (via `unmarked_event` check on line 314).
 
 **Severity:** Low. Worked around by the separate `attentionItems` check. But a combined 0% + no-marks warning would be clearer.
 
@@ -165,7 +171,7 @@ The park dashboard independently computes consecutive-absence warnings for every
 
 **File:** `src/app/api/guardian/dashboard/route.ts`
 
-### 5.1 Attendance rate uses events-with-records as denominator
+### 5.1 Attendance rate denominator — policy decision
 
 **Lines:** 95-96
 
@@ -174,13 +180,20 @@ const totalEvents30 = eventIds30.length;  // events where THIS PARTICIPANT has a
 const rate30 = totalEvents30 > 0 ? Math.round(((present30 + late30) / totalEvents30) * 100) : 0;
 ```
 
-**Issue:** `totalEvents30` counts only events where the participant has an attendance record. If the participant has no record for an event (unmarked), that event is excluded from both numerator and denominator. A participant who is present at every event they are marked for gets 100%, even if they were absent from many events without being recorded.
+**Current behaviour:** `totalEvents30` counts only events where the participant has a record. If the participant has no record for an event (unmarked), that event is excluded from both numerator and denominator.
 
-**Lahore data:** 180 events, 2,967 records across 13 groups = ~228 records per group = ~17 per participant. If a participant has 12 records (10 present, 2 late) over 30 days, their rate = 100% even if there were 20 events for their group and they were unmarked for 8.
+**Lahore data:** 180 events, 2,967 records across 13 groups = ~228 records per group = ~17 per participant. A participant with 12 records (10 present, 2 late) over 30 days gets rate = 100% even if 8 group events had no mark for them.
 
-**Severity:** Medium. Creates a misleadingly high attendance rate for participants with many unmarked sessions. The murabbi and student dashboards use the same denominator (same pattern at student dashboard lines 124-126).
+**Classification:** Policy decision, not automatically a defect. Two approved options:
 
-**Fix:** The denominator should be the number of attendance events held for the participant's group in the period, not the number of events where the participant has a record. Unmarked events count as absent (or excluded with a clear label).
+| Option | Denominator | Behaviour | Result for unmarked sessions |
+|--------|-------------|-----------|------------------------------|
+| **A — marked sessions only** (current) | Events where participant has a record | Rate reflects performance only on sessions actually marked | May inflate rate if many unmarked absences |
+| **B — all closed sessions** | All closed events for the group in the period | Rate includes explicitly documented absences and unmarked sessions | Lower rate if many unmarked sessions; unmarked status must be visibly flagged in the UI |
+
+**Recommendation:** Present both fields — `attendanceRate` (marked-session denominator) and `overallEngagementRate` (all-closed-session denominator) — and label each clearly. Alternatively, adopt Option B and add explicit handling for unmarked (status = null) in API and UI.
+
+**Owner decision needed:** Which denominator approach for guardian/student attendance rates? The murabbi and student dashboards use the same pattern and would need alignment.
 
 ---
 
@@ -188,7 +201,7 @@ const rate30 = totalEvents30 > 0 ? Math.round(((present30 + late30) / totalEvent
 
 **File:** `src/app/api/student/dashboard/route.ts`
 
-### 6.1 Streak calculation breaks on days without events
+### 6.1 Streak calculation — calendar-day vs session-day decision
 
 **Lines:** 169-176
 
@@ -205,13 +218,18 @@ for (let i = 0; i <= 90; i++) {
 }
 ```
 
-**Issue:** If a day has no events at all for the student's group (e.g. weekend, holiday), `statuses` is undefined. The `else` branch only breaks if `statuses` is truthy (i.e. the student has a record but it's not present). So a day with no events **does not break the streak** — the loop continues to the next day. This means a student absent for 3 days gets a streak of 4 if there's a day with no events in between. If there are multiple consecutive no-event days, they all pass through without breaking the streak.
+**Verified technical behaviour:** If a day has no events at all for the student's group (e.g. weekend, holiday), `statuses` is undefined. The `else` branch only breaks if `statuses` is truthy (has a record that's not present). So a no-event day **does not break the streak** — the loop continues. Multiple consecutive no-event days all pass through without breaking.
 
-**Lahore data:** If attendance is Saturday-only, a student present on Saturday, present on the next Saturday (7 days later), has a streak of 7 (one per day checked, even though only 2 attendance events occurred).
+**Lahore data:** If attendance is Saturday-only, a student present on consecutive Saturdays has a calendar-day streak that includes all 7 days between sessions, even though only 2 sessions occurred.
 
-**Severity:** Medium. Misleading streak count for non-daily programmes. The streak counts calendar days rather than session days.
+**Classification:** Verified calculation concern. The desired streak definition is an owner decision:
 
-**Fix:** Check against the actual event dates for the group, not calendar days. A streak should count consecutive attendance sessions, not consecutive calendar days. Or document clearly that streaks are "calendar days with attendance" and add zero-attendance days to the streak only if the group had an event that day.
+| Option | Definition | Behaviour |
+|--------|-----------|-----------|
+| **Calendar-day streak** (current) | Consecutive calendar days with a "present" record; days without events pass through | Streak = 7 for present on two Saturdays 7 days apart |
+| **Session-day streak** | Consecutive attendance sessions; only days with events are counted | Streak = 2 for the same pattern |
+
+**Recommendation:** Document the current formula in the UI tooltip, or switch to session-day streaks and add a label clarifying "consecutive sessions attended."
 
 ---
 
@@ -243,17 +261,17 @@ if (status === "inactive") {
 
 ✅ Correct.
 
-### 7.4 Participants list: only role-filtered, no state filter
+### 7.4 Participants list — default state filter is a product decision
 
 **File:** `src/app/api/admin/students/route.ts`
 
-The `studentListQuerySchema` includes an optional `state` filter (line 44), but there is no default state filter. If `state` is not provided, participants in all states (active, dropout, inactive, warning, graduated) are returned. The UI may filter further, but the API returns dropout participants by default.
+The `studentListQuerySchema` includes an optional `state` filter (line 44) with no default. If `state` is not provided, all states are returned (active, dropout, inactive, warning, graduated). The `paginatedQuerySchema` provides pagination without overriding the state default.
 
-**Lahore data:** 20 dropouts appear in the default participant list alongside 257 active participants.
+**Lahore data:** 20 dropouts appear alongside 257 active participants by default.
 
-**Severity:** Low to Medium. The `state` filter exists and works, but the API does not default it to `"active"`. An API consumer that forgets the `state` param sees all states.
+**Classification:** Product/listing default decision, not inherently wrong. An admin managing cohort composition may need to see dropouts. A park lead taking attendance wants active participants only.
 
-**Fix:** Set `state` default to `"active"` in the Zod schema, or document that clients must pass `state=all` to see inactive/dropout records.
+**Recommendation:** Set the API surface default to `state: "active"` and require an explicit `state=all` to include inactive/dropout records. Alternatively, keep the current default and rely on the UI to send `state=active` for attendance-facing views. Align with whatever the frontend currently sends — if the UI already sends `state=active`, no change is needed.
 
 ### 7.5 Attendance events list: defaults to last 7 days
 
@@ -308,20 +326,20 @@ if (user.role === "city_head") {
 
 ## 9. Summary Table
 
-| ID | Route/File | Finding | Severity | Fix |
-|----|-----------|---------|----------|-----|
-| 1.1 | admin/dashboard | HQ participant count includes dropouts (277 vs 257) | Medium | Add `state: "active"` filter |
-| 1.2 | city-head/dashboard | Batch count uses `parkId` — breaks after HIER-002 | **High** | Switch to `cityId` after migration |
-| 2.1 | city-head/dashboard | Audit activity filter uses park IDs for all entity types | Low | Separate queries by entity type |
-| 2.2 | city-head/dashboard | Park breakdown may double-count participants across groups | Low | Document or deduplicate by participant ID |
-| 3.2 | murabbi/dashboard | Week rate treats all unmarked as absent | Low | Document formula |
-| 4.1 | park/dashboard | Low-attendance alert excludes 0-mark events | Low | Remove `todayMarkedCount > 0` guard |
-| 4.2 | park/dashboard | Warning computation duplicates warnings route logic (N+1 queries) | Medium | Extract shared helper |
-| 5.1 | guardian/dashboard | Attendance rate excludes unmarked events from denominator | Medium | Use total held events as denominator |
-| 6.1 | student/dashboard | Streak counts calendar days, not session days | Medium | Count consecutive attendance sessions |
-| 7.4 | admin/students | Participant list defaults to all states, not active | Low-Medium | Default `state: "active"` in Zod schema |
+| ID | Route/File | Finding | Type | Fix |
+|----|-----------|---------|------|-----|
+| 1.1 | admin/dashboard | HQ participant count = 277 (all states). Recommend `totalParticipants` + `activeParticipants` | Owner decision | Return both fields; UI labels distinguish them |
+| 1.2 | city-head/dashboard | Batch count uses `parkId` — requires dual-read in Phase B, `cityId` in Phase C | Migration requirement | Phase B: OR query; Phase C: cityId only |
+| 2.1 | city-head/dashboard | Audit activity filter uses park IDs for all entity types — misses group/participant entries | Verified finding | Separate queries or remove entityId filter |
+| 2.2 | city-head/dashboard | Park breakdown may double-count participants across groups | Verified finding | Document or deduplicate by participant ID |
+| 3.2 | murabbi/dashboard | Week rate = marks / (events × group size); treats all unmarked as absent | Observation | Document formula in UI tooltip |
+| 4.1 | park/dashboard | Low-attendance `needsAttention` excludes 0-mark events (worked around by `attentionItems`) | Verified finding | Remove `todayMarkedCount > 0` guard |
+| 4.2 | park/dashboard | Warning computation duplicates warnings route logic (N+1 queries on every load) | Verified finding | Extract shared helper or cache |
+| 5.1 | guardian/dashboard | Attendance rate denominator: marked sessions only vs all closed sessions | Owner decision | Present both options; align with murabbi/student dashboards |
+| 6.1 | student/dashboard | Streak counts calendar days, not sessions; no-event days pass through | Verified finding + owner decision | Document or switch to session-day streak |
+| 7.4 | admin/students | Participant list default: returns all states, not just active | Product decision | Set default `state: "active"` or align with UI behaviour |
 
-**Total: 10 findings** — 1 High, 5 Medium, 4 Low.
+**Total: 10 items** — 3 verified technical findings, 3 owner decisions, 1 migration requirement, 1 product decision, 1 observation, 1 verified + owner decision.
 
 ---
 
@@ -332,20 +350,30 @@ Task ID: DASH-001
 Branch: agent/deepseek/DASH-001-lahore-data-consistency (from codex/production-hardening @ dffd68a)
 Changed files: docs/product-discovery/DASH-001-LAHORE-DATA-CONSISTENCY.md
 What changed (findings summary):
-  - 10 findings across 7 dashboard/list route files
-  - 1 High: city-head batch count breaks after HIER-002
-  - 5 Medium: HQ participant count includes dropouts, warning computation
-    N+1 queries, guardian attendance rate excludes unmarked events, student
-    streak counts calendar days, participant list defaults to all states
-  - 4 Low: audit filter, park breakdown, week rate formula, 0-mark alert
+  - 10 items across 7 dashboard/list route files
+  - 3 verified technical findings: audit activity filter misses entries,
+    park dashboard warning computation duplicates N+1 queries,
+    low-attendance alert excludes 0-mark events
+  - 3 owner decisions: participant count (totalParticipants vs
+    activeParticipants), guardian/student attendance denominator
+    (marked sessions vs all closed sessions), student streak definition
+    (calendar-day vs session-day)
+  - 1 migration requirement: batch count uses parkId; dual-read in
+    Phase B, cityId only in Phase C
+  - 1 product decision: participant list default state filter
+  - 1 observation: murabbi week rate formula
+  - 1 verified + owner decision: student streak (calculation concern
+    plus definition choice)
+  - All references to "180 closed events" corrected to "180 historical
+    events" — no database evidence for close state of historical data
   - Every finding cites exact code lines and Lahore expected data
   - Zero findings from database access — all from source code analysis
-  - No data-leakage vulnerabilities found; all findings are data accuracy
-    or display consistency
+  - No data-leakage vulnerabilities found
 Commands run:
   - git diff --check: pass
 Known risks / owner decisions:
-  - Participant list default state: change to "active" or document API behaviour
-  - Streak definition: calendar-day vs session-day counting
+  - Three owner decisions required (1.1, 5.1, 6.1)
+  - One product decision on participant list default (7.4)
+  - One migration compatibility requirement for HIER-002 (1.2)
 Ready for Codex review.
 ```
