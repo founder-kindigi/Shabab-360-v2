@@ -44,7 +44,7 @@ pushes directly to Staging. No deployment runs a database migration automaticall
 All commands run from the repository root on the merged `codex/production-hardening`
 branch. Record the output of each command. If any step fails, do not proceed.
 
-```bash
+```text
 # 3.1  Install dependencies and generate Prisma client
 npm ci
 npm run db:generate
@@ -99,7 +99,7 @@ Before deploying to Staging, deploy a Vercel Preview environment from the
 | Step | Action | Expected |
 |------|--------|----------|
 | 4.1 | Push `codex/production-hardening` to GitHub. Vercel automatically creates a Preview deployment if configured, or trigger manually from Vercel dashboard. | Preview URL is generated. |
-| 4.2 | Confirm the Preview deployment uses the **SQLite** runtime (no Staging database connection). | Build log shows `prisma/schema.prisma` (SQLite provider). No `DATABASE_URL` pointing to Staging. |
+| 4.2 | Confirm the Preview deployment connects to the Staging PostgreSQL database (not SQLite). This matches the approved architecture where preview/UAT flows use the shared Staging environment. | Build log shows `npm run build:postgres` (PostgreSQL provider). `DATABASE_URL` points to Staging transaction pooler. |
 | 4.3 | Open the Preview URL in a browser. | Home page loads over HTTPS. |
 | 4.4 | Sign in with a non-production test account (e.g. Super Admin demo). | Dashboard loads. Navigation renders all expected links. |
 | 4.5 | Visit a protected API route directly in an incognito tab. | `401` returned. |
@@ -118,17 +118,21 @@ current state is backed up and the owner has explicitly approved the release.
 
 ### 5.1 Pre-Deployment Backup
 
-```bash
-# 5.1.1  Dump the Staging PostgreSQL database using DIRECT_URL
-pg_dump --no-owner --no-acl --file=staging-pre-$(date +%Y%m%d_%H%M%S).sql \
-  "$DIRECT_URL"
+Create a full database backup before deploying to Staging.
 
-# 5.1.2  Record the backup checksum (do not print the URL or credentials)
-sha256sum staging-pre-*.sql > staging-backup-checksum.txt
+> **Backup is a Codex-and-owner-only action.** The operator must use the
+> Supabase Dashboard (Project Settings → Database → Create backup), the
+> Supabase CLI (`supabase db dump`), or `pg_dump` with the Staging `DIRECT_URL`.
+> Paste the URL from the approved secret store — never from this document,
+> issues, or chat. The required commands vary by OS and tooling; Codex provides
+> the exact invocation at release time.
 
-# 5.1.3  Store the backup in an approved encrypted location outside the
-#        repository. Never commit the .sql file or checksum to Git.
-```
+Step sequence:
+
+1. Record the pre-deployment backup checksum and store it in an encrypted
+   location outside the repository. Never commit the `.sql` file or checksum.
+2. The backup file name should include the staging environment name, the date,
+   and a sequence indicator (e.g. `staging-pre-<date>.sql`).
 
 If `pg_dump` is not available locally, use the Supabase Dashboard → Database
 → Backup or the Supabase CLI `supabase db dump`.
@@ -159,32 +163,42 @@ Date: <timestamp>
 
 If the release includes a Prisma migration:
 
-```bash
-# 6.1.1  Set DIRECT_URL to the Staging Supabase direct connection (port 5432)
+# 6.1.1  Set DIRECT_URL to the Staging Supabase direct connection (port 5432).
 #        Never use the transaction pooler for migrations.
 #        Never set DATABASE_URL to Staging in Vercel environment variables.
-export DIRECT_URL="<staging-direct-url>"
+#        Codex-approved command required (varies by OS — see note below).
 
 # 6.1.2  Apply the migration
-npx prisma migrate deploy
+#        Codex-approved command required: npx prisma migrate deploy
+#        (runs with DIRECT_URL set to the Staging direct connection)
 
 # 6.1.3  Verify the migration was applied
-npx prisma migrate status
-# Expected: "Database up to date" — all migrations applied.
+#        Codex-approved command required: npx prisma migrate status
+#        Expected: "Database up to date" — all migrations applied.
 
 # 6.1.4  Regenerate the Postgres client
-npm run db:postgres:generate
-```
+#        Codex-approved command required: npm run db:postgres:generate
+
+> **Environment variable note:** All code blocks in this runbook use
+> pseudocode. The operator must set `DIRECT_URL` using their shell's syntax
+> (PowerShell: `$env:DIRECT_URL = "..."`, Bash: `export DIRECT_URL="..."`).
+> Never paste a URL value into this document, issues, or chat.
 
 ### 6.2 Data Import and Reconciliation
 
-If the release includes a data import:
+If the release includes a data import, Codex provides the approved import
+command at release time. The sequence is:
 
-| Step | Command | Expected |
-|------|---------|----------|
-| 6.2.1 | Dry run | `npm run db:migrate:sqlite-to-postgres -- --dry-run` | Counts and money totals without writing. |
-| 6.2.2 | Execute | `npm run db:migrate:sqlite-to-postgres -- --execute` | Writes only to an empty Postgres target. Never truncates or overwrites. |
-| 6.2.3 | Reconcile | `npm run db:reconcile:sqlite-to-postgres` | Row counts, financial totals, password-hash/Unicode parity, foreign keys all match. |
+1. Run the import in dry-run mode (read-only — verifies counts and money
+   totals without writing).
+2. If dry-run passes, execute the import against an empty Postgres target.
+   Never truncate or overwrite an existing target.
+3. Run reconciliation: compare row counts, financial totals,
+   password-hash/Unicode parity, and foreign keys.
+
+> **Codex-approved command required for each step.** The exact script names
+> (`db:migrate:sqlite-to-postgres`, `db:reconcile:sqlite-to-postgres`, etc.)
+> must be verified to exist in `package.json` before execution.
 
 ### 6.3 Evidence Recording
 
@@ -210,7 +224,7 @@ Pilot Production. Environment variables:
 | `DATABASE_URL` | Supavisor transaction pooler, port `6543`, `pgbouncer=true`, `connection_limit=1`, SSL required | Supabase Dashboard → Project Settings → Database |
 | `DIRECT_URL` | Supabase direct connection, port `5432`, SSL required | Same page (used only for local migration/backup commands, never set in Vercel) |
 | `NEXTAUTH_URL` | Staging deployment URL | Set per environment |
-| `NEXTAUTH_SECRET` | Unique random value, **different from Pilot Production** | Generate via `openssl rand -base64 32` |
+| `NEXTAUTH_SECRET` | Unique random value, **different from Pilot Production** | Generate using a random-secret generator of your choice. Codex provides the value at setup time; never paste it into issues, logs, or chat. |
 
 **Rules:**
 - Never set `DIRECT_URL` in a Vercel environment variable.
@@ -221,12 +235,13 @@ Pilot Production. Environment variables:
 
 ### 7.2 Deploy
 
-```bash
+```text
 # 7.2.1  Push the merged branch
 git push origin codex/production-hardening
 
 # 7.2.2  Trigger a Vercel Production deployment for the Staging project
 #        (via Vercel Dashboard or CLI). Do not deploy to Pilot Production.
+#        Codex-approved command required (exact CLI or Dashboard path varies).
 vercel --prod --scope=<staging-project-name>
 
 # 7.2.3  Confirm the build log shows the PostgreSQL provider
@@ -281,19 +296,17 @@ was applied:
 
 ### 9.2 Full Rollback (schema migration applied)
 
-If a database migration was applied and must be rolled back:
+Full database restore is a **Codex-and-owner-only incident action**. It is
+never a normal rollback step. If a database migration was applied and must be
+rolled back:
 
 1. Place the application in maintenance mode (stop writes, show a maintenance
    page, or redirect traffic away from Staging).
-2. Restore the pre-deployment backup:
-   ```bash
-   psql "$DIRECT_URL" < staging-pre-<timestamp>.sql
-   ```
-3. Verify the restoration:
-   ```bash
-   npx prisma migrate status
-   npx prisma db push --dry-run  # Should report no changes
-   ```
+2. Restore from the pre-deployment backup using the Supabase Dashboard,
+   Supabase CLI, or `pg_dump`/`psql`. Codex provides the exact command at
+   incident time.
+3. Verify the restoration: run `npx prisma migrate status` and confirm it
+   reports the expected migration state. Do not use `prisma db push`.
 4. Redeploy the pre-migration application code (promote previous Vercel
    deployment).
 5. Verify smoke tests pass.
