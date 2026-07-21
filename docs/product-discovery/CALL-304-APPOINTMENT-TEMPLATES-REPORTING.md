@@ -116,16 +116,18 @@ model CallingTemplate {
   body        String   // Template text with {{variable}} placeholders
   variables   String   // JSON array of variable names: ["name", "park", "date", "time", "venue"]
   version     Int      @default(1)
-  status      String   @default("active") // "active" | "draft" | "archived"
+  campaignId  String?  // nullable — campaign/event scope; null = city-wide template
+  status      String   @default("draft") // "draft" | "active" | "archived"
   createdBy   String   // userId
   approvedBy  String?  // userId who approved
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  city City @relation(fields: [cityId], references: [id])
+  campaign    Campaign? @relation(fields: [campaignId], references: [id])
+  city        City      @relation(fields: [cityId], references: [id])
 
   @@unique([cityId, code, version])
-  @@index([cityId, status])
+  @@index([cityId, status, campaignId])
   @@map("calling_templates")
 }
 ```
@@ -153,10 +155,13 @@ unlisted variables.
 
 ### 3.3 Template Lifecycle
 
-1. City Head creates a draft template.
-2. Template is reviewed (approvedBy) — a simple "approve" action suffices for
-   the pilot.
-3. Active templates appear in the caller's template picker.
+1. City Head or Super Admin creates a draft template. Default status is
+   `"draft"`.
+2. Only City Head or Super Admin may approve a template (set status to
+   `"active"`). Calling POC may create and edit drafts but cannot approve.
+3. Active templates appear in the caller's template picker, scoped to the
+   caller's active campaign/event assignment if the template has a non-null
+   `campaignId`.
 4. Archived templates are hidden but preserved for history.
 5. Versioning: a new version of the same `code` increments `version`; previous
    versions remain in the database but are not offered in the picker.
@@ -196,7 +201,13 @@ model TemplateUse {
 
 **Caller flow:**
 1. In the lead timeline, tap "Send WhatsApp" or "Send SMS".
-2. A template picker opens showing only active templates for the caller's city.
+2. A template picker opens showing only active templates authorized for the
+   caller's active campaign/event assignment:
+   - If the caller has an active campaign/event assignment, they see templates
+     with `campaignId = null` (city-wide) plus templates with
+     `campaignId = their campaign.id`.
+   - If the caller has no campaign/event assignment, they see only city-wide
+     templates with `campaignId = null`.
 3. Selecting a template pre-fills the message with resolved variables.
 4. Caller reviews, edits if needed (the template is a starting point, not
    enforced), and clicks to open WhatsApp deep link:
@@ -214,7 +225,7 @@ constraint.
 
 | Method | Path | Purpose |
 |--------|------|---------|
-| `GET` | `/api/admin/calling/templates?cityId=` | List active templates for a city |
+| `GET` | `/api/admin/calling/templates?cityId=&campaignId=` | List active templates for a city and optional campaign scope |
 | `POST` | `/api/admin/calling/templates` | Create a new template (draft) |
 | `PATCH` | `/api/admin/calling/templates/[id]` | Edit template (resets to draft if previously active) |
 | `POST` | `/api/admin/calling/templates/[id]/approve` | Approve template |
@@ -226,11 +237,11 @@ constraint.
 
 | Actor | Templates visible | Actions |
 |-------|------------------|---------|
-| Super Admin / Program Admin | All cities | CRUD, approve, archive |
-| City Head | Own city | CRUD, approve, archive within city |
-| Calling POC (temporary assignment) | Assigned campaign/event only | Create draft, edit own drafts; cannot approve |
-| Assigned Caller | Active templates only | Read and use in WhatsApp deep link; cannot create/edit |
-| External Support Caller | Active templates only | Read and use; cannot create/edit |
+| Super Admin / Program Admin | All cities, all campaigns | CRUD, approve, archive |
+| City Head | Own city, all campaigns | CRUD, approve, archive within city |
+| Calling POC (temporary assignment) | Templates scoped to assigned campaign/event plus city-wide (campaignId = null) | Create draft, edit own drafts; cannot approve |
+| Assigned Caller | Active templates scoped to active campaign/event plus city-wide (campaignId = null) | Read and use in WhatsApp deep link; cannot create/edit |
+| External Support Caller | Active templates scoped to active campaign/event plus city-wide (campaignId = null) | Read and use; cannot create/edit |
 
 ---
 
@@ -419,6 +430,7 @@ assignment-only workspace, not Shabab portal membership.
 model CallingTemplate {
   id         String   @id @default(cuid())
   cityId     String
+  campaignId String?  // null = city-wide; non-null = scoped to campaign/event
   code       String
   name       String
   channel    String   // "whatsapp" | "sms"
@@ -431,10 +443,11 @@ model CallingTemplate {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  city City @relation(fields: [cityId], references: [id])
+  campaign Campaign? @relation(fields: [campaignId], references: [id])
+  city     City      @relation(fields: [cityId], references: [id])
 
   @@unique([cityId, code, version])
-  @@index([cityId, status])
+  @@index([cityId, status, campaignId])
   @@map("calling_templates")
 }
 ```
@@ -649,13 +662,15 @@ They are listed here as design specs for the implementer.
 |--------|----------|
 | `CallInteraction.interviewId` | Column is nullable; set to NULL, no data loss |
 | `AdmissionInterview.confirmedAt` / `arrivedAt` | Columns are nullable; leave in place, no application impact |
-| `CallingTemplate` table | Safe to drop if migration is rolled back; templates are authoring data, not operational |
-| `TemplateUse` table | Safe to drop; immutable audit trail can be regenerated from call interactions |
+| `CallingTemplate` table | Authoring data, not operational records. Safe to drop if the calling schema is fully rolled back before any template is used. Once templates are used, the TemplateUse audit trail references them and must be preserved or restored from backup. |
+| `TemplateUse` table | Immutable audit evidence; never dropped or truncated during rollback. If the calling schema is rolled back, TemplateUse rows are preserved in a backup-restored copy or remain in-place if the table is additive-only. Restoration from backup is the only approved recovery path. |
 | Report APIs | Rolled back with code; no schema impact |
 
 **Data retention:** Templates are authoring records, not personal data. They
-can be retained after rollback. Appointment confirmation timestamps are
-operational and safe to retain.
+can be retained after rollback if the schema is preserved. TemplateUse audit
+records are never dropped or regenerated; they are immutable evidence and must
+be preserved or restored only from backup. Appointment confirmation timestamps
+are operational and safe to retain.
 
 ---
 
@@ -718,7 +733,11 @@ Role/scope and personal-data impact:
   - 12-month retention with archival for unsuccessful leads
 Migration/data impact:
   - Additive only: new nullable columns, three new tables
-  - Full rollback without data loss
+  - TemplateUse audit records are immutable evidence and must never be dropped
+    or regenerated. Rollback preserves them or restores from backup only.
+  - Full rollback without data loss for operational columns (interviewId,
+    confirmedAt, arrivedAt). TemplateUse and Template records require backup
+    preservation if dropped during schema rollback.
 Commands run and results:
   - No commands run (docs-only task)
 Known risks / owner decisions:
