@@ -397,8 +397,7 @@ export async function GET() {
       if (
         gb.todayEventStatus !== "none" &&
         gb.totalParticipants > 0 &&
-        gb.todayProgress < 50 &&
-        gb.todayMarkedCount > 0
+        gb.todayProgress < 50
       ) {
         needsAttention.push({
           type: "low_attendance",
