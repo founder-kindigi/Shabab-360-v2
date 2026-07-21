@@ -2,15 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, requireCapability, requireResourceScope } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
+import { editAttendanceRecordSchema } from "@/lib/attendance/schemas";
 
-const VALID_STATUSES = ["present", "absent", "late", "excused"] as const;
 const EDIT_ROLES = ["super_admin", "program_admin", "park_lead"] as const;
-
-function isAttendanceStatus(
-  status: string
-): status is (typeof VALID_STATUSES)[number] {
-  return (VALID_STATUSES as readonly string[]).includes(status);
-}
 
 /**
  * PATCH /api/park/attendance/[eventId]/records/[recordId]
@@ -29,19 +23,16 @@ export async function PATCH(
   if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
   try {
-    const body = await req.json();
-    const { status, editReason } = body as { status?: string; editReason?: string };
-
-    if (!status || !isAttendanceStatus(status)) {
-      return NextResponse.json({ error: "Invalid or missing status" }, { status: 400 });
-    }
-
-    if (!editReason || typeof editReason !== "string" || editReason.trim().length < 10) {
+    const parsedBody = editAttendanceRecordSchema.safeParse(
+      await req.json().catch(() => null)
+    );
+    if (!parsedBody.success) {
       return NextResponse.json(
-        { error: "editReason is required and must be at least 10 characters" },
+        { error: parsedBody.error.issues[0]?.message || "Invalid request" },
         { status: 400 }
       );
     }
+    const { status, editReason } = parsedBody.data;
 
     // Fetch the record with event for scope check
     const record = await db.attendanceRecord.findUnique({

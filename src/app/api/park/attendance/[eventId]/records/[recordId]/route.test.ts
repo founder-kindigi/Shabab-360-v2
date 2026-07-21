@@ -70,4 +70,18 @@ describe("PATCH /api/park/attendance/[eventId]/records/[recordId]", () => {
     expect(response.status).toBe(403);
     expect(mocks.recordFindUnique).not.toHaveBeenCalled();
   });
+
+  it("rejects an overly long edit reason before reading the record", async () => {
+    const response = await PATCH(
+      new NextRequest("http://localhost/api/park/attendance/event-2/records/record-2", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ status: "absent", editReason: "a".repeat(2001) }),
+      }),
+      { params: Promise.resolve({ eventId: "event-2", recordId: "record-2" }) }
+    );
+
+    expect(response.status).toBe(400);
+    expect(mocks.recordFindUnique).not.toHaveBeenCalled();
+  });
 });

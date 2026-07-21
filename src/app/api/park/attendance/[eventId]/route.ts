@@ -4,6 +4,7 @@ import { checkAttendanceAlerts } from "@/lib/attendance-alerts";
 import { db } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
 import { parseISO } from "date-fns";
+import { markAttendanceSchema } from "@/lib/attendance/schemas";
 
 const VALID_STATUSES = ["present", "absent", "late", "excused"];
 
@@ -144,19 +145,16 @@ export async function POST(
   if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
   try {
-    const body = await req.json();
-    const { participantId, status, mutationId, editReason, markedAt } = body;
-
-    if (!participantId || !status) {
+    const parsedBody = markAttendanceSchema.safeParse(
+      await req.json().catch(() => null)
+    );
+    if (!parsedBody.success) {
       return NextResponse.json(
-        { error: "participantId and status are required" },
+        { error: parsedBody.error.issues[0]?.message || "Invalid request" },
         { status: 400 }
       );
     }
-
-    if (!VALID_STATUSES.includes(status)) {
-      return NextResponse.json({ error: "Invalid status value" }, { status: 400 });
-    }
+    const { participantId, status, mutationId, editReason, markedAt } = parsedBody.data;
 
     // Fetch event with scope info
     const event = await db.attendanceEvent.findUnique({

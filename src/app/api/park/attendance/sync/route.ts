@@ -3,45 +3,15 @@ import { ATTENDANCE_ROLES, canAccessResourceScope, requireAuth, requireCapabilit
 import { checkAttendanceAlerts } from "@/lib/attendance-alerts";
 import { db } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
-import { isValid, parseISO } from "date-fns";
-
-const VALID_STATUSES = ["present", "absent", "late", "excused"] as const;
-type AttendanceStatus = (typeof VALID_STATUSES)[number];
-
-type SyncMutation = {
-  mutationId: string | null;
-  eventId: string | null;
-  participantId: string | null;
-  status: AttendanceStatus | null;
-  markedAt: Date | null;
-};
+import { parseISO } from "date-fns";
+import { syncAttendanceRequestSchema } from "@/lib/attendance/schemas";
 
 type SyncResult = {
-  mutationId: string | null;
+  mutationId: string;
   status: "processed" | "failed";
   recordId: string | null;
   error: string | null;
 };
-
-function parseMutation(value: unknown): SyncMutation {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return { mutationId: null, eventId: null, participantId: null, status: null, markedAt: null };
-  }
-
-  const mutation = value as Record<string, unknown>;
-  const status = typeof mutation.status === "string" && VALID_STATUSES.includes(mutation.status as AttendanceStatus)
-    ? mutation.status as AttendanceStatus
-    : null;
-  const parsedMarkedAt = typeof mutation.markedAt === "string" ? parseISO(mutation.markedAt) : null;
-
-  return {
-    mutationId: typeof mutation.mutationId === "string" ? mutation.mutationId : null,
-    eventId: typeof mutation.eventId === "string" ? mutation.eventId : null,
-    participantId: typeof mutation.participantId === "string" ? mutation.participantId : null,
-    status,
-    markedAt: parsedMarkedAt && isValid(parsedMarkedAt) ? parsedMarkedAt : null,
-  };
-}
 
 export async function POST(req: Request) {
   const auth = await requireAuth();
@@ -51,36 +21,23 @@ export async function POST(req: Request) {
   if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
   try {
-    const body = await req.json();
-    const mutations = body?.mutations;
-
-    if (!Array.isArray(mutations)) {
-      return NextResponse.json({ error: "mutations array required" }, { status: 400 });
+    const parsedBody = syncAttendanceRequestSchema.safeParse(
+      await req.json().catch(() => null)
+    );
+    if (!parsedBody.success) {
+      return NextResponse.json(
+        { error: parsedBody.error.issues[0]?.message || "Invalid request" },
+        { status: 400 }
+      );
     }
-    if (mutations.length > 50) {
-      return NextResponse.json({ error: "Max 50 mutations per sync request" }, { status: 400 });
-    }
+    const { mutations } = parsedBody.data;
 
     const staffMeta = await db.staffMeta.findUnique({ where: { userId: user.id } });
     const results: SyncResult[] = [];
 
-    for (const rawMutation of mutations) {
-      const mutation = parseMutation(rawMutation);
+    for (const mutation of mutations) {
       const { mutationId, eventId, participantId, status, markedAt } = mutation;
-
-      if (!mutationId || !eventId || !participantId || !status) {
-        results.push({
-          mutationId,
-          status: "failed",
-          recordId: null,
-          error: "mutationId, eventId, participantId, and a valid status are required",
-        });
-        continue;
-      }
-      if (typeof (rawMutation as Record<string, unknown>).markedAt === "string" && !markedAt) {
-        results.push({ mutationId, status: "failed", recordId: null, error: "Invalid markedAt" });
-        continue;
-      }
+      const markedAtDate = markedAt ? parseISO(markedAt) : new Date();
 
       try {
         const event = await db.attendanceEvent.findUnique({
@@ -119,12 +76,12 @@ export async function POST(req: Request) {
             participantId,
             status,
             markedBy: staffMeta?.id,
-            markedAt: markedAt ?? new Date(),
+            markedAt: markedAtDate,
           },
           update: {
             status,
             markedBy: staffMeta?.id,
-            markedAt: markedAt ?? new Date(),
+            markedAt: markedAtDate,
           },
         });
 
@@ -142,7 +99,7 @@ export async function POST(req: Request) {
           mutationId,
           status: "failed",
           recordId: null,
-          error: error instanceof Error ? error.message : "Processing error",
+          error: "Processing error",
         });
       }
     }

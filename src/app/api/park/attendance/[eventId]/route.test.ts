@@ -43,6 +43,8 @@ const event = {
   isClosed: false,
   group: { batch: { parkId: "park-1" } },
 };
+const PARTICIPANT_ID = "ckaaaaaaaaaaaaaaaaaaaaaaa";
+const OTHER_PARTICIPANT_ID = "ckbbbbbbbbbbbbbbbbbbbbbbb";
 
 function request(body: Record<string, unknown>) {
   return new Request("http://localhost/api/park/attendance/event-1", {
@@ -64,9 +66,23 @@ describe("POST /api/park/attendance/[eventId]", () => {
   });
 
   it("rejects unknown attendance states before fetching the event", async () => {
-    const response = await POST(request({ participantId: "participant-1", status: "missing" }), {
+    const response = await POST(request({ participantId: PARTICIPANT_ID, status: "missing" }), {
       params: Promise.resolve({ eventId: "event-1" }),
     });
+
+    expect(response.status).toBe(400);
+    expect(mocks.eventFindUnique).not.toHaveBeenCalled();
+  });
+
+  it("rejects an invalid markedAt value before fetching the event", async () => {
+    const response = await POST(
+      request({
+        participantId: PARTICIPANT_ID,
+        status: "present",
+        markedAt: "not-a-date",
+      }),
+      { params: Promise.resolve({ eventId: "event-1" }) }
+    );
 
     expect(response.status).toBe(400);
     expect(mocks.eventFindUnique).not.toHaveBeenCalled();
@@ -77,7 +93,7 @@ describe("POST /api/park/attendance/[eventId]", () => {
       NextResponse.json({ error: "Forbidden" }, { status: 403 })
     );
 
-    const response = await POST(request({ participantId: "participant-1", status: "present" }), {
+    const response = await POST(request({ participantId: PARTICIPANT_ID, status: "present" }), {
       params: Promise.resolve({ eventId: "event-1" }),
     });
 
@@ -90,7 +106,7 @@ describe("POST /api/park/attendance/[eventId]", () => {
       NextResponse.json({ error: "Forbidden" }, { status: 403 })
     );
 
-    const response = await POST(request({ participantId: "participant-1", status: "present" }), {
+    const response = await POST(request({ participantId: PARTICIPANT_ID, status: "present" }), {
       params: Promise.resolve({ eventId: "event-1" }),
     });
 
@@ -101,19 +117,19 @@ describe("POST /api/park/attendance/[eventId]", () => {
   it("rejects a participant who is not active in the event group", async () => {
     mocks.participantFindFirst.mockResolvedValue(null);
 
-    const response = await POST(request({ participantId: "participant-other-group", status: "present" }), {
+    const response = await POST(request({ participantId: OTHER_PARTICIPANT_ID, status: "present" }), {
       params: Promise.resolve({ eventId: "event-1" }),
     });
 
     expect(response.status).toBe(409);
     await expect(response.json()).resolves.toEqual({ error: "Participant not in this group" });
     expect(mocks.participantFindFirst).toHaveBeenCalledWith({
-      where: { id: "participant-other-group", groupId: "group-1", state: "active" },
+      where: { id: OTHER_PARTICIPANT_ID, groupId: "group-1", state: "active" },
     });
   });
 
   it("evaluates absence alerts in-process after a successful attendance record", async () => {
-    mocks.participantFindFirst.mockResolvedValue({ id: "participant-1" });
+    mocks.participantFindFirst.mockResolvedValue({ id: PARTICIPANT_ID });
     mocks.staffMetaFindUnique.mockResolvedValue({ id: "staff-1", user: { name: "Murabbi" } });
     mocks.attendanceRecordFindUnique.mockResolvedValue(null);
     mocks.attendanceRecordCreate.mockResolvedValue({
@@ -122,11 +138,11 @@ describe("POST /api/park/attendance/[eventId]", () => {
       markedAt: new Date("2026-07-14T00:00:00.000Z"),
     });
 
-    const response = await POST(request({ participantId: "participant-1", status: "absent" }), {
+    const response = await POST(request({ participantId: PARTICIPANT_ID, status: "absent" }), {
       params: Promise.resolve({ eventId: "event-1" }),
     });
 
     expect(response.status).toBe(200);
-    expect(mocks.checkAttendanceAlerts).toHaveBeenCalledWith("participant-1", "event-1");
+    expect(mocks.checkAttendanceAlerts).toHaveBeenCalledWith(PARTICIPANT_ID, "event-1");
   });
 });

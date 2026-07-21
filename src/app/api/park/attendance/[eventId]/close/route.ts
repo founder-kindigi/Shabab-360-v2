@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAuth, requireCapability, requireResourceScope } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
+import { closeAttendanceEventSchema } from "@/lib/attendance/schemas";
 
 const EVENT_SUPERVISOR_ROLES = ["park_lead"] as const;
 
@@ -17,15 +18,16 @@ export async function PATCH(
   if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
   try {
-    const body = await req.json();
-    const { reason } = body;
-
-    if (!reason) {
+    const parsedBody = closeAttendanceEventSchema.safeParse(
+      await req.json().catch(() => null)
+    );
+    if (!parsedBody.success) {
       return NextResponse.json(
-        { error: "reason is required" },
+        { error: parsedBody.error.issues[0]?.message || "Invalid request" },
         { status: 400 }
       );
     }
+    const { reason } = parsedBody.data;
 
     const event = await db.attendanceEvent.findUnique({
       where: { id: eventId },

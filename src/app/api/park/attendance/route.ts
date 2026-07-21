@@ -11,6 +11,7 @@ import {
   queryValidationError,
 } from "@/lib/api/query-params";
 import { z } from "zod";
+import { createAttendanceEventSchema } from "@/lib/attendance/schemas";
 
 const listQuerySchema = z.object({
   parkId: optionalIdentifier(),
@@ -179,15 +180,16 @@ export async function POST(req: Request) {
   if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
   try {
-    const body = await req.json();
-    const { groupId, title, eventDate } = body;
-
-    if (typeof groupId !== "string" || typeof title !== "string" || !groupId || !title.trim()) {
+    const parsedBody = createAttendanceEventSchema.safeParse(
+      await req.json().catch(() => null)
+    );
+    if (!parsedBody.success) {
       return NextResponse.json(
-        { error: "groupId and title are required" },
+        { error: parsedBody.error.issues[0]?.message || "Invalid request" },
         { status: 400 }
       );
     }
+    const { groupId, title, eventDate } = parsedBody.data;
 
     // Scope check: verify group belongs to user's scope
     const group = await db.group.findUnique({
@@ -207,10 +209,7 @@ export async function POST(req: Request) {
     if (scopeError) return scopeError;
 
     // Check if event already exists for this group+date
-    const parsedDate = typeof eventDate === "string" ? parseISO(eventDate) : null;
-    if (parsedDate && !isValid(parsedDate)) {
-      return NextResponse.json({ error: "Invalid eventDate" }, { status: 400 });
-    }
+    const parsedDate = eventDate ? parseISO(eventDate) : null;
     const date = parsedDate ? fromPKT(parsedDate) : todayPKT();
     const existingEvent = await db.attendanceEvent.findFirst({
       where: {
