@@ -1,15 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
-import { ORGANIZATION_MANAGEMENT_ROLES, requireAuth, requireCapability, requireResourceScope } from "@/lib/auth/authorize";
+import { requireAuth, requireCapability, requireResourceScope } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
 import { z } from "zod";
 
 const updateSchema = z.object({
-  name: z.string().min(2).optional(),
-  startDate: z.string().optional(),
-  endDate: z.string().nullable().optional(),
+  name: z.string().trim().min(2).max(120).optional(),
+  startDate: z.string().date().optional(),
+  endDate: z.string().date().nullable().optional(),
   isActive: z.boolean().optional(),
 });
+
+const HIERARCHY_MANAGER_ROLES = ["super_admin", "program_admin", "city_head"];
+
+function canManageHierarchy(role?: string | null) {
+  return HIERARCHY_MANAGER_ROLES.includes(role || "");
+}
 
 export async function GET(
   request: NextRequest,
@@ -18,7 +24,7 @@ export async function GET(
   const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
   const { user } = auth;
-  const capabilityAuth = await requireCapability("organisation.manage");
+  const capabilityAuth = await requireCapability("organisation.view");
   if (capabilityAuth instanceof NextResponse) return capabilityAuth;
   const { id } = await params;
 
@@ -32,6 +38,7 @@ export async function GET(
           city: { select: { id: true, name: true } },
         },
       },
+      city: { select: { id: true, name: true } },
       _count: { select: { groups: true } },
     },
   });
@@ -42,8 +49,7 @@ export async function GET(
 
   const scopeError = requireResourceScope(
     user,
-    { cityId: batch.park.city.id, parkId: batch.parkId },
-    ORGANIZATION_MANAGEMENT_ROLES
+    { cityId: batch.cityId ?? batch.park.city.id }
   );
   if (scopeError) return scopeError;
 
@@ -59,6 +65,9 @@ export async function PATCH(
   const { user } = auth;
   const capabilityAuth = await requireCapability("organisation.manage");
   if (capabilityAuth instanceof NextResponse) return capabilityAuth;
+  if (!canManageHierarchy(user.role)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
   const { id } = await params;
 
   const existing = await db.batch.findUnique({
@@ -71,8 +80,7 @@ export async function PATCH(
 
   const scopeError = requireResourceScope(
     user,
-    { cityId: existing.park.cityId, parkId: existing.parkId },
-    ORGANIZATION_MANAGEMENT_ROLES
+    { cityId: existing.cityId ?? existing.park.cityId }
   );
   if (scopeError) return scopeError;
 
@@ -86,6 +94,13 @@ export async function PATCH(
   }
 
   const data: any = { ...parsed.data };
+  const updatedStartDate = data.startDate ? new Date(data.startDate) : existing.startDate;
+  const updatedEndDate = data.endDate === undefined
+    ? existing.endDate
+    : data.endDate ? new Date(data.endDate) : null;
+  if (updatedEndDate && updatedEndDate < updatedStartDate) {
+    return NextResponse.json({ error: { endDate: ["End date must be on or after the start date"] } }, { status: 400 });
+  }
   if (data.startDate) data.startDate = new Date(data.startDate);
   if (data.endDate !== undefined) {
     data.endDate = data.endDate ? new Date(data.endDate) : null;
@@ -121,6 +136,9 @@ export async function DELETE(
   const { user } = auth;
   const capabilityAuth = await requireCapability("organisation.manage");
   if (capabilityAuth instanceof NextResponse) return capabilityAuth;
+  if (!canManageHierarchy(user.role)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
   const { id } = await params;
 
   const existing = await db.batch.findUnique({
@@ -133,8 +151,7 @@ export async function DELETE(
 
   const scopeError = requireResourceScope(
     user,
-    { cityId: existing.park.cityId, parkId: existing.parkId },
-    ORGANIZATION_MANAGEMENT_ROLES
+    { cityId: existing.cityId ?? existing.park.cityId }
   );
   if (scopeError) return scopeError;
 

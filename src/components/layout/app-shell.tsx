@@ -37,6 +37,7 @@ const SettingsPage = lazy(() => import("@/components/modules/admin/settings-page
 const ReportsPage = lazy(() => import("@/components/modules/admin/reports-page").then(m => ({ default: m.ReportsPage })));
 const AccessProvisioningPage = lazy(() => import("@/components/modules/admin/access-provisioning-page").then(m => ({ default: m.AccessProvisioningPage })));
 const AccessManagementPage = lazy(() => import("@/components/modules/admin/access-management-page").then(m => ({ default: m.AccessManagementPage })));
+const CollaborationTeamsPage = lazy(() => import("@/components/modules/admin/collaboration-teams-page").then(m => ({ default: m.CollaborationTeamsPage })));
 const FeesPage = lazy(() => import("@/components/modules/admin/fees-page").then(m => ({ default: m.FeesPage })));
 const NotificationsPage = lazy(() => import("@/components/modules/admin/notifications-page").then(m => ({ default: m.NotificationsPage })));
 const AdmissionsPage = lazy(() => import("@/components/modules/admin/admissions-page").then(m => ({ default: m.AdmissionsPage })));
@@ -112,6 +113,7 @@ const pageTitles: Record<PageId, string> = {
   "admin-users": "Users",
   "admin-access": "Access Provisioning",
   "admin-access-management": "Access Management",
+  "admin-collaboration-teams": "Collaboration Teams",
   "admin-admissions": "Admissions",
   "admin-fees": "Fees",
   "admin-announcements": "Announcements",
@@ -152,7 +154,7 @@ function isKnownPage(pageId: PageId): boolean {
     "admin-groups", "admin-people", "admin-students", "admin-guardians",
     "admin-attendance-events", "admin-settings", "admin-users",
     "admin-admissions", "admin-fees", "admin-announcements",
-    "admin-reports", "admin-audit-log", "admin-access", "notifications",
+    "admin-reports", "admin-audit-log", "admin-access", "admin-access-management", "admin-collaboration-teams", "notifications",
     "murabbi-dashboard", "murabbi-groups",
     "park-dashboard", "park-attendance", "park-attendance-roster",
     "park-roster", "park-participants", "park-guardians", "park-schedule",
@@ -221,6 +223,8 @@ function PageContentInner({ pageId }: { pageId: PageId }) {
       return <AccessProvisioningPage />;
     case "admin-access-management":
       return <AccessManagementPage />;
+    case "admin-collaboration-teams":
+      return <CollaborationTeamsPage />;
     case "admin-audit-log":
       return <AuditLogPage />;
     case "notifications":

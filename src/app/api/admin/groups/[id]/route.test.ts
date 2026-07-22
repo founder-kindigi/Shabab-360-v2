@@ -20,7 +20,7 @@ vi.mock("@/lib/db", () => ({
 }));
 vi.mock("@/lib/audit", () => ({ logAudit: vi.fn() }));
 
-import { PATCH } from "./route";
+import { GET, PATCH } from "./route";
 
 describe("PATCH /api/admin/groups/[id]", () => {
   beforeEach(() => {
@@ -41,7 +41,7 @@ describe("PATCH /api/admin/groups/[id]", () => {
     );
   });
 
-  it("denies a cross-park mutation before the group can be updated", async () => {
+  it("denies a Park Admin group mutation before loading the group", async () => {
     const response = await PATCH(new NextRequest("http://localhost/api/admin/groups/group-2", {
       method: "PATCH",
       headers: { "content-type": "application/json" },
@@ -49,12 +49,9 @@ describe("PATCH /api/admin/groups/[id]", () => {
     }), { params: Promise.resolve({ id: "group-2" }) });
 
     expect(response.status).toBe(403);
-    expect(mocks.requireResourceScope).toHaveBeenCalledWith(
-      expect.objectContaining({ id: "park-admin" }),
-      { cityId: "city-2", parkId: "park-2", groupId: "group-2" },
-      expect.any(Array)
-    );
+    expect(mocks.requireResourceScope).not.toHaveBeenCalled();
     expect(mocks.groupUpdate).not.toHaveBeenCalled();
+    expect(mocks.groupFindUnique).not.toHaveBeenCalled();
   });
 
   it("denies organization access before loading a group", async () => {
@@ -72,5 +69,27 @@ describe("PATCH /api/admin/groups/[id]", () => {
     expect(mocks.groupFindUnique).not.toHaveBeenCalled();
     expect(mocks.requireResourceScope).not.toHaveBeenCalled();
     expect(mocks.groupUpdate).not.toHaveBeenCalled();
+  });
+
+  it("allows a Park Lead to read a group in the assigned park", async () => {
+    mocks.requireAuth.mockResolvedValue({
+      user: { id: "park-lead", role: "park_lead", assignedParkId: "park-2" },
+    });
+    mocks.groupFindUnique.mockResolvedValue({
+      id: "group-2",
+      parkId: "park-2",
+      batch: { cityId: "city-2", park: { id: "park-1", city: { id: "city-2" } } },
+    });
+    mocks.requireResourceScope.mockReturnValue(null);
+
+    const response = await GET(new NextRequest("http://localhost/api/admin/groups/group-2"), {
+      params: Promise.resolve({ id: "group-2" }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(mocks.requireResourceScope).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "park-lead" }),
+      { cityId: "city-2", parkId: "park-2", groupId: "group-2" }
+    );
   });
 });

@@ -1,213 +1,136 @@
-# Shabab 360 Multi-Agent Execution Workflow
+# Shabab 360 Complexity-Based Execution Workflow
 
-## 1. Operating Model
+## 1. Authority And Safety
 
-Codex owns integration, security review, migrations, staging execution,
-deployment, final verification, commits to the integration branch, and merge
-approval. Claude, Gemini and DeepSeek work on one narrow task per branch.
+`CODEX_SHABAB360_MASTER_BLUEPRINT.md` is the planning authority and
+`docs/AGENT_TASK_BOARD.md` is the live queue. Current code and fresh evidence
+outrank historical documents.
 
-**Integration branch:** `codex/production-hardening`  
-**Agent branch format:** `agent/<agent>/<task-id>-<short-name>`  
-Examples: `agent/claude/HIER-002-migration-design`,
-`agent/gemini/CP-UI-001-planner-read-ui`,
-`agent/deepseek/CALL-305-parser-tests`.
+Every worker uses an isolated branch from the current approved integration
+commit. No worker may push to `main`, merge another branch, deploy, execute a
+migration/import, handle secrets, or alter real Lahore data. Codex alone
+approves and integrates work.
 
-No agent may push to `main`, force-push shared branches, deploy to Vercel, run
-staging/production migrations, execute imports, edit `.env`, or handle secrets.
+## 2. Complexity Tiers
 
-## 2. Mandatory Branch Cycle
+Workers claim work by the highest tier they can reliably complete, not by a
+fixed role or model name. The claiming worker states its identity and supported
+tier in every claim.
 
-1. Codex marks a task `READY` and gives the agent the exact task prompt.
-2. Agent creates its branch from the current approved integration commit.
-3. Agent changes only allowed files, runs required tests, commits and pushes the
-   branch, then opens a PR targeting `codex/production-hardening`.
-4. Agent posts the required handoff in the task/PR; it does not merge.
-5. Codex reviews code, authorization, migration/data impact, tests and diff.
-6. Codex either approves and merges, or posts precise required changes.
-7. The same agent revises the same branch; repeat until approved or rejected.
-8. Codex verifies the merged integration branch, updates `TASKS.md`, and only
-   then releases the next dependent tasks.
-
-## 3. Coordinator Loop
-
-Use a dedicated low-cost coordinator session (Gemini Flash preferred) to keep
-`docs/AGENT_TASK_BOARD.md` current. Every three minutes it must:
-
-1. Read the board and inspect the listed agent branches only; it does not edit
-   application code.
-2. Move valid handoffs from `HANDOFF_READY` to `REVIEW`, and notify Codex with
-   the branch, commit, changed files, and verification summary.
-3. Identify an idle agent and assign the highest-priority `READY` task whose
-   dependencies are `DONE` and whose allowed files do not overlap an active
-   task.
-4. Mark a task `BLOCKED` when an owner decision, approved API contract, or
-   missing dependency prevents safe progress. It must not invent a contract.
-5. Never merge, deploy, execute migrations/imports, read secrets, or approve
-   its own work.
-
-The coordinator can dispatch automatically only when the host platform permits
-one agent to create or message the other agent sessions. Without that platform
-capability, it still keeps the board current and prepares the exact next prompt;
-the operator starts the listed session. Codex remains the approval gate in both
-models.
-
-## 3. Baseline Gate
-
-No new implementation branch starts until `BASELINE-001` is approved.
-
-| ID | Owner | Required outcome |
+| Tier | Work type | Required capability |
 | --- | --- | --- |
-| `BASELINE-001` | Codex | Repair current TypeScript failure, complete hierarchy migration design, add/repair regression tests, pass generation/lint/typecheck/tests/build, and create an approved integration commit. |
-| `BASELINE-002` | Codex | Deploy the reviewed hierarchy migration to staging only after explicit owner approval; reconcile Lahore city/batch/park/group records. |
+| `C0` | Documentation, inventory, formatting, narrow static checks | Accurate reading, concise writing, repository hygiene |
+| `C1` | Isolated UI components, focused unit tests, parsers, mechanical fixes | Reliable implementation inside explicit file boundaries |
+| `C2` | API routes, bounded validation, responsive workflows, integration tests | Server/client reasoning plus allow, deny, and failure tests |
+| `C3` | Authorization, data model changes, migration design, concurrency, cross-module refactors | Strong security, scope, schema, and rollback reasoning |
+| `C4` | Architecture, security approval, migration/release decisions, integration | Highest-risk review capability; Codex approval is still mandatory |
 
-The hierarchy rule to preserve is: **Batch belongs to City; Group belongs to
-exactly one Batch and one Park in that same City.**
+Workers may claim only tasks at or below their declared tier. A task above the
+available tier is marked `BLOCKED` for review; no worker may simplify safety
+requirements merely to make it claimable.
 
-## 4. Agent Strengths And Task Allocation
+## 3. Continuous Worker Flow
 
-| Agent | Best use | Do not assign |
-| --- | --- | --- |
-| Claude Opus | Architecture, high-risk security/data-model review, migration and authorization design, complex cross-module code review | Independent production changes, broad cosmetic UI work |
-| Claude Sonnet | Complex backend implementation after contract approval, API refactors, focused integration tests, design-to-code review | Secrets, deployments, irreversible migrations, final approval |
-| Gemini 3.1 Pro | Product workflow design, difficult frontend flows, browser UAT plans, broad-but-isolated component work | Authorization redesign, data writes, final approval |
-| Gemini 3.5 Flash | Coordinator loop, narrow UI components, responsive fixes, docs, small focused tests | Schema changes, security architecture, migration execution |
-| DeepSeek v4 Flash | Parser/dry-run utilities, route-level regression tests, bounded validation, mechanical backend changes | Secrets, deployment, data writes, cross-cutting auth policy |
-| GPT-5.4-mini | Independent test plans, UAT evidence, runbooks, static review checklists, focused test implementation | Authoritative security/schema decisions, final approval |
-| Codex | Product/API contract, integration, auth/scope, migrations, security/data review, merge/release checks, staging execution | Delegating final approval |
+1. Read `AGENTS.md`, `.agents/memory/current.md`, this document, and the task
+   board before every claim.
+2. Claim one `READY` task with satisfied dependencies and non-overlapping
+   allowed files.
+3. Create `agent/<identity>/<task-id>-<short-name>` from the board's base
+   commit, make only approved changes, verify, commit, and push.
+4. Mark the task `HANDOFF_READY` and publish the required handoff.
+5. Immediately claim the next safe `READY` task. The completed branch stays
+   available for review and is never reused for unrelated work.
+6. If review returns `CHANGES_REQUESTED`, the original author owns the revision
+   on the original branch. It takes priority after the author's current task
+   reaches a clean stopping point; no revision is silently reassigned.
+7. A worker may have one `IN_PROGRESS` task and any number of its own
+   `HANDOFF_READY` branches. It must not edit two tasks at once.
 
-### Delivery Pods
+## 4. Continuous Review Flow
 
-For a feature with stable requirements, form a temporary pod with no file
-overlap:
+The review lane runs independently from delivery workers.
 
-| Lane | Suggested owner | Starts when | Output |
-| --- | --- | --- | --- |
-| Contract | Codex, reviewed by Opus | Owner decision exists | API schema, authorization/scope rules, allowed files |
-| Backend | Sonnet or DeepSeek | Contract is approved | API/schema implementation and focused allow/deny tests |
-| Frontend | Gemini Pro or Flash | API contract is stable | Page/component branch with no backend edits |
-| Quality | GPT-5.4-mini or DeepSeek | Contract is approved | Regression/UAT tests and evidence checklist |
-| Coordination | Gemini Flash | Always | Board updates, dependency checks, handoff routing |
+1. Review each `HANDOFF_READY` task by priority, then handoff time.
+2. Verify changed-file scope, authorization/scope impact, personal-data impact,
+   migrations/data impact, and required evidence.
+3. Return exactly one decision:
+   - `APPROVED`: ready for Codex integration.
+   - `CHANGES_REQUESTED`: precise findings with file/line references and
+     acceptance checks; return it to the original author.
+   - `BLOCKED`: owner decision or missing contract required.
+4. Never approve the reviewer's own branch.
+5. Codex performs the final C4 review and integration after approval.
 
-Codex integrates only after backend, frontend, and quality lanes pass review.
+## 5. Dispatcher Loop
 
-## 5. Approved Execution Waves
+The dispatcher checks `docs/AGENT_TASK_BOARD.md` every three minutes.
 
-Tasks in the same wave must not overlap files or database models.
+1. Detect new claims, pushed handoffs, requested changes, and blocked work.
+2. Route `HANDOFF_READY` work to the review lane without waiting for the author.
+3. Assign the highest-priority dependency-safe `READY` task to an available
+   worker whose declared tier is sufficient.
+4. Prevent simultaneous overlap on a file, route, schema model, migration, or
+   authorization domain.
+5. If the platform cannot directly message or start another session, update the
+   board with the exact assignment prompt. The relevant worker polls the board
+   and claims it on its next three-minute check.
+6. The dispatcher never writes application code, approves work, merges,
+   deploys, runs migrations/imports, or accesses secrets.
 
-### Wave 0: Stabilise The Integration Baseline
+## 6. Task Requirements
 
-| ID | Agent | Scope | Allowed files | Required evidence |
-| --- | --- | --- | --- | --- |
-| `HIER-001` | DeepSeek | Repair the fee-waiver syntax regression only. | `src/app/api/admin/fees/[id]/waiver/route.ts` and its focused test | Focused test, typecheck |
-| `HIER-002` | Claude | Review city-owned Batch / park-owned Group migration and write forward/rollback/reconciliation design. No code. | `docs/` only | Exact SQL/data transformation plan, risks |
-| `HIER-003` | Gemini | Build manual UI regression checklist for city batch + park group flows. No code. | `docs/product-discovery/` only | Browser scenarios, allowed/denied scope cases |
+Every task card must define:
 
-Codex integrates `HIER-001`, reviews `HIER-002/003`, then implements the
-migration and runs the full verification suite.
+- task ID, priority, complexity tier, status, dependencies, and base commit;
+- explicit allowed files or domain boundary;
+- product/API contract and server-side authorization rules where relevant;
+- required focused tests and standard verification commands;
+- data, migration, rollback, personal-data, and deployment impact;
+- reviewer and acceptance criteria.
 
-### Wave 1: Product Designs Without Schema Conflicts
+Schema, authorization, payment, safeguarding, import, deployment, and real-data
+tasks are `C3` or `C4`. They require deny-path tests, a rollback/recovery note,
+and Codex approval before execution.
 
-| ID | Agent | Scope | Allowed files |
-| --- | --- | --- | --- |
-| `EVENT-301` | Claude | Event, temporary event-team, responsibility and handover design from Mashwara decisions. No code. | `docs/product-discovery/` |
-| `CALL-304` | DeepSeek | Calling template, appointment/orientation and reporting design. No external sends or code. | `docs/product-discovery/` |
-| `UAT-ROLE-001` | Gemini | Execute/revise role UAT only when owner supplies approved test accounts locally; no passwords shared. | `docs/product-discovery/` |
-
-Codex consolidates approved designs before creating any event/calling schema.
-
-### Wave 2: Content Planner
-
-| ID | Agent | Scope | Allowed files | Dependencies |
-| --- | --- | --- | --- | --- |
-| `CP-API-001` | Codex | Review and test scoped planner API paths. | Planner API/test files | `BASELINE-001` |
-| `CP-IMPORT-001` | DeepSeek | Parser tests for template, State Life override, links and placeholders. | `scripts/`, focused tests | `CP-API-001` |
-| `CP-UI-001` | Gemini | Read-only planner list/calendar UI. | New planner UI files only | Approved planner APIs |
-| `CP-UI-002` | Claude | City manager/session and own-team draft workflow design review; code only after Codex approval. | Planner UI/API files named by Codex | `CP-UI-001` |
-
-### Wave 3: Teams, Events And Mashwara
-
-| ID | Agent | Scope | Allowed files | Dependencies |
-| --- | --- | --- | --- | --- |
-| `TEAM-001` | Gemini | Super Admin team membership UI. | New team UI files | `BASELINE-001` |
-| `TEAM-002` | DeepSeek | Membership API tests and audit behavior. | Team API/test files | Codex API contract |
-| `MASHWARA-301` | Claude | Final design revision only. | Mashwara design document | Owner decisions |
-| `EVENT-302` | Codex | Event/responsibility schema and scoped APIs. | Schema, migration, APIs, tests | `EVENT-301` |
-| `MASHWARA-302` | Codex | Mashwara schema, lifecycle and access implementation. | Schema, migration, APIs, tests | `EVENT-302` |
-| `MASHWARA-303` | Gemini | Mashwara UI after APIs are approved. | New Mashwara UI files | `MASHWARA-302` |
-
-### Wave 4: Calling System
-
-| ID | Agent | Scope | Allowed files | Dependencies |
-| --- | --- | --- | --- | --- |
-| `CALL-302` | Codex | Calling schema, temporary External Support Caller entitlement, scoped APIs and audit tests. | Schema, migration, APIs, tests | `EVENT-302` |
-| `CALL-303` | Gemini | Caller queue, lead timeline and responsive assigned-lead workspace. | New calling UI files | `CALL-302` |
-| `CALL-305` | DeepSeek | Non-writing spreadsheet parser, duplicate report and import fixtures. | `scripts/`, tests | `CALL-302` |
-| `CALL-306` | Codex | Review report, gain owner approval, staging-only import and reconciliation. | Execution command only | `CALL-305` |
-
-## 6. Required Agent Handoff
-
-Every handoff must contain:
+## 7. Required Claim
 
 ```text
+CLAIM
 Task ID:
+Agent identity:
+Supported complexity tier: C0 / C1 / C2 / C3 / C4
+Branch:
+Base commit:
+Allowed files understood:
+I will not modify secrets, deployment, migrations, staging/production data,
+or files outside this scope.
+```
+
+## 8. Required Handoff
+
+```text
+HANDOFF
+Task ID:
+Agent identity:
 Branch and base commit:
-PR URL:
+Commit SHA:
 Changed files:
 What changed:
 What was intentionally excluded:
 Role/scope and personal-data impact:
-Migration/data impact:
+Migration/data impact and rollback:
 Commands run and results:
 Known risks / owner decisions:
-Ready for Codex review.
+Ready for review.
 ```
 
-## 7. Codex Review Standard
+## 9. Review Checklist
 
-Codex rejects or requests changes when any of these are missing:
-
-- exact server-side authorization, including a denial test;
-- bounded Zod validation for untrusted input;
-- SQLite/PostgreSQL schema alignment and a safe forward migration;
-- data reconciliation and rollback for any staging write;
-- required focused tests, lint, typecheck and applicable build;
-- a narrow diff that respects the assigned file boundary.
-
-## 8. Immediate Agent Prompts
-
-### DeepSeek: `HIER-001`
-
-```text
-Create branch agent/deepseek/HIER-001-fee-waiver-fix from the approved base
-commit. Fix only the TypeScript syntax/duplicate-block regression in
-src/app/api/admin/fees/[id]/waiver/route.ts. Preserve the intended city-owned
-batch change. Add or update only the focused route test if needed. Run the
-focused test and npm run typecheck. Commit, push, open a PR to
-codex/production-hardening, and provide the required handoff. Do not edit
-schemas, migrations, auth, deployment, secrets, staging data, or unrelated files.
-```
-
-### Claude: `HIER-002`
-
-```text
-Create branch agent/claude/HIER-002-hierarchy-migration-design from the approved
-base commit. Write a migration/reconciliation design for changing Batch from
-park-owned to city-owned and making Group link Batch plus Park. Include the
-PostgreSQL forward migration sequence, existing Lahore data transformation,
-same-city invariant, indexes/FKs, rollback/recovery, dry-run checks and tests.
-Change docs only. Do not edit schema, code, migrations, secrets, deployments or
-data. Commit, push, open a PR to codex/production-hardening, and provide the
-required handoff.
-```
-
-### Gemini: `HIER-003`
-
-```text
-Create branch agent/gemini/HIER-003-hierarchy-uat-plan from the approved base
-commit. Create a manual browser UAT plan for the city-owned Batch and
-park-specific Group model. Cover Super Admin, City Head, Park Lead, Park Admin
-and Murabbi; include create/read/edit/denied cross-city and cross-park cases,
-empty/error states and mobile checks. Change docs only. Do not edit application
-code, schemas, migrations, secrets, deployment or data. Commit, push, open a PR
-to codex/production-hardening, and provide the required handoff.
-```
+- The task stayed inside its allowed files/domain.
+- Server authorization fails closed and resource scope cannot be widened by
+  request input.
+- Untrusted input has bounded validation.
+- Allow, denial, and relevant failure tests exist for behavior changes.
+- SQLite and PostgreSQL remain aligned for schema work.
+- Real Lahore data, credentials, and deployment configuration were untouched.
+- Required lint, typecheck, tests, and applicable build evidence is present.
