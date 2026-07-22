@@ -5,6 +5,7 @@ import { logAudit } from "@/lib/audit";
 import Papa from "papaparse";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
+import { validateImportFile, sanitizeImportError } from "@/lib/import-utils";
 import { participantProfileFieldsFromCsv, participantProfileFieldsSchema } from "@/lib/participants/profile-fields";
 
 export async function POST(request: NextRequest) {
@@ -26,18 +27,10 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
 
-    if (!file) {
-      return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
-    }
+    const fileError = validateImportFile(file);
+    if (fileError) return fileError;
 
-    if (!file.name.endsWith(".csv")) {
-      return NextResponse.json(
-        { error: "Only CSV files are supported" },
-        { status: 400 }
-      );
-    }
-
-    const text = await file.text();
+    const text = await file!.text();
     const parsed = Papa.parse<Record<string, string>>(text, {
       header: true,
       skipEmptyLines: true,
