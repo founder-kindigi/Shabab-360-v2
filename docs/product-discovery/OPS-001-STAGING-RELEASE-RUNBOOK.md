@@ -163,9 +163,10 @@ Date: <timestamp>
 
 If the release includes a Prisma migration:
 
-# 6.1.1  Set DIRECT_URL to the Staging Supabase direct connection (port 5432).
-#        Never use the transaction pooler for migrations.
-#        Never set DATABASE_URL to Staging in Vercel environment variables.
+# 6.1.1  Set DIRECT_URL locally for migration/backup operations.
+#        Never set DIRECT_URL in Vercel environment variables.
+#        DATABASE_URL must use the approved Staging runtime pooler for
+#        Preview/Staging only.
 #        Codex-approved command required (varies by OS — see note below).
 
 # 6.1.2  Apply the migration
