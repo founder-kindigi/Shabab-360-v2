@@ -72,6 +72,7 @@ const navConfig: Record<string, { tKey: string; section: string }> = {
   "admin-users": { tKey: "nav.users", section: "operations" },
   "admin-access": { tKey: "nav.access", section: "operations" },
   "admin-access-management": { tKey: "nav.accessManagement", section: "system" },
+  "admin-collaboration-teams": { tKey: "nav.collaborationTeams", section: "system" },
   "admin-admissions": { tKey: "nav.admissions", section: "operations" },
   "admin-fees": { tKey: "nav.fees", section: "operations" },
   "admin-announcements": { tKey: "nav.announcements", section: "communication" },
@@ -128,6 +129,7 @@ const iconMap: Record<string, LucideIcon> = {
   "admin-users": UserCog,
   "admin-access": UserPlus,
   "admin-access-management": ShieldCheck,
+  "admin-collaboration-teams": Users,
   "admin-admissions": FileText,
   "admin-fees": DollarSign,
   "admin-announcements": Megaphone,
@@ -158,7 +160,7 @@ const iconMap: Record<string, LucideIcon> = {
 };
 
 const roleNavPages: Record<string, PageId[]> = {
-  super_admin: ["admin-dashboard","admin-cities","admin-parks","admin-batches","admin-groups","admin-people","admin-students","admin-guardians","admin-attendance-events","admin-users","admin-access","admin-admissions","admin-fees","admin-announcements","admin-reports","notifications","admin-audit-log","admin-access-management","admin-settings"],
+  super_admin: ["admin-dashboard","admin-cities","admin-parks","admin-batches","admin-groups","admin-people","admin-students","admin-guardians","admin-attendance-events","admin-users","admin-access","admin-admissions","admin-fees","admin-announcements","admin-reports","notifications","admin-audit-log","admin-access-management","admin-collaboration-teams","admin-settings"],
   program_admin: ["admin-dashboard","admin-cities","admin-parks","admin-batches","admin-groups","admin-people","admin-students","admin-guardians","admin-attendance-events","admin-users","admin-access","admin-admissions","admin-fees","admin-announcements","admin-reports","notifications","admin-audit-log","admin-settings"],
   city_head: ["city-head-dashboard","admin-parks","admin-batches","admin-groups","admin-people","admin-students","admin-attendance-events","admin-access","admin-announcements","admin-reports","notifications"],
   park_admin: ["park-dashboard","park-attendance","notifications"],

@@ -68,6 +68,12 @@ interface BatchOption {
   park: { id: string; name: string };
 }
 
+interface ParkOption {
+  id: string;
+  name: string;
+  city: { id: string; name: string };
+}
+
 interface Group {
   id: string;
   name: string;
@@ -98,12 +104,19 @@ export function GroupsPage() {
   const [selectedGroup, setSelectedGroup] = useState<Group | null>(null);
   const [formName, setFormName] = useState("");
   const [formBatchId, setFormBatchId] = useState("");
+  const [formParkId, setFormParkId] = useState("");
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   // Fetch batches for dropdown
   const { data: batchOptions } = useQuery<BatchOption[]>({
     queryKey: ["admin-batches-dropdown"],
     queryFn: () => fetchJsonArray<BatchOption>("/api/admin/batches"),
+    staleTime: 30000,
+  });
+
+  const { data: parkOptions } = useQuery<ParkOption[]>({
+    queryKey: ["admin-parks-dropdown"],
+    queryFn: () => fetchJsonArray<ParkOption>("/api/admin/parks"),
     staleTime: 30000,
   });
 
@@ -116,7 +129,7 @@ export function GroupsPage() {
 
   // Create mutation
   const createMutation = useMutation({
-    mutationFn: (data: { name: string; batchId: string }) =>
+    mutationFn: (data: { name: string; batchId: string; parkId: string }) =>
       fetch("/api/admin/groups", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -203,6 +216,7 @@ export function GroupsPage() {
   function openCreateDialog() {
     setFormName("");
     setFormBatchId("");
+    setFormParkId("");
     setFormErrors({});
     setCreateOpen(true);
   }
@@ -233,7 +247,7 @@ export function GroupsPage() {
   function handleCreateSubmit(e: React.FormEvent) {
     e.preventDefault();
     setFormErrors({});
-    createMutation.mutate({ name: formName.trim(), batchId: formBatchId });
+    createMutation.mutate({ name: formName.trim(), batchId: formBatchId, parkId: formParkId });
   }
 
   function handleEditSubmit(e: React.FormEvent) {
@@ -542,6 +556,26 @@ export function GroupsPage() {
                   {Array.isArray(formErrors.batchId)
                     ? formErrors.batchId[0]
                     : formErrors.batchId}
+                </p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="create-park">Park</Label>
+              <Select value={formParkId} onValueChange={setFormParkId}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select the group's park" />
+                </SelectTrigger>
+                <SelectContent>
+                  {parkOptions?.map((park) => (
+                    <SelectItem key={park.id} value={park.id}>
+                      {park.name} — {park.city.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {formErrors.parkId && (
+                <p className="text-xs text-destructive">
+                  {Array.isArray(formErrors.parkId) ? formErrors.parkId[0] : formErrors.parkId}
                 </p>
               )}
             </div>

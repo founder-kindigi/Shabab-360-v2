@@ -40,16 +40,19 @@ Last consolidated: 2026-07-18. Verify changing facts against the checkout before
   team memberships in Sports, Skills, Tadreeb, Media, and Muawin. Teams hold
   documents, activity planning, and discussions, but are not login roles and
   never expand hierarchy scope. Senior/Junior cohorts are an optional city-level
-  configuration, not a global requirement. Access Management must provide a
-  role-to-module matrix and auditable individual grant/revoke overrides without
-  ever bypassing hierarchy scope. Super Admin manages access during soft launch;
-  City Head city-scoped override management is a future separately-tested
+  configuration, not a global requirement. Access Management provides an
+  auditable Super Admin role-permission matrix for approved module, feature, and
+  action capabilities plus named-user grant/revoke overrides. These configurable
+  permissions never bypass server-enforced city, park, or group scope; new
+  capability codes require reviewed code and route gates, not free-text runtime
+  names. City Head city-scoped override management is a future separately-tested
   delegation. The current single staff assignment does not fully represent this
   target. Batches are city-owned and groups link one batch to one park in the
   same city; migration and API checks must preserve that invariant.
-- Access Management AM-001 through AM-005 are locally verified: fixed defaults,
-  aligned override schemas/migration, fail-closed resolution, transactional APIs,
-  Super Admin workspace, and capability enforcement alongside hierarchy scope.
+- Access Management AM-001 through AM-005 are locally verified: controlled
+  capability catalogue, aligned override schemas/migration, fail-closed
+  resolution, transactional APIs, Super Admin workspace, and capability
+  enforcement alongside hierarchy scope.
 - AM-004 browser UAT completed on 2026-07-18. Role and named-user
   create/audit/revert/revoke flows pass, optional expiry persists and is visible,
   effective reads exclude revoked/expired rows, and local cleanup confirmed zero

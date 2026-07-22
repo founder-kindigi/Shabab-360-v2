@@ -10,11 +10,20 @@ import {
 import { z } from "zod";
 
 const createSchema = z.object({
-  name: z.string().min(2, "Batch name must be at least 2 characters"),
+  name: z.string().trim().min(2, "Batch name must be at least 2 characters").max(120),
   parkId: z.string().min(1, "Park is required"),
-  startDate: z.string().min(1, "Start date is required"),
-  endDate: z.string().optional(),
+  startDate: z.string().date("Start date must be a valid date"),
+  endDate: z.string().date("End date must be a valid date").optional(),
+}).refine((data) => !data.endDate || data.endDate >= data.startDate, {
+  message: "End date must be on or after the start date",
+  path: ["endDate"],
 });
+
+const HIERARCHY_MANAGER_ROLES = ["super_admin", "program_admin", "city_head"];
+
+function canManageHierarchy(role?: string | null) {
+  return HIERARCHY_MANAGER_ROLES.includes(role || "");
+}
 
 const listQuerySchema = z.object({
   parkId: optionalIdentifier(),
@@ -37,24 +46,49 @@ export async function GET(request: NextRequest) {
   const isHQ = ["super_admin", "program_admin"].includes(user.role || "");
 
   // Build where clause based on role
-  let where: any = { isActive: true };
+  let scopeWhere: any = {};
+  let selectedPark: { id: string; cityId: string } | null = null;
+
+  if (parkId) {
+    selectedPark = await db.park.findUnique({ where: { id: parkId }, select: { id: true, cityId: true } });
+    if (!selectedPark) return NextResponse.json({ error: "Park not found" }, { status: 404 });
+  }
 
   if (isHQ) {
-    if (parkId) where.parkId = parkId;
+    if (selectedPark) {
+      scopeWhere = {
+        OR: [
+          { cityId: selectedPark.cityId },
+          { cityId: null, parkId: selectedPark.id },
+        ],
+      };
+    }
   } else if (user.role === "city_head" && user.assignedCityId) {
-    where.park = { cityId: user.assignedCityId };
-    if (parkId) where.parkId = parkId;
+    if (selectedPark && selectedPark.cityId !== user.assignedCityId) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    scopeWhere = {
+      OR: [
+        { cityId: user.assignedCityId },
+        { cityId: null, park: { cityId: user.assignedCityId } },
+      ],
+    };
   } else if (
     ["park_admin", "park_lead", "murabbi"].includes(user.role || "") &&
     user.assignedParkId
   ) {
-    where.parkId = user.assignedParkId;
+    scopeWhere = {
+      OR: [
+        { groups: { some: { parkId: user.assignedParkId } } },
+        { cityId: null, parkId: user.assignedParkId },
+      ],
+    };
   } else {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const batches = await db.batch.findMany({
-    where,
+    where: { isActive: true, ...scopeWhere },
     orderBy: { createdAt: "desc" },
     include: {
       park: {
@@ -64,6 +98,7 @@ export async function GET(request: NextRequest) {
           city: { select: { id: true, name: true } },
         },
       },
+      city: { select: { id: true, name: true } },
       _count: { select: { groups: true } },
     },
   });
@@ -77,6 +112,10 @@ export async function POST(request: NextRequest) {
   const { user } = auth;
   const capabilityAuth = await requireCapability("organisation.manage");
   if (capabilityAuth instanceof NextResponse) return capabilityAuth;
+
+  if (!canManageHierarchy(user.role)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
 
   const isHQ = ["super_admin", "program_admin"].includes(user.role || "");
 
@@ -106,14 +145,6 @@ export async function POST(request: NextRequest) {
     if (park.cityId !== user.assignedCityId) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
-  } else if (
-    !isHQ &&
-    ["park_admin", "park_lead", "murabbi"].includes(user.role || "") &&
-    user.assignedParkId
-  ) {
-    if (park.id !== user.assignedParkId) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
   } else if (!isHQ) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
@@ -122,6 +153,7 @@ export async function POST(request: NextRequest) {
     data: {
       name: parsed.data.name,
       parkId: parsed.data.parkId,
+      cityId: park.cityId,
       startDate: new Date(parsed.data.startDate),
       endDate: parsed.data.endDate
         ? new Date(parsed.data.endDate)

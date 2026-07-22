@@ -66,6 +66,7 @@ interface Batch {
   isActive: boolean;
   createdAt: string;
   park: { id: string; name: string; city: { id: string; name: string } };
+  city: { id: string; name: string } | null;
   _count: { groups: number };
 }
 
@@ -369,7 +370,7 @@ export function BatchesPage() {
             <div>
               <p className="font-medium text-sm">{batch.name}</p>
               <p className="text-xs text-muted-foreground">
-                {batch.park.name} · {batch.park.city.name}
+                {batch.city?.name ?? batch.park.city.name}
               </p>
             </div>
           </div>
@@ -378,7 +379,7 @@ export function BatchesPage() {
     },
     {
       key: "park",
-      header: "Park",
+      header: "Compatibility Anchor",
       render: (batch) => (
         <div className="text-sm">
           <span className="font-medium">{batch.park.name}</span>
@@ -435,7 +436,7 @@ export function BatchesPage() {
     <div className="space-y-6">
       <PageHeader
         title="Batches"
-        description="Manage batches across parks"
+        description="Manage city-owned batches and their compatibility anchor parks"
         actions={
           canCreate ? (
             <Button
@@ -475,7 +476,7 @@ export function BatchesPage() {
         emptyDescription={
           search
             ? "Try adjusting your search query."
-            : "Create your first batch to organize groups within a park."
+            : "Create your first city-owned batch, then assign groups to its parks."
         }
         getRowId={(batch) => batch.id}
         skeletonRows={3}
@@ -487,8 +488,8 @@ export function BatchesPage() {
           <DialogHeader>
             <DialogTitle>Create Batch</DialogTitle>
             <DialogDescription>
-              Add a new batch to a park. Batches organize groups within a park's
-              program cycle.
+              Create a city-owned batch. Select a same-city compatibility anchor
+              park for the transition; group allocations set operational park scope.
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleCreateSubmit} className="space-y-4">
@@ -510,10 +511,10 @@ export function BatchesPage() {
               )}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="create-park">Park</Label>
+              <Label htmlFor="create-park">Compatibility Anchor Park</Label>
               <Select value={formParkId} onValueChange={setFormParkId}>
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select a park" />
+                  <SelectValue placeholder="Select a same-city anchor park" />
                 </SelectTrigger>
                 <SelectContent>
                   {parks?.map((park) => (
@@ -606,7 +607,7 @@ export function BatchesPage() {
               )}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="edit-park">Park</Label>
+              <Label htmlFor="edit-park">Compatibility Anchor Park</Label>
               <Input
                 id="edit-park"
                 value={
