@@ -44,12 +44,21 @@ The following tests verify that the Phase B hierarchy correctly enforces role sc
 ### 3.1 Legacy Read Compatibility
 * **Test:** Pre-existing Lahore records (from Phase A imports) MUST render correctly in all read paths. Existing Groups and Batches must display under the correct City Head and Park dashboards without requiring data modification.
 
-### 3.2 Consistency Enforcement on New Writes
+### 3.2 Field Level Write and Read Scope Verification
+* **Test:** Creating a new `Batch` MUST write both the correct `cityId` and the selected compatibility `parkId`.
+* **Test:** `Batch` read/scope logic MUST strictly use `cityId`, ignoring the anchor park for access boundaries.
+* **Test:** Creating a new `Group` MUST write the correct `parkId`, and `Group` read/scope logic MUST use that field to enforce boundaries.
+* **Test:** Legacy fallback logic MUST be read-only and tested ONLY for records without the new hierarchy fields.
+
+### 3.3 Consistency Enforcement on New Writes
 * **Test:** Creating a new Group MUST validate that the selected Batch and Park both belong to the exact same City.
-* **Denial:** Attempting to assign a Group to a Park in City A and a Batch in City B MUST return a `400 Bad Request` or `422 Unprocessable Entity`.
+* **Denial:** Attempting to assign a Group to a Park in City A and a Batch in City B MUST return a `400 Bad Request`.
 
 ## 4. Rollout Validation
 
 Before final staging approval, the following evidence must be provided:
 1. **Reconciliation Evidence:** Post-migration counts of Cities, Parks, Batches, Groups, and Participants must exactly match the pre-migration baseline.
-2. **Rollback Evidence:** Demonstrated ability to revert the Prisma schema and database state safely if the deployment fails.
+2. **Rollback Evidence:** Demonstrated ability to restore the verified pre-migration staging backup; reverse SQL is not a normal rollback.
+
+> [!WARNING]
+> **Execution Rule:** Absolutely NO staging writes or deployment actions are permitted until Codex explicitly approves the migration execution plan.
