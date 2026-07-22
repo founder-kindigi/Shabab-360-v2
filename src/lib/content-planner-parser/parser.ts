@@ -1,6 +1,8 @@
+import { z } from "zod";
 import {
   COLUMN_TO_TEAM,
   REQUIRED_COLUMNS,
+  workbookContextSchema,
   type DryRunReport,
   type ParsedBlock,
   type ParsedSession,
@@ -29,12 +31,31 @@ function isOffDay(v: string | null | undefined): boolean {
   return OFF_DAY_MARKERS.some((m) => t === m || t.startsWith(m + " "));
 }
 
+/** Reject impossible calendar dates like 2026-99-99 or 2026-02-30. */
+function isValidDateStr(s: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
+  const d = new Date(s + "T00:00:00Z");
+  if (isNaN(d.getTime())) return false;
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(d.getUTCDate()).padStart(2, "0");
+  return `${y}-${m}-${day}` === s;
+}
+
 export function parseSheet(
   sheetName: string,
   rawRows: Record<string, unknown>[],
-  context: WorkbookContext
+  contextInput: WorkbookContext
 ): { sheet: ParsedSheet | null; errors: { row: number; column: string; message: string }[] } {
   const errors: { row: number; column: string; message: string }[] = [];
+
+  // Validate context at runtime through the existing Zod schema
+  const ctxResult = workbookContextSchema.safeParse(contextInput);
+  if (!ctxResult.success) {
+    errors.push({ row: 0, column: "context", message: `Invalid workbook context: ${JSON.stringify(ctxResult.error.flatten().fieldErrors)}` });
+    return { sheet: null, errors };
+  }
+  const context = ctxResult.data;
 
   if (rawRows.length === 0) {
     errors.push({ row: 0, column: "", message: `Sheet "${sheetName}" has no data rows` });
@@ -91,20 +112,27 @@ export function parseSheet(
       errors.push({ row: i + 1, column: "date", message: `Invalid date format: "${dateStr}". Expected YYYY-MM-DD.` });
       continue;
     }
-    if (isNaN(weekNum) || weekNum < 1) {
-      errors.push({ row: i + 1, column: "week", message: `Invalid week: "${w}"` });
+    if (!isValidDateStr(dateStr)) {
+      errors.push({ row: i + 1, column: "date", message: `Impossible calendar date: "${dateStr}".` });
       continue;
     }
-    if (isNaN(dayNum) || dayNum < 0 || dayNum > 7) {
-      errors.push({ row: i + 1, column: "day", message: `Invalid day: "${d}"` });
+    if (isNaN(weekNum) || !Number.isFinite(weekNum) || weekNum < 1 || !Number.isInteger(weekNum)) {
+      errors.push({ row: i + 1, column: "week", message: `Invalid week: "${w}". Must be a positive integer.` });
+      continue;
+    }
+    if (isNaN(dayNum) || !Number.isFinite(dayNum) || dayNum < 0 || dayNum > 7 || !Number.isInteger(dayNum)) {
+      errors.push({ row: i + 1, column: "day", message: `Invalid day: "${d}". Must be an integer 0-7.` });
       continue;
     }
 
+    // Off-day rows produce zero blocks regardless of content column values
     const blocks: ParsedBlock[] = [];
-    for (const col of CONTENT_COLUMNS) {
-      const v = vals[col];
-      if (!v) continue;
-      blocks.push({ teamCode: COLUMN_TO_TEAM[col], category: col, content: v, sortOrder: blocks.length, sourceSheetName: sheetName, sourceRow: i + 1, sourceColumn: col });
+    if (!rowOff) {
+      for (const col of CONTENT_COLUMNS) {
+        const v = vals[col];
+        if (!v) continue;
+        blocks.push({ teamCode: COLUMN_TO_TEAM[col], category: col, content: v, sortOrder: blocks.length, sourceSheetName: sheetName, sourceRow: i + 1, sourceColumn: col });
+      }
     }
 
     sessions.push({ weekLabel: String(weekNum), dayLabel: String(dayNum), sessionDate: dateStr, sourceSheetName: sheetName, sourceRow: i + 1, focusArea: focus, isOffDay: rowOff, blocks });
