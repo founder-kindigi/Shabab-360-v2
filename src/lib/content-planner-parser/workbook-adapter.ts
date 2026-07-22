@@ -58,7 +58,7 @@ export async function readWorkbook(
   } catch (err) {
     errors.push({
       sheetName: "(workbook)",
-      message: `Failed to read .xlsx: ${err instanceof Error ? err.message : "Unknown error"}`,
+      message: "Failed to read .xlsx workbook",
     });
     return { context, sheets: [], errors };
   }
@@ -102,8 +102,6 @@ export async function readWorkbook(
         headerCells.push({ colIdx: c, name });
       }
     }
-
-    const headers = headerCells.map((h) => h.name);
 
     const rawRows: Record<string, unknown>[] = [];
 
