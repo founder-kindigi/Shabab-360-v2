@@ -53,6 +53,34 @@ but these documents describe a previous architectural state (stored in
 `worktrees/hierarchy-phase-b/`). No corresponding source files exist on the
 base branch today.
 
+### 1.4 Stale Historical Reviews
+
+Two review documents in `docs/reviews/` still describe the removed upload
+components as active consumers. These are **stale** — they inventory a
+previous architectural state and must not be used as current architecture
+evidence:
+
+| Document | Stale claim | Current reality |
+|----------|------------|-----------------|
+| `docs/reviews/api_inventory_review.md` (lines 203-207) | Lists `avatar-upload.tsx` and `document-upload.tsx` as UI callers for `api/upload/avatar` and `api/upload/document` | Neither component exists on the base branch. Both routes now return 503. |
+| `docs/reviews/ui_to_api_integration_map.md` (lines 83-86) | Maps `avatar-upload.tsx` as POST caller and `document-upload.tsx` as GET/POST/DELETE caller for the upload routes | Same — components removed in RUNTIME-001. |
+
+These reviews were produced during an earlier audit pass and were not updated
+when the upload UI components were removed. A future documentation task should
+either remove or update them. They do not contradict the SEC-005 finding that
+**zero current consumers exist**.
+
+> "Unsupported avatar and admission-document upload controls, local avatar
+> persistence, and calls to missing upload APIs are removed; the UI uses
+> initials and explicitly defers documents until private Supabase Storage is
+> configured."
+
+The `agent-ctx/14-file-upload-system.md` and `reviews/ui_to_api_integration_map.md`
+reference the `avatar-upload.tsx` and `document-upload.tsx` components as callers,
+but these documents describe a previous architectural state (stored in
+`worktrees/hierarchy-phase-b/`). No corresponding source files exist on the
+base branch today.
+
 ---
 
 ## 2. Breakage Impact
