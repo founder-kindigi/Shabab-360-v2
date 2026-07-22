@@ -217,7 +217,9 @@ export function AccessManagementPage() {
                   <div className="border-b bg-muted/40 px-4 py-3"><h3 className="text-sm font-semibold">{group.module}</h3></div>
                   <div className="divide-y">
                     {group.capabilities.map(([capability, label]) => {
-                      const isProtected = capability.startsWith("access.") || capability === "audit.view" || capability === "settings.manage";
+                      // Access-administration controls stay protected; other approved
+                      // catalogue capabilities remain configurable per role.
+                      const isProtected = capability.startsWith("access.");
                       const override = overrides.get(capability);
                       const defaultAllowed = defaults.includes(capability);
                       const allowed = override ? override === "allow" : defaultAllowed;
