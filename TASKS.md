@@ -70,7 +70,7 @@ execution waves.
 
 | ID | Priority | Status | Suggested Agent | Scope / Deliverable |
 | --- | --- | --- | --- | --- |
-| `UAT-ROLE-001` | P0 | `READY` | Gemini | Browser checklist for every role against Lahore data; report defects only, no code. |
+| `UAT-ROLE-001` | P0 | `HANDOFF_READY` | Gemini | Browser checklist for every role against Lahore data; report defects only, no code. |
 | `UAT-ROLE-002` | P0 | `READY` | Claude | API authorization test audit for City Head, Park Lead, Park Admin and Murabbi routes; report gaps only. |
 | `DATA-001` | P1 | `BLOCKED_OWNER` | Owner + Codex | Confirm actual staff emails and team memberships; placeholder accounts remain inactive until confirmed. |
 | `DATA-002` | P1 | `PENDING` | Codex | Reconcile imported participants, groups, dropouts and attendance with the source workbook. |
