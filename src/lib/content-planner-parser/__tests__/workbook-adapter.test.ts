@@ -63,8 +63,11 @@ describe("readWorkbook", () => {
 
   it("rejects a corrupted buffer", async () => {
     const result = await readWorkbook(Buffer.from("not-an-xlsx"), ctx);
-    expect(result.errors).toHaveLength(1);
-    expect(result.errors[0].message).toContain("Failed to read .xlsx");
+    expect(result.errors).toEqual([{
+      sheetName: "(workbook)",
+      message: "Failed to read .xlsx workbook",
+    }]);
+    expect(result.errors[0].message).not.toContain("not-an-xlsx");
   });
 });
 

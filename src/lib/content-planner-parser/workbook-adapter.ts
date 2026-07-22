@@ -55,7 +55,7 @@ export async function readWorkbook(
   let workbook: ExcelJS.Workbook;
   try {
     workbook = await new ExcelJS.Workbook().xlsx.load(data as never);
-  } catch (err) {
+  } catch {
     errors.push({
       sheetName: "(workbook)",
       message: "Failed to read .xlsx workbook",
