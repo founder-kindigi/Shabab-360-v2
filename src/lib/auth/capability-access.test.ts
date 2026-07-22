@@ -66,4 +66,20 @@ describe("database-backed capability access", () => {
       userHasCapability({ id: "user-1", role: "park_admin" }, "attendance.mark")
     ).resolves.toBe(false);
   });
+
+  it("lets a role override determine capability when no individual override exists", async () => {
+    mocks.roleFindUnique.mockResolvedValue({ effect: "deny" });
+    await expect(
+      userHasCapability({ id: "user-1", role: "park_admin" }, "attendance.mark")
+    ).resolves.toBe(false);
+    expect(mocks.roleFindUnique).toHaveBeenCalledWith({
+      where: { role_capability: { role: "park_admin", capability: "attendance.mark" } },
+      select: { effect: true },
+    });
+
+    mocks.roleFindUnique.mockResolvedValue({ effect: "allow" });
+    await expect(
+      userHasCapability({ id: "user-1", role: "park_admin" }, "attendance.correct")
+    ).resolves.toBe(true);
+  });
 });
