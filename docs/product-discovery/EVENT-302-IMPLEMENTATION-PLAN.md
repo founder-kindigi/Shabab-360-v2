@@ -9,15 +9,16 @@
 
 ## 1. Overview & Objective
 
-This document provides the phased, implementation-ready execution plan for building the **Event Responsibility Module** in Shabab 360. 
+This document provides the phased, implementation-ready execution plan for building the **Event Responsibility Module** in Shabab 360.
 
 ### Core Architectural Invariants
 1. **City-Park Scope Invariant:** `Event.parkId` (if set) and all `EventScopePark.parkId` entries MUST belong to `Event.cityId`. Cross-city park inclusion is rejected at the API validation layer with `400 Bad Request`.
-2. **User-City Alignment Invariant:** Every assigned staff/user (`EventResponsibilityAssignment.userId`) MUST belong to the same city (`Event.cityId`). Foreign city assignments are rejected with `403 Forbidden`.
-3. **Park Admin Scope Restriction:** Park Admin is strictly attendance-only for their assigned park. Park Admin has zero authority to manage event lifecycle, create teams, assign tasks, or dispatch notifications.
-4. **Temporary Grant Ceiling:** Temporary Event Leads cannot grant capabilities or assign roles beyond their own approved event grant.
-5. **In-App Notification Restriction:** Event notifications write strictly to `db.notification` (in-app). Push and Email channels remain disabled for the pilot.
-6. **Additive-Only Schema Changes:** New Prisma models and relations are 100% additive across both SQLite (`prisma/schema.prisma`) and PostgreSQL (`prisma/postgres/schema.prisma`).
+2. **Staff City Alignment Invariant:** Every assigned staff/user (`EventResponsibilityAssignment.userId`) MUST belong to the same city (`Event.cityId`). Staff city scope is derived through `StaffMeta` via three assignment paths (`assignedCityId`, `assignedPark.cityId`, or `assignedGroup.park.cityId` / `assignedGroup.batch.cityId`). Foreign city staff assignments are rejected with `403 Forbidden`.
+3. **Acting User Scope Derivation:** Server-side authorization MUST derive acting user scope from authenticated `StaffMeta` (`assignedCityId`, `assignedParkId`, `assignedGroupId`). Request query/body parameters (`cityId`, `parkId`) only narrow results and MUST NEVER expand scope.
+4. **Park Admin Scope Restriction:** Park Admin is strictly attendance-only for their assigned park. Park Admin has zero authority to manage event lifecycle, create teams, assign tasks, or dispatch notifications.
+5. **Temporary Grant Ceiling:** Temporary Event Leads cannot grant capabilities or assign roles beyond their own approved event grant.
+6. **In-App Notification Restriction:** Event notifications write strictly to `db.notification` (in-app). Push and Email channels remain disabled for the pilot.
+7. **Additive-Only Schema Changes:** New Prisma models and relations are 100% additive across both SQLite (`prisma/schema.prisma`) and PostgreSQL (`prisma/postgres/schema.prisma`).
 
 ---
 
@@ -249,13 +250,17 @@ New explicit capability strings will be registered in `src/lib/auth/scope.ts`:
 
 | Capability | Description | Enforcement Rule |
 | :--- | :--- | :--- |
-| `event:create` | Create an event record | `SUPER_ADMIN`, `CITY_HEAD` (own city), `PARK_LEAD` (own park) |
-| `event:manage_lifecycle` | Advance or edit event state | `SUPER_ADMIN`, `CITY_HEAD` (own city), `PARK_LEAD` (own park) |
-| `event:form_teams` | Add teams and assign roles | `SUPER_ADMIN`, `CITY_HEAD` (own city), `PARK_LEAD` (own park) |
+| `event:create` | Create an event record | `SUPER_ADMIN`, `CITY_HEAD` (own city from `StaffMeta`), `PARK_LEAD` (own park from `StaffMeta`) |
+| `event:manage_lifecycle` | Advance or edit event state | `SUPER_ADMIN`, `CITY_HEAD` (own city from `StaffMeta`), `PARK_LEAD` (own park from `StaffMeta`) |
+| `event:form_teams` | Add teams and assign roles | `SUPER_ADMIN`, `CITY_HEAD` (own city from `StaffMeta`), `PARK_LEAD` (own park from `StaffMeta`) |
 | `event:manage_tasks` | Create/assign operational tasks | `SUPER_ADMIN`, `CITY_HEAD`, `PARK_LEAD`, Active `EVENT_LEAD` / `TEAM_LEAD` |
 | `event:take_attendance` | Check in participants or staff | `SUPER_ADMIN`, `CITY_HEAD`, `PARK_LEAD`, `PARK_ADMIN` (own park events), Active `EVENT_LEAD` / Assigned Staff |
-| `event:send_notifications` | Send in-app notification | `SUPER_ADMIN`, `CITY_HEAD` (own city), `PARK_LEAD` (own park) |
-| `event:view_audit` | View event audit log | `SUPER_ADMIN`, `CITY_HEAD` (own city), `PARK_LEAD` (own park) |
+| `event:send_notifications` | Send in-app notification | `SUPER_ADMIN`, `CITY_HEAD` (own city from `StaffMeta`), `PARK_LEAD` (own park from `StaffMeta`) |
+| `event:view_audit` | View event audit log | `SUPER_ADMIN`, `CITY_HEAD` (own city from `StaffMeta`), `PARK_LEAD` (own park from `StaffMeta`) |
+
+### Server-Side Scope Derivation Rule:
+- Scope is computed strictly server-side from the authenticated session's `StaffMeta` (`assignedCityId`, `assignedPark.cityId`, or `assignedGroup.park.cityId` / `assignedGroup.batch.cityId`).
+- Incoming request body/query parameters (`cityId`, `parkId`) are used **only to narrow** filters within the derived scope; they can **never expand** authority beyond `StaffMeta`.
 
 ---
 
@@ -284,7 +289,7 @@ export const createEventSchema = z.object({
   1. `endsAt` must be strictly after `startsAt`.
   2. If `scopeType === SINGLE_PARK`, `parkId` is required. Verify `park.cityId === cityId` in DB.
   3. If `scopeType === MULTI_PARK`, `scopedParkIds` required. Verify every park in `scopedParkIds` has `park.cityId === cityId`.
-  4. If caller is `PARK_LEAD`, enforce `cityId === user.assignedCityId` and `parkId === user.assignedParkId`.
+  4. Derive caller city/park server-side from `StaffMeta` (`assignedParkId`/`assignedCityId`). Enforce requested `cityId` matches derived `StaffMeta` city.
 
 ### 4.2 `GET /api/events` (List Events)
 - **Authorization:** Authenticated user with scope filter (`cityId`, `parkId`, `status`).
@@ -336,7 +341,7 @@ export const createAssignmentSchema = z.object({
 });
 ```
 - **Validation Business Rules:**
-  1. Verify target user `user.assignedCityId === event.cityId`. Reject foreign city staff with `403 Forbidden`.
+  1. Derive target user's city via `StaffMeta` (`assignedCityId`, `assignedPark.cityId`, or `assignedGroup.park.cityId`/`assignedGroup.batch.cityId`). Verify target user city matches `event.cityId`. Reject foreign city staff with `403 Forbidden`.
   2. Verify `expiresAt > startsAt`.
 
 ### 4.6 `DELETE /api/events/[id]/assignments/[assignmentId]` (Revoke Assignment)
@@ -377,7 +382,35 @@ export const recordEventAttendanceSchema = z.object({
 
 A dedicated helper module `src/lib/auth/event-scope.ts` will provide reusable validation functions:
 
-### 5.1 Same-City Hierarchy Validation Function
+### 5.1 Staff City Derivation Function
+```typescript
+export async function deriveStaffCityId(db: PrismaClient, userId: string): Promise<string | null> {
+  const staffMeta = await db.staffMeta.findUnique({
+    where: { userId },
+    select: {
+      assignedCityId: true,
+      assignedPark: { select: { cityId: true } },
+      assignedGroup: {
+        select: {
+          park: { select: { cityId: true } },
+          batch: { select: { cityId: true } },
+        },
+      },
+    },
+  });
+
+  if (!staffMeta) return null;
+  return (
+    staffMeta.assignedCityId ||
+    staffMeta.assignedPark?.cityId ||
+    staffMeta.assignedGroup?.park?.cityId ||
+    staffMeta.assignedGroup?.batch?.cityId ||
+    null
+  );
+}
+```
+
+### 5.2 Same-City Hierarchy Validation Function
 ```typescript
 export async function assertEventCityInvariants(db: PrismaClient, params: {
   cityId: string;
@@ -400,15 +433,15 @@ export async function assertEventCityInvariants(db: PrismaClient, params: {
     }
   }
   if (params.userId) {
-    const user = await db.user.findUnique({ where: { id: params.userId }, select: { assignedCityId: true } });
-    if (!user || user.assignedCityId !== params.cityId) {
+    const targetCityId = await deriveStaffCityId(db, params.userId);
+    if (!targetCityId || targetCityId !== params.cityId) {
       throw new ForbiddenError("Target user does not belong to event city");
     }
   }
 }
 ```
 
-### 5.2 Assignment Expiry Helper Function
+### 5.3 Assignment Expiry Helper Function
 ```typescript
 export function isAssignmentActive(assignment: {
   startsAt: Date;
@@ -446,7 +479,8 @@ Before marking tasks complete, the implementation must pass:
 2. `npm run lint`
 3. Focused Jest/Vitest unit & integration test suites:
    - Same-city invariant rejection tests (`400 Bad Request`).
-   - Foreign user assignment rejection tests (`403 Forbidden`).
+   - Foreign staff assignment rejection tests (`403 Forbidden`) verifying derivation through `StaffMeta` (`assignedCityId`, `assignedPark.cityId`, `assignedGroup.park.cityId` / `assignedGroup.batch.cityId`).
+   - Server-side scope derivation tests verifying request query/body `cityId`/`parkId` never expands acting user's `StaffMeta` scope.
    - Park Admin boundary restriction tests (verify 403 on team creation, lifecycle edits, task management, notification sending).
    - Assignment expiry boundary tests (`now() > expiresAt`).
    - In-app notification channel enforcement tests.
@@ -499,10 +533,10 @@ Work is divided into 8 atomic, independently reviewable subtasks:
 ```
 
 1. **`EVENT-302A`**: Add additive models & enums to `prisma/schema.prisma` and `prisma/postgres/schema.prisma`.
-2. **`EVENT-302B`**: Implement `src/lib/auth/event-scope.ts` with same-city invariants, capability checks, and expiry helper.
-3. **`EVENT-302C`**: Implement `/api/events` (POST, GET, PATCH) routes with Zod validation.
+2. **`EVENT-302B`**: Implement `src/lib/auth/event-scope.ts` with `StaffMeta` city derivation (`deriveStaffCityId`), same-city invariants, capability checks, and expiry helper.
+3. **`EVENT-302C`**: Implement `/api/events` (POST, GET, PATCH) routes with Zod validation and server-side `StaffMeta` scope enforcement.
 4. **`EVENT-302D`**: Implement `/api/events/[id]/teams` and `/api/events/[id]/assignments` routes.
 5. **`EVENT-302E`**: Implement `/api/events/[id]/tasks` (GET, POST, PATCH) routes.
 6. **`EVENT-302F`**: Implement `/api/events/[id]/attendance` route for participant/staff check-ins.
 7. **`EVENT-302G`**: Implement in-app event notification dispatcher and event audit logger.
-8. **`EVENT-302H`**: Comprehensive unit & integration test suite covering all invariants and scope boundaries.
+8. **`EVENT-302H`**: Comprehensive unit & integration test suite covering `StaffMeta` scope derivation, invariants, and scope boundaries.
