@@ -36,7 +36,7 @@ contracts. This board coordinates work; it does not replace product decisions.
 | `COORD-001` | P1 | `C0` | `IN_PROGRESS` | Antigravity | None | `docs/AGENT_TASK_BOARD.md` only | Codex |
 | `SEC-006` | P0 | `C3` | `HANDOFF_READY` | DeepSeek v4 Flash | None | `docs/product-discovery/SEC-006-STATIC-SECURITY-REVALIDATION.md` at `5a9ce5b` | Codex |
 | `SEC-007` | P0 | `C2` | `CLAIMED` | DeepSeek v4 Flash | None | `agent/deepseek/SEC-007-csv-import-hardening` at `be9ca55` | Codex |
-| `AUTH-105` | P0 | `C2` | `CLAIMED` | Gemini 3.1 Pro | None | `agent/gemini/AUTH-105-dynamic-permission-regression` at `be9ca55` | Codex |
+| `AUTH-105` | P0 | `C2` | `HANDOFF_READY` | Antigravity | None | `agent/antigravity/AUTH-105-dynamic-permission-regression` at `d680d85` | Codex |
 | `TEAM-UI-001` | P1 | `C2` | `DONE` | Codex | Team API | Integrated at `8de093c` | Codex |
 | `ACCESS-UI-002` | P1 | `C2` | `DONE` | Codex | Access matrix | Integrated at `8de093c` | Codex |
 | `UAT-ROLE-001` | P0 | `C0` | `HANDOFF_READY` | Gemini 3.1 Pro | None | `docs/product-discovery/UAT-ROLE-001-ROLE-BROWSER-CHECKLIST.md` at `afaf2ec` | Codex |
