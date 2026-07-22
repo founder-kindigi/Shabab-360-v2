@@ -116,6 +116,13 @@ make the current Lahore-backed system operational.
 - City Head staff provisioning, activation, deactivation, reset, and scope
   changes must be enforced on the server. It must never grant role-default or
   individual capability-override administration, HQ roles, or cross-city access.
+- Super Admin configures role permissions through an auditable matrix of
+  approved module, feature, and action capabilities. A role may be allowed or
+  denied each approved capability, and named-user exceptions remain supported
+  where separately authorised. Capability configuration never expands city,
+  park, or group scope; every protected route must still apply its server-side
+  resource-scope check. New capability codes require reviewed code and route
+  gates, rather than free-text runtime permission names.
 
 ## 3. Programme Understanding
 
