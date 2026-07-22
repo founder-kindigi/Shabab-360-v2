@@ -18,7 +18,7 @@ vi.mock("@/lib/db", () => ({
   db: { batch: { findUnique: mocks.batchFindUnique } },
 }));
 
-import { GET } from "./route";
+import { GET, PATCH } from "./route";
 
 describe("GET /api/admin/batches/[id]", () => {
   beforeEach(() => {
@@ -45,8 +45,7 @@ describe("GET /api/admin/batches/[id]", () => {
     expect(response.status).toBe(403);
     expect(mocks.requireResourceScope).toHaveBeenCalledWith(
       expect.objectContaining({ id: "city-head" }),
-      { cityId: "city-2", parkId: "park-2" },
-      expect.any(Array)
+      { cityId: "city-2" }
     );
   });
 
@@ -58,6 +57,22 @@ describe("GET /api/admin/batches/[id]", () => {
     const response = await GET(new NextRequest("http://localhost/api/admin/batches/batch-2"), {
       params: Promise.resolve({ id: "batch-2" }),
     });
+
+    expect(response.status).toBe(403);
+    expect(mocks.batchFindUnique).not.toHaveBeenCalled();
+    expect(mocks.requireResourceScope).not.toHaveBeenCalled();
+  });
+
+  it("denies a Park Lead batch mutation before loading the batch", async () => {
+    mocks.requireAuth.mockResolvedValue({
+      user: { id: "park-lead", role: "park_lead", assignedParkId: "park-2" },
+    });
+
+    const response = await PATCH(new NextRequest("http://localhost/api/admin/batches/batch-2", {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: "Renamed batch" }),
+    }), { params: Promise.resolve({ id: "batch-2" }) });
 
     expect(response.status).toBe(403);
     expect(mocks.batchFindUnique).not.toHaveBeenCalled();
