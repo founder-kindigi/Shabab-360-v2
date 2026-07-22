@@ -6,6 +6,9 @@ contracts. This board coordinates work; it does not replace product decisions.
 ## Coordinator Rules
 
 - Run the coordinator loop every three minutes.
+- **Strategy reset:** do not create or assign new work until Codex records a
+  replacement execution strategy. Existing `CLAIMED`, `IN_PROGRESS`, and
+  `HANDOFF_READY` work may complete its current cycle only.
 - Assign only `READY` work with `DONE` dependencies and non-overlapping files.
 - One task, one branch, one implementation owner. Codex alone approves and
   integrates work.
