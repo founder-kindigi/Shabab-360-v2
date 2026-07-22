@@ -3,6 +3,7 @@ import { requireCapability, requireRole } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
 import Papa from "papaparse";
+import { validateImportFile, sanitizeImportError } from "@/lib/import-utils";
 
 export async function POST(request: NextRequest) {
   const authError = await requireRole([
@@ -22,18 +23,10 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
 
-    if (!file) {
-      return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
-    }
+    const fileError = validateImportFile(file);
+    if (fileError) return fileError;
 
-    if (!file.name.endsWith(".csv")) {
-      return NextResponse.json(
-        { error: "Only CSV files are supported" },
-        { status: 400 }
-      );
-    }
-
-    const text = await file.text();
+    const text = await file!.text();
     const parsed = Papa.parse<Record<string, string>>(text, {
       header: true,
       skipEmptyLines: true,
@@ -118,8 +111,7 @@ export async function POST(request: NextRequest) {
 
         success++;
       } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : "Unknown error";
-        errors.push({ row: rowNum, message: msg });
+        errors.push({ row: rowNum, message: sanitizeImportError(err) });
       }
     }
 
@@ -137,7 +129,7 @@ export async function POST(request: NextRequest) {
       total: rows.length,
     });
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : "Unknown server error";
-    return NextResponse.json({ error: msg }, { status: 500 });
+    console.error("Import error:", err);
+    return NextResponse.json({ error: sanitizeImportError(err) }, { status: 500 });
   }
 }
