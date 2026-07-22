@@ -27,6 +27,7 @@ export type PageId =
   | "admin-audit-log"
   | "admin-access"
   | "admin-access-management"
+  | "admin-collaboration-teams"
   | "notifications"
   // Murabbi pages
   | "murabbi-dashboard"
