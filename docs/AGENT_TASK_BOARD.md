@@ -32,13 +32,13 @@ contracts. This board coordinates work; it does not replace product decisions.
 | --- | --- | --- | --- | --- | --- | --- |
 | `COORD-001` | P1 | `IN_PROGRESS` | Gemini 3.5 Flash | None | `docs/AGENT_TASK_BOARD.md` only | Codex |
 | `SEC-006` | P0 | `IN_PROGRESS` | Gemini 3.1 Pro | None | `docs/product-discovery/SEC-006-STATIC-SECURITY-REVALIDATION.md` only | Codex |
-| `TEAM-UI-001` | P1 | `REVIEW` | Codex | Team API | `codex/team-membership-ui` at `e9a1d6c` | Codex |
-| `ACCESS-UI-002` | P1 | `REVIEW` | Codex | Access matrix | `codex/access-management-matrix` at `6565b32` | Codex |
-| `HIER-002` | P0 | `REVIEW` | Claude Opus | None | `agent/claude/HIER-002-hierarchy-migration-design` at `fa7105f` | Codex |
+| `TEAM-UI-001` | P1 | `DONE` | Codex | Team API | `codex/team-membership-ui` at `e9a1d6c` | Codex |
+| `ACCESS-UI-002` | P1 | `DONE` | Codex | Access matrix | `codex/access-management-matrix` at `6565b32` | Codex |
+| `HIER-002` | P0 | `DONE` | Claude Opus | None | `agent/claude/HIER-002-hierarchy-migration-design` at `fa7105f` | Codex |
 | `ATT-VALIDATION-001` | P0 | `REVIEW` | DeepSeek v4 Flash | None | `agent/deepseek/ATT-VALIDATION-001-attendance-validation` at `f22e83e` | Codex |
 | `CALL-304` | P1 | `REVIEW` | DeepSeek v4 Flash | CALL-302, CALL-303 | `agent/deepseek/CALL-304-calling-design` at `1549fac` | Codex |
 | `CP-IMPORT-001` | P1 | `REVIEW` | DeepSeek v4 Flash | CP-API-001 | `agent/deepseek/CP-IMPORT-001-content-plan-parser-tests` at `ec0f8eb` | Codex |
-| `CP-IMPORT-002` | P1 | `REVIEW` | DeepSeek v4 Flash | CP-IMPORT-001 | `agent/deepseek/CP-IMPORT-002-workbook-adapter` at `f8de9b0` | Codex |
+| `CP-IMPORT-002` | P1 | `CHANGES_REQUESTED` | DeepSeek v4 Flash | CP-IMPORT-001 | `agent/deepseek/CP-IMPORT-002-workbook-adapter` at `f8de9b0` | Codex |
 | `DASH-001` | P1 | `REVIEW` | DeepSeek v4 Flash | None | `agent/deepseek/DASH-001-lahore-data-consistency` at `d013bdd` | Codex |
 | `SEC-001` | P0 | `REVIEW` | DeepSeek / Gemini | None | DeepSeek at `6c14e68`, Gemini at `705cef7` | Codex |
 | `AUTH-104` | P0 | `REVIEW` | Gemini 3.1 Pro | None | `agent/gemini/AUTH-104-city-head-denial-tests` at `eadf38a` | Codex |
