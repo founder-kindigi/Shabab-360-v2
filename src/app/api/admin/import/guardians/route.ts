@@ -21,12 +21,12 @@ export async function POST(request: NextRequest) {
 
   try {
     const formData = await request.formData();
-    const file = formData.get("file") as File | null;
+    const file = formData.get("file");
 
-    const fileError = validateImportFile(file);
-    if (fileError) return fileError;
+    const validatedFile = validateImportFile(file);
+    if (validatedFile.response) return validatedFile.response;
 
-    const text = await file!.text();
+    const text = await validatedFile.file.text();
     const parsed = Papa.parse<Record<string, string>>(text, {
       header: true,
       skipEmptyLines: true,
@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
 
     if (parsed.errors.length > 0 && parsed.data.length === 0) {
       return NextResponse.json(
-        { error: `CSV parse error: ${parsed.errors.map((e) => e.message).join(", ")}` },
+        { error: "Invalid CSV file" },
         { status: 400 }
       );
     }
@@ -129,7 +129,6 @@ export async function POST(request: NextRequest) {
       total: rows.length,
     });
   } catch (err: unknown) {
-    console.error("Import error:", err);
     return NextResponse.json({ error: sanitizeImportError(err) }, { status: 500 });
   }
 }

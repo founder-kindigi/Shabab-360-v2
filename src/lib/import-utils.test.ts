@@ -4,39 +4,44 @@ import { validateImportFile, sanitizeImportError, IMPORT_MAX_SIZE } from "./impo
 describe("validateImportFile", () => {
   it("rejects null file", () => {
     const result = validateImportFile(null);
-    expect(result!.status).toBe(400);
+    expect(result.response!.status).toBe(400);
+  });
+
+  it("rejects a non-file form value", () => {
+    const result = validateImportFile("not-a-file");
+    expect(result.response!.status).toBe(400);
   });
 
   it("rejects oversized file", () => {
     const blob = new Blob(["x".repeat(IMPORT_MAX_SIZE + 1)]);
     const file = new File([blob], "test.csv", { type: "text/csv" });
     const result = validateImportFile(file);
-    expect(result!.status).toBe(413);
+    expect(result.response!.status).toBe(413);
   });
 
   it("rejects non-CSV extension", () => {
     const file = new File(["a,b\n1,2"], "data.txt", { type: "text/csv" });
     const result = validateImportFile(file);
-    expect(result!.status).toBe(400);
+    expect(result.response!.status).toBe(400);
   });
 
   it("accepts valid CSV under size limit", () => {
     const file = new File(["a,b\n1,2"], "data.csv", { type: "text/csv" });
     const result = validateImportFile(file);
-    expect(result).toBeNull();
+    expect(result.file).toBe(file);
   });
 
   it("accepts CSV with uppercase extension", () => {
     const file = new File(["a,b\n1,2"], "DATA.CSV", { type: "text/csv" });
     const result = validateImportFile(file);
-    expect(result).toBeNull();
+    expect(result.file).toBe(file);
   });
 
   it("accepts file exactly at size limit", () => {
     const blob = new Blob(["x".repeat(IMPORT_MAX_SIZE)]);
     const file = new File([blob], "exact.csv", { type: "text/csv" });
     const result = validateImportFile(file);
-    expect(result).toBeNull();
+    expect(result.file).toBe(file);
   });
 });
 

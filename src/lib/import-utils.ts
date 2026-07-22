@@ -7,25 +7,35 @@ export const IMPORT_MAX_SIZE = 2 * 1024 * 1024; // 2 MB
 
 /**
  * Validate that a file is present, CSV, and under the size limit.
- * Returns an error response or null if valid.
+ * Returns a validated file or a safe error response.
  */
-export function validateImportFile(file: File | null): NextResponse | null {
-  if (!file) {
-    return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
+type ImportFileValidationResult =
+  | { file: File; response?: never }
+  | { file?: never; response: NextResponse };
+
+export function validateImportFile(
+  file: FormDataEntryValue | null
+): ImportFileValidationResult {
+  if (!(file instanceof File)) {
+    return { response: NextResponse.json({ error: "No file uploaded" }, { status: 400 }) };
   }
   if (file.size > IMPORT_MAX_SIZE) {
-    return NextResponse.json(
-      { error: "File size exceeds the maximum allowed size of 2 MB." },
-      { status: 413 }
-    );
+    return {
+      response: NextResponse.json(
+        { error: "File size exceeds the maximum allowed size of 2 MB." },
+        { status: 413 }
+      ),
+    };
   }
   if (!file.name.toLowerCase().endsWith(".csv")) {
-    return NextResponse.json(
-      { error: "Only CSV files are supported" },
-      { status: 400 }
-    );
+    return {
+      response: NextResponse.json(
+        { error: "Only CSV files are supported" },
+        { status: 400 }
+      ),
+    };
   }
-  return null;
+  return { file };
 }
 
 /**
