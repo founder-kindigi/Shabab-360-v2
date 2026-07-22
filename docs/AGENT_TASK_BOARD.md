@@ -35,6 +35,7 @@ contracts. This board coordinates work; it does not replace product decisions.
 | `TEAM-UI-001` | P1 | `DONE` | Codex | Team API | `codex/team-membership-ui` at `e9a1d6c` | Codex |
 | `ACCESS-UI-002` | P1 | `DONE` | Codex | Access matrix | `codex/access-management-matrix` at `6565b32` | Codex |
 | `HIER-002` | P0 | `DONE` | Claude Opus | None | `agent/claude/HIER-002-hierarchy-migration-design` at `fa7105f` | Codex |
+| `TEAM-001` | P1 | `REVIEW` | Claude Opus | None | `agent/claude/COORD-001-task-board-coordination` at `4cd5244` | Codex |
 | `ATT-VALIDATION-001` | P0 | `REVIEW` | DeepSeek v4 Flash | None | `agent/deepseek/ATT-VALIDATION-001-attendance-validation` at `f22e83e` | Codex |
 | `CALL-304` | P1 | `REVIEW` | DeepSeek v4 Flash | CALL-302, CALL-303 | `agent/deepseek/CALL-304-calling-design` at `1549fac` | Codex |
 | `CP-IMPORT-001` | P1 | `REVIEW` | DeepSeek v4 Flash | CP-API-001 | `agent/deepseek/CP-IMPORT-001-content-plan-parser-tests` at `ec0f8eb` | Codex |
