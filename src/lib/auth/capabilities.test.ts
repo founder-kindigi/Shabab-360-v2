@@ -76,4 +76,27 @@ describe("access capability policy", () => {
       }, now)
     ).toBe(false);
   });
+
+  it("resolves role override configuration correctly when no individual override exists", () => {
+    const now = new Date();
+    expect(
+      resolveEffectiveCapability("park_admin", "attendance.mark", "allow", null, now)
+    ).toBe(true);
+    expect(
+      resolveEffectiveCapability("park_admin", "attendance.mark", "deny", null, now)
+    ).toBe(false);
+    expect(
+      resolveEffectiveCapability("park_admin", "attendance.mark", null, null, now)
+    ).toBe(true);
+    expect(
+      resolveEffectiveCapability("park_admin", "attendance.correct", null, null, now)
+    ).toBe(false);
+  });
+
+  it("fails closed for unknown roles or invalid inputs in resolution", () => {
+    const now = new Date();
+    expect(
+      resolveEffectiveCapability("invalid_role", "attendance.mark", "allow", null, now)
+    ).toBe(false);
+  });
 });

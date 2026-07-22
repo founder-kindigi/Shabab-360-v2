@@ -67,8 +67,10 @@ describe("named user access overrides", () => {
   });
 
   it("rejects unsupported and protected capability codes before a transaction", async () => {
-    const response = await PUT(request("PUT", { capability: "access.scope.manage", effect: "allow", reason: "Unsafe grant" }), params);
-    expect(response.status).toBe(400);
+    for (const cap of ["access.scope.manage", "access.role_defaults.manage", "audit.view", "settings.manage"]) {
+      const response = await PUT(request("PUT", { capability: cap, effect: "allow", reason: "Unsafe grant" }), params);
+      expect(response.status).toBe(400);
+    }
     expect(mocks.transaction).not.toHaveBeenCalled();
   });
 
