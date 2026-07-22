@@ -1,5 +1,8 @@
 # API Route Inventory & Security Audit Report
 
+> [!IMPORTANT]
+> **Historical Architecture Notice**: This document describes a prior architecture. Removed upload components must not be treated as current callers or active codebase components. Current upload-route status and consumer audits are documented in SEC-005 (`docs/product-discovery/SEC-005-UPLOAD-DISABLE-CONSUMER-AUDIT.md`). The review findings below are preserved for historical reference.
+
 ## Executive Summary
 This document compiles a comprehensive, read-only inventory of all 84 route files (generating 118 HTTP method handlers) inside the `src/app/api` directory of the Shabab-360-v2 Next.js application. Additionally, it details critical P0 security findings that violate the release gates outlined in [IMPROVEMENT_PLAN.md](file:///D:/iBuild/Shabab-360-v2/docs/IMPROVEMENT_PLAN.md).
 

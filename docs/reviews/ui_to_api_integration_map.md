@@ -1,5 +1,8 @@
 # UI-to-API Integration Map & Discrepancies Report
 
+> [!IMPORTANT]
+> **Historical Architecture Notice**: This document describes a prior architecture. Removed upload components must not be treated as current callers or active codebase components. Current upload-route status and consumer audits are documented in SEC-005 (`docs/product-discovery/SEC-005-UPLOAD-DISABLE-CONSUMER-AUDIT.md`). The review findings below are preserved for historical reference.
+
 This report provides a read-only mapping of the frontend `fetch` calls to backend Next.js API routes for the **Shabab-360-v2** project, identifying integration gaps, schema mismatches, stale paths, and authorization mismatches.
 
 ---
