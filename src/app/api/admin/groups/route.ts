@@ -11,9 +11,16 @@ import {
 } from "@/lib/api/query-params";
 
 const createSchema = z.object({
-  name: z.string().min(2, "Group name must be at least 2 characters"),
+  name: z.string().trim().min(2, "Group name must be at least 2 characters").max(120),
   batchId: z.string().min(1, "Batch is required"),
+  parkId: z.string().min(1, "Park is required"),
 });
+
+const HIERARCHY_MANAGER_ROLES = ["super_admin", "program_admin", "city_head"];
+
+function canManageHierarchy(role?: string | null) {
+  return HIERARCHY_MANAGER_ROLES.includes(role || "");
+}
 
 const groupListQuerySchema = z.object({
   batchId: optionalIdentifier(),
@@ -49,17 +56,34 @@ export async function GET(request: NextRequest) {
   }
 
   if (isHQ) {
-    if (parkId) where.batch = { ...where.batch, parkId };
+    if (parkId) {
+      where.OR = [
+        { parkId },
+        { parkId: null, batch: { parkId } },
+      ];
+    }
     if (batchId) where.batchId = batchId;
   } else if (user.role === "city_head" && user.assignedCityId) {
-    where.batch = { ...where.batch, park: { cityId: user.assignedCityId } };
-    if (parkId) where.batch = { ...where.batch, parkId };
+    where.OR = [
+      { park: { cityId: user.assignedCityId } },
+      { parkId: null, batch: { park: { cityId: user.assignedCityId } } },
+    ];
+    if (parkId) {
+      const requestedPark = await db.park.findUnique({ where: { id: parkId }, select: { cityId: true } });
+      if (!requestedPark) return NextResponse.json({ error: "Park not found" }, { status: 404 });
+      if (requestedPark.cityId !== user.assignedCityId) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      where.AND = [{ OR: where.OR }, { OR: [{ parkId }, { parkId: null, batch: { parkId } }] }];
+      delete where.OR;
+    }
     if (batchId) where.batchId = batchId;
   } else if (
     ["park_admin", "park_lead"].includes(user.role || "") &&
     user.assignedParkId
   ) {
-    where.batch = { ...where.batch, parkId: user.assignedParkId };
+    where.OR = [
+      { parkId: user.assignedParkId },
+      { parkId: null, batch: { parkId: user.assignedParkId } },
+    ];
     if (batchId) where.batchId = batchId;
   } else if (user.role === "murabbi" && user.assignedGroupId) {
     // Murabbi: only their own group
@@ -84,6 +108,7 @@ export async function GET(request: NextRequest) {
           park: { select: { id: true, name: true } },
         },
       },
+      park: { select: { id: true, name: true, cityId: true } },
       _count: { select: { participants: true } },
     },
   });
@@ -97,6 +122,9 @@ export async function POST(request: NextRequest) {
   const { user } = auth;
   const capabilityAuth = await requireCapability("organisation.manage");
   if (capabilityAuth instanceof NextResponse) return capabilityAuth;
+  if (!canManageHierarchy(user.role)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
 
   const isHQ = ["super_admin", "program_admin"].includes(user.role || "");
 
@@ -112,7 +140,7 @@ export async function POST(request: NextRequest) {
   // Verify batch access
   const batch = await db.batch.findUnique({
     where: { id: parsed.data.batchId, isActive: true },
-    include: { park: true },
+    include: { park: true, city: true },
   });
   if (!batch) {
     return NextResponse.json(
@@ -121,21 +149,18 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const batchCityId = batch.cityId ?? batch.park.cityId;
+  const park = await db.park.findUnique({ where: { id: parsed.data.parkId, isActive: true } });
+  if (!park) return NextResponse.json({ error: "Park not found" }, { status: 404 });
+  if (park.cityId !== batchCityId) {
+    return NextResponse.json({ error: "Group park must belong to the batch city" }, { status: 400 });
+  }
+
   // Scope check
   if (!isHQ && user.role === "city_head" && user.assignedCityId) {
-    if (batch.park.cityId !== user.assignedCityId) {
+    if (batchCityId !== user.assignedCityId) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
-  } else if (
-    !isHQ &&
-    ["park_admin", "park_lead"].includes(user.role || "") &&
-    user.assignedParkId
-  ) {
-    if (batch.parkId !== user.assignedParkId) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-  } else if (user.role === "murabbi") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   } else if (!isHQ) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
@@ -144,6 +169,7 @@ export async function POST(request: NextRequest) {
     data: {
       name: parsed.data.name,
       batchId: parsed.data.batchId,
+      parkId: parsed.data.parkId,
     },
   });
 

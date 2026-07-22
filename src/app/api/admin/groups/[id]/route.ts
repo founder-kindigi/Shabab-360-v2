@@ -1,13 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
-import { ORGANIZATION_MANAGEMENT_ROLES, requireAuth, requireCapability, requireResourceScope } from "@/lib/auth/authorize";
+import { requireAuth, requireCapability, requireResourceScope } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
 import { z } from "zod";
 
 const updateSchema = z.object({
-  name: z.string().min(2).optional(),
+  name: z.string().trim().min(2).max(120).optional(),
   isActive: z.boolean().optional(),
 });
+
+const HIERARCHY_MANAGER_ROLES = ["super_admin", "program_admin", "city_head"];
+
+function canManageHierarchy(role?: string | null) {
+  return HIERARCHY_MANAGER_ROLES.includes(role || "");
+}
 
 export async function GET(
   request: NextRequest,
@@ -16,7 +22,7 @@ export async function GET(
   const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
   const { user } = auth;
-  const capabilityAuth = await requireCapability("organisation.manage");
+  const capabilityAuth = await requireCapability("organisation.view");
   if (capabilityAuth instanceof NextResponse) return capabilityAuth;
   const { id } = await params;
 
@@ -27,6 +33,7 @@ export async function GET(
         select: {
           id: true,
           name: true,
+          cityId: true,
           park: {
             select: {
               id: true,
@@ -36,6 +43,7 @@ export async function GET(
           },
         },
       },
+      park: { select: { id: true, name: true, cityId: true } },
       _count: { select: { participants: true } },
     },
   });
@@ -45,8 +53,8 @@ export async function GET(
   }
 
   const scopeError = requireResourceScope(user, {
-    cityId: group.batch.park.city.id,
-    parkId: group.batch.park.id,
+    cityId: group.batch.cityId ?? group.batch.park.city.id,
+    parkId: group.parkId ?? group.batch.park.id,
     groupId: group.id,
   });
   if (scopeError) return scopeError;
@@ -63,11 +71,14 @@ export async function PATCH(
   const { user } = auth;
   const capabilityAuth = await requireCapability("organisation.manage");
   if (capabilityAuth instanceof NextResponse) return capabilityAuth;
+  if (!canManageHierarchy(user.role)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
   const { id } = await params;
 
   const existing = await db.group.findUnique({
     where: { id },
-    include: { batch: { include: { park: true } } },
+    include: { batch: { include: { park: true } }, park: true },
   });
   if (!existing) {
     return NextResponse.json({ error: "Group not found" }, { status: 404 });
@@ -75,8 +86,7 @@ export async function PATCH(
 
   const scopeError = requireResourceScope(
     user,
-    { cityId: existing.batch.park.cityId, parkId: existing.batch.parkId, groupId: existing.id },
-    ORGANIZATION_MANAGEMENT_ROLES
+    { cityId: existing.batch.cityId ?? existing.batch.park.cityId, parkId: existing.parkId ?? existing.batch.parkId, groupId: existing.id }
   );
   if (scopeError) return scopeError;
 
@@ -120,11 +130,14 @@ export async function DELETE(
   const { user } = auth;
   const capabilityAuth = await requireCapability("organisation.manage");
   if (capabilityAuth instanceof NextResponse) return capabilityAuth;
+  if (!canManageHierarchy(user.role)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
   const { id } = await params;
 
   const existing = await db.group.findUnique({
     where: { id },
-    include: { batch: { include: { park: true } } },
+    include: { batch: { include: { park: true } }, park: true },
   });
   if (!existing) {
     return NextResponse.json({ error: "Group not found" }, { status: 404 });
@@ -132,8 +145,7 @@ export async function DELETE(
 
   const scopeError = requireResourceScope(
     user,
-    { cityId: existing.batch.park.cityId, parkId: existing.batch.parkId, groupId: existing.id },
-    ORGANIZATION_MANAGEMENT_ROLES
+    { cityId: existing.batch.cityId ?? existing.batch.park.cityId, parkId: existing.parkId ?? existing.batch.parkId, groupId: existing.id }
   );
   if (scopeError) return scopeError;
 
