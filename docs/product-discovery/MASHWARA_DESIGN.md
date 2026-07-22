@@ -1,7 +1,7 @@
 # Mashwara Design
 
-**Module:** Weekly Mashwara (Recurring Meetings, Decisions & Action Items)  
-**Priority:** Future module (post-stabilization)  
+**Module:** Weekly Mashwara (Recurring Meetings, Decisions & Action Items)
+**Priority:** Future module (post-stabilization)
 **Purpose:** Replace informal city-level meeting coordination with a structured,
 auditable, recurring meeting module that supports attendance tracking, Karguzari
 (MoM/minutes), decision recording, and collaboration-team action items.
@@ -20,18 +20,19 @@ From owner-approved baseline (`.agents/memory/current.md`):
   Media, or Muawin teams
 - **Hierarchy scope preservation**: Team membership NEVER expands hierarchy scope
 - **Participant access**: All active city team members receive restricted
-  participant-level access to city-scoped Mashwara
+  participant-level access to city-scoped Mashwara (automatic for users with
+  `StaffMeta` in the city who have at least one collaboration team membership)
 - **Meeting-specific share**: City Heads/HQ may grant revocable, audited,
-  meeting-specific share to selected same-city active team member without
-  changing general scope
+  meeting-specific share to selected same-city active team members (users with
+  `StaffMeta` and team membership, not general staff)
 
 ### 1.2 Design Principles
 
 1. **Immutable review/audit behavior**: Once finalized, Karguzari and decisions
    cannot be edited; corrections require new entries with references
 2. **Fail-closed authorization**: Missing city scope denies access
-3. **No role expansion**: Team membership provides collaboration context only,
-   never broader system access
+3. **No role expansion**: Team membership is an access predicate (grants Mashwara
+   read access for same-city team members), never a login role or broader system access
 4. **Audit trail**: All sensitive operations (shares, decisions, action items)
    are logged with actor, timestamp, and context
 
@@ -43,11 +44,11 @@ From owner-approved baseline (`.agents/memory/current.md`):
 | --- | --- | --- |
 | `Mashwara` | Recurring meeting definition | `cityId`, `title`, `purpose`, `recurrencePattern`, `status` (active/archived) |
 | `MashwaraOccurrence` | Single meeting instance | `mashwaraId`, `scheduledDate`, `actualDate`, `status` (scheduled/completed/cancelled), `venueNotes` |
-| `MashwaraAttendance` | Who attended an occurrence | `occurrenceId`, `staffId`, `attendanceStatus` (present/absent/excused), `recordedAt`, `recordedBy` |
-| `Karguzari` | Meeting minutes/MoM | `occurrenceId`, `content`, `preparedBy`, `reviewedBy`, `finalizedAt`, `version` |
-| `MashwaraDecision` | Captured decision | `occurrenceId`, `title`, `description`, `decisionOwner` (staffId), `dueDate`, `status`, `recordedBy`, `recordedAt` |
-| `MashwaraActionItem` | Team task from meeting | `decisionId` (optional), `occurrenceId`, `teamId` (Sports/Skills/etc), `assignedTo` (staffId, optional), `title`, `description`, `dueDate`, `priority`, `status`, `createdBy`, `completedAt` |
-| `MashwaraMeetingShare` | Audited guest access | `occurrenceId`, `grantedToStaffId`, `grantedBy`, `grantedAt`, `revokedAt`, `revokedBy`, `reason` |
+| `MashwaraAttendance` | Who attended an occurrence | `occurrenceId`, `userId`, `attendanceStatus` (present/absent/excused), `recordedAt`, `recordedBy` |
+| `Karguzari` | Meeting minutes/MoM | `occurrenceId`, `content`, `preparedBy`, `reviewedBy`, `finalizedAt` |
+| `MashwaraDecision` | Captured decision | `occurrenceId`, `title`, `description`, `decisionOwner` (userId), `dueDate`, `status`, `recordedBy`, `recordedAt` |
+| `MashwaraActionItem` | Team task from meeting | `decisionId` (optional), `occurrenceId`, `teamId` (Sports/Skills/etc), `assignedTo` (userId, optional), `title`, `description`, `dueDate`, `priority`, `status`, `createdBy`, `completedAt` |
+| `MashwaraMeetingShare` | Audited guest access | `occurrenceId`, `grantedToUserId`, `grantedBy`, `grantedAt`, `revokedAt`, `revokedBy`, `reason` |
 
 ### 2.2 Relationships
 
@@ -61,23 +62,24 @@ MashwaraOccurrence 1──* MashwaraActionItem
 MashwaraActionItem *──1 CollaborationTeam
 MashwaraDecision 1──* MashwaraActionItem (optional link)
 MashwaraOccurrence 1──* MashwaraMeetingShare
-Staff 1──* MashwaraAttendance
-Staff 1──* MashwaraActionItem (assignedTo)
+User 1──* MashwaraAttendance
+User 1──* MashwaraActionItem (assignedTo)
 ```
 
 ### 2.3 Recurrence Pattern
 
-Mashwara typically occurs weekly. Store recurrence as JSON or structured field:
+**Pilot scope**: Weekly recurrence only. Store as simple structured field:
 
 ```typescript
 interface RecurrencePattern {
-  frequency: 'weekly' | 'biweekly' | 'monthly'; // extensible
-  dayOfWeek?: number; // 0=Sunday, 6=Saturday (for weekly)
+  frequency: 'weekly';
+  dayOfWeek: number; // 0=Sunday, 6=Saturday
   startDate: string; // ISO date
-  endDate?: string; // optional end
-  timeOfDay?: string; // e.g., "19:00" local time
+  timeOfDay?: string; // e.g., "19:00" local time (optional)
 }
 ```
+
+**Future extensibility**: Post-pilot may add biweekly, monthly, or custom patterns.
 
 ## 3. Authorization Model
 
@@ -87,21 +89,21 @@ interface RecurrencePattern {
 | --- | --- | --- | --- | --- | --- | --- |
 | **Super Admin** | All cities | All | All | All | All | All |
 | **City Head** | Own city only | Own city only | Own city only | Own city only | Own city only | Own city only |
-| **Park Lead** | Denied | Denied | Denied | Denied | Denied | Own city Mashwara (read-only participant) |
-| **Park Admin** | Denied | Denied | Denied | Denied | Denied | Own city Mashwara (read-only participant) |
-| **Murabbi** | Denied | Denied | Denied | Denied | Denied | Own city Mashwara (read-only participant) |
-| **Team member** | Denied | Denied | Denied | Denied | Own-team action items only | Own city Mashwara (read-only participant) |
+| **Park Lead** | Denied | Denied | Denied | Denied | Denied | Own city Mashwara (read-only participant, if team member) |
+| **Park Admin** | Denied | Denied | Denied | Denied | Denied | Own city Mashwara (read-only participant, if team member) |
+| **Murabbi** | Denied | Denied | Denied | Denied | Denied | Own city Mashwara (read-only participant, if team member) |
+| **Team member** | Denied | Denied | Denied | Denied | Denied (creation); update own-team or directly assigned items only | Own city Mashwara (read-only participant, if team member) |
 | **Meeting share** | Denied | Denied | Denied | Denied | Denied | Specific occurrence only (read) |
 
 ### 3.2 Scoping Rules
 
-- **Mashwara creation**: Requires `city` capability + `assignedCityId` match (or Super Admin)
-- **Occurrence management**: Requires `city` capability + Mashwara's `cityId` match
-- **Attendance marking**: City Head or Super Admin only; staff must be active in the same city
-- **Karguzari edit**: Only before finalization; requires `city` capability
-- **Decision/action-item**: City Head or Super Admin; action items assigned to team members in the same city
-- **Participant read access**: Automatic for all active staff in the Mashwara's city who are members of at least one collaboration team
-- **Meeting-specific share**: City Head/Super Admin may grant temporary, audited, read-only access to a specific occurrence for a same-city staff member
+- **Mashwara creation**: Requires `mashwara.manage` capability + server-side city derivation from actor's `StaffMeta` (`assignedCityId`, or city via `assignedParkId`, or city via `assignedGroupId`)
+- **Occurrence management**: Requires `mashwara.manage` capability + Mashwara's `cityId` matches actor's derived city scope
+- **Attendance marking**: City Head or Super Admin only; marked users must have active `StaffMeta` in the same derived city
+- **Karguzari edit**: Only before finalization; requires `mashwara.manage` capability + derived city match
+- **Decision/action-item creation**: City Head or Super Admin; action items assigned to users with `StaffMeta` team membership in the same derived city
+- **Participant read access**: Automatic for all active users with `StaffMeta` in the Mashwara's city who are members of at least one collaboration team
+- **Meeting-specific share**: City Head/Super Admin may grant temporary, audited, read-only access to a specific occurrence for a same-city active team member (user with `StaffMeta` and team membership)
 
 ### 3.3 Capability Requirements
 
@@ -114,7 +116,7 @@ Suggested new capabilities (to be added to Access Management):
 ### 3.4 Share Authorization
 
 - **Grant**: City Head or Super Admin only
-- **Scope**: Share recipient must be active staff in the same city as the Mashwara
+- **Scope**: Share recipient must be active user with `StaffMeta` and team membership in the same city as the Mashwara
 - **Duration**: Persists until explicitly revoked or occurrence is archived
 - **Audit**: Every share grant and revocation is logged with actor, timestamp, and reason
 - **Access level**: Read-only for the specific occurrence, Karguzari, decisions, and action items
@@ -128,32 +130,34 @@ Suggested new capabilities (to be added to Access Management):
 3. Fill form:
    - Title (e.g., "Lahore Weekly Mashwara")
    - Purpose/description
-   - Recurrence pattern (frequency, day of week, start date, time)
+   - Recurrence pattern (weekly, day of week, start date, time)
    - Optional: venue/location notes
 4. System validates:
    - City Head has `mashwara.manage` capability
-   - `assignedCityId` matches
+   - Server-side city derivation matches from actor's `StaffMeta`
 5. Create `Mashwara` record with status `active`
 6. Audit: log creation with actor and timestamp
 
 ### 4.2 Generate Occurrence
 
-- **Automatic**: Cron job or scheduled task generates upcoming occurrences based on recurrence pattern
-- **Manual**: City Head can manually create an ad-hoc occurrence
+**Pilot scope**:
+- **Manual only**: City Head manually creates each occurrence (scheduled or ad-hoc)
 - Each occurrence starts with status `scheduled`
+
+**Future enhancement**: Automated cron/scheduled task generation based on recurrence pattern (deferred post-pilot)
 
 ### 4.3 Mark Attendance
 
 1. City Head opens a scheduled or completed occurrence
-2. System displays list of all active staff in the city (filtered by role/team membership as needed)
+2. System displays list of all active users with `StaffMeta` in the city (filtered by role/team membership as needed)
 3. City Head marks each person as:
    - Present
    - Absent
    - Excused
 4. System validates:
    - Actor has `mashwara.attend` capability
-   - Actor's `assignedCityId` matches Mashwara's `cityId`
-   - Staff being marked are active in the same city
+   - Actor's derived city scope (from `StaffMeta`) matches Mashwara's `cityId`
+   - Users being marked have active `StaffMeta` in the same city
 5. Create/update `MashwaraAttendance` records with `recordedBy` and `recordedAt`
 6. Audit: log attendance marking
 
@@ -166,7 +170,7 @@ Suggested new capabilities (to be added to Access Management):
    - Key discussion points
    - Decisions (inline or linked)
    - Action items (inline or linked)
-   - Optional: attachments/references
+   - **Note**: Attachment support deferred to post-pilot
 4. Save as draft (editable)
 5. When ready, click "Finalize Karguzari"
 6. System validates:
@@ -181,12 +185,12 @@ Suggested new capabilities (to be added to Access Management):
 2. Fill form:
    - Title
    - Description/context
-   - Decision owner (staff member in the same city)
+   - Decision owner (user with `StaffMeta` in the same city)
    - Due date (optional)
    - Status (pending/in-progress/completed)
 3. System validates:
    - Actor has `mashwara.manage` capability
-   - Decision owner is active staff in the same city
+   - Decision owner has active `StaffMeta` in the same city
 4. Create `MashwaraDecision` record with `recordedBy` and `recordedAt`
 5. Audit: log decision creation
 
@@ -197,13 +201,13 @@ Suggested new capabilities (to be added to Access Management):
    - Title
    - Description
    - Assigned team (Sports, Skills, Tadreeb, Media, Muawin)
-   - Assigned to (specific staff member in that team, optional)
+   - Assigned to (specific user with `StaffMeta` in that team, optional)
    - Due date
    - Priority (low/medium/high)
 3. System validates:
    - Actor has `mashwara.manage` capability
    - Team exists in the system
-   - If assignedTo is specified, staff is active member of that team in the same city
+   - If assignedTo is specified, user has active `StaffMeta` with membership in that team in the same city
 4. Create `MashwaraActionItem` record with `createdBy` and `createdAt`
 5. Audit: log action item creation
 
@@ -211,11 +215,11 @@ Suggested new capabilities (to be added to Access Management):
 
 1. City Head opens an occurrence
 2. Click "Grant Access"
-3. Select staff member from same-city active roster
+3. Select user with `StaffMeta` and team membership from same-city active roster
 4. Enter reason (optional but recommended)
 5. System validates:
    - Actor has `mashwara.manage` capability or is Super Admin
-   - Share recipient is active staff in the same city
+   - Share recipient is active user with `StaffMeta` and team membership in the same city
    - No duplicate active share exists
 6. Create `MashwaraMeetingShare` record with `grantedBy`, `grantedAt`, and `reason`
 7. Audit: log share grant with full context
@@ -259,7 +263,7 @@ Suggested new capabilities (to be added to Access Management):
 
 - **Header**: Occurrence date, status, venue notes
 - **Tabs**:
-  1. **Attendance**: List of staff with attendance status, mark controls (City Head only)
+  1. **Attendance**: List of users with `StaffMeta`, attendance status, mark controls (City Head only)
   2. **Karguzari**: View finalized MoM or draft form (City Head can edit draft)
   3. **Decisions**: List of decisions with owner, due date, status; create button
   4. **Action Items**: List of action items grouped by team; create button
@@ -275,7 +279,7 @@ Suggested new capabilities (to be added to Access Management):
 
 ### 5.5 Meeting-Specific Share View
 
-- **Access**: If granted share, staff sees occurrence in Mashwara list
+- **Access**: If granted share, user sees occurrence in Mashwara list
 - **View**: Read-only access to that specific occurrence's Karguzari, decisions, and action items
 - **No editing or management**: Share is strictly read-only
 
@@ -287,26 +291,26 @@ Suggested new capabilities (to be added to Access Management):
 - `MashwaraOccurrence.mashwaraId`: Foreign key to `Mashwara`, NOT NULL
 - `MashwaraOccurrence.scheduledDate`: NOT NULL
 - `MashwaraAttendance.occurrenceId`: Foreign key to `MashwaraOccurrence`, NOT NULL
-- `MashwaraAttendance.staffId`: Foreign key to `Staff`, NOT NULL
-- Unique index on `(occurrenceId, staffId)` for attendance
+- `MashwaraAttendance.userId`: Foreign key to `User`, NOT NULL
+- Unique index on `(occurrenceId, userId)` for attendance
 - `Karguzari.occurrenceId`: Foreign key to `MashwaraOccurrence`, UNIQUE (one Karguzari per occurrence)
 - `Karguzari.finalizedAt`: NULL if draft, NOT NULL when finalized
 - `MashwaraDecision.occurrenceId`: Foreign key to `MashwaraOccurrence`, NOT NULL
 - `MashwaraActionItem.teamId`: Foreign key to `CollaborationTeam`, NOT NULL
 - `MashwaraMeetingShare.occurrenceId`: Foreign key to `MashwaraOccurrence`, NOT NULL
-- `MashwaraMeetingShare.grantedToStaffId`: Foreign key to `Staff`, NOT NULL
+- `MashwaraMeetingShare.grantedToUserId`: Foreign key to `User`, NOT NULL
 - Check constraint: `revokedAt` IS NULL OR `revokedAt` >= `grantedAt`
 
 ### 6.2 Immutability Rules
 
-- **Finalized Karguzari**: Once `finalizedAt` is set, `content`, `preparedBy`, `reviewedBy` become read-only
-- **Corrections**: If correction needed, create a new `Karguzari` with incremented `version` and reference to original
+- **Finalized Karguzari**: Once `finalizedAt` is set, the record becomes immutable
+- **Corrections**: If correction needed after finalization, City Head must create a separate correction note or decision record referencing the original occurrence
 - **Decisions and action items**: Editable until completion; status transitions are audited
 
 ### 6.3 Cascade Behavior
 
 - If `Mashwara` is archived, its occurrences remain visible (soft archive)
-- If `Staff` is deactivated, their attendance records, decision ownership, and action item assignments persist (historical data)
+- If `User` is deactivated, their attendance records, decision ownership, and action item assignments persist (historical data)
 - If `CollaborationTeam` is removed (future consideration), action items reference is preserved for audit
 
 ## 7. Migration & Deployment Strategy
@@ -321,11 +325,11 @@ Suggested new capabilities (to be added to Access Management):
 
 1. Create `Mashwara` table with indexes on `cityId` and `status`
 2. Create `MashwaraOccurrence` table with indexes on `mashwaraId`, `scheduledDate`, and `status`
-3. Create `MashwaraAttendance` table with composite unique index on `(occurrenceId, staffId)`
+3. Create `MashwaraAttendance` table with composite unique index on `(occurrenceId, userId)`
 4. Create `Karguzari` table with unique index on `occurrenceId`
 5. Create `MashwaraDecision` table with index on `occurrenceId`
 6. Create `MashwaraActionItem` table with indexes on `occurrenceId`, `teamId`, and `assignedTo`
-7. Create `MashwaraMeetingShare` table with indexes on `occurrenceId` and `grantedToStaffId`
+7. Create `MashwaraMeetingShare` table with indexes on `occurrenceId` and `grantedToUserId`
 8. Add foreign key constraints and check constraints
 9. Align SQLite (`prisma/schema.prisma`) and PostgreSQL (`prisma/postgres/schema.prisma`) schemas
 
@@ -334,8 +338,8 @@ Suggested new capabilities (to be added to Access Management):
 - Add `mashwara.manage`, `mashwara.attend`, `mashwara.view` to role capability defaults
 - **Super Admin**: All Mashwara capabilities
 - **City Head**: `mashwara.manage`, `mashwara.attend`, `mashwara.view` (city-scoped)
-- **Park Lead, Park Admin, Murabbi**: `mashwara.view` (city-scoped, read-only participant)
-- **Team member**: `mashwara.view` (city-scoped, read-only participant) + own-team action item update
+- **Park Lead, Park Admin, Murabbi**: `mashwara.view` (city-scoped, read-only participant, if team member)
+- **Team member**: `mashwara.view` (city-scoped, read-only participant, if team member) + own-team action item update
 
 ### 7.4 Staging Rollout
 
@@ -344,7 +348,7 @@ Suggested new capabilities (to be added to Access Management):
 3. Create test Mashwara in Lahore city context
 4. Test all workflows:
    - Mashwara creation
-   - Occurrence generation
+   - Manual occurrence creation
    - Attendance marking
    - Karguzari preparation and finalization
    - Decision recording
@@ -367,7 +371,7 @@ Suggested new capabilities (to be added to Access Management):
 
 ### 8.1 Sensitive Data
 
-- **Karguzari content**: May contain sensitive discussions; access restricted to city-scoped staff
+- **Karguzari content**: May contain sensitive discussions; access restricted to city-scoped users with `StaffMeta` and team membership
 - **Decisions**: May reference personnel, financial, or operational sensitive matters; city-scoped only
 - **Action items**: Team-specific tasks; visible to team members but not externally
 - **Meeting shares**: Audited and revocable to prevent unauthorized access leakage
@@ -384,7 +388,7 @@ All sensitive operations must be audited:
 
 Audit logs must capture:
 
-- Actor (staffId)
+- Actor (userId)
 - Timestamp
 - Operation type
 - Target entity (occurrenceId, decisionId, etc.)
@@ -393,23 +397,23 @@ Audit logs must capture:
 ### 8.3 Access Control Enforcement
 
 - **Server-side only**: All authorization checks in API routes
-- **Fail-closed**: Missing `assignedCityId` or capability denies access
-- **Scope validation**: Every Mashwara/occurrence operation validates city match
-- **Share validation**: Meeting shares validated for same-city staff only
+- **Fail-closed**: Missing city scope (derived from `StaffMeta`) or capability denies access
+- **Scope validation**: Every Mashwara/occurrence operation validates city match via server-side derivation
+- **Share validation**: Meeting shares validated for same-city users with `StaffMeta` and team membership only
 
 ## 9. Testing Strategy
 
 ### 9.1 Unit Tests
 
-- Authorization helpers: city-scoped Mashwara access
-- Recurrence pattern parser and occurrence generation
+- Authorization helpers: city-scoped Mashwara access via server-side `StaffMeta` derivation
+- Recurrence pattern parser (weekly only for pilot)
 - Karguzari finalization immutability
 - Share grant/revoke logic
 
 ### 9.2 Integration Tests
 
 - Mashwara CRUD with city-scoped authorization
-- Occurrence creation and attendance marking
+- Manual occurrence creation and attendance marking
 - Karguzari draft-to-finalized workflow
 - Decision and action item creation with team linkage
 - Meeting share grant/revoke with audit trail
@@ -420,6 +424,7 @@ Audit logs must capture:
 - Park Lead cannot create Mashwara
 - Murabbi cannot edit Karguzari
 - Team member cannot manage occurrences
+- Team member cannot create action items (only update own-team or directly assigned)
 - Meeting share recipient cannot edit occurrence
 - Finalized Karguzari cannot be edited
 
@@ -429,20 +434,26 @@ Audit logs must capture:
 - Mobile responsiveness for Mashwara list and occurrence detail
 - Verify audit logs appear correctly
 - Test share grant/revoke from City Head account
-- Verify participant read-only access from Park Lead account
+- Verify participant read-only access from Park Lead with team membership account
 
 ## 10. Open Questions & Future Enhancements
 
 ### 10.1 Owner Decisions Required
 
-1. **Recurrence pattern flexibility**: Should Mashwara support monthly, ad-hoc, or custom recurrence beyond weekly?
-2. **Karguzari versioning**: If correction needed after finalization, should we support versioned Karguzari or require a separate correction note?
-3. **Action item workflow**: Should action items have formal review/approval by City Head before completion, or is team member self-reporting sufficient?
-4. **Notification**: Should Mashwara occurrence reminders and action item due dates trigger in-app notifications or email?
-5. **Attachment support**: Should Karguzari support file attachments (PDFs, images)? If yes, security and storage implications need review.
+**Pilot scope resolved**:
+1. ✅ **Recurrence pattern**: Weekly only for pilot; manual occurrence creation
+2. ✅ **Karguzari corrections**: Separate correction notes/decisions (no versioning)
+3. ✅ **Cron/notifications/attachments**: Deferred to post-pilot
+
+**Remaining owner decisions**:
+1. **Action item workflow**: Should action items have formal review/approval by City Head before completion, or is team member self-reporting sufficient?
 
 ### 10.2 Future Enhancements (Post-MVP)
 
+- **Automated occurrence generation**: Cron/scheduled task based on recurrence pattern
+- **Notifications**: Occurrence reminders and action item due date alerts
+- **Attachments**: File upload support for Karguzari (PDFs, images) with security review
+- **Extended recurrence patterns**: Biweekly, monthly, custom
 - **Cross-city Mashwara**: HQ-level recurring meetings with multi-city participation
 - **Delegation**: City Head delegates Mashwara management to a Park Lead (audited, revocable)
 - **Integration with Calling/Events**: Link Mashwara decisions to calling campaigns or event responsibilities
@@ -453,7 +464,7 @@ Audit logs must capture:
 
 **Wave 3 Task Dependencies** (from `AGENT_EXECUTION_WORKFLOW.md`):
 
-- [ ] `MASHWARA-301` (this document): Final design revision - **Current Task**
+- [ ] `MASHWARA-301-REVISION` (this document): Final design revision - **Current Task**
 - [ ] Owner review and approval of design
 - [ ] `EVENT-302`: Event/responsibility schema (Codex) - Dependency for operational team context
 - [ ] `MASHWARA-302`: Mashwara schema, lifecycle, and access implementation (Codex)
@@ -462,16 +473,16 @@ Audit logs must capture:
 **Design Deliverables** (this task):
 
 - [x] Core requirements and policy alignment
-- [x] Data model with entities and relationships
-- [x] Authorization model with role-based access
-- [x] Workflow definitions for all key operations
+- [x] Data model with entities and relationships (User/StaffMeta references)
+- [x] Authorization model with role-based access and server-side city derivation
+- [x] Workflow definitions for all key operations (pilot scope: manual, weekly only)
 - [x] UI wireframe concepts
 - [x] Data integrity constraints
 - [x] Migration and deployment strategy
 - [x] Security and privacy considerations
 - [x] Testing strategy
-- [x] Open questions for owner decisions
+- [x] Owner decisions (pilot scope resolved; 1 remaining)
 
 ---
 
-**Status**: Design complete, awaiting owner review and approval before `MASHWARA-302` implementation.
+**Status**: Design revision complete, awaiting owner review and approval before `MASHWARA-302` implementation.
