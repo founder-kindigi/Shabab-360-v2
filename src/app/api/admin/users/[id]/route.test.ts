@@ -151,6 +151,47 @@ describe("user session invalidation mutations", () => {
     expect(mocks.transaction).not.toHaveBeenCalled();
   });
 
+  it("permits a City Head to manage staff in permitted roles within their assigned city", async () => {
+    mocks.requireAuth.mockResolvedValue({
+      user: { id: "city-head-1", role: "city_head", assignedCityId: "city-1" },
+    });
+    mocks.userFindUnique.mockResolvedValue(oldUser);
+    mocks.staffMetaFindUnique.mockResolvedValue(oldMeta);
+    mocks.cityFindUnique.mockResolvedValue({ id: "city-1" });
+    mocks.parkFindUnique.mockResolvedValue({ cityId: "city-1" });
+
+    const response = await PATCH(request("PATCH", { staffMetaIsActive: false }), routeParams());
+
+    expect(response.status).toBe(200);
+    expect(mocks.transaction).toHaveBeenCalledTimes(1);
+  });
+
+  it("denies a City Head attempting to assign unmanageable roles (e.g. program_admin)", async () => {
+    mocks.requireAuth.mockResolvedValue({
+      user: { id: "city-head-1", role: "city_head", assignedCityId: "city-1" },
+    });
+    mocks.userFindUnique.mockResolvedValue(oldUser);
+    mocks.staffMetaFindUnique.mockResolvedValue(oldMeta);
+
+    const response = await PATCH(request("PATCH", { role: "program_admin" }), routeParams());
+
+    expect(response.status).toBe(403);
+    expect(mocks.transaction).not.toHaveBeenCalled();
+  });
+
+  it("denies a City Head attempting to assign staff to a city other than their own city scope", async () => {
+    mocks.requireAuth.mockResolvedValue({
+      user: { id: "city-head-1", role: "city_head", assignedCityId: "city-1" },
+    });
+    mocks.userFindUnique.mockResolvedValue(oldUser);
+    mocks.staffMetaFindUnique.mockResolvedValue(oldMeta);
+
+    const response = await PATCH(request("PATCH", { assignedCityId: "city-2" }), routeParams());
+
+    expect(response.status).toBe(403);
+    expect(mocks.transaction).not.toHaveBeenCalled();
+  });
+
   it("deactivates the account, staff access, and captured JWT in one transaction", async () => {
     mocks.userFindUnique.mockResolvedValue({ id: "user-1", ...oldUser });
 
