@@ -31,7 +31,8 @@ contracts. This board coordinates work; it does not replace product decisions.
 | ID | Priority | Tier | Status | Author | Dependencies | Allowed files/domain | Reviewer |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | `COORD-001` | P1 | `C0` | `IN_PROGRESS` | Antigravity | None | `docs/AGENT_TASK_BOARD.md` only | Codex |
-| `SEC-006` | P0 | `C3` | `IN_PROGRESS` | Claimed agent | None | `docs/product-discovery/SEC-006-STATIC-SECURITY-REVALIDATION.md` only | Codex |
+| `SEC-006` | P0 | `C3` | `CHANGES_REQUESTED` | Original author | None | `docs/product-discovery/SEC-006-STATIC-SECURITY-REVALIDATION.md` only | Codex |
+| `SEC-007` | P0 | `C2` | `READY` | Unassigned | None | Three CSV import routes, their focused tests, and one shared import helper only if needed | Codex |
 | `TEAM-UI-001` | P1 | `C2` | `DONE` | Codex | Team API | Integrated at `8de093c` | Codex |
 | `ACCESS-UI-002` | P1 | `C2` | `DONE` | Codex | Access matrix | Integrated at `8de093c` | Codex |
 | `UAT-ROLE-001` | P0 | `C0` | `HANDOFF_READY` | Gemini 3.1 Pro | None | `docs/product-discovery/UAT-ROLE-001-ROLE-BROWSER-CHECKLIST.md` at `afaf2ec` | Codex |
