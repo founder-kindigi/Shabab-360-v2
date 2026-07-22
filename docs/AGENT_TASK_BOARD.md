@@ -28,19 +28,20 @@ contracts. This board coordinates work; it does not replace product decisions.
 
 ## Active Queue
 
-| ID | Priority | Status | Owner | Dependencies | Allowed files/domain | Review owner |
+| ID | Priority | Tier | Status | Author | Dependencies | Allowed files/domain | Reviewer |
 | --- | --- | --- | --- | --- | --- | --- |
-| `COORD-001` | P1 | `READY` | Gemini 3.5 Flash | None | `docs/AGENT_TASK_BOARD.md` only | Codex |
-| `SEC-006` | P0 | `IN_PROGRESS` | Gemini 3.1 Pro | None | `docs/product-discovery/SEC-006-STATIC-SECURITY-REVALIDATION.md` only | Codex |
-| `TEAM-UI-001` | P1 | `HANDOFF_READY` | Codex | Team API | `codex/team-membership-ui` at `e9a1d6c` | Codex |
-| `ACCESS-UI-002` | P1 | `HANDOFF_READY` | Codex | Access matrix | `codex/access-management-matrix` at `6565b32` | Codex |
+| `COORD-001` | P1 | `C0` | `READY` | Unassigned | None | `docs/AGENT_TASK_BOARD.md` only | Codex |
+| `SEC-006` | P0 | `C3` | `IN_PROGRESS` | Claimed agent | None | `docs/product-discovery/SEC-006-STATIC-SECURITY-REVALIDATION.md` only | Codex |
+| `TEAM-UI-001` | P1 | `C2` | `DONE` | Codex | Team API | Integrated at `8de093c` | Codex |
+| `ACCESS-UI-002` | P1 | `C2` | `DONE` | Codex | Access matrix | Integrated at `8de093c` | Codex |
 
 ## Claim Template
 
 ```text
 CLAIM
 Task ID:
-Model:
+Agent identity:
+Supported complexity tier:
 Branch:
 Base commit:
 Allowed files understood:
@@ -53,6 +54,7 @@ or files outside this scope.
 ```text
 HANDOFF
 Task ID:
+Agent identity:
 Branch and base commit:
 Commit SHA:
 Changed files:
