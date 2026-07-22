@@ -28,6 +28,29 @@ staging/production migrations, execute imports, edit `.env`, or handle secrets.
 8. Codex verifies the merged integration branch, updates `TASKS.md`, and only
    then releases the next dependent tasks.
 
+## 3. Coordinator Loop
+
+Use a dedicated low-cost coordinator session (Gemini Flash preferred) to keep
+`docs/AGENT_TASK_BOARD.md` current. Every three minutes it must:
+
+1. Read the board and inspect the listed agent branches only; it does not edit
+   application code.
+2. Move valid handoffs from `HANDOFF_READY` to `REVIEW`, and notify Codex with
+   the branch, commit, changed files, and verification summary.
+3. Identify an idle agent and assign the highest-priority `READY` task whose
+   dependencies are `DONE` and whose allowed files do not overlap an active
+   task.
+4. Mark a task `BLOCKED` when an owner decision, approved API contract, or
+   missing dependency prevents safe progress. It must not invent a contract.
+5. Never merge, deploy, execute migrations/imports, read secrets, or approve
+   its own work.
+
+The coordinator can dispatch automatically only when the host platform permits
+one agent to create or message the other agent sessions. Without that platform
+capability, it still keeps the board current and prepares the exact next prompt;
+the operator starts the listed session. Codex remains the approval gate in both
+models.
+
 ## 3. Baseline Gate
 
 No new implementation branch starts until `BASELINE-001` is approved.
@@ -44,10 +67,28 @@ exactly one Batch and one Park in that same City.**
 
 | Agent | Best use | Do not assign |
 | --- | --- | --- |
-| Claude | Product/data-model design, migration plans, authorization matrices, complex test strategy, documentation review | Unreviewed production migration execution, broad UI refactors |
-| Gemini | UI screens, responsive layouts, browser UAT, visual defect inventory, narrow component tests | Auth redesign, migrations, broad security refactors |
-| DeepSeek | Narrow backend endpoints, parser/import dry runs, fixtures, unit tests, mechanical refactors | Deployment, secrets, data writes, cross-cutting authorization design |
-| Codex | Integration, auth/scope, schema/migrations, security/data review, release checks, staging execution | Delegating final approval |
+| Claude Opus | Architecture, high-risk security/data-model review, migration and authorization design, complex cross-module code review | Independent production changes, broad cosmetic UI work |
+| Claude Sonnet | Complex backend implementation after contract approval, API refactors, focused integration tests, design-to-code review | Secrets, deployments, irreversible migrations, final approval |
+| Gemini 3.1 Pro | Product workflow design, difficult frontend flows, browser UAT plans, broad-but-isolated component work | Authorization redesign, data writes, final approval |
+| Gemini 3.5 Flash | Coordinator loop, narrow UI components, responsive fixes, docs, small focused tests | Schema changes, security architecture, migration execution |
+| DeepSeek v4 Flash | Parser/dry-run utilities, route-level regression tests, bounded validation, mechanical backend changes | Secrets, deployment, data writes, cross-cutting auth policy |
+| GPT-5.4-mini | Independent test plans, UAT evidence, runbooks, static review checklists, focused test implementation | Authoritative security/schema decisions, final approval |
+| Codex | Product/API contract, integration, auth/scope, migrations, security/data review, merge/release checks, staging execution | Delegating final approval |
+
+### Delivery Pods
+
+For a feature with stable requirements, form a temporary pod with no file
+overlap:
+
+| Lane | Suggested owner | Starts when | Output |
+| --- | --- | --- | --- |
+| Contract | Codex, reviewed by Opus | Owner decision exists | API schema, authorization/scope rules, allowed files |
+| Backend | Sonnet or DeepSeek | Contract is approved | API/schema implementation and focused allow/deny tests |
+| Frontend | Gemini Pro or Flash | API contract is stable | Page/component branch with no backend edits |
+| Quality | GPT-5.4-mini or DeepSeek | Contract is approved | Regression/UAT tests and evidence checklist |
+| Coordination | Gemini Flash | Always | Board updates, dependency checks, handoff routing |
+
+Codex integrates only after backend, frontend, and quality lanes pass review.
 
 ## 5. Approved Execution Waves
 
