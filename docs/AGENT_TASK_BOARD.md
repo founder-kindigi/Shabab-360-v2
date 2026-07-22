@@ -58,7 +58,7 @@ contracts. This board coordinates work; it does not replace product decisions.
 | `UX-004` | P1 | `REVIEW` | Gemini 3.1 Pro | None | `agent/gemini/UX-004-mobile-evidence-matrix` at `f30872d` | Codex |
 | `OPS-001` | P0 | `REVIEW` | GPT-5.4-mini | None | `agent/gpt-5.4-mini/OPS-001-staging-release-runbook` at `05e7c7a` | Codex |
 | `UAT-002` | P0 | `REVIEW` | GPT-5.4-mini | None | `agent/gpt-5.4-mini/UAT-002-lahore-current-system-uat-plan` at `673bede` | Codex |
-| `MASHWARA-301` | P1 | `CLAIMED` | Claude Opus | None | `agent/claude/MASHWARA-301-mashwara-design` at `dbb955f` | Codex |
+| `MASHWARA-301` | P1 | `REVIEW` | Claude Opus | None | `agent/claude/MASHWARA-301-mashwara-design` at `9ed14ad` | Codex |
 | `UAT-ROLE-002` | P0 | `CLAIMED` | GPT-5.4-mini | None | `agent/gpt-5.4-mini/UAT-ROLE-002-api-auth-audit` at `dbb955f` | Codex |
 | `AUTH-001` | P0 | `CLAIMED` | DeepSeek v4 Flash | None | `agent/deepseek/AUTH-001-security-test-audit` at `dbb955f` | Codex |
 
