@@ -8,55 +8,140 @@ This document maps all downstream usages of the hierarchy relations (`Batch.park
 ---
 
 ## 1. Attendance
-* **`Batch.parkId`**: `legacy fallback allowed` (Used heavily in `src/app/api/park/attendance/*` as `group.batch.parkId`. Can remain as a read fallback for legacy groups lacking a direct park link).
-* **`Batch.cityId`**: `requires city-based update` (City Head dashboards need to aggregate attendance using `cityId`).
-* **`Group.batchId`**: `Phase B safe as-is` (Groups still belong to Batches; attendance events link via Group).
-* **`Group.parkId`**: `requires group-park update` (Park-level attendance queries and scope validations must switch to checking `Group.parkId` directly for new records).
+**Files:**
+* `src/app/api/park/attendance/*` (incl. `[eventId]/route.ts`, `events/route.ts`, etc.)
+* `src/app/api/admin/attendance-events/[eventId]/route.ts`
+* `src/components/modules/park/park-attendance-page.tsx`
+* `src/components/modules/admin/admin-attendance-events.tsx`
 
-## 2. Dashboards (Admin & Park)
-* **`Batch.parkId`**: `legacy fallback allowed` (Park dashboard filters).
-* **`Batch.cityId`**: `requires city-based update` (City dashboard must fetch all Batches using `Batch.cityId` instead of relying on Park links).
-* **`Group.batchId`**: `Phase B safe as-is` (Batch drill-down works identically).
-* **`Group.parkId`**: `requires group-park update` (Park dashboard Group lists must query `Group.parkId` natively).
+**Classifications:**
+* **`Batch.parkId`**: `legacy fallback allowed` (Used extensively in queries e.g., `{ parkId: group.batch.parkId }`. Can remain as a read fallback).
+* **`Batch.cityId`**: `requires city-based update` (City Heads must aggregate via `Batch.cityId`).
+* **`Group.batchId`**: `Phase B safe as-is` (Attendance queries traverse via Group).
+* **`Group.parkId`**: `requires group-park update` (Park-scoped attendance must query `Group.parkId` directly).
 
-## 3. Reports
-* **`Batch.parkId`**: `legacy fallback allowed` (Historical park-level aggregations).
-* **`Batch.cityId`**: `requires city-based update` (City-wide aggregations now roll up via `Batch.cityId`).
+## 2. Admin Dashboard
+**Files:**
+* `src/app/api/admin/dashboard/route.ts`
+* `src/components/modules/admin/admin-dashboard.tsx`
+
+**Classifications:**
+* **`Batch.parkId`**: `legacy fallback allowed` (Filters using `parkId` query parameters).
+* **`Batch.cityId`**: `Phase B safe as-is` (Admin handles all cities).
 * **`Group.batchId`**: `Phase B safe as-is`.
-* **`Group.parkId`**: `requires group-park update` (Park-level reporting must aggregate via `Group.parkId`).
+* **`Group.parkId`**: `requires group-park update` (Group filtering via `parkId` natively).
 
-## 4. Admissions (Participant Registration)
-* **`Batch.parkId`**: `blocked until Phase C` (Assigning new participants based on `Batch.parkId` is unsafe if the Batch spans multiple parks; explicit Group assignment is required).
+## 3. City Head Dashboard
+**Files:**
+* `src/app/api/admin/dashboard/route.ts` (API handles City scope enforcement via `src/lib/auth/scope.ts`)
+* `src/components/modules/admin/admin-dashboard.tsx`
+
+**Classifications:**
+* **`Batch.parkId`**: `Phase B safe as-is` (Not primarily used by City Head scopes).
+* **`Batch.cityId`**: `requires city-based update` (Dashboard requires strict `Batch.cityId` enforcement for City Heads).
+* **`Group.batchId`**: `Phase B safe as-is`.
+* **`Group.parkId`**: `Phase B safe as-is`.
+
+## 4. Park Dashboard
+**Files:**
+* `src/app/api/park/dashboard/route.ts`
+
+**Classifications:**
+* **`Batch.parkId`**: `legacy fallback allowed` (`group.batch.parkId === staffMeta.assignedParkId`).
+* **`Batch.cityId`**: `Phase B safe as-is`.
+* **`Group.batchId`**: `Phase B safe as-is`.
+* **`Group.parkId`**: `requires group-park update` (Park dashboard needs to check `Group.parkId` natively).
+
+## 5. Reports
+**Files:**
+* `src/app/api/admin/reports/attendance-report/route.ts`
+* `src/app/api/admin/reports/fee-report/route.ts`
+
+**Classifications:**
+* **`Batch.parkId`**: `legacy fallback allowed`.
+* **`Batch.cityId`**: `requires city-based update`.
+* **`Group.batchId`**: `Phase B safe as-is`.
+* **`Group.parkId`**: `requires group-park update`.
+
+## 6. Admissions (Participants / Registrations)
+**Files:**
+* `src/app/api/admin/import/participants/route.ts`
+* `src/app/api/admin/students/[id]/detail/route.ts`
+* `src/components/modules/admin/people-page.tsx`
+
+**Classifications:**
+* **`Batch.parkId`**: `requires group-park update` (Phase B safely changes this to group-park scope; it shouldn't be blocked since a Group assignment links a participant to a Park).
 * **`Batch.cityId`**: `requires city-based update` (Admissions boundaries now validated at the City level).
 * **`Group.batchId`**: `Phase B safe as-is`.
-* **`Group.parkId`**: `requires group-park update` (Participant park assignment is strictly derived from `Group.parkId`).
+* **`Group.parkId`**: `requires group-park update` (Participant park assignment derived from Group natively).
 
-## 5. Staff Assignment & Access Provisioning
-* **`Batch.parkId`**: `legacy fallback allowed` (Legacy staff scoping).
-* **`Batch.cityId`**: `requires city-based update` (City Heads must be scoped via `Batch.cityId`).
+## 7. Staff Assignment & Access Provisioning
+**Files:**
+* `src/app/api/admin/users/[id]/route.ts`
+* `src/app/api/admin/invite/route.ts`
+* `src/components/modules/admin/access-provisioning-page.tsx`
+* `src/lib/auth/scope.ts`
+
+**Classifications:**
+* **`Batch.parkId`**: `legacy fallback allowed` (Legacy staff scope checks).
+* **`Batch.cityId`**: `requires city-based update` (City Head scoping).
 * **`Group.batchId`**: `Phase B safe as-is`.
-* **`Group.parkId`**: `requires group-park update` (Park Leads/Admins must have their RBAC validated against `Group.parkId`).
+* **`Group.parkId`**: `requires group-park update` (Park Lead/Admin scoping natively).
 
-## 6. Fees & Payments
-* **`Batch.parkId`**: `legacy fallback allowed` (Legacy fee event querying).
-* **`Batch.cityId`**: `requires city-based update` (City Heads viewing fee collections across the city).
-* **`Group.batchId`**: `Phase B safe as-is` (Fee exceptions or group-level fee tracking).
-* **`Group.parkId`**: `requires group-park update` (Park-level fee filtering).
+## 8. Fees & Payments
+**Files:**
+* `src/app/api/student/fees/route.ts`
+* `src/app/api/admin/fees/[id]/remind/route.ts`
+* `src/app/api/admin/payments/[id]/receipt/route.ts`
+* `src/components/modules/admin/fees-page.tsx`
 
-## 7. Certificates
-* **`Batch.parkId`**: `legacy fallback allowed`.
+**Classifications:**
+* **`Batch.parkId`**: `legacy fallback allowed` (Used in receipts `payment.feeEvent.batch.parkId`).
+* **`Batch.cityId`**: `requires city-based update`.
+* **`Group.batchId`**: `Phase B safe as-is`.
+* **`Group.parkId`**: `requires group-park update`.
+
+## 9. Certificates
+**Files:**
+* `src/app/api/admin/certificates/batch/route.ts`
+
+**Classifications:**
+* **`Batch.parkId`**: `no usage found` / `legacy fallback allowed` (No direct usage mapped).
 * **`Batch.cityId`**: `requires city-based update` (Generating certificates for an entire city).
 * **`Group.batchId`**: `Phase B safe as-is`.
 * **`Group.parkId`**: `requires group-park update` (Park-level certificate batches).
 
-## 8. Students / Guardians (Profiles)
-* **`Batch.parkId`**: `legacy fallback allowed` (Displaying park association for legacy students).
-* **`Batch.cityId`**: `requires city-based update` (City directory).
-* **`Group.batchId`**: `Phase B safe as-is` (Displaying Batch assignment).
-* **`Group.parkId`**: `requires group-park update` (Displaying and validating the student's actual physical park).
+## 10. Students / Guardians (Profiles)
+**Files:**
+* `src/app/api/park/participants/route.ts`
+* `src/app/api/park/guardians/route.ts`
+* `src/app/api/admin/guardians/[id]/detail/route.ts`
 
-## 9. Content Planner
-* **`Batch.parkId`**: `blocked until Phase C` (Content should not be restricted by legacy `parkId` since Batches are now City-wide).
-* **`Batch.cityId`**: `requires city-based update` (Content plans assigned to a City-level Batch).
-* **`Group.batchId`**: `Phase B safe as-is` (Delivering content to Groups via Batch).
-* **`Group.parkId`**: `requires group-park update` (If content is ever customized per Park within a City Batch).
+**Classifications:**
+* **`Batch.parkId`**: `legacy fallback allowed` (`participant.group.batch.parkId`).
+* **`Batch.cityId`**: `requires city-based update`.
+* **`Group.batchId`**: `Phase B safe as-is`.
+* **`Group.parkId`**: `requires group-park update`.
+
+## 11. Content Planner
+**Files:**
+* `src/app/api/park/schedule/route.ts`
+* `src/app/api/park/roster/route.ts`
+
+**Classifications:**
+* **`Batch.parkId`**: `requires group-park update` (Phase B safely changes content access scope to be group-park bound).
+* **`Batch.cityId`**: `requires city-based update`.
+* **`Group.batchId`**: `Phase B safe as-is`.
+* **`Group.parkId`**: `requires group-park update`.
+
+## 12. Notifications
+**Files:**
+* `src/app/api/notifications/route.ts`
+* `src/app/api/admin/notifications/queue/route.ts`
+* `src/lib/email-service.ts`
+
+**Classifications:**
+* **`Batch.parkId`**: `no usage found` (Search evidence: Notifications queue system-wide or user-id specific, independent of explicit hierarchy model IDs. See `src/lib/notification-security.ts`).
+* **`Batch.cityId`**: `no usage found`.
+* **`Group.batchId`**: `no usage found`.
+* **`Group.parkId`**: `no usage found`.
