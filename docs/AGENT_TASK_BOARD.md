@@ -40,7 +40,7 @@ contracts. This board coordinates work; it does not replace product decisions.
 | `CP-IMPORT-001` | P1 | `REVIEW` | DeepSeek v4 Flash | CP-API-001 | `agent/deepseek/CP-IMPORT-001-content-plan-parser-tests` at `ec0f8eb` | Codex |
 | `CP-IMPORT-002` | P1 | `REVIEW` | DeepSeek v4 Flash | CP-IMPORT-001 | `agent/deepseek/CP-IMPORT-002-workbook-adapter` at `f8de9b0` | Codex |
 | `DASH-001` | P1 | `REVIEW` | DeepSeek v4 Flash | None | `agent/deepseek/DASH-001-lahore-data-consistency` at `d013bdd` | Codex |
-| `SEC-001` | P0 | `REVIEW` | DeepSeek v4 Flash | None | `agent/deepseek/SEC-001-static-route-audit` at `6c14e68` | Codex |
+| `SEC-001` | P0 | `REVIEW` | DeepSeek / Gemini | None | DeepSeek at `6c14e68`, Gemini at `705cef7` | Codex |
 | `AUTH-104` | P0 | `REVIEW` | Gemini 3.1 Pro | None | `agent/gemini/AUTH-104-city-head-denial-tests` at `eadf38a` | Codex |
 | `CALL-305` | P1 | `REVIEW` | Gemini 3.1 Pro | CALL-302 | `agent/gemini/CALL-305-calling-import-contract` at `ff26cf4` | Codex |
 | `CALL-306` | P1 | `REVIEW` | Gemini 3.1 Pro | CALL-305 | `agent/gemini/CALL-306-implementation-plan` at `8f96651` | Codex |
