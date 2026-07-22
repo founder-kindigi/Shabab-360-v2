@@ -1,8 +1,8 @@
 # EVENT-301 Event Responsibility & Temporary Team Design
 
-**Task ID:** `EVENT-301`  
-**Status:** `PROPOSED` (Design Authority Only — No Schema / Code Changes Applied)  
-**Integration Base:** `codex/production-hardening` @ `2a3fcc7`  
+**Task ID:** `EVENT-301`
+**Status:** `PROPOSED` (Design Proposal Pending Owner Approval — No Schema / Code Changes Applied)
+**Integration Base:** `codex/production-hardening` @ `2a3fcc7`
 
 ---
 
@@ -24,13 +24,14 @@ This design introduces a decoupled **Event Responsibility Architecture** that en
 
 ### 2.1 Login-Role Separation vs. Event Team Membership
 - **System Login Roles (Immutable Baseline):** A user's system role (`SUPER_ADMIN`, `CITY_HEAD`, `PARK_LEAD`, `PARK_ADMIN`, `MURABBI`, `STUDENT`, `GUARDIAN`) defines their baseline access to permanent Shabab 360 resources.
-- **Event Team Membership (Decoupled Dynamic Context):** Event responsibilities are granted via temporary `EventTeamMember` and `EventResponsibilityAssignment` records. Belonging to a "Security Team" or acting as an "Event Lead" for a trip does **not** alter the user's underlying system `role` or permanent `assignedParkId`/`assignedCityId`.
-- **Contextual Capability Elevation:** Operational permissions for event management (e.g., taking event check-ins, marking task completion, issuing event alerts) are evaluated dynamically by combining baseline scope with active event assignments.
+- **Event Team Membership (Decoupled Dynamic Context):** Event responsibilities are granted via temporary `EventResponsibilityAssignment` records. Belonging to a "Security Team" or acting as an "Event Lead" for a trip does **not** alter the user's underlying system `role` or permanent `assignedParkId`/`assignedCityId`.
+- **Restricted Event Lead Capabilities:** A temporary Event Lead does **not** gain unrestricted setup/lifecycle, team-formation, or notification authority. Temporary Event Leads receive only explicitly delegated, event-scoped operational capabilities bounded strictly by `startsAt`/`expiresAt`, city validation, and mandatory audit logging.
+- **Grant Ceiling Rule:** An Event Lead cannot grant capabilities or assign roles beyond their own approved event grant.
 
 ```
 ┌────────────────────────────────────────────────────────┐
 │               Permanent System Identity                │
-│ User (id, role: PARK_ADMIN, assignedParkId: park-lahore)│
+│ User (id, role: MURABBI, assignedParkId: park-lahore)  │
 └──────────────────────────┬─────────────────────────────┘
                            │
              Grants Baseline Application Access
@@ -51,25 +52,30 @@ This design introduces a decoupled **Event Responsibility Architecture** that en
 ### 2.2 Temporary Responsibility Assignments & Expiry
 - All event-specific operational grants must have explicit temporal boundaries (`startsAt`, `expiresAt`).
 - **Dynamic Authorization Check:** Authorization logic evaluates `now() >= assignment.startsAt && now() <= assignment.expiresAt && assignment.status === 'ACTIVE'`.
-- **Automatic Expiry:** Assignments transition logically to `EXPIRED` once `expiresAt` passes, requiring no background cron job for security enforcement (though a lightweight background job can update status for reporting).
-- **Early Revocation:** Event Leads, Park Leads, or City Heads can explicitly mark an assignment as `REVOKED`.
+- **Automatic Expiry:** Assignments transition logically to `EXPIRED` once `expiresAt` passes, requiring no background cron job for security enforcement.
+- **Early Revocation:** City Heads or Park Leads can explicitly mark an assignment as `REVOKED`.
 
-### 2.3 City / Park / Event Scoping Rules
+### 2.3 Scope Invariants & Boundaries
 An event operates under one of three explicit scope models (`EventScopeType`):
-1. **CITY_WIDE:** Event belongs to a `City` and encompasses all Parks within that City (e.g., Annual Inauguration Ceremony, City Admissions Drive). Managed primarily by City Head & appointed Event Steering Teams.
-2. **SINGLE_PARK:** Event belongs strictly to one `Park` (e.g., Park Swimming Session, Park Welcome Night). Managed by Park Lead / Park Admin / appointed Park Event Lead.
+1. **CITY_WIDE:** Event belongs to a `City` and encompasses all Parks within that City (e.g., Annual Inauguration Ceremony, City Admissions Drive). Created and managed by City Head & appointed Event Steering Teams.
+2. **SINGLE_PARK:** Event belongs strictly to one `Park` (e.g., Park Swimming Session, Park Welcome Night). Managed by Park Lead / appointed Park Event Lead.
 3. **MULTI_PARK:** Event belongs to a `City` but targets a defined subset of explicit `Park` records via junction records (`EventScopePark`) (e.g., Joint Trip for North and South Parks).
+
+#### Strict Invariant Enforcement:
+- **City-Park Hierarchy Invariant:** `Event.parkId` (if set) and all `EventScopePark.parkId` entries MUST belong to `Event.cityId`. Cross-city park inclusion is strictly rejected with a `400 Bad Request` validation error.
+- **User-City Alignment Invariant:** Every assigned user (`EventResponsibilityAssignment.userId`) MUST belong to the same city (`Event.cityId`). Attempts to assign staff from a foreign city are denied.
+- **Park Admin Scope Restriction:** In alignment with system security policy, Park Admin is strictly attendance-only for their assigned park. Park Admin has zero authority to manage event setup, create teams, manage tasks, or send event notifications.
 
 ```
    [City: Lahore]
      │
      ├──> City-Wide Event: "Lahore Inauguration 2026" (Scope: CITY_WIDE)
      │
-     ├──> Multi-Park Event: "Inter-Park Swimming Gala" (Scope: MULTI_PARK -> Park A, Park B)
+     ├──> Multi-Park Event: "Inter-Park Swimming Gala" (Scope: MULTI_PARK -> Park A, Park B [Both in Lahore])
      │
      └──> [Park: Gulberg Park]
             │
-            └──> Single-Park Event: "Gulberg Welcome Orientation" (Scope: SINGLE_PARK)
+            └──> Single-Park Event: "Gulberg Welcome Orientation" (Scope: SINGLE_PARK [Park in Lahore])
 ```
 
 ---
@@ -85,30 +91,27 @@ Events transition through a strict, auditable lifecycle (`EventStatus`):
     └─────────────┴──────────────┴───────► [CANCELLED]
 ```
 
-- **DRAFT:** Initial setup by event creator. Teams and tasks can be defined. Event visible only to creator, Park Lead, and City Head.
-- **PLANNING:** Published for team assignment and participant registration. Tasks can be assigned. Notifications for pre-event preparation enabled.
-- **ACTIVE:** Event is currently underway (or on the event day). Operational check-ins, live team management, and active notifications enabled.
-- **COMPLETED:** Event concluded. Attendance and task lists locked against non-admin edits. Post-event reporting enabled.
+- **DRAFT:** Initial setup by event creator (City Head / Park Lead). Event visible only to creator, Park Lead, and City Head.
+- **PLANNING:** Published for team assignment and participant registration. Operational tasks assigned.
+- **ACTIVE:** Event is currently underway. Live operational check-ins enabled.
+- **COMPLETED:** Event concluded. Attendance locked against non-admin edits.
 - **ARCHIVED:** Finalized event record locked for historical compliance.
 - **CANCELLED:** Event terminated prior to completion. All active assignments invalidated.
 
 ### 3.2 Event Tasks & Execution
 - Events contain granular operational tasks (`EventTask`) assigned to specific `EventTeam` records or individual `User` IDs.
-- Examples: "Set up parking barriers" (Security Team), "Distribute swimming passes" (Logistics Team), "Conduct Parent Interviews" (Admissions Team).
 - Task status flow: `PENDING` -> `IN_PROGRESS` -> `COMPLETED` -> `VERIFIED`.
 
 ### 3.3 Event Attendance & Duty Check-ins
 - **Participant Attendance:** Independent from regular weekly batch attendance. Tracks student/participant presence at the specific event (`EventAttendanceRecord`).
 - **Staff Duty Check-ins:** Tracks whether assigned team members (e.g., Security, Parking volunteers) checked in for their temporary event duties.
 
-### 3.4 Event Notifications
-- Targeted multi-channel notifications (In-app, Push, Email) scoped to event contexts:
-  - Broadcast to all event participants (e.g., "Trip departure time changed to 7:00 AM").
-  - Broadcast to specific event teams (e.g., "Parking Team report to Gate 2").
-  - Automated pre-event reminders to Guardians for consent form submissions.
+### 3.4 Event Notifications Channel Constraint
+- **Pilot Scope:** The current pilot version MUST use **In-App Notifications only**.
+- **Future Channels:** Email and SMS/Push notifications are marked strictly as future channels, pending owner approval of a sending provider and consent management policy.
 
 ### 3.5 Event Audit Trail
-- All critical event actions (event creation, state transition, team assignment creation/revocation, task status updates, attendance modifications) produce immutable `AuditLog` records tagged with `eventId` and actor metadata.
+- All critical event actions (event creation, scope validation, state transition, team assignment creation/revocation, task status updates, attendance modifications) produce immutable `AuditLog` records tagged with `eventId` and actor metadata.
 
 ---
 
@@ -118,13 +121,13 @@ Events transition through a strict, auditable lifecycle (`EventStatus`):
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
 | **Create City Event** | ✅ | ✅ (Own City) | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | **Create Park Event** | ✅ | ✅ (Own City) | ✅ (Own Park) | ❌ | ❌ | ❌ | ❌ | ❌ |
-| **Manage Event Setup / Lifecycle** | ✅ | ✅ (Own City) | ✅ (Own Park) | ❌ | ❌ | ✅ (Assigned Event) | ❌ | ❌ |
-| **Form Teams & Assign Responsibilities** | ✅ | ✅ (Own City) | ✅ (Own Park) | ✅ (Own Park Event) | ❌ | ✅ (Assigned Event) | ❌ | ❌ |
-| **Manage Event Tasks** | ✅ | ✅ (Own City) | ✅ (Own Park) | ✅ (Own Park Event) | ❌ | ✅ (Assigned Event) | ✅ (Assigned Tasks) | ❌ |
-| **Take Event Attendance / Staff Check-in** | ✅ | ✅ (Own City) | ✅ (Own Park) | ✅ (Own Park Event) | ✅ (If assigned) | ✅ (Assigned Event) | ✅ (If team role permits) | ❌ |
-| **Send Event Notifications** | ✅ | ✅ (Own City) | ✅ (Own Park) | ✅ (Own Park Event) | ❌ | ✅ (Assigned Event) | ❌ | ❌ |
+| **Manage Event Lifecycle** | ✅ | ✅ (Own City) | ✅ (Own Park) | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **Form Teams & Assign Roles** | ✅ | ✅ (Own City) | ✅ (Own Park) | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **Manage Event Tasks** | ✅ | ✅ (Own City) | ✅ (Own Park) | ❌ | ❌ | ✅ (Assigned Tasks) | ✅ (Assigned Tasks) | ❌ |
+| **Take Event Attendance / Check-in** | ✅ | ✅ (Own City) | ✅ (Own Park) | ✅ (Own Park Events) | ✅ (If assigned) | ✅ (Assigned Event) | ✅ (If team permits) | ❌ |
+| **Send In-App Event Notifications** | ✅ | ✅ (Own City) | ✅ (Own Park) | ❌ | ❌ | ❌ | ❌ | ❌ |
 | **View Event Roster & Schedule** | ✅ | ✅ (Own City) | ✅ (Own Park) | ✅ (Own Park) | ✅ (If attending) | ✅ (Assigned Event) | ✅ (Assigned Event) | ✅ (Own event details) |
-| **View Event Audit Log** | ✅ | ✅ (Own City) | ✅ (Own Park) | ❌ | ❌ | ✅ (Assigned Event) | ❌ | ❌ |
+| **View Event Audit Log** | ✅ | ✅ (Own City) | ✅ (Own Park) | ❌ | ❌ | ❌ | ❌ | ❌ |
 
 ---
 
@@ -211,11 +214,11 @@ model Event {
   cityId       String
   city         City           @relation(fields: [cityId], references: [id], onDelete: Cascade)
 
-  // Primary park anchor for SINGLE_PARK events (null for CITY_WIDE)
+  // Primary park anchor for SINGLE_PARK events (must belong to cityId)
   parkId       String?
   park         Park?          @relation("PrimaryParkEvents", fields: [parkId], references: [id], onDelete: SetNull)
 
-  // Explicit target parks for MULTI_PARK events
+  // Explicit target parks for MULTI_PARK events (all must belong to cityId)
   scopedParks  EventScopePark[]
 
   startsAt     DateTime
@@ -275,11 +278,11 @@ model EventResponsibilityAssignment {
   teamId      String?
   team        EventTeam?     @relation(fields: [teamId], references: [id], onDelete: SetNull)
 
-  userId      String
+  userId      String         // User must belong to same cityId as Event
   user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   eventRole   EventRole      @default(TEAM_MEMBER)
-  title       String?        // Custom operational title e.g., "Head of Security"
+  title       String?        // Custom operational title e.g., "Parking Volunteer"
 
   startsAt    DateTime
   expiresAt   DateTime
@@ -355,17 +358,17 @@ model EventAttendanceRecord {
 | Method | Path | Description | Authorization Scope |
 | :--- | :--- | :--- | :--- |
 | `GET` | `/api/events` | List events with filters (`cityId`, `parkId`, `type`, `status`) | City Head (City), Park Lead (Park), Staff (Assigned) |
-| `POST` | `/api/events` | Create new event record | City Head (City-wide), Park Lead (Park-specific) |
+| `POST` | `/api/events` | Create new event (Validates park belongs to city) | City Head (City-wide), Park Lead (Park-specific) |
 | `GET` | `/api/events/[id]` | Fetch detailed event overview, teams & tasks | Scoped access (Participant/Staff/Admin) |
-| `PATCH` | `/api/events/[id]` | Update event details or advance lifecycle status | City Head / Park Lead / Event Lead |
-| `POST` | `/api/events/[id]/teams` | Create operational team (Security, Parking, Welcome) | City Head / Park Lead / Event Lead |
-| `POST` | `/api/events/[id]/assignments` | Assign user to event team with explicit expiry | City Head / Park Lead / Event Lead |
-| `DELETE` | `/api/events/[id]/assignments/[assignmentId]` | Early revocation of responsibility assignment | City Head / Park Lead / Event Lead |
+| `PATCH` | `/api/events/[id]` | Update event details or advance lifecycle status | City Head / Park Lead |
+| `POST` | `/api/events/[id]/teams` | Create operational team | City Head / Park Lead |
+| `POST` | `/api/events/[id]/assignments` | Assign user to event team (Validates user city & temporal bounds) | City Head / Park Lead |
+| `DELETE` | `/api/events/[id]/assignments/[id]` | Early revocation of responsibility assignment | City Head / Park Lead |
 | `GET` | `/api/events/[id]/tasks` | List operational tasks for event | Event Staff / Assignees |
-| `POST` | `/api/events/[id]/tasks` | Create task & assign to team/user | Event Lead / Team Lead |
+| `POST` | `/api/events/[id]/tasks` | Create task & assign to team/user | City Head / Park Lead / Event Lead |
 | `PATCH` | `/api/events/[id]/tasks/[taskId]` | Update task status (`PENDING` -> `COMPLETED`) | Task Assignee / Team Lead / Event Lead |
-| `POST` | `/api/events/[id]/attendance` | Mark event check-in for student or duty staff | Authorized Attendance Recorder / Team Lead |
-| `GET` | `/api/events/[id]/audit` | Retrieve full event operational audit log | City Head / Park Lead / Event Lead |
+| `POST` | `/api/events/[id]/attendance` | Mark event check-in for student or duty staff | Attendance Recorder / Park Admin (Own Park) |
+| `GET` | `/api/events/[id]/audit` | Retrieve full event operational audit log | City Head / Park Lead |
 
 ---
 
@@ -384,21 +387,26 @@ model EventAttendanceRecord {
 ### 6.3 Test & Verification Plan
 Before recommending production readiness, the implementation must pass the following automated test suites:
 
-1. **Authorization & Scope Verification Unit Tests:**
-   - Verify City Head can create and manage `CITY_WIDE` events in their assigned city.
-   - Verify Park Lead can create `SINGLE_PARK` events for their assigned park but cannot mutate foreign park events.
-   - Verify Murabbi or standard Park Admin cannot elevate their permanent system role via event team creation.
+1. **Scope Invariant Validation Unit Tests:**
+   - Verify creating an event with a `parkId` outside `cityId` returns `400 Bad Request`.
+   - Verify creating a `MULTI_PARK` event with any `EventScopePark` outside `cityId` returns `400 Bad Request`.
+   - Verify assigning a user from a foreign city to an event returns `403 Forbidden`.
+   - Verify Park Admin is denied team creation, lifecycle management, task creation, and notification sending.
 
-2. **Temporal Expiry Integration Tests:**
+2. **Temporal Expiry & Delegation Ceiling Tests:**
    - Create `EventResponsibilityAssignment` with `expiresAt` in the past. Verify authorization middleware rejects event management requests with `403 Forbidden`.
-   - Verify active assignments within `startsAt` and `expiresAt` permit designated operational tasks.
+   - Verify Event Lead cannot grant capabilities or assign roles beyond their approved event grant.
    - Test early revocation (`isActive = false`) invalidates access immediately.
 
-3. **Event Attendance & Duty Check-in Tests:**
+3. **In-App Notification Channel Tests:**
+   - Verify event notification dispatches write strictly to in-app notification channels (`db.notification`).
+   - Verify push/email channels remain disabled and rejected by validation logic.
+
+4. **Event Attendance & Duty Check-in Tests:**
    - Verify event attendance records do not modify or collide with regular weekly `AttendanceRecord` entries.
    - Verify staff check-in records correctly log `staffUserId` and `recordedById`.
 
-4. **Audit Trail Verification:**
+5. **Audit Trail Verification:**
    - Verify every state change (`DRAFT` -> `PLANNING` -> `ACTIVE` -> `COMPLETED`) generates a corresponding `AuditLog` entry with complete metadata.
 
 ---
@@ -406,4 +414,4 @@ Before recommending production readiness, the implementation must pass the follo
 ## 7. Execution Readiness & Handoff
 
 > [!IMPORTANT]
-> This document represents the authoritative architectural design for **Task EVENT-301**. No code, schema migrations, database writes, or staging deployments have been executed as part of this task. Implementation shall commence under dedicated implementation tasks (`EVENT-302+`) upon owner approval.
+> This document represents the proposed design pending owner approval for **Task EVENT-301**. No code, schema migrations, database writes, or staging deployments have been executed as part of this task. Implementation shall commence under dedicated implementation tasks (`EVENT-302+`) upon owner approval.
