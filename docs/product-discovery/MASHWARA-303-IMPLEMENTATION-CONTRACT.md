@@ -301,9 +301,7 @@ model MashwaraMeetingShare {
 }
 ```
 
-**Decisions:** Uses `userId` (not staffMetaId) because Share is a login-account-level grant. The receiving user must have StaffMeta + team membership in the same city — validated server-side on grant, not through a FK constraint.
-
-**Note:** Meeting-specific shares are partially redundant because all same-city active team members already receive automatic participant access via §4.3. Shares exist for the narrow case where a City Head wants to include a single team member who otherwise lacks automatic access (e.g. a new member whose team membership has not yet been configured). Until the owner decides on share semantics (see §13 D6), shares must never bypass `mashwara.view` deny overrides or server-derived city scope.
+**Decisions:** Uses `userId` (not staffMetaId) because Share is a login-account-level grant. The receiving user must have active `StaffMeta` in the same city — collaboration-team membership is **not** required. This makes the share the narrow gate for inviting a same-city StaffMeta user who is not on any collaboration team. Server validates city match on grant. Recipient must also hold `mashwara.view` (not denied by override). Share grants read-only access to finalized artifacts only — never draft Karguzari.
 
 ---
 
@@ -387,13 +385,13 @@ if (mashwara.cityId !== resolvedCity) {
 | Rule | Value |
 |------|-------|
 | Who can grant | City Head or Super Admin (`mashwara.manage` + same city) |
-| Who can receive | Active user with `StaffMeta` and `StaffTeamMembership` in same city |
-| Access level | Read-only for the specific occurrence: Karguzari, decisions, action items, attendance summary |
+| Who can receive | Active user with `StaffMeta` in the same city (collaboration-team membership **not** required — share is the narrow gate for inviting a non-team-member staff user) |
+| Access level | Read-only for the specific occurrence: finalized Karguzari only, decisions, action items, attendance summary. Draft Karguzari is never exposed via share. |
 | Duration | Until explicitly revoked or occurrence is archived |
 | Audit | Every grant and revocation logged with actor, timestamp, reason |
-| Constraints | No duplicate active share for same occurrence+user. Share cannot be self-granted. |
+| Constraints | No duplicate active share for same occurrence+user. Share cannot be self-granted. Recipient must hold `mashwara.view` capability (not denied by override). Share never bypasses a `mashwara.view` deny override, server-derived city scope, or draft confidentiality. |
 
-The share server-side check — when loading an occurrence, if the caller is not automatically authorized via §4.3 but has an active (non-revoked) share with explicit `mashwara.view` capability not denied by override, they are granted read-only access to that occurrence's data. A share must never bypass a `mashwara.view` deny override or server-derived city scope.
+The share server-side check — when loading an occurrence, if the caller is not automatically authorized via §4.3 but has an active (non-revoked) share and holds `mashwara.view` not denied by override, they are granted read-only access to that occurrence's finalized artifacts only. A share must never bypass a `mashwara.view` deny override, server-derived city scope, or draft Karguzari confidentiality.
 
 ### 5.4 Authorization Decisions vs MASHWARA_DESIGN.md
 
@@ -502,7 +500,7 @@ const createMashwaraSchema = z.object({
   purpose: z.string().max(500).optional(),
   recurrenceDayOfWeek: z.number().int().min(0).max(6), // required for pilot (weekly only)
   recurrenceTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),
-});
+}).strict();
 
 const updateMashwaraSchema = z.object({
   title: z.string().min(1).max(200).optional(),
@@ -513,14 +511,14 @@ const updateMashwaraSchema = z.object({
 }).refine(
   data => !(data.recurrenceTime !== undefined && data.recurrenceDayOfWeek === undefined),
   { message: "recurrenceTime requires recurrenceDayOfWeek" }
-);
+).strict();
 
 const listMashwaraSchema = z.object({
   cityId: cityIdSchema.optional(),
   status: mashwaraStatusSchema.optional(),
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(20),
-});
+}).strict();
 ```
 
 ### 7.3 Occurrence Schemas
@@ -530,14 +528,14 @@ const createOccurrenceSchema = z.object({
   mashwaraId: mashwaraIdSchema,
   scheduledDate: z.coerce.date(),
   venueNotes: z.string().max(500).optional(),
-});
+}).strict();
 
 const updateOccurrenceSchema = z.object({
   scheduledDate: z.coerce.date().optional(),
   actualDate: z.coerce.date().optional(),
   status: occurrenceStatusSchema.optional(),
   venueNotes: z.string().max(500).optional(),
-});
+}).strict();
 ```
 
 ### 7.4 Attendance Schemas
@@ -548,7 +546,7 @@ const markAttendanceSchema = z.object({
     staffMetaId: staffMetaIdSchema,
     attendanceStatus: attendanceStatusSchema,
   })).min(1).max(200),
-});
+}).strict();
 ```
 
 ### 7.5 Karguzari Schemas
@@ -556,15 +554,15 @@ const markAttendanceSchema = z.object({
 ```typescript
 const upsertKarguzariSchema = z.object({
   content: z.string().min(1).max(50000),
-});
+}).strict(); // Rejects client-supplied preparedBy, reviewedBy, or any unknown field
 
 const finalizeKarguzariSchema = z.object({
   // Empty — all audit fields are server-derived from authenticated actor
-});
+}).strict();
 
 const createCorrectionNoteSchema = z.object({
   content: z.string().min(1).max(10000),
-});
+}).strict();
 ```
 
 ### 7.6 Decision And Action Item Schemas
@@ -575,7 +573,7 @@ const createDecisionSchema = z.object({
   description: z.string().max(2000).optional(),
   decisionOwnerStaffMetaId: staffMetaIdSchema.optional(),
   dueDate: z.coerce.date().optional(),
-});
+}).strict();
 
 const updateDecisionSchema = z.object({
   title: z.string().min(1).max(200).optional(),
@@ -583,7 +581,7 @@ const updateDecisionSchema = z.object({
   decisionOwnerStaffMetaId: staffMetaIdSchema.optional(),
   dueDate: z.coerce.date().optional(),
   status: decisionStatusSchema.optional(),
-});
+}).strict();
 
 const createActionItemSchema = z.object({
   decisionId: z.string().cuid().optional(),
@@ -596,7 +594,7 @@ const createActionItemSchema = z.object({
 }).refine(
   data => data.teamId !== undefined || data.assignedToStaffMetaId !== undefined,
   { message: "At least one assignee required: teamId or assignedToStaffMetaId" }
-);
+).strict();
 
 const updateActionItemSchema = z.object({
   title: z.string().min(1).max(200).optional(),
@@ -608,7 +606,7 @@ const updateActionItemSchema = z.object({
   status: actionItemStatusSchema.optional(),
   carryForwardDate: z.coerce.date().optional(),
   completionNote: z.string().max(500).optional(),
-});
+}).strict();
 
 const listActionItemsSchema = z.object({
   occurrenceId: occurrenceIdSchema.optional(),
@@ -624,11 +622,11 @@ const listActionItemsSchema = z.object({
 const grantShareSchema = z.object({
   grantedToUserId: userIdSchema,
   reason: z.string().max(500).optional(),
-});
+}).strict();
 
 const revokeShareSchema = z.object({
   reason: z.string().max(500).optional(),
-});
+}).strict();
 ```
 
 ---
@@ -787,6 +785,7 @@ Available from sidebar/profile: "My Action Items" (for team members) or "Mashwar
 | MSW-ALLOW-019 | City Head archives Mashwara | 200 + status = archived |
 | MSW-ALLOW-020 | Team member reads finalized Karguzari | 200 + Karguzari content |
 | MSW-ALLOW-021 | Meeting share recipient reads finalized Karguzari | 200 + Karguzari content |
+| MSW-ALLOW-022 | City Head grants share to same-city StaffMeta user without collaboration-team membership | 201 + Share |
 
 ### 10.2 Deny Tests (Negative Paths)
 
@@ -806,7 +805,7 @@ Available from sidebar/profile: "My Action Items" (for team members) or "Mashwar
 | MSW-DENY-012 | Team member creates decision | 403 |
 | MSW-DENY-013 | Team member creates action item | 403 |
 | MSW-DENY-014 | City Head grants share to user without StaffMeta in same city | 403 |
-| MSW-DENY-015 | City Head grants share to user without team membership | 403 |
+| MSW-DENY-015 | City Head grants share to user whose mashwara.view is denied by override | 403 |
 | MSW-DENY-016 | Meeting share recipient edits occurrence | 403 |
 | MSW-DENY-017 | Team member updates action item title (non-own field) | 403 |
 | MSW-DENY-018 | City Head accesses Mashwara in another city | 403 |
@@ -815,8 +814,8 @@ Available from sidebar/profile: "My Action Items" (for team members) or "Mashwar
 | MSW-DENY-021 | Team member reads draft Karguzari (not yet finalized) | 403 |
 | MSW-DENY-022 | Meeting share recipient reads draft Karguzari | 403 |
 | MSW-DENY-023 | User with mashwara.view denied by override accesses Karguzari via meeting share | 403 (share never bypasses capability deny) |
-| MSW-DENY-024 | Client supplies preparedBy in Karguzari request — field ignored/silently overridden | 200 + Karguzari with server-derived preparedBy |
-| MSW-DENY-025 | Client supplies recordedBy in attendance request — field ignored/silently overridden | 201 + records with server-derived recordedBy |
+| MSW-DENY-024 | Client supplies preparedBy in Karguzari request | 400 (strict schema rejects unknown field) |
+| MSW-DENY-025 | Client supplies recordedBy in attendance request | 400 (strict schema rejects unknown field) |
 | MSW-DENY-026 | City Head creates action item without teamId or assignedToStaffMetaId | 400 (at least one assignee required) |
 | MSW-DENY-027 | City Head creates action item with assignedToStaffMetaId that does not belong to occurrence's city | 403 (assignee outside city) |
 | MSW-DENY-028 | City Head creates action item with deactivated staff member as assignee | 403 (StaffMeta not active) |
@@ -982,7 +981,7 @@ Under no circumstances are `AuditLog` records referencing Mashwara entities drop
 | D3 | Attendance scope — should attendance marking show all StaffMeta in the city, or only those with team memberships? | All staff vs Team members only | Affects attendance UI list |
 | D4 | Correction note visibility — should correction notes be publicly visible alongside Karguzari, or restricted to mashwara.manage? | Public vs Restricted | Affects endpoint auth for corrections list |
 | D5 | Series archive — should archiving a Mashwara also cancel all pending occurrences? | Cascade vs Preserve | Affects archive handler behavior |
-| D6 | Meeting share semantics — shares are partially redundant with automatic team-member access. Should shares be removed from the pilot, or retained for the narrow case of non-team-member access? Owner should confirm whether §1.3's share rule is still desired. | Remove vs Retain | Affects whether MeetingShare model and endpoints are built |
+| D6 | Meeting share semantics — share may target an active same-city StaffMeta user even without team membership. This is the narrow gate for inviting non-team-member staff. Draft Karguzari is never exposed via share. Is this the intended pilot behaviour? | Accept vs Restrict further | Nil if accepted; adjust recipient constraints if changed |
 
 ---
 
@@ -990,7 +989,7 @@ Under no circumstances are `AuditLog` records referencing Mashwara entities drop
 
 ### Summary
 
-This contract turns the MASHWARA_DESIGN.md into an implementation-ready specification. It defines 8 additive Prisma models, 3 new capabilities, 19 API route groups, 65 tests (21 allow, 30 deny, 9 error, 5 audit), and a complete migration/rollback plan.
+This contract turns the MASHWARA_DESIGN.md into an implementation-ready specification. It defines 8 additive Prisma models, 3 new capabilities, 19 API route groups, 66 tests (22 allow, 30 deny, 9 error, 5 audit), and a complete migration/rollback plan.
 
 ### Key rules preserved
 
@@ -1020,7 +1019,7 @@ This contract turns the MASHWARA_DESIGN.md into an implementation-ready specific
 - [ ] 19 API route files created
 - [ ] Scope helpers, Zod schemas, audit helpers created
 - [ ] UI components created (10)
-- [ ] All 65 tests pass
+- [ ] All 66 tests pass
 - [ ] Lint, typecheck, full suite, SQLite/PostgreSQL builds pass
 - [ ] Owner decisions D1-D5 resolved
 - [ ] This contract updated with deviations
