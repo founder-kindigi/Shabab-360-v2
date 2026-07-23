@@ -1,10 +1,10 @@
 # PKG-01: Content Planner Foundation - HANDOFF
 
-**Package:** PKG-01: Content Planner Foundation  
-**Complexity:** C3  
-**Base Commit:** 99f9460 (codex/production-hardening)  
-**Branch:** agent/kiro/pkg-01-content-planner  
-**Status:** Foundation Complete - Remaining Tasks Require Owner Review  
+**Package:** PKG-01: Content Planner Foundation
+**Complexity:** C3
+**Base Commit:** 99f9460 (codex/production-hardening)
+**Branch:** agent/kiro/pkg-01-content-planner
+**Status:** Foundation Complete - Remaining Tasks Require Owner Review
 **Date:** 2026-07-23
 
 ---
@@ -62,21 +62,21 @@ Tasks 1-6 and 10-11 are complete with tests. Tasks 7-9 (import preview, UI works
   - City Head: assigned city only
   - Park staff: city derived from assigned park
   - Murabbi: city derived from group's park
-  
+
 - `deriveContentPlannerParkScope(user, cityId)`: Returns accessible park IDs or "all"
   - HQ/City Head: "all" parks in allowed cities
   - Park staff: assigned park only (if in correct city)
-  
+
 - `buildContentPlanScopeFilter(user, requestCity?, requestBatch?, requestPark?)`: Prisma where clause
   - Server derives max scope, request params only narrow
   - Validates batch belongs to city, park belongs to city
   - Returns null on scope violation (403 response)
-  
+
 - `canReadContentPlan(user, planId)`: Boolean authorization check
 - `canWriteContentPlan(user, cityId, batchId?, parkId?)`: Boolean write check
   - Only managers (super_admin, program_admin, city_head) can write
   - Readers (park_lead, park_admin, murabbi) denied
-  
+
 - `verifyTeamInCity(teamId, cityId)`: Validates team-city association
 
 **Constants:**
@@ -93,7 +93,7 @@ Tasks 1-6 and 10-11 are complete with tests. Tasks 7-9 (import preview, UI works
 
 **Field Limits:**
 - name: 200 chars
-- content: 10,000 chars  
+- content: 10,000 chars
 - title: 200 chars
 - URL: 2,000 chars
 - focusArea: 500 chars
@@ -132,25 +132,25 @@ Tasks 1-6 and 10-11 are complete with tests. Tasks 7-9 (import preview, UI works
   - Requires: content.view capability
   - Returns: paginated plans with city/batch/park/basePlan relations, session/override counts
   - 403 on insufficient scope
-  
+
 - **POST**: Create plan
   - Requires: content.manage capability
   - Validates: city exists, batch belongs to city, park belongs to city
   - Validates: basePlan is template kind in same city (if provided)
   - Server checks: canWriteContentPlan before creation
   - Audit: logs create action (redacts source workbook data)
-  
+
 - **GET [id]**: Read single plan
   - Requires: content.view capability
   - Server checks: canReadContentPlan before return
   - Returns: full plan with sessions, overrides, related entities
-  
+
 - **PATCH [id]**: Update plan
   - Requires: content.manage capability
   - Server checks: canWriteContentPlan in plan's scope
   - Allowed updates: name, status
   - Audit: logs update with old/new values
-  
+
 - **DELETE [id]**: Archive plan (soft delete)
   - Requires: content.manage capability
   - Sets status to "archived"
@@ -162,7 +162,7 @@ Tasks 1-6 and 10-11 are complete with tests. Tasks 7-9 (import preview, UI works
   - Query params: planId (required), page, pageSize, startDate?, endDate?, status?
   - Requires: content.view + canReadContentPlan(planId)
   - Returns: paginated sessions with block counts
-  
+
 - **POST**: Create session
   - Requires: content.manage capability
   - Server checks: canWriteContentPlan in plan's scope
@@ -175,7 +175,7 @@ Tasks 1-6 and 10-11 are complete with tests. Tasks 7-9 (import preview, UI works
   - Query params: sessionId (required), page, pageSize, category?, teamId?, status?
   - Requires: content.view + canReadContentPlan(session.planId)
   - Returns: paginated blocks with team, resources, activity counts
-  
+
 - **POST**: Create block **with category enforcement**
   - Requires: content.manage capability
   - Server checks: canWriteContentPlan in plan's scope
@@ -194,7 +194,7 @@ Tasks 1-6 and 10-11 are complete with tests. Tasks 7-9 (import preview, UI works
 1. **Four approved categories only**: exercises, sports, skills, tadreeb
    - Rejected: media, muawin, any other string
    - Validation: `contentCategorySchema` enum + server check
-   
+
 2. **Category-team code mapping**:
    - exercises → sports team (Sports owns Exercises column)
    - sports → sports team (Sports owns Sports column)
@@ -202,12 +202,12 @@ Tasks 1-6 and 10-11 are complete with tests. Tasks 7-9 (import preview, UI works
    - tadreeb → tadreeb team (Tadreeb owns Tadreeb column)
    - Validation: `validateCategoryTeamMapping(category, team.code)`
    - 400 error on mismatch
-   
+
 3. **Off-days have zero blocks**:
    - Check: `session.isOffDay === true`
    - Validation: `validateNotOffDay(session.isOffDay)`
    - 400 error: "Cannot create content blocks for off-day sessions"
-   
+
 4. **Team must belong to plan's city**:
    - Check: `team.cityId === plan.cityId`
    - 400 error: "Team must belong to the same city as the plan"
@@ -357,7 +357,7 @@ Tasks 1-6 and 10-11 are complete with tests. Tasks 7-9 (import preview, UI works
 ## Impact Assessment
 
 ### Database Schema
-**Risk:** Low  
+**Risk:** Low
 **Impact:** Additive only - no breaking changes
 
 - New tables: content_plans, content_plan_sessions, content_plan_blocks, content_plan_resources, activity_plan_items
@@ -366,7 +366,7 @@ Tasks 1-6 and 10-11 are complete with tests. Tasks 7-9 (import preview, UI works
 - **Rollback:** Drop new tables (no data dependencies)
 
 ### Authorization
-**Risk:** Low  
+**Risk:** Low
 **Impact:** New capabilities added to existing system
 
 - Added: content.view, content.manage capabilities
@@ -375,7 +375,7 @@ Tasks 1-6 and 10-11 are complete with tests. Tasks 7-9 (import preview, UI works
 - **Rollback:** Remove content.* capabilities from role defaults
 
 ### API Surface
-**Risk:** Low  
+**Risk:** Low
 **Impact:** New routes, no changes to existing APIs
 
 - New endpoints: `/api/admin/content-planner/plans`, `/api/admin/content-planner/sessions`, `/api/admin/content-planner/blocks`
@@ -383,7 +383,7 @@ Tasks 1-6 and 10-11 are complete with tests. Tasks 7-9 (import preview, UI works
 - **Rollback:** Remove new route files
 
 ### Security
-**Risk:** None  
+**Risk:** None
 **Verified:**
 - All routes require authentication + capability check
 - Scope enforcement: buildContentPlanScopeFilter prevents privilege escalation
@@ -404,7 +404,7 @@ Exit Code: 0 (Clean)
 
 ### ✅ Typecheck
 ```
-npm run typecheck  
+npm run typecheck
 Exit Code: 0 (No errors)
 ```
 
@@ -412,7 +412,7 @@ Exit Code: 0 (No errors)
 ```
 npm test -- --run
 Status: 92 content planner tests passing
-Known Issues: 
+Known Issues:
 - 3 validation tests fail due to async parse (fixed by removing async refine)
 - 2 API tests fail due to mock configuration (non-blocking for foundation)
 - All scope authorization tests passing (35/35)
@@ -429,7 +429,7 @@ Known Issues:
 cd .worktrees/pkg-01-content-planner
 npx prisma generate
 npm run build        # SQLite build
-npm run build:postgres  # PostgreSQL build  
+npm run build:postgres  # PostgreSQL build
 git diff --check     # Line ending check
 ```
 
@@ -520,9 +520,9 @@ git diff --check     # Line ending check
 
 ## Next Package Dependencies
 
-**PKG-02: Lahore UAT** can proceed independently (no content planner dependency)  
-**PKG-03: Calling Import** can proceed independently (no content planner dependency)  
-**PKG-04: Events Contract** can proceed independently (no content planner dependency)  
+**PKG-02: Lahore UAT** can proceed independently (no content planner dependency)
+**PKG-03: Calling Import** can proceed independently (no content planner dependency)
+**PKG-04: Events Contract** can proceed independently (no content planner dependency)
 
 **Future Content Planner Work** (after owner review):
 - **PKG-0X: Content Import**: Implement Task 7 after decisions
@@ -542,13 +542,13 @@ PKG-01 delivers a production-ready content planner foundation with:
 - ✅ Audit logging (redacted source data)
 - ✅ Clean lint/typecheck
 
-**Ready for:** Owner review, pattern approval, integration into codex/production-hardening  
-**Not ready for:** Production deployment (UI and import preview incomplete)  
+**Ready for:** Owner review, pattern approval, integration into codex/production-hardening
+**Not ready for:** Production deployment (UI and import preview incomplete)
 **Recommended:** Integrate foundation → approve patterns → complete Tasks 7-9 in follow-up packages
 
 ---
 
-**Agent:** Kiro  
-**Branch:** agent/kiro/pkg-01-content-planner  
-**Commits:** 7 coherent checkpoints  
+**Agent:** Kiro
+**Branch:** agent/kiro/pkg-01-content-planner
+**Commits:** 7 coherent checkpoints
 **Final Commit:** feb8ed4

@@ -254,7 +254,7 @@ export function validateCategoryTeamMapping(
   }
 
   // Import the mapping from scope to avoid circular dependency
-  const expectedTeamCode = 
+  const expectedTeamCode =
     category === "exercises" ? "sports" :
     category === "sports" ? "sports" :
     category === "skills" ? "skills" :
