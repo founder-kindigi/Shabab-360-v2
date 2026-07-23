@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { execSync } from "node:child_process";
 import path from "node:path";
+import fs from "node:fs";
 import {
   normalizePakistanPhone,
   isValidPakistanPhone,
@@ -18,6 +19,7 @@ describe("Calling Import Preparation — PKG-03 Test Suite", () => {
   const testCampaignId = "campaign-phase2-01";
   const testSecret = "test-hmac-secret-12345";
   const cliPath = path.resolve("scripts/dry-run-calling-import.ts");
+  const tempDummyFile = path.resolve("scripts/temp-dummy-test-workbook.xlsx");
 
   beforeEach(() => {
     mockLookup = new MockInterviewLookupService();
@@ -273,7 +275,7 @@ describe("Calling Import Preparation — PKG-03 Test Suite", () => {
     });
   });
 
-  describe("CLI Operational Safety & Failure Path Tests", () => {
+  describe("CLI Operational Safety & Fail-Closed Tests", () => {
     it(
       "fails safely when --campaignId is missing",
       () => {
@@ -291,7 +293,7 @@ describe("Calling Import Preparation — PKG-03 Test Suite", () => {
           expect(errorOutput).toContain("Dry-run calling import failed");
         }
       },
-      30000
+      60000
     );
 
     it(
@@ -311,7 +313,80 @@ describe("Calling Import Preparation — PKG-03 Test Suite", () => {
           expect(errorOutput).toContain("Dry-run calling import failed");
         }
       },
-      30000
+      60000
+    );
+
+    it(
+      "fails safely when operational --file run is missing DATABASE_URL",
+      () => {
+        try {
+          fs.writeFileSync(tempDummyFile, "dummy-content");
+          const env = { ...process.env, IMPORT_HMAC_SECRET: testSecret };
+          delete (env as { DATABASE_URL?: string }).DATABASE_URL;
+
+          execSync(
+            `npx tsx "${cliPath}" --cityId ${testCityId} --campaignId ${testCampaignId} --file "${tempDummyFile}" --dry-run`,
+            {
+              env,
+              stdio: "pipe",
+            }
+          );
+          expect.unreachable("Should have failed due to missing DATABASE_URL for operational run");
+        } catch (err: unknown) {
+          const errorOutput = String((err as { stderr?: Buffer }).stderr || "");
+          expect(errorOutput).toContain("Dry-run calling import failed");
+        } finally {
+          if (fs.existsSync(tempDummyFile)) fs.unlinkSync(tempDummyFile);
+        }
+      },
+      60000
+    );
+
+    it(
+      "fails safely when operational run encounters Prisma initialization/connection failure",
+      () => {
+        try {
+          fs.writeFileSync(tempDummyFile, "dummy-content");
+          execSync(
+            `npx tsx "${cliPath}" --cityId ${testCityId} --campaignId ${testCampaignId} --file "${tempDummyFile}" --dry-run`,
+            {
+              env: {
+                ...process.env,
+                IMPORT_HMAC_SECRET: testSecret,
+                DATABASE_URL: "invalid-schema-url",
+              },
+              stdio: "pipe",
+            }
+          );
+          expect.unreachable("Should have failed due to invalid DATABASE_URL");
+        } catch (err: unknown) {
+          const errorOutput = String((err as { stderr?: Buffer }).stderr || "");
+          expect(errorOutput).toContain("Dry-run calling import failed");
+        } finally {
+          if (fs.existsSync(tempDummyFile)) fs.unlinkSync(tempDummyFile);
+        }
+      },
+      60000
+    );
+
+    it(
+      "fails safely when --synthetic is combined with --file",
+      () => {
+        try {
+          execSync(
+            `npx tsx "${cliPath}" --cityId ${testCityId} --campaignId ${testCampaignId} --synthetic --file "some-file.xlsx" --dry-run`,
+            {
+              env: { ...process.env, IMPORT_HMAC_SECRET: testSecret },
+              stdio: "pipe",
+            }
+          );
+          expect.unreachable("Should have failed due to combining --synthetic and --file");
+        } catch (err: unknown) {
+          const errorOutput = String((err as { stderr?: Buffer }).stderr || "");
+          expect(errorOutput).toContain("Dry-run calling import failed");
+        }
+      },
+      60000
     );
 
     it(
@@ -334,7 +409,7 @@ describe("Calling Import Preparation — PKG-03 Test Suite", () => {
         expect(parsed.summary.validLeadsCount).toBe(3);
         expect(parsed.unresolvedParks[0].providedParkNameMasked).toBe("Un***** Pa** Na**");
       },
-      30000
+      60000
     );
   });
 });

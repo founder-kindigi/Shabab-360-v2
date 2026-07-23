@@ -111,6 +111,10 @@ async function main() {
     throw new Error("IMPORT_HMAC_SECRET environment variable is required and cannot be empty.");
   }
 
+  if (synthetic && filePath) {
+    throw new Error("--synthetic and --file options cannot be combined.");
+  }
+
   if (!synthetic && (!filePath || !filePath.trim())) {
     throw new Error("Workbook file path (--file) is required for operational runs.");
   }
@@ -122,46 +126,49 @@ async function main() {
     hmacSecret: hmacSecret.trim(),
   };
 
-  let lookupService;
-  let input: string | Buffer | RawSourceRow[];
+  let prismaInstance: { $disconnect?: () => Promise<void> } | null = null;
 
-  if (synthetic) {
-    // Synthetic runs force MockInterviewLookupService without touching Prisma or DATABASE_URL
-    const mock = new MockInterviewLookupService();
-    mock.addMockPark("park-01", "State Life School", cityId.trim());
-    mock.addMockInterview({
-      cityId: cityId.trim(),
-      interviewId: "int-101",
-      applicationId: "app-101",
-      applicantName: "Ahmed Khan",
-      guardianPhone: "923001234567",
-    });
-    lookupService = mock;
-    input = getSyntheticRows();
-  } else {
-    // Operational runs require valid file path
-    const resolvedPath = path.resolve(filePath!.trim());
-    if (!fs.existsSync(resolvedPath)) {
-      throw new Error(`Workbook file not found at path: ${resolvedPath}`);
-    }
-    input = resolvedPath;
+  try {
+    let lookupService;
+    let input: string | Buffer | RawSourceRow[];
 
-    if (process.env.DATABASE_URL) {
-      try {
-        const { PrismaClient } = await import("@prisma/client");
-        const prisma = new PrismaClient();
-        lookupService = new PrismaInterviewLookupService(prisma);
-      } catch {
-        lookupService = new MockInterviewLookupService();
-      }
+    if (synthetic) {
+      // Synthetic runs force MockInterviewLookupService without touching Prisma or DATABASE_URL
+      const mock = new MockInterviewLookupService();
+      mock.addMockPark("park-01", "State Life School", cityId.trim());
+      mock.addMockInterview({
+        cityId: cityId.trim(),
+        interviewId: "int-101",
+        applicationId: "app-101",
+        applicantName: "Ahmed Khan",
+        guardianPhone: "923001234567",
+      });
+      lookupService = mock;
+      input = getSyntheticRows();
     } else {
-      lookupService = new MockInterviewLookupService();
+      // Operational runs require DATABASE_URL
+      if (!process.env.DATABASE_URL || !process.env.DATABASE_URL.trim()) {
+        throw new Error("DATABASE_URL environment variable is required for operational runs.");
+      }
+
+      const resolvedPath = path.resolve(filePath!.trim());
+      if (!fs.existsSync(resolvedPath)) {
+        throw new Error(`Workbook file not found at path: ${resolvedPath}`);
+      }
+      input = resolvedPath;
+
+      const { PrismaClient } = await import("@prisma/client");
+      prismaInstance = new PrismaClient();
+      lookupService = new PrismaInterviewLookupService(prismaInstance);
+    }
+
+    const report = await processCallingImport(input, options, lookupService);
+    console.log(JSON.stringify(report, null, 2));
+  } finally {
+    if (prismaInstance && typeof prismaInstance.$disconnect === "function") {
+      await prismaInstance.$disconnect();
     }
   }
-
-  const report = await processCallingImport(input, options, lookupService);
-
-  console.log(JSON.stringify(report, null, 2));
 }
 
 if (require.main === module) {
