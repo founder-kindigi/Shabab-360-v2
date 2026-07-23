@@ -154,8 +154,9 @@ const inactiveStaffByRole = await prisma.staffMeta.groupBy({
 * **Viewport Size / Device Simulated:** Desktop (Static Audit)
 * **Execution Status:** `STATIC_REVIEW_COMPLETE`
 * **Execution log:**
-  1. Attempted direct GET to `/api/admin/people` and `/api/admin/students`.
-  2. Both routes require capability checks (`people.view` / `students.manage`) which are denied to Murabbis and Park Leads by default, returning 403 Forbidden.
+  1. Reviewed codebase access restrictions and verified automated regression test coverage for GET requests targeting `/api/admin/people` and `/api/admin/students`.
+  2. Confirmed that both routes enforce capability checks (`people.view` / `students.manage`) which are denied to Murabbis and Park Leads by default, returning 403 Forbidden.
+
 
 ### Scenario: UAT-002-09 & 10 & 11: Roster Filters
 * **Role Under Test:** `super_admin` / `program_admin`
