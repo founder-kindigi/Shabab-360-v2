@@ -152,4 +152,34 @@ describe("PATCH /api/admin/batches/[id] date validation", () => {
     expect(body.error.endDate).toBeDefined();
     expect(mocks.batchUpdate).not.toHaveBeenCalled();
   });
+
+  it("denies PATCH when capability authorization fails and does not update database", async () => {
+    mocks.requireCapability.mockResolvedValue(
+      NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    );
+
+    const response = await PATCH(new NextRequest("http://localhost/api/admin/batches/batch-1", {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ startDate: "2026-08-01", endDate: "2026-09-15" }),
+    }), { params: Promise.resolve({ id: "batch-1" }) });
+
+    expect(response.status).toBe(403);
+    expect(mocks.batchUpdate).not.toHaveBeenCalled();
+  });
+
+  it("denies PATCH when resource scope check fails and does not update database", async () => {
+    mocks.requireResourceScope.mockReturnValue(
+      NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    );
+
+    const response = await PATCH(new NextRequest("http://localhost/api/admin/batches/batch-1", {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ startDate: "2026-08-01", endDate: "2026-09-15" }),
+    }), { params: Promise.resolve({ id: "batch-1" }) });
+
+    expect(response.status).toBe(403);
+    expect(mocks.batchUpdate).not.toHaveBeenCalled();
+  });
 });
