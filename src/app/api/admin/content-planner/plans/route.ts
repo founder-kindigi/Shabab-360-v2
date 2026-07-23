@@ -11,6 +11,7 @@ import {
   buildContentPlanScopeFilter,
   canWriteContentPlan,
 } from "@/lib/content-planner/scope";
+import { isHqRole } from "@/lib/auth/scope";
 import type { SessionUser } from "@/lib/auth/scope";
 
 /**
@@ -37,6 +38,15 @@ export async function GET(request: NextRequest) {
 
   const { page, pageSize, cityId, batchId, parkId, status, kind, search } =
     parsed.data;
+
+  // HQ roles see all cities, but must supply an explicit cityId to avoid
+  // returning a blind cross-city dump.
+  if (isHqRole((auth.user as SessionUser).role) && !cityId) {
+    return NextResponse.json(
+      { error: "cityId is required for HQ users" },
+      { status: 400 }
+    );
+  }
 
   // Build scope filter - request params may only narrow scope
   const scopeFilter = await buildContentPlanScopeFilter(

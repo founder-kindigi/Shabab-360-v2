@@ -29,6 +29,74 @@ describe("Content Planner Plans API", () => {
   });
 
   describe("GET /api/admin/content-planner/plans", () => {
+    it("should return 400 when HQ user does not supply cityId", async () => {
+      vi.mocked(authorize.requireAuth).mockResolvedValue({
+        user: { id: "user1", role: "super_admin" },
+      } as any);
+      vi.mocked(authorize.requireCapability).mockResolvedValue({ user: {} } as any);
+
+      const request = new NextRequest(
+        "http://localhost:3000/api/admin/content-planner/plans"
+      );
+      const response = await GET(request);
+
+      expect(response.status).toBe(400);
+      const data = await response.json();
+      expect(data.error).toContain("cityId is required");
+    });
+
+    it("should return 400 when program_admin user does not supply cityId", async () => {
+      vi.mocked(authorize.requireAuth).mockResolvedValue({
+        user: { id: "user1", role: "program_admin" },
+      } as any);
+      vi.mocked(authorize.requireCapability).mockResolvedValue({ user: {} } as any);
+
+      const request = new NextRequest(
+        "http://localhost:3000/api/admin/content-planner/plans"
+      );
+      const response = await GET(request);
+
+      expect(response.status).toBe(400);
+      const data = await response.json();
+      expect(data.error).toContain("cityId is required");
+    });
+
+    it("should return 200 when HQ user supplies explicit cityId", async () => {
+      vi.mocked(authorize.requireAuth).mockResolvedValue({
+        user: { id: "user1", role: "super_admin" },
+      } as any);
+      vi.mocked(authorize.requireCapability).mockResolvedValue({ user: {} } as any);
+      vi.mocked(scope.buildContentPlanScopeFilter).mockResolvedValue({
+        cityId: "city1",
+      });
+      vi.mocked(db.contentPlan.findMany).mockResolvedValue([] as any);
+      vi.mocked(db.contentPlan.count).mockResolvedValue(0);
+
+      const request = new NextRequest(
+        "http://localhost:3000/api/admin/content-planner/plans?cityId=city1"
+      );
+      const response = await GET(request);
+
+      expect(response.status).toBe(200);
+    });
+
+    it("should return 403 when scoped actor supplies foreign cityId", async () => {
+      vi.mocked(authorize.requireAuth).mockResolvedValue({
+        user: { id: "user1", role: "city_head", assignedCityId: "city1" },
+      } as any);
+      vi.mocked(authorize.requireCapability).mockResolvedValue({ user: {} } as any);
+      vi.mocked(scope.buildContentPlanScopeFilter).mockResolvedValue(null);
+
+      const request = new NextRequest(
+        "http://localhost:3000/api/admin/content-planner/plans?cityId=city2"
+      );
+      const response = await GET(request);
+
+      expect(response.status).toBe(403);
+      const data = await response.json();
+      expect(data.error).toContain("insufficient scope");
+    });
+
     it("should return 401 when not authenticated", async () => {
       vi.mocked(authorize.requireAuth).mockResolvedValue(
         NextResponse.json({ error: "Unauthorized" }, { status: 401 })

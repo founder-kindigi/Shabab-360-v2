@@ -51,6 +51,15 @@ export function isApprovedCategory(category: string): category is ContentCategor
 }
 
 /**
+ * Returns true when the user holds an HQ role (super_admin, program_admin).
+ * HQ actors have access to all cities but must explicitly supply cityId on
+ * list/create requests to prevent blind cross-city data dumps.
+ */
+export function isHqUser(user: SessionUser): boolean {
+  return isHqRole(user.role);
+}
+
+/**
  * Derive the maximum accessible city scope for the session user.
  * Returns null for users without valid content planner access.
  */
