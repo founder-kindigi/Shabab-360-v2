@@ -105,6 +105,7 @@ model City {
   collaborationTeams    CollaborationTeam[]
   contentPlans          ContentPlan[]
   admissionApplications AdmissionApplication[]
+  events                Event[]
 
   @@map("cities")
 }
@@ -189,6 +190,9 @@ model StaffMeta {
   assignedGroup Group? @relation("MurabbiAssignment", fields: [assignedGroupId], references: [id], onDelete: SetNull)
   teamMemberships StaffTeamMembership[]
   assignedActivityPlans ActivityPlanItem[] @relation("ActivityAssignee")
+  eventTeamMemberships      EventTeamMembership[]
+  eventResponsibilities     EventResponsibility[]
+  assignedEventPlannerItems EventPlannerItem[]    @relation("EventPlannerAssignee")
 
   @@map("staff_meta")
 }
@@ -615,4 +619,131 @@ model ReportPreset {
   updatedAt  DateTime @updatedAt
 
   @@map("report_presets")
+}
+
+// ========== PROGRAMME EVENTS ==========
+
+model Event {
+  id              String   @id @default(cuid())
+  cityId          String
+  title           String
+  description     String?
+  eventType       String
+  status          String   @default("planned")
+  venue           String?
+  venueNotes      String?
+  startDate       DateTime
+  endDate         DateTime?
+  capacity        Int?
+  cost            Decimal? @default(0)
+  requiresConsent Boolean  @default(false)
+  requiresMedical Boolean  @default(false)
+  createdBy       String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  city             City                  @relation(fields: [cityId], references: [id], onDelete: Cascade)
+  teams            TemporaryEventTeam[]
+  responsibilities EventResponsibility[]
+  plannerItems     EventPlannerItem[]
+
+  @@index([cityId, status])
+  @@index([cityId, startDate])
+  @@index([status, startDate])
+  @@map("events")
+}
+
+model TemporaryEventTeam {
+  id          String   @id @default(cuid())
+  eventId     String
+  title       String
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  event        Event                 @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  memberships  EventTeamMembership[]
+  plannerItems EventPlannerItem[]
+
+  @@unique([eventId, title])
+  @@index([eventId, isActive])
+  @@map("temporary_event_teams")
+}
+
+model EventTeamMembership {
+  id            String    @id @default(cuid())
+  teamId        String
+  staffMetaId   String
+  title         String?
+  assignedAt    DateTime  @default(now())
+  assignedUntil DateTime?
+  revokedAt     DateTime?
+  revokedReason String?
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  team      TemporaryEventTeam @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  staffMeta StaffMeta          @relation(fields: [staffMetaId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, staffMetaId])
+  @@index([staffMetaId, isActive])
+  @@index([teamId, isActive])
+  @@map("event_team_memberships")
+}
+
+model EventResponsibility {
+  id                    String    @id @default(cuid())
+  eventId               String?
+  mashwaraId            String?
+  mashwaraOccurrenceId String?
+  title                 String
+  description           String?
+  assignedToStaffMetaId String
+  assignedBy            String
+  cityId                String
+  startDate             DateTime
+  endDate               DateTime
+  revokedAt             DateTime?
+  revokedBy             String?
+  revokedReason         String?
+  isActive              Boolean   @default(true)
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  event               Event?    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  assignedToStaffMeta StaffMeta @relation(fields: [assignedToStaffMetaId], references: [id], onDelete: Cascade)
+
+  @@index([assignedToStaffMetaId, isActive])
+  @@index([eventId, isActive])
+  @@index([cityId, isActive])
+  @@index([endDate, isActive])
+  @@map("event_responsibilities")
+}
+
+model EventPlannerItem {
+  id                    String    @id @default(cuid())
+  eventId               String
+  title                 String
+  description           String?
+  assignedToStaffMetaId String?
+  teamId                String?
+  dueDate               DateTime?
+  priority              String    @default("medium")
+  status                String    @default("pending")
+  completedAt           DateTime?
+  completionNote        String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  event             Event               @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  assignedStaffMeta StaffMeta?          @relation("EventPlannerAssignee", fields: [assignedToStaffMetaId], references: [id], onDelete: SetNull)
+  team              TemporaryEventTeam? @relation(fields: [teamId], references: [id], onDelete: SetNull)
+
+  @@index([eventId, status])
+  @@index([assignedToStaffMetaId, status])
+  @@index([teamId, status])
+  @@index([dueDate, status])
+  @@map("event_planner_items")
 }
