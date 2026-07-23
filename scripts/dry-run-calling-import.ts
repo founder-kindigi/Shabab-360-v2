@@ -94,14 +94,20 @@ function getSyntheticRows(): RawSourceRow[] {
 async function main() {
   const { filePath, cityId, campaignId, dryRun } = parseArgs();
 
-  const effectiveCityId = cityId || "lahore-city-id";
-  const hmacSecret = process.env.IMPORT_HMAC_SECRET || undefined;
+  if (!cityId || !cityId.trim()) {
+    throw new Error("Operator city context (--cityId) is required and cannot be empty.");
+  }
+
+  const hmacSecret = process.env.IMPORT_HMAC_SECRET;
+  if (!hmacSecret || !hmacSecret.trim()) {
+    throw new Error("IMPORT_HMAC_SECRET environment variable is required and cannot be empty.");
+  }
 
   const options: CallingImportOptions = {
-    cityId: effectiveCityId,
-    campaignId,
+    cityId: cityId.trim(),
+    campaignId: campaignId ? campaignId.trim() : undefined,
     dryRun,
-    hmacSecret,
+    hmacSecret: hmacSecret.trim(),
   };
 
   let lookupService;
@@ -113,11 +119,10 @@ async function main() {
       const prisma = new PrismaClient();
       lookupService = new PrismaInterviewLookupService(prisma);
     } catch {
-      // Fall back to mock if Prisma fails to initialize
       const mock = new MockInterviewLookupService();
-      mock.addMockPark("park-01", "State Life School", effectiveCityId);
+      mock.addMockPark("park-01", "State Life School", cityId);
       mock.addMockInterview({
-        cityId: effectiveCityId,
+        cityId,
         interviewId: "int-101",
         applicationId: "app-101",
         applicantName: "Ahmed Khan",
@@ -127,9 +132,9 @@ async function main() {
     }
   } else {
     const mock = new MockInterviewLookupService();
-    mock.addMockPark("park-01", "State Life School", effectiveCityId);
+    mock.addMockPark("park-01", "State Life School", cityId);
     mock.addMockInterview({
-      cityId: effectiveCityId,
+      cityId,
       interviewId: "int-101",
       applicationId: "app-101",
       applicantName: "Ahmed Khan",
@@ -151,8 +156,8 @@ async function main() {
 }
 
 if (require.main === module) {
-  main().catch((err) => {
-    console.error("Dry-run calling import failed:", err.message);
+  main().catch(() => {
+    console.error("Dry-run calling import failed: An error occurred during import execution.");
     process.exit(1);
   });
 }

@@ -16,7 +16,7 @@ export interface NormalizerResult {
 
 /**
  * Normalizes raw workbook rows into structured NormalizedCallingRow objects.
- * Enforces explicit operator cityId context and rejects malformed rows.
+ * Enforces explicit operator cityId context and mandatory hmacSecret.
  */
 export function normalizeCallingRows(
   rawRows: RawSourceRow[],
@@ -26,6 +26,12 @@ export function normalizeCallingRows(
   if (!options.cityId || !options.cityId.trim()) {
     throw new Error(
       "Operator city context (--cityId) is required and cannot be empty."
+    );
+  }
+
+  if (!options.hmacSecret || !options.hmacSecret.trim()) {
+    throw new Error(
+      "IMPORT_HMAC_SECRET is required and cannot be empty."
     );
   }
 
@@ -80,7 +86,8 @@ export function normalizeCallingRows(
       } else {
         unresolvedParks.push({
           rowNumber: raw.rowNumber,
-          providedParkName: parkInput,
+          providedParkNameMasked: maskName(parkInput),
+          providedParkNameFingerprint: computeFingerprint(parkInput, options.hmacSecret),
           resolvedParkId: null,
           status: "UNRESOLVED_PARK",
         });

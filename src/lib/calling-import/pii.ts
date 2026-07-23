@@ -1,4 +1,4 @@
-import { createHmac, createHash } from "node:crypto";
+import { createHmac } from "node:crypto";
 
 /**
  * Masks a name to protect PII.
@@ -47,24 +47,20 @@ export function maskPhone(phone?: string | null): string {
 }
 
 /**
- * Computes an HMAC-SHA-256 fingerprint for a PII string using a secret key.
- * If secret key is not provided, falls back to unkeyed SHA-256 with prefix indicator.
- * Real PII values are never returned or logged.
+ * Computes an HMAC-SHA-256 fingerprint for a string using a mandatory secret key.
+ * Requires secret to be non-empty string. Unkeyed fallback is not permitted.
  */
-export function computeFingerprint(value?: string | null, secret?: string | null): string {
+export function computeFingerprint(value: string | null | undefined, secret: string): string {
+  if (!secret || !secret.trim()) {
+    throw new Error("IMPORT_HMAC_SECRET is required for HMAC fingerprinting.");
+  }
+
   if (!value) {
     return "empty_fingerprint";
   }
 
   const sanitized = value.trim().toLowerCase();
-
-  if (secret && secret.trim()) {
-    const hmac = createHmac("sha256", secret.trim());
-    hmac.update(sanitized);
-    return `hmac_sha256_${hmac.digest("hex").slice(0, 16)}`;
-  }
-
-  const hash = createHash("sha256");
-  hash.update(sanitized);
-  return `unkeyed_sha256_${hash.digest("hex").slice(0, 16)}`;
+  const hmac = createHmac("sha256", secret.trim());
+  hmac.update(sanitized);
+  return `hmac_sha256_${hmac.digest("hex").slice(0, 16)}`;
 }

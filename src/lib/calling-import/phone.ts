@@ -6,7 +6,7 @@
  * - "00923001234567" -> "923001234567"
  * - "923001234567" -> "923001234567"
  * - "3001234567" -> "923001234567"
- * 
+ *
  * Returns `null` if the input is empty or does not match a valid Pakistani phone format.
  */
 export function normalizePakistanPhone(phoneInput?: string | null): string | null {

@@ -12,7 +12,7 @@ import { detectDuplicates } from "./duplicates";
 /**
  * Top-level read-only importer processor. Synthesizes parsing, normalization,
  * scope validation, candidate deduplication, and read-only interview matching.
- * 
+ *
  * GUARANTEE: Performs ZERO database write operations (INSERT, UPDATE, DELETE).
  */
 export async function processCallingImport(
@@ -22,7 +22,13 @@ export async function processCallingImport(
 ): Promise<CallingReconciliationReport> {
   if (!options.cityId || !options.cityId.trim()) {
     throw new Error(
-      "Operator city context (--cityId) is mandatory for calling import processing."
+      "Operator city context (--cityId) is required and cannot be empty."
+    );
+  }
+
+  if (!options.hmacSecret || !options.hmacSecret.trim()) {
+    throw new Error(
+      "IMPORT_HMAC_SECRET is required and cannot be empty."
     );
   }
 
