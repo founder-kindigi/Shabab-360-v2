@@ -8,7 +8,7 @@ import { assignLeadsSchema } from "@/lib/validations/calling";
 export async function POST(request: NextRequest) {
   const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
-  const { user } = auth;
+  const user = auth.user as any;
 
   let body: any;
   try {
@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
   }
 
   const newAssignments = await db.$transaction(async (tx) => {
-    const created = [];
+    const created: any[] = [];
     const now = new Date();
     for (const appId of applicationIds) {
       await tx.callingAssignment.updateMany({
@@ -110,7 +110,7 @@ export async function POST(request: NextRequest) {
   });
 
   await logAudit({
-    userId: user.id,
+    userId: user.id!,
     action: "calling.lead.assign",
     entityType: "CallingAssignment",
     entityId: campaignId,

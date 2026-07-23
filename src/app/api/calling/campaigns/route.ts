@@ -8,15 +8,15 @@ import { createCampaignSchema } from "@/lib/validations/calling";
 export async function GET(request: NextRequest) {
   const auth = await requireCapability("calling.view");
   if (auth instanceof NextResponse) return auth;
-  const { user } = auth;
+  const user = auth.user as any;
 
   const url = new URL(request.url);
   const requestedCityId = url.searchParams.get("cityId");
   const statusParam = url.searchParams.get("status");
 
   const resolved = await resolveActorCity(user, requestedCityId);
-  if (resolved.error) {
-    return NextResponse.json({ error: resolved.error }, { status: resolved.status });
+  if (resolved.error || !resolved.cityId) {
+    return NextResponse.json({ error: resolved.error || "City resolution failed" }, { status: resolved.status || 400 });
   }
 
   const where: any = {
@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const auth = await requireCapability("calling.poc.manage");
   if (auth instanceof NextResponse) return auth;
-  const { user } = auth;
+  const user = auth.user as any;
 
   let body: any;
   try {
@@ -60,8 +60,8 @@ export async function POST(request: NextRequest) {
 
   const data = parsed.data;
   const resolved = await resolveActorCity(user, data.cityId);
-  if (resolved.error) {
-    return NextResponse.json({ error: resolved.error }, { status: resolved.status });
+  if (resolved.error || !resolved.cityId) {
+    return NextResponse.json({ error: resolved.error || "City resolution failed" }, { status: resolved.status || 400 });
   }
 
   const campaign = await db.callingCampaign.create({

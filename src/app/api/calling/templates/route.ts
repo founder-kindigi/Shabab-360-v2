@@ -8,7 +8,7 @@ import { createTemplateSchema } from "@/lib/validations/calling";
 export async function GET(request: NextRequest) {
   const auth = await requireCapability("calling.view");
   if (auth instanceof NextResponse) return auth;
-  const { user } = auth;
+  const user = auth.user as any;
 
   const url = new URL(request.url);
   const requestedCityId = url.searchParams.get("cityId");
@@ -16,8 +16,8 @@ export async function GET(request: NextRequest) {
   const statusParam = url.searchParams.get("status");
 
   const resolved = await resolveActorCity(user, requestedCityId);
-  if (resolved.error) {
-    return NextResponse.json({ error: resolved.error }, { status: resolved.status });
+  if (resolved.error || !resolved.cityId) {
+    return NextResponse.json({ error: resolved.error || "City resolution failed" }, { status: resolved.status || 400 });
   }
 
   const where: any = {
@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const auth = await requireCapability("calling.templates.manage");
   if (auth instanceof NextResponse) return auth;
-  const { user } = auth;
+  const user = auth.user as any;
 
   let body: any;
   try {
@@ -69,13 +69,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Target campaign not found" }, { status: 400 });
     }
     const resolved = await resolveActorCity(user, campaign.cityId);
-    if (resolved.error) {
+    if (resolved.error || !resolved.cityId) {
       return NextResponse.json({ error: resolved.error }, { status: resolved.status });
     }
     targetCityId = campaign.cityId;
   } else {
     const resolved = await resolveActorCity(user, data.cityId);
-    if (resolved.error) {
+    if (resolved.error || !resolved.cityId) {
       return NextResponse.json({ error: resolved.error }, { status: resolved.status });
     }
     targetCityId = resolved.cityId;
