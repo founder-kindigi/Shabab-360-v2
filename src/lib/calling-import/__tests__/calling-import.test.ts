@@ -1,7 +1,9 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { execSync } from "node:child_process";
 import path from "node:path";
+import os from "node:os";
 import fs from "node:fs";
+import ExcelJS from "exceljs";
 import {
   normalizePakistanPhone,
   isValidPakistanPhone,
@@ -9,7 +11,10 @@ import {
 import { maskName, maskPhone, computeFingerprint } from "../pii";
 import { normalizeCallingRows } from "../normalizer";
 import { detectDuplicates } from "../duplicates";
-import { MockInterviewLookupService } from "../interview-matcher";
+import {
+  MockInterviewLookupService,
+  PrismaInterviewLookupService,
+} from "../interview-matcher";
 import { processCallingImport } from "../importer";
 import type { RawSourceRow, CallingImportOptions } from "../types";
 
@@ -19,7 +24,36 @@ describe("Calling Import Preparation — PKG-03 Test Suite", () => {
   const testCampaignId = "campaign-phase2-01";
   const testSecret = "test-hmac-secret-12345";
   const cliPath = path.resolve("scripts/dry-run-calling-import.ts");
-  const tempDummyFile = path.resolve("scripts/temp-dummy-test-workbook.xlsx");
+
+  let createdTempDirs: string[] = [];
+
+  /**
+   * Helper to create a valid minimal .xlsx workbook in OS temp directory.
+   */
+  async function createValidMinimalWorkbook(): Promise<string> {
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet("Phase 2 Candidates");
+    sheet.addRow([
+      "Prospect Name",
+      "Contact Phone",
+      "Guardian Name",
+      "Guardian Phone",
+      "Allocated Park",
+    ]);
+    sheet.addRow([
+      "Ahmed Khan",
+      "03001234567",
+      "Mohammad Khan",
+      "03001234567",
+      "State Life School",
+    ]);
+
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "calling-import-test-"));
+    createdTempDirs.push(tmpDir);
+    const filePath = path.join(tmpDir, "minimal-test-calling-workbook.xlsx");
+    await workbook.xlsx.writeFile(filePath);
+    return filePath;
+  }
 
   beforeEach(() => {
     mockLookup = new MockInterviewLookupService();
@@ -33,6 +67,19 @@ describe("Calling Import Preparation — PKG-03 Test Suite", () => {
       applicantName: "Usman Ahmed",
       guardianPhone: "923001234567",
     });
+  });
+
+  afterEach(() => {
+    for (const dir of createdTempDirs) {
+      try {
+        if (fs.existsSync(dir)) {
+          fs.rmSync(dir, { recursive: true, force: true });
+        }
+      } catch {
+        // Ignore cleanup errors
+      }
+    }
+    createdTempDirs = [];
   });
 
   describe("Pakistan Phone Normalization", () => {
@@ -229,7 +276,7 @@ describe("Calling Import Preparation — PKG-03 Test Suite", () => {
     });
   });
 
-  describe("Read-Only AdmissionInterview Matching & Unmatched Link Reporting", () => {
+  describe("Read-Only AdmissionInterview Matching & Fail-Closed Lookup Rejection", () => {
     it("matches candidate to existing AdmissionInterview in read-only mode", async () => {
       const rawRows: RawSourceRow[] = [
         {
@@ -272,6 +319,75 @@ describe("Calling Import Preparation — PKG-03 Test Suite", () => {
       expect(report.summary.unresolvedInterviewLinksCount).toBe(1);
       expect(report.unresolvedInterviewLinks[0].status).toBe("unresolvedInterviewLink");
       expect(report.unresolvedInterviewLinks[0].reason).toContain("No matching AdmissionInterview");
+    });
+
+    it("rejects processCallingImport when getCityParks fails or throws", async () => {
+      const rawRows: RawSourceRow[] = [
+        {
+          rowNumber: 2,
+          sheetName: "Sheet1",
+          prospectName: "Ahmed Khan",
+          contactPhone: "03001234567",
+        },
+      ];
+
+      const failingLookup = {
+        getCityParks: async () => {
+          throw new Error("Database query failed during park fetch");
+        },
+        findMatchingInterview: async () => ({ matched: false }),
+      };
+
+      const options: CallingImportOptions = {
+        cityId: testCityId,
+        campaignId: testCampaignId,
+        hmacSecret: testSecret,
+      };
+
+      await expect(
+        processCallingImport(rawRows, options, failingLookup)
+      ).rejects.toThrow("Database query failed during park fetch");
+    });
+
+    it("rejects processCallingImport when findMatchingInterview fails or throws", async () => {
+      const rawRows: RawSourceRow[] = [
+        {
+          rowNumber: 2,
+          sheetName: "Sheet1",
+          prospectName: "Ahmed Khan",
+          contactPhone: "03001234567",
+        },
+      ];
+
+      const failingLookup = {
+        getCityParks: async () => [],
+        findMatchingInterview: async () => {
+          throw new Error("Database query failed during interview lookup");
+        },
+      };
+
+      const options: CallingImportOptions = {
+        cityId: testCityId,
+        campaignId: testCampaignId,
+        hmacSecret: testSecret,
+      };
+
+      await expect(
+        processCallingImport(rawRows, options, failingLookup)
+      ).rejects.toThrow("Database query failed during interview lookup");
+    });
+
+    it("throws error when PrismaInterviewLookupService lacks initialized delegates", async () => {
+      const emptyPrismaLookup = new PrismaInterviewLookupService({});
+
+      await expect(emptyPrismaLookup.getCityParks("city-1")).rejects.toThrow(
+        "Prisma client or park delegate is not initialized."
+      );
+      await expect(
+        emptyPrismaLookup.findMatchingInterview({ cityId: "city-1" })
+      ).rejects.toThrow(
+        "Prisma client or admissionInterview delegate is not initialized."
+      );
     });
   });
 
@@ -318,14 +434,14 @@ describe("Calling Import Preparation — PKG-03 Test Suite", () => {
 
     it(
       "fails safely when operational --file run is missing DATABASE_URL",
-      () => {
+      async () => {
+        const validWorkbookPath = await createValidMinimalWorkbook();
         try {
-          fs.writeFileSync(tempDummyFile, "dummy-content");
           const env = { ...process.env, IMPORT_HMAC_SECRET: testSecret };
           delete (env as { DATABASE_URL?: string }).DATABASE_URL;
 
           execSync(
-            `npx tsx "${cliPath}" --cityId ${testCityId} --campaignId ${testCampaignId} --file "${tempDummyFile}" --dry-run`,
+            `npx tsx "${cliPath}" --cityId ${testCityId} --campaignId ${testCampaignId} --file "${validWorkbookPath}" --dry-run`,
             {
               env,
               stdio: "pipe",
@@ -335,20 +451,18 @@ describe("Calling Import Preparation — PKG-03 Test Suite", () => {
         } catch (err: unknown) {
           const errorOutput = String((err as { stderr?: Buffer }).stderr || "");
           expect(errorOutput).toContain("Dry-run calling import failed");
-        } finally {
-          if (fs.existsSync(tempDummyFile)) fs.unlinkSync(tempDummyFile);
         }
       },
       60000
     );
 
     it(
-      "fails safely when operational run encounters Prisma initialization/connection failure",
-      () => {
+      "reaches database lookup with valid minimal .xlsx workbook and fails safely on Prisma connection error",
+      async () => {
+        const validWorkbookPath = await createValidMinimalWorkbook();
         try {
-          fs.writeFileSync(tempDummyFile, "dummy-content");
           execSync(
-            `npx tsx "${cliPath}" --cityId ${testCityId} --campaignId ${testCampaignId} --file "${tempDummyFile}" --dry-run`,
+            `npx tsx "${cliPath}" --cityId ${testCityId} --campaignId ${testCampaignId} --file "${validWorkbookPath}" --dry-run`,
             {
               env: {
                 ...process.env,
@@ -362,8 +476,6 @@ describe("Calling Import Preparation — PKG-03 Test Suite", () => {
         } catch (err: unknown) {
           const errorOutput = String((err as { stderr?: Buffer }).stderr || "");
           expect(errorOutput).toContain("Dry-run calling import failed");
-        } finally {
-          if (fs.existsSync(tempDummyFile)) fs.unlinkSync(tempDummyFile);
         }
       },
       60000
@@ -371,10 +483,11 @@ describe("Calling Import Preparation — PKG-03 Test Suite", () => {
 
     it(
       "fails safely when --synthetic is combined with --file",
-      () => {
+      async () => {
+        const validWorkbookPath = await createValidMinimalWorkbook();
         try {
           execSync(
-            `npx tsx "${cliPath}" --cityId ${testCityId} --campaignId ${testCampaignId} --synthetic --file "some-file.xlsx" --dry-run`,
+            `npx tsx "${cliPath}" --cityId ${testCityId} --campaignId ${testCampaignId} --synthetic --file "${validWorkbookPath}" --dry-run`,
             {
               env: { ...process.env, IMPORT_HMAC_SECRET: testSecret },
               stdio: "pipe",
