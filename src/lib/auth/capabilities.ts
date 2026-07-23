@@ -108,7 +108,6 @@ export const ROLE_DEFAULT_CAPABILITIES: Readonly<Record<UserRole, readonly Acces
   park_admin: [
     "dashboard.view",
     "attendance.mark",
-    "content.view",
   ],
   murabbi: [
     "dashboard.view",
