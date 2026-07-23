@@ -1,6 +1,6 @@
 # CALL-307: Calling Import Implementation & Contract Reconciliation
 
-- **Document Version:** 1.0.2
+- **Document Version:** 1.0.3
 - **Task ID:** `CALL-307` / `PKG-03`
 - **Status:** Complete / Prepared for Handoff
 - **Base Commit:** `99f9460` on `codex/production-hardening`
@@ -85,20 +85,22 @@ src/lib/calling-import/
     IMPORT_HMAC_SECRET="<secret>" npx tsx scripts/dry-run-calling-import.ts --cityId <city-id> --campaignId <campaign-id> --synthetic --dry-run
     ```
 
-- **Operational Dry-Run (requires valid workbook file):**
+- **Operational Dry-Run (requires DATABASE_URL and valid workbook file):**
   - *PowerShell (Windows):*
     ```powershell
-    $env:IMPORT_HMAC_SECRET="<secret>"; npx tsx scripts/dry-run-calling-import.ts --cityId <city-id> --campaignId <campaign-id> --file <path-to-file.xlsx> --dry-run
+    $env:DATABASE_URL="<db-url>"; $env:IMPORT_HMAC_SECRET="<secret>"; npx tsx scripts/dry-run-calling-import.ts --cityId <city-id> --campaignId <campaign-id> --file <path-to-file.xlsx> --dry-run
     ```
   - *POSIX / Bash (Linux/macOS):*
     ```bash
-    IMPORT_HMAC_SECRET="<secret>" npx tsx scripts/dry-run-calling-import.ts --cityId <city-id> --campaignId <campaign-id> --file <path-to-file.xlsx> --dry-run
+    DATABASE_URL="<db-url>" IMPORT_HMAC_SECRET="<secret>" npx tsx scripts/dry-run-calling-import.ts --cityId <city-id> --campaignId <campaign-id> --file <path-to-file.xlsx> --dry-run
     ```
 
-- **Safety Controls:**
+- **Operational Safety Controls:**
   - Mandatory `--cityId` and `--campaignId` options (fails closed if missing).
   - Mandatory `IMPORT_HMAC_SECRET` environment variable (fails closed if missing).
-  - Operational runs require valid `--file <path>`.
+  - Operational runs require `DATABASE_URL` and valid `--file <path>`. Fails closed if missing; never falls back to mock lookup.
+  - Combining `--synthetic` with `--file` is rejected to prevent ambiguous input.
+  - Prisma client disconnects in a `finally` block after operational run execution.
   - Synthetic runs (`--synthetic`) force mock lookup and never initialize Prisma or connect to `DATABASE_URL`.
   - Replaces CLI error details with safe generic failure logs upon error.
 
