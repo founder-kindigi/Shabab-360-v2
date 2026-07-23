@@ -55,6 +55,7 @@ import { toast } from "sonner";
 import { useDebounce } from "@/hooks/use-debounce";
 import { formatPKT } from "@/lib/timezone";
 import { useTranslation } from "@/lib/i18n";
+import { cn } from "@/lib/utils";
 import { ExportButton } from "@/components/shared/export-button";
 import {
   ImportDialog,
@@ -78,6 +79,9 @@ import {
   FolderInput,
   Download,
   Check,
+  Filter,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { BulkActionToolbar, type BulkAction } from "@/components/shared/bulk-action-toolbar";
@@ -183,6 +187,7 @@ export function StudentsPage() {
   const [parkId, setParkId] = useState("");
   const [groupId, setGroupId] = useState("");
   const [state, setState] = useState("all");
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [page, setPage] = useState(1);
 
   const debouncedSearch = useDebounce(search, 300);
@@ -589,7 +594,32 @@ export function StudentsPage() {
       {/* Filter Bar */}
       <Card className="border-[#D4B8E3] dark:border-[#2A0C8F]">
         <CardContent className="p-4">
-          <div className="flex flex-col sm:flex-row gap-3">
+          {/* Mobile Filter Toggle Trigger (below sm) */}
+          <div className="flex sm:hidden items-center justify-between gap-2 mb-3">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setMobileFiltersOpen((prev) => !prev)}
+              className="w-full flex items-center justify-between text-xs border-[#D4B8E3] dark:border-[#2A0C8F]"
+            >
+              <span className="flex items-center gap-2 font-medium">
+                <Filter className="size-3.5 text-[#4B0A8F] dark:text-[#8A40B0]" />
+                Filters
+                {(cityId || parkId || groupId || state !== "all" || search) && (
+                  <Badge variant="secondary" className="px-1.5 py-0 text-[10px] bg-[#F3ECF6] text-[#4B0A8F] dark:bg-[#1F0860] dark:text-[#8A40B0]">
+                    Active
+                  </Badge>
+                )}
+              </span>
+              {mobileFiltersOpen ? (
+                <ChevronUp className="size-3.5 text-muted-foreground" />
+              ) : (
+                <ChevronDown className="size-3.5 text-muted-foreground" />
+              )}
+            </Button>
+          </div>
+
+          <div className={cn("gap-3", mobileFiltersOpen ? "flex flex-col sm:flex-row" : "hidden sm:flex sm:flex-row")}>
             {/* Search */}
             <div className="relative flex-1 min-w-0">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
@@ -888,16 +918,16 @@ export function StudentsPage() {
                     <Card className="p-4 space-y-3 cursor-pointer hover:border-[#D4B8E3] dark:hover:border-[#2A0C8F] transition-colors" onClick={() => openDetailSheet(student)}>
                       <div className="flex items-start justify-between">
                         <div className="flex items-center gap-3 min-w-0">
-                          <div className="relative shrink-0" onClick={(e) => e.stopPropagation()}>
+                          <div className="shrink-0 flex items-center justify-center pt-0.5" onClick={(e) => e.stopPropagation()}>
                             <Checkbox
                               checked={selectedIds.has(student.id)}
                               onCheckedChange={() => toggleRow(student.id)}
-                              className="absolute -top-1 -left-1 size-5"
+                              className="size-5"
                               aria-label={`Select ${student.name}`}
                             />
-                            <div className="rounded-full bg-[#F3ECF6] dark:bg-[#1F086080] flex items-center justify-center size-10 text-sm font-semibold text-[#4B0A8F] dark:text-[#8A40B0]">
-                            {getInitials(student.name)}
                           </div>
+                          <div className="rounded-full bg-[#F3ECF6] dark:bg-[#1F086080] flex items-center justify-center size-10 text-sm font-semibold text-[#4B0A8F] dark:text-[#8A40B0] shrink-0">
+                            {getInitials(student.name)}
                           </div>
                           <div className="min-w-0">
                             <p className="font-medium text-sm truncate">{student.name}</p>
