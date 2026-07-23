@@ -302,13 +302,21 @@ Two classes of actor determine authorized city scope:
 const auth = await requireCapability("events.manage");
 if (auth instanceof NextResponse) return auth;
 
-// 2. Derive city scope from session
-const cityId = deriveCityFromStaffMeta(auth.user); // throws if no city scope
+// 2. Resolve authorized city scope — actor-aware
+//    super_admin / program_admin: require explicit existing cityId param
+//    Scoped actors: derive exactly one city from StaffMeta
+const resolvedCity = resolveActorCity(auth.user, providedCityId);
+if (!resolvedCity) return new NextResponse(null, { status: 403 });
 
-// 3. Resource scope check
+// 3. Resource scope check — resolvedCity must match the target entity
 const error = requireResourceScope(auth.user, { cityId: event.cityId });
 if (error) return error;
 ```
+
+The `resolveActorCity` helper works as follows:
+- If `auth.user.role` is `super_admin` or `program_admin`: the caller **must** provide a `cityId` parameter; the helper validates the city exists and returns it. No `cityId` → returns `null` (403).
+- If `auth.user.role` is a scoped role (`city_head`, `park_lead`, etc.): the helper derives the single city from the actor's `StaffMeta` as defined in §4.3. If a `cityId` was also provided in the request, it is validated against the derived city; a mismatch is denied with 403. If no `cityId` was provided, the derived city is used.
+- The resolved city is used for all entity scope checks on the request. Request query parameters (e.g. `?parkId=`) may only narrow the resolved scope; a parameter requesting data outside it returns 403.
 
 ### 4.5 Calling POC Authorization
 
@@ -446,7 +454,20 @@ const createEventSchema = z.object({
   requiresMedical: z.boolean().optional().default(false),
 });
 
-const updateEventSchema = createEventSchema.partial().extend({
+`updateEventSchema` removes `cityId` — `Event.cityId` is immutable after creation.
+
+```typescript
+const updateEventSchema = z.object({
+  title: z.string().min(1).max(200).optional(),
+  description: z.string().max(1000).optional(),
+  eventType: eventTypeSchema.optional(),
+  venue: z.string().max(200).optional(),
+  venueNotes: z.string().max(500).optional(),
+  startDate: z.coerce.date().optional(),
+  endDate: z.coerce.date().optional(),
+  capacity: z.number().int().positive().optional(),
+  requiresConsent: z.boolean().optional(),
+  requiresMedical: z.boolean().optional(),
   status: eventStatusSchema.optional(),
 });
 
@@ -486,6 +507,7 @@ const addTeamMemberSchema = z.object({
 const createResponsibilitySchema = z.object({
   eventId: eventIdSchema.optional(),
   mashwaraId: z.string().cuid().optional(),
+  mashwaraOccurrenceId: z.string().cuid().optional(),
   title: responsibilityTitleSchema,
   description: z.string().max(500).optional(),
   assignedToStaffMetaId: staffMetaIdSchema,
@@ -497,6 +519,9 @@ const createResponsibilitySchema = z.object({
 ).refine(
   data => (data.eventId !== undefined) !== (data.mashwaraId !== undefined),
   { message: "Exactly one parent required: eventId XOR mashwaraId" }
+).refine(
+  data => data.mashwaraOccurrenceId === undefined || data.mashwaraId !== undefined,
+  { message: "mashwaraOccurrenceId is allowed only when mashwaraId is set" }
 );
 
 const listResponsibilitiesSchema = z.object({
@@ -540,32 +565,32 @@ const updatePlannerItemSchema = z.object({
 
 | Method | Path | Handler | Auth Gate | Scope Check | Request Schema | Response |
 |--------|------|---------|-----------|-------------|---------------|----------|
-| `POST` | `/api/admin/events` | createEvent | `events.manage` | HQ: uses body `cityId`; scoped: derives from StaffMeta, rejects mismatch | `createEventSchema` | `Event` |
-| `GET` | `/api/admin/events` | listEvents | `events.view` | HQ requires `cityId` in query; scoped derives from StaffMeta, filters out `planned` when caller lacks `events.manage` | `listEventsSchema` | `{ events: Event[], total, page, limit }` |
-| `GET` | `/api/admin/events/[id]` | getEvent | `events.view` | event.cityId = session city; return 404 if event is `planned` and caller lacks `events.manage` | — | `Event` with teams, responsibilities, items |
-| `PATCH` | `/api/admin/events/[id]` | updateEvent | `events.manage` | event.cityId = session city | `updateEventSchema` | `Event` |
-| `POST` | `/api/admin/events/[id]/cancel` | cancelEvent | `events.manage` | event.cityId = session city | `{ reason?: string }` | `Event` |
-| `POST` | `/api/admin/events/[id]/complete` | completeEvent | `events.manage` | event.cityId = session city | — | `Event` |
+| `POST` | `/api/admin/events` | createEvent | `events.manage` | resolveActorCity: HQ provides explicit cityId; scoped derives from StaffMeta; mismatch = 403 | `createEventSchema` | `Event` |
+| `GET` | `/api/admin/events` | listEvents | `events.view` | resolveActorCity: HQ must provide cityId or 403; scoped derives from StaffMeta; filters `planned` when caller lacks `events.manage` | `listEventsSchema` | `{ events: Event[], total, page, limit }` |
+| `GET` | `/api/admin/events/[id]` | getEvent | `events.view` | resolveActorCity against event.cityId; return 404 if event is `planned` and caller lacks `events.manage` | — | `Event` with teams, responsibilities, items |
+| `PATCH` | `/api/admin/events/[id]` | updateEvent | `events.manage` | resolveActorCity against event.cityId | `updateEventSchema` | `Event` |
+| `POST` | `/api/admin/events/[id]/cancel` | cancelEvent | `events.manage` | resolveActorCity against event.cityId | `{ reason?: string }` | `Event` |
+| `POST` | `/api/admin/events/[id]/complete` | completeEvent | `events.manage` | resolveActorCity against event.cityId | — | `Event` |
 
 ### 8.2 Temporary Event Team Endpoints
 
 | Method | Path | Handler | Auth Gate | Scope Check | Request Schema |
 |--------|------|---------|-----------|-------------|---------------|
-| `POST` | `/api/admin/events/[eventId]/teams` | createTeam | `events.manage` | event.cityId = session city | `createEventTeamSchema` |
-| `GET` | `/api/admin/events/[eventId]/teams` | listTeams | `events.view` | event.cityId = session city | — |
-| `PATCH` | `/api/admin/events/teams/[teamId]` | updateTeam | `events.manage` | team.event.cityId = session city | `{ title?, description? }` |
-| `DELETE` | `/api/admin/events/teams/[teamId]` | deactivateTeam | `events.manage` | team.event.cityId = session city | — |
-| `POST` | `/api/admin/events/teams/[teamId]/members` | addMember | `events.manage` | team.event.cityId = session city | `addTeamMemberSchema` |
-| `DELETE` | `/api/admin/events/teams/[teamId]/members/[memberId]` | removeMember | `events.manage` | via team.event.cityId | `{ reason?: string }` |
+| `POST` | `/api/admin/events/[eventId]/teams` | createTeam | `events.manage` | resolveActorCity against event.cityId | `createEventTeamSchema` |
+| `GET` | `/api/admin/events/[eventId]/teams` | listTeams | `events.view` | resolveActorCity against event.cityId | — |
+| `PATCH` | `/api/admin/events/teams/[teamId]` | updateTeam | `events.manage` | resolveActorCity against team.event.cityId | `{ title?, description? }` |
+| `DELETE` | `/api/admin/events/teams/[teamId]` | deactivateTeam | `events.manage` | resolveActorCity against team.event.cityId | — |
+| `POST` | `/api/admin/events/teams/[teamId]/members` | addMember | `events.manage` | resolveActorCity against team.event.cityId | `addTeamMemberSchema` |
+| `DELETE` | `/api/admin/events/teams/[teamId]/members/[memberId]` | removeMember | `events.manage` | resolveActorCity against team.event.cityId | `{ reason?: string }` |
 
 ### 8.3 Event Responsibility Endpoints
 
 | Method | Path | Handler | Auth Gate | Scope Check | Request Schema |
 |--------|------|---------|-----------|-------------|---------------|
-| `POST` | `/api/admin/events/[eventId]/responsibilities` | createResponsibility | `events.responsibilities.manage` | event.cityId = session city (or derived from Mashwara for mashwaraId); parent city must match assignee's StaffMeta city | `createResponsibilitySchema` (parentId injected) |
-| `GET` | `/api/admin/events/[eventId]/responsibilities` | listResponsibilities | `events.view` | event.cityId = session city | — |
-| `GET` | `/api/admin/events/responsibilities/[id]` | getResponsibility | `events.view` | responsibility.cityId = session city | — |
-| `POST` | `/api/admin/events/responsibilities/[id]/revoke` | revokeResponsibility | `events.responsibilities.manage` | responsibility.cityId = session city | `{ reason?: string }` |
+| `POST` | `/api/admin/events/[eventId]/responsibilities` | createResponsibility | `events.responsibilities.manage` | resolveActorCity against event.cityId (or derived from Mashwara for mashwaraId); parent city must match assignee's StaffMeta city | `createResponsibilitySchema` (parentId injected) |
+| `GET` | `/api/admin/events/[eventId]/responsibilities` | listResponsibilities | `events.view` | resolveActorCity against event.cityId | — |
+| `GET` | `/api/admin/events/responsibilities/[id]` | getResponsibility | `events.view` | resolveActorCity against responsibility.cityId | — |
+| `POST` | `/api/admin/events/responsibilities/[id]/revoke` | revokeResponsibility | `events.responsibilities.manage` | resolveActorCity against responsibility.cityId | `{ reason?: string }` |
 | `GET` | `/api/me/responsibilities` | myResponsibilities | `requireAuth` | own staffMetaId only | — |
 
 **Note:** `POST /api/admin/events/[eventId]/responsibilities` receives an eventId from the URL path and injects it into the body before validation. A separate `POST /api/admin/mashwara/[mashwaraId]/responsibilities` (or similar future endpoint) will inject mashwaraId. The `createResponsibilitySchema` validates that exactly one parent is set: `eventId` XOR `mashwaraId`.
@@ -574,9 +599,9 @@ const updatePlannerItemSchema = z.object({
 
 | Method | Path | Handler | Auth Gate | Scope Check | Request Schema |
 |--------|------|---------|-----------|-------------|---------------|
-| `POST` | `/api/admin/events/[eventId]/planner` | createPlannerItem | `events.manage` | event.cityId = session city | `createPlannerItemSchema` (eventId injected) |
-| `GET` | `/api/admin/events/[eventId]/planner` | listPlannerItems | `events.view` | event.cityId = session city | — |
-| `PATCH` | `/api/admin/events/planner/[itemId]` | updatePlannerItem | `events.manage` OR item creator/assignee | event.cityId = session city | `updatePlannerItemSchema` |
+| `POST` | `/api/admin/events/[eventId]/planner` | createPlannerItem | `events.manage` | resolveActorCity against event.cityId | `createPlannerItemSchema` (eventId injected) |
+| `GET` | `/api/admin/events/[eventId]/planner` | listPlannerItems | `events.view` | resolveActorCity against event.cityId | — |
+| `PATCH` | `/api/admin/events/planner/[itemId]` | updatePlannerItem | `events.manage` OR item creator/assignee | resolveActorCity against event.cityId | `updatePlannerItemSchema` |
 
 **Planner item update rule:** A staff member assigned to a planner item may update `status`, `completionNote`, and `dueDate` on their own items. All other fields require `events.manage`.
 
@@ -678,21 +703,22 @@ const updatePlannerItemSchema = z.object({
 
 **Rollback steps (in priority order):**
 
-1. **Disable access (safest):** Remove capability constants from `capabilities.ts`, revert role defaults, and delete API route files. The additive tables remain in the database with their data intact but are unreachable through the application. This is the recommended approach.
-2. **Forward repair migration:** If the additive tables must be removed from the schema, create a new migration that drops the five new tables. This is a destructive operation and requires owner approval. Do not use `prisma migrate down` — Prisma does not provide that command for production use. The backup must be verified before any destructive migration.
-3. **Full restore (incident only):** Codex and the project owner jointly decide to restore from the pre-migration backup. This loses any data written after the backup was taken. The process is: stop the application, restore from backup, verify integrity, restart.
+1. **Disable access (safest):** Remove capability constants from `capabilities.ts`, revert role defaults, and delete API route files. The additive tables remain in the database with their data intact but are unreachable through the application. This is the only standard rollback path.
+2. **Verified restore (Codex-and-owner incident only):** Codex and the project owner jointly decide to restore from the pre-migration backup. This is an incident response action, not a routine rollback. The process is: stop the application, restore from backup, verify integrity, restart. All operational and audit records are preserved in the backup.
 
-**Data retention on destructive rollback (option 2 only):**
+No destructive DROP TABLE option is provided. Routine rollback is always the disable-access path. Destructive schema changes require a forward repair migration following the backup-first policy and must be approved by Codex and the owner before execution.
 
-| Table | Data risk | Action |
-|-------|-----------|--------|
-| `Event` | Operational records | Dropped — acceptable only if no real events were created |
-| `TemporaryEventTeam` | Operational records | Dropped — acceptable only if no real assignments were made |
-| `EventTeamMembership` | Operational records | Dropped — acceptable only if no real assignments were made |
-| `EventResponsibility` | May contain Calling POC assignments | Dropped — acceptable only if no real assignments were made; backup preserves them |
-| `EventPlannerItem` | Operational records | Dropped — acceptable only if no real items were created |
+**Data retention under disable-access rollback:**
 
-**Critical:** Under no circumstances are `AuditLog` records referencing event entities dropped or altered. If the event tables are dropped, audit rows retain their existing `entityId` and `entityType` values with null FK references — this is intentional for historical traceability.
+| Table | State | Access |
+|-------|-------|--------|
+| `Event` | Preserved intact | Unreachable via application |
+| `TemporaryEventTeam` | Preserved intact | Unreachable via application |
+| `EventTeamMembership` | Preserved intact | Unreachable via application |
+| `EventResponsibility` | Preserved intact | Unreachable via application |
+| `EventPlannerItem` | Preserved intact | Unreachable via application |
+
+Under no circumstances are `AuditLog` records referencing event entities dropped or altered. They remain as historical evidence with their existing references intact.
 
 ---
 
@@ -718,12 +744,13 @@ const updatePlannerItemSchema = z.object({
 | EVT-ALLOW-014 | Park Lead views event details (own city, events.view) | 200 + Event |
 | EVT-ALLOW-015 | Assigned staff reads own responsibilities via `/api/me/responsibilities` | 200 + own active responsibilities |
 | EVT-ALLOW-016 | Assigned staff updates own planner item status | 200 + updated status |
-| EVT-ALLOW-017 | Event with endDate < now — responsibility auto-expired on access check | 403 (or filtered out of active list) |
+| EVT-ALLOW-017 | Event with endDate < now — responsibility auto-expired on access check | 403 (endDate check fails) |
 | EVT-ALLOW-018 | Revoked responsibility — API returns 403 on access | 403 |
 | EVT-ALLOW-019 | Super Admin creates event with explicit cityId | 201 + Event in correct city |
 | EVT-ALLOW-020 | Program Admin lists events with explicit cityId | 200 + city-scoped events |
 | EVT-ALLOW-021 | City Head creates a Mashwara-linked responsibility (mashwaraId set, eventId null) | 201 + Responsibility returned |
 | EVT-ALLOW-022 | City Head creates event-linked responsibility — city derived from event matches assignee | 201 + Responsibility returned |
+| EVT-ALLOW-023 | City Head creates Mashwara-linked responsibility with mashwaraOccurrenceId | 201 + Responsibility returned |
 
 ### 11.2 Deny Tests (Negative Paths)
 
@@ -737,14 +764,14 @@ const updatePlannerItemSchema = z.object({
 | EVT-DENY-006 | City Head updates event in another city | 403 |
 | EVT-DENY-007 | City Head cancels event in another city | 403 |
 | EVT-DENY-008 | Park Lead creates responsibility on event | 403 |
-| EVT-DENY-009 | City Head creates responsibility with assignedToStaffMeta from another city | 422 (validation) or 403 |
+| EVT-DENY-009 | City Head creates responsibility with assignedToStaffMeta from another city | 403 (assignee city mismatch) |
 | EVT-DENY-010 | City Head creates responsibility without any parent (no eventId, no mashwaraId) | 422 |
 | EVT-DENY-011 | City Head creates responsibility with endDate <= startDate | 422 |
 | EVT-DENY-012 | City Head creates responsibility without endDate | 422 |
 | EVT-DENY-013 | City Head revokes another-city responsibility | 403 |
 | EVT-DENY-014 | Park Lead creates planner item | 403 |
 | EVT-DENY-015 | Assigned staff updates planner item title (non-own field) | 403 |
-| EVT-DENY-016 | City Head lists events with another city's cityId | 403 or empty (narrow-only rule) |
+| EVT-DENY-016 | City Head lists events with another city's cityId | 403 (resolveActorCity mismatch) |
 | EVT-DENY-017 | Deactivated staff member's active responsibility | 403 (isActive check on StaffMeta) |
 | EVT-DENY-018 | Park Lead (events.view only) lists events — planned events are filtered out | 200 + no planned events in response |
 | EVT-DENY-019 | Park Lead (events.view only) reads a planned event by ID | 404 (not found) |
@@ -753,8 +780,10 @@ const updatePlannerItemSchema = z.object({
 | EVT-DENY-022 | City Head creates event with cityId set to a different city | 403 (rejected — does not match derived city) |
 | EVT-DENY-023 | City Head creates responsibility with both eventId and mashwaraId set | 422 (exactly one parent required) |
 | EVT-DENY-024 | City Head creates responsibility with neither eventId nor mashwaraId | 422 (exactly one parent required) |
-| EVT-DENY-025 | City Head creates Mashwara-linked responsibility where assignee city does not match Mashwara city | 403 or 422 |
-| EVT-DENY-026 | City Head creates event-linked responsibility where assignee city does not match event city | 403 or 422 |
+| EVT-DENY-025 | City Head creates Mashwara-linked responsibility where assignee city does not match Mashwara city | 403 (assignee city mismatch) |
+| EVT-DENY-026 | City Head creates event-linked responsibility where assignee city does not match event city | 403 (assignee city mismatch) |
+| EVT-DENY-027 | City Head creates responsibility with mashwaraOccurrenceId but no mashwaraId | 422 (occurrence requires mashwaraId) |
+| EVT-DENY-028 | City Head attempts to change event.cityId via PATCH | 422 (cityId not in updateEventSchema) |
 
 ### 11.3 Failure/Error Tests
 
@@ -872,7 +901,7 @@ These decisions must be approved by the project owner before the implementation 
 
 ### Summary
 
-This contract turns EVENT-301 (design) and EVENT-302 (implementation) into a single implementation-ready specification. It defines 5 additive Prisma models, 3 new capabilities, 22 API endpoints, 66 tests (22 allow, 26 deny, 12 error, 6 audit), and a complete migration/rollback plan.
+This contract turns EVENT-301 (design) and EVENT-302 (implementation) into a single implementation-ready specification. It defines 5 additive Prisma models, 3 new capabilities, 22 API endpoints, 70 tests (23 allow, 29 deny, 12 error, 6 audit), and a complete migration/rollback plan.
 
 ### Key rules preserved
 
@@ -905,7 +934,7 @@ This contract turns EVENT-301 (design) and EVENT-302 (implementation) into a sin
 - [ ] Scope derivation helpers created
 - [ ] Audit helpers created
 - [ ] UI components created (7 components)
-- [ ] Tests pass (66 test cases: 22 allow, 26 deny, 12 error, 6 audit)
+- [ ] Tests pass (70 test cases: 23 allow, 29 deny, 12 error, 6 audit)
 - [ ] Lint, typecheck, full test suite, SQLite build, PostgreSQL build pass
 - [ ] Owner decisions D1–D7 resolved
 - [ ] This contract updated with any deviations from the original design
