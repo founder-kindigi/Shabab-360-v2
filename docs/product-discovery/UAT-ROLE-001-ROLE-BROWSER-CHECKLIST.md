@@ -1,10 +1,10 @@
 # UAT-ROLE-001: Role-Based Browser Verification Checklist
 
-**Scope:** Shabab 360 v2 Role-Based User Acceptance Testing (Browser Checklist)  
-**Target Baseline:** Lahore Staging Data Integration (`codex/production-hardening`)  
-**Date:** 2026-07-22  
-**Status:** Completed (Report Only)  
-**Author:** Gemini Delivery Agent  
+**Scope:** Shabab 360 v2 Role-Based User Acceptance Testing (Browser Checklist)
+**Target Baseline:** Lahore Staging Data Integration (`codex/production-hardening`)
+**Date:** 2026-07-22
+**Status:** Static checklist prepared; browser execution blocked and pending
+**Author:** Gemini Delivery Agent
 
 ---
 

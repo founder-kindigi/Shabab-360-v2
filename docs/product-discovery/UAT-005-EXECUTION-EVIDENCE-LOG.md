@@ -44,7 +44,7 @@ Staging baseline counts were reconciled against the imported Lahore Batch 4 data
 | **Total Staff / Users** | 54 | 54 | Y |
 
 ### 3.1 Staff and User Baseline Reconciliation Evidence
-To reconcile the count of 54 staff members with the baseline of 51 inactive placeholders plus existing authorised accounts, a read-only Prisma query was executed against the staging PostgreSQL database.
+To examine the count of 54 staff members, a read-only Prisma query was executed against the staging PostgreSQL database.
 
 #### Read-Only Query Executed:
 ```javascript
@@ -82,7 +82,10 @@ const inactiveStaffByRole = await prisma.staffMeta.groupBy({
   * `murabbi`: 30 (placeholder murabbis imported but inactive/unassigned)
   * `system_import`: 1 (placeholder account for import actions)
 
-This confirms that the 54 records represent exactly 3 global authorized system/management accounts + 51 inactive imported placeholders (which aligns with the recorded Lahore baseline).
+> [!WARNING]
+> **UNRESOLVED RECONCILIATION VARIANCE**
+> The query output shows 10 active staff and 44 inactive placeholders (totaling 54 StaffMeta records). This count of 44 inactive placeholders conflicts with the earlier recorded Lahore baseline of 51 inactive placeholders. This discrepancy remains an unresolved reconciliation variance.
+
 
 ---
 
@@ -92,7 +95,7 @@ This confirms that the 54 records represent exactly 3 global authorized system/m
 * **Role Under Test:** `super_admin`
 * **Test Account Email:** `uat_test_superadmin@example.invalid`
 * **Viewport Size / Device Simulated:** Desktop (Static Audit)
-* **Execution Status:** `PASSED`
+* **Execution Status:** `STATIC_REVIEW_COMPLETE`
 * **Execution log:**
   1. Inspected sidebar config in `src/components/layout/sidebar.tsx` for `super_admin`. Confirmed access to all Pages (`admin-dashboard`, `admin-cities`, `admin-parks`, `admin-access-management`, `admin-audit-log`).
   2. Verified API route security in `src/app/api/admin/cities/route.ts` and `src/app/api/admin/audit-log/route.ts`. Both require the role to be super_admin/program_admin.
@@ -101,7 +104,7 @@ This confirms that the 54 records represent exactly 3 global authorized system/m
 * **Role Under Test:** `city_head`
 * **Test Account Email:** `uat_test_cityhead_lhr@example.invalid`
 * **Viewport Size / Device Simulated:** Desktop (Static Audit)
-* **Execution Status:** `PASSED`
+* **Execution Status:** `STATIC_REVIEW_COMPLETE`
 * **Execution log:**
   1. Inspected sidebar items for `city_head` in `sidebar.tsx`. Confirmed that `admin-cities` is omitted.
   2. Checked direct route GET for `/api/admin/cities`. It enforces `requireRole(["super_admin", "program_admin"])`, returning 403.
@@ -111,7 +114,7 @@ This confirms that the 54 records represent exactly 3 global authorized system/m
 * **Role Under Test:** `city_head`
 * **Test Account Email:** `uat_test_cityhead_lhr@example.invalid`
 * **Viewport Size / Device Simulated:** Desktop (Static Audit)
-* **Execution Status:** `PASSED`
+* **Execution Status:** `STATIC_REVIEW_COMPLETE`
 * **Execution log:**
   1. Audited `src/app/api/admin/users/[id]/route.ts` PATCH handler.
   2. Confirmed that if the current user is a City Head, they can only modify staff whose role belongs to `["park_admin", "park_lead", "murabbi"]` (line 113) and whose assigned city matches the City Head's `assignedCityId` (line 113).
@@ -121,7 +124,7 @@ This confirms that the 54 records represent exactly 3 global authorized system/m
 * **Role Under Test:** `park_lead`
 * **Test Account Email:** `uat_test_parklead_sl@example.invalid`
 * **Viewport Size / Device Simulated:** Desktop (Static Audit)
-* **Execution Status:** `PASSED`
+* **Execution Status:** `STATIC_REVIEW_COMPLETE`
 * **Execution log:**
   1. Verified `/api/park/dashboard` dashboard route logic. It enforces parkId parameters and queries only the assigned `user.assignedParkId`.
   2. Checked groups mutation actions. Batch/group creation checks (`canManageHierarchy`) restrict post/patch mutations to super_admin, program_admin, and city_head.
@@ -130,7 +133,7 @@ This confirms that the 54 records represent exactly 3 global authorized system/m
 * **Role Under Test:** `park_admin` / `murabbi`
 * **Test Account Email:** `uat_test_parkadmin_sl@example.invalid` / `uat_test_murabbi_g1@example.invalid`
 * **Viewport Size / Device Simulated:** Desktop (Static Audit)
-* **Execution Status:** `PASSED`
+* **Execution Status:** `STATIC_REVIEW_COMPLETE`
 * **Execution log:**
   1. Verified GET `/api/park/attendance` route logic. If role is Murabbi, it applies `requireResourceScope(user, { groupId: user.assignedGroupId })` and restricts `groupIds` to the assigned group only.
   2. Checked Park Admin scope: requires `requireResourceScope(user, { parkId })` which enforces `user.assignedParkId`.
@@ -139,7 +142,7 @@ This confirms that the 54 records represent exactly 3 global authorized system/m
 * **Role Under Test:** `guardian` / `student`
 * **Test Account Email:** `uat_test_guardian_linked@example.invalid` / `uat_test_student_01@example.invalid`
 * **Viewport Size / Device Simulated:** Desktop (Static Audit)
-* **Execution Status:** `PASSED`
+* **Execution Status:** `STATIC_REVIEW_COMPLETE`
 * **Execution log:**
   1. Verified `/api/guardian/dashboard` and `/api/student/dashboard` dashboard route logic.
   2. Guardian queries database filters for linked children in `guardian_children` mapping. Unlinked/no-link logins cleanly return empty states.
@@ -149,7 +152,7 @@ This confirms that the 54 records represent exactly 3 global authorized system/m
 * **Role Under Test:** `murabbi` / `park_lead`
 * **Test Account Email:** `uat_test_murabbi_g1@example.invalid`
 * **Viewport Size / Device Simulated:** Desktop (Static Audit)
-* **Execution Status:** `PASSED`
+* **Execution Status:** `STATIC_REVIEW_COMPLETE`
 * **Execution log:**
   1. Attempted direct GET to `/api/admin/people` and `/api/admin/students`.
   2. Both routes require capability checks (`people.view` / `students.manage`) which are denied to Murabbis and Park Leads by default, returning 403 Forbidden.
@@ -158,7 +161,7 @@ This confirms that the 54 records represent exactly 3 global authorized system/m
 * **Role Under Test:** `super_admin` / `program_admin`
 * **Test Account Email:** `uat_test_superadmin@example.invalid`
 * **Viewport Size / Device Simulated:** Desktop (Static Audit)
-* **Execution Status:** `PASSED`
+* **Execution Status:** `STATIC_REVIEW_COMPLETE`
 * **Execution log:**
   1. Verified filter behavior in `/api/admin/people`, `/api/admin/students`, and `/api/admin/guardians`.
   2. All search, city, park, group, and status criteria are correctly passed to Prisma `where` filters.
@@ -168,7 +171,7 @@ This confirms that the 54 records represent exactly 3 global authorized system/m
 * **Role Under Test:** `park_lead` / `park_admin`
 * **Test Account Email:** `uat_test_parklead_sl@example.invalid`
 * **Viewport Size / Device Simulated:** Desktop (Static Audit)
-* **Execution Status:** `PASSED`
+* **Execution Status:** `STATIC_REVIEW_COMPLETE`
 * **Execution log:**
   1. Verified PUT `/api/park/attendance` and `/api/park/attendance/[eventId]/close`.
   2. Closing an event updates `isClosed: true`. If closed, updates to records in `/api/park/attendance/[eventId]/records/[recordId]` reject with 400/403.
@@ -177,7 +180,7 @@ This confirms that the 54 records represent exactly 3 global authorized system/m
 * **Role Under Test:** `park_admin`
 * **Test Account Email:** `uat_test_parkadmin_sl@example.invalid`
 * **Viewport Size / Device Simulated:** Mobile (Static Audit)
-* **Execution Status:** `PASSED`
+* **Execution Status:** `STATIC_REVIEW_COMPLETE`
 * **Execution log:**
   1. Audited sync POST endpoint at `/api/park/attendance/sync`.
   2. Handles chunked inputs, enforces the 50-mutation queue cap, and rolls back invalid inputs atomically.
@@ -186,7 +189,7 @@ This confirms that the 54 records represent exactly 3 global authorized system/m
 * **Role Under Test:** `murabbi`
 * **Test Account Email:** `uat_test_reset_user@example.invalid`
 * **Viewport Size / Device Simulated:** Desktop (Static Audit)
-* **Execution Status:** `PASSED`
+* **Execution Status:** `STATIC_REVIEW_COMPLETE`
 * **Execution log:**
   1. Verified reset route `/api/auth/reset-password`. It increments the user's `tokenVersion` by 1.
   2. Verified client-side listener in `src/app/page.tsx:L81-87`. Any mismatch in token version triggers a client-side signOut redirecting back to `/`.
@@ -194,7 +197,7 @@ This confirms that the 54 records represent exactly 3 global authorized system/m
 ### Scenario: UAT-002-16 & 17 & 18: Direct API Denials
 * **Role Under Test:** `park_admin` / `park_lead` / `murabbi`
 * **Viewport Size / Device Simulated:** Static Audit
-* **Execution Status:** `PASSED`
+* **Execution Status:** `STATIC_REVIEW_COMPLETE`
 * **Execution log:**
   1. Checked direct POSTs to `/api/admin/batches` and `/api/admin/groups` by Park Admin/Lead: blocked by `canManageHierarchy` check (returns 403).
   2. Checked cross-park GET/POST to `/api/admin/groups`: blocked by city/park filters.
