@@ -159,8 +159,26 @@ export async function deriveContentPlannerParkScope(
 }
 
 /**
+ * Returns true when the user's role is park- or group-scoped (not HQ, not city_head).
+ * These users must always have their park scope enforced even when the caller
+ * does not supply an explicit parkId.
+ */
+function isParkScopedRole(role: string | null | undefined): boolean {
+  return (
+    role === "park_lead" || role === "park_admin" || role === "murabbi"
+  );
+}
+
+/**
  * Build a Prisma where clause for content plan queries based on user scope.
  * Request parameters may narrow but never broaden the derived scope.
+ *
+ * Park-scoped users (park_lead, park_admin, murabbi) always receive an
+ * enforced park filter even when requestParkId is omitted — this prevents
+ * listing plans that belong to sibling parks in the same city.
+ *
+ * Batch validation checks both cityId and parkId so a batch that belongs to
+ * another park in the same city is rejected.
  */
 export async function buildContentPlanScopeFilter(
   user: SessionUser,
@@ -173,54 +191,72 @@ export async function buildContentPlanScopeFilter(
 
   const filter: Prisma.ContentPlanWhereInput = {};
 
-  // Narrow to request city if provided, or restrict to allowed cities
+  // ── City ──────────────────────────────────────────────────────────────────
   if (requestCityId) {
-    if (!allowedCities.includes(requestCityId)) {
-      return null; // Request exceeds permission
-    }
+    if (!allowedCities.includes(requestCityId)) return null;
     filter.cityId = requestCityId;
   } else {
     filter.cityId = { in: allowedCities };
   }
 
-  // Apply batch filter if requested
-  if (requestBatchId) {
-    // Verify batch belongs to an allowed city
-    const batch = await db.batch.findUnique({
-      where: { id: requestBatchId },
-      select: { cityId: true },
-    });
-    if (!batch?.cityId || !allowedCities.includes(batch.cityId)) {
-      return null;
+  // ── Derived park scope (always enforced for park/group-scoped roles) ──────
+  // Use the effective city for park derivation: prefer the explicitly requested
+  // city; fall back to the sole city in allowedCities (park-scoped users
+  // always have exactly one city).
+  const effectiveCityId = requestCityId ?? (allowedCities.length === 1 ? allowedCities[0] : null);
+
+  let derivedParkIds: string[] | null = null; // null means "all parks allowed"
+
+  if (isParkScopedRole(user.role)) {
+    if (!effectiveCityId) return null; // Cannot resolve park without a city
+
+    const parkScope = await deriveContentPlannerParkScope(user, effectiveCityId);
+    if (!parkScope) return null; // No park access at all
+
+    if (parkScope !== "all") {
+      derivedParkIds = parkScope; // e.g. ["park1"]
     }
-    filter.batchId = requestBatchId;
+    // parkScope === "all" means unrestricted within city — leave derivedParkIds null
   }
 
-  // Apply park filter if requested
+  // ── Apply park filter ─────────────────────────────────────────────────────
   if (requestParkId) {
-    const effectiveCityId = requestCityId || allowedCities[0];
-    if (!effectiveCityId) return null;
-
-    const allowedParks = await deriveContentPlannerParkScope(user, effectiveCityId);
-    if (!allowedParks) return null;
-
-    if (allowedParks === "all") {
-      // Verify park exists in the city
+    if (derivedParkIds !== null) {
+      // Park-scoped: requested park must be within derived set
+      if (!derivedParkIds.includes(requestParkId)) return null;
+      filter.parkId = requestParkId;
+    } else if (effectiveCityId) {
+      // HQ / city_head: verify park exists in the effective city
       const park = await db.park.findUnique({
         where: { id: requestParkId },
         select: { cityId: true },
       });
-      if (!park || park.cityId !== effectiveCityId) {
-        return null;
-      }
+      if (!park || park.cityId !== effectiveCityId) return null;
       filter.parkId = requestParkId;
     } else {
-      // Check if requested park is in allowed list
-      if (!allowedParks.includes(requestParkId)) {
-        return null;
-      }
-      filter.parkId = requestParkId;
+      return null;
     }
+  } else if (derivedParkIds !== null) {
+    // Park-scoped user omitted parkId: enforce derived park unconditionally
+    filter.parkId = { in: derivedParkIds };
+  }
+
+  // ── Batch ─────────────────────────────────────────────────────────────────
+  if (requestBatchId) {
+    const batch = await db.batch.findUnique({
+      where: { id: requestBatchId },
+      select: { cityId: true, parkId: true },
+    });
+
+    // Batch must belong to an allowed city
+    if (!batch?.cityId || !allowedCities.includes(batch.cityId)) return null;
+
+    // For park-scoped users: batch must also belong to their derived park
+    if (derivedParkIds !== null && !derivedParkIds.includes(batch.parkId)) {
+      return null;
+    }
+
+    filter.batchId = requestBatchId;
   }
 
   return filter;
