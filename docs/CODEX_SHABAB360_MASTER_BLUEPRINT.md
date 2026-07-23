@@ -1041,6 +1041,11 @@ Exit gate: admissions-to-enrolment-to-session-to-follow-up works end to end.
 
 ### Phase 4: Programme Delivery Operations
 
+The owner-approved execution packages for this phase are maintained in
+[`PRODUCT_WORK_PACKAGES.md`](PRODUCT_WORK_PACKAGES.md). They define the
+required boundaries, dependencies, acceptance evidence, and parallelism rules
+for the current delivery cycle.
+
 - Implement the four-category Content Planner.
 - Implement Murabbi training content.
 - Implement sessions, activities, events, planner tasks, calendar, and batch
