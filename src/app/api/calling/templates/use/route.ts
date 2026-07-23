@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
     data: {
       templateId,
       templateVersion: template.version,
-      callerUserId: user.id,
+      callerUserId: user.id!,
       assignmentId,
       variablesUsed: JSON.stringify(variablesUsed),
       valuesHmac,

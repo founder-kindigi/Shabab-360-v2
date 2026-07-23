@@ -27,7 +27,7 @@ export const createEventSchema = z
     cityId: cuidSchema.optional(),
     title: z.string().trim().min(3, "Title must be at least 3 characters").max(120, "Title is too long"),
     description: z.string().trim().max(1000, "Description is too long").optional(),
-    eventType: z.enum(ALLOWED_EVENT_TYPES, { errorMap: () => ({ message: "Invalid eventType" }) }),
+    eventType: z.enum(ALLOWED_EVENT_TYPES),
     status: z.enum(ALLOWED_EVENT_STATUSES).optional().default("planned"),
     venue: z.string().trim().max(200, "Venue is too long").optional(),
     venueNotes: z.string().trim().max(500, "Venue notes are too long").optional(),

@@ -11,7 +11,7 @@ interface RouteParams {
 export async function GET(request: NextRequest, { params }: RouteParams) {
   const auth = await requireCapability("calling.view");
   if (auth instanceof NextResponse) return auth;
-  const { user } = auth;
+  const user = auth.user as any;
 
   const { id } = await params;
   const verified = await verifyCallingManagerOrPoc(user, id);
@@ -47,7 +47,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   const auth = await requireCapability("calling.poc.manage");
   if (auth instanceof NextResponse) return auth;
-  const { user } = auth;
+  const user = auth.user as any;
 
   const { id } = await params;
   const verified = await verifyCallingManagerOrPoc(user, id);

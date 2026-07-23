@@ -111,7 +111,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       title: data.title,
       description: data.description || null,
       assignedToStaffMetaId: data.assignedToStaffMetaId,
-      assignedBy: user.id,
+      assignedBy: user.id!,
       cityId: verified.event.cityId,
       startDate: new Date(data.startDate),
       endDate: new Date(data.endDate),

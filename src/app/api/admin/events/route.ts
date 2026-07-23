@@ -17,8 +17,8 @@ export async function GET(request: NextRequest) {
   const eventTypeParam = url.searchParams.get("eventType");
 
   const resolved = await resolveActorCity(user, requestedCityId);
-  if (resolved.error) {
-    return NextResponse.json({ error: resolved.error }, { status: resolved.status });
+  if (resolved.error || !resolved.cityId) {
+    return NextResponse.json({ error: resolved.error || "City resolution failed" }, { status: resolved.status || 400 });
   }
 
   const canManage = await userHasCapability(user, "events.manage");
@@ -80,8 +80,8 @@ export async function POST(request: NextRequest) {
 
   const data = parsed.data;
   const resolved = await resolveActorCity(user, data.cityId);
-  if (resolved.error) {
-    return NextResponse.json({ error: resolved.error }, { status: resolved.status });
+  if (resolved.error || !resolved.cityId) {
+    return NextResponse.json({ error: resolved.error || "City resolution failed" }, { status: resolved.status || 400 });
   }
 
   const event = await db.event.create({
@@ -99,7 +99,7 @@ export async function POST(request: NextRequest) {
       cost: data.cost ?? 0,
       requiresConsent: data.requiresConsent ?? false,
       requiresMedical: data.requiresMedical ?? false,
-      createdBy: user.id,
+      createdBy: user.id!,
     },
   });
 

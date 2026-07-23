@@ -17,10 +17,14 @@ export interface ResolvedActorCityError {
 export type ResolvedActorCityResult = ResolvedActorCitySuccess | ResolvedActorCityError;
 
 export async function resolveActorCity(
-  user: { id: string; role?: string | null },
+  user: { id?: string; role?: string | null },
   requestedCityId?: string | null,
   prisma: any = defaultDb
 ): Promise<ResolvedActorCityResult> {
+  if (!user.id) {
+    return { error: "Unauthorized: missing user id", status: 401 };
+  }
+
   const role = user.role || "";
   const isHQ = ["super_admin", "program_admin"].includes(role);
 
@@ -80,10 +84,14 @@ export async function resolveActorCity(
 }
 
 export async function verifyEventCityAccess(
-  user: { id: string; role?: string | null },
+  user: { id?: string; role?: string | null },
   eventId: string,
   prisma: any = defaultDb
 ) {
+  if (!user.id) {
+    return { error: "Unauthorized: missing user id", status: 401, event: null };
+  }
+
   const event = await prisma.event.findUnique({
     where: { id: eventId },
   });

@@ -16,7 +16,8 @@ export async function verifyCallingManagerOrPoc(
   }
 
   // Check management capability first
-  const canManagePoc = await userHasCapability(user, "calling.poc.manage");
+  const sessionUser = { ...user, role: user.role ?? undefined } as any;
+  const canManagePoc = await userHasCapability(sessionUser, "calling.poc.manage");
   if (canManagePoc) {
     const resolved = await resolveActorCity(user, campaign.cityId, prisma);
     if (resolved.error) {

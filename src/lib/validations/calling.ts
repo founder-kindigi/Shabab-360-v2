@@ -78,6 +78,6 @@ export const useTemplateSchema = z
     templateId: cuidSchema,
     assignmentId: cuidSchema,
     variablesUsed: z.array(z.string()).default([]),
-    valuesUsed: z.record(z.any()).default({}),
+    valuesUsed: z.record(z.string(), z.any()).default({}),
   })
   .strict();
