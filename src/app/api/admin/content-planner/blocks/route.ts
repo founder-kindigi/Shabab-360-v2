@@ -5,10 +5,10 @@ import { logAudit } from "@/lib/audit";
 import {
   blockListQuerySchema,
   createBlockSchema,
-  queryValidationError,
   validateNotOffDay,
   validateCategoryTeamMapping,
 } from "@/lib/content-planner/validation";
+import { queryValidationError } from "@/lib/api/query-params";
 import {
   canReadContentPlan,
   canWriteContentPlan,

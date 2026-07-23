@@ -168,28 +168,19 @@ export const blockListQuerySchema = paginatedQuerySchema({ maxPageSize: 200 }).e
 
 /**
  * Create block payload - enforces category validation
+ * Server-side validation additionally checks:
+ * 1. Session is not an off-day (off-days have zero blocks)
+ * 2. Team belongs to the same city as the plan
+ * 3. Category matches team code mapping
  */
-export const createBlockSchema = z
-  .object({
-    sessionId: z.string().trim().min(1).max(MAX_IDENTIFIER_LENGTH),
-    teamId: z.string().trim().min(1).max(MAX_IDENTIFIER_LENGTH),
-    category: contentCategorySchema,
-    title: z.string().trim().max(CONTENT_PLAN_LIMITS.title).optional().nullable(),
-    content: z.string().trim().min(1).max(CONTENT_PLAN_LIMITS.content),
-    sortOrder: z.number().int().min(0).max(100).default(0),
-  })
-  .refine(
-    async (data, ctx) => {
-      // Validation will be supplemented server-side to check:
-      // 1. Session is not an off-day (off-days have zero blocks)
-      // 2. Team belongs to the same city as the plan
-      // 3. Category matches team code mapping
-      return true;
-    },
-    {
-      message: "Block validation requires server-side checks",
-    }
-  );
+export const createBlockSchema = z.object({
+  sessionId: z.string().trim().min(1).max(MAX_IDENTIFIER_LENGTH),
+  teamId: z.string().trim().min(1).max(MAX_IDENTIFIER_LENGTH),
+  category: contentCategorySchema,
+  title: z.string().trim().max(CONTENT_PLAN_LIMITS.title).optional().nullable(),
+  content: z.string().trim().min(1).max(CONTENT_PLAN_LIMITS.content),
+  sortOrder: z.number().int().min(0).max(100).default(0),
+});
 
 /**
  * Update block payload
