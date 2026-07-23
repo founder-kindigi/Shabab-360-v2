@@ -120,24 +120,13 @@ The following capability codes are the complete set for all approved modules. Co
 
 ### 2.1 USER_OVERRIDE_CAPABILITIES Extension
 
-The protected subset for named-user overrides must be extended to include the new module capabilities that are safe to delegate. The following capabilities must remain protected (role-level or Super Admin only, never user-overridable):
-
-**Always protected (not in USER_OVERRIDE_CAPABILITIES):**
-- `audit.view`
-- `settings.manage`
-- `access.role_defaults.manage`
-- `access.user_overrides.manage`
-- `access.scope.manage`
-- `access.city_staff.manage`
-- `calling.export.manage` (export of personal data requires audit trail)
-- `calling.templates.manage` (template approval controls message content)
-- `events.responsibilities.manage` (responsibilities grant operational authority)
+The subset for named-user overrides must be extended to include the new module capabilities that are safe to delegate. The canonical protected-capability list is defined in §6. Only those capabilities are role-level only and never user-overridable.
 
 ---
 
 ## 3. Default Capability Matrix By Role
 
-This matrix defines **default** capability grants. Every cell is overrideable by Super Admin through the dynamic override system. No route handler hard-codes role membership as a permission check — all route enforcement uses `requireCapability(capability)`.
+This matrix defines **default** capability grants. Super Admin may change any eligible role default through a role override (e.g. grant `events.manage` to `park_lead`). The only exceptions are the `super_admin` role itself and `access.*` capabilities, which are immutable via the override API. No route handler hard-codes role membership as a permission check — all route enforcement uses `requireCapability(capability)`.
 
 | Role | dashboard | organisation | people | students | guardians | admissions | attendance | fees | announcements | reports | audit | settings | access.* | content | teams | events | mashwara | calling |
 |------|-----------|-------------|--------|----------|-----------|------------|------------|------|--------------|--------|-------|----------|----------|---------|-------|--------|----------|---------|
@@ -235,7 +224,7 @@ Every capability gate must be paired with a server-derived scope check. The foll
 
 ## 6. Protected Capabilities Policy
 
-The following capabilities are **protected** — they cannot be granted via named-user override and their role-level overrides are restricted to Super Admin through the existing API protections.
+This is the single canonical list of protected capabilities. They are **immutable via the override API** — never grantable via named-user override, and their role-level overrides are restricted to Super Admin through the existing API protections.
 
 | Capability | Protection Reason | Allowed Override Level |
 |------------|------------------|----------------------|
@@ -245,9 +234,13 @@ The following capabilities are **protected** — they cannot be granted via name
 | `access.user_overrides.manage` | Named-user override management | Super Admin only (protected in route) |
 | `access.scope.manage` | Scope changes affect authorization boundaries | Super Admin only (protected in route) |
 | `access.city_staff.manage` | Staff provisioning within city | Role override only |
-| `calling.export.manage` | Export of personal data requires audited trail | Role override only |
-| `calling.templates.manage` | Template approval controls message content | Role override only |
-| `events.responsibilities.manage` | Responsibilities grant operational authority | Role override only |
+
+**All other capabilities in the catalogue** are eligible for named-user override via `USER_OVERRIDE_CAPABILITIES` (see §9 for the exact whitelist). This includes capabilities from proposed modules such as `teams.memberships.manage`, `calling.poc.manage`, `calling.export.manage`, `calling.templates.manage`, and `events.responsibilities.manage` — but their inclusion in `USER_OVERRIDE_CAPABILITIES` is subject to owner decisions D4–D7 in §12.
+
+**Immutable exceptions (current code, unchanged):**
+- The `super_admin` role cannot be targeted by role overrides.
+- `access.*` capabilities are already protected by route-level enforcement in the override API.
+- `super_admin` role defaults for `access.*` capabilities are immutable.
 
 ---
 
@@ -335,7 +328,7 @@ if (event.cityId !== resolvedCity) {
 | CAP-DENY-002 | Super Admin grants `access.role_defaults.manage` to a city_head via role override targeting `super_admin` role | Access | 400 (protected role) |
 | CAP-DENY-003 | park_lead with `content.manage` writes content plan in another city | Content | 403 (scope mismatch) |
 | CAP-DENY-004 | park_lead with granted `content.manage` but no scope writes content plan | Content | 403 (no scope) |
-| CAP-DENY-005 | User override denied for `calling.export.manage` (protected) | Access | 400 (not in USER_OVERRIDE_CAPABILITIES) |
+| CAP-DENY-005 | User override denied for `access.role_defaults.manage` (canonical protected) | Access | 400 (not in USER_OVERRIDE_CAPABILITIES) |
 | CAP-DENY-006 | User with `events.view` but `events.manage` denied by override attempts event edit | Events | 403 (deny wins) |
 | CAP-DENY-007 | User with `mashwara.view` but no team membership attempts to view Mashwara | Mashwara | 403 (participant predicate fails) |
 | CAP-DENY-008 | HQ role creates campaign without `cityId` | Calling | 400 (missing cityId) |
@@ -378,22 +371,24 @@ The following capabilities must be added to `USER_OVERRIDE_CAPABILITIES` so Supe
 ```typescript
 "content.view",              "content.manage",
 "teams.workspace.view",      "teams.workspace.manage",
+"teams.memberships.manage",  // Subject to owner decision D5 — recommended default: allow named-user override
 "events.view",               "events.manage",
 "mashwara.view",             "mashwara.attend",       "mashwara.manage",
 "calling.campaign.manage",   "calling.leads.view",
 "calling.leads.assign",      "calling.leads.interact",
+"calling.poc.manage",        // Subject to owner decision D6 — recommended default: allow named-user override
+"calling.export.manage",     // Subject to owner decision D7 — recommended default: protect (role-level only)
+"calling.templates.manage",  // Subject to owner decision D8 — recommended default: protect (role-level only)
+"events.responsibilities.manage", // Subject to owner decision D9 — recommended default: protect (role-level only)
 ```
 
-The following remain **excluded** from user overrides:
+The following remain **excluded** from user overrides (per §6 canonical protected list):
 
 ```typescript
-// Always role-level only (protected):
+// Canonical protected capabilities (always role-level only):
 "audit.view",                  "settings.manage",
 "access.role_defaults.manage", "access.user_overrides.manage",
 "access.scope.manage",         "access.city_staff.manage",
-"teams.memberships.manage",    "events.responsibilities.manage",
-"calling.templates.manage",    "calling.export.manage",
-"calling.poc.manage",
 ```
 
 ---
@@ -445,9 +440,10 @@ Each module contract defines its own API routes, Zod schemas, scope helpers, UI 
 
 | File | Scope |
 |------|-------|
-| `src/__tests__/lib/auth/capabilities.test.ts` | Unit tests for capability resolution order, protected capabilities, invalid codes |
-| `src/__tests__/api/access/role-overrides.test.ts` | Integration tests for role override CRUD (CAP tests) |
-| `src/__tests__/api/access/user-overrides.test.ts` | Integration tests for user override CRUD (CAP tests) |
+| [src/lib/auth/capabilities.test.ts](src/lib/auth/capabilities.test.ts) | Unit tests for capability resolution order, protected capabilities, invalid codes |
+| [src/lib/auth/capability-access.test.ts](src/lib/auth/capability-access.test.ts) | Unit tests for `userHasCapability` resolution |
+| [src/app/api/admin/access/role-overrides/route.test.ts](src/app/api/admin/access/role-overrides/route.test.ts) | Integration tests for role override CRUD (CAP tests) |
+| [src/app/api/admin/access/users/[id]/overrides/route.test.ts](src/app/api/admin/access/users/\[id\]/overrides/route.test.ts) | Integration tests for user override CRUD (CAP tests) |
 
 ---
 
@@ -459,6 +455,11 @@ Each module contract defines its own API routes, Zod schemas, scope helpers, UI 
 | D2 | `teams.memberships.manage` — should this capability default for Park Lead, or remain Super Admin/City Head only? Current default: City Head only. | Add to Park Lead vs Keep as is | Affects role defaults matrix |
 | D3 | Event `planned` visibility — currently `events.view` users without `events.manage` cannot see planned events (404/403). Should this be a capability-level rule or a separate status filter? | Capability rule vs Status filter | Affects route enforcement pattern |
 | D4 | Calling POC — should the existing `calling.poc.manage` capability be combined with `events.responsibilities.manage`, since Calling POC is an EventResponsibility? | Separate vs Combined | Affects capability catalogue size |
+| D5 | `teams.memberships.manage` — should this capability be eligible for named-user override? **Recommended default: Yes** (allow in USER_OVERRIDE_CAPABILITIES) so Super Admin can delegate team membership management to a City Head or trusted Park Lead. | Allow override vs Protect | Affects USER_OVERRIDE_CAPABILITIES |
+| D6 | `calling.poc.manage` — should this capability be eligible for named-user override? **Recommended default: Yes** (allow in USER_OVERRIDE_CAPABILITIES) so Calling POC management can be delegated within a city. | Allow override vs Protect | Affects USER_OVERRIDE_CAPABILITIES |
+| D7 | `calling.export.manage` — should this capability be eligible for named-user override? **Recommended default: No** (protect, role-level only) because export of personal data requires an audited trail. | Protect vs Allow override | Affects USER_OVERRIDE_CAPABILITIES |
+| D8 | `calling.templates.manage` — should this capability be eligible for named-user override? **Recommended default: No** (protect, role-level only) because template approval controls message content sent to leads. | Protect vs Allow override | Affects USER_OVERRIDE_CAPABILITIES |
+| D9 | `events.responsibilities.manage` — should this capability be eligible for named-user override? **Recommended default: No** (protect, role-level only) because responsibilities grant operational authority (Calling POC, Event Lead) that should be Super Admin-governed. | Protect vs Allow override | Affects USER_OVERRIDE_CAPABILITIES |
 
 ---
 
@@ -471,7 +472,7 @@ This contract governs the dynamic capability system across all Shabab 360 module
 ### Key Rules
 
 - **Resolution order:** user override → role override → role default → deny.
-- **Protected capabilities** (`audit.view`, `settings.manage`, `access.*`, `calling.export.manage`, `calling.templates.manage`, `events.responsibilities.manage`, `teams.memberships.manage`) are role-level only, never user-overridable.
+- **Canonical protected capabilities** (6 codes: `audit.view`, `settings.manage`, `access.*`) are role-level only, never user-overridable. See §6. All other capabilities are eligible for named-user override subject to owner decisions D5–D9 (§12).
 - **Every capability check** is paired with a server-derived scope check (city, park, group, team, campaign, event, or assigned lead). A capability grant never bypasses scope.
 - **Module-specific predicates** (team membership, POC assignment, meeting share, lead assignment) add an additional enforcement layer after capability + scope.
 - **Session invalidation** on override mutation is already implemented via `tokenVersion`.
