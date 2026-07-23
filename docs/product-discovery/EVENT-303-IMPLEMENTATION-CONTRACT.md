@@ -212,7 +212,7 @@ model EventResponsibility {
 **Design decisions:**
 - `endDate` is **mandatory** — a responsibility without expiry is not allowed. This enforces the "temporary" rule.
 - `mashwaraId` and `mashwaraOccurrenceId` are string references to the future Mashwara model (which does not yet exist). They are not FK-constrained until the Mashwara schema is added. The application validates that at least one of `eventId` or `mashwaraId` is set.
-- `cityId` is denormalized for efficient scope queries. It must match the `assignedToStaffMeta.StaffMeta.assignedCityId` (or derived city from park/group) — enforced server-side.
+- `cityId` is denormalized for efficient scope queries. The server derives it from the parent event's `Event.cityId`, then verifies the assignee's derived StaffMeta city matches. The client must never supply `cityId`.
 - `assignedBy` is a User ID (audit field).
 - `revokedAt` + `revokedBy` + `revokedReason` provide audited early termination.
 
@@ -269,7 +269,7 @@ model EventPlannerItem {
 | `super_admin` | YES | YES | YES |
 | `program_admin` | YES | YES | YES |
 | `city_head` | YES (own city) | YES (own city) | YES (own city) |
-| `park_lead` | YES (own park's city) | — | — |
+| `park_lead` | YES (own park's city; `planned` events filtered out) | — | — |
 | `park_admin` | — | — | — |
 | `murabbi` | — | — | — |
 | `guardian` | — | — | — |
@@ -277,19 +277,23 @@ model EventPlannerItem {
 
 ### 4.3 Scope Derivation Rules
 
-All authorization derives city scope from the actor's `StaffMeta`:
+Two classes of actor determine authorized city scope:
 
-1. `StaffMeta.assignedCityId` (direct city assignment — City Head, Program Admin, Super Admin)
+**HQ roles (`super_admin`, `program_admin`):** No single city assignment. These users may select **any existing city** as scope for an event, a list, or a management operation. The server accepts an explicit `cityId` parameter when the actor is HQ; it validates that the city exists but does not restrict by `StaffMeta`.
+
+**Scoped roles (all others):** City scope is derived from the actor's `StaffMeta`:
+
+1. `StaffMeta.assignedCityId` (direct city assignment — City Head)
 2. If `assignedCityId` is null but `assignedParkId` is set: city = `Park.cityId` (Park Lead, Park Admin)
 3. If `assignedCityId` and `assignedParkId` are null but `assignedGroupId` is set: city = `Group.batch.cityId` via batch (Murabbi)
 
 **Event scope rules:**
-- `Event.cityId` must match the actor's derived city (unless actor is HQ).
+- `Event.cityId` must be within the actor's authorized city set (any city for HQ; the single derived city for scoped roles).
 - `TemporaryEventTeam.event.cityId` — derived through the parent event.
-- `EventResponsibility.cityId` — must match actor's derived city for creation/management.
+- `EventResponsibility.cityId` — the server derives this from the parent event's city, never from the client. It must match the assignee's derived city.
 - `EventPlannerItem.event.cityId` — derived through the parent event.
 
-**Request parameters** may narrow (e.g. `?parkId=` within the city) but must never expand scope. A parameter requesting data outside the authorized scope must be ignored or return empty; it must never return cross-city data.
+**Request parameters** may narrow (e.g. `?parkId=` within the actor's authorized cities) but must never expand scope. A parameter requesting data outside the authorized scope must be ignored or return empty; it must never return cross-city data. HQ actors must still provide a `cityId` parameter (or derive it from an event context) — they are not granted unlimited blind access to all cities without specifying one.
 
 ### 4.4 Server-Side Enforcement Pattern
 
@@ -330,7 +334,7 @@ planned → cancelled
 confirmed → cancelled
 ```
 
-- **planned:** Draft state. Only creator and city-scoped `events.manage` users can see/edit.
+- **planned:** Draft state. Visible only to the event creator and users with `events.manage` in the event's city. Server-side list and detail endpoints must filter out `planned` events for callers who lack `events.manage`.
 - **confirmed:** Approved and published. All `events.view` users in the city can see it. Teams and responsibilities can be assigned.
 - **in_progress:** Event is underway. Planner items may be updated. No structural changes (teams/responsibilities should be stable).
 - **completed:** Event finished. Read-only. Corrections create new planner items (immutable review).
@@ -356,7 +360,7 @@ Created (startDate, endDate set) → Active → Expired (endDate passed)
 - **Revoked:** `revokedAt` set by a user with `events.responsibilities.manage` or `events.manage` in the same city. Server denies access immediately.
 
 **Expiry enforcement:**
-- Every API route that gates access on an `EventResponsibility` must check: `isActive && (!endDate || endDate > now) && revokedAt IS NULL && assignedToStaffMeta.isActive`.
+- Every API route that gates access on an `EventResponsibility` must check: `isActive && endDate > now && revokedAt IS NULL && assignedToStaffMeta.isActive`. No responsibility may be active without an expiry; `endDate` is mandatory and the access predicate must require it.
 - A background task or middleware check is not required for the pilot — expiry is enforced on every request (lazy validation).
 
 ### 5.4 Planner Item Lifecycle
@@ -478,7 +482,6 @@ const createResponsibilitySchema = z.object({
   assignedToStaffMetaId: staffMetaIdSchema,
   startDate: z.coerce.date(),
   endDate: z.coerce.date(),
-  cityId: cityIdSchema, // denormalized; must match assignedTo's StaffMeta city
 }).refine(
   data => data.endDate > data.startDate,
   { message: "endDate must be after startDate" }
@@ -529,8 +532,8 @@ const updatePlannerItemSchema = z.object({
 | Method | Path | Handler | Auth Gate | Scope Check | Request Schema | Response |
 |--------|------|---------|-----------|-------------|---------------|----------|
 | `POST` | `/api/admin/events` | createEvent | `events.manage` | city from session | `createEventSchema` | `Event` |
-| `GET` | `/api/admin/events` | listEvents | `events.view` | city from query or session | `listEventsSchema` | `{ events: Event[], total, page, limit }` |
-| `GET` | `/api/admin/events/[id]` | getEvent | `events.view` | event.cityId = session city | — | `Event` with teams, responsibilities, items |
+| `GET` | `/api/admin/events` | listEvents | `events.view` | city from query or session; filter out `planned` events when caller lacks `events.manage` | `listEventsSchema` | `{ events: Event[], total, page, limit }` |
+| `GET` | `/api/admin/events/[id]` | getEvent | `events.view` | event.cityId = session city; return 404 if event is `planned` and caller lacks `events.manage` | — | `Event` with teams, responsibilities, items |
 | `PATCH` | `/api/admin/events/[id]` | updateEvent | `events.manage` | event.cityId = session city | `updateEventSchema` | `Event` |
 | `POST` | `/api/admin/events/[id]/cancel` | cancelEvent | `events.manage` | event.cityId = session city | `{ reason?: string }` | `Event` |
 | `POST` | `/api/admin/events/[id]/complete` | completeEvent | `events.manage` | event.cityId = session city | — | `Event` |
@@ -658,26 +661,29 @@ const updatePlannerItemSchema = z.object({
 
 ### 10.3 Rollback Plan
 
-**If migration must be rolled back before any production data:**
+**General rollback principles:**
+- **Backup before migration:** A full database backup (SQLite file copy or PostgreSQL pg_dump) must be taken before applying the additive migration. This is the only recovery path that preserves all data.
+- **Forward repair for standard rollback:** Rather than dropping tables, the preferred rollback is a forward migration that removes application access (deactivate routes, hide UI, revoke capabilities) while preserving operational data in-place. This keeps audit references intact and allows re-enabling without data loss.
+- **Verified restore for Codex-and-owner incident recovery:** If the migration must be fully reversed and data loss is authorised by the owner, restore from the pre-migration backup. This is an incident response action, not a routine rollback. All operational and audit records are preserved in the backup.
+- **Preserve audit records:** `AuditLog` entries referencing event entities are never dropped or altered. They remain as historical evidence under the existing redaction and access rules.
 
-1. Reverse migration: `npx prisma migrate down` (SQLite) or manual `DROP TABLE` for PostgreSQL.
-2. Remove capability constants from `capabilities.ts`.
-3. Revert role defaults.
-4. Delete API route files.
-5. Delete test files.
-6. Regenerate Prisma client.
+**Rollback steps (in priority order):**
 
-**If rolled back after data exists:**
+1. **Disable access (safest):** Remove capability constants from `capabilities.ts`, revert role defaults, and delete API route files. The additive tables remain in the database with their data intact but are unreachable through the application. This is the recommended approach.
+2. **Forward repair migration:** If the additive tables must be removed from the schema, create a new migration that drops the five new tables. This is a destructive operation and requires owner approval. Do not use `prisma migrate down` — Prisma does not provide that command for production use. The backup must be verified before any destructive migration.
+3. **Full restore (incident only):** Codex and the project owner jointly decide to restore from the pre-migration backup. This loses any data written after the backup was taken. The process is: stop the application, restore from backup, verify integrity, restart.
 
-| Table | Data risk | Rollback action |
-|-------|-----------|----------------|
-| `Event` | Operational records | `DROP TABLE` — data loss acceptable if no real events created |
-| `TemporaryEventTeam` | Operational records | `DROP TABLE` — data loss acceptable |
-| `EventTeamMembership` | Operational records | `DROP TABLE` — data loss acceptable |
-| `EventResponsibility` | May contain Calling POC assignments | Preserve via `INSERT INTO backup_table SELECT * FROM event_responsibilities` before drop |
-| `EventPlannerItem` | Operational records | `DROP TABLE` — data loss acceptable |
+**Data retention on destructive rollback (option 2 only):**
 
-**Critical:** `AuditLog` records referencing event entities are never dropped. They remain as historical evidence with null entity references after the event tables are dropped.
+| Table | Data risk | Action |
+|-------|-----------|--------|
+| `Event` | Operational records | Dropped — acceptable only if no real events were created |
+| `TemporaryEventTeam` | Operational records | Dropped — acceptable only if no real assignments were made |
+| `EventTeamMembership` | Operational records | Dropped — acceptable only if no real assignments were made |
+| `EventResponsibility` | May contain Calling POC assignments | Dropped — acceptable only if no real assignments were made; backup preserves them |
+| `EventPlannerItem` | Operational records | Dropped — acceptable only if no real items were created |
+
+**Critical:** Under no circumstances are `AuditLog` records referencing event entities dropped or altered. If the event tables are dropped, audit rows retain their existing `entityId` and `entityType` values with null FK references — this is intentional for historical traceability.
 
 ---
 
@@ -727,6 +733,8 @@ const updatePlannerItemSchema = z.object({
 | EVT-DENY-015 | Assigned staff updates planner item title (non-own field) | 403 |
 | EVT-DENY-016 | City Head lists events with another city's cityId | 403 or empty (narrow-only rule) |
 | EVT-DENY-017 | Deactivated staff member's active responsibility | 403 (isActive check on StaffMeta) |
+| EVT-DENY-018 | Park Lead (events.view only) lists events — planned events are filtered out | 200 + no planned events in response |
+| EVT-DENY-019 | Park Lead (events.view only) reads a planned event by ID | 404 (not found) |
 
 ### 11.3 Failure/Error Tests
 
@@ -844,7 +852,7 @@ These decisions must be approved by the project owner before the implementation 
 
 ### Summary
 
-This contract turns EVENT-301 (design) and EVENT-302 (implementation) into a single implementation-ready specification. It defines 5 additive Prisma models, 3 new capabilities, 22 API endpoints, 42 tests, and a complete migration/rollback plan.
+This contract turns EVENT-301 (design) and EVENT-302 (implementation) into a single implementation-ready specification. It defines 5 additive Prisma models, 3 new capabilities, 22 API endpoints, 55 tests (18 allow, 19 deny, 12 error, 6 audit), and a complete migration/rollback plan.
 
 ### Key rules preserved
 
@@ -877,7 +885,7 @@ This contract turns EVENT-301 (design) and EVENT-302 (implementation) into a sin
 - [ ] Scope derivation helpers created
 - [ ] Audit helpers created
 - [ ] UI components created (7 components)
-- [ ] Tests pass (42+ test cases)
+- [ ] Tests pass (55 test cases: 18 allow, 19 deny, 12 error, 6 audit)
 - [ ] Lint, typecheck, full test suite, SQLite build, PostgreSQL build pass
 - [ ] Owner decisions D1–D7 resolved
 - [ ] This contract updated with any deviations from the original design
