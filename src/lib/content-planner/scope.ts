@@ -173,12 +173,15 @@ function isParkScopedRole(role: string | null | undefined): boolean {
  * Build a Prisma where clause for content plan queries based on user scope.
  * Request parameters may narrow but never broaden the derived scope.
  *
- * Park-scoped users (park_lead, park_admin, murabbi) always receive an
- * enforced park filter even when requestParkId is omitted — this prevents
- * listing plans that belong to sibling parks in the same city.
+ * For park-scoped users (park_lead, park_admin, murabbi) the filter allows:
+ *   1. City-wide template plans (parkId IS NULL AND batchId IS NULL) — these
+ *      are readable by all actors in the city so park staff can see the
+ *      template their overrides are based on.
+ *   2. Plans attached to the actor's derived park (parkId = derivedPark).
  *
- * Batch validation checks both cityId and parkId so a batch that belongs to
- * another park in the same city is rejected.
+ * Sibling-park plans and their batches are always excluded.
+ * Batch validation (when requestBatchId is supplied) checks both cityId and
+ * parkId so a batch owned by a sibling park is rejected.
  */
 export async function buildContentPlanScopeFilter(
   user: SessionUser,
@@ -237,8 +240,14 @@ export async function buildContentPlanScopeFilter(
       return null;
     }
   } else if (derivedParkIds !== null) {
-    // Park-scoped user omitted parkId: enforce derived park unconditionally
-    filter.parkId = { in: derivedParkIds };
+    // Park-scoped user omitted parkId.
+    // Allow: city-wide templates (parkId IS NULL AND batchId IS NULL) OR own-park plans.
+    // This lets park staff see the template their overrides derive from without
+    // exposing sibling-park plans.
+    filter.OR = [
+      { parkId: null, batchId: null },
+      { parkId: { in: derivedParkIds } },
+    ];
   }
 
   // ── Batch ─────────────────────────────────────────────────────────────────
@@ -257,6 +266,10 @@ export async function buildContentPlanScopeFilter(
     }
 
     filter.batchId = requestBatchId;
+    // When a specific batch is requested the OR clause is not needed —
+    // narrow to the batch directly (batchId implies own-park via validation above).
+    delete filter.OR;
+    filter.parkId = undefined; // batchId is the discriminator
   }
 
   return filter;
@@ -265,6 +278,11 @@ export async function buildContentPlanScopeFilter(
 /**
  * Verify a user can read a specific content plan by ID.
  * Returns true if access is granted, false otherwise.
+ *
+ * For park-scoped users, a plan is readable when:
+ *   - It is a city-wide template (parkId IS NULL AND batchId IS NULL), OR
+ *   - Its parkId matches the actor's derived park, OR
+ *   - Its batchId belongs to a batch whose parkId matches the derived park.
  */
 export async function canReadContentPlan(
   user: SessionUser,
@@ -279,20 +297,56 @@ export async function canReadContentPlan(
 
   if (!plan) return false;
 
-  const filter = await buildContentPlanScopeFilter(
-    user,
-    plan.cityId,
-    plan.batchId ?? undefined,
-    plan.parkId ?? undefined
-  );
+  // For non-park-scoped users delegate entirely to the scope filter.
+  if (!isParkScopedRole(user.role)) {
+    const filter = await buildContentPlanScopeFilter(
+      user,
+      plan.cityId,
+      plan.batchId ?? undefined,
+      plan.parkId ?? undefined
+    );
+    return filter !== null;
+  }
 
-  return filter !== null;
+  // Park-scoped: derive the actor's park set for the plan's city.
+  const effectiveCityId = plan.cityId;
+  const allowedCities = await deriveContentPlannerCityScope(user);
+  if (!allowedCities || !allowedCities.includes(effectiveCityId)) return false;
+
+  const parkScope = await deriveContentPlannerParkScope(user, effectiveCityId);
+  if (!parkScope) return false;
+
+  const derivedParkIds = parkScope === "all" ? null : parkScope;
+
+  // City-wide template (parkId IS NULL AND batchId IS NULL) is always readable.
+  if (plan.parkId === null && plan.batchId === null) return true;
+
+  // Plan scoped to a specific park.
+  if (plan.parkId !== null) {
+    return derivedParkIds === null || derivedParkIds.includes(plan.parkId);
+  }
+
+  // Batch-only plan (parkId IS NULL, batchId set): check batch.parkId.
+  if (plan.batchId !== null) {
+    if (derivedParkIds === null) return true; // unrestricted within city
+    const batch = await db.batch.findUnique({
+      where: { id: plan.batchId },
+      select: { parkId: true },
+    });
+    return batch !== null && derivedParkIds.includes(batch.parkId);
+  }
+
+  return false;
 }
 
 /**
  * Verify a user can write (create/update/archive) content plans in a given scope.
  * Requires content.manage capability plus resource scope check.
  * Dynamic capability grants allow write access regardless of role.
+ *
+ * Park-scoped users (park_lead, park_admin, murabbi) must supply either an
+ * own-park parkId or an own-park batchId. City-wide template creation
+ * (no parkId, no batchId) is reserved for HQ and City Head.
  */
 export async function canWriteContentPlan(
   user: SessionUser,
@@ -302,12 +356,16 @@ export async function canWriteContentPlan(
 ): Promise<boolean> {
   if (!user.id || !user.role) return false;
 
-  // Check resource scope first
+  // Park-scoped users must not create city-wide plans.
+  if (isParkScopedRole(user.role) && !parkId && !batchId) {
+    return false;
+  }
+
+  // Check resource scope
   const filter = await buildContentPlanScopeFilter(user, cityId, batchId, parkId);
   if (filter === null) return false;
 
   // Capability check is performed by route handlers via requireCapability
-  // This function only validates resource scope
   return true;
 }
 

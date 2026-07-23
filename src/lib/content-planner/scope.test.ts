@@ -344,13 +344,13 @@ describe("Content Planner Scope Helpers", () => {
     // ── Cross-park isolation tests ──────────────────────────────────────────
 
     it("should always enforce derived park for park_lead even when parkId is omitted", async () => {
-      // Park Lead in park1 must only see plans for park1, never all Lahore plans.
+      // Park Lead in park1 must only see plans for park1 and city templates,
+      // never all Lahore plans. The filter uses OR to include city-wide templates.
       const user: SessionUser = {
         id: "user1",
         role: "park_lead",
         assignedParkId: "park1",
       };
-      // deriveContentPlannerCityScope → park lookup
       vi.mocked(db.park.findUnique)
         .mockResolvedValueOnce({ id: "park1", cityId: "city1" } as any) // city derivation
         .mockResolvedValueOnce({ id: "park1", cityId: "city1" } as any); // park scope derivation
@@ -358,7 +358,10 @@ describe("Content Planner Scope Helpers", () => {
       const result = await buildContentPlanScopeFilter(user, "city1");
       expect(result).toEqual({
         cityId: "city1",
-        parkId: { in: ["park1"] },
+        OR: [
+          { parkId: null, batchId: null },
+          { parkId: { in: ["park1"] } },
+        ],
       });
     });
 
@@ -413,9 +416,9 @@ describe("Content Planner Scope Helpers", () => {
       } as any);
 
       const result = await buildContentPlanScopeFilter(user, "city1", "batch1");
+      // When batch is specified the OR clause is replaced by batchId discriminator
       expect(result).toEqual({
         cityId: "city1",
-        parkId: { in: ["park1"] },
         batchId: "batch1",
       });
     });
@@ -426,10 +429,6 @@ describe("Content Planner Scope Helpers", () => {
         role: "murabbi",
         assignedGroupId: "group1",
       };
-      // buildContentPlanScopeFilter calls:
-      //   1. deriveContentPlannerCityScope → db.group.findUnique (needs park.cityId)
-      //   2. deriveContentPlannerParkScope → deriveContentPlannerCityScope (2nd group call)
-      //      then the murabbi park branch → db.group.findUnique (needs park.id + park.cityId)
       vi.mocked(db.group.findUnique)
         .mockResolvedValueOnce({ id: "group1", park: { cityId: "city1" } } as any)
         .mockResolvedValueOnce({ id: "group1", park: { cityId: "city1" } } as any)
@@ -438,7 +437,10 @@ describe("Content Planner Scope Helpers", () => {
       const result = await buildContentPlanScopeFilter(user, "city1");
       expect(result).toEqual({
         cityId: "city1",
-        parkId: { in: ["park1"] },
+        OR: [
+          { parkId: null, batchId: null },
+          { parkId: { in: ["park1"] } },
+        ],
       });
     });
   });
@@ -572,7 +574,8 @@ describe("Content Planner Scope Helpers", () => {
       expect(result).toBe(true);
     });
 
-    it("should allow park_lead with valid scope (capability checked at route)", async () => {
+    it("should deny park_lead creating a city-wide plan (no parkId, no batchId)", async () => {
+      // Park-scoped users must not create city-wide templates.
       const user: SessionUser = {
         id: "user1",
         role: "park_lead",
@@ -584,10 +587,10 @@ describe("Content Planner Scope Helpers", () => {
       } as any);
 
       const result = await canWriteContentPlan(user, "city1");
-      expect(result).toBe(true);
+      expect(result).toBe(false);
     });
 
-    it("should allow murabbi with valid scope (capability checked at route)", async () => {
+    it("should deny murabbi creating a city-wide plan (no parkId, no batchId)", async () => {
       const user: SessionUser = {
         id: "user1",
         role: "murabbi",
@@ -599,7 +602,7 @@ describe("Content Planner Scope Helpers", () => {
       } as any);
 
       const result = await canWriteContentPlan(user, "city1");
-      expect(result).toBe(true);
+      expect(result).toBe(false);
     });
 
     it("should deny city_head writing in different city (scope violation)", async () => {
@@ -655,6 +658,236 @@ describe("Content Planner Scope Helpers", () => {
 
       const result = await canWriteContentPlan(user, "city1", null, "park1");
       expect(result).toBe(true);
+    });
+  });
+
+  // ── City template and park-plan visibility (read) ─────────────────────────
+  describe("park-scoped read: city template and own/sibling-park isolation", () => {
+    it("should allow park_lead to read the city-wide template (parkId null, batchId null)", async () => {
+      const user: SessionUser = {
+        id: "user1",
+        role: "park_lead",
+        assignedParkId: "park1",
+      };
+      vi.mocked(db.contentPlan.findUnique).mockResolvedValue({
+        id: "tmpl1",
+        cityId: "city1",
+        parkId: null,
+        batchId: null,
+      } as any);
+      vi.mocked(db.park.findUnique)
+        .mockResolvedValueOnce({ id: "park1", cityId: "city1" } as any) // city derivation
+        .mockResolvedValueOnce({ id: "park1", cityId: "city1" } as any); // park scope derivation
+
+      const result = await canReadContentPlan(user, "tmpl1");
+      expect(result).toBe(true);
+    });
+
+    it("should allow murabbi to read the city-wide template", async () => {
+      const user: SessionUser = {
+        id: "user1",
+        role: "murabbi",
+        assignedGroupId: "group1",
+      };
+      vi.mocked(db.contentPlan.findUnique).mockResolvedValue({
+        id: "tmpl1",
+        cityId: "city1",
+        parkId: null,
+        batchId: null,
+      } as any);
+      vi.mocked(db.group.findUnique)
+        .mockResolvedValueOnce({ id: "group1", park: { cityId: "city1" } } as any)
+        .mockResolvedValueOnce({ id: "group1", park: { cityId: "city1" } } as any)
+        .mockResolvedValueOnce({ id: "group1", park: { id: "park1", cityId: "city1" } } as any);
+
+      const result = await canReadContentPlan(user, "tmpl1");
+      expect(result).toBe(true);
+    });
+
+    it("should allow park_lead to read their own park override", async () => {
+      const user: SessionUser = {
+        id: "user1",
+        role: "park_lead",
+        assignedParkId: "park1",
+      };
+      vi.mocked(db.contentPlan.findUnique).mockResolvedValue({
+        id: "plan1",
+        cityId: "city1",
+        parkId: "park1",
+        batchId: null,
+      } as any);
+      vi.mocked(db.park.findUnique)
+        .mockResolvedValueOnce({ id: "park1", cityId: "city1" } as any)
+        .mockResolvedValueOnce({ id: "park1", cityId: "city1" } as any);
+
+      const result = await canReadContentPlan(user, "plan1");
+      expect(result).toBe(true);
+    });
+
+    it("should deny park_lead reading a sibling-park override", async () => {
+      const user: SessionUser = {
+        id: "user1",
+        role: "park_lead",
+        assignedParkId: "park1",
+      };
+      vi.mocked(db.contentPlan.findUnique).mockResolvedValue({
+        id: "plan2",
+        cityId: "city1",
+        parkId: "park2", // sibling
+        batchId: null,
+      } as any);
+      vi.mocked(db.park.findUnique)
+        .mockResolvedValueOnce({ id: "park1", cityId: "city1" } as any)
+        .mockResolvedValueOnce({ id: "park1", cityId: "city1" } as any);
+
+      const result = await canReadContentPlan(user, "plan2");
+      expect(result).toBe(false);
+    });
+
+    it("should allow park_lead to read a batch plan for their own park's batch", async () => {
+      const user: SessionUser = {
+        id: "user1",
+        role: "park_lead",
+        assignedParkId: "park1",
+      };
+      // batch-only plan: parkId null, batchId set
+      vi.mocked(db.contentPlan.findUnique).mockResolvedValue({
+        id: "plan3",
+        cityId: "city1",
+        parkId: null,
+        batchId: "batch1",
+      } as any);
+      vi.mocked(db.park.findUnique)
+        .mockResolvedValueOnce({ id: "park1", cityId: "city1" } as any)
+        .mockResolvedValueOnce({ id: "park1", cityId: "city1" } as any);
+      vi.mocked(db.batch.findUnique).mockResolvedValue({
+        id: "batch1",
+        parkId: "park1",
+      } as any);
+
+      const result = await canReadContentPlan(user, "plan3");
+      expect(result).toBe(true);
+    });
+
+    it("should deny park_lead reading a batch plan for a sibling park's batch", async () => {
+      const user: SessionUser = {
+        id: "user1",
+        role: "park_lead",
+        assignedParkId: "park1",
+      };
+      vi.mocked(db.contentPlan.findUnique).mockResolvedValue({
+        id: "plan4",
+        cityId: "city1",
+        parkId: null,
+        batchId: "batch2", // belongs to park2
+      } as any);
+      vi.mocked(db.park.findUnique)
+        .mockResolvedValueOnce({ id: "park1", cityId: "city1" } as any)
+        .mockResolvedValueOnce({ id: "park1", cityId: "city1" } as any);
+      vi.mocked(db.batch.findUnique).mockResolvedValue({
+        id: "batch2",
+        parkId: "park2", // sibling park
+      } as any);
+
+      const result = await canReadContentPlan(user, "plan4");
+      expect(result).toBe(false);
+    });
+  });
+
+  // ── Park-scoped write guards ──────────────────────────────────────────────
+  describe("canWriteContentPlan: park-scoped write guards", () => {
+    it("should allow city_head to create a city-wide template (no parkId, no batchId)", async () => {
+      const user: SessionUser = {
+        id: "user1",
+        role: "city_head",
+        assignedCityId: "city1",
+      };
+      const result = await canWriteContentPlan(user, "city1");
+      expect(result).toBe(true);
+    });
+
+    it("should allow HQ to create a city-wide template", async () => {
+      const user: SessionUser = { id: "u1", role: "super_admin" };
+      vi.mocked(db.city.findMany).mockResolvedValue([{ id: "city1" }] as any);
+      const result = await canWriteContentPlan(user, "city1");
+      expect(result).toBe(true);
+    });
+
+    it("should allow capability-granted park_lead to create own-park plan (parkId supplied)", async () => {
+      const user: SessionUser = {
+        id: "user1",
+        role: "park_lead",
+        assignedParkId: "park1",
+      };
+      vi.mocked(db.park.findUnique)
+        .mockResolvedValueOnce({ id: "park1", cityId: "city1" } as any)
+        .mockResolvedValueOnce({ id: "park1", cityId: "city1" } as any);
+
+      const result = await canWriteContentPlan(user, "city1", null, "park1");
+      expect(result).toBe(true);
+    });
+
+    it("should allow capability-granted park_lead to create plan via own-park batch", async () => {
+      const user: SessionUser = {
+        id: "user1",
+        role: "park_lead",
+        assignedParkId: "park1",
+      };
+      vi.mocked(db.park.findUnique)
+        .mockResolvedValueOnce({ id: "park1", cityId: "city1" } as any)
+        .mockResolvedValueOnce({ id: "park1", cityId: "city1" } as any);
+      vi.mocked(db.batch.findUnique).mockResolvedValue({
+        id: "batch1",
+        cityId: "city1",
+        parkId: "park1",
+      } as any);
+
+      const result = await canWriteContentPlan(user, "city1", "batch1");
+      expect(result).toBe(true);
+    });
+
+    it("should deny capability-granted park_lead creating a city-wide plan (no parkId, no batchId)", async () => {
+      const user: SessionUser = {
+        id: "user1",
+        role: "park_lead",
+        assignedParkId: "park1",
+      };
+      // No DB calls expected — early return before scope filter
+      const result = await canWriteContentPlan(user, "city1");
+      expect(result).toBe(false);
+    });
+
+    it("should deny capability-granted park_lead writing to a sibling-park plan", async () => {
+      const user: SessionUser = {
+        id: "user1",
+        role: "park_lead",
+        assignedParkId: "park1",
+      };
+      vi.mocked(db.park.findUnique)
+        .mockResolvedValueOnce({ id: "park1", cityId: "city1" } as any)
+        .mockResolvedValueOnce({ id: "park1", cityId: "city1" } as any);
+
+      const result = await canWriteContentPlan(user, "city1", null, "park2");
+      expect(result).toBe(false);
+    });
+
+    it("should deny capability-granted park_lead creating via sibling-park batch", async () => {
+      const user: SessionUser = {
+        id: "user1",
+        role: "park_lead",
+        assignedParkId: "park1",
+      };
+      vi.mocked(db.park.findUnique)
+        .mockResolvedValueOnce({ id: "park1", cityId: "city1" } as any)
+        .mockResolvedValueOnce({ id: "park1", cityId: "city1" } as any);
+      vi.mocked(db.batch.findUnique).mockResolvedValue({
+        id: "batch2",
+        cityId: "city1",
+        parkId: "park2",
+      } as any);
+
+      const result = await canWriteContentPlan(user, "city1", "batch2");
+      expect(result).toBe(false);
     });
   });
 
