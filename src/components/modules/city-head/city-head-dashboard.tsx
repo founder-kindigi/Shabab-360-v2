@@ -375,24 +375,30 @@ export function CityHeadDashboard() {
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
+              <div className="space-y-1 min-w-0">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium truncate">
                   Collected This Month
                 </p>
-                <p className="text-xl font-bold text-[#4B0A8F] dark:text-[#8A40B0]">
+                <p
+                  className="text-base sm:text-xl font-bold text-[#4B0A8F] dark:text-[#8A40B0] truncate"
+                  title={`Rs ${feesOverview.totalCollectedThisMonth.toLocaleString()}`}
+                >
                   Rs {feesOverview.totalCollectedThisMonth.toLocaleString()}
                 </p>
               </div>
-              <div className="space-y-1">
-                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
+              <div className="space-y-1 min-w-0">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium truncate">
                   Pending Fees
                 </p>
-                <p className={cn(
-                  "text-xl font-bold",
-                  feesOverview.totalPendingFees > 0
-                    ? "text-amber-600 dark:text-amber-400"
-                    : "text-[#4B0A8F] dark:text-[#8A40B0]"
-                )}>
+                <p
+                  className={cn(
+                    "text-base sm:text-xl font-bold truncate",
+                    feesOverview.totalPendingFees > 0
+                      ? "text-amber-600 dark:text-amber-400"
+                      : "text-[#4B0A8F] dark:text-[#8A40B0]"
+                  )}
+                  title={`Rs ${feesOverview.totalPendingFees.toLocaleString()}`}
+                >
                   Rs {feesOverview.totalPendingFees.toLocaleString()}
                 </p>
               </div>
