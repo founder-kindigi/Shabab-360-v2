@@ -55,11 +55,7 @@ export async function GET(request: NextRequest) {
   }
 
   // Apply additional filters
-  const where: typeof scopeFilter & {
-    status?: string;
-    kind?: string;
-    OR?: Array<{ name: { contains: string; mode: "insensitive" } }>;
-  } = { ...scopeFilter };
+  const where: any = { ...scopeFilter };
 
   if (status) where.status = status;
   if (kind) where.kind = kind;
