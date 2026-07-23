@@ -308,9 +308,13 @@ if (auth instanceof NextResponse) return auth;
 const resolvedCity = resolveActorCity(auth.user, providedCityId);
 if (!resolvedCity) return new NextResponse(null, { status: 403 });
 
-// 3. Resource scope check — resolvedCity must match the target entity
-const error = requireResourceScope(auth.user, { cityId: event.cityId });
-if (error) return error;
+// 3. Events-specific city verification — direct comparison against
+//    the target Event.cityId.  This replaces the generic
+//    requireResourceScope(user, { cityId }) pattern because Event
+//    city scope is always a single-city equality check.
+if (event.cityId !== resolvedCity) {
+  return new NextResponse(null, { status: 403 });
+}
 ```
 
 The `resolveActorCity` helper works as follows:
@@ -647,11 +651,11 @@ const updatePlannerItemSchema = z.object({
 
 ### 9.6 Error State
 
+- `400`: "Invalid request. Please check your input." (Zod validation, body parse, query parameter, or business-rule validation failure.)
 - `401`: "Please sign in to continue."
 - `403`: "You do not have permission to perform this action."
 - `404`: "Event not found." / "Responsibility not found."
 - `409`: "This event cannot be modified in its current state."
-- `422`: Field-level Zod validation errors.
 - `500`: "Something went wrong. Please try again."
 
 ---
@@ -687,7 +691,8 @@ const updatePlannerItemSchema = z.object({
 
 7. **Create API routes** as defined in Section 8.
 
-8. **Add scope derivation helper** (if not already existing directly): a `deriveCityFromEvent(eventId)` helper that queries `Event.cityId` and compares against the user's derived city.
+8. **Add shared helper:**
+   - `src/lib/events/scope.ts` — implement `resolveActorCity(user, providedCityId?)` as defined in §4.4 and a `verifyEventCityAccess(resolvedCity, eventCityId)` helper that returns `true`/`false` for direct city-level event authorization, replacing the generic `requireResourceScope` pattern.
 
 9. **Add focused tests** (see Section 11).
 
@@ -751,6 +756,7 @@ Under no circumstances are `AuditLog` records referencing event entities dropped
 | EVT-ALLOW-021 | City Head creates a Mashwara-linked responsibility (mashwaraId set, eventId null) | 201 + Responsibility returned |
 | EVT-ALLOW-022 | City Head creates event-linked responsibility — city derived from event matches assignee | 201 + Responsibility returned |
 | EVT-ALLOW-023 | City Head creates Mashwara-linked responsibility with mashwaraOccurrenceId | 201 + Responsibility returned |
+| EVT-ALLOW-024 | Park Lead reads a confirmed event in their derived park city | 200 + Event
 
 ### 11.2 Deny Tests (Negative Paths)
 
@@ -765,9 +771,9 @@ Under no circumstances are `AuditLog` records referencing event entities dropped
 | EVT-DENY-007 | City Head cancels event in another city | 403 |
 | EVT-DENY-008 | Park Lead creates responsibility on event | 403 |
 | EVT-DENY-009 | City Head creates responsibility with assignedToStaffMeta from another city | 403 (assignee city mismatch) |
-| EVT-DENY-010 | City Head creates responsibility without any parent (no eventId, no mashwaraId) | 422 |
-| EVT-DENY-011 | City Head creates responsibility with endDate <= startDate | 422 |
-| EVT-DENY-012 | City Head creates responsibility without endDate | 422 |
+| EVT-DENY-010 | City Head creates responsibility without any parent (no eventId, no mashwaraId) | 400 |
+| EVT-DENY-011 | City Head creates responsibility with endDate <= startDate | 400 |
+| EVT-DENY-012 | City Head creates responsibility without endDate | 400 |
 | EVT-DENY-013 | City Head revokes another-city responsibility | 403 |
 | EVT-DENY-014 | Park Lead creates planner item | 403 |
 | EVT-DENY-015 | Assigned staff updates planner item title (non-own field) | 403 |
@@ -775,23 +781,24 @@ Under no circumstances are `AuditLog` records referencing event entities dropped
 | EVT-DENY-017 | Deactivated staff member's active responsibility | 403 (isActive check on StaffMeta) |
 | EVT-DENY-018 | Park Lead (events.view only) lists events — planned events are filtered out | 200 + no planned events in response |
 | EVT-DENY-019 | Park Lead (events.view only) reads a planned event by ID | 404 (not found) |
-| EVT-DENY-020 | Super Admin creates event without cityId | 422 (cityId required for HQ) |
-| EVT-DENY-021 | Program Admin lists events without cityId | 422 (cityId required for HQ) |
+| EVT-DENY-020 | Super Admin creates event without cityId | 400 (cityId required for HQ) |
+| EVT-DENY-021 | Program Admin lists events without cityId | 400 (cityId required for HQ) |
 | EVT-DENY-022 | City Head creates event with cityId set to a different city | 403 (rejected — does not match derived city) |
-| EVT-DENY-023 | City Head creates responsibility with both eventId and mashwaraId set | 422 (exactly one parent required) |
-| EVT-DENY-024 | City Head creates responsibility with neither eventId nor mashwaraId | 422 (exactly one parent required) |
+| EVT-DENY-023 | City Head creates responsibility with both eventId and mashwaraId set | 400 (exactly one parent required) |
+| EVT-DENY-024 | City Head creates responsibility with neither eventId nor mashwaraId | 400 (exactly one parent required) |
 | EVT-DENY-025 | City Head creates Mashwara-linked responsibility where assignee city does not match Mashwara city | 403 (assignee city mismatch) |
 | EVT-DENY-026 | City Head creates event-linked responsibility where assignee city does not match event city | 403 (assignee city mismatch) |
-| EVT-DENY-027 | City Head creates responsibility with mashwaraOccurrenceId but no mashwaraId | 422 (occurrence requires mashwaraId) |
-| EVT-DENY-028 | City Head attempts to change event.cityId via PATCH | 422 (cityId not in updateEventSchema) |
+| EVT-DENY-027 | City Head creates responsibility with mashwaraOccurrenceId but no mashwaraId | 400 (occurrence requires mashwaraId) |
+| EVT-DENY-028 | City Head attempts to change event.cityId via PATCH | 400 (cityId not in updateEventSchema) |
+| EVT-DENY-029 | Park Lead reads a confirmed event in another city (not their derived park city) | 403 |
 
 ### 11.3 Failure/Error Tests
 
 | ID | Test | Expected |
 |----|------|----------|
-| EVT-ERR-001 | Create event with empty title | 422, Zod error |
-| EVT-ERR-002 | Create event with title > 200 chars | 422, Zod error |
-| EVT-ERR-003 | Create event with invalid eventType | 422, Zod error |
+| EVT-ERR-001 | Create event with empty title | 400, Zod error |
+| EVT-ERR-002 | Create event with title > 200 chars | 400, Zod error |
+| EVT-ERR-003 | Create event with invalid eventType | 400, Zod error |
 | EVT-ERR-004 | Update non-existent event ID | 404 |
 | EVT-ERR-005 | Create team on non-existent event | 404 |
 | EVT-ERR-006 | Add member with non-existent staffMetaId | 404 |
@@ -799,8 +806,8 @@ Under no circumstances are `AuditLog` records referencing event entities dropped
 | EVT-ERR-008 | Complete already-cancelled event | 409 |
 | EVT-ERR-009 | Revoke already-revoked responsibility | 409 |
 | EVT-ERR-010 | Create responsibility with invalid staffMetaId | 404 |
-| EVT-ERR-011 | List events with invalid page (< 1) | 422 |
-| EVT-ERR-012 | List events with limit > 100 | 422 |
+| EVT-ERR-011 | List events with invalid page (< 1) | 400 |
+| EVT-ERR-012 | List events with limit > 100 | 400 |
 
 ### 11.4 Audit Tests
 
@@ -837,7 +844,7 @@ All paths relative to `src/` or project root:
 |------|--------|
 | `src/lib/events/zod.ts` | All Zod schemas from Section 7 |
 | `src/lib/events/types.ts` | TypeScript types derived from Zod |
-| `src/lib/events/scope.ts` | `deriveCityFromEvent()`, `deriveCityFromStaffMeta()` (if not already extracted) |
+| `src/lib/events/scope.ts` | `resolveActorCity()`, `verifyEventCityAccess()` — actor-aware city resolver and dedicated Events city verifier as defined in §4.4 |
 | `src/lib/events/audit.ts` | Audit event helpers (wrappers around `createAuditLogData` with event-specific action strings) |
 
 ### API Routes
@@ -901,7 +908,7 @@ These decisions must be approved by the project owner before the implementation 
 
 ### Summary
 
-This contract turns EVENT-301 (design) and EVENT-302 (implementation) into a single implementation-ready specification. It defines 5 additive Prisma models, 3 new capabilities, 22 API endpoints, 70 tests (23 allow, 29 deny, 12 error, 6 audit), and a complete migration/rollback plan.
+This contract turns EVENT-301 (design) and EVENT-302 (implementation) into a single implementation-ready specification. It defines 5 additive Prisma models, 3 new capabilities, 22 API endpoints, 71 tests (24 allow, 29 deny, 12 error, 6 audit), and a complete migration/rollback plan.
 
 ### Key rules preserved
 
@@ -934,7 +941,7 @@ This contract turns EVENT-301 (design) and EVENT-302 (implementation) into a sin
 - [ ] Scope derivation helpers created
 - [ ] Audit helpers created
 - [ ] UI components created (7 components)
-- [ ] Tests pass (70 test cases: 23 allow, 29 deny, 12 error, 6 audit)
+- [ ] Tests pass (71 test cases: 24 allow, 29 deny, 12 error, 6 audit)
 - [ ] Lint, typecheck, full test suite, SQLite build, PostgreSQL build pass
 - [ ] Owner decisions D1–D7 resolved
 - [ ] This contract updated with any deviations from the original design
