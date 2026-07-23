@@ -99,3 +99,18 @@ export async function verifyEventCityAccess(
 
   return { event, cityId: resolved.cityId, isHQ: resolved.isHQ, error: null, status: 200 };
 }
+
+export function isResponsibilityActive(
+  resp: { isActive: boolean; endDate: Date | string; revokedAt?: Date | string | null; startDate?: Date | string },
+  now: Date = new Date()
+): boolean {
+  if (!resp || !resp.isActive || resp.revokedAt) return false;
+  const end = new Date(resp.endDate);
+  if (end.getTime() <= now.getTime()) return false;
+  if (resp.startDate) {
+    const start = new Date(resp.startDate);
+    if (start.getTime() > now.getTime()) return false;
+  }
+  return true;
+}
+
