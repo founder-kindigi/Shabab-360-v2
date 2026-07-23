@@ -1,6 +1,6 @@
 # TEAM-003: Collaboration Team Workspace Contract
 
-- **Document Version:** 1.2.0
+- **Document Version:** 1.3.0
 - **Task ID:** `PKG-05-TEAM-WORKSPACE-CONTRACT`
 - **Status:** `PROPOSED` — Pending Owner Review & Approval
 - **Integration Base:** `064fc53` (on branch `agent/antigravity/pkg-05-team-workspace-contract`)
@@ -146,12 +146,20 @@ As required by the repository working agreements, the local SQLite database and 
    * Edit `prisma/postgres/schema.prisma` to append the identical model definitions and relation fields.
    * Generate the staged PostgreSQL migration files:
      ```bash
-     npx prisma migrate diff --from-schema-datasource prisma/postgres/schema.prisma --to-schema-datamodel prisma/postgres/schema.prisma --script > prisma/postgres/migrations/[timestamp]_add_team_workspace_tables.sql
+     npx prisma migrate dev --schema=prisma/postgres/schema.prisma --create-only --name add_team_workspace_tables
      ```
-   * Apply PostgreSQL migration in staging using staging deployment runners.
+   * Apply PostgreSQL migration in staging using:
+     ```bash
+     npx prisma migrate deploy --schema=prisma/postgres/schema.prisma
+     ```
 
 3. **Prisma Client Compilation:**
    * Run `npm run db:postgres:generate` and local compilation checks to confirm the generated clients build without errors.
+
+4. **Safe Rollback Protocol:**
+   * Disable route access by revoking the relevant capabilities (`teams.workspace.view` and `teams.memberships.manage`) or setting environment flag toggles.
+   * **Do not drop database tables or run destructive rollbacks in production.** Existing rows must be preserved in place to prevent accidental data loss.
+   * Full database backup restore procedures are reserved for Codex-and-owner incident recovery scenarios only.
 
 ---
 
@@ -170,7 +178,7 @@ stateDiagram-v2
 ```
 
 ### 3.1 Lifecycle Stages
-* **Create Team:** Managed via administrative panel (under Owner setup rules).
+* **Create Team:** Managed via database initialization (under Owner setup rules).
 * **Assign Member:** Triggered by authorized City Head or Super Admin.
   * *Preconditions:* The staff member must have an active `StaffMeta` record and their assigned city must match the team's `cityId`.
   * *Database Action:* Creates a new row in `StaffTeamMembership` setting `isActive: true` and `startedAt: new Date()`.
@@ -181,21 +189,20 @@ stateDiagram-v2
 
 ## 4. Server-Derived City-Scope and Capability Authorization Matrix
 
-To enforce dynamic security controls, authorization relies on dynamic dot-notation capabilities without hard-coded role gates.
+To enforce dynamic security controls, authorization relies on dynamic dot-notation capabilities. **No static role gates may override a granted capability plus its derived resource scope.**
 
 ### 4.1 Proposed Dynamic Capabilities
-* `teams.memberships.manage`: Allows managing team memberships (assigning and revoking).
-* `teams.workspace.view`: Allows entry into the specific team's workspace dashboard.
+* `teams.memberships.manage`: Allows managing team memberships (assigning and revoking) within the user's city scope.
+* `teams.workspace.view`: Grants access to view team-scoped details (read discussion feeds, view registered links, view team activities).
+* `teams.workspace.manage`: Grants permissions to manage team activities (create, assign, complete/cancel activities) and moderate team messages.
 
-### 4.2 Authorization Matrix
+### 4.2 Workspace Route Security Rules
+Every workspace route (GET, POST, PATCH, DELETE) must enforce **both** checks:
+1. **Dynamic Capability:** The user must resolve the correct dot-notation capability (`teams.workspace.view` or `teams.workspace.manage`) for the requested action.
+2. **Active Membership:** The requesting user must have an active, non-expired membership record (`isActive: true` in `StaffTeamMembership`) for the exact `CollaborationTeam` targeted.
 
-| Capability | Scope Required | Role Check | Evaluation Logic |
-| --- | --- | --- | --- |
-| `teams.memberships.manage` | City-Scoped | None (Any role with capability) | Checked via `resolveEffectiveCapability(user.role, "teams.memberships.manage")`. Must match target team's `cityId`. |
-| `teams.workspace.view` | Team-Scoped | None (Any role with capability) | Checked via active membership: `db.staffTeamMembership.findFirst({ where: { teamId, staffMeta: { userId }, isActive: true } })`. |
-
-### 4.3 Same-City Team Membership Access Limits
-* **Team-only Data Access:** Active same-city members of a team gain access to team-only workspace streams (chat history, document link lists, team activities).
+### 4.3 Server-Derived Scope Enforcements
+* **Server-Derived City Assignment:** The user's city scope **must be server-derived** through `StaffMeta` assignment paths for both the actor (the user making the request) and the target staff member. Client-provided city or team scope parameters in payloads/query strings may only be used to narrow the query results, never to expand access.
 * **Core Data Gating:** Membership in a collaboration team **must never** expand a user's core park, group, participant, or attendance scope limits. A `murabbi` assigned to the Lahore `SPORTS` team can view the Sports workspace dashboard, but remains strictly restricted to their assigned group roster for all core participant directory reads and attendance event writes.
 
 ---
@@ -221,12 +228,16 @@ The Team Workspace provides a dedicated page for active members, located at `/te
 
 ## 6. Activity Planner & Content Planner Connection
 
-The Activity Planner links team tasks to the curriculum curriculum defined in the Content Planner.
+The Activity Planner links team tasks to the curriculum defined in the Content Planner.
 
-### 6.1 Content Plan Linking
+### 6.1 Content Plan Gating
 * An `ActivityPlanItem` has an optional `contentBlockId` linking it to `ContentPlanBlock`.
 * Active team members can query only the `ActivityPlanItem` rows matching their team's `teamId`.
-* Status transitions (`planned` -> `in_progress` -> `completed` -> `cancelled`) can only be performed by active team members.
+
+### 6.2 Activity Status Gating
+* **Elevated Permissions (`teams.workspace.manage`):** Required to create activities, assign tasks, and transition status to `completed` or `cancelled`.
+* **Standard Permissions (`teams.workspace.view`):** Allows team members to read activities and transition the status to `in_progress` (only for items where they are the assignee).
+* **Assignee Invariant:** The `assignedStaffMetaId` field must be validated on the server to ensure the assignee is an active, same-team member of the target `CollaborationTeam`.
 
 ---
 
@@ -240,8 +251,8 @@ To simplify the network stack, real-time Socket.IO and presence features are avo
 * **Access Gating:** The API route validates that the requesting user's session has an active membership row in `StaffTeamMembership` for `teamId` before returning chat data.
 
 ### 7.2 Message Moderation
-* Active members can soft-delete their own messages within 10 minutes of creation.
-* Authorized team administrators can soft-delete any message by updating `isActive: false` (replacing UI content with `"This message was deleted"`).
+* **Regular Members (`teams.workspace.view`):** Active members can soft-delete their own messages within 10 minutes of creation.
+* **Moderator Permissions (`teams.workspace.manage`):** Authorized team administrators can soft-delete any message by updating `isActive: false` (replacing UI content with `"This message was deleted"`).
 
 ---
 
@@ -254,12 +265,9 @@ File uploads are disabled. Shared documents are link registrations only.
 * **Button State:** "Upload File" is disabled. Text reads: `"File uploads are currently disabled. Please register a link to an external document below."`
 * **Form Inputs:** Fields are provided for Document Title (string), Link URL (https), and Description (optional).
 
-### 8.2 Future Private-Storage Prerequisites
-Before live file storage can be enabled in a future release, the following conditions must be met:
-1. **Private S3 Bucket:** Creation of an isolated Supabase Storage / AWS S3 private bucket with object-level security.
-2. **Access Proxy Gating:** Documents must be served via signed, short-lived URLs (expiry < 15 minutes) validated against active `StaffTeamMembership`.
-3. **ClamAV Anti-Virus Hook:** Integration of a serverless anti-virus scanning pipeline to block malicious uploads.
-4. **Size Restrictions:** Hard ceiling limit of 5MB per document.
+### 8.2 Fail-Closed Link Validation
+* **Strict Gating:** All document link registrations remain **fail-closed** and are rejected by default on the server. No external links may be saved until the owner approves a formal domain whitelist and redirect warning policy.
+* **Future Whitelist Verification:** Future link registrations must validate URLs against an approved server-side whitelist (e.g., matching trusted storage domains).
 
 ---
 
@@ -267,16 +275,21 @@ Before live file storage can be enabled in a future release, the following condi
 
 ### 9.1 API Matrix
 
-| Route | Method | Payload / Query | Access Level | Description |
+| Route | Method | Payload / Query | Access Level (Required Capabilities) | Description |
 | --- | --- | --- | --- | --- |
-| `/api/teams/[teamId]` | GET | None | Active Team Member | Fetch team metadata and active roster |
-| `/api/teams/[teamId]/activities` | GET | `status` filter | Active Team Member | Fetch team activity planner items |
-| `/api/teams/[teamId]/activities` | POST | Zod Activity Create | Active Team Member | Add a planned activity item |
-| `/api/teams/[teamId]/activities/[id]`| PATCH| Zod Activity Update | Active Member / Lead | Update status or assignee of activity |
-| `/api/teams/[teamId]/chat` | GET | `cursor` pagination | Active Team Member | Fetch polled discussion feed |
-| `/api/teams/[teamId]/chat` | POST | Zod Message Create | Active Team Member | Send message to team discussion |
-| `/api/teams/[teamId]/documents` | GET | None | Active Team Member | Fetch registered external document links |
-| `/api/teams/[teamId]/documents` | POST | Zod Link Create | Active Team Member | Register a shared external document link |
+| `/api/teams/[teamId]` | GET | None | `teams.workspace.view` + Active Member | Fetch team metadata and active roster |
+| `/api/teams/[teamId]/activities` | GET | `status` filter | `teams.workspace.view` + Active Member | Fetch team activity planner items |
+| `/api/teams/[teamId]/activities` | POST | Zod Activity Create | `teams.workspace.manage` + Active Member | Add a planned activity item |
+| `/api/teams/[teamId]/activities/[id]`| PATCH| Zod Activity Update | `teams.workspace.view` OR `teams.workspace.manage` | Update status or assignee of activity |
+| `/api/teams/[teamId]/chat` | GET | `cursor` pagination | `teams.workspace.view` + Active Member | Fetch polled discussion feed |
+| `/api/teams/[teamId]/chat` | POST | Zod Message Create | `teams.workspace.view` + Active Member | Send message to team discussion |
+| `/api/teams/[teamId]/documents` | GET | None | `teams.workspace.view` + Active Member | Fetch registered external document links |
+| `/api/teams/[teamId]/documents` | POST | Zod Link Create | `teams.workspace.manage` + Active Member | Register a shared external document link |
+| `/api/admin/collaboration-teams` | GET | `cityId`, `status` | `teams.memberships.manage` | List teams in allowed city scope |
+| `/api/admin/collaboration-teams/[teamId]/members` | GET | None | `teams.memberships.manage` | List members of specified team |
+| `/api/admin/collaboration-teams/[teamId]/members` | POST | Zod Member Assign | `teams.memberships.manage` | Assign a new member to team |
+| `/api/admin/collaboration-teams/[teamId]/members/[membershipId]`| PATCH| Zod Member Update | `teams.memberships.manage` | Update member title/responsibility |
+| `/api/admin/collaboration-teams/[teamId]/members/[membershipId]`| DELETE| None | `teams.memberships.manage` | Revoke/End a team membership |
 
 ### 9.2 Bounded Zod Contracts
 
@@ -289,7 +302,7 @@ export const createActivitySchema = z.object({
   title: z.string().trim().min(3, "Title must be at least 3 characters").max(120, "Title is too long"),
   description: z.string().trim().max(1000).optional(),
   contentBlockId: cuidSchema.optional(),
-  assignedStaffMetaId: cuidSchema.optional(),
+  assignedStaffMetaId: cuidSchema.min(1, "Assignee is required"), // Must match active same-team member
   scheduledFor: z.string().datetime().optional(),
 });
 
@@ -310,6 +323,15 @@ export const registerDocumentLinkSchema = z.object({
   }),
   description: z.string().trim().max(500).optional(),
 });
+
+export const assignTeamMemberSchema = z.object({
+  staffMetaId: cuidSchema.min(1, "Staff member is required"),
+  title: z.string().trim().min(2).max(120).optional(),
+});
+
+export const updateTeamMemberSchema = z.object({
+  title: z.string().trim().min(2).max(120).optional().nullable(),
+});
 ```
 
 ---
@@ -318,19 +340,22 @@ export const registerDocumentLinkSchema = z.object({
 
 ### 10.1 Test Cases
 
-| Case ID | Actor Role | Context / Parameters | Action Attempted | Expected Outcome | Audit Log Recorded? |
+| Case ID | Actor Capabilities | Context / Parameters | Action Attempted | Expected Outcome | Audit Log Recorded? |
 | --- | --- | --- | --- | --- | --- |
-| `TC-TM-001` | User with `teams.memberships.manage` | Team: LHR Tadreeb, Staff: Lahore Murabbi | Create team membership | **Allow** (HTTP 201) | Yes (`create`) |
-| `TC-TM-002` | User without `teams.memberships.manage` | Team: LHR Tadreeb, Staff: Lahore Murabbi | Create team membership | **Deny** (HTTP 403) | No |
-| `TC-TM-003` | User with `teams.memberships.manage` | Team: ISB Sports, Staff: Rawalpindi Lead | Create team membership | **Deny** (HTTP 400 - City mismatch) | No |
-| `TC-TM-004` | User without `teams.workspace.view` | Team: LHR Media | GET `/api/teams/[teamId]/chat` | **Deny** (HTTP 403 - Not active member) | No |
-| `TC-TM-005` | User with `teams.workspace.view` | Team: LHR Media | GET `/api/teams/[teamId]/chat` | **Allow** (HTTP 200) | No |
-| `TC-TM-006` | User with `teams.workspace.view` | Register document URL: `http://unsafe.com` | POST `/api/teams/[teamId]/documents` | **Failure** (HTTP 400 - Non-HTTPS URL) | No |
-| `TC-TM-007` | User with `teams.workspace.view` | Register document URL: `https://drive.google.com` | POST `/api/teams/[teamId]/documents` | **Allow** (HTTP 201) | Yes (`create_document_link`) |
+| `TC-TM-001` | `teams.memberships.manage` | Team: LHR Tadreeb, Staff: Lahore Murabbi | Create team membership | **Allow** (HTTP 201) | Yes (`create`) |
+| `TC-TM-002` | None | Team: LHR Tadreeb, Staff: Lahore Murabbi | Create team membership | **Deny** (HTTP 403 - Missing capability) | No |
+| `TC-TM-003` | `teams.memberships.manage` | Team: ISB Sports, Staff: Rawalpindi Lead | Create team membership | **Deny** (HTTP 400 - City mismatch) | No |
+| `TC-TM-004` | `teams.workspace.view` (Non-member) | Team: LHR Media | GET `/api/teams/[teamId]/chat` | **Deny** (HTTP 403 - Active membership required) | No |
+| `TC-TM-005` | `teams.workspace.view` (Active member) | Team: LHR Media | GET `/api/teams/[teamId]/chat` | **Allow** (HTTP 200) | No |
+| `TC-TM-006` | `teams.workspace.view` (Active member) | Register document URL: `https://drive.google.com` | POST `/api/teams/[teamId]/documents` | **Deny** (HTTP 403 - Fail-closed pending whitelist approval) | No |
+| `TC-TM-007` | `teams.workspace.view` (Active member) | Update activity status to `completed` | PATCH `/api/teams/[teamId]/activities/[id]` | **Deny** (HTTP 403 - Requires `teams.workspace.manage`) | No |
+| `TC-TM-008` | `teams.workspace.manage` (Active member) | Update activity status to `completed` | PATCH `/api/teams/[teamId]/activities/[id]` | **Allow** (HTTP 200) | Yes (`update_activity_status`) |
+| `TC-TM-009` | `teams.workspace.manage` (Active member) | Assign activity to staff outside team | POST `/api/teams/[teamId]/activities` | **Deny** (HTTP 400 - Assignee not on team) | No |
+| `TC-TM-010` | `teams.memberships.manage` (LHR City) | Team: ISB Tadreeb, Staff: Rawalpindi Murabbi | Create team membership | **Deny** (HTTP 403 - Cross-city boundary violation) | No |
 
 ---
 
-## 11. Implementation Roadmap, Migrations, and Rollback
+## 11. Implementation Roadmap
 
 ### 11.1 Future Implementation Files
 The following repository-relative paths will be created or modified:
@@ -338,7 +363,7 @@ The following repository-relative paths will be created or modified:
 * **[NEW]** `src/app/api/teams/[teamId]/activities/route.ts` & `[id]/route.ts`: Activity Planner endpoints.
 * **[NEW]** `src/app/api/teams/[teamId]/chat/route.ts`: Group discussion feed.
 * **[NEW]** `src/app/api/teams/[teamId]/documents/route.ts`: Registered links registry.
-* **[MODIFY]** `src/lib/auth/capabilities.ts`: Add `teams.memberships.manage` and `teams.workspace.view` to capability catalogue.
+* **[MODIFY]** `src/lib/auth/capabilities.ts`: Add `teams.memberships.manage`, `teams.workspace.view`, and `teams.workspace.manage` to capabilities array.
 * **[NEW]** `src/components/modules/teams/team-workspace-dashboard.tsx`: Main UI container.
 * **[NEW]** `src/components/modules/teams/team-activity-planner.tsx`: Activity planner panel.
 * **[NEW]** `src/components/modules/teams/team-chat.tsx`: Discussion chat stream component.
@@ -349,8 +374,8 @@ The following repository-relative paths will be created or modified:
 
 The following architectural and product decisions must be resolved by the product owner before execution begins:
 
-1. **Collaboration Team Setup Provisioning:** Should the initial creation of the permanent Lahore teams (`SPORTS`, `SKILLS`, `TADREEB`, `MEDIA`, `MUAWIN`) be handled via automated DB migrations or via an administrative UI utility?
-2. **Approved Domain Whitelist for Document Links:** Should URL link registration be restricted to trusted domains (e.g. `*.google.com`, `*.sharepoint.com`) or allowed for any secure HTTPS URL?
+1. **Collaboration Team Setup Provisioning:** Should the initial creation of the permanent Lahore teams (`SPORTS`, `SKILLS`, `TADREEB`, `MEDIA`, `MUAWIN`) be handled via DB migrations or via an administrative UI tool?
+2. **Approved Domain Whitelist for Document Links:** Define the exact list of trusted storage domains (e.g. `*.google.com`, `*.sharepoint.com`) allowed for link sharing.
 3. **External URL Redirect Handling:** When a user clicks a registered document link, should they be navigated directly to the external site, or should they pass through an intermediate warning/redirection page?
 4. **Chat History Retention Window:** Should team chat messages be permanently archived, or should a rolling 90-day deletion/archiving policy be enforced?
 5. **Notification Channels:** When new team chat messages are posted, should notifications be sent only via local in-app alerts, or should they trigger automated email/SMS alerts?
