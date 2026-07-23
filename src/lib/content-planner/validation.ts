@@ -10,7 +10,6 @@ import {
   paginatedQuerySchema,
   MAX_IDENTIFIER_LENGTH,
 } from "@/lib/api/query-params";
-import { APPROVED_CONTENT_CATEGORIES } from "./scope";
 
 // Field length limits
 export const CONTENT_PLAN_LIMITS = {
@@ -71,8 +70,10 @@ export const activityStatusSchema = z.enum(ACTIVITY_STATUSES);
 
 /**
  * Approved category validation - only four categories allowed
+ * Must be defined as a tuple for z.enum() compatibility
  */
-export const contentCategorySchema = z.enum(APPROVED_CONTENT_CATEGORIES);
+const APPROVED_CATEGORIES = ["exercises", "sports", "skills", "tadreeb"] as const;
+export const contentCategorySchema = z.enum(APPROVED_CATEGORIES);
 
 /**
  * Content plan list query parameters
@@ -278,8 +279,8 @@ export function validateCategoryTeamMapping(
   category: string,
   teamCode: string
 ): boolean {
-  if (!APPROVED_CONTENT_CATEGORIES.includes(category as any)) {
-    throw new Error(`Invalid category: ${category}. Must be one of: ${APPROVED_CONTENT_CATEGORIES.join(", ")}`);
+  if (!APPROVED_CATEGORIES.includes(category as any)) {
+    throw new Error(`Invalid category: ${category}. Must be one of: ${APPROVED_CATEGORIES.join(", ")}`);
   }
 
   // Use CATEGORY_TO_TEAM_CODE from scope as the single source of truth

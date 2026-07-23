@@ -10,7 +10,6 @@ import { queryValidationError } from "@/lib/api/query-params";
 import {
   buildContentPlanScopeFilter,
   canWriteContentPlan,
-  CONTENT_PLANNER_READER_ROLES,
 } from "@/lib/content-planner/scope";
 import type { SessionUser } from "@/lib/auth/scope";
 

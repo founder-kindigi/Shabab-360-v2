@@ -12,8 +12,6 @@ import { queryValidationError } from "@/lib/api/query-params";
 import {
   canReadContentPlan,
   canWriteContentPlan,
-  verifyTeamInCity,
-  CATEGORY_TO_TEAM_CODE,
 } from "@/lib/content-planner/scope";
 import type { SessionUser } from "@/lib/auth/scope";
 

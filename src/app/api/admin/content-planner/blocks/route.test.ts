@@ -15,7 +15,7 @@ vi.mock("@/lib/db", () => ({
   },
 }));
 vi.mock("@/lib/audit", () => ({
-  logAudit: vi.fn(),
+  logAudit: vi.fn().mockResolvedValue(undefined),
 }));
 
 describe("Content Planner Blocks API", () => {
@@ -41,6 +41,7 @@ describe("Content Planner Blocks API", () => {
           teamId: "team1",
           category: "media", // Not approved
           content: "Test content",
+          sortOrder: 0,
         }),
       });
       const response = await POST(request);
@@ -68,6 +69,7 @@ describe("Content Planner Blocks API", () => {
           teamId: "team1",
           category: "sports",
           content: "Test content",
+          sortOrder: 0,
         }),
       });
       const response = await POST(request);
@@ -99,6 +101,7 @@ describe("Content Planner Blocks API", () => {
           teamId: "team1",
           category: "sports",
           content: "Test content",
+          sortOrder: 0,
         }),
       });
       const response = await POST(request);
@@ -135,6 +138,7 @@ describe("Content Planner Blocks API", () => {
           teamId: "team1",
           category: "sports",
           content: "Test content",
+          sortOrder: 0,
         }),
       });
       const response = await POST(request);
@@ -173,6 +177,7 @@ describe("Content Planner Blocks API", () => {
           teamId: "team1",
           category: "sports", // Sports category with skills team - mismatch!
           content: "Test content",
+          sortOrder: 0,
         }),
       });
       const response = await POST(request);
@@ -212,6 +217,7 @@ describe("Content Planner Blocks API", () => {
         teamId: "team1",
         category: "exercises",
         content: "Warm-up drills",
+        sortOrder: 0,
         team: { id: "team1", name: "Sports", code: "sports" },
         session: { id: "session1", sessionDate: new Date(), plan: { id: "plan1", name: "Test" } },
       };
@@ -224,6 +230,7 @@ describe("Content Planner Blocks API", () => {
           teamId: "team1",
           category: "exercises", // Exercises maps to sports team
           content: "Warm-up drills",
+          sortOrder: 0,
         }),
       });
       const response = await POST(request);
@@ -326,6 +333,7 @@ describe("Content Planner Blocks API", () => {
           category: "tadreeb",
           title: "Islamic Studies",
           content: "Quran memorization and understanding",
+          sortOrder: 0,
         }),
       });
       const response = await POST(request);
