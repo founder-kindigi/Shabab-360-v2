@@ -8,8 +8,9 @@ import { SENSITIVE_PROFILE_FIELDS } from "@/lib/student-profile/zod";
 
 export async function GET(
   _req: Request,
-  { params }: { params: { participantId: string } }
+  { params }: { params: Promise<{ participantId: string }> }
 ) {
+  const { participantId } = await params;
   const auth = await requireCapability("students.profile.view");
   if (auth instanceof NextResponse) return auth;
 

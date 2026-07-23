@@ -19,9 +19,17 @@ function stripSensitiveFields(profile: Record<string, unknown>): Record<string, 
 
 export async function GET(
   _req: Request,
-  { params }: { params: { participantId: string } }
+  { params }: { params: Promise<{ participantId: string }> }
 ) {
-  const participantId = params.participantId;
+  const { participantId } = await params;
+
+  // LAYER 1: capability gate
+  const auth = await requireCapability("students.profile.view");
+  if (auth instanceof NextResponse) return auth;
+
+  const session = await getServerSession(authOptions);
+  const user = session?.user as SessionUser | undefined;
+  if (!user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   // LAYER 1: capability gate
   const auth = await requireCapability("students.profile.view");
@@ -70,9 +78,9 @@ export async function GET(
 
 export async function PUT(
   _req: Request,
-  { params }: { params: { participantId: string } }
+  { params }: { params: Promise<{ participantId: string }> }
 ) {
-  const participantId = params.participantId;
+  const { participantId } = await params;
 
   // LAYER 1: capability gate
   const auth = await requireCapability("students.profile.manage");
@@ -146,7 +154,12 @@ export async function PUT(
     await db.auditLog.create({ data: auditData });
   }
 
-  const result = hasSensitive
+  // Determine response projection: sensitive fields only if caller has sensitive.view
+  const callerCanViewSensitive = await (
+    await requireCapability("students.profile.sensitive.view")
+  ) instanceof NextResponse ? false : true;
+
+  const result = callerCanViewSensitive
     ? { ...profile }
     : stripSensitiveFields({ ...profile } as unknown as Record<string, unknown>);
 
