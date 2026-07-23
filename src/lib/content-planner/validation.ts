@@ -110,15 +110,24 @@ export const updateContentPlanSchema = z.object({
 });
 
 /**
- * Validate calendar date format (YYYY-MM-DD)
+ * Validate calendar date format (YYYY-MM-DD) and reject impossible dates.
+ * Parses year/month/day components and round-trip validates them so that
+ * dates like 2026-02-30 or 2026-13-01 are rejected rather than silently
+ * clamped by the JS Date constructor.
  */
 const calendarDateSchema = z
   .string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/)
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format")
   .refine(
     (val) => {
-      const date = new Date(val);
-      return !isNaN(date.getTime());
+      const [year, month, day] = val.split("-").map(Number);
+      // month is 0-indexed in Date constructor
+      const date = new Date(year, month - 1, day);
+      return (
+        date.getFullYear() === year &&
+        date.getMonth() === month - 1 &&
+        date.getDate() === day
+      );
     },
     { message: "Invalid calendar date" }
   );

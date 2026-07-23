@@ -7,6 +7,7 @@ import {
   canWriteContentPlan,
   verifyTeamInCity,
   isApprovedCategory,
+  isHqUser,
   CATEGORY_TO_TEAM_CODE,
 } from "./scope";
 import type { SessionUser } from "@/lib/auth/scope";
@@ -26,6 +27,24 @@ vi.mock("@/lib/db", () => ({
 describe("Content Planner Scope Helpers", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  describe("isHqUser", () => {
+    it("should return true for super_admin", () => {
+      expect(isHqUser({ id: "u1", role: "super_admin" })).toBe(true);
+    });
+
+    it("should return true for program_admin", () => {
+      expect(isHqUser({ id: "u1", role: "program_admin" })).toBe(true);
+    });
+
+    it("should return false for city_head", () => {
+      expect(isHqUser({ id: "u1", role: "city_head" })).toBe(false);
+    });
+
+    it("should return false for park_lead", () => {
+      expect(isHqUser({ id: "u1", role: "park_lead" })).toBe(false);
+    });
   });
 
   describe("isApprovedCategory", () => {

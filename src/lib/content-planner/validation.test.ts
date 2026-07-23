@@ -145,6 +145,34 @@ describe("Content Planner Validation", () => {
   });
 
   describe("createSessionSchema", () => {
+    describe("calendarDateSchema (via sessionDate)", () => {
+      it("should reject Feb 30 as an impossible date", () => {
+        expect(() =>
+          createSessionSchema.parse({ planId: "p1", sessionDate: "2026-02-30" })
+        ).toThrow();
+      });
+
+      it("should reject month 13 as an impossible date", () => {
+        expect(() =>
+          createSessionSchema.parse({ planId: "p1", sessionDate: "2026-13-01" })
+        ).toThrow();
+      });
+
+      it("should accept Feb 29 on a leap year", () => {
+        const result = createSessionSchema.parse({
+          planId: "p1",
+          sessionDate: "2024-02-29",
+        });
+        expect(result.sessionDate).toBe("2024-02-29");
+      });
+
+      it("should reject Feb 29 on a non-leap year", () => {
+        expect(() =>
+          createSessionSchema.parse({ planId: "p1", sessionDate: "2026-02-29" })
+        ).toThrow();
+      });
+    });
+
     it("should accept valid session creation", () => {
       const validSession = {
         planId: "plan1",
