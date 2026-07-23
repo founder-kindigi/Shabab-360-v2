@@ -118,7 +118,16 @@ export async function PATCH(
     );
   }
 
-  const body = await request.json();
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json(
+      { error: "Invalid JSON in request body" },
+      { status: 400 }
+    );
+  }
+
   const parsed = updateContentPlanSchema.safeParse(body);
 
   if (!parsed.success) {
@@ -198,7 +207,13 @@ export async function DELETE(
     );
   }
 
-  const body = await request.json().catch(() => ({}));
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    body = {};
+  }
+
   const parsed = archiveContentPlanSchema.safeParse(body);
 
   if (!parsed.success) {

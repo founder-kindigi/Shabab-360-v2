@@ -109,14 +109,41 @@ export const updateContentPlanSchema = z.object({
 });
 
 /**
+ * Validate calendar date format (YYYY-MM-DD)
+ */
+const calendarDateSchema = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/)
+  .refine(
+    (val) => {
+      const date = new Date(val);
+      return !isNaN(date.getTime());
+    },
+    { message: "Invalid calendar date" }
+  );
+
+/**
  * Session list query parameters
  */
-export const sessionListQuerySchema = paginatedQuerySchema({ maxPageSize: 200 }).extend({
-  planId: z.string().trim().min(1).max(MAX_IDENTIFIER_LENGTH),
-  startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-  endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-  status: sessionStatusSchema.optional(),
-});
+export const sessionListQuerySchema = paginatedQuerySchema({ maxPageSize: 200 })
+  .extend({
+    planId: z.string().trim().min(1).max(MAX_IDENTIFIER_LENGTH),
+    startDate: calendarDateSchema.optional(),
+    endDate: calendarDateSchema.optional(),
+    status: sessionStatusSchema.optional(),
+  })
+  .refine(
+    (data) => {
+      if (data.startDate && data.endDate) {
+        return new Date(data.startDate) <= new Date(data.endDate);
+      }
+      return true;
+    },
+    {
+      message: "startDate must be less than or equal to endDate",
+      path: ["startDate"],
+    }
+  );
 
 /**
  * Create session payload
@@ -126,7 +153,7 @@ export const createSessionSchema = z
     planId: z.string().trim().min(1).max(MAX_IDENTIFIER_LENGTH),
     weekLabel: z.string().trim().max(CONTENT_PLAN_LIMITS.weekLabel).optional().nullable(),
     dayLabel: z.string().trim().max(CONTENT_PLAN_LIMITS.dayLabel).optional().nullable(),
-    sessionDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    sessionDate: calendarDateSchema,
     focusArea: z.string().trim().max(CONTENT_PLAN_LIMITS.focusArea).optional().nullable(),
     isOffDay: z.boolean().default(false),
     sourceRow: z.number().int().min(1).max(10_000).optional().nullable(),
@@ -151,7 +178,7 @@ export const createSessionSchema = z
 export const updateSessionSchema = z.object({
   weekLabel: z.string().trim().max(CONTENT_PLAN_LIMITS.weekLabel).optional().nullable(),
   dayLabel: z.string().trim().max(CONTENT_PLAN_LIMITS.dayLabel).optional().nullable(),
-  sessionDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  sessionDate: calendarDateSchema.optional(),
   focusArea: z.string().trim().max(CONTENT_PLAN_LIMITS.focusArea).optional().nullable(),
   status: sessionStatusSchema.optional(),
 });
@@ -242,8 +269,10 @@ export function validateNotOffDay(isOffDay: boolean): boolean {
   return true;
 }
 
+import { CATEGORY_TO_TEAM_CODE } from "./scope";
+
 /**
- * Helper to validate category matches team code
+ * Helper to validate category matches team code using CATEGORY_TO_TEAM_CODE mapping
  */
 export function validateCategoryTeamMapping(
   category: string,
@@ -253,13 +282,12 @@ export function validateCategoryTeamMapping(
     throw new Error(`Invalid category: ${category}. Must be one of: ${APPROVED_CONTENT_CATEGORIES.join(", ")}`);
   }
 
-  // Import the mapping from scope to avoid circular dependency
-  const expectedTeamCode = 
-    category === "exercises" ? "sports" :
-    category === "sports" ? "sports" :
-    category === "skills" ? "skills" :
-    category === "tadreeb" ? "tadreeb" :
-    null;
+  // Use CATEGORY_TO_TEAM_CODE from scope as the single source of truth
+  const expectedTeamCode = CATEGORY_TO_TEAM_CODE[category as keyof typeof CATEGORY_TO_TEAM_CODE];
+
+  if (!expectedTeamCode) {
+    throw new Error(`No team mapping found for category: ${category}`);
+  }
 
   if (expectedTeamCode !== teamCode) {
     throw new Error(
