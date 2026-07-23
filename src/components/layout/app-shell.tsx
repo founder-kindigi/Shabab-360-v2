@@ -464,7 +464,7 @@ export function AppShell() {
         <CommandPalette />
 
         {/* Page content */}
-        <main className="flex-1 overflow-y-auto pb-20 lg:pb-0">
+        <main className="flex-1 overflow-y-auto pb-24 lg:pb-0">
           <div className="p-4 md:p-6 space-y-4">
             {showScopeSelector && <ScopeSelector />}
             {showPageHeader && <PageHeader title={pageTitle} />}
