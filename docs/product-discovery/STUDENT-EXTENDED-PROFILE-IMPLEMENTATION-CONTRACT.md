@@ -1,7 +1,7 @@
 # STUDENT-EXTENDED-PROFILE-IMPLEMENTATION-CONTRACT
 
 **Status:** Implementation-ready contract (docs only — no code, no schema, no data)
-**Owner:** Codex (design); implementation follows PKG-01/04/06/09 integration
+**Owner:** Codex (design); implementation follows PKG-01, PKG-09 integration
 **Base:** codex/production-hardening @ 49a40e9
 **Reference source:** `Batch 2 _ Profiles.xlsx` (field-template reference only — no real workbook data, names, or PII committed)
 
@@ -30,7 +30,7 @@ The source workbook `Batch 2 _ Profiles.xlsx` organises fields under grouped hea
 | Tab | Content | Workbook Header Sources |
 |-----|---------|-----------------------|
 | Education | School, College, Education system, Previous results, Awards/Achievements, Average Grade/%, Fav. subjects | Academic Record |
-| Family & Background | Father Name, Father Occupation, Guardian Phone, Siblings, Financial status, Native Area, Ethnicity, Mode of Transport | Family, Personal |
+| Family & Background | Father Name, Father Occupation, Siblings, Financial status, Native Area, Ethnicity, Mode of Transport | Family, Personal |
 | Interests & Skills | Subjects of Interest, Extra curricular, Hobbies, Sports, Learning style, Curiosity, Special Talent, Current Skills, Skills want to learn | Interest & Hobbies, Talent & Skills |
 | Goals & Development | General Goals, Vision, Mission, Career Aspirations, Academic/Professional Interests, College/University Plans, Future Career Goals, Strengths, Weaknesses, Good habits | Goals & Mission, Career Goals, Strengths/Weaknesses |
 | Support & Wellbeing | Disability, Special Need, Bad habits, Deen Background, Moral character, Namaz | Strengths/Weaknesses, Goals & Mission, Personality and Skills |
@@ -122,11 +122,17 @@ const auth = await requireCapability("students.profile.view");
 if (auth instanceof NextResponse) return auth;
 
 // LAYER 2: Server-derived participant scope
-//   HQ: explicit cityId
+//   HQ: requires explicit cityId query param (400 if missing);
+//       if supplied but participant not in that city → 403
 //   Staff: derive city via StaffMeta, then verify participant.group.batch/city/park
 //   Guardian: verify linked via GuardianChild
 //   Student: verify owns the participant record
-if (!(await canAccessParticipantProfile(auth.user, participantId))) {
+const resolvedCity = resolveActorCity(auth.user, providedCityId);
+if (resolvedCity === null) {
+  if (isHqRole(auth.user.role)) return new NextResponse(null, { status: 400 });
+  return new NextResponse(null, { status: 403 });
+}
+if (!(await canAccessParticipantProfile(auth.user, participantId, resolvedCity))) {
   return new NextResponse(null, { status: 403 });
 }
 
@@ -167,7 +173,6 @@ model StudentExtendedProfile {
   // Family & Background tab
   fatherName            String?  // Factual name — does NOT create or replace a Guardian record
   fatherOccupation      String?
-  guardianPhone         String?  // Additional contact phone (not Guardian.phone)
   siblings              String?  // Free text summary
   financialStatus       String?  // SENSITIVE — free text
   nativeArea            String?
@@ -232,7 +237,7 @@ model StudentExtendedProfile {
 - **On-demand creation:** The profile row is created by Prisma `upsert` on the first write. No seed or bulk creation. The record only exists when an authorised user saves data.
 - **All text fields:** Every extended field is `String?` to accommodate free-text input, short descriptions, or Likert-scale labels. No enum constraints for pilot flexibility.
 - **`fatherName` clarification:** `fatherName` is a **factual biographical context field** stored on the extended profile. It does **not** create, duplicate, or replace a `Guardian` record. If the participant has a linked Guardian with relation "Father", that Guardian record remains the canonical source. `fatherName` here is supplementary context (e.g. for programmes that record paternal lineage separately from the guardian relationship).
-- **`guardianPhone`:** This is an additional contact number, not `Guardian.phone`. It is supplementary context provided by the participant or staff.
+- **`guardianPhone` excluded:** The workbook field "Guardian Phone" maps to the existing `Guardian.phone` field. The extended profile must not duplicate it. When a profile is created, the system does not write a `guardianPhone` field. Any future import attempting to map "Guardian Phone" to the extended profile must report an unresolved match for reconciliation.
 - **`personalityResponsibility`:** Single canonical target for the duplicate "Responsibility" workbook column. Any future import that finds two "Responsibility" columns must flag the conflict and refuse to overwrite this field silently.
 
 ---
@@ -262,7 +267,6 @@ const updateProfileSchema = z.object({
   // Family & Background
   fatherName: z.string().max(200).optional(),
   fatherOccupation: z.string().max(200).optional(),
-  guardianPhone: z.string().max(30).optional(),
   siblings: z.string().max(500).optional(),
   nativeArea: z.string().max(200).optional(),
   ethnicity: z.string().max(100).optional(),
@@ -316,14 +320,36 @@ const updateProfileSchema = z.object({
 
 ### 6.3 Profile Response Schema
 
-The GET endpoint returns a filtered response based on the caller's capabilities. Sensitive fields are omitted unless the caller has `sensitive.view`.
+The GET endpoint returns a filtered response based on the caller's capabilities. Two behaviours:
+
+1. **Standard GET** (no `?includeSensitive=true`): sensitive fields are always omitted from the response body. The caller receives 200 with non-sensitive data. No error.
+2. **GET with `?includeSensitive=true`**: the server checks for `sensitive.view`. If granted, sensitive fields are populated. If denied, the endpoint returns **403**.
 
 ```typescript
-// Server-side: if caller lacks sensitive.view, strip sensitive fields before returning
-const sensitiveFields = [
-  "financialStatus", "deenBackground", "badHabits",
-  "disability", "specialNeed", "moralCharacter", "namaz",
-];
+// Server-side logic:
+async function getProfile(participantId: string, includeSensitive: boolean) {
+  const profile = await db.studentExtendedProfile.findUnique({ where: { participantId } });
+  if (!profile) return NextResponse.json(null, { status: 200 }); // empty state — no error
+
+  let result = { ...profile };
+  const sensitiveFields = [
+    "financialStatus", "deenBackground", "badHabits",
+    "disability", "specialNeed", "moralCharacter", "namaz",
+  ];
+
+  if (includeSensitive) {
+    // Permission check — deny if missing
+    const auth = await requireCapability("students.profile.sensitive.view");
+    if (auth instanceof NextResponse) return auth; // 403
+  } else {
+    // Strip sensitive fields silently
+    for (const field of sensitiveFields) {
+      delete result[field];
+    }
+  }
+
+  return NextResponse.json(result);
+}
 ```
 
 ---
@@ -334,19 +360,21 @@ const sensitiveFields = [
 
 | Method | Path | Handler | Auth Gate | Scope Check | Request Schema |
 |--------|------|---------|-----------|-------------|---------------|
-| `GET` | `/api/admin/students/[participantId]/profile` | getProfile | `students.profile.view` | `canAccessParticipantProfile`; sensitive fields filtered if caller lacks `sensitive.view` | — |
-| `PUT` | `/api/admin/students/[participantId]/profile` | upsertProfile | `students.profile.manage` | `canAccessParticipantProfile`; sensitive fields require `sensitive.manage` | `updateProfileSchema` |
-| `GET` | `/api/me/profile` | myProfile | `requireAuth` | Own participant record (student) or linked child (guardian) | — |
-| `GET` | `/api/admin/students/profile/search` | searchProfiles | `students.profile.view` | HQ requires `cityId`; scoped derives from StaffMeta; sensitive fields never in results | `{ cityId?, query?, page, limit }` |
+| `GET` | `/api/admin/students/[participantId]/profile` | getProfile | `students.profile.view` | `canAccessParticipantProfile` via `resolveActorCity`; HQ must supply `?cityId=` (400 if missing); sensitive fields silently omitted unless `includeSensitive=true` with `sensitive.view` (403 if missing) | — |
+| `PUT` | `/api/admin/students/[participantId]/profile` | upsertProfile | `students.profile.manage` | Same scope derivation; HQ requires `?cityId=`; sensitive fields require `sensitive.manage` | `updateProfileSchema` |
+| `GET` | `/api/me/profile` | myProfile | `requireAuth` | Own participant record (student only). Guardian must use `/api/admin/students/[participantId]/profile` with validated `GuardianChild` link. | — |
+| `GET` | `/api/guardian/children/[participantId]/profile` | guardianGetProfile | `requireAuth` + `guardians.manage` | Server validates `GuardianChild` link; sensitive fields omitted; `includeSensitive=true` returns 403 for guardian | — |
+| `GET` | `/api/admin/students/profile/search` | searchProfiles | `students.profile.view` | HQ requires `cityId` (400 if missing); scoped derives from StaffMeta; sensitive fields never in results | `{ cityId?, query?, page, limit }` |
 
 ### 7.2 Scope Helper
 
 ```typescript
 async function canAccessParticipantProfile(
   user: SessionUser,
-  participantId: string
+  participantId: string,
+  providedCityId?: string
 ): Promise<boolean> {
-  // HQ: must supply cityId; verify participant belongs to that city
+  // HQ: must supply cityId (400 if missing); verify participant belongs to that city
   // Staff: derive city from StaffMeta; verify participant's group/batch/city matches
   // Guardian: verify GuardianChild link to participant
   // Student: verify own participant record
@@ -369,7 +397,7 @@ async function canAccessParticipantProfile(
 - `400`: "Invalid input."
 - `403`: "You do not have permission to view or edit this data."
 - `404`: "Participant not found."
-- Sensitive fields show "[Restricted]" placeholder when caller lacks `sensitive.view`.
+- Sensitive fields show "[Restricted]" placeholder by default. An "Include sensitive fields" toggle (staff only) triggers `?includeSensitive=true`; if `sensitive.view` is missing, the toggle shows a 403 message.
 
 **Save behaviour:** Auto-save on field blur or explicit "Save" button. Partial update (only changed fields sent).
 
@@ -402,9 +430,35 @@ async function canAccessParticipantProfile(
 | Create extended profile | `student_profile.create` | `StudentExtendedProfile` | newValues includes all initial fields (redacted sensitive) |
 | Update extended profile | `student_profile.update` | `StudentExtendedProfile` | oldValues + newValues (redacted sensitive) |
 
-All sensitive field values are redacted by the existing `createAuditLogData()` helper, which redacts fields matching patterns like `name`, `content`, `reason`, `body`, `message`. The existing regex `SENSITIVE_AUDIT_FIELD` will catch most extended profile text fields. The contract explicitly marks the sensitive tab fields for redaction.
+### 9.2 Mandatory Explicit Audit Sanitizer
 
-### 9.2 Sensitive Data Protection
+The existing `createAuditLogData()` helper's generic `SENSITIVE_AUDIT_FIELD` regex is insufficient for the extended profile's free-text wellbeing fields. The implementation **must** create an explicit Student Profile audit sanitizer in `src/lib/student-profile/audit.ts` that redacts every Support & Wellbeing field before any audit payload is logged:
+
+```typescript
+// src/lib/student-profile/audit.ts
+const PROFILE_SENSITIVE_FIELDS = [
+  "financialStatus", "deenBackground", "badHabits",
+  "disability", "specialNeed", "moralCharacter", "namaz",
+];
+
+export function redactProfileSensitiveValues(values?: Record<string, unknown>): Record<string, unknown> | undefined {
+  if (!values) return undefined;
+  const redacted = { ...values };
+  for (const field of PROFILE_SENSITIVE_FIELDS) {
+    if (field in redacted) {
+      redacted[field] = "[REDACTED]";
+    }
+  }
+  return redacted;
+}
+
+// Usage: call before createAuditLogData or logAudit
+const sanitizedNew = redactProfileSensitiveValues(newValues);
+```
+
+This sanitizer must be called **before** `createAuditLogData()` or `logAudit()`. The generic helper does not reliably catch all free-text wellbeing content.
+
+### 9.3 Sensitive Data Protection
 
 - Support & Wellbeing fields are never included in list/search API responses.
 - Support & Wellbeing fields are redacted in audit logs.
@@ -421,8 +475,7 @@ All sensitive field values are redacted by the existing `createAuditLogData()` h
 
 ### 10.1 Prerequisites
 
-- PKG-01, PKG-04, PKG-06, and PKG-09 schema migrations must be integrated.
-- Codebase on `codex/production-hardening` with both Prisma schemas in sync.
+- PKG-01 and PKG-09 schema migrations must be integrated. The capability catalogue rises from 36 to 40 with the four new profile capabilities. PKG-09's governance contract must define the role defaults and named-user eligibility for all four codes before this module's routes are deployed.
 
 ### 10.2 Steps
 
@@ -455,7 +508,8 @@ Standard rollback: disable routes and remove capability codes. The additive tabl
 | `src/lib/student-profile/types.ts` | TypeScript types |
 | `src/lib/student-profile/scope.ts` | `canAccessParticipantProfile` helper |
 | `src/app/api/admin/students/[participantId]/profile/route.ts` | GET, PUT |
-| `src/app/api/me/profile/route.ts` | GET (self/guardian) |
+| `src/app/api/me/profile/route.ts` | GET (self — student only) |
+| `src/app/api/guardian/children/[participantId]/profile/route.ts` | GET (guardian — validated via GuardianChild) |
 | `src/app/api/admin/students/profile/search/route.ts` | GET (search) |
 | `src/components/modules/student-profile/profile-page.tsx` | Tabbed profile page |
 | `src/components/modules/student-profile/education-tab.tsx` | Education tab |
@@ -485,8 +539,9 @@ Standard rollback: disable routes and remove capability codes. The additive tabl
 | PROF-ALLOW-006 | Guardian reads linked child's non-sensitive profile fields | 200 |
 | PROF-ALLOW-007 | Student reads own non-sensitive profile fields | 200 |
 | PROF-ALLOW-008 | Super Admin reads extended profile with explicit cityId | 200 |
-| PROF-ALLOW-009 | City Head with `sensitive.view` reads Support & Wellbeing fields | 200 (sensitive fields populated) |
+| PROF-ALLOW-009 | City Head with `sensitive.view` reads Support & Wellbeing with `?includeSensitive=true` | 200 (sensitive fields populated) |
 | PROF-ALLOW-010 | Profile upserted on first write (no prior record) | 201 (created) |
+| PROF-ALLOW-011 | City Head reads profile without `?includeSensitive=true` — sensitive fields silently omitted | 200 (non-sensitive only) |
 
 ### 12.2 Deny Tests
 
@@ -496,15 +551,17 @@ Standard rollback: disable routes and remove capability codes. The additive tabl
 | PROF-DENY-002 | Park Admin writes extended profile (no profile.manage) | 403 |
 | PROF-DENY-003 | Murabbi writes extended profile (no profile.manage) | 403 |
 | PROF-DENY-004 | City Head writes extended profile for participant in another city | 403 |
-| PROF-DENY-005 | Guardian reads sensitive fields on linked child | 403 (sensitive fields omitted) |
-| PROF-DENY-006 | Student reads own sensitive fields | 403 (sensitive fields omitted) |
-| PROF-DENY-007 | City Head writes sensitive fields without `sensitive.manage` | 403 |
-| PROF-DENY-008 | Student writes own profile (no profile.manage for self) | 403 |
-| PROF-DENY-009 | Guardian writes linked child's profile | 403 |
-| PROF-DENY-010 | Park Lead reads participant in another park | 403 |
-| PROF-DENY-011 | HQ lists profiles without cityId | 400 |
+| PROF-DENY-005 | Student reads own profile with `?includeSensitive=true` | 403 (no sensitive.view) |
+| PROF-DENY-006 | City Head writes sensitive fields without `sensitive.manage` | 403 |
+| PROF-DENY-007 | Student writes own profile (no profile.manage for self) | 403 |
+| PROF-DENY-008 | Guardian writes linked child's profile | 403 |
+| PROF-DENY-009 | Park Lead reads participant in another park | 403 |
+| PROF-DENY-010 | HQ reads profile without cityId | 400 |
+| PROF-DENY-011 | HQ searches profiles without cityId | 400 |
 | PROF-DENY-012 | Client supplies `participantId` in request body (strict schema) | 400 |
 | PROF-DENY-013 | Student reads another student's profile | 403 |
+| PROF-DENY-014 | Guardian reads linked child's profile with `?includeSensitive=true` | 403 (no sensitive.view) |
+| PROF-DENY-015 | City Head reads profile detail with `?cityId=` set to a different city | 403 |
 
 ### 12.3 Error Tests
 
