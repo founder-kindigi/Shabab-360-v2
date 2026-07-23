@@ -235,7 +235,7 @@ This is the single canonical list of protected capabilities. They are **immutabl
 | `access.scope.manage` | Scope changes affect authorization boundaries | Super Admin only (protected in route) |
 | `access.city_staff.manage` | Staff provisioning within city | Role override only |
 
-**Capabilities outside the canonical protected list** are eligible for named-user override only if they have been explicitly added to `USER_OVERRIDE_CAPABILITIES` (see §9 for the exact whitelist). Five proposed capabilities — `teams.memberships.manage`, `calling.poc.manage`, `calling.export.manage`, `calling.templates.manage`, `events.responsibilities.manage` — are subject to owner decisions D5–D9 in §12 and remain excluded until approved. Only explicitly approved public capabilities enter `USER_OVERRIDE_CAPABILITIES`.
+**Capabilities outside the canonical protected list** are eligible for named-user override only if they have been explicitly added to `USER_OVERRIDE_CAPABILITIES` (see §9 for the exact whitelist). Five proposed capabilities — `teams.memberships.manage`, `calling.poc.manage`, `calling.export.manage`, `calling.templates.manage`, `events.responsibilities.manage` — are subject to owner decisions D5–D9 in §12 and remain excluded until approved. Only explicitly approved public capabilities enter `USER_OVERRIDE_CAPABILITIES`. No D5–D9 capability is added until the owner approves.
 
 **Immutable exceptions (current code, unchanged):**
 - The `super_admin` role cannot be targeted by role overrides.
@@ -371,21 +371,21 @@ The following capabilities must be added to `USER_OVERRIDE_CAPABILITIES` so Supe
 ```typescript
 "content.view",              "content.manage",
 "teams.workspace.view",      "teams.workspace.manage",
-"teams.memberships.manage",  // Subject to owner decision D5 — recommended default: allow named-user override
 "events.view",               "events.manage",
 "mashwara.view",             "mashwara.attend",       "mashwara.manage",
 "calling.campaign.manage",   "calling.leads.view",
 "calling.leads.assign",      "calling.leads.interact",
-"calling.poc.manage",        // Subject to owner decision D6 — recommended default: allow named-user override
 ```
 
-The following capabilities from the proposed catalogue remain **excluded** from `USER_OVERRIDE_CAPABILITIES` pending owner decisions D7–D9 (recommended default: protect):
+The following proposed capabilities remain **excluded** from `USER_OVERRIDE_CAPABILITIES` pending owner decisions D5–D9 (§12). None are added until the owner approves:
 
 ```typescript
-// Pending owner decision — currently excluded:
-// "calling.export.manage"      — D7 recommended protect
-// "calling.templates.manage"   — D8 recommended protect
-// "events.responsibilities.manage" — D9 recommended protect
+// Pending owner decision D5–D9 — currently excluded:
+// "teams.memberships.manage"         — D5 recommended allow
+// "calling.poc.manage"               — D6 recommended allow
+// "calling.export.manage"            — D7 recommended protect
+// "calling.templates.manage"         — D8 recommended protect
+// "events.responsibilities.manage"   — D9 recommended protect
 ```
 
 The following capabilities are always **excluded** (canonical protected list per §6):
@@ -438,7 +438,7 @@ If module routes must be rolled back, delete the route files and revert `capabil
 - Collaboration Teams: [TEAM-003](docs/product-discovery/TEAM-003-COLLABORATION-TEAM-WORKSPACE-CONTRACT.md) — uses `teams.*`
 - Events: [EVENT-303](docs/product-discovery/EVENT-303-IMPLEMENTATION-CONTRACT.md) — uses `events.*`
 - Mashwara: [MASHWARA-303](docs/product-discovery/MASHWARA-303-IMPLEMENTATION-CONTRACT.md) — uses `mashwara.*`
-- Calling: [CALL-308](docs/product-discovery/CALL-308-CALLING-MODULE-IMPLEMENTATION-CONTRACT.md) — uses `calling.*` (under review)
+- Calling: [CALL-308](docs/product-discovery/CALL-308-CALLING-MODULE-IMPLEMENTATION-CONTRACT.md) — uses `calling.*`
 
 Each module contract defines its own API routes, Zod schemas, scope helpers, UI components, and focused tests. This contract does not duplicate those.
 
@@ -457,7 +457,7 @@ Each module contract defines its own API routes, Zod schemas, scope helpers, UI 
 
 | # | Decision | Options | Impact |
 |---|----------|---------|--------|
-| D1 | Calling module (CALL-308) is still under review. Should `calling.*` capabilities be added to `ACCESS_CAPABILITIES` now (enabling Super Admin to pre-configure overrides), or deferred until the calling module is approved? | Add now vs Defer | Affects rollout order |
+| D1 | Calling module (CALL-308) is now an approved integrated contract. The `calling.*` capability codes are proposed in this catalogue (see §2). Should they be added to `ACCESS_CAPABILITIES` now (enabling Super Admin to pre-configure overrides before calling routes deploy), or deferred until the calling implementation package adds them? | Add now vs Defer to implementation | Affects rollout order |
 | D2 | `teams.memberships.manage` — should this capability default for Park Lead, or remain Super Admin/City Head only? Current default: City Head only. | Add to Park Lead vs Keep as is | Affects role defaults matrix |
 | D3 | Event `planned` visibility — currently `events.view` users without `events.manage` cannot see planned events (404/403). Should this be a capability-level rule or a separate status filter? | Capability rule vs Status filter | Affects route enforcement pattern |
 | D4 | Calling POC — should the existing `calling.poc.manage` capability be combined with `events.responsibilities.manage`, since Calling POC is an EventResponsibility? | Separate vs Combined | Affects capability catalogue size |
