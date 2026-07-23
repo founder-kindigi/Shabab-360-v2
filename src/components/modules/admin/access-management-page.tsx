@@ -223,9 +223,9 @@ export function AccessManagementPage() {
                       const override = overrides.get(capability);
                       const defaultAllowed = defaults.includes(capability);
                       const allowed = override ? override === "allow" : defaultAllowed;
-                      return <div key={capability} className="flex flex-col gap-3 p-4 md:flex-row md:items-center md:justify-between">
-                        <div><p className="text-sm font-medium">{label}</p><p className="font-mono text-xs text-muted-foreground">{capability}</p></div>
-                        <div className="flex flex-wrap items-center gap-2">
+                      return <div key={capability} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between min-w-0">
+                        <div className="min-w-0 flex-1"><p className="text-sm font-medium">{label}</p><p className="font-mono text-xs text-muted-foreground truncate sm:break-all">{capability}</p></div>
+                        <div className="flex flex-wrap items-center gap-2 shrink-0">
                           <Badge variant={allowed ? "default" : "secondary"}>{allowed ? "Allowed" : "Denied"}</Badge>
                           {override && <Badge variant="outline">Role override</Badge>}
                           {isProtected ? <Badge variant="outline" className="gap-1"><LockKeyhole className="size-3" />Protected</Badge> : <>
@@ -260,10 +260,11 @@ export function AccessManagementPage() {
           </div>
           <div className="rounded-xl border bg-muted/20 p-4">
             <p className="text-sm font-medium">Effective named-user exceptions</p>
-            {!userId ? <p className="mt-2 text-sm text-muted-foreground">Select a user to review active overrides.</p> : userAccess.isLoading ? <p className="mt-2 text-sm text-muted-foreground">Loading user access...</p> : userAccess.isError ? <p className="mt-2 text-sm text-destructive">Unable to load user access.</p> : <div className="mt-3 space-y-2">{(userAccess.data.userOverrides ?? []).length === 0 ? <p className="text-sm text-muted-foreground">No active named-user overrides.</p> : userAccess.data.userOverrides.map((item: { id: string; capability: string; effect: Effect; expiresAt: string | null }) => <div key={item.id} className="flex items-center justify-between gap-2 rounded-lg border bg-background p-3 text-sm"><span><span className="block font-mono text-xs">{item.capability}</span>{item.expiresAt && <span className="text-xs text-muted-foreground">Expires {new Date(item.expiresAt).toLocaleString()}</span>}</span><span className="flex items-center gap-2"><Badge variant={item.effect === "allow" ? "default" : "secondary"}>{item.effect}</Badge><Button size="sm" variant="ghost" disabled={userReset.isPending} onClick={() => userReset.mutate(item.capability)}>Revoke</Button></span></div>)}</div>}
+            {!userId ? <p className="mt-2 text-sm text-muted-foreground">Select a user to review active overrides.</p> : userAccess.isLoading ? <p className="mt-2 text-sm text-muted-foreground">Loading user access...</p> : userAccess.isError ? <p className="mt-2 text-sm text-destructive">Unable to load user access.</p> : <div className="mt-3 space-y-2">{(userAccess.data.userOverrides ?? []).length === 0 ? <p className="text-sm text-muted-foreground">No active named-user overrides.</p> : userAccess.data.userOverrides.map((item: { id: string; capability: string; effect: Effect; expiresAt: string | null }) => <div key={item.id} className="flex flex-col gap-2 rounded-lg border bg-background p-3 text-sm sm:flex-row sm:items-center sm:justify-between min-w-0"><div className="min-w-0 flex-1"><span className="block font-mono text-xs truncate sm:break-all">{item.capability}</span>{item.expiresAt && <span className="block text-xs text-muted-foreground">Expires {new Date(item.expiresAt).toLocaleString()}</span>}</div><div className="flex items-center gap-2 shrink-0"><Badge variant={item.effect === "allow" ? "default" : "secondary"}>{item.effect}</Badge><Button size="sm" variant="ghost" disabled={userReset.isPending} onClick={() => userReset.mutate(item.capability)}>Revoke</Button></div></div>)}</div>}
           </div>
         </CardContent>
       </Card>
+
     </div>
   );
 }
