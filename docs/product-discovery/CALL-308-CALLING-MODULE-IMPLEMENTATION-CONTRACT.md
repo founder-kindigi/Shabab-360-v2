@@ -1,6 +1,6 @@
 # CALL-308: Calling Module Implementation Contract
 
-- **Document Version:** 1.2.0
+- **Document Version:** 1.3.0
 - **Task ID:** `PKG-08-CALLING-MODULE-IMPLEMENTATION-CONTRACT`
 - **Agent Identity:** Antigravity
 - **Complexity:** C3
@@ -107,6 +107,7 @@ model CallingTemplate {
   @@map("calling_templates")
 }
 
+// CallingTemplateUse is an immutable audit trail. Prohibit cascade deletions.
 model CallingTemplateUse {
   id              String   @id @default(cuid())
   templateId      String
@@ -118,8 +119,8 @@ model CallingTemplateUse {
   usedAt          DateTime @default(now())
 
   template   CallingTemplate   @relation(fields: [templateId], references: [id], onDelete: Restrict)
-  caller     User              @relation(fields: [callerUserId], references: [id], onDelete: Cascade)
-  assignment CallingAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  caller     User              @relation(fields: [callerUserId], references: [id], onDelete: Restrict)
+  assignment CallingAssignment @relation(fields: [assignmentId], references: [id], onDelete: Restrict)
 
   @@index([templateId])
   @@index([callerUserId])
@@ -232,13 +233,19 @@ model CallInteraction {
 * **Lifecycle:** Templates progress through states `draft` -> `approved` -> `retired`. Only `approved` templates can be used to contact leads.
 * **Capability Control:** Introducing, approving, or retiring templates requires a dynamic `calling.templates.manage` capability plus city scope validation. POCs may only select approved templates and cannot create or modify them unless explicitly granted `calling.templates.manage`.
 
-### 4.2 Versioning & Template Use Logs
+### 4.2 Versioning & Immutable Template Use Logs
 * **Versioning:** Templates utilize an incremental `version` field. When a template body is updated, a new record is created with an incremented version number, keeping past versions immutable.
 * **TemplateUse Logs:** Every manual contact event using a template writes to `CallingTemplateUse`.
 * **PII Redaction Safeguards:** The `valuesHmac` field stores a SHA-256 HMAC of the template values used (using `IMPORT_HMAC_SECRET`), and `variablesUsed` records the key names. Raw or masked candidate PII is **never** saved inside this model.
+* **No Deletion / Cascades:** There is no API DELETE endpoint for `CallingTemplateUse`. The relations are set to `onDelete: Restrict` to prevent cascade deletes. In the event of campaign archival, the template uses and their HMAC logs remain preserved in place.
 
 ### 4.3 Server-Side City Scope & Date Integrity
 * **HQ vs Scoped Actors:** HQ capability holders (Super Admin) must supply `cityId` explicitly in request payloads (otherwise returning 400). Scoped actors (City Head) derive their city scope server-side via `StaffMeta`.
+* **GET Campaign List Query Parameter Rules:**
+  - **HQ-Capable Users:** Must explicitly supply a valid, existing `cityId` parameter in the request query string. Omission or invalid parameters yield HTTP 400.
+  - **Scoped Actors:**
+    - If they omit `cityId`, the server derives their city scope automatically via their `StaffMeta` profile.
+    - If they supply a `cityId`, it must match their derived city scope. Supplying a foreign `cityId` yields HTTP 403.
 * **Request Narrowing:** Client-supplied scopes can only narrow, never expand, the derived city scope.
 * **Date Validation:** In Zod and on the server, campaigns must satisfy `startDate <= endDate`.
 * **City Boundary:** The server enforces that a candidate lead's `AdmissionApplication.cityId` must match the campaign's `CallingCampaign.cityId` before any assignment can be created.
@@ -304,6 +311,11 @@ export const createTemplateSchema = z.object({
   }, "Template contains unauthorized merge variables"),
 });
 
+export const updateTemplateSchema = z.object({
+  status: z.enum(["draft", "approved", "retired"]),
+  body: z.string().trim().min(5).max(1000).optional(),
+});
+
 export const exportCallingSchema = z.object({
   campaignId: cuidSchema,
   cityId: cuidSchema.optional(), // Mandatory only for HQ capability holders
@@ -320,7 +332,7 @@ All scope evaluations are derived server-side. Query parameters may only narrow,
 
 | Route | Method | Payload / Query | Access Level (Required Capabilities) | Expected Outcomes | Description |
 | --- | --- | --- | --- | --- | --- |
-| `/api/calling/campaigns` | GET | None | `calling.leads.view` | **200** Success<br>**403** Scope Mismatch | List campaigns for user's derived city. |
+| `/api/calling/campaigns` | GET | `cityId` | `calling.leads.view` | **200** Success<br>**400** HQ missing cityId<br>**403** Scope Mismatch | List campaigns for user's derived/supplied city. |
 | `/api/calling/campaigns` | POST | Zod Campaign Create | `calling.campaign.manage` | **201** Created<br>**400** Invalid Zod Payload / Dates / Missing HQ cityId<br>**409** Name Conflict in City | Create a new city campaign. |
 | `/api/calling/campaigns/[id]/leads` | GET | None | `calling.leads.view` | **200** Masked Roster<br>**404** Campaign Not Found | Fetch roster. Assigned caller sees raw PII for their leads; others see masked names/phones. |
 | `/api/calling/campaigns/[id]/assign-poc` | POST | Zod POC Assign | `calling.poc.manage` | **200** Success<br>**400** Staff/Campaign City Mismatch<br>**404** Record Not Found | Assign a staff member as Calling POC. |
@@ -328,7 +340,10 @@ All scope evaluations are derived server-side. Query parameters may only narrow,
 | `/api/calling/assignments/my-leads` | GET | None | `calling.leads.view` | **200** Success | List active assigned leads (PII unmasked). |
 | `/api/calling/interactions` | POST | Zod Interaction Log | `calling.leads.interact` | **201** Created<br>**400** Callback Date Missing / Outcome Schema Error<br>**403** Expired Caller Scope | Log call interaction results. |
 | `/api/calling/external-callers` | POST | Zod Caller Invite | `calling.poc.manage` | **201** Created<br>**400** Validity Exceeds 30 Days<br>**409** Active Caller Already Exists / Email Exists | Register/invite support caller. |
-| `/api/calling/exports` | POST | Zod Export Request | `calling.export.manage` | **200** File Stream<br>**400** Purpose Too Short<br>**403** Forbidden (Non-City Head / Scope Mismatch) | Export campaign lists with audit logging. |
+| `/api/calling/templates` | GET | `campaignId` | `calling.leads.view` | **200** Success<br>**403** Scope Violation | List active templates for the user's city scope (filters optional). |
+| `/api/calling/templates` | POST | Zod Template Create | `calling.templates.manage` | **201** Created<br>**400** Scope Mismatch / Variables Error | Create a template in draft status. |
+| `/api/calling/templates/[id]` | PATCH | Zod Template Update | `calling.templates.manage` | **200** Success<br>**400** Invalid state transition<br>**403** Scope Violation | Approve or retire template, or update draft. |
+| `/api/calling/exports` | POST | Zod Export Request | `calling.export.manage` | **200** File Stream<br>**400** Purpose Too Short<br>**403** Forbidden (Scope Mismatch) | Export campaign lists with audit logging. Gated by capability + derived city scope (no role gates). |
 
 ---
 
@@ -342,7 +357,7 @@ All scope evaluations are derived server-side. Query parameters may only narrow,
 * **Assigned Leads:** Callers only see raw contact details for leads explicitly assigned to them.
 * **No Automated Communications:** System integrations with SMS, automatic emails, or automated WhatsApp gateways are disabled. WhatsApp interactions must use client-side manual deep-links (`https://wa.me/923XXXXXXXXX?text=...`) utilizing pre-approved templates.
 
-### 7.2 City Head Export Controls
+### 7.2 Export Controls
 To satisfy audit requirements, any calling list export triggers the following enforcements:
 1. **Audit Logs:** Logged under `export` action for entity `calling_campaign` containing:
    - Requesting `userId` and timestamp.
@@ -373,8 +388,8 @@ To satisfy audit requirements, any calling list export triggers the following en
 | `TC-CL-005` | `calling.poc.manage` | Campaign: LHR Campaign, Staff: ISB Staff | Assign campaign Calling POC | **Deny** (HTTP 400 - City Scope Mismatch) | No |
 | `TC-CL-006` | `calling.leads.view` (Assigned Caller)| Fetch assigned lead details | GET `/api/calling/assignments/my-leads` | **Allow** (HTTP 200 - Unmasked PII) | No |
 | `TC-CL-007` | `calling.leads.view` (Unassigned Member)| Fetch unassigned candidate list | GET `/api/calling/campaigns/[id]/leads` | **Allow** (HTTP 200 - Masked PII) | No |
-| `TC-CL-008` | `calling.export.manage` (City Head) | Purpose: "Audit outreach list for LHR", Format: CSV | POST `/api/calling/exports` | **Allow** (HTTP 200 - CSV stream) | Yes (`export_campaign_leads`) |
-| `TC-CL-009` | `calling.export.manage` (City Head) | Purpose: "Short" (5 chars) | POST `/api/calling/exports` | **Deny** (HTTP 400 - Purpose too short) | No |
+| `TC-CL-008` | `calling.export.manage` | Purpose: "Audit outreach list for LHR", Format: CSV | POST `/api/calling/exports` | **Allow** (HTTP 200 - CSV stream) | Yes (`export_campaign_leads`) |
+| `TC-CL-009` | `calling.export.manage` | Purpose: "Short" (5 chars) | POST `/api/calling/exports` | **Deny** (HTTP 400 - Purpose too short) | No |
 | `TC-CL-010` | `calling.leads.interact` (Assigned Caller) | Invalid call outcome "disconnected" | POST `/api/calling/interactions` | **Deny** (HTTP 400 - Invalid enum) | No |
 | `TC-CL-011` | `calling.poc.manage` | Invite external caller with 40-day expiry | POST `/api/calling/external-callers` | **Deny** (HTTP 400 - Exceeds 30 days) | No |
 | `TC-CL-012` | `calling.export.manage` (HQ/SuperAdmin) | Omit `cityId` | POST `/api/calling/exports` | **Deny** (HTTP 400 - Missing cityId) | No |
@@ -382,12 +397,16 @@ To satisfy audit requirements, any calling list export triggers the following en
 | `TC-CL-014` | `calling.leads.assign` | Lead City: ISB, Campaign City: LHR | POST `/api/calling/assignments` | **Deny** (HTTP 400 - City boundary mismatch) | No |
 | `TC-CL-015` | `calling.leads.assign` | Caller: Staff AND External both set | POST `/api/calling/assignments` | **Deny** (HTTP 400 - Mutually exclusive caller fields) | No |
 | `TC-CL-016` | `calling.leads.interact` (Expired External) | `expiresAt` < now | POST `/api/calling/interactions` | **Deny** (HTTP 403 - Expired caller access) | No |
-| `TC-CL-017` | `calling.leads.interact` (Revoked POC) | `revokedAt` is not null | POST `/api/calling/assignments` | **Deny** (HTTP 403 - Revoked POC permissions) | No |
+| `TC-CL-017` | `calling.leads.assign` (Revoked POC) | `calling.leads.assign` + active status check fails on revoked POC responsibility | POST `/api/calling/assignments` | **Deny** (HTTP 403 - Revoked/Expired POC permissions) | No |
 | `TC-CL-018` | `calling.leads.view` (Active member) | Fetch template with draft status | GET `/api/calling/templates/[id]` | **Deny** (HTTP 403 - Template not approved) | No |
 | `TC-CL-019` | `calling.templates.manage` (Active member) | Create template with draft status | POST `/api/calling/templates` | **Allow** (HTTP 201) | Yes (`create_template`) |
 | `TC-CL-020` | `calling.leads.assign` (No Active POC) | Attempt to assign lead | POST `/api/calling/assignments` | **Deny** (HTTP 403 - Requires active campaign POC/Admin) | No |
 | `TC-CL-021` | `calling.poc.manage` | Assign POC LHR event to campaign ISB | POST `/api/calling/campaigns/[id]/assign-poc` | **Deny** (HTTP 400 - EventResponsibility city mismatch) | No |
 | `TC-CL-022` | `calling.poc.manage` | Assign external caller when active exists | POST `/api/calling/external-callers` | **Deny** (HTTP 409 - Active caller already exists) | No |
+| `TC-CL-023` | `calling.campaign.manage` (LHR Scoped) | Provide `cityId: ISB` query on list | GET `/api/calling/campaigns` | **Deny** (HTTP 403 - Scope Mismatch) | No |
+| `TC-CL-024` | `calling.templates.manage` (Active member) | Approve template outside user's city scope | PATCH `/api/calling/templates/[id]` | **Deny** (HTTP 403 - Scope Mismatch) | No |
+| `TC-CL-025` | `calling.templates.manage` (Active member) | Transition template approved -> retired | PATCH `/api/calling/templates/[id]` | **Allow** (HTTP 200) | Yes (`retire_template`) |
+| `TC-CL-026` | `calling.leads.interact` | Try to use template without `calling.templates.manage` | POST `/api/calling/interactions` | **Allow** (HTTP 201 - POC selects approved template) | Yes (`log_template_use`) |
 
 ---
 
@@ -403,6 +422,8 @@ The following files and paths will be introduced in follow-up packages:
 * **[NEW]** `src/app/api/calling/assignments/my-leads/route.ts`: Personal caller dashboard lead fetch.
 * **[NEW]** `src/app/api/calling/interactions/route.ts`: Call logs insertion.
 * **[NEW]** `src/app/api/calling/external-callers/route.ts`: External callers provisioning.
+* **[NEW]** `src/app/api/calling/templates/route.ts`: Template creation and listing.
+* **[NEW]** `src/app/api/calling/templates/[id]/route.ts`: Template state updates.
 * **[NEW]** `src/app/api/calling/exports/route.ts`: Protected campaign list export endpoint.
 
 ### 9.2 Shared Utilities and Components
@@ -421,4 +442,4 @@ The following decisions must be resolved by the product owner before implementat
 2. **Approved Domain Whitelist for External Callers:** Define the email address whitelist rules (e.g. `*.unregistered.invalid`) allowed for external callers.
 3. **WhatsApp Message Content Templates:** Define the exact list of approved message template texts to be populated in deep-links.
 4. **PII Masking Rules:** Confirm the exact character counts to hide when masking names (e.g., leaving first and last initials visible).
-5. **Interaction History Retention Policy:** Retain interaction logs for 12 months, then automatically archive, per default recommended parameters.
+5. **Interaction History Retention Policy:** Retain interaction logs for 12 months, then automatically archive, per default approved guidelines.
