@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   ACCESS_CAPABILITIES,
+  USER_OVERRIDE_CAPABILITIES,
   isAccessCapability,
   ROLE_DEFAULT_CAPABILITIES,
   resolveEffectiveCapability,
@@ -98,5 +99,63 @@ describe("access capability policy", () => {
     expect(
       resolveEffectiveCapability("invalid_role", "attendance.mark", "allow", null, now)
     ).toBe(false);
+  });
+
+  // ── Student profile capability tests ─────────────────────────────────
+
+  it("grants student profile capabilities to super_admin and program_admin", () => {
+    expect(roleHasDefaultCapability("super_admin", "students.profile.view")).toBe(true);
+    expect(roleHasDefaultCapability("super_admin", "students.profile.manage")).toBe(true);
+    expect(roleHasDefaultCapability("super_admin", "students.profile.sensitive.view")).toBe(true);
+    expect(roleHasDefaultCapability("super_admin", "students.profile.sensitive.manage")).toBe(true);
+    expect(roleHasDefaultCapability("program_admin", "students.profile.view")).toBe(true);
+    expect(roleHasDefaultCapability("program_admin", "students.profile.manage")).toBe(true);
+    expect(roleHasDefaultCapability("program_admin", "students.profile.sensitive.view")).toBe(true);
+    expect(roleHasDefaultCapability("program_admin", "students.profile.sensitive.manage")).toBe(true);
+  });
+
+  it("grants city_head all four student profile capabilities", () => {
+    expect(roleHasDefaultCapability("city_head", "students.profile.view")).toBe(true);
+    expect(roleHasDefaultCapability("city_head", "students.profile.manage")).toBe(true);
+    expect(roleHasDefaultCapability("city_head", "students.profile.sensitive.view")).toBe(true);
+    expect(roleHasDefaultCapability("city_head", "students.profile.sensitive.manage")).toBe(true);
+  });
+
+  it("grants park_lead and murabbi only profile.view", () => {
+    expect(roleHasDefaultCapability("park_lead", "students.profile.view")).toBe(true);
+    expect(roleHasDefaultCapability("park_lead", "students.profile.manage")).toBe(false);
+    expect(roleHasDefaultCapability("park_lead", "students.profile.sensitive.view")).toBe(false);
+    expect(roleHasDefaultCapability("park_lead", "students.profile.sensitive.manage")).toBe(false);
+    expect(roleHasDefaultCapability("murabbi", "students.profile.view")).toBe(true);
+    expect(roleHasDefaultCapability("murabbi", "students.profile.manage")).toBe(false);
+    expect(roleHasDefaultCapability("murabbi", "students.profile.sensitive.view")).toBe(false);
+    expect(roleHasDefaultCapability("murabbi", "students.profile.sensitive.manage")).toBe(false);
+  });
+
+  it("denies park_admin all student profile capabilities", () => {
+    expect(roleHasDefaultCapability("park_admin", "students.profile.view")).toBe(false);
+    expect(roleHasDefaultCapability("park_admin", "students.profile.manage")).toBe(false);
+    expect(roleHasDefaultCapability("park_admin", "students.profile.sensitive.view")).toBe(false);
+    expect(roleHasDefaultCapability("park_admin", "students.profile.sensitive.manage")).toBe(false);
+  });
+
+  it("grants guardian and student only profile.view", () => {
+    expect(roleHasDefaultCapability("guardian", "students.profile.view")).toBe(true);
+    expect(roleHasDefaultCapability("guardian", "students.profile.manage")).toBe(false);
+    expect(roleHasDefaultCapability("guardian", "students.profile.sensitive.view")).toBe(false);
+    expect(roleHasDefaultCapability("guardian", "students.profile.sensitive.manage")).toBe(false);
+    expect(roleHasDefaultCapability("student", "students.profile.view")).toBe(true);
+    expect(roleHasDefaultCapability("student", "students.profile.manage")).toBe(false);
+    expect(roleHasDefaultCapability("student", "students.profile.sensitive.view")).toBe(false);
+    expect(roleHasDefaultCapability("student", "students.profile.sensitive.manage")).toBe(false);
+  });
+
+  it("does not add sensitive capabilities to USER_OVERRIDE_CAPABILITIES", () => {
+    // Only profile.view and profile.manage are in USER_OVERRIDE_CAPABILITIES.
+    // sensitive.view and sensitive.manage are role-level only.
+    expect(USER_OVERRIDE_CAPABILITIES.includes("students.profile.view")).toBe(true);
+    expect(USER_OVERRIDE_CAPABILITIES.includes("students.profile.manage")).toBe(true);
+    expect(USER_OVERRIDE_CAPABILITIES.includes("students.profile.sensitive.view")).toBe(false);
+    expect(USER_OVERRIDE_CAPABILITIES.includes("students.profile.sensitive.manage")).toBe(false);
   });
 });

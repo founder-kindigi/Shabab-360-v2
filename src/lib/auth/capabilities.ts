@@ -25,6 +25,10 @@ export const ACCESS_CAPABILITIES = [
   "access.user_overrides.manage",
   "access.scope.manage",
   "access.city_staff.manage",
+  "students.profile.view",
+  "students.profile.manage",
+  "students.profile.sensitive.view",
+  "students.profile.sensitive.manage",
 ] as const;
 
 // Individual overrides must never grant audit, system-setting, or access
@@ -44,6 +48,8 @@ export const USER_OVERRIDE_CAPABILITIES = [
   "reports.view",
   "content.view",
   "content.manage",
+  "students.profile.view",
+  "students.profile.manage",
 ] as const;
 
 export type AccessCapability = (typeof ACCESS_CAPABILITIES)[number];
@@ -80,6 +86,10 @@ export const ROLE_DEFAULT_CAPABILITIES: Readonly<Record<UserRole, readonly Acces
     "settings.manage",
     "content.view",
     "content.manage",
+    "students.profile.view",
+    "students.profile.manage",
+    "students.profile.sensitive.view",
+    "students.profile.sensitive.manage",
   ],
   city_head: [
     "dashboard.view",
@@ -97,6 +107,10 @@ export const ROLE_DEFAULT_CAPABILITIES: Readonly<Record<UserRole, readonly Acces
     "access.city_staff.manage",
     "content.view",
     "content.manage",
+    "students.profile.view",
+    "students.profile.manage",
+    "students.profile.sensitive.view",
+    "students.profile.sensitive.manage",
   ],
   park_lead: [
     "dashboard.view",
@@ -104,6 +118,7 @@ export const ROLE_DEFAULT_CAPABILITIES: Readonly<Record<UserRole, readonly Acces
     "attendance.mark",
     "attendance.correct",
     "content.view",
+    "students.profile.view",
   ],
   park_admin: [
     "dashboard.view",
@@ -113,9 +128,10 @@ export const ROLE_DEFAULT_CAPABILITIES: Readonly<Record<UserRole, readonly Acces
     "dashboard.view",
     "attendance.mark",
     "content.view",
+    "students.profile.view",
   ],
-  guardian: ["dashboard.view", "people.view", "guardians.manage", "reports.view"],
-  student: ["dashboard.view", "people.view", "students.manage", "reports.view"],
+  guardian: ["dashboard.view", "people.view", "guardians.manage", "reports.view", "students.profile.view"],
+  student: ["dashboard.view", "people.view", "students.manage", "reports.view", "students.profile.view"],
 };
 
 export function isAccessCapability(value: string): value is AccessCapability {
