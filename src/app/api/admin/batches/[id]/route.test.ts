@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   requireCapability: vi.fn(),
   requireResourceScope: vi.fn(),
   batchFindUnique: vi.fn(),
+  batchUpdate: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/authorize", () => ({
@@ -15,8 +16,9 @@ vi.mock("@/lib/auth/authorize", () => ({
   requireResourceScope: mocks.requireResourceScope,
 }));
 vi.mock("@/lib/db", () => ({
-  db: { batch: { findUnique: mocks.batchFindUnique } },
+  db: { batch: { findUnique: mocks.batchFindUnique, update: mocks.batchUpdate } },
 }));
+vi.mock("@/lib/audit", () => ({ logAudit: vi.fn() }));
 
 import { GET, PATCH } from "./route";
 
@@ -77,5 +79,77 @@ describe("GET /api/admin/batches/[id]", () => {
     expect(response.status).toBe(403);
     expect(mocks.batchFindUnique).not.toHaveBeenCalled();
     expect(mocks.requireResourceScope).not.toHaveBeenCalled();
+  });
+});
+
+describe("PATCH /api/admin/batches/[id] date validation", () => {
+  const existingBatch = {
+    id: "batch-1",
+    name: "Lahore Batch 4",
+    parkId: "park-1",
+    cityId: "city-1",
+    startDate: new Date("2026-08-01"),
+    endDate: new Date("2026-09-30"),
+    isActive: true,
+    park: { id: "park-1", cityId: "city-1", city: { id: "city-1" } },
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.requireAuth.mockResolvedValue({
+      user: { id: "city-head", role: "city_head", assignedCityId: "city-1" },
+    });
+    mocks.requireCapability.mockResolvedValue(null);
+    mocks.requireResourceScope.mockReturnValue(null);
+    mocks.batchFindUnique.mockResolvedValue({ ...existingBatch });
+    mocks.batchUpdate.mockResolvedValue({ ...existingBatch });
+  });
+
+  it("accepts equal startDate and endDate (200)", async () => {
+    const response = await PATCH(new NextRequest("http://localhost/api/admin/batches/batch-1", {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ startDate: "2026-10-01", endDate: "2026-10-01" }),
+    }), { params: Promise.resolve({ id: "batch-1" }) });
+
+    expect(response.status).toBe(200);
+    expect(mocks.batchUpdate).toHaveBeenCalled();
+  });
+
+  it("accepts endDate after startDate (200)", async () => {
+    const response = await PATCH(new NextRequest("http://localhost/api/admin/batches/batch-1", {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ startDate: "2026-08-01", endDate: "2026-12-31" }),
+    }), { params: Promise.resolve({ id: "batch-1" }) });
+
+    expect(response.status).toBe(200);
+    expect(mocks.batchUpdate).toHaveBeenCalled();
+  });
+
+  it("rejects endDate before startDate with 400 and no database write", async () => {
+    const response = await PATCH(new NextRequest("http://localhost/api/admin/batches/batch-1", {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ startDate: "2026-09-01", endDate: "2026-08-15" }),
+    }), { params: Promise.resolve({ id: "batch-1" }) });
+
+    expect(response.status).toBe(400);
+    const body = await response.json();
+    expect(body.error).toBeDefined();
+    expect(mocks.batchUpdate).not.toHaveBeenCalled();
+  });
+
+  it("rejects endDate before existing startDate when only endDate is updated", async () => {
+    const response = await PATCH(new NextRequest("http://localhost/api/admin/batches/batch-1", {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ endDate: "2026-07-15" }),
+    }), { params: Promise.resolve({ id: "batch-1" }) });
+
+    expect(response.status).toBe(400);
+    const body = await response.json();
+    expect(body.error.endDate).toBeDefined();
+    expect(mocks.batchUpdate).not.toHaveBeenCalled();
   });
 });
