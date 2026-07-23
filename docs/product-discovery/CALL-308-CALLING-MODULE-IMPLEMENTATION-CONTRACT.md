@@ -343,7 +343,8 @@ All scope evaluations are derived server-side. Query parameters may only narrow,
 | `/api/calling/interactions` | POST | Zod Interaction Log | `calling.leads.interact` | **201** Created<br>**400** Callback Date Missing / Outcome Schema Error<br>**403** Expired Caller Scope | Log call interaction results. |
 | `/api/calling/external-callers` | POST | Zod Caller Invite | `calling.poc.manage` | **201** Created<br>**400** Validity Exceeds 30 Days<br>**409** Active Caller Already Exists / Email Exists | Register/invite support caller. |
 | `/api/calling/templates` | GET | `campaignId`, `cityId` | `calling.leads.view` | **200** Success<br>**400** HQ missing cityId<br>**403** Scope Mismatch | List active templates for the user's derived/supplied city scope (filters optional). |
-| `/api/calling/templates` | POST | Zod Template Create | `calling.templates.manage` | **201** Created<br>**400** Scope Mismatch / Variables Error / Campaign City Mismatch / Missing HQ cityId<br>**403** Scope Violation | Create a template in draft status. Campaign-bound templates verify template city equals campaign city. City-wide templates store derived/supplied city. |
+| `/api/calling/templates` | POST | Zod Template Create | `calling.templates.manage` | **201** Created<br>**400** Variables Error / Missing HQ cityId<br>**403** Scope Violation (Campaign City Mismatch / User Scope Mismatch) | Create a template in draft status. Campaign-bound templates verify template city equals campaign city. City-wide templates store derived/supplied city. |
+
 | `/api/calling/templates/[id]` | PATCH | Zod Template Update | `calling.templates.manage` | **200** Success<br>**400** Invalid state transition<br>**403** Scope Violation | Approve or retire template, or update draft. |
 
 | `/api/calling/exports` | POST | Zod Export Request | `calling.export.manage` | **200** File Stream<br>**400** Purpose Too Short<br>**403** Forbidden (Scope Mismatch) | Export campaign lists with audit logging. Gated by capability + derived city scope (no role gates). |
@@ -409,12 +410,14 @@ To satisfy audit requirements, any calling list export triggers the following en
 | `TC-CL-023` | `calling.campaign.manage` (LHR Scoped) | Provide `cityId: ISB` query on list | GET `/api/calling/campaigns` | **Deny** (HTTP 403 - Scope Mismatch) | No |
 | `TC-CL-024` | `calling.templates.manage` (Active member) | Approve template outside user's city scope | PATCH `/api/calling/templates/[id]` | **Deny** (HTTP 403 - Scope Mismatch) | No |
 | `TC-CL-025` | `calling.templates.manage` (Active member) | Transition template approved -> retired | PATCH `/api/calling/templates/[id]` | **Allow** (HTTP 200) | Yes (`retire_template`) |
-| `TC-CL-026` | `calling.leads.interact` | Try to use template without `calling.templates.manage` | POST `/api/calling/interactions` | **Allow** (HTTP 201 - POC selects approved template) | Yes (`log_template_use`) |
+| `TC-CL-026` | `calling.leads.interact` | Active assignment to the caller + approved campaign-eligible template | POST `/api/calling/interactions` (log interaction using template) | **Allow** (HTTP 201 - Caller selects approved template) | Yes (`log_template_use`) |
+
 | `TC-CL-027` | `calling.campaign.manage` (HQ/Global) | Omit `cityId` query parameter | GET `/api/calling/campaigns` | **Deny** (HTTP 400 - Missing cityId) | No |
 | `TC-CL-028` | `calling.templates.manage` (HQ/Global) | Omit `cityId` in payload | POST `/api/calling/templates` | **Deny** (HTTP 400 - Missing cityId) | No |
 | `TC-CL-029` | `calling.templates.manage` (LHR Scoped) | Provide `cityId: ISB` in payload | POST `/api/calling/templates` | **Deny** (HTTP 403 - Scope Mismatch) | No |
 | `TC-CL-030` | `calling.templates.manage` (LHR Scoped) | Create city-wide template (`campaignId` null) | POST `/api/calling/templates` | **Allow** (HTTP 201 - City LHR derived/stored) | Yes (`create_template`) |
-| `TC-CL-031` | `calling.templates.manage` (LHR Scoped) | Create campaign-bound template where template city LHR != campaign city ISB | POST `/api/calling/templates` | **Deny** (HTTP 400 - Template city does not match campaign city) | No |
+| `TC-CL-031` | `calling.templates.manage` (LHR Scoped) | Create campaign-bound template where campaign city is ISB (outside user scope) | POST `/api/calling/templates` | **Deny** (HTTP 403 - Campaign Scope Mismatch) | No |
+
 
 
 ---
