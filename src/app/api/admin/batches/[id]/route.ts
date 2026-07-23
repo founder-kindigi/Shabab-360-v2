@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
-  ORGANIZATION_MANAGEMENT_ROLES,
   requireAuth,
   requireCapability,
   requireResourceScope,
@@ -48,8 +47,7 @@ export async function GET(
 
   const scopeError = requireResourceScope(
     user,
-    { cityId: batch.cityId ?? batch.park.city.id, parkId: batch.parkId },
-    ORGANIZATION_MANAGEMENT_ROLES
+    { cityId: batch.cityId ?? batch.park.city.id }
   );
   if (scopeError) return scopeError;
 
@@ -75,11 +73,10 @@ export async function PATCH(
     return NextResponse.json({ error: "Batch not found" }, { status: 404 });
   }
 
-  const scopeError = requireResourceScope(
-    user,
-    { cityId: existing.cityId ?? existing.park.cityId, parkId: existing.parkId },
-    ORGANIZATION_MANAGEMENT_ROLES
-  );
+  const scopeError = requireResourceScope(user, {
+    cityId: existing.cityId ?? existing.park.cityId,
+    parkId: existing.parkId,
+  });
   if (scopeError) return scopeError;
 
   const body = await request.json();
@@ -144,11 +141,10 @@ export async function DELETE(
     return NextResponse.json({ error: "Batch not found" }, { status: 404 });
   }
 
-  const scopeError = requireResourceScope(
-    user,
-    { cityId: existing.cityId ?? existing.park.cityId, parkId: existing.parkId },
-    ORGANIZATION_MANAGEMENT_ROLES
-  );
+  const scopeError = requireResourceScope(user, {
+    cityId: existing.cityId ?? existing.park.cityId,
+    parkId: existing.parkId,
+  });
   if (scopeError) return scopeError;
 
   await db.batch.update({ where: { id }, data: { isActive: false } });

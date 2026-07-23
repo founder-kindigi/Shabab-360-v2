@@ -23,22 +23,43 @@ vi.mock("@/lib/audit", () => ({ logAudit: vi.fn() }));
 
 import { DELETE, GET, PATCH } from "./route";
 
-describe("GET /api/admin/batches/[id]", () => {
+describe("GET /api/admin/batches/[id] read-only scope boundary", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.requireAuth.mockResolvedValue({
       user: { id: "city-head", role: "city_head", assignedCityId: "city-1" },
     });
-    mocks.batchFindUnique.mockResolvedValue({
-      id: "batch-2",
-      parkId: "park-2",
-      cityId: "city-2",
-      park: { id: "park-2", city: { id: "city-2" } },
+    mocks.batchFindUnique.mockImplementation(async ({ where }: { where: { id: string } }) => {
+      if (where.id === "batch-1") {
+        return {
+          id: "batch-1",
+          parkId: "park-1",
+          cityId: "city-1",
+          park: { id: "park-1", city: { id: "city-1" } },
+        };
+      }
+      if (where.id === "batch-2") {
+        return {
+          id: "batch-2",
+          parkId: "park-2",
+          cityId: "city-2",
+          park: { id: "park-2", city: { id: "city-2" } },
+        };
+      }
+      return null;
     });
     mocks.requireCapability.mockResolvedValue(null);
   });
 
-  it("returns 403 instead of another city's batch detail", async () => {
+  it("allows City Head to view a same-city batch detail", async () => {
+    const response = await GET(new NextRequest("http://localhost/api/admin/batches/batch-1"), {
+      params: Promise.resolve({ id: "batch-1" }),
+    });
+
+    expect(response.status).toBe(200);
+  });
+
+  it("returns 403 instead of another city's batch detail for City Head", async () => {
     const response = await GET(new NextRequest("http://localhost/api/admin/batches/batch-2"), {
       params: Promise.resolve({ id: "batch-2" }),
     });
@@ -60,7 +81,7 @@ describe("GET /api/admin/batches/[id]", () => {
   });
 });
 
-describe("PATCH & DELETE /api/admin/batches/[id] dynamic authorization", () => {
+describe("PATCH & DELETE /api/admin/batches/[id] dynamic authorization & real scope boundary", () => {
   const existingSameParkBatch = {
     id: "batch-1",
     name: "Lahore Batch 4",
@@ -200,6 +221,24 @@ describe("PATCH & DELETE /api/admin/batches/[id] dynamic authorization", () => {
     expect(mocks.batchUpdate).not.toHaveBeenCalled();
   });
 
+  it("denies capability-granted Park Lead updating a batch in a foreign city -> 403 and no write", async () => {
+    mocks.requireAuth.mockResolvedValue({
+      user: { id: "park-lead-1", role: "park_lead", assignedParkId: "park-1" },
+    });
+
+    const response = await PATCH(
+      new NextRequest("http://localhost/api/admin/batches/batch-foreign-city", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ name: "Attempted Foreign City Update" }),
+      }),
+      { params: Promise.resolve({ id: "batch-foreign-city" }) }
+    );
+
+    expect(response.status).toBe(403);
+    expect(mocks.batchUpdate).not.toHaveBeenCalled();
+  });
+
   it("derives update scope from stored Batch, ignoring client input", async () => {
     mocks.requireAuth.mockResolvedValue({
       user: { id: "park-lead-1", role: "park_lead", assignedParkId: "park-1" },
@@ -215,7 +254,7 @@ describe("PATCH & DELETE /api/admin/batches/[id] dynamic authorization", () => {
       { params: Promise.resolve({ id: "batch-foreign-park" }) }
     );
 
-    // Stored batch belongs to park-2-same-city, so scope check fails with 403 regardless of client input
+    // Stored batch belongs to park-2-same-city, so real scope check fails with 403 regardless of client input
     expect(response.status).toBe(403);
     expect(mocks.batchUpdate).not.toHaveBeenCalled();
   });

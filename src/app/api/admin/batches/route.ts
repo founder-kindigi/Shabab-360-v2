@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
-  ORGANIZATION_MANAGEMENT_ROLES,
   requireAuth,
   requireCapability,
   requireResourceScope,
@@ -134,11 +133,10 @@ export async function POST(request: NextRequest) {
   }
 
   // Dynamic capability + scope check using target park and city
-  const scopeError = requireResourceScope(
-    user,
-    { cityId: park.cityId, parkId: park.id },
-    ORGANIZATION_MANAGEMENT_ROLES
-  );
+  const scopeError = requireResourceScope(user, {
+    cityId: park.cityId,
+    parkId: park.id,
+  });
   if (scopeError) return scopeError;
 
   const batch = await db.batch.create({
