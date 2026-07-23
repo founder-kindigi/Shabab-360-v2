@@ -1089,7 +1089,7 @@ export function AttendanceRoster() {
 
                   {/* Quick status buttons (mobile: always visible, desktop: hover) */}
                   {!isClosed && (
-                    <div className="flex items-center gap-1 shrink-0 sm:opacity-0 sm:group-hover/row:opacity-100 transition-opacity duration-150">
+                    <div className="flex items-center gap-1.5 sm:gap-1 shrink-0 sm:opacity-0 sm:group-hover/row:opacity-100 transition-opacity duration-150">
                       {QUICK_STATUSES.map((qs) => {
                         const isCurrentStatus = status === qs.status;
                         const Icon = qs.icon;
@@ -1107,7 +1107,7 @@ export function AttendanceRoster() {
                                   );
                                 }}
                                 className={cn(
-                                  "flex items-center justify-center w-7 h-7 rounded-full transition-all duration-150",
+                                  "flex items-center justify-center w-10 h-10 sm:w-7 sm:h-7 rounded-full transition-all duration-150",
                                   isCurrentStatus
                                     ? qs.colorClass.replace(
                                         "hover:bg-",
@@ -1123,11 +1123,11 @@ export function AttendanceRoster() {
                                 aria-label={`${qs.label} ${item.participantName}`}
                               >
                                 {isProcessing && !isCurrentStatus ? (
-                                  <Loader2 className="size-3.5 animate-spin" />
+                                  <Loader2 className="size-4 sm:size-3.5 animate-spin" />
                                 ) : (
                                   <Icon
                                     className={cn(
-                                      "size-3.5",
+                                      "size-4 sm:size-3.5",
                                       isCurrentStatus && qs.colorClass.split(" ")[0]
                                     )}
                                   />
@@ -1166,7 +1166,7 @@ export function AttendanceRoster() {
                     </div>
                   )}
 
-                  {/* Status badge (cycle button) */}
+                  {/* Mobile status cycle button */}
                   <div className="flex items-center gap-1 shrink-0">
                     {/* Edit button (admin/park_admin only, when record exists) */}
                     {canEditRecord && item.recordId && (
@@ -1198,7 +1198,7 @@ export function AttendanceRoster() {
                         handleCycleStatus(item.participantId, status);
                       }}
                       className={cn(
-                        "relative flex items-center justify-center w-9 h-9 rounded-lg transition-all duration-150 shrink-0 sm:hidden",
+                        "relative flex items-center justify-center w-10 h-10 rounded-lg transition-all duration-150 shrink-0 sm:hidden",
                       config
                         ? cn(config.bg, config.borderClass)
                         : "bg-muted/50 border-2 border-dashed border-muted-foreground/30",
@@ -1218,13 +1218,13 @@ export function AttendanceRoster() {
                     }
                   >
                     {isProcessing ? (
-                      <RefreshCw className="size-3.5 animate-spin text-muted-foreground" />
+                      <RefreshCw className="size-4 animate-spin text-muted-foreground" />
                     ) : config ? (
-                      <span className={cn("text-xs font-bold", config.text)}>
+                      <span className={cn("text-sm font-bold", config.text)}>
                         {config.letter}
                       </span>
                     ) : (
-                      <Circle className="size-3.5 text-muted-foreground/40" />
+                      <Circle className="size-4 text-muted-foreground/40" />
                     )}
                   </button>
                   </div>
