@@ -202,7 +202,8 @@ To enforce dynamic security controls, authorization relies on dynamic dot-notati
 ### 4.2 Workspace Route Security Rules
 Every workspace route (GET, POST, PATCH, DELETE) must enforce **both** checks:
 1. **Dynamic Capability:** The user must resolve the correct dot-notation capability (`teams.workspace.view` or `teams.workspace.manage`) for the requested action.
-2. **Active Membership:** The requesting user must have an active, non-expired membership record (`isActive: true` in `StaffTeamMembership`) for the exact `CollaborationTeam` targeted.
+2. **Active Membership:** The requesting user must have an active, non-expired membership record (where `isActive === true` AND `endedAt` is `null` in `StaffTeamMembership`) for the exact `CollaborationTeam` targeted.
+
 
 ### 4.3 Server-Derived Scope Enforcements
 * **HQ/Scoped City Resolver Rules for Membership Administration:**
@@ -292,10 +293,11 @@ File uploads are disabled. Shared documents are link registrations only.
 | `/api/teams/[teamId]` | GET | None | `teams.workspace.view` + Active Member | Fetch team metadata and active roster |
 | `/api/teams/[teamId]/activities` | GET | `status` filter | `teams.workspace.view` + Active Member | Fetch team activity planner items |
 | `/api/teams/[teamId]/activities` | POST | Zod Activity Create | `teams.workspace.manage` + Active Member | Add a planned activity item |
-| `/api/teams/[teamId]/activities/[id]`| PATCH| Zod Activity Update | `teams.workspace.view` OR `teams.workspace.manage` | Update status or assignee of activity |
+| `/api/teams/[teamId]/activities/[id]`| PATCH| Zod Activity Update | - `teams.workspace.view` + active exact-team membership: caller may only transition their own assigned item planned -> in_progress.<br>- `teams.workspace.manage` + active exact-team membership: may create/update assignment and transition completed/cancelled. | Update status or assignee of activity |
 | `/api/teams/[teamId]/chat` | GET | `cursor` pagination | `teams.workspace.view` + Active Member | Fetch polled discussion feed |
 | `/api/teams/[teamId]/chat` | POST | Zod Message Create | `teams.workspace.view` + Active Member | Send message to team discussion |
-| `/api/teams/[teamId]/chat/[messageId]`| DELETE| None | `teams.workspace.view` OR `teams.workspace.manage` | Soft-delete a chat message (self or moderated) |
+| `/api/teams/[teamId]/chat/[messageId]`| DELETE| None | - `teams.workspace.view` + active exact-team membership: own message only, within 10 minutes.<br>- `teams.workspace.manage` + active exact-team membership: may moderate any message. | Soft-delete a chat message (self or moderated) |
+
 | `/api/teams/[teamId]/documents` | GET | None | `teams.workspace.view` + Active Member | Fetch registered external document links |
 | `/api/teams/[teamId]/documents` | POST | Zod Link Create | `teams.workspace.manage` + Active Member | Register a shared external document link |
 | `/api/admin/collaboration-teams` | GET | `cityId`, `status` | `teams.memberships.manage` | List teams in allowed city scope |
