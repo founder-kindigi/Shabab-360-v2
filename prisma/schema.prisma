@@ -343,6 +343,81 @@ model ActivityPlanItem {
   @@map("activity_plan_items")
 }
 
+// Student Extended Profile — supplementary biographical, developmental, and
+// wellbeing data beyond the canonical Participant record. Created on demand.
+// Never duplicates Participant, Guardian, Group, Batch, Park, or City fields.
+model StudentExtendedProfile {
+  id                    String   @id @default(cuid())
+  participantId         String   @unique
+  // Education tab
+  school                String?
+  college               String?
+  educationSystem       String?
+  previousResults       String?
+  awardsAchievements    String?
+  averageGrade          String?
+  favouriteSubjects     String?
+  // Family & Background tab
+  fatherName            String?
+  fatherOccupation      String?
+  siblings              String?
+  financialStatus       String?
+  nativeArea            String?
+  ethnicity             String?
+  modeOfTransport       String?
+  // Interests & Skills tab
+  subjectsOfInterest    String?
+  extraCurricular       String?
+  hobbies               String?
+  sports                String?
+  learningStyle         String?
+  curiosity             String?
+  specialTalent         String?
+  currentSkills         String?
+  skillsWantToLearn     String?
+  // Goals & Development tab
+  generalGoals          String?
+  vision                String?
+  mission               String?
+  deenBackground        String?
+  careerAspirations     String?
+  academicInterests     String?
+  collegePlans          String?
+  futureCareerGoals     String?
+  strengths             String?
+  weaknesses            String?
+  goodHabits            String?
+  badHabits             String?
+  // Support & Wellbeing tab
+  disability            String?
+  specialNeed           String?
+  moralCharacter        String?
+  namaz                 String?
+  // Personality & Skills tab
+  leadershipSkills      String?
+  personalityResponsibility String?
+  communicationSkills   String?
+  teamworkSkills        String?
+  problemSolvingSkills  String?
+  creativity            String?
+  criticalThinking      String?
+  adaptability          String?
+  initiative            String?
+  selfMotivation        String?
+  integrity             String?
+  empathy               String?
+  reading               String?
+  learningInterest      String?
+  // Metadata
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  participant Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+
+  @@index([participantId])
+  @@map("student_extended_profiles")
+}
+
 model Guardian {
   id        String   @id @default(cuid())
   userId    String?  @unique
@@ -396,6 +471,7 @@ model Participant {
   attendanceRecords AttendanceRecord[]
   payments          Payment[]
   convertedFromApp  AdmissionApplication? @relation("ConvertedFrom")
+  extendedProfile   StudentExtendedProfile?
 
   @@index([groupId, state])
   @@map("participants")
