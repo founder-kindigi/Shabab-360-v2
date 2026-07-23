@@ -63,6 +63,8 @@ type ProfileResponse = {
     phone: string | null;
     dateOfBirth: string | null;
     gender: string | null;
+    age: number | null;
+    gradeClass: string | null;
     address: string | null;
     state: string;
     joinedAt: string;
@@ -263,6 +265,8 @@ export function StudentProfilePage() {
             <InfoRow label="Email" value={data?.email || "—"} icon={Mail} />
             <InfoRow label="Phone" value={p?.phone || data?.phone || "Not set"} icon={Phone} />
             <InfoRow label="Date of Birth" value={p?.dateOfBirth || "Not set"} icon={CalendarDays} />
+            <InfoRow label="Age" value={p?.age != null ? String(p.age) : "Not provided"} icon={CalendarDays} />
+            <InfoRow label="Grade / Class" value={p?.gradeClass || "Not provided"} icon={GraduationCap} />
             <InfoRow label="Gender" value={genderLabel(p?.gender)} icon={ShieldCheck} />
             <InfoRow label="Address" value={p?.address || "Not set"} icon={MapPin} />
           </CardContent>
