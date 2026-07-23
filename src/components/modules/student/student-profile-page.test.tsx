@@ -1,39 +1,156 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import React from "react";
+import { renderToString } from "react-dom/server";
+import { StudentProfilePage } from "./student-profile-page";
 
-describe("StudentProfilePage UI Data Formatting", () => {
-  it("formats populated age and grade/class correctly for display", () => {
-    const participant = {
-      age: 17,
-      gradeClass: "Grade 10",
-    };
+const mocks = vi.hoisted(() => ({
+  useQuery: vi.fn(),
+  useMutation: vi.fn(),
+  useQueryClient: vi.fn(),
+}));
 
-    const displayAge = participant.age != null ? String(participant.age) : "Not provided";
-    const displayGradeClass = participant.gradeClass || "Not provided";
+vi.mock("@tanstack/react-query", () => ({
+  useQuery: mocks.useQuery,
+  useMutation: mocks.useMutation,
+  useQueryClient: mocks.useQueryClient,
+}));
 
-    expect(displayAge).toBe("17");
-    expect(displayGradeClass).toBe("Grade 10");
+vi.mock("framer-motion", () => ({
+  motion: {
+    div: ({ children, className }: any) => <div className={className}>{children}</div>,
+  },
+}));
+
+vi.mock("sonner", () => ({
+  toast: {
+    success: vi.fn(),
+    error: vi.fn(),
+  },
+}));
+
+describe("StudentProfilePage Component", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.useQueryClient.mockReturnValue({
+      invalidateQueries: vi.fn(),
+    });
+    mocks.useMutation.mockReturnValue({
+      mutate: vi.fn(),
+      isPending: false,
+    });
   });
 
-  it("provides 'Not provided' fallback when age and grade/class are null or empty", () => {
-    const participantNull = {
-      age: null,
-      gradeClass: null,
-    };
+  it("renders populated Age and Grade / Class values when profile data is returned", () => {
+    mocks.useQuery.mockReturnValue({
+      data: {
+        id: "user-1",
+        name: "Ali Ahmed",
+        email: "ali@example.com",
+        phone: "+923001234567",
+        createdAt: "2026-01-01T00:00:00.000Z",
+        participant: {
+          id: "part-1",
+          name: "Ali Ahmed",
+          phone: "+923001234567",
+          dateOfBirth: "15 May 2009",
+          gender: "male",
+          age: 17,
+          gradeClass: "Grade 10",
+          address: "Lahore",
+          state: "active",
+          joinedAt: "10 Jan 2026",
+          group: "Group A",
+          batch: "Batch 4",
+          park: "State Life Park",
+          city: "Lahore",
+        },
+        attendanceSummary: null,
+      },
+      isLoading: false,
+      error: null,
+    });
 
-    const displayAge = participantNull.age != null ? String(participantNull.age) : "Not provided";
-    const displayGradeClass = participantNull.gradeClass || "Not provided";
+    const html = renderToString(<StudentProfilePage />);
 
-    expect(displayAge).toBe("Not provided");
-    expect(displayGradeClass).toBe("Not provided");
+    expect(html).toContain("Personal Information");
+    expect(html).toContain("Age");
+    expect(html).toContain("17");
+    expect(html).toContain("Grade / Class");
+    expect(html).toContain("Grade 10");
   });
 
-  it("handles blank string gradeClass as 'Not provided'", () => {
-    const participantBlank = {
-      age: null,
-      gradeClass: "",
-    };
+  it("renders 'Not provided' fallback when Age and Grade / Class are null", () => {
+    mocks.useQuery.mockReturnValue({
+      data: {
+        id: "user-2",
+        name: "Usman Khan",
+        email: "usman@example.com",
+        phone: null,
+        createdAt: "2026-01-01T00:00:00.000Z",
+        participant: {
+          id: "part-2",
+          name: "Usman Khan",
+          phone: null,
+          dateOfBirth: null,
+          gender: null,
+          age: null,
+          gradeClass: null,
+          address: null,
+          state: "active",
+          joinedAt: "10 Jan 2026",
+          group: "Group B",
+          batch: "Batch 4",
+          park: "Iqbal Park",
+          city: "Lahore",
+        },
+        attendanceSummary: null,
+      },
+      isLoading: false,
+      error: null,
+    });
 
-    const displayGradeClass = participantBlank.gradeClass || "Not provided";
-    expect(displayGradeClass).toBe("Not provided");
+    const html = renderToString(<StudentProfilePage />);
+
+    expect(html).toContain("Personal Information");
+    expect(html).toContain("Age");
+    expect(html).toContain("Grade / Class");
+    expect(html).toContain("Not provided");
+  });
+
+  it("renders 'Not provided' fallback when gradeClass is empty string", () => {
+    mocks.useQuery.mockReturnValue({
+      data: {
+        id: "user-3",
+        name: "Zainab Bibi",
+        email: "zainab@example.com",
+        phone: null,
+        createdAt: "2026-01-01T00:00:00.000Z",
+        participant: {
+          id: "part-3",
+          name: "Zainab Bibi",
+          phone: null,
+          dateOfBirth: null,
+          gender: null,
+          age: null,
+          gradeClass: "",
+          address: null,
+          state: "active",
+          joinedAt: "10 Jan 2026",
+          group: "Group C",
+          batch: "Batch 4",
+          park: "Iqbal Park",
+          city: "Lahore",
+        },
+        attendanceSummary: null,
+      },
+      isLoading: false,
+      error: null,
+    });
+
+    const html = renderToString(<StudentProfilePage />);
+
+    expect(html).toContain("Personal Information");
+    expect(html).toContain("Grade / Class");
+    expect(html).toContain("Not provided");
   });
 });

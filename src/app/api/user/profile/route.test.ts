@@ -23,7 +23,6 @@ vi.mock("@/lib/db", () => ({
 }));
 
 import { GET } from "./route";
-import "@/components/modules/student/student-profile-page.test";
 
 describe("GET /api/user/profile", () => {
   beforeEach(() => {
