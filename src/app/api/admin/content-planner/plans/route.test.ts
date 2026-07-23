@@ -12,7 +12,7 @@ vi.mock("@/lib/db", () => ({
     city: { findUnique: vi.fn(), findMany: vi.fn() },
     batch: { findUnique: vi.fn() },
     park: { findUnique: vi.fn() },
-    contentPlan: { findMany: vi.fn(), count: vi.fn(), create: vi.fn() },
+    contentPlan: { findMany: vi.fn(), count: vi.fn(), create: vi.fn(), findUnique: vi.fn() },
   },
 }));
 vi.mock("@/lib/audit", () => ({
