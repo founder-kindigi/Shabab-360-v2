@@ -233,6 +233,8 @@ model StaffMeta {
   assignedGroup Group? @relation("MurabbiAssignment", fields: [assignedGroupId], references: [id], onDelete: SetNull)
   teamMemberships StaffTeamMembership[]
   assignedActivityPlans ActivityPlanItem[] @relation("ActivityAssignee")
+  authoredChatMessages TeamChatMessage[] @relation("MessageAuthor")
+  createdDocumentLinks TeamDocumentLink[] @relation("DocumentLinkCreator")
 
   @@map("staff_meta")
 }
@@ -252,6 +254,8 @@ model CollaborationTeam {
   memberships StaffTeamMembership[]
   contentBlocks ContentPlanBlock[]
   activityPlans ActivityPlanItem[]
+  chatMessages TeamChatMessage[]
+  documentLinks TeamDocumentLink[]
 
   @@unique([cityId, code])
   @@index([cityId, isActive])
@@ -277,6 +281,42 @@ model StaffTeamMembership {
   @@index([staffMetaId, isActive])
   @@index([teamId, isActive])
   @@map("staff_team_memberships")
+}
+
+model TeamChatMessage {
+  id          String    @id @default(cuid())
+  teamId      String
+  authorId    String
+  content     String
+  isDeleted   Boolean   @default(false)
+  deletedAt   DateTime?
+  deletedBy   String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  team   CollaborationTeam @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  author StaffMeta         @relation("MessageAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([teamId, createdAt])
+  @@map("team_chat_messages")
+}
+
+model TeamDocumentLink {
+  id          String   @id @default(cuid())
+  teamId      String
+  createdById String
+  title       String
+  url         String
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  team      CollaborationTeam @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  createdBy StaffMeta         @relation("DocumentLinkCreator", fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([teamId, isActive])
+  @@map("team_document_links")
 }
 
 // City templates and reviewed park overrides preserve their original source.
