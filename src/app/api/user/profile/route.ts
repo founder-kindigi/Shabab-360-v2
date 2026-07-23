@@ -88,6 +88,8 @@ export async function GET() {
             ? formatPKT(new Date(participant.dateOfBirth))
             : null,
           gender: participant.gender,
+          age: participant.age ?? null,
+          gradeClass: participant.gradeClass ?? null,
           address: participant.address,
           state: participant.state,
           joinedAt: formatPKT(new Date(participant.joinedAt)),
