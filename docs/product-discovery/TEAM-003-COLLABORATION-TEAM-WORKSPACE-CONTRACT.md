@@ -1,6 +1,6 @@
 # TEAM-003: Collaboration Team Workspace Contract
 
-- **Document Version:** 1.3.0
+- **Document Version:** 1.4.0
 - **Task ID:** `PKG-05-TEAM-WORKSPACE-CONTRACT`
 - **Status:** `PROPOSED` — Pending Owner Review & Approval
 - **Integration Base:** `064fc53` (on branch `agent/antigravity/pkg-05-team-workspace-contract`)
@@ -145,19 +145,22 @@ As required by the repository working agreements, the local SQLite database and 
 2. **Staging & Production Environment (PostgreSQL):**
    * Edit `prisma/postgres/schema.prisma` to append the identical model definitions and relation fields.
    * Generate the staged PostgreSQL migration files:
-     ```bash
-     npx prisma migrate dev --schema=prisma/postgres/schema.prisma --create-only --name add_team_workspace_tables
-     ```
-   * Apply PostgreSQL migration in staging using:
-     ```bash
-     npx prisma migrate deploy --schema=prisma/postgres/schema.prisma
-     ```
+     * **Locally Only (Against Local PostgreSQL Dev Database):** Run the following to generate and commit the SQL migration files:
+       ```bash
+       npx prisma migrate dev --schema=prisma/postgres/schema.prisma --create-only --name add_team_workspace_tables
+       ```
+     * **Staging and Production Deployment:** Run committed migration files directly against the target database:
+       ```bash
+       npx prisma migrate deploy --schema=prisma/postgres/schema.prisma
+       ```
+     * > [!WARNING]
+       > **NEVER run `migrate dev` against staging or production environments.** Those environments must only apply committed migrations via `migrate deploy`.
 
 3. **Prisma Client Compilation:**
    * Run `npm run db:postgres:generate` and local compilation checks to confirm the generated clients build without errors.
 
 4. **Safe Rollback Protocol:**
-   * Disable route access by revoking the relevant capabilities (`teams.workspace.view` and `teams.memberships.manage`) or setting environment flag toggles.
+   * Disable route access by revoking the relevant capabilities (`teams.workspace.view`, `teams.workspace.manage`, and `teams.memberships.manage`) or setting environment flag toggles.
    * **Do not drop database tables or run destructive rollbacks in production.** Existing rows must be preserved in place to prevent accidental data loss.
    * Full database backup restore procedures are reserved for Codex-and-owner incident recovery scenarios only.
 
@@ -202,7 +205,11 @@ Every workspace route (GET, POST, PATCH, DELETE) must enforce **both** checks:
 2. **Active Membership:** The requesting user must have an active, non-expired membership record (`isActive: true` in `StaffTeamMembership`) for the exact `CollaborationTeam` targeted.
 
 ### 4.3 Server-Derived Scope Enforcements
-* **Server-Derived City Assignment:** The user's city scope **must be server-derived** through `StaffMeta` assignment paths for both the actor (the user making the request) and the target staff member. Client-provided city or team scope parameters in payloads/query strings may only be used to narrow the query results, never to expand access.
+* **HQ/Scoped City Resolver Rules for Membership Administration:**
+  * **HQ Capability Holders (Global Access):** Must explicitly provide a valid `cityId` parameter in the request query or payload, otherwise the server must return an HTTP 400 Bad Request error.
+  * **Scoped Actors (City Head / City Admins):** The server must resolve exactly one city by traversing the actor's own `StaffMeta` city/park/group path. If the actor's city scope is missing, or does not match the target team's city, the request must fail with HTTP 403 Forbidden.
+  * **Target Staff Member Scope:** The target staff member's derived city (resolved through their `StaffMeta` relationship paths) must equal the target `team.cityId`, otherwise the server returns an HTTP 400 Bad Request.
+  * **List Endpoints Restriction:** Under no circumstances may any list endpoint return unfiltered, cross-city records. Listing teams or members must filter results implicitly by the resolved server-derived city of the requester.
 * **Core Data Gating:** Membership in a collaboration team **must never** expand a user's core park, group, participant, or attendance scope limits. A `murabbi` assigned to the Lahore `SPORTS` team can view the Sports workspace dashboard, but remains strictly restricted to their assigned group roster for all core participant directory reads and attendance event writes.
 
 ---
@@ -235,8 +242,11 @@ The Activity Planner links team tasks to the curriculum defined in the Content P
 * Active team members can query only the `ActivityPlanItem` rows matching their team's `teamId`.
 
 ### 6.2 Activity Status Gating
-* **Elevated Permissions (`teams.workspace.manage`):** Required to create activities, assign tasks, and transition status to `completed` or `cancelled`.
-* **Standard Permissions (`teams.workspace.view`):** Allows team members to read activities and transition the status to `in_progress` (only for items where they are the assignee).
+* **Standard Permissions (`teams.workspace.view` + Active Membership):**
+  * The user is only authorized to transition an activity's status from `planned` to `in_progress`.
+  * **Strict Owner Constraint:** The caller can only modify this status if they are the designated assignee (`assignedStaffMetaId` matches their `StaffMeta.id`). Attempting to change other users' tasks or transition to `completed`/`cancelled` must yield HTTP 403.
+* **Elevated Permissions (`teams.workspace.manage` + Active Membership):**
+  * Required to create activities (`POST`), assign/reassign tasks, and transition status to `completed` or `cancelled`.
 * **Assignee Invariant:** The `assignedStaffMetaId` field must be validated on the server to ensure the assignee is an active, same-team member of the target `CollaborationTeam`.
 
 ---
@@ -250,9 +260,11 @@ To simplify the network stack, real-time Socket.IO and presence features are avo
 * **Cursor Pagination:** Retrieves messages using timestamp/ID based cursor pagination to minimize server load.
 * **Access Gating:** The API route validates that the requesting user's session has an active membership row in `StaffTeamMembership` for `teamId` before returning chat data.
 
-### 7.2 Message Moderation
-* **Regular Members (`teams.workspace.view`):** Active members can soft-delete their own messages within 10 minutes of creation.
-* **Moderator Permissions (`teams.workspace.manage`):** Authorized team administrators can soft-delete any message by updating `isActive: false` (replacing UI content with `"This message was deleted"`).
+### 7.2 Message Moderation and soft-deletion
+* **Regular Members (`teams.workspace.view` + Active Membership):** May soft-delete their own messages only within 10 minutes of creation via `DELETE /api/teams/[teamId]/chat/[messageId]`.
+* **Moderator Permissions (`teams.workspace.manage` + Active Membership):** Authorized team administrators can soft-delete any message in the team at any time.
+* **Database Action:** Soft-deletion updates `isActive: false` on `TeamChatMessage` and replaces the UI content with `"This message was deleted"`.
+* **Audit Logging:** The system must record audit log entries (`logAudit`) for both member self-deletion and administrator moderation actions.
 
 ---
 
@@ -283,6 +295,7 @@ File uploads are disabled. Shared documents are link registrations only.
 | `/api/teams/[teamId]/activities/[id]`| PATCH| Zod Activity Update | `teams.workspace.view` OR `teams.workspace.manage` | Update status or assignee of activity |
 | `/api/teams/[teamId]/chat` | GET | `cursor` pagination | `teams.workspace.view` + Active Member | Fetch polled discussion feed |
 | `/api/teams/[teamId]/chat` | POST | Zod Message Create | `teams.workspace.view` + Active Member | Send message to team discussion |
+| `/api/teams/[teamId]/chat/[messageId]`| DELETE| None | `teams.workspace.view` OR `teams.workspace.manage` | Soft-delete a chat message (self or moderated) |
 | `/api/teams/[teamId]/documents` | GET | None | `teams.workspace.view` + Active Member | Fetch registered external document links |
 | `/api/teams/[teamId]/documents` | POST | Zod Link Create | `teams.workspace.manage` + Active Member | Register a shared external document link |
 | `/api/admin/collaboration-teams` | GET | `cityId`, `status` | `teams.memberships.manage` | List teams in allowed city scope |
@@ -342,16 +355,23 @@ export const updateTeamMemberSchema = z.object({
 
 | Case ID | Actor Capabilities | Context / Parameters | Action Attempted | Expected Outcome | Audit Log Recorded? |
 | --- | --- | --- | --- | --- | --- |
-| `TC-TM-001` | `teams.memberships.manage` | Team: LHR Tadreeb, Staff: Lahore Murabbi | Create team membership | **Allow** (HTTP 201) | Yes (`create`) |
+| `TC-TM-001` | `teams.memberships.manage` (LHR) | Team: LHR Tadreeb, Staff: Lahore Murabbi | Create team membership | **Allow** (HTTP 201) | Yes (`create`) |
 | `TC-TM-002` | None | Team: LHR Tadreeb, Staff: Lahore Murabbi | Create team membership | **Deny** (HTTP 403 - Missing capability) | No |
-| `TC-TM-003` | `teams.memberships.manage` | Team: ISB Sports, Staff: Rawalpindi Lead | Create team membership | **Deny** (HTTP 400 - City mismatch) | No |
+| `TC-TM-003` | `teams.memberships.manage` (LHR) | Team: ISB Sports, Staff: Rawalpindi Lead | Create team membership | **Deny** (HTTP 400 - Target staff city mismatch) | No |
 | `TC-TM-004` | `teams.workspace.view` (Non-member) | Team: LHR Media | GET `/api/teams/[teamId]/chat` | **Deny** (HTTP 403 - Active membership required) | No |
 | `TC-TM-005` | `teams.workspace.view` (Active member) | Team: LHR Media | GET `/api/teams/[teamId]/chat` | **Allow** (HTTP 200) | No |
-| `TC-TM-006` | `teams.workspace.view` (Active member) | Register document URL: `https://drive.google.com` | POST `/api/teams/[teamId]/documents` | **Deny** (HTTP 403 - Fail-closed pending whitelist approval) | No |
+| `TC-TM-006` | `teams.workspace.manage` (Active member) | Register document URL: `https://drive.google.com` | POST `/api/teams/[teamId]/documents` | **Deny** (HTTP 403 - Fail-closed pending whitelist approval) | No |
 | `TC-TM-007` | `teams.workspace.view` (Active member) | Update activity status to `completed` | PATCH `/api/teams/[teamId]/activities/[id]` | **Deny** (HTTP 403 - Requires `teams.workspace.manage`) | No |
 | `TC-TM-008` | `teams.workspace.manage` (Active member) | Update activity status to `completed` | PATCH `/api/teams/[teamId]/activities/[id]` | **Allow** (HTTP 200) | Yes (`update_activity_status`) |
 | `TC-TM-009` | `teams.workspace.manage` (Active member) | Assign activity to staff outside team | POST `/api/teams/[teamId]/activities` | **Deny** (HTTP 400 - Assignee not on team) | No |
 | `TC-TM-010` | `teams.memberships.manage` (LHR City) | Team: ISB Tadreeb, Staff: Rawalpindi Murabbi | Create team membership | **Deny** (HTTP 403 - Cross-city boundary violation) | No |
+| `TC-TM-011` | `teams.workspace.view` (Active assignee) | Update own activity status from planned to `in_progress` | PATCH `/api/teams/[teamId]/activities/[id]` | **Allow** (HTTP 200) | Yes (`update_activity_status`) |
+| `TC-TM-012` | `teams.workspace.view` (Active non-assignee) | Update another user's activity status | PATCH `/api/teams/[teamId]/activities/[id]` | **Deny** (HTTP 403 - Forbidden) | No |
+| `TC-TM-013` | `teams.workspace.view` (Active member) | Soft-delete own message after 5 minutes | DELETE `/api/teams/[teamId]/chat/[messageId]` | **Allow** (HTTP 200) | Yes (`delete_own_chat_message`) |
+| `TC-TM-014` | `teams.workspace.view` (Active member) | Soft-delete own message after 15 minutes | DELETE `/api/teams/[teamId]/chat/[messageId]` | **Deny** (HTTP 403 - Time limit exceeded) | No |
+| `TC-TM-015` | `teams.workspace.manage` (Active member) | Soft-delete another member's message | DELETE `/api/teams/[teamId]/chat/[messageId]` | **Allow** (HTTP 200) | Yes (`moderate_chat_message`) |
+| `TC-TM-016` | `teams.memberships.manage` (HQ/Global) | Omit `cityId` parameter | GET `/api/admin/collaboration-teams` | **Deny** (HTTP 400 - Missing cityId parameter) | No |
+| `TC-TM-017` | `teams.memberships.manage` (HQ/Global) | Provide `cityId: LHR` | GET `/api/admin/collaboration-teams` | **Allow** (HTTP 200 - Implicitly scoped LHR list) | No |
 
 ---
 
@@ -362,6 +382,7 @@ The following repository-relative paths will be created or modified:
 * **[NEW]** `src/app/api/teams/[teamId]/route.ts`: Core workspace metadata route.
 * **[NEW]** `src/app/api/teams/[teamId]/activities/route.ts` & `[id]/route.ts`: Activity Planner endpoints.
 * **[NEW]** `src/app/api/teams/[teamId]/chat/route.ts`: Group discussion feed.
+* **[NEW]** `src/app/api/teams/[teamId]/chat/[messageId]/route.ts`: Chat moderation and deletion endpoint.
 * **[NEW]** `src/app/api/teams/[teamId]/documents/route.ts`: Registered links registry.
 * **[MODIFY]** `src/lib/auth/capabilities.ts`: Add `teams.memberships.manage`, `teams.workspace.view`, and `teams.workspace.manage` to capabilities array.
 * **[NEW]** `src/components/modules/teams/team-workspace-dashboard.tsx`: Main UI container.
