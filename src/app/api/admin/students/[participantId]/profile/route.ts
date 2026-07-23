@@ -31,14 +31,6 @@ export async function GET(
   const user = session?.user as SessionUser | undefined;
   if (!user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  // LAYER 1: capability gate
-  const auth = await requireCapability("students.profile.view");
-  if (auth instanceof NextResponse) return auth;
-
-  const session = await getServerSession(authOptions);
-  const user = session?.user as SessionUser | undefined;
-  if (!user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
   // LAYER 2: resolve city & participant access
   const url = new URL(_req.url);
   const providedCityId = url.searchParams.get("cityId");
@@ -104,6 +96,15 @@ export async function PUT(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
+  // Verify the participant exists before upsert (avoid uncontrolled FK error)
+  const participantExists = await db.participant.findUnique({
+    where: { id: participantId },
+    select: { id: true },
+  });
+  if (!participantExists) {
+    return NextResponse.json({ error: "Participant not found" }, { status: 404 });
+  }
+
   // Parse and validate body
   const body = await _req.json().catch(() => ({}));
   const parsed = updateProfileSchema.safeParse(body);
@@ -132,7 +133,6 @@ export async function PUT(
 
   // Audit
   if (existing) {
-    // Update
     const auditData = createAuditLogData({
       userId: user.id,
       action: "student_profile.update",
@@ -143,7 +143,6 @@ export async function PUT(
     });
     await db.auditLog.create({ data: auditData });
   } else {
-    // Create
     const auditData = createAuditLogData({
       userId: user.id,
       action: "student_profile.create",
@@ -155,9 +154,8 @@ export async function PUT(
   }
 
   // Determine response projection: sensitive fields only if caller has sensitive.view
-  const callerCanViewSensitive = await (
-    await requireCapability("students.profile.sensitive.view")
-  ) instanceof NextResponse ? false : true;
+  const sensitiveViewAuth = await requireCapability("students.profile.sensitive.view");
+  const callerCanViewSensitive = !(sensitiveViewAuth instanceof NextResponse);
 
   const result = callerCanViewSensitive
     ? { ...profile }

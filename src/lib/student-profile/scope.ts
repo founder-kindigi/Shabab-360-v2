@@ -74,7 +74,7 @@ export async function canAccessParticipantProfile(
       group: {
         select: {
           parkId: true,
-          batch: { select: { cityId: true } },
+          batch: { select: { cityId: true, parkId: true } },
         },
       },
     },
@@ -98,9 +98,11 @@ export async function canAccessParticipantProfile(
   const participantCity = participant.group?.batch?.cityId;
   if (!participantCity || participantCity !== resolvedCity) return false;
 
-  // Park Lead: participant's park must match own assigned park
+  // Park Lead: participant's park must match own assigned park.
+  // group.parkId may be null during hierarchy transition — fall back to batch.parkId.
   if (user.role === "park_lead") {
-    return participant.group?.parkId === user.assignedParkId;
+    const participantParkId = participant.group?.parkId ?? participant.group?.batch?.parkId;
+    return participantParkId === user.assignedParkId;
   }
 
   // Murabbi: participant's group must match own assigned group
