@@ -69,7 +69,7 @@ All protected routes use `requireCapability(capability)` as the module gate, the
 | `guardian` | `dashboard.view`, `people.view`, `guardians.manage`, `reports.view` |
 | `student` | `dashboard.view`, `people.view`, `students.manage`, `reports.view` |
 
-**These are defaults only.** Super Admin may override any capability for any role or named user via the dynamic override system.
+**These are defaults only.** Super Admin may override any eligible capability for any role or named user via the dynamic override system. The only exceptions are the canonical protected capabilities (§6), which are immutable via the override API, and any proposed capability that remains pending owner approval (§12 D5–D9).
 
 ---
 
@@ -126,7 +126,7 @@ The subset for named-user overrides must be extended to include the new module c
 
 ## 3. Default Capability Matrix By Role
 
-This matrix defines **default** capability grants. Super Admin may change any eligible role default through a role override (e.g. grant `events.manage` to `park_lead`). The only exceptions are the `super_admin` role itself and `access.*` capabilities, which are immutable via the override API. No route handler hard-codes role membership as a permission check — all route enforcement uses `requireCapability(capability)`.
+This matrix defines **default** capability grants. Super Admin may change any eligible role default through a role override (e.g. grant `events.manage` to `park_lead`). The exceptions are: (1) the canonical protected capabilities listed in §6 are immutable via the override API; (2) proposed capabilities pending owner decisions D5–D9 (§12) cannot be overridden until approved; (3) the `super_admin` role itself is protected from role overrides by the existing route handler. No route handler hard-codes role membership as a permission check — all route enforcement uses `requireCapability(capability)`.
 
 | Role | dashboard | organisation | people | students | guardians | admissions | attendance | fees | announcements | reports | audit | settings | access.* | content | teams | events | mashwara | calling |
 |------|-----------|-------------|--------|----------|-----------|------------|------------|------|--------------|--------|-------|----------|----------|---------|-------|--------|----------|---------|
@@ -235,7 +235,7 @@ This is the single canonical list of protected capabilities. They are **immutabl
 | `access.scope.manage` | Scope changes affect authorization boundaries | Super Admin only (protected in route) |
 | `access.city_staff.manage` | Staff provisioning within city | Role override only |
 
-**All other capabilities in the catalogue** are eligible for named-user override via `USER_OVERRIDE_CAPABILITIES` (see §9 for the exact whitelist). This includes capabilities from proposed modules such as `teams.memberships.manage`, `calling.poc.manage`, `calling.export.manage`, `calling.templates.manage`, and `events.responsibilities.manage` — but their inclusion in `USER_OVERRIDE_CAPABILITIES` is subject to owner decisions D4–D7 in §12.
+**Capabilities outside the canonical protected list** are eligible for named-user override only if they have been explicitly added to `USER_OVERRIDE_CAPABILITIES` (see §9 for the exact whitelist). Five proposed capabilities — `teams.memberships.manage`, `calling.poc.manage`, `calling.export.manage`, `calling.templates.manage`, `events.responsibilities.manage` — are subject to owner decisions D5–D9 in §12 and remain excluded until approved. Only explicitly approved public capabilities enter `USER_OVERRIDE_CAPABILITIES`.
 
 **Immutable exceptions (current code, unchanged):**
 - The `super_admin` role cannot be targeted by role overrides.
@@ -377,12 +377,18 @@ The following capabilities must be added to `USER_OVERRIDE_CAPABILITIES` so Supe
 "calling.campaign.manage",   "calling.leads.view",
 "calling.leads.assign",      "calling.leads.interact",
 "calling.poc.manage",        // Subject to owner decision D6 — recommended default: allow named-user override
-"calling.export.manage",     // Subject to owner decision D7 — recommended default: protect (role-level only)
-"calling.templates.manage",  // Subject to owner decision D8 — recommended default: protect (role-level only)
-"events.responsibilities.manage", // Subject to owner decision D9 — recommended default: protect (role-level only)
 ```
 
-The following remain **excluded** from user overrides (per §6 canonical protected list):
+The following capabilities from the proposed catalogue remain **excluded** from `USER_OVERRIDE_CAPABILITIES` pending owner decisions D7–D9 (recommended default: protect):
+
+```typescript
+// Pending owner decision — currently excluded:
+// "calling.export.manage"      — D7 recommended protect
+// "calling.templates.manage"   — D8 recommended protect
+// "events.responsibilities.manage" — D9 recommended protect
+```
+
+The following capabilities are always **excluded** (canonical protected list per §6):
 
 ```typescript
 // Canonical protected capabilities (always role-level only):
@@ -472,7 +478,7 @@ This contract governs the dynamic capability system across all Shabab 360 module
 ### Key Rules
 
 - **Resolution order:** user override → role override → role default → deny.
-- **Canonical protected capabilities** (6 codes: `audit.view`, `settings.manage`, `access.*`) are role-level only, never user-overridable. See §6. All other capabilities are eligible for named-user override subject to owner decisions D5–D9 (§12).
+- **Canonical protected capabilities** (6 codes: `audit.view`, `settings.manage`, `access.*`) are role-level only, never user-overridable. See §6. Only explicitly approved public capabilities enter `USER_OVERRIDE_CAPABILITIES`; five proposed capabilities remain pending owner decisions D5–D9 (§12).
 - **Every capability check** is paired with a server-derived scope check (city, park, group, team, campaign, event, or assigned lead). A capability grant never bypasses scope.
 - **Module-specific predicates** (team membership, POC assignment, meeting share, lead assignment) add an additional enforcement layer after capability + scope.
 - **Session invalidation** on override mutation is already implemented via `tokenVersion`.
