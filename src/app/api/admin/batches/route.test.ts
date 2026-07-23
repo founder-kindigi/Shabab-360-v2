@@ -26,7 +26,7 @@ vi.mock("@/lib/audit", () => ({ logAudit: vi.fn() }));
 
 import { POST } from "./route";
 
-describe("POST /api/admin/batches dynamic authorization", () => {
+describe("POST /api/admin/batches dynamic authorization & real scope boundary", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.requireCapability.mockResolvedValue(null);
@@ -34,11 +34,11 @@ describe("POST /api/admin/batches dynamic authorization", () => {
       if (where.id === "park-1") {
         return { id: "park-1", cityId: "city-1", isActive: true, city: { id: "city-1", name: "Lahore" } };
       }
-      if (where.id === "park-2") {
-        return { id: "park-2", cityId: "city-2", isActive: true, city: { id: "city-2", name: "Karachi" } };
+      if (where.id === "park-2-foreign-city") {
+        return { id: "park-2-foreign-city", cityId: "city-2", isActive: true, city: { id: "city-2", name: "Karachi" } };
       }
-      if (where.id === "park-1-same-city") {
-        return { id: "park-1-same-city", cityId: "city-1", isActive: true, city: { id: "city-1", name: "Lahore" } };
+      if (where.id === "park-1-same-city-foreign-park") {
+        return { id: "park-1-same-city-foreign-park", cityId: "city-1", isActive: true, city: { id: "city-1", name: "Lahore" } };
       }
       return null;
     });
@@ -100,12 +100,12 @@ describe("POST /api/admin/batches dynamic authorization", () => {
       new NextRequest("http://localhost/api/admin/batches", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ name: "Foreign Batch", parkId: "park-2", startDate: "2026-08-01" }),
+        body: JSON.stringify({ name: "Foreign Batch", parkId: "park-2-foreign-city", startDate: "2026-08-01" }),
       })
     );
 
     expect(response.status).toBe(403);
-    expect(mocks.parkFindUnique).toHaveBeenCalledWith(expect.objectContaining({ where: { id: "park-2", isActive: true } }));
+    expect(mocks.parkFindUnique).toHaveBeenCalledWith(expect.objectContaining({ where: { id: "park-2-foreign-city", isActive: true } }));
     expect(mocks.batchCreate).not.toHaveBeenCalled();
   });
 
@@ -126,7 +126,7 @@ describe("POST /api/admin/batches dynamic authorization", () => {
     expect(mocks.batchCreate).toHaveBeenCalled();
   });
 
-  it("denies capability-granted Park Lead creating a batch in a foreign park -> 403 and no write", async () => {
+  it("denies capability-granted Park Lead creating a batch in a same-city foreign park -> 403 and no write", async () => {
     mocks.requireAuth.mockResolvedValue({
       user: { id: "park-lead-1", role: "park_lead", assignedParkId: "park-1" },
     });
@@ -135,7 +135,41 @@ describe("POST /api/admin/batches dynamic authorization", () => {
       new NextRequest("http://localhost/api/admin/batches", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ name: "Foreign Park Batch", parkId: "park-1-same-city", startDate: "2026-08-01" }),
+        body: JSON.stringify({ name: "Foreign Park Batch", parkId: "park-1-same-city-foreign-park", startDate: "2026-08-01" }),
+      })
+    );
+
+    expect(response.status).toBe(403);
+    expect(mocks.batchCreate).not.toHaveBeenCalled();
+  });
+
+  it("denies capability-granted Park Lead creating a batch in a foreign-city park -> 403 and no write", async () => {
+    mocks.requireAuth.mockResolvedValue({
+      user: { id: "park-lead-1", role: "park_lead", assignedParkId: "park-1" },
+    });
+
+    const response = await POST(
+      new NextRequest("http://localhost/api/admin/batches", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ name: "Foreign City Batch", parkId: "park-2-foreign-city", startDate: "2026-08-01" }),
+      })
+    );
+
+    expect(response.status).toBe(403);
+    expect(mocks.batchCreate).not.toHaveBeenCalled();
+  });
+
+  it("denies capability-granted Murabbi creating a batch -> 403 and no write (batch is not group-scoped)", async () => {
+    mocks.requireAuth.mockResolvedValue({
+      user: { id: "murabbi-1", role: "murabbi", assignedGroupId: "group-1" },
+    });
+
+    const response = await POST(
+      new NextRequest("http://localhost/api/admin/batches", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ name: "Murabbi Batch", parkId: "park-1", startDate: "2026-08-01" }),
       })
     );
 
