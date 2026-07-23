@@ -1,6 +1,6 @@
 # LAHORE STABILIZATION IMPLEMENTATION CONTRACT
 
-- **Document Version:** 1.0.0
+- **Document Version:** 1.1.0
 - **Task ID:** `PKG-07`
 - **Status:** Ready for Implementation Review
 - **Base Commit:** `be29368` on `codex/production-hardening`
@@ -15,7 +15,7 @@ This contract translates the integrated UAT and static-review evidence from PKG-
 
 **Strict constraints on this contract:**
 
-- No Prisma schema changes, migrations, API route changes, UI code, or tests are written here.
+- No Prisma schema changes, migrations, new API routes, UI code, or tests are written here. An existing scoped API response may be modified only where verified necessary (see RP-08).
 - No database reads or writes.
 - No secrets or personal data.
 - This document only defines what shall be implemented, the evidence for each item, and the acceptance criteria an implementer must satisfy.
@@ -32,7 +32,7 @@ This contract translates the integrated UAT and static-review evidence from PKG-
 | `UX-001-LAHORE-SCREEN-INVENTORY.md` | 44-screen inventory; 3 code-confirmed findings: batch end-date validation (`B-V05`), report table scroll, access-pending guidance |
 | `UX-002-LAHORE-MOBILE-RESPONSIVE-AUDIT.md` | 11 mobile candidates with exact file/line references and code evidence |
 | `UX-004-MOBILE-EVIDENCE-MATRIX.md` | Structured test definitions for 11 candidates; browser UAT pending |
-| `DASH-001` (referenced in UX-001 Screen 04) | Super Admin Dashboard: static review complete; responsive 2-column grid switching confirmed in code |
+
 
 ---
 
@@ -41,16 +41,19 @@ This contract translates the integrated UAT and static-review evidence from PKG-
 Per the task requirements, items must meet one of:
 
 1. **Ready to implement** — statically confirmed code defect with exact file and line evidence; no live browser required to reproduce the class of problem.
-2. **Browser-UAT-required candidate** — code evidence supports the hypothesis but live browser validation is required to confirm severity or determine best fix.
-3. **Owner decision required** — policy, priority, or scope question that cannot be resolved from available evidence.
+2. **Implementation-eligible static candidate; browser UAT required for final acceptance** — static code evidence is sufficient to proceed with the layout improvement as a low-risk change, but the repair must not be reported as a confirmed defect or marked complete until mobile browser evidence exists.
+3. **Browser-UAT-required candidate** — code evidence supports the hypothesis but live browser validation is required before any implementation is commissioned.
+4. **Owner decision required** — policy, priority, or scope question that cannot be resolved from available evidence.
 
 Items that are only "blocked browser UAT" observations with no corroborating static code evidence are **not included** as ready-to-implement repairs.
 
 ---
 
-## 3. Ready-to-Implement Repair Packages
+## 3. Repair Packages
 
 ### RP-01: Batch End-Date Server Validation
+
+**Classification:** Ready to implement
 
 **Category:** Data display / validation
 
@@ -93,6 +96,8 @@ Items that are only "blocked browser UAT" observations with no corroborating sta
 
 **Category:** Mobile attendance / navigation layout
 
+**Classification:** Implementation-eligible static candidate; browser UAT required for final acceptance
+
 | Field | Detail |
 |-------|--------|
 | Evidence source | LAHORE_STABILIZATION_REPAIR_BACKLOG CANDIDATE-DEFECT-01; UAT-005 CANDIDATE-BUG-01; UX-002 `MOB-NAV-01`; `src/components/shared/bottom-nav.tsx:L110-112` |
@@ -127,6 +132,8 @@ Items that are only "blocked browser UAT" observations with no corroborating sta
 ---
 
 ### RP-03: Attendance Status Button Touch Target Expansion (MOB-ATT-01)
+
+**Classification:** Implementation-eligible static candidate; browser UAT required for final acceptance
 
 **Category:** Mobile attendance
 
@@ -163,6 +170,8 @@ Items that are only "blocked browser UAT" observations with no corroborating sta
 
 ### RP-04: Student Directory Filter Drawer for Mobile (MOB-PEO-02)
 
+**Classification:** Implementation-eligible static candidate; browser UAT required for final acceptance
+
 **Category:** Navigation / layout
 
 | Field | Detail |
@@ -198,6 +207,8 @@ Items that are only "blocked browser UAT" observations with no corroborating sta
 ---
 
 ### RP-05: Student Card Checkbox and Avatar Touch Area Separation (MOB-PEO-03)
+
+**Classification:** Implementation-eligible static candidate; browser UAT required for final acceptance
 
 **Category:** Navigation / layout
 
@@ -236,6 +247,8 @@ Items that are only "blocked browser UAT" observations with no corroborating sta
 
 ### RP-06: City Head Dashboard Currency Overflow (MOB-DASH-02)
 
+**Classification:** Implementation-eligible static candidate; browser UAT required for final acceptance
+
 **Category:** Dashboard consistency
 
 | Field | Detail |
@@ -270,6 +283,8 @@ Items that are only "blocked browser UAT" observations with no corroborating sta
 ---
 
 ### RP-07: Access Management Capability String Overflow (MOB-ACC-01)
+
+**Classification:** Implementation-eligible static candidate; browser UAT required for final acceptance
 
 **Category:** Role UX boundaries / data display
 
@@ -310,35 +325,43 @@ Items that are only "blocked browser UAT" observations with no corroborating sta
 
 | Field | Detail |
 |-------|--------|
-| Evidence source | UX-001 Section 4.2 Finding #3 (Lahore participant enriched fields); `src/components/modules/student/student-profile-page.tsx` |
+| Evidence source | UX-001 Section 4.2 Finding #3 (Lahore participant enriched fields); `src/components/modules/student/student-profile-page.tsx`; `src/app/api/user/profile/route.ts` |
 | Severity | P2 — enriched Lahore Batch 4 `age` and `gradeClass` fields are imported but not surfaced on the Student Profile screen |
 | Affected roles | `student` |
-| Affected routes | `/student/profile` (or equivalent student profile page) |
+| Affected routes | `/student/profile` — rendered by `src/components/modules/student/student-profile-page.tsx`, which fetches `GET /api/user/profile` |
 | Lahore data impact | Read-only display; no database writes |
+
+**Code-verified finding:**
+
+Code inspection confirms that `age` and `gradeClass` are not included in the current response.
+
+- `src/app/api/user/profile/route.ts` lines 82–98: the `GET` handler queries `db.participant.findFirst` using `include` (all fields available in the Prisma result), but the JSON response object explicitly maps only `id`, `name`, `phone`, `dateOfBirth`, `gender`, `address`, `state`, `joinedAt`, `group`, `batch`, `park`, and `city`. The fields `age` and `gradeClass` are omitted from the returned participant object.
+- `src/components/modules/student/student-profile-page.tsx` lines 54–75: the `ProfileResponse` TypeScript type declares the `participant` sub-object without `age` or `gradeClass` fields, so even if the API returned them, the component would not consume or display them.
 
 **Exact allowed files:**
 
-- `src/components/modules/student/student-profile-page.tsx`
-- The API route that serves the student profile data (if it excludes `age` and `gradeClass` from its response), such as `src/app/api/student/dashboard/route.ts` or a dedicated profile endpoint
+- `src/app/api/user/profile/route.ts` — add `age` and `gradeClass` to the participant object in the `GET` response (lines 82–98); no new route, no schema change.
+- `src/components/modules/student/student-profile-page.tsx` — add `age: number | null` and `gradeClass: string | null` to the `ProfileResponse.participant` type and render both fields in the Personal Information card.
 
 **Expected behavior:**
 
-- The Student Profile page must display the `age` and `gradeClass` fields when they are non-null on the participant record.
-- When `age` or `gradeClass` is null, the field must display a graceful empty state (e.g. a dash or "Not recorded") rather than crashing or rendering an empty blank.
-- These fields must be read-only; the student self-service page does not allow editing.
+- The `GET /api/user/profile` response must include `age` and `gradeClass` in the `participant` sub-object alongside the already-returned fields.
+- The Student Profile page must display `age` and `gradeClass` when non-null. When either is null, the field must display a graceful empty value (e.g. `"—"`) rather than crashing or rendering blank.
+- These fields are read-only. The edit dialog (`PATCH /api/user/profile`) must not be modified to accept `age` or `gradeClass`.
 
 **Acceptance tests:**
 
-1. A Lahore participant record with `age = 17` and `gradeClass = "Grade 10"` displays both values on the profile screen.
-2. A participant with `age = null` and `gradeClass = null` displays the graceful empty state for both fields without errors.
-3. No new database writes are issued by this change.
-4. Capability gate: only the authenticated student may view their own profile; no cross-participant access.
+1. `GET /api/user/profile` response includes `participant.age` and `participant.gradeClass` for a linked student account.
+2. A Lahore participant with `age = 17` and `gradeClass = "Grade 10"` displays both values in the Personal Information card.
+3. A participant with `age = null` and `gradeClass = null` shows `"—"` for both fields without errors.
+4. The `PATCH /api/user/profile` schema is unchanged; submitting `age` or `gradeClass` in the body returns `400` (strict schema rejects unknown fields).
+5. No new database writes are issued by this change.
 
 **Rollback / data / security impact:**
 
-- Read-only display change; no data writes.
-- Rollback: remove the age and gradeClass display elements from the component.
-- No authorization surface change; the existing participant-scoped access check covers these fields.
+- Read-only display addition; no data writes, no schema changes, no new routes, no authorization surface change.
+- Rollback: remove `age` and `gradeClass` from the `GET /api/user/profile` response object in `src/app/api/user/profile/route.ts` and remove the corresponding fields from the `ProfileResponse` type and render output in `src/components/modules/student/student-profile-page.tsx`.
+- The existing participant-scoped access check on `GET /api/user/profile` covers the new fields; no additional capability gate is needed.
 
 ---
 
@@ -422,7 +445,7 @@ Every repair package must satisfy the following gates before handoff:
 
 ## 10. Rollback Policy
 
-All repair packages listed are UI-only (RP-02 through RP-08) or input-validation-only (RP-01). There are no database writes, schema changes, or authorization surface changes in this contract. Rollback for any package is a simple revert of the changed component file. No data rollback procedures are needed.
+All repair packages in this contract are layout or display changes (RP-02 through RP-07), input-validation (RP-01), or a read-only display addition that modifies an existing scoped API response shape (RP-08). There are no database writes, schema changes, or authorization surface changes. Rollback for any package is a revert of the changed file(s). No data rollback procedures are needed.
 
 ---
 
