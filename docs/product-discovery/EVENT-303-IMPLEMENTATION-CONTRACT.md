@@ -303,17 +303,17 @@ const auth = await requireCapability("events.manage");
 if (auth instanceof NextResponse) return auth;
 
 // 2. Resolve authorized city scope — actor-aware
-//    super_admin / program_admin: require explicit existing cityId param
-//    If missing: 400 (bad request). If city does not exist: 404.
-//    Scoped actors: derive exactly one city from StaffMeta.
-//    If a supplied cityId does not match the derived city: 403 (forbidden).
+//    resolveActorCity returns:
+//      - the resolved city string when the actor has a valid city
+//      - null when the actor has no valid city to operate in
+//    The caller chooses the appropriate status code:
+//      - HQ with no cityId or invalid cityId → 400 (bad request)
+//      - Scoped actor with foreign cityId or no StaffMeta city → 403 (forbidden)
 const resolvedCity = resolveActorCity(auth.user, providedCityId);
 if (resolvedCity === null) {
-  // HQ with no cityId → missing required input
   if (isHqRole(auth.user.role)) {
     return new NextResponse(null, { status: 400 });
   }
-  // Scoped actor with mismatch or unresolvable scope → forbidden
   return new NextResponse(null, { status: 403 });
 }
 
@@ -327,9 +327,9 @@ if (event.cityId !== resolvedCity) {
 ```
 
 The `resolveActorCity` helper works as follows:
-- If `auth.user.role` is `super_admin` or `program_admin`: the caller **must** provide a `cityId` parameter; the helper validates the city exists and returns it. No `cityId` → returns `null` (400).
-- If `auth.user.role` is a scoped role (`city_head`, `park_lead`, etc.): the helper derives the single city from the actor's `StaffMeta` as defined in §4.3. If a `cityId` was also provided in the request, it is validated against the derived city; a mismatch is denied with 403. If no `cityId` was provided, the derived city is used.
-- The resolved city is used for all entity scope checks on the request. Request query parameters (e.g. `?parkId=`) may only narrow the resolved scope; a parameter requesting data outside it returns 403.
+- If `auth.user.role` is `super_admin` or `program_admin`: the caller **must** provide a `cityId` parameter; the helper validates that the city exists in the database and returns its id. Missing, malformed, or nonexistent `cityId` → returns `null` (caller chooses 400).
+- If `auth.user.role` is a scoped role (`city_head`, `park_lead`, etc.): the helper derives the single city from the actor's `StaffMeta` as defined in §4.3. If a `cityId` was also provided in the request, it is validated against the derived city; a mismatch returns `null` (caller chooses 403). If no `cityId` was provided, the derived city is returned. If the actor has no StaffMeta city assignment, returns `null` (caller chooses 403).
+- On success, the resolved city is a valid city id string. Request query parameters (e.g. `?parkId=`) may only narrow the resolved scope; a parameter requesting data outside it returns 403.
 
 ### 4.5 Calling POC Authorization
 
