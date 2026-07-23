@@ -24,6 +24,10 @@ export const ACCESS_CAPABILITIES = [
   "events.view",
   "events.manage",
   "events.responsibilities.manage",
+  "calling.view",
+  "calling.poc.manage",
+  "calling.templates.manage",
+  "calling.export.manage",
   "access.role_defaults.manage",
   "access.user_overrides.manage",
   "access.scope.manage",
@@ -50,6 +54,7 @@ export const USER_OVERRIDE_CAPABILITIES = [
   "events.view",
   "events.manage",
   "events.responsibilities.manage",
+  "calling.view",
 ] as const;
 
 export type AccessCapability = (typeof ACCESS_CAPABILITIES)[number];
@@ -89,6 +94,10 @@ export const ROLE_DEFAULT_CAPABILITIES: Readonly<Record<UserRole, readonly Acces
     "events.view",
     "events.manage",
     "events.responsibilities.manage",
+    "calling.view",
+    "calling.poc.manage",
+    "calling.templates.manage",
+    "calling.export.manage",
   ],
   city_head: [
     "dashboard.view",
@@ -109,6 +118,10 @@ export const ROLE_DEFAULT_CAPABILITIES: Readonly<Record<UserRole, readonly Acces
     "events.view",
     "events.manage",
     "events.responsibilities.manage",
+    "calling.view",
+    "calling.poc.manage",
+    "calling.templates.manage",
+    "calling.export.manage",
   ],
   park_lead: [
     "dashboard.view",
@@ -117,6 +130,7 @@ export const ROLE_DEFAULT_CAPABILITIES: Readonly<Record<UserRole, readonly Acces
     "attendance.correct",
     "content.view",
     "events.view",
+    "calling.view",
   ],
   park_admin: [
     "dashboard.view",

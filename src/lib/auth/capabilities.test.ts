@@ -14,6 +14,10 @@ describe("access capability policy", () => {
     expect(isAccessCapability("events.manage")).toBe(true);
     expect(isAccessCapability("events.view")).toBe(true);
     expect(isAccessCapability("events.responsibilities.manage")).toBe(true);
+    expect(isAccessCapability("calling.view")).toBe(true);
+    expect(isAccessCapability("calling.poc.manage")).toBe(true);
+    expect(isAccessCapability("calling.templates.manage")).toBe(true);
+    expect(isAccessCapability("calling.export.manage")).toBe(true);
     expect(isAccessCapability("/api/admin/users")).toBe(false);
   });
 
