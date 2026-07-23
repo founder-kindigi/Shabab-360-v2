@@ -304,9 +304,18 @@ if (auth instanceof NextResponse) return auth;
 
 // 2. Resolve authorized city scope — actor-aware
 //    super_admin / program_admin: require explicit existing cityId param
-//    Scoped actors: derive exactly one city from StaffMeta
+//    If missing: 400 (bad request). If city does not exist: 404.
+//    Scoped actors: derive exactly one city from StaffMeta.
+//    If a supplied cityId does not match the derived city: 403 (forbidden).
 const resolvedCity = resolveActorCity(auth.user, providedCityId);
-if (!resolvedCity) return new NextResponse(null, { status: 403 });
+if (resolvedCity === null) {
+  // HQ with no cityId → missing required input
+  if (isHqRole(auth.user.role)) {
+    return new NextResponse(null, { status: 400 });
+  }
+  // Scoped actor with mismatch or unresolvable scope → forbidden
+  return new NextResponse(null, { status: 403 });
+}
 
 // 3. Events-specific city verification — direct comparison against
 //    the target Event.cityId.  This replaces the generic
@@ -318,7 +327,7 @@ if (event.cityId !== resolvedCity) {
 ```
 
 The `resolveActorCity` helper works as follows:
-- If `auth.user.role` is `super_admin` or `program_admin`: the caller **must** provide a `cityId` parameter; the helper validates the city exists and returns it. No `cityId` → returns `null` (403).
+- If `auth.user.role` is `super_admin` or `program_admin`: the caller **must** provide a `cityId` parameter; the helper validates the city exists and returns it. No `cityId` → returns `null` (400).
 - If `auth.user.role` is a scoped role (`city_head`, `park_lead`, etc.): the helper derives the single city from the actor's `StaffMeta` as defined in §4.3. If a `cityId` was also provided in the request, it is validated against the derived city; a mismatch is denied with 403. If no `cityId` was provided, the derived city is used.
 - The resolved city is used for all entity scope checks on the request. Request query parameters (e.g. `?parkId=`) may only narrow the resolved scope; a parameter requesting data outside it returns 403.
 
@@ -570,7 +579,7 @@ const updatePlannerItemSchema = z.object({
 | Method | Path | Handler | Auth Gate | Scope Check | Request Schema | Response |
 |--------|------|---------|-----------|-------------|---------------|----------|
 | `POST` | `/api/admin/events` | createEvent | `events.manage` | resolveActorCity: HQ provides explicit cityId; scoped derives from StaffMeta; mismatch = 403 | `createEventSchema` | `Event` |
-| `GET` | `/api/admin/events` | listEvents | `events.view` | resolveActorCity: HQ must provide cityId or 403; scoped derives from StaffMeta; filters `planned` when caller lacks `events.manage` | `listEventsSchema` | `{ events: Event[], total, page, limit }` |
+| `GET` | `/api/admin/events` | listEvents | `events.view` | resolveActorCity: HQ must provide cityId or 400; scoped derives from StaffMeta; filters `planned` when caller lacks `events.manage` | `listEventsSchema` | `{ events: Event[], total, page, limit }` |
 | `GET` | `/api/admin/events/[id]` | getEvent | `events.view` | resolveActorCity against event.cityId; return 404 if event is `planned` and caller lacks `events.manage` | — | `Event` with teams, responsibilities, items |
 | `PATCH` | `/api/admin/events/[id]` | updateEvent | `events.manage` | resolveActorCity against event.cityId | `updateEventSchema` | `Event` |
 | `POST` | `/api/admin/events/[id]/cancel` | cancelEvent | `events.manage` | resolveActorCity against event.cityId | `{ reason?: string }` | `Event` |
