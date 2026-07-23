@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth, requireCapability, requireResourceScope } from "@/lib/auth/authorize";
+import {
+  ORGANIZATION_MANAGEMENT_ROLES,
+  requireAuth,
+  requireCapability,
+  requireResourceScope,
+} from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
 import { z } from "zod";
@@ -10,12 +15,6 @@ const updateSchema = z.object({
   endDate: z.string().date().nullable().optional(),
   isActive: z.boolean().optional(),
 });
-
-const HIERARCHY_MANAGER_ROLES = ["super_admin", "program_admin", "city_head"];
-
-function canManageHierarchy(role?: string | null) {
-  return HIERARCHY_MANAGER_ROLES.includes(role || "");
-}
 
 export async function GET(
   request: NextRequest,
@@ -49,7 +48,8 @@ export async function GET(
 
   const scopeError = requireResourceScope(
     user,
-    { cityId: batch.cityId ?? batch.park.city.id }
+    { cityId: batch.cityId ?? batch.park.city.id, parkId: batch.parkId },
+    ORGANIZATION_MANAGEMENT_ROLES
   );
   if (scopeError) return scopeError;
 
@@ -65,9 +65,6 @@ export async function PATCH(
   const { user } = auth;
   const capabilityAuth = await requireCapability("organisation.manage");
   if (capabilityAuth instanceof NextResponse) return capabilityAuth;
-  if (!canManageHierarchy(user.role)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
   const { id } = await params;
 
   const existing = await db.batch.findUnique({
@@ -80,7 +77,8 @@ export async function PATCH(
 
   const scopeError = requireResourceScope(
     user,
-    { cityId: existing.cityId ?? existing.park.cityId }
+    { cityId: existing.cityId ?? existing.park.cityId, parkId: existing.parkId },
+    ORGANIZATION_MANAGEMENT_ROLES
   );
   if (scopeError) return scopeError;
 
@@ -136,9 +134,6 @@ export async function DELETE(
   const { user } = auth;
   const capabilityAuth = await requireCapability("organisation.manage");
   if (capabilityAuth instanceof NextResponse) return capabilityAuth;
-  if (!canManageHierarchy(user.role)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
   const { id } = await params;
 
   const existing = await db.batch.findUnique({
@@ -151,7 +146,8 @@ export async function DELETE(
 
   const scopeError = requireResourceScope(
     user,
-    { cityId: existing.cityId ?? existing.park.cityId }
+    { cityId: existing.cityId ?? existing.park.cityId, parkId: existing.parkId },
+    ORGANIZATION_MANAGEMENT_ROLES
   );
   if (scopeError) return scopeError;
 

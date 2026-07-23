@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth, requireCapability } from "@/lib/auth/authorize";
+import {
+  ORGANIZATION_MANAGEMENT_ROLES,
+  requireAuth,
+  requireCapability,
+  requireResourceScope,
+} from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
 import {
@@ -18,12 +23,6 @@ const createSchema = z.object({
   message: "End date must be on or after the start date",
   path: ["endDate"],
 });
-
-const HIERARCHY_MANAGER_ROLES = ["super_admin", "program_admin", "city_head"];
-
-function canManageHierarchy(role?: string | null) {
-  return HIERARCHY_MANAGER_ROLES.includes(role || "");
-}
 
 const listQuerySchema = z.object({
   parkId: optionalIdentifier(),
@@ -113,12 +112,6 @@ export async function POST(request: NextRequest) {
   const capabilityAuth = await requireCapability("organisation.manage");
   if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
-  if (!canManageHierarchy(user.role)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-
-  const isHQ = ["super_admin", "program_admin"].includes(user.role || "");
-
   const body = await request.json();
   const parsed = createSchema.safeParse(body);
   if (!parsed.success) {
@@ -128,7 +121,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Verify park access
+  // Verify target park access
   const park = await db.park.findUnique({
     where: { id: parsed.data.parkId, isActive: true },
     include: { city: true },
@@ -140,14 +133,13 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Scope check
-  if (!isHQ && user.role === "city_head" && user.assignedCityId) {
-    if (park.cityId !== user.assignedCityId) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-  } else if (!isHQ) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  // Dynamic capability + scope check using target park and city
+  const scopeError = requireResourceScope(
+    user,
+    { cityId: park.cityId, parkId: park.id },
+    ORGANIZATION_MANAGEMENT_ROLES
+  );
+  if (scopeError) return scopeError;
 
   const batch = await db.batch.create({
     data: {
