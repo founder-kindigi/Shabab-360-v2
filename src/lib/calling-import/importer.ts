@@ -26,6 +26,12 @@ export async function processCallingImport(
     );
   }
 
+  if (!options.campaignId || !options.campaignId.trim()) {
+    throw new Error(
+      "Operator campaign context (--campaignId) is required and cannot be empty."
+    );
+  }
+
   if (!options.hmacSecret || !options.hmacSecret.trim()) {
     throw new Error(
       "IMPORT_HMAC_SECRET is required and cannot be empty."

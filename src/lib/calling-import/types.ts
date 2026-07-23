@@ -35,7 +35,7 @@ export interface NormalizedCallingRow {
 
 export interface CallingImportOptions {
   cityId: string;
-  campaignId?: string;
+  campaignId: string;
   dryRun?: boolean;
   hmacSecret: string;
 }

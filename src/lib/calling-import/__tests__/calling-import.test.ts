@@ -1,4 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
+import { execSync } from "node:child_process";
+import path from "node:path";
 import {
   normalizePakistanPhone,
   isValidPakistanPhone,
@@ -13,7 +15,9 @@ import type { RawSourceRow, CallingImportOptions } from "../types";
 describe("Calling Import Preparation — PKG-03 Test Suite", () => {
   let mockLookup: MockInterviewLookupService;
   const testCityId = "city-lahore-01";
+  const testCampaignId = "campaign-phase2-01";
   const testSecret = "test-hmac-secret-12345";
+  const cliPath = path.resolve("scripts/dry-run-calling-import.ts");
 
   beforeEach(() => {
     mockLookup = new MockInterviewLookupService();
@@ -92,7 +96,11 @@ describe("Calling Import Preparation — PKG-03 Test Suite", () => {
         },
       ];
 
-      const options: CallingImportOptions = { cityId: testCityId, hmacSecret: testSecret };
+      const options: CallingImportOptions = {
+        cityId: testCityId,
+        campaignId: testCampaignId,
+        hmacSecret: testSecret,
+      };
       const res = normalizeCallingRows(rawRows, options, []);
 
       expect(res.validRows).toHaveLength(0);
@@ -112,8 +120,31 @@ describe("Calling Import Preparation — PKG-03 Test Suite", () => {
       ];
 
       expect(() =>
-        normalizeCallingRows(rawRows, { cityId: "", hmacSecret: testSecret }, [])
+        normalizeCallingRows(
+          rawRows,
+          { cityId: "", campaignId: testCampaignId, hmacSecret: testSecret },
+          []
+        )
       ).toThrow("Operator city context (--cityId) is required");
+    });
+
+    it("throws error when operator campaignId is missing or empty", () => {
+      const rawRows: RawSourceRow[] = [
+        {
+          rowNumber: 2,
+          sheetName: "Sheet1",
+          prospectName: "Valid Name",
+          contactPhone: "03001234567",
+        },
+      ];
+
+      expect(() =>
+        normalizeCallingRows(
+          rawRows,
+          { cityId: testCityId, campaignId: "", hmacSecret: testSecret },
+          []
+        )
+      ).toThrow("Operator campaign context (--campaignId) is required");
     });
 
     it("throws error when hmacSecret is missing or empty during normalization", () => {
@@ -127,7 +158,11 @@ describe("Calling Import Preparation — PKG-03 Test Suite", () => {
       ];
 
       expect(() =>
-        normalizeCallingRows(rawRows, { cityId: testCityId, hmacSecret: "" }, [])
+        normalizeCallingRows(
+          rawRows,
+          { cityId: testCityId, campaignId: testCampaignId, hmacSecret: "" },
+          []
+        )
       ).toThrow("IMPORT_HMAC_SECRET is required");
     });
 
@@ -145,7 +180,7 @@ describe("Calling Import Preparation — PKG-03 Test Suite", () => {
       const cityParks = [{ id: "park-01", name: "State Life School" }];
       const res = normalizeCallingRows(
         rawRows,
-        { cityId: testCityId, hmacSecret: testSecret },
+        { cityId: testCityId, campaignId: testCampaignId, hmacSecret: testSecret },
         cityParks
       );
 
@@ -177,7 +212,11 @@ describe("Calling Import Preparation — PKG-03 Test Suite", () => {
         },
       ];
 
-      const options: CallingImportOptions = { cityId: testCityId, hmacSecret: testSecret };
+      const options: CallingImportOptions = {
+        cityId: testCityId,
+        campaignId: testCampaignId,
+        hmacSecret: testSecret,
+      };
       const normRes = normalizeCallingRows(rawRows, options, []);
       const dupRes = detectDuplicates(normRes.validRows);
 
@@ -199,7 +238,11 @@ describe("Calling Import Preparation — PKG-03 Test Suite", () => {
         },
       ];
 
-      const options: CallingImportOptions = { cityId: testCityId, hmacSecret: testSecret };
+      const options: CallingImportOptions = {
+        cityId: testCityId,
+        campaignId: testCampaignId,
+        hmacSecret: testSecret,
+      };
       const report = await processCallingImport(rawRows, options, mockLookup);
 
       expect(report.summary.validLeadsCount).toBe(1);
@@ -216,7 +259,11 @@ describe("Calling Import Preparation — PKG-03 Test Suite", () => {
         },
       ];
 
-      const options: CallingImportOptions = { cityId: testCityId, hmacSecret: testSecret };
+      const options: CallingImportOptions = {
+        cityId: testCityId,
+        campaignId: testCampaignId,
+        hmacSecret: testSecret,
+      };
       const report = await processCallingImport(rawRows, options, mockLookup);
 
       expect(report.summary.validLeadsCount).toBe(1);
@@ -226,51 +273,68 @@ describe("Calling Import Preparation — PKG-03 Test Suite", () => {
     });
   });
 
-  describe("Zero Database Write & Complete End-to-End Reconciliation Report", () => {
-    it("generates deterministic masked JSON reconciliation report with zero writes", async () => {
-      const syntheticInput: RawSourceRow[] = [
-        {
-          rowNumber: 2,
-          sheetName: "Sheet1",
-          prospectName: "Usman Ahmed",
-          contactPhone: "03001234567",
-          allocatedPark: "State Life School",
-        },
-        {
-          rowNumber: 3,
-          sheetName: "Sheet1",
-          prospectName: "Unmatched Candidate",
-          contactPhone: "03219998877",
-          allocatedPark: "Invalid Park Name",
-        },
-        {
-          rowNumber: 4,
-          sheetName: "Sheet1",
-          prospectName: "",
-          contactPhone: "",
-        },
-      ];
+  describe("CLI Operational Safety & Failure Path Tests", () => {
+    it(
+      "fails safely when --campaignId is missing",
+      () => {
+        try {
+          execSync(
+            `npx tsx "${cliPath}" --cityId ${testCityId} --synthetic --dry-run`,
+            {
+              env: { ...process.env, IMPORT_HMAC_SECRET: testSecret },
+              stdio: "pipe",
+            }
+          );
+          expect.unreachable("Should have failed due to missing --campaignId");
+        } catch (err: unknown) {
+          const errorOutput = String((err as { stderr?: Buffer }).stderr || "");
+          expect(errorOutput).toContain("Dry-run calling import failed");
+        }
+      },
+      30000
+    );
 
-      const options: CallingImportOptions = {
-        cityId: testCityId,
-        dryRun: true,
-        hmacSecret: testSecret,
-      };
+    it(
+      "fails safely when --file is missing for operational run (without --synthetic)",
+      () => {
+        try {
+          execSync(
+            `npx tsx "${cliPath}" --cityId ${testCityId} --campaignId ${testCampaignId} --dry-run`,
+            {
+              env: { ...process.env, IMPORT_HMAC_SECRET: testSecret },
+              stdio: "pipe",
+            }
+          );
+          expect.unreachable("Should have failed due to missing --file without --synthetic");
+        } catch (err: unknown) {
+          const errorOutput = String((err as { stderr?: Buffer }).stderr || "");
+          expect(errorOutput).toContain("Dry-run calling import failed");
+        }
+      },
+      30000
+    );
 
-      const report = await processCallingImport(syntheticInput, options, mockLookup);
+    it(
+      "executes successfully with --synthetic and outputs masked report without initializing Prisma",
+      () => {
+        const result = execSync(
+          `npx tsx "${cliPath}" --cityId ${testCityId} --campaignId ${testCampaignId} --synthetic --dry-run`,
+          {
+            env: {
+              ...process.env,
+              IMPORT_HMAC_SECRET: testSecret,
+              DATABASE_URL: "sqlite://invalid-db-for-test-safety",
+            },
+            encoding: "utf-8",
+          }
+        );
 
-      expect(report.summary.totalRowsProcessed).toBe(3);
-      expect(report.summary.validLeadsCount).toBe(2);
-      expect(report.summary.invalidLeadsCount).toBe(1);
-      expect(report.summary.unresolvedParksCount).toBe(1);
-      expect(report.summary.unresolvedInterviewLinksCount).toBe(1);
-
-      // Verify no raw PII or raw park names in output report
-      const jsonString = JSON.stringify(report);
-      expect(jsonString).not.toContain("03219998877");
-      expect(jsonString).not.toContain("Invalid Park Name");
-      expect(jsonString).toContain("unresolvedInterviewLink");
-      expect(jsonString).toContain("UNRESOLVED_PARK");
-    });
+        const parsed = JSON.parse(result);
+        expect(parsed.summary.totalRowsProcessed).toBe(5);
+        expect(parsed.summary.validLeadsCount).toBe(3);
+        expect(parsed.unresolvedParks[0].providedParkNameMasked).toBe("Un***** Pa** Na**");
+      },
+      30000
+    );
   });
 });

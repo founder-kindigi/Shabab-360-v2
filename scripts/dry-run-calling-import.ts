@@ -15,12 +15,14 @@ function parseArgs(): {
   filePath?: string;
   cityId?: string;
   campaignId?: string;
+  synthetic: boolean;
   dryRun: boolean;
 } {
   const args = process.argv.slice(2);
   let filePath: string | undefined = undefined;
   let cityId: string | undefined = undefined;
   let campaignId: string | undefined = undefined;
+  let synthetic = false;
   let dryRun = true;
 
   for (let i = 0; i < args.length; i++) {
@@ -31,16 +33,18 @@ function parseArgs(): {
       cityId = args[++i];
     } else if (arg === "--campaignId" && i + 1 < args.length) {
       campaignId = args[++i];
+    } else if (arg === "--synthetic") {
+      synthetic = true;
     } else if (arg === "--dry-run") {
       dryRun = true;
     }
   }
 
-  return { filePath, cityId, campaignId, dryRun };
+  return { filePath, cityId, campaignId, synthetic, dryRun };
 }
 
 /**
- * Generates synthetic raw source rows for dry-run testing when no file is supplied.
+ * Generates synthetic raw source rows for dry-run testing when --synthetic is supplied.
  */
 function getSyntheticRows(): RawSourceRow[] {
   return [
@@ -92,10 +96,14 @@ function getSyntheticRows(): RawSourceRow[] {
 }
 
 async function main() {
-  const { filePath, cityId, campaignId, dryRun } = parseArgs();
+  const { filePath, cityId, campaignId, synthetic, dryRun } = parseArgs();
 
   if (!cityId || !cityId.trim()) {
     throw new Error("Operator city context (--cityId) is required and cannot be empty.");
+  }
+
+  if (!campaignId || !campaignId.trim()) {
+    throw new Error("Operator campaign context (--campaignId) is required and cannot be empty.");
   }
 
   const hmacSecret = process.env.IMPORT_HMAC_SECRET;
@@ -103,51 +111,52 @@ async function main() {
     throw new Error("IMPORT_HMAC_SECRET environment variable is required and cannot be empty.");
   }
 
+  if (!synthetic && (!filePath || !filePath.trim())) {
+    throw new Error("Workbook file path (--file) is required for operational runs.");
+  }
+
   const options: CallingImportOptions = {
     cityId: cityId.trim(),
-    campaignId: campaignId ? campaignId.trim() : undefined,
+    campaignId: campaignId.trim(),
     dryRun,
     hmacSecret: hmacSecret.trim(),
   };
 
   let lookupService;
+  let input: string | Buffer | RawSourceRow[];
 
-  // Use Prisma if DATABASE_URL is configured, otherwise fallback to mock lookup service
-  if (process.env.DATABASE_URL) {
-    try {
-      const { PrismaClient } = await import("@prisma/client");
-      const prisma = new PrismaClient();
-      lookupService = new PrismaInterviewLookupService(prisma);
-    } catch {
-      const mock = new MockInterviewLookupService();
-      mock.addMockPark("park-01", "State Life School", cityId);
-      mock.addMockInterview({
-        cityId,
-        interviewId: "int-101",
-        applicationId: "app-101",
-        applicantName: "Ahmed Khan",
-        guardianPhone: "923001234567",
-      });
-      lookupService = mock;
-    }
-  } else {
+  if (synthetic) {
+    // Synthetic runs force MockInterviewLookupService without touching Prisma or DATABASE_URL
     const mock = new MockInterviewLookupService();
-    mock.addMockPark("park-01", "State Life School", cityId);
+    mock.addMockPark("park-01", "State Life School", cityId.trim());
     mock.addMockInterview({
-      cityId,
+      cityId: cityId.trim(),
       interviewId: "int-101",
       applicationId: "app-101",
       applicantName: "Ahmed Khan",
       guardianPhone: "923001234567",
     });
     lookupService = mock;
-  }
-
-  let input: string | Buffer | RawSourceRow[];
-  if (filePath && fs.existsSync(filePath)) {
-    input = path.resolve(filePath);
-  } else {
     input = getSyntheticRows();
+  } else {
+    // Operational runs require valid file path
+    const resolvedPath = path.resolve(filePath!.trim());
+    if (!fs.existsSync(resolvedPath)) {
+      throw new Error(`Workbook file not found at path: ${resolvedPath}`);
+    }
+    input = resolvedPath;
+
+    if (process.env.DATABASE_URL) {
+      try {
+        const { PrismaClient } = await import("@prisma/client");
+        const prisma = new PrismaClient();
+        lookupService = new PrismaInterviewLookupService(prisma);
+      } catch {
+        lookupService = new MockInterviewLookupService();
+      }
+    } else {
+      lookupService = new MockInterviewLookupService();
+    }
   }
 
   const report = await processCallingImport(input, options, lookupService);

@@ -1,6 +1,6 @@
 # CALL-307: Calling Import Implementation & Contract Reconciliation
 
-- **Document Version:** 1.0.1
+- **Document Version:** 1.0.2
 - **Task ID:** `CALL-307` / `PKG-03`
 - **Status:** Complete / Prepared for Handoff
 - **Base Commit:** `99f9460` on `codex/production-hardening`
@@ -21,7 +21,7 @@ During PKG-03 preparation, `CALL-304`, `CALL-305`, and `CALL-306` were reconcile
 ### 1.2 Reconciled Item 2: Explicit Operator Scope vs Sheet Name Inference
 - **CALL-305 Note:** Mentioned worksheet names as diagnostic hints.
 - **Strict Constraint:** Importers must **never** infer or automatically assign city, park, batch, or campaign scope based on Excel worksheet names, tab titles, or row dates.
-- **Resolution:** All organizational (`--cityId`) and campaign (`--campaignId`) contexts are explicit operator inputs. Unresolved park names (e.g. cross-city or invalid parks) are masked and fingerprinted in the reconciliation report as `UNRESOLVED_PARK` without modifying scope.
+- **Resolution:** Both organizational (`--cityId`) and campaign (`--campaignId`) contexts are mandatory explicit operator inputs. Unresolved park names (e.g. cross-city or invalid parks) are masked and fingerprinted in the reconciliation report as `UNRESOLVED_PARK` without modifying scope.
 
 ### 1.3 Reconciled Item 3: AdmissionInterview Linkage & Non-Creation Rule
 - **CALL-304 & CALL-306 Rule:** `CallInteraction.interviewId` is a nullable reference to `AdmissionInterview`.
@@ -72,10 +72,35 @@ src/lib/calling-import/
 - Generates masked duplicate cluster reports with `MERGE_HISTORIC_TIMELINE` resolution tags.
 
 ### 3.3 Dry-Run CLI Tool (`scripts/dry-run-calling-import.ts`)
-- Run command: `IMPORT_HMAC_SECRET=<secret> npx tsx scripts/dry-run-calling-import.ts --cityId <city-id> --dry-run`
-- Loads `IMPORT_HMAC_SECRET` from environment variables.
-- Emits deterministic JSON reconciliation report with zero writes and zero PII leaks.
-- Replaces error message output with safe generic failure logs upon error.
+
+**Cross-Platform CLI Usage:**
+
+- **Synthetic Dry-Run (forces MockLookup, no DB connection):**
+  - *PowerShell (Windows):*
+    ```powershell
+    $env:IMPORT_HMAC_SECRET="<secret>"; npx tsx scripts/dry-run-calling-import.ts --cityId <city-id> --campaignId <campaign-id> --synthetic --dry-run
+    ```
+  - *POSIX / Bash (Linux/macOS):*
+    ```bash
+    IMPORT_HMAC_SECRET="<secret>" npx tsx scripts/dry-run-calling-import.ts --cityId <city-id> --campaignId <campaign-id> --synthetic --dry-run
+    ```
+
+- **Operational Dry-Run (requires valid workbook file):**
+  - *PowerShell (Windows):*
+    ```powershell
+    $env:IMPORT_HMAC_SECRET="<secret>"; npx tsx scripts/dry-run-calling-import.ts --cityId <city-id> --campaignId <campaign-id> --file <path-to-file.xlsx> --dry-run
+    ```
+  - *POSIX / Bash (Linux/macOS):*
+    ```bash
+    IMPORT_HMAC_SECRET="<secret>" npx tsx scripts/dry-run-calling-import.ts --cityId <city-id> --campaignId <campaign-id> --file <path-to-file.xlsx> --dry-run
+    ```
+
+- **Safety Controls:**
+  - Mandatory `--cityId` and `--campaignId` options (fails closed if missing).
+  - Mandatory `IMPORT_HMAC_SECRET` environment variable (fails closed if missing).
+  - Operational runs require valid `--file <path>`.
+  - Synthetic runs (`--synthetic`) force mock lookup and never initialize Prisma or connect to `DATABASE_URL`.
+  - Replaces CLI error details with safe generic failure logs upon error.
 
 ---
 
