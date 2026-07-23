@@ -37,7 +37,7 @@ export interface CallingImportOptions {
   cityId: string;
   campaignId?: string;
   dryRun?: boolean;
-  hmacSecret?: string;
+  hmacSecret: string;
 }
 
 export interface InvalidRowReport {
@@ -50,7 +50,8 @@ export interface InvalidRowReport {
 
 export interface UnresolvedParkReport {
   rowNumber: number;
-  providedParkName: string;
+  providedParkNameMasked: string;
+  providedParkNameFingerprint: string;
   resolvedParkId: null;
   status: "UNRESOLVED_PARK";
 }

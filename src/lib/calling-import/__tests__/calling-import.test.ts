@@ -13,6 +13,7 @@ import type { RawSourceRow, CallingImportOptions } from "../types";
 describe("Calling Import Preparation — PKG-03 Test Suite", () => {
   let mockLookup: MockInterviewLookupService;
   const testCityId = "city-lahore-01";
+  const testSecret = "test-hmac-secret-12345";
 
   beforeEach(() => {
     mockLookup = new MockInterviewLookupService();
@@ -56,21 +57,24 @@ describe("Calling Import Preparation — PKG-03 Test Suite", () => {
     });
 
     it("generates HMAC-SHA-256 fingerprints when secret key is provided", () => {
-      const secret = "test-secret-key-123";
-      const fp1 = computeFingerprint("Ahmed Khan", secret);
-      const fp2 = computeFingerprint("Ahmed Khan", secret);
+      const fp1 = computeFingerprint("Ahmed Khan", testSecret);
+      const fp2 = computeFingerprint("Ahmed Khan", testSecret);
 
       expect(fp1).toMatch(/^hmac_sha256_[a-f0-9]{16}$/);
       expect(fp1).toBe(fp2);
     });
 
-    it("falls back to unkeyed SHA-256 when no secret key is supplied", () => {
-      const fp = computeFingerprint("Ahmed Khan");
-      expect(fp).toMatch(/^unkeyed_sha256_[a-f0-9]{16}$/);
+    it("throws bounded error when HMAC secret is missing or empty", () => {
+      expect(() => computeFingerprint("Ahmed Khan", "")).toThrow(
+        "IMPORT_HMAC_SECRET is required"
+      );
+      expect(() => computeFingerprint("Ahmed Khan", "   ")).toThrow(
+        "IMPORT_HMAC_SECRET is required"
+      );
     });
   });
 
-  describe("Row Normalization & Malformed Input Rejection", () => {
+  describe("Row Normalization & Operator Scope Validation", () => {
     it("rejects rows with missing prospect name or missing phone numbers", () => {
       const rawRows: RawSourceRow[] = [
         {
@@ -88,7 +92,7 @@ describe("Calling Import Preparation — PKG-03 Test Suite", () => {
         },
       ];
 
-      const options: CallingImportOptions = { cityId: testCityId };
+      const options: CallingImportOptions = { cityId: testCityId, hmacSecret: testSecret };
       const res = normalizeCallingRows(rawRows, options, []);
 
       expect(res.validRows).toHaveLength(0);
@@ -97,7 +101,7 @@ describe("Calling Import Preparation — PKG-03 Test Suite", () => {
       expect(res.invalidRows[1].reason).toContain("both empty or invalid");
     });
 
-    it("throws error when operator cityId is missing", () => {
+    it("throws error when operator cityId is missing or empty", () => {
       const rawRows: RawSourceRow[] = [
         {
           rowNumber: 2,
@@ -107,12 +111,27 @@ describe("Calling Import Preparation — PKG-03 Test Suite", () => {
         },
       ];
 
-      expect(() => normalizeCallingRows(rawRows, { cityId: "" }, [])).toThrow(
-        "Operator city context (--cityId) is required"
-      );
+      expect(() =>
+        normalizeCallingRows(rawRows, { cityId: "", hmacSecret: testSecret }, [])
+      ).toThrow("Operator city context (--cityId) is required");
     });
 
-    it("flags park as UNRESOLVED_PARK when allocated park does not belong to operator city", () => {
+    it("throws error when hmacSecret is missing or empty during normalization", () => {
+      const rawRows: RawSourceRow[] = [
+        {
+          rowNumber: 2,
+          sheetName: "Sheet1",
+          prospectName: "Valid Name",
+          contactPhone: "03001234567",
+        },
+      ];
+
+      expect(() =>
+        normalizeCallingRows(rawRows, { cityId: testCityId, hmacSecret: "" }, [])
+      ).toThrow("IMPORT_HMAC_SECRET is required");
+    });
+
+    it("masks and fingerprints unresolved park inputs without exposing raw park names in reports", () => {
       const rawRows: RawSourceRow[] = [
         {
           rowNumber: 2,
@@ -124,12 +143,20 @@ describe("Calling Import Preparation — PKG-03 Test Suite", () => {
       ];
 
       const cityParks = [{ id: "park-01", name: "State Life School" }];
-      const res = normalizeCallingRows(rawRows, { cityId: testCityId }, cityParks);
+      const res = normalizeCallingRows(
+        rawRows,
+        { cityId: testCityId, hmacSecret: testSecret },
+        cityParks
+      );
 
       expect(res.validRows).toHaveLength(1);
       expect(res.unresolvedParks).toHaveLength(1);
-      expect(res.unresolvedParks[0].providedParkName).toBe("Clifton Beach Park");
+      expect(res.unresolvedParks[0].providedParkNameMasked).toBe("Cl***** Be*** Pa**");
+      expect(res.unresolvedParks[0].providedParkNameFingerprint).toMatch(
+        /^hmac_sha256_[a-f0-9]{16}$/
+      );
       expect(res.unresolvedParks[0].status).toBe("UNRESOLVED_PARK");
+      expect(JSON.stringify(res.unresolvedParks[0])).not.toContain("Clifton Beach Park");
     });
   });
 
@@ -150,7 +177,7 @@ describe("Calling Import Preparation — PKG-03 Test Suite", () => {
         },
       ];
 
-      const options: CallingImportOptions = { cityId: testCityId };
+      const options: CallingImportOptions = { cityId: testCityId, hmacSecret: testSecret };
       const normRes = normalizeCallingRows(rawRows, options, []);
       const dupRes = detectDuplicates(normRes.validRows);
 
@@ -172,7 +199,7 @@ describe("Calling Import Preparation — PKG-03 Test Suite", () => {
         },
       ];
 
-      const options: CallingImportOptions = { cityId: testCityId };
+      const options: CallingImportOptions = { cityId: testCityId, hmacSecret: testSecret };
       const report = await processCallingImport(rawRows, options, mockLookup);
 
       expect(report.summary.validLeadsCount).toBe(1);
@@ -189,7 +216,7 @@ describe("Calling Import Preparation — PKG-03 Test Suite", () => {
         },
       ];
 
-      const options: CallingImportOptions = { cityId: testCityId };
+      const options: CallingImportOptions = { cityId: testCityId, hmacSecret: testSecret };
       const report = await processCallingImport(rawRows, options, mockLookup);
 
       expect(report.summary.validLeadsCount).toBe(1);
@@ -214,7 +241,7 @@ describe("Calling Import Preparation — PKG-03 Test Suite", () => {
           sheetName: "Sheet1",
           prospectName: "Unmatched Candidate",
           contactPhone: "03219998877",
-          allocatedPark: "Invalid Park",
+          allocatedPark: "Invalid Park Name",
         },
         {
           rowNumber: 4,
@@ -227,7 +254,7 @@ describe("Calling Import Preparation — PKG-03 Test Suite", () => {
       const options: CallingImportOptions = {
         cityId: testCityId,
         dryRun: true,
-        hmacSecret: "secret-key",
+        hmacSecret: testSecret,
       };
 
       const report = await processCallingImport(syntheticInput, options, mockLookup);
@@ -238,9 +265,10 @@ describe("Calling Import Preparation — PKG-03 Test Suite", () => {
       expect(report.summary.unresolvedParksCount).toBe(1);
       expect(report.summary.unresolvedInterviewLinksCount).toBe(1);
 
-      // Verify no raw PII in output report
+      // Verify no raw PII or raw park names in output report
       const jsonString = JSON.stringify(report);
       expect(jsonString).not.toContain("03219998877");
+      expect(jsonString).not.toContain("Invalid Park Name");
       expect(jsonString).toContain("unresolvedInterviewLink");
       expect(jsonString).toContain("UNRESOLVED_PARK");
     });
