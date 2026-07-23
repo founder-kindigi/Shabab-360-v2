@@ -12,7 +12,9 @@ describe("access capability policy", () => {
   it("uses a fixed catalogue with no duplicate capability codes", () => {
     expect(new Set(ACCESS_CAPABILITIES).size).toBe(ACCESS_CAPABILITIES.length);
     expect(isAccessCapability("attendance.mark")).toBe(true);
-    expect(isAccessCapability("events.manage")).toBe(false);
+    expect(isAccessCapability("events.manage")).toBe(true);
+    expect(isAccessCapability("events.view")).toBe(true);
+    expect(isAccessCapability("events.responsibilities.manage")).toBe(true);
     expect(isAccessCapability("/api/admin/users")).toBe(false);
   });
 
