@@ -54,7 +54,7 @@ Calling POC is a **temporary event/Mashwara responsibility only**, never a login
 
 - **Module gate:** `requireCapability("capability.name")` → checks session + role default / role override / user override
 - **Data gate:** `requireResourceScope(user, {cityId, parkId, groupId})` → checks StaffMeta assignment against entity scope
-- **HQ roles** (`super_admin`, `program_admin`): bypass scope checks (global access)
+- **HQ roles** (`super_admin`, `program_admin`): may operate in any explicitly selected existing city; they must never receive unfiltered cross-city lists or blind global access
 - **City scope derivation:** `StaffMeta.assignedCityId` (or via `assignedParkId` → `Park.cityId`, or via `assignedGroupId` → `Group.batch.cityId`)
 - **Audit:** `logAudit({userId, action, entityType, entityId, oldValues?, newValues?, reason?})` or `createAuditLogData(...)` inside transactions
 - **Capability catalogue** is in `src/lib/auth/capabilities.ts` — new capabilities must be added there
@@ -211,8 +211,8 @@ model EventResponsibility {
 
 **Design decisions:**
 - `endDate` is **mandatory** — a responsibility without expiry is not allowed. This enforces the "temporary" rule.
-- `mashwaraId` and `mashwaraOccurrenceId` are string references to the future Mashwara model (which does not yet exist). They are not FK-constrained until the Mashwara schema is added. The application validates that at least one of `eventId` or `mashwaraId` is set.
-- `cityId` is denormalized for efficient scope queries. The server derives it from the parent event's `Event.cityId`, then verifies the assignee's derived StaffMeta city matches. The client must never supply `cityId`.
+- `mashwaraId` and `mashwaraOccurrenceId` are string references to the future Mashwara model (which does not yet exist). They are not FK-constrained until the Mashwara schema is added. The application validates that **exactly one** parent is set: `eventId` XOR `mashwaraId`. If `mashwaraId` is set, `mashwaraOccurrenceId` is optional.
+- `cityId` is denormalized for efficient scope queries. The server **derives it from the selected parent** (the parent Event's `Event.cityId`, or the parent Mashwara's city when that model exists), then verifies the assignee's derived StaffMeta city matches. The client must never supply `cityId`.
 - `assignedBy` is a User ID (audit field).
 - `revokedAt` + `revokedBy` + `revokedReason` provide audited early termination.
 
@@ -290,7 +290,7 @@ Two classes of actor determine authorized city scope:
 **Event scope rules:**
 - `Event.cityId` must be within the actor's authorized city set (any city for HQ; the single derived city for scoped roles).
 - `TemporaryEventTeam.event.cityId` — derived through the parent event.
-- `EventResponsibility.cityId` — the server derives this from the parent event's city, never from the client. It must match the assignee's derived city.
+- `EventResponsibility.cityId` — the server derives this from the **selected parent** (event or Mashwara): if `eventId` is set, derive from `Event.cityId`; if `mashwaraId` is set, derive from the Mashwara record's city. The derived city must match the assignee's StaffMeta city. The client never supplies `cityId`.
 - `EventPlannerItem.event.cityId` — derived through the parent event.
 
 **Request parameters** may narrow (e.g. `?parkId=` within the actor's authorized cities) but must never expand scope. A parameter requesting data outside the authorized scope must be ignored or return empty; it must never return cross-city data. HQ actors must still provide a `cityId` parameter (or derive it from an event context) — they are not granted unlimited blind access to all cities without specifying one.
@@ -428,6 +428,10 @@ const plannerItemStatusSchema = z.enum(["pending", "in_progress", "completed", "
 ### 7.2 Event Schemas
 
 ```typescript
+// cityId is required for HQ actors (super_admin, program_admin) who must
+// declare their target city. Scoped actors (City Head, Park roles, Murabbi)
+// derive city from StaffMeta; any supplied cityId is validated to match or
+// rejected — the server never accepts a city outside the actor's scope.
 const createEventSchema = z.object({
   title: z.string().min(1).max(200),
   description: z.string().max(1000).optional(),
@@ -436,6 +440,7 @@ const createEventSchema = z.object({
   venueNotes: z.string().max(500).optional(),
   startDate: z.coerce.date(),
   endDate: z.coerce.date().optional(),
+  cityId: cityIdSchema.optional(), // HQ passes explicitly; scoped derives from StaffMeta
   capacity: z.number().int().positive().optional(),
   requiresConsent: z.boolean().optional().default(false),
   requiresMedical: z.boolean().optional().default(false),
@@ -445,8 +450,11 @@ const updateEventSchema = createEventSchema.partial().extend({
   status: eventStatusSchema.optional(),
 });
 
+// For list queries, HQ must provide cityId; scoped actors derive it.
+// If a scoped actor supplies cityId, the endpoint ignores/rejects it
+// when it does not match the actor's derived city.
 const listEventsSchema = z.object({
-  cityId: cityIdSchema.optional(), // narrowing only
+  cityId: cityIdSchema.optional(),
   status: eventStatusSchema.optional(),
   eventType: eventTypeSchema.optional(),
   fromDate: z.coerce.date().optional(),
@@ -477,6 +485,7 @@ const addTeamMemberSchema = z.object({
 ```typescript
 const createResponsibilitySchema = z.object({
   eventId: eventIdSchema.optional(),
+  mashwaraId: z.string().cuid().optional(),
   title: responsibilityTitleSchema,
   description: z.string().max(500).optional(),
   assignedToStaffMetaId: staffMetaIdSchema,
@@ -486,8 +495,8 @@ const createResponsibilitySchema = z.object({
   data => data.endDate > data.startDate,
   { message: "endDate must be after startDate" }
 ).refine(
-  data => data.eventId !== undefined, // at least eventId required for pilot
-  { message: "eventId is required" }
+  data => (data.eventId !== undefined) !== (data.mashwaraId !== undefined),
+  { message: "Exactly one parent required: eventId XOR mashwaraId" }
 );
 
 const listResponsibilitiesSchema = z.object({
@@ -531,8 +540,8 @@ const updatePlannerItemSchema = z.object({
 
 | Method | Path | Handler | Auth Gate | Scope Check | Request Schema | Response |
 |--------|------|---------|-----------|-------------|---------------|----------|
-| `POST` | `/api/admin/events` | createEvent | `events.manage` | city from session | `createEventSchema` | `Event` |
-| `GET` | `/api/admin/events` | listEvents | `events.view` | city from query or session; filter out `planned` events when caller lacks `events.manage` | `listEventsSchema` | `{ events: Event[], total, page, limit }` |
+| `POST` | `/api/admin/events` | createEvent | `events.manage` | HQ: uses body `cityId`; scoped: derives from StaffMeta, rejects mismatch | `createEventSchema` | `Event` |
+| `GET` | `/api/admin/events` | listEvents | `events.view` | HQ requires `cityId` in query; scoped derives from StaffMeta, filters out `planned` when caller lacks `events.manage` | `listEventsSchema` | `{ events: Event[], total, page, limit }` |
 | `GET` | `/api/admin/events/[id]` | getEvent | `events.view` | event.cityId = session city; return 404 if event is `planned` and caller lacks `events.manage` | — | `Event` with teams, responsibilities, items |
 | `PATCH` | `/api/admin/events/[id]` | updateEvent | `events.manage` | event.cityId = session city | `updateEventSchema` | `Event` |
 | `POST` | `/api/admin/events/[id]/cancel` | cancelEvent | `events.manage` | event.cityId = session city | `{ reason?: string }` | `Event` |
@@ -553,13 +562,13 @@ const updatePlannerItemSchema = z.object({
 
 | Method | Path | Handler | Auth Gate | Scope Check | Request Schema |
 |--------|------|---------|-----------|-------------|---------------|
-| `POST` | `/api/admin/events/[eventId]/responsibilities` | createResponsibility | `events.responsibilities.manage` | event.cityId = session city | `createResponsibilitySchema` (eventId injected) |
+| `POST` | `/api/admin/events/[eventId]/responsibilities` | createResponsibility | `events.responsibilities.manage` | event.cityId = session city (or derived from Mashwara for mashwaraId); parent city must match assignee's StaffMeta city | `createResponsibilitySchema` (parentId injected) |
 | `GET` | `/api/admin/events/[eventId]/responsibilities` | listResponsibilities | `events.view` | event.cityId = session city | — |
 | `GET` | `/api/admin/events/responsibilities/[id]` | getResponsibility | `events.view` | responsibility.cityId = session city | — |
 | `POST` | `/api/admin/events/responsibilities/[id]/revoke` | revokeResponsibility | `events.responsibilities.manage` | responsibility.cityId = session city | `{ reason?: string }` |
 | `GET` | `/api/me/responsibilities` | myResponsibilities | `requireAuth` | own staffMetaId only | — |
 
-**Note:** `POST /api/admin/events/[eventId]/responsibilities` receives an eventId from the URL path and injects it into the body before validation. The `createResponsibilitySchema` requires `eventId` for the pilot.
+**Note:** `POST /api/admin/events/[eventId]/responsibilities` receives an eventId from the URL path and injects it into the body before validation. A separate `POST /api/admin/mashwara/[mashwaraId]/responsibilities` (or similar future endpoint) will inject mashwaraId. The `createResponsibilitySchema` validates that exactly one parent is set: `eventId` XOR `mashwaraId`.
 
 ### 8.4 Event Planner Item Endpoints
 
@@ -711,6 +720,10 @@ const updatePlannerItemSchema = z.object({
 | EVT-ALLOW-016 | Assigned staff updates own planner item status | 200 + updated status |
 | EVT-ALLOW-017 | Event with endDate < now — responsibility auto-expired on access check | 403 (or filtered out of active list) |
 | EVT-ALLOW-018 | Revoked responsibility — API returns 403 on access | 403 |
+| EVT-ALLOW-019 | Super Admin creates event with explicit cityId | 201 + Event in correct city |
+| EVT-ALLOW-020 | Program Admin lists events with explicit cityId | 200 + city-scoped events |
+| EVT-ALLOW-021 | City Head creates a Mashwara-linked responsibility (mashwaraId set, eventId null) | 201 + Responsibility returned |
+| EVT-ALLOW-022 | City Head creates event-linked responsibility — city derived from event matches assignee | 201 + Responsibility returned |
 
 ### 11.2 Deny Tests (Negative Paths)
 
@@ -725,7 +738,7 @@ const updatePlannerItemSchema = z.object({
 | EVT-DENY-007 | City Head cancels event in another city | 403 |
 | EVT-DENY-008 | Park Lead creates responsibility on event | 403 |
 | EVT-DENY-009 | City Head creates responsibility with assignedToStaffMeta from another city | 422 (validation) or 403 |
-| EVT-DENY-010 | City Head creates responsibility without eventId | 422 |
+| EVT-DENY-010 | City Head creates responsibility without any parent (no eventId, no mashwaraId) | 422 |
 | EVT-DENY-011 | City Head creates responsibility with endDate <= startDate | 422 |
 | EVT-DENY-012 | City Head creates responsibility without endDate | 422 |
 | EVT-DENY-013 | City Head revokes another-city responsibility | 403 |
@@ -735,6 +748,13 @@ const updatePlannerItemSchema = z.object({
 | EVT-DENY-017 | Deactivated staff member's active responsibility | 403 (isActive check on StaffMeta) |
 | EVT-DENY-018 | Park Lead (events.view only) lists events — planned events are filtered out | 200 + no planned events in response |
 | EVT-DENY-019 | Park Lead (events.view only) reads a planned event by ID | 404 (not found) |
+| EVT-DENY-020 | Super Admin creates event without cityId | 422 (cityId required for HQ) |
+| EVT-DENY-021 | Program Admin lists events without cityId | 422 (cityId required for HQ) |
+| EVT-DENY-022 | City Head creates event with cityId set to a different city | 403 (rejected — does not match derived city) |
+| EVT-DENY-023 | City Head creates responsibility with both eventId and mashwaraId set | 422 (exactly one parent required) |
+| EVT-DENY-024 | City Head creates responsibility with neither eventId nor mashwaraId | 422 (exactly one parent required) |
+| EVT-DENY-025 | City Head creates Mashwara-linked responsibility where assignee city does not match Mashwara city | 403 or 422 |
+| EVT-DENY-026 | City Head creates event-linked responsibility where assignee city does not match event city | 403 or 422 |
 
 ### 11.3 Failure/Error Tests
 
@@ -852,7 +872,7 @@ These decisions must be approved by the project owner before the implementation 
 
 ### Summary
 
-This contract turns EVENT-301 (design) and EVENT-302 (implementation) into a single implementation-ready specification. It defines 5 additive Prisma models, 3 new capabilities, 22 API endpoints, 55 tests (18 allow, 19 deny, 12 error, 6 audit), and a complete migration/rollback plan.
+This contract turns EVENT-301 (design) and EVENT-302 (implementation) into a single implementation-ready specification. It defines 5 additive Prisma models, 3 new capabilities, 22 API endpoints, 66 tests (22 allow, 26 deny, 12 error, 6 audit), and a complete migration/rollback plan.
 
 ### Key rules preserved
 
@@ -885,7 +905,7 @@ This contract turns EVENT-301 (design) and EVENT-302 (implementation) into a sin
 - [ ] Scope derivation helpers created
 - [ ] Audit helpers created
 - [ ] UI components created (7 components)
-- [ ] Tests pass (55 test cases: 18 allow, 19 deny, 12 error, 6 audit)
+- [ ] Tests pass (66 test cases: 22 allow, 26 deny, 12 error, 6 audit)
 - [ ] Lint, typecheck, full test suite, SQLite build, PostgreSQL build pass
 - [ ] Owner decisions D1–D7 resolved
 - [ ] This contract updated with any deviations from the original design
