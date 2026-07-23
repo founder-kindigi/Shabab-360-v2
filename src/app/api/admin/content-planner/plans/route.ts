@@ -5,8 +5,8 @@ import { logAudit } from "@/lib/audit";
 import {
   contentPlanListQuerySchema,
   createContentPlanSchema,
-  queryValidationError,
 } from "@/lib/content-planner/validation";
+import { queryValidationError } from "@/lib/api/query-params";
 import {
   buildContentPlanScopeFilter,
   canWriteContentPlan,
