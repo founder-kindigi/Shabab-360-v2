@@ -1,7 +1,7 @@
 # STUDENT-EXTENDED-PROFILE-IMPLEMENTATION-CONTRACT
 
 **Status:** Implementation-ready contract (docs only — no code, no schema, no data)
-**Owner:** Codex (design); implementation follows PKG-01, PKG-09 integration
+**Owner:** Codex (design); implementation follows PKG-09 integration
 **Base:** codex/production-hardening @ 49a40e9
 **Reference source:** `Batch 2 _ Profiles.xlsx` (field-template reference only — no real workbook data, names, or PII committed)
 
@@ -109,7 +109,7 @@ The workbook has two columns named "Responsibility": one under `Strengths/Weakne
 | HQ (`super_admin`, `program_admin`) | Explicit cityId | Must provide `cityId` (400 if missing). Never blind cross-city access. |
 | City Head | `StaffMeta.assignedCityId` | Single city. Mismatch → 403. |
 | Park Lead | `assignedParkId` → `Park.cityId` | Participants in own park. |
-| Park Admin | `assignedParkId` → `Park.cityId` | Participants in own park (read-only). |
+| Park Admin | — | — |
 | Murabbi | `assignedGroupId` → `Group.batch.cityId` | Participants in own group (read-only). |
 | Guardian | Linked `GuardianChild.participant` | Own linked children only. |
 | Student | Own `Participant.id` | Own profile only. |
@@ -362,8 +362,8 @@ async function getProfile(participantId: string, includeSensitive: boolean) {
 |--------|------|---------|-----------|-------------|---------------|
 | `GET` | `/api/admin/students/[participantId]/profile` | getProfile | `students.profile.view` | `canAccessParticipantProfile` via `resolveActorCity`; HQ must supply `?cityId=` (400 if missing); sensitive fields silently omitted unless `includeSensitive=true` with `sensitive.view` (403 if missing) | — |
 | `PUT` | `/api/admin/students/[participantId]/profile` | upsertProfile | `students.profile.manage` | Same scope derivation; HQ requires `?cityId=`; sensitive fields require `sensitive.manage` | `updateProfileSchema` |
-| `GET` | `/api/me/profile` | myProfile | `requireAuth` | Own participant record (student only). Guardian must use `/api/admin/students/[participantId]/profile` with validated `GuardianChild` link. | — |
-| `GET` | `/api/guardian/children/[participantId]/profile` | guardianGetProfile | `requireAuth` + `guardians.manage` | Server validates `GuardianChild` link; sensitive fields omitted; `includeSensitive=true` returns 403 for guardian | — |
+| `GET` | `/api/me/profile` | myProfile | `students.profile.view` | Own participant record (student only) — server validates self-ownership. Guardian must use `/api/admin/students/[participantId]/profile` with validated `GuardianChild` link. | — |
+| `GET` | `/api/guardian/children/[participantId]/profile` | guardianGetProfile | `students.profile.view` | Server validates `GuardianChild` link; sensitive fields omitted; `includeSensitive=true` returns 403 for guardian | — |
 | `GET` | `/api/admin/students/profile/search` | searchProfiles | `students.profile.view` | HQ requires `cityId` (400 if missing); scoped derives from StaffMeta; sensitive fields never in results | `{ cityId?, query?, page, limit }` |
 
 ### 7.2 Scope Helper
@@ -475,7 +475,7 @@ This sanitizer must be called **before** `createAuditLogData()` or `logAudit()`.
 
 ### 10.1 Prerequisites
 
-- PKG-01 and PKG-09 schema migrations must be integrated. The capability catalogue rises from 36 to 40 with the four new profile capabilities. PKG-09's governance contract must define the role defaults and named-user eligibility for all four codes before this module's routes are deployed.
+- PKG-09 schema migration must be integrated. The capability catalogue rises from 36 to 40 with the four new profile capabilities. PKG-09's governance contract must define the role defaults and named-user eligibility for all four codes before this module's routes are deployed.
 
 ### 10.2 Steps
 
@@ -548,8 +548,8 @@ Standard rollback: disable routes and remove capability codes. The additive tabl
 | ID | Test | Expected |
 |----|------|----------|
 | PROF-DENY-001 | Unauthenticated user reads profile | 401 |
-| PROF-DENY-002 | Park Admin writes extended profile (no profile.manage) | 403 |
-| PROF-DENY-003 | Murabbi writes extended profile (no profile.manage) | 403 |
+| PROF-DENY-002 | Park Admin reads extended profile (no profile.view) | 403 |
+| PROF-DENY-003 | Park Admin writes extended profile (no profile.manage) | 403 |
 | PROF-DENY-004 | City Head writes extended profile for participant in another city | 403 |
 | PROF-DENY-005 | Student reads own profile with `?includeSensitive=true` | 403 (no sensitive.view) |
 | PROF-DENY-006 | City Head writes sensitive fields without `sensitive.manage` | 403 |
