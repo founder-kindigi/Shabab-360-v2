@@ -53,7 +53,9 @@ export async function resolveActorCity(
 /**
  * Verify the user can access a specific participant's extended profile.
  * HQ: resolvedCity must match the participant's city.
- * Staff: resolvedCity must match participant's city via group/batch/city chain.
+ * City Head: city-level match (already enforced via resolvedCity).
+ * Park Lead: participant's park must equal assignedParkId.
+ * Murabbi: participant's group must equal assignedGroupId.
  * Guardian: must have a GuardianChild link to the participant.
  * Student: must own the participant record.
  * Returns true if access is granted.
@@ -63,10 +65,19 @@ export async function canAccessParticipantProfile(
   participantId: string,
   resolvedCity: string
 ): Promise<boolean> {
-  // Student self-access
+  // Fetch participant with group chain for scope verification
   const participant = await db.participant.findUnique({
     where: { id: participantId },
-    select: { userId: true, group: { select: { batch: { select: { cityId: true } } } } },
+    select: {
+      userId: true,
+      groupId: true,
+      group: {
+        select: {
+          parkId: true,
+          batch: { select: { cityId: true } },
+        },
+      },
+    },
   });
   if (!participant) return false;
 
@@ -83,7 +94,20 @@ export async function canAccessParticipantProfile(
     return link !== null;
   }
 
-  // Staff: verify city match
+  // Staff: verify exact scope
   const participantCity = participant.group?.batch?.cityId;
-  return participantCity === resolvedCity;
+  if (!participantCity || participantCity !== resolvedCity) return false;
+
+  // Park Lead: participant's park must match own assigned park
+  if (user.role === "park_lead") {
+    return participant.group?.parkId === user.assignedParkId;
+  }
+
+  // Murabbi: participant's group must match own assigned group
+  if (user.role === "murabbi") {
+    return participant.groupId === user.assignedGroupId;
+  }
+
+  // HQ and City Head: city-level match is sufficient
+  return true;
 }
