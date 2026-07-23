@@ -16,7 +16,7 @@ export interface NormalizerResult {
 
 /**
  * Normalizes raw workbook rows into structured NormalizedCallingRow objects.
- * Enforces explicit operator cityId context and mandatory hmacSecret.
+ * Enforces explicit operator cityId and campaignId context and mandatory hmacSecret.
  */
 export function normalizeCallingRows(
   rawRows: RawSourceRow[],
@@ -26,6 +26,12 @@ export function normalizeCallingRows(
   if (!options.cityId || !options.cityId.trim()) {
     throw new Error(
       "Operator city context (--cityId) is required and cannot be empty."
+    );
+  }
+
+  if (!options.campaignId || !options.campaignId.trim()) {
+    throw new Error(
+      "Operator campaign context (--campaignId) is required and cannot be empty."
     );
   }
 
