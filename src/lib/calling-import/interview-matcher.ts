@@ -94,25 +94,23 @@ export class MockInterviewLookupService
 /**
  * Prisma-backed read-only implementation of AdmissionInterviewLookupService.
  * Executes SELECT-only queries to match AdmissionInterview records.
+ * Fails closed immediately if queries or Prisma delegates throw errors.
  */
 export class PrismaInterviewLookupService
   implements AdmissionInterviewLookupService
 {
-  constructor(private prisma: any) {}
+  constructor(private prisma: Record<string, any>) {}
 
   public async getCityParks(cityId: string): Promise<Array<{ id: string; name: string }>> {
-    if (!this.prisma?.park) {
-      return [];
+    if (!this.prisma || typeof this.prisma.park?.findMany !== "function") {
+      throw new Error("Prisma client or park delegate is not initialized.");
     }
-    try {
-      const parks = await this.prisma.park.findMany({
-        where: { cityId, isActive: true },
-        select: { id: true, name: true },
-      });
-      return parks;
-    } catch {
-      return [];
-    }
+
+    const parks = await this.prisma.park.findMany({
+      where: { cityId, isActive: true },
+      select: { id: true, name: true },
+    });
+    return parks;
   }
 
   public async findMatchingInterview(params: {
@@ -121,40 +119,39 @@ export class PrismaInterviewLookupService
     guardianPhone?: string;
     applicantName?: string;
   }): Promise<InterviewMatchResult> {
-    if (!this.prisma?.admissionInterview) {
-      return { matched: false };
+    if (
+      !this.prisma ||
+      typeof this.prisma.admissionInterview?.findFirst !== "function"
+    ) {
+      throw new Error("Prisma client or admissionInterview delegate is not initialized.");
     }
 
     const normPhone = normalizePakistanPhone(params.phone || params.guardianPhone);
 
-    try {
-      const interview = await this.prisma.admissionInterview.findFirst({
-        where: {
-          application: {
-            cityId: params.cityId,
-            OR: [
-              ...(normPhone ? [{ guardianPhone: { contains: normPhone } }] : []),
-              ...(params.applicantName
-                ? [{ applicantName: { equals: params.applicantName, mode: "insensitive" } }]
-                : []),
-            ],
-          },
+    const interview = await this.prisma.admissionInterview.findFirst({
+      where: {
+        application: {
+          cityId: params.cityId,
+          OR: [
+            ...(normPhone ? [{ guardianPhone: { contains: normPhone } }] : []),
+            ...(params.applicantName
+              ? [{ applicantName: { equals: params.applicantName, mode: "insensitive" } }]
+              : []),
+          ],
         },
-        select: {
-          id: true,
-          applicationId: true,
-        },
-      });
+      },
+      select: {
+        id: true,
+        applicationId: true,
+      },
+    });
 
-      if (interview) {
-        return {
-          matched: true,
-          interviewId: interview.id,
-          applicationId: interview.applicationId,
-        };
-      }
-    } catch {
-      return { matched: false };
+    if (interview) {
+      return {
+        matched: true,
+        interviewId: interview.id,
+        applicationId: interview.applicationId,
+      };
     }
 
     return { matched: false };
