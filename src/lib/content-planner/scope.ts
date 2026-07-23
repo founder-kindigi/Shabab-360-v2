@@ -241,11 +241,10 @@ export async function buildContentPlanScopeFilter(
     }
   } else if (derivedParkIds !== null) {
     // Park-scoped user omitted parkId.
-    // Allow: city-wide templates (parkId IS NULL AND batchId IS NULL) OR own-park plans.
-    // This lets park staff see the template their overrides derive from without
-    // exposing sibling-park plans.
+    // Allow: city-wide TEMPLATE plans (parkId IS NULL AND batchId IS NULL AND kind = "template")
+    // OR own-park plans. Only templates, not city-wide overrides, are exposed to park staff.
     filter.OR = [
-      { parkId: null, batchId: null },
+      { parkId: null, batchId: null, kind: "template" },
       { parkId: { in: derivedParkIds } },
     ];
   }
@@ -292,7 +291,7 @@ export async function canReadContentPlan(
 
   const plan = await db.contentPlan.findUnique({
     where: { id: planId },
-    select: { cityId: true, parkId: true, batchId: true },
+    select: { cityId: true, parkId: true, batchId: true, kind: true },
   });
 
   if (!plan) return false;
@@ -318,8 +317,11 @@ export async function canReadContentPlan(
 
   const derivedParkIds = parkScope === "all" ? null : parkScope;
 
-  // City-wide template (parkId IS NULL AND batchId IS NULL) is always readable.
-  if (plan.parkId === null && plan.batchId === null) return true;
+  // City-wide template (parkId IS NULL AND batchId IS NULL AND kind = "template") is readable.
+  // City-wide overrides are not exposed to park-scoped users.
+  if (plan.parkId === null && plan.batchId === null) {
+    return plan.kind === "template";
+  }
 
   // Plan scoped to a specific park.
   if (plan.parkId !== null) {

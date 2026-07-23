@@ -344,8 +344,8 @@ describe("Content Planner Scope Helpers", () => {
     // ── Cross-park isolation tests ──────────────────────────────────────────
 
     it("should always enforce derived park for park_lead even when parkId is omitted", async () => {
-      // Park Lead in park1 must only see plans for park1 and city templates,
-      // never all Lahore plans. The filter uses OR to include city-wide templates.
+      // Park Lead in park1 must only see plans for park1 and city-wide templates,
+      // never all Lahore plans. The filter uses OR to include city-wide templates only.
       const user: SessionUser = {
         id: "user1",
         role: "park_lead",
@@ -359,7 +359,7 @@ describe("Content Planner Scope Helpers", () => {
       expect(result).toEqual({
         cityId: "city1",
         OR: [
-          { parkId: null, batchId: null },
+          { parkId: null, batchId: null, kind: "template" },
           { parkId: { in: ["park1"] } },
         ],
       });
@@ -438,7 +438,7 @@ describe("Content Planner Scope Helpers", () => {
       expect(result).toEqual({
         cityId: "city1",
         OR: [
-          { parkId: null, batchId: null },
+          { parkId: null, batchId: null, kind: "template" },
           { parkId: { in: ["park1"] } },
         ],
       });
@@ -663,7 +663,7 @@ describe("Content Planner Scope Helpers", () => {
 
   // ── City template and park-plan visibility (read) ─────────────────────────
   describe("park-scoped read: city template and own/sibling-park isolation", () => {
-    it("should allow park_lead to read the city-wide template (parkId null, batchId null)", async () => {
+    it("should allow park_lead to read the city-wide template (kind: template)", async () => {
       const user: SessionUser = {
         id: "user1",
         role: "park_lead",
@@ -674,16 +674,38 @@ describe("Content Planner Scope Helpers", () => {
         cityId: "city1",
         parkId: null,
         batchId: null,
+        kind: "template",
       } as any);
       vi.mocked(db.park.findUnique)
-        .mockResolvedValueOnce({ id: "park1", cityId: "city1" } as any) // city derivation
-        .mockResolvedValueOnce({ id: "park1", cityId: "city1" } as any); // park scope derivation
+        .mockResolvedValueOnce({ id: "park1", cityId: "city1" } as any)
+        .mockResolvedValueOnce({ id: "park1", cityId: "city1" } as any);
 
       const result = await canReadContentPlan(user, "tmpl1");
       expect(result).toBe(true);
     });
 
-    it("should allow murabbi to read the city-wide template", async () => {
+    it("should deny park_lead reading a city-wide override (kind: override)", async () => {
+      const user: SessionUser = {
+        id: "user1",
+        role: "park_lead",
+        assignedParkId: "park1",
+      };
+      vi.mocked(db.contentPlan.findUnique).mockResolvedValue({
+        id: "ovr1",
+        cityId: "city1",
+        parkId: null,
+        batchId: null,
+        kind: "override",
+      } as any);
+      vi.mocked(db.park.findUnique)
+        .mockResolvedValueOnce({ id: "park1", cityId: "city1" } as any)
+        .mockResolvedValueOnce({ id: "park1", cityId: "city1" } as any);
+
+      const result = await canReadContentPlan(user, "ovr1");
+      expect(result).toBe(false);
+    });
+
+    it("should allow murabbi to read the city-wide template (kind: template)", async () => {
       const user: SessionUser = {
         id: "user1",
         role: "murabbi",
@@ -694,6 +716,7 @@ describe("Content Planner Scope Helpers", () => {
         cityId: "city1",
         parkId: null,
         batchId: null,
+        kind: "template",
       } as any);
       vi.mocked(db.group.findUnique)
         .mockResolvedValueOnce({ id: "group1", park: { cityId: "city1" } } as any)
@@ -702,6 +725,28 @@ describe("Content Planner Scope Helpers", () => {
 
       const result = await canReadContentPlan(user, "tmpl1");
       expect(result).toBe(true);
+    });
+
+    it("should deny murabbi reading a city-wide override (kind: override)", async () => {
+      const user: SessionUser = {
+        id: "user1",
+        role: "murabbi",
+        assignedGroupId: "group1",
+      };
+      vi.mocked(db.contentPlan.findUnique).mockResolvedValue({
+        id: "ovr1",
+        cityId: "city1",
+        parkId: null,
+        batchId: null,
+        kind: "override",
+      } as any);
+      vi.mocked(db.group.findUnique)
+        .mockResolvedValueOnce({ id: "group1", park: { cityId: "city1" } } as any)
+        .mockResolvedValueOnce({ id: "group1", park: { cityId: "city1" } } as any)
+        .mockResolvedValueOnce({ id: "group1", park: { id: "park1", cityId: "city1" } } as any);
+
+      const result = await canReadContentPlan(user, "ovr1");
+      expect(result).toBe(false);
     });
 
     it("should allow park_lead to read their own park override", async () => {
