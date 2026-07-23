@@ -388,7 +388,7 @@ describe("Content Planner Scope Helpers", () => {
   });
 
   describe("canWriteContentPlan", () => {
-    it("should allow super_admin to write", async () => {
+    it("should allow super_admin to write with valid scope", async () => {
       const user: SessionUser = {
         id: "user1",
         role: "super_admin",
@@ -410,7 +410,7 @@ describe("Content Planner Scope Helpers", () => {
       expect(result).toBe(true);
     });
 
-    it("should deny park_lead from writing", async () => {
+    it("should allow park_lead with valid scope (capability checked at route)", async () => {
       const user: SessionUser = {
         id: "user1",
         role: "park_lead",
@@ -422,10 +422,10 @@ describe("Content Planner Scope Helpers", () => {
       } as any);
 
       const result = await canWriteContentPlan(user, "city1");
-      expect(result).toBe(false);
+      expect(result).toBe(true);
     });
 
-    it("should deny murabbi from writing", async () => {
+    it("should allow murabbi with valid scope (capability checked at route)", async () => {
       const user: SessionUser = {
         id: "user1",
         role: "murabbi",
@@ -437,15 +437,30 @@ describe("Content Planner Scope Helpers", () => {
       } as any);
 
       const result = await canWriteContentPlan(user, "city1");
-      expect(result).toBe(false);
+      expect(result).toBe(true);
     });
 
-    it("should deny city_head writing in different city", async () => {
+    it("should deny city_head writing in different city (scope violation)", async () => {
       const user: SessionUser = {
         id: "user1",
         role: "city_head",
         assignedCityId: "city1",
       };
+
+      const result = await canWriteContentPlan(user, "city2");
+      expect(result).toBe(false);
+    });
+
+    it("should deny park_lead writing outside assigned park city", async () => {
+      const user: SessionUser = {
+        id: "user1",
+        role: "park_lead",
+        assignedParkId: "park1",
+      };
+      vi.mocked(db.park.findUnique).mockResolvedValue({
+        id: "park1",
+        cityId: "city1",
+      } as any);
 
       const result = await canWriteContentPlan(user, "city2");
       expect(result).toBe(false);

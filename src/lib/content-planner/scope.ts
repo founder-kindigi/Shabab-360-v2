@@ -10,15 +10,9 @@ import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 
 /**
- * Content planner allowed roles. City Head and above may manage plans;
- * Park Lead and Murabbi have read-only access for delivery.
+ * Content planner reader roles for documentation only.
+ * Authorization uses content.view and content.manage capabilities, not role lists.
  */
-export const CONTENT_PLANNER_MANAGER_ROLES: readonly StaffRole[] = [
-  "super_admin",
-  "program_admin",
-  "city_head",
-];
-
 export const CONTENT_PLANNER_READER_ROLES: readonly StaffRole[] = [
   "super_admin",
   "program_admin",
@@ -252,7 +246,8 @@ export async function canReadContentPlan(
 
 /**
  * Verify a user can write (create/update/archive) content plans in a given scope.
- * Only manager roles can write; readers are denied.
+ * Requires content.manage capability plus resource scope check.
+ * Dynamic capability grants allow write access regardless of role.
  */
 export async function canWriteContentPlan(
   user: SessionUser,
@@ -262,13 +257,13 @@ export async function canWriteContentPlan(
 ): Promise<boolean> {
   if (!user.id || !user.role) return false;
 
-  // Only manager roles can write
-  if (!CONTENT_PLANNER_MANAGER_ROLES.includes(user.role as StaffRole)) {
-    return false;
-  }
-
+  // Check resource scope first
   const filter = await buildContentPlanScopeFilter(user, cityId, batchId, parkId);
-  return filter !== null;
+  if (filter === null) return false;
+
+  // Capability check is performed by route handlers via requireCapability
+  // This function only validates resource scope
+  return true;
 }
 
 /**
