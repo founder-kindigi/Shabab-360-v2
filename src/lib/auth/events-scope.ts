@@ -41,11 +41,6 @@ export async function resolveActorCity(
     return { cityId: targetCity.id, isHQ: true };
   }
 
-  const isStaffRole = ["city_head", "park_lead", "park_admin", "murabbi"].includes(role);
-  if (!isStaffRole) {
-    return { error: "Forbidden", status: 403 };
-  }
-
   const staffMeta = await prisma.staffMeta.findUnique({
     where: { userId: user.id },
     include: {
@@ -121,4 +116,3 @@ export function isResponsibilityActive(
   }
   return true;
 }
-
