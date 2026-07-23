@@ -1,6 +1,6 @@
 # CALL-308: Calling Module Implementation Contract
 
-- **Document Version:** 1.0.0
+- **Document Version:** 1.1.0
 - **Task ID:** `PKG-08-CALLING-MODULE-IMPLEMENTATION-CONTRACT`
 - **Agent Identity:** Antigravity
 - **Complexity:** C3
@@ -9,9 +9,9 @@
 
 ---
 
-## 1. Verified-Current vs Proposed-Model Inventory
+## 1. Scope, Boundaries, and Reconciled Inventory
 
-This section details the verification of current models in the active database schema and maps them against the new proposed tables required to implement the Calling module.
+This contract defines the implementation-ready specifications for the Calling Module in Shabab 360 v2. It reconciles the requirements from `CALL-304`, `CALL-305`, `CALL-306`, `CALL-307`, and `EVENT-303`.
 
 ### 1.1 Verified Current Model Inventory
 The following models are verified as existing in the repository-relative schema [schema.prisma](prisma/schema.prisma):
@@ -19,71 +19,16 @@ The following models are verified as existing in the repository-relative schema 
 * `StaffMeta` (lines 175-194): Canonical roles (`role`) and scopes (`assignedCityId`, `assignedParkId`, `assignedGroupId`).
 * `AdmissionApplication` (lines 519-546): Mapped applicant details (`applicantName`, `guardianPhone`, `cityId`).
 * `AdmissionInterview` (lines 548-566): Scheduled interviews linked to admission applications.
-
-### 1.2 Proposed Model Inventory
-
-```mermaid
-classDiagram
-    class CallingCampaign {
-        id: String
-        cityId: String
-        name: String
-        status: String
-        startDate: DateTime
-        endDate: DateTime
-    }
-    class CallingPOCAssignment {
-        id: String
-        campaignId: String
-        staffMetaId: String
-        isActive: Boolean
-    }
-    class ExternalSupportCaller {
-        id: String
-        userId: String
-        cityId: String
-        isActive: Boolean
-        expiresAt: DateTime
-    }
-    class CallingTemplate {
-        id: String
-        cityId: String
-        title: String
-        body: String
-    }
-    class CallingAssignment {
-        id: String
-        campaignId: String
-        applicationId: String
-        callerStaffMetaId: String
-        callerExternalId: String
-        status: String
-        isActive: Boolean
-    }
-    class CallInteraction {
-        id: String
-        assignmentId: String
-        callerUserId: String
-        outcome: String
-        notes: String
-        createdAt: DateTime
-    }
-
-    CallingCampaign "1" --o "*" CallingPOCAssignment
-    CallingCampaign "1" --o "*" CallingAssignment
-    ExternalSupportCaller "1" --o "*" CallingAssignment
-    AdmissionApplication "1" --o "*" CallingAssignment
-    CallingAssignment "1" --o "*" CallInteraction
-```
+* `EventResponsibility` (defined in [EVENT-303-IMPLEMENTATION-CONTRACT.md](docs/product-discovery/EVENT-303-IMPLEMENTATION-CONTRACT.md#L182-L210)): Temporary operational responsibility assigned to staff.
 
 ---
 
-## 2. Exact Additive Model Proposals
+## 2. Proposed Additive Prisma Models
 
-The proposed models are strictly additive and must be defined in both SQLite (`prisma/schema.prisma`) and PostgreSQL (`prisma/postgres/schema.prisma`) configuration files.
+The following proposed models are strictly additive and must be defined identically in SQLite (`prisma/schema.prisma`) and PostgreSQL (`prisma/postgres/schema.prisma`).
 
 ```prisma
-// ========== CALLING MODULE MODELS ==========
+// ========== CALLING MODULE ADDITIVE MODELS ==========
 
 model CallingCampaign {
   id          String   @id @default(cuid())
@@ -99,63 +44,85 @@ model CallingCampaign {
   city           City                  @relation(fields: [cityId], references: [id], onDelete: Cascade)
   pocAssignments CallingPOCAssignment[]
   assignments    CallingAssignment[]
+  templates      CallingTemplate[]
 
   @@unique([cityId, name])
   @@index([cityId, status])
   @@map("calling_campaigns")
 }
 
-// Calling POC is an event/campaign responsibility, never a login role.
+// Calling POC is a temporary event/Mashwara responsibility, never a login role or city-wide post.
 model CallingPOCAssignment {
-  id          String   @id @default(cuid())
-  campaignId  String
-  staffMetaId String
-  isActive    Boolean  @default(true)
-  startedAt   DateTime @default(now())
-  endedAt     DateTime?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id                    String   @id @default(cuid())
+  campaignId            String
+  eventResponsibilityId String   // References EventResponsibility
+  isActive              Boolean  @default(true)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
 
-  campaign  CallingCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
-  staffMeta StaffMeta       @relation(fields: [staffMetaId], references: [id], onDelete: Cascade)
+  campaign            CallingCampaign     @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  eventResponsibility EventResponsibility @relation(fields: [eventResponsibilityId], references: [id], onDelete: Cascade)
 
-  @@unique([campaignId, staffMetaId])
-  @@index([staffMetaId, isActive])
+  @@unique([campaignId, eventResponsibilityId])
   @@map("calling_poc_assignments")
 }
 
-// External support callers are locked into caller mode.
+// External support callers are campaign-specific, same-city active users.
 model ExternalSupportCaller {
   id              String    @id @default(cuid())
-  userId          String    @unique
-  cityId          String
+  userId          String
+  campaignId      String    // Mandatory campaign binding
   isActive        Boolean   @default(true)
-  expiresAt       DateTime
-  forceResetCount Int       @default(0) // Tracks forced reset count
+  expiresAt       DateTime  // Mandatory validity limit (max 30 days)
+  revokedAt       DateTime? // Audited revocation
+  revokedBy       String?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
   user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  city        City                @relation(fields: [cityId], references: [id], onDelete: Cascade)
+  campaign    CallingCampaign     @relation(fields: [campaignId], references: [id], onDelete: Cascade)
   assignments CallingAssignment[]
 
-  @@index([cityId, isActive])
+  @@index([userId, isActive])
+  @@index([campaignId, isActive])
   @@map("external_support_callers")
 }
 
 model CallingTemplate {
-  id        String   @id @default(cuid())
-  cityId    String
-  title     String
-  body      String   // E.g. "Salam [ParentName], this is Shabab 360..."
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         String   @id @default(cuid())
+  cityId     String
+  campaignId String?  // Nullable only for city-wide templates, otherwise campaign-bound
+  title      String
+  body       String   // Text content containing approved merge variables
+  status     String   @default("draft") // "draft" | "approved" | "retired"
+  version    Int      @default(1)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
-  city City @relation(fields: [cityId], references: [id], onDelete: Cascade)
+  city     City                 @relation(fields: [cityId], references: [id], onDelete: Cascade)
+  campaign CallingCampaign?     @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  uses     CallingTemplateUse[]
 
-  @@unique([cityId, title])
+  @@unique([cityId, title, version])
   @@map("calling_templates")
+}
+
+model CallingTemplateUse {
+  id              String   @id @default(cuid())
+  templateId      String
+  templateVersion Int
+  callerUserId    String
+  assignmentId    String
+  messageSnapshot String   // PII-masked message content (Raw PII must never be stored here)
+  usedAt          DateTime @default(now())
+
+  template   CallingTemplate   @relation(fields: [templateId], references: [id], onDelete: Restrict)
+  caller     User              @relation(fields: [callerUserId], references: [id], onDelete: Cascade)
+  assignment CallingAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+
+  @@index([templateId])
+  @@index([callerUserId])
+  @@map("calling_template_uses")
 }
 
 model CallingAssignment {
@@ -166,6 +133,8 @@ model CallingAssignment {
   callerExternalId  String?
   status            String    @default("pending") // "pending" | "in_progress" | "completed" | "reassigned"
   isActive          Boolean   @default(true)
+  startedAt         DateTime  @default(now())
+  endedAt           DateTime?
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
@@ -174,8 +143,8 @@ model CallingAssignment {
   staffCaller  StaffMeta?             @relation(fields: [callerStaffMetaId], references: [id], onDelete: SetNull)
   externalCaller ExternalSupportCaller? @relation(fields: [callerExternalId], references: [id], onDelete: SetNull)
   interactions CallInteraction[]
+  templateUses CallingTemplateUse[]
 
-  @@unique([campaignId, applicationId, isActive]) // Enforce one active assignment per lead in a campaign
   @@index([callerStaffMetaId, isActive])
   @@index([callerExternalId, isActive])
   @@map("calling_assignments")
@@ -187,7 +156,7 @@ model CallInteraction {
   callerUserId String
   outcome      String   // "reached" | "no_answer" | "busy" | "wrong_number" | "not_interested" | "callback_requested"
   notes        String?
-  scheduledFor DateTime? // For callbacks
+  scheduledFor DateTime? // Mandatory if outcome is callback_requested
   createdAt    DateTime @default(now())
 
   assignment CallingAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
@@ -198,36 +167,76 @@ model CallInteraction {
 }
 ```
 
+### 2.3 Dual Prisma Migration Plan
+1. **Development Environment (SQLite):**
+   - Edit `prisma/schema.prisma` to append the proposed models and relation fields.
+   - Run the local migration command:
+     ```bash
+     npx prisma migrate dev --name add_calling_tables
+     ```
+2. **Staging & Production Environment (PostgreSQL):**
+   - Edit `prisma/postgres/schema.prisma` to append the identical model definitions and relation fields.
+   - Run the PostgreSQL migration locally against a development database to generate the migration file:
+     ```bash
+     npx prisma migrate dev --schema=prisma/postgres/schema.prisma --create-only --name add_calling_tables
+     ```
+   - Commit the generated migration folder to the repository.
+   - Apply PostgreSQL migration in staging using:
+     ```bash
+     npx prisma migrate deploy --schema=prisma/postgres/schema.prisma
+     ```
+   - > [!WARNING]
+     > **NEVER run `migrate dev` against staging or production environments.** Staging/production must exclusively apply committed migrations via `migrate deploy`.
+
+3. **Safe Rollback Protocol:**
+   - In case of critical regression, route access must be disabled immediately by revoking calling capabilities and setting feature flag toggles.
+   - Database tables and columns **must not** be dropped or undone in production. Existing rows are preserved to prevent data loss. Full database backup restore procedures are reserved for Codex-and-owner incident recovery scenarios only.
+
 ---
 
-## 3. Capability Catalogue and Dynamic-Permission Rules
+## 3. Temporary Responsibility & Reassignment Specifications
 
-Dynamic capabilities govern all actions. Hard-coded role gates are prohibited.
+### 3.1 Calling POC Responsibility
+* **Event Gating:** Calling POC is a temporary responsibility under `EVENT-303`. It must reference exactly one `EventResponsibility` record.
+* **Mandatory Boundaries:**
+  - Mandatory start and end dates (responsibilities are time-bounded and expire automatically).
+  - Calling POCs only have authority to allocate leads and manage templates *within* their assigned campaign/event and within their active dates.
+  - Active Calling POC authorization requires dynamic runtime checks: `EventResponsibility.isActive === true` AND `EventResponsibility.endDate > now` AND `EventResponsibility.revokedAt === null` AND `CallingPOCAssignment.isActive === true`.
+  - Revocation is audited, requiring `revokedAt`, `revokedBy`, and `revokedReason`.
 
-### 3.1 Dynamic Capabilities Added
-* `calling.campaign.manage`: Access to create, activate, or archive calling campaigns.
-* `calling.poc.manage`: Provision to assign or revoke Calling POC responsibilities.
-* `calling.leads.assign`: Capability to assign leads (AdmissionApplications) to callers.
-* `calling.leads.view`: Permission to view caller dashboard and assigned leads.
-* `calling.leads.interact`: Permission to log call results and request manual callbacks.
-* `calling.export.manage`: Authorization to export calling lists (reserved for City Heads).
+### 3.2 External Support Caller Sandbox
+* **Campaign Gating:** Support callers are campaign-specific. Each record in `ExternalSupportCaller` binds a `User` to exactly one `CallingCampaign`.
+* **Dynamic Expiry:** The caller's validity is governed by `expiresAt` (max 30 days). The server must validate expiry dynamically on every route execution: `expiresAt > now` and `revokedAt === null`.
+* **Lead Boundary:** Support callers have no global city-level access. They can view and log interactions **only** for leads explicitly assigned to them in `CallingAssignment`.
+* **Historic Reuse:** A portal user can be reused across campaigns. Revoking an external caller record sets `revokedAt: new Date()` without losing the historical log.
 
-### 3.2 Dynamic Scope Derivation
-* **Server-side City Enforcement:** Every request derives the caller's allowed city scope by traversing the actor's `StaffMeta` or `ExternalSupportCaller` record.
-* **Lead Level Gating:** If the actor does not possess `calling.campaign.manage` or `calling.poc.manage` capability, they can **only** read and write to leads explicitly assigned to them in `CallingAssignment` (where `callerStaffMetaId` or `callerExternalId` matches their identifier).
+### 3.3 Bounded Reassignment History
+* **Database Constraint:** `@@unique([campaignId, applicationId, isActive])` is **removed** from the database to allow multiple historic assignments.
+* **Server Transaction Enforcement:** A database transaction must enforce that **exactly one** assignment is active (`isActive === true` and `status !== "reassigned"`) per campaign and application.
+* **Reassignment Action:** When a lead is reassigned, the server atomically:
+  1. Updates the active assignment setting `isActive: false`, `status: "reassigned"`, and `endedAt: new Date()`.
+  2. Creates a new active assignment with `isActive: true` and `status: "pending"`.
+* **Caller Target Validation:** The server validates that `callerStaffMetaId` and `callerExternalId` are mutually exclusive (`staff XOR external caller`).
 
 ---
 
-## 4. Lifecycle, Expiry, and Revocation Rules
+## 4. Templates, Merge Allowlist, and City Rules
 
-### 4.1 External Support Caller Lifecycle
-* **Registration:** Invites are triggered by City Heads. The password must be updated on first login (forced reset requirement).
-* **Automatic Expiration:** An `expiresAt` timestamp is mandatory during creation. The server enforces a maximum validity of 30 days. When expired, the account isActive flag becomes false, and all active sessions are terminated via token version increments.
-* **Access Sandboxing:** External callers **never** gain access to dashboards, reports, participant lists, document registry, collaboration teams, or Mashwara records.
+### 4.1 Campaign Scoping of Templates
+* `campaignId` is nullable **only** for city-wide templates. Otherwise, templates must be bound to a specific `CallingCampaign`.
+* **Lifecycle:** Templates progress through states `draft` -> `approved` -> `retired`. Only `approved` templates can be used to contact leads.
 
-### 4.2 Assignment Lifecycle
-* **Active Boundary:** A lead can only have **one** active assignment within a single campaign.
-* **Revocation/Reassignment:** Reassigning a lead updates the current assignment status to `reassigned`, sets `isActive` to `false`, and creates a new active assignment record.
+### 4.2 Versioning & Template Use Logs
+* **Versioning:** Templates utilize an incremental `version` field. When a template body is updated, a new record is created with an incremented version number, keeping past versions immutable.
+* **TemplateUse Logs:** Every manual contact event using a template writes to `CallingTemplateUse`.
+* **PII-Masked Snapshots:** The `messageSnapshot` field must be saved with all placeholders/merge variables replaced by generic tags or masked values. Raw candidate PII must **never** be persisted in this audit log.
+* **Merge-Variable Allowlist:** The server only interpolates variables in the allowlist: `{{parentName}}`, `{{applicantName}}`, and `{{trackingCode}}`.
+
+### 4.3 Server-Side City Scope & Date Integrity
+* **HQ vs Scoped Actors:** HQ capability holders (Super Admin) must supply `cityId` explicitly in request payloads (otherwise returning 400). Scoped actors (City Head) derive their city scope server-side via `StaffMeta`.
+* **Request Narrowing:** Client-supplied scopes can only narrow, never expand, the derived city scope.
+* **Date Validation:** In Zod and on the server, campaigns must satisfy `startDate <= endDate`.
+* **City Boundary:** The server enforces that a candidate lead's `AdmissionApplication.cityId` must match the campaign's `CallingCampaign.cityId` before any assignment can be created.
 
 ---
 
@@ -243,9 +252,13 @@ export const createCampaignSchema = z.object({
   description: z.string().trim().max(1000).optional(),
   startDate: z.string().datetime(),
   endDate: z.string().datetime(),
+}).refine((data) => new Date(data.startDate) <= new Date(data.endDate), {
+  message: "startDate must be less than or equal to endDate",
+  path: ["startDate"],
 });
 
 export const inviteExternalCallerSchema = z.object({
+  campaignId: cuidSchema,
   email: z.string().email(),
   name: z.string().trim().min(3).max(120),
   expiresAt: z.string().datetime().refine((val) => {
@@ -261,6 +274,9 @@ export const logInteractionSchema = z.object({
   outcome: z.enum(["reached", "no_answer", "busy", "wrong_number", "not_interested", "callback_requested"]),
   notes: z.string().trim().max(1000).optional(),
   scheduledFor: z.string().datetime().optional().nullable(),
+}).refine((data) => data.outcome !== "callback_requested" || !!data.scheduledFor, {
+  message: "scheduledFor date is required when outcome is callback_requested",
+  path: ["scheduledFor"],
 });
 
 export const assignLeadsSchema = z.object({
@@ -272,9 +288,19 @@ export const assignLeadsSchema = z.object({
   message: "Provide either a staff caller or an external caller, not both",
 });
 
+export const createTemplateSchema = z.object({
+  campaignId: cuidSchema.optional().nullable(), // Nullable for city-wide
+  title: z.string().trim().min(3).max(120),
+  body: z.string().trim().min(5).max(1000).refine((val) => {
+    const vars = val.match(/{{(.*?)}}/g) || [];
+    const allowed = ["{{parentName}}", "{{applicantName}}", "{{trackingCode}}"];
+    return vars.every((v) => allowed.includes(v));
+  }, "Template contains unauthorized merge variables"),
+});
+
 export const exportCallingSchema = z.object({
   campaignId: cuidSchema,
-  purpose: z.string().trim().min(10, "Provide a clear audit purpose for exporting candidate PII").max(500),
+  purpose: z.string().trim().min(10, "Purpose must explain PII extraction").max(500),
   format: z.enum(["csv", "xlsx"]),
 });
 ```
@@ -288,13 +314,14 @@ All scope evaluations are derived server-side. Query parameters may only narrow,
 | Route | Method | Access Level (Required Capabilities) | Expected Outcomes | Description |
 | --- | --- | --- | --- | --- |
 | `/api/calling/campaigns` | GET | `calling.leads.view` | **200** Success<br>**403** Scope Mismatch | List campaigns for user's derived city. |
-| `/api/calling/campaigns` | POST | `calling.campaign.manage` | **201** Created<br>**400** Invalid Zod Payload<br>**409** Name Conflict in City | Create a new city campaign. |
+| `/api/calling/campaigns` | POST | `calling.campaign.manage` | **201** Created<br>**400** Invalid Zod Payload / Dates<br>**409** Name Conflict in City | Create a new city campaign. |
+| `/api/calling/campaigns/[id]/leads` | GET | `calling.leads.view` | **200** Masked Roster<br>**404** Campaign Not Found | Fetch roster. Assigned caller sees raw PII for their leads; others see masked names/phones. |
 | `/api/calling/campaigns/[id]/assign-poc` | POST | `calling.poc.manage` | **200** Success<br>**400** Staff/Campaign City Mismatch<br>**404** Record Not Found | Assign a staff member as Calling POC. |
-| `/api/calling/assignments` | POST | `calling.leads.assign` | **200** Success<br>**400** Caller/Lead City Scope Mismatch<br>**409** Active Assignment Exists | Assign leads to a caller. |
+| `/api/calling/assignments` | POST | **Caller Gated** (Active POC/Admin) | **200** Success<br>**400** Caller/Lead City Scope Mismatch / Mutually Exclusive Caller<br>**409** Active Assignment Exists | Assign leads to a caller (Staff XOR External). |
 | `/api/calling/assignments/my-leads` | GET | `calling.leads.view` | **200** Success | List active assigned leads (PII unmasked). |
-| `/api/calling/interactions` | POST | `calling.leads.interact` | **201** Created<br>**400** Invalid Outcome / Schema | Log call interaction results. |
+| `/api/calling/interactions` | POST | `calling.leads.interact` | **201** Created<br>**400** Callback Date Missing / Outcome Schema Error | Log call interaction results. |
 | `/api/calling/external-callers` | POST | `calling.poc.manage` | **201** Created<br>**400** Validity Exceeds 30 Days<br>**409** Email Already Exists | Register/invite support caller. |
-| `/api/calling/exports` | POST | `calling.export.manage` | **200** File Stream<br>**400** Purpose Too Short<br>**403** Forbidden (Non-City Head) | Export campaign lists with audit logging. |
+| `/api/calling/exports` | POST | `calling.export.manage` | **200** File Stream<br>**400** Purpose Too Short<br>**403** Forbidden (Non-City Head / Scope Mismatch) | Export campaign lists with audit logging. |
 
 ---
 
@@ -316,7 +343,7 @@ To satisfy audit requirements, any calling list export triggers the following en
    - Query filters applied and total row count exported.
 
 ### 7.3 Read-Only Dry-Run Imports
-* **Importers Gating:** All imports remain strictly read-only dry-runs utilizing the [importer.ts](src/lib/calling-import/importer.ts) parser.
+* **Importers Gating:** All imports remain strictly read-only dry-runs utilizing the parser.
 * **Write Deferral:** Database transaction writes are prohibited. The dry-run report output (summary, duplicate clusters) must be displayed to the user as a preview without database persistency.
 
 ### 7.4 Rollback Strategy
@@ -335,13 +362,21 @@ To satisfy audit requirements, any calling list export triggers the following en
 | `TC-CL-002` | `calling.campaign.manage` | Active City: Islamabad | Create campaign for Lahore | **Deny** (HTTP 403 - City Mismatch) | No |
 | `TC-CL-003` | None | Active City: Lahore | Create campaign | **Deny** (HTTP 403 - Missing capability) | No |
 | `TC-CL-004` | `calling.poc.manage` | Campaign: LHR Campaign, Staff: LHR Staff | Assign campaign Calling POC | **Allow** (HTTP 200) | Yes (`assign_poc`) |
-| `TC-TM-005` | `calling.poc.manage` | Campaign: LHR Campaign, Staff: ISB Staff | Assign campaign Calling POC | **Deny** (HTTP 400 - City Scope Mismatch) | No |
+| `TC-CL-005` | `calling.poc.manage` | Campaign: LHR Campaign, Staff: ISB Staff | Assign campaign Calling POC | **Deny** (HTTP 400 - City Scope Mismatch) | No |
 | `TC-CL-006` | `calling.leads.view` (Assigned Caller)| Fetch assigned lead details | GET `/api/calling/assignments/my-leads` | **Allow** (HTTP 200 - Unmasked PII) | No |
 | `TC-CL-007` | `calling.leads.view` (Unassigned Member)| Fetch unassigned candidate list | GET `/api/calling/campaigns/[id]/leads` | **Allow** (HTTP 200 - Masked PII) | No |
 | `TC-CL-008` | `calling.export.manage` (City Head) | Purpose: "Audit outreach list for LHR", Format: CSV | POST `/api/calling/exports` | **Allow** (HTTP 200 - CSV stream) | Yes (`export_campaign_leads`) |
 | `TC-CL-009` | `calling.export.manage` (City Head) | Purpose: "Short" (5 chars) | POST `/api/calling/exports` | **Deny** (HTTP 400 - Purpose too short) | No |
 | `TC-CL-010` | `calling.leads.interact` (Assigned Caller) | Invalid call outcome "disconnected" | POST `/api/calling/interactions` | **Deny** (HTTP 400 - Invalid enum) | No |
 | `TC-CL-011` | `calling.poc.manage` | Invite external caller with 40-day expiry | POST `/api/calling/external-callers` | **Deny** (HTTP 400 - Exceeds 30 days) | No |
+| `TC-CL-012` | `calling.export.manage` (HQ/SuperAdmin) | Omit `cityId` | POST `/api/calling/exports` | **Deny** (HTTP 400 - Missing cityId) | No |
+| `TC-CL-013` | `calling.campaign.manage` | startDate > endDate | POST `/api/calling/campaigns` | **Deny** (HTTP 400 - Invalid date range) | No |
+| `TC-CL-014` | `calling.leads.assign` | Lead City: ISB, Campaign City: LHR | POST `/api/calling/assignments` | **Deny** (HTTP 400 - City boundary mismatch) | No |
+| `TC-CL-015` | `calling.leads.assign` | Caller: Staff AND External both set | POST `/api/calling/assignments` | **Deny** (HTTP 400 - Mutually exclusive caller fields) | No |
+| `TC-CL-016` | `calling.leads.interact` (Expired External) | `expiresAt` < now | POST `/api/calling/interactions` | **Deny** (HTTP 403 - Expired caller access) | No |
+| `TC-CL-017` | `calling.leads.interact` (Revoked POC) | `revokedAt` is not null | POST `/api/calling/assignments` | **Deny** (HTTP 403 - Revoked POC permissions) | No |
+| `TC-CL-018` | `calling.leads.view` (Active member) | Fetch template with draft status | GET `/api/calling/templates/[id]` | **Deny** (HTTP 403 - Template not approved) | No |
+| `TC-CL-019` | `calling.leads.interact` | Log template usage with raw candidate name | POST `/api/calling/interactions` | **Allow** (HTTP 201 - System sanitizes snapshot to masked form) | Yes (`log_template_use`) |
 
 ---
 
@@ -351,6 +386,7 @@ The following files and paths will be introduced in follow-up packages:
 
 ### 9.1 API Routes
 * **[NEW]** `src/app/api/calling/campaigns/route.ts`: Core campaigns endpoints.
+* **[NEW]** `src/app/api/calling/campaigns/[id]/leads/route.ts`: Leads listing inside campaigns (with masking logic).
 * **[NEW]** `src/app/api/calling/campaigns/[id]/assign-poc/route.ts`: Calling POC allocation.
 * **[NEW]** `src/app/api/calling/assignments/route.ts`: Leads assignment endpoint.
 * **[NEW]** `src/app/api/calling/assignments/my-leads/route.ts`: Personal caller dashboard lead fetch.
@@ -371,8 +407,8 @@ The following files and paths will be introduced in follow-up packages:
 The following decisions must be resolved by the product owner before implementation begins:
 
 1. **Campaign Creation Permissions:** Should calling campaigns be generated automatically upon admission workbook imports, or created manually by City Heads?
-2. **External Caller Whitelist Domains:** Should external support callers be restricted to specific email domains (e.g. `*.unregistered.invalid`) or allowed from any domain?
-3. **Manual Callback Durations:** What is the maximum callback window duration allowed (e.g. 7 days)?
+2. **Approved Domain Whitelist for Document Links:** Define the exact list of trusted storage domains (e.g. `*.google.com`, `*.sharepoint.com`) allowed for link sharing.
+3. **External URL Redirect Handling:** When a user clicks a registered document link, should they be navigated directly to the external site, or should they pass through an intermediate warning/redirection page?
 4. **WhatsApp Message Content Templates:** Define the exact list of approved message template texts to be populated in deep-links.
 5. **PII Masking Rules:** Confirm the exact character counts to hide when masking names (e.g., leaving first and last initials visible).
 6. **Interaction Log Retention Policy:** Should historic interaction records be preserved permanently, or archived 180 days after campaign completion?
