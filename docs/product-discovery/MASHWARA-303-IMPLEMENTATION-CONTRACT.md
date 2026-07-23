@@ -100,13 +100,15 @@ These models are additive-only. They must be added identically to `prisma/schema
 
 ### 3.1 Mashwara (Series)
 
+**Pilot scope:** Weekly recurrence only. The `recurrenceDayOfWeek` field is required on creation (not optional). Manual occurrence creation remains the only way to create meeting instances. Ad-hoc series, biweekly, monthly, and custom patterns are deferred post-pilot.
+
 ```prisma
 model Mashwara {
   id               String   @id @default(cuid())
   cityId           String
   title            String
   purpose          String?
-  recurrenceDayOfWeek Int?  // 0=Sunday, 6=Saturday; null = ad-hoc series
+  recurrenceDayOfWeek Int   // 0=Sunday, 6=Saturday; required for pilot
   recurrenceTime   String?  // "HH:mm" local time
   status           String   @default("active") // "active" | "archived"
   createdAt        DateTime @default(now())
@@ -119,8 +121,6 @@ model Mashwara {
   @@map("mashwara")
 }
 ```
-
-**Decisions:** Recurrence stored as simple optional fields (weekly day-of-week + time). No recurrence object/JSON. Ad-hoc series (no recurrenceDayOfWeek) are allowed.
 
 ### 3.2 MashwaraOccurrence
 
@@ -168,7 +168,7 @@ model MashwaraAttendance {
 }
 ```
 
-**Decisions:** Uses `staffMetaId` (not `userId`) to align with existing `StaffTeamMembership` and `ActivityPlanItem` patterns. Attendance is per-staffMeta, not per-user.
+**Decisions:** Uses `staffMetaId` (not `userId`) to align with existing `StaffTeamMembership` and `ActivityPlanItem` patterns. Attendance is per-staffMeta, not per-user. `recordedBy` is server-derived from the authenticated actor — never from the client.
 
 ### 3.4 Karguzari (MoM)
 
@@ -177,8 +177,8 @@ model Karguzari {
   id          String    @id @default(cuid())
   occurrenceId String   @unique
   content     String    // Markdown or structured text
-  preparedBy  String    // userId
-  reviewedBy  String?   // userId
+  preparedBy  String    // server-derived from authenticated actor (userId) — never from client
+  reviewedBy  String?   // server-derived on finalization (userId) — never from client
   finalizedAt DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -190,7 +190,7 @@ model Karguzari {
 }
 ```
 
-**Decisions:** One Karguzari per occurrence (unique constraint on occurrenceId). `finalizedAt` null = draft, set = immutable. Editable before finalization only.
+**Decisions:** One Karguzari per occurrence (unique constraint on occurrenceId). `finalizedAt` null = draft, set = immutable. Editable before finalization only. All identity/audit fields (`preparedBy`, `reviewedBy`, `recordedBy`, `createdBy`, `grantedBy`, `revokedBy`) on Karguzari, CorrectionNote, Decision, ActionItem, Attendance, and Share models are server-derived from the authenticated session actor. The client must never supply them.
 
 ### 3.5 MashwaraCorrectionNote
 
@@ -209,7 +209,7 @@ model MashwaraCorrectionNote {
 }
 ```
 
-**Decisions:** Immutable after creation. No update allowed. References the finalized Karguzari. Separate from decisions — a correction note is purely a content addendum.
+**Decisions:** Immutable after creation. No update allowed. References the finalized Karguzari. Separate from decisions — a correction note is purely a content addendum. `createdBy` is server-derived from the authenticated actor — never from the client.
 
 ### 3.6 MashwaraDecision
 
@@ -235,7 +235,7 @@ model MashwaraDecision {
 }
 ```
 
-**Decisions:** Uses `staffMetaId` for owner for consistency. Decisions exist independently of action items — an action item may optionally link to a decision.
+**Decisions:** Uses `staffMetaId` for owner for consistency. Decisions exist independently of action items — an action item may optionally link to a decision. `recordedBy` and `recordedAt` are server-derived — never from the client.
 
 ### 3.7 MashwaraActionItem
 
@@ -275,7 +275,9 @@ model MashwaraActionItem {
 **Decisions:**
 - `carryForwardDate` — set when an item is intentionally carried to the next occurrence. The status remains `carried_forward`.
 - `expiredAt` — set automatically (server-side on read or on occurrence close) for items past dueDate without completion. This is a soft expiry; the item remains visible but its status is terminal.
-- Team assignment may be null for individual tasks. At least one of `teamId` or `assignedToStaffMetaId` should be set.
+- At least one of `teamId` or `assignedToStaffMetaId` must be set (validated by Zod).
+- Server validates on create/update: decision, team, and assignee all belong to the occurrence's city (derived via mashwara.cityId). Assigned staff must have active StaffMeta. A team member may update only status and completionNote on items assigned directly to them or to a team they actively belong to; all other fields require `mashwara.manage`.
+- `createdBy` is server-derived from the authenticated actor — never from the client.
 
 ### 3.8 MashwaraMeetingShare
 
@@ -300,6 +302,8 @@ model MashwaraMeetingShare {
 ```
 
 **Decisions:** Uses `userId` (not staffMetaId) because Share is a login-account-level grant. The receiving user must have StaffMeta + team membership in the same city — validated server-side on grant, not through a FK constraint.
+
+**Note:** Meeting-specific shares are partially redundant because all same-city active team members already receive automatic participant access via §4.3. Shares exist for the narrow case where a City Head wants to include a single team member who otherwise lacks automatic access (e.g. a new member whose team membership has not yet been configured). Until the owner decides on share semantics (see §13 D6), shares must never bypass `mashwara.view` deny overrides or server-derived city scope.
 
 ---
 
@@ -389,7 +393,7 @@ if (mashwara.cityId !== resolvedCity) {
 | Audit | Every grant and revocation logged with actor, timestamp, reason |
 | Constraints | No duplicate active share for same occurrence+user. Share cannot be self-granted. |
 
-The share server-side check — when loading an occurrence, if the caller is not automatically authorized via §4.3 but has an active (non-revoked) share, they are granted read-only access to that occurrence's data.
+The share server-side check — when loading an occurrence, if the caller is not automatically authorized via §4.3 but has an active (non-revoked) share with explicit `mashwara.view` capability not denied by override, they are granted read-only access to that occurrence's data. A share must never bypass a `mashwara.view` deny override or server-derived city scope.
 
 ### 5.4 Authorization Decisions vs MASHWARA_DESIGN.md
 
@@ -430,9 +434,9 @@ scheduled → cancelled
 (draft, editable) → finalizedAt set → (immutable, visible to all authorized)
 ```
 
-- While `finalizedAt` is null, the City Head (with `mashwara.manage`) may edit content.
-- Setting `finalizedAt` locks the record. No further edits.
-- Corrections after finalization: create a `MashwaraCorrectionNote` referencing this Karguzari. Correction notes are immutable after creation.
+- While `finalizedAt` is null, only users with `mashwara.manage` may view or edit the draft. Users with `mashwara.view` see a "Karguzari not yet finalized" placeholder. A meeting share never bypasses this — shares grant read-only access to finalized content only.
+- Setting `finalizedAt` locks the record. No further edits. Once finalized, eligible `mashwara.view` users may read it.
+- Corrections after finalization: create a `MashwaraCorrectionNote` referencing this Karguzari. Correction notes are immutable after creation and follow the same visibility rules as the finalized Karguzari.
 
 ### 6.4 Decision Lifecycle
 
@@ -456,8 +460,8 @@ in_progress → carried_forward → pending (carried to next occurrence)
 - **Carry-forward:** City Head or Super Admin may set `carryForwardDate` and change status to `carried_forward`. The item becomes `pending` again when the next occurrence is created (server-side on occurrence creation, the system re-evaluates carried items that reference that occurrence's series).
 - **Update rules:**
   - `mashwara.manage` users may update any field on any item.
-  - Team members with `mashwara.view` may update `status` and `completionNote` on items assigned to their team or to themselves.
-  - All other fields require `mashwara.manage`.
+  - A team member with `mashwara.view` (auto-participant access) may update `status` and `completionNote` only on items where **either** the item's `assignedToStaffMetaId` matches their own `StaffMeta.id` **or** the item's `teamId` matches an active `StaffTeamMembership.teamId` they belong to. They may not update any other field.
+  - All other updates require `mashwara.manage`.
 
 ### 6.6 Meeting Share Lifecycle
 
@@ -496,7 +500,7 @@ const createMashwaraSchema = z.object({
   cityId: cityIdSchema.optional(),  // HQ passes explicitly; scoped derives from StaffMeta
   title: z.string().min(1).max(200),
   purpose: z.string().max(500).optional(),
-  recurrenceDayOfWeek: z.number().int().min(0).max(6).optional(),
+  recurrenceDayOfWeek: z.number().int().min(0).max(6), // required for pilot (weekly only)
   recurrenceTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),
 });
 
@@ -552,12 +556,10 @@ const markAttendanceSchema = z.object({
 ```typescript
 const upsertKarguzariSchema = z.object({
   content: z.string().min(1).max(50000),
-  preparedBy: userIdSchema.optional(),
-  reviewedBy: userIdSchema.optional(),
 });
 
 const finalizeKarguzariSchema = z.object({
-  reviewedBy: userIdSchema.optional(),
+  // Empty — all audit fields are server-derived from authenticated actor
 });
 
 const createCorrectionNoteSchema = z.object({
@@ -591,7 +593,10 @@ const createActionItemSchema = z.object({
   assignedToStaffMetaId: staffMetaIdSchema.optional(),
   priority: prioritySchema.optional().default("medium"),
   dueDate: z.coerce.date().optional(),
-});
+}).refine(
+  data => data.teamId !== undefined || data.assignedToStaffMetaId !== undefined,
+  { message: "At least one assignee required: teamId or assignedToStaffMetaId" }
+);
 
 const updateActionItemSchema = z.object({
   title: z.string().min(1).max(200).optional(),
@@ -662,7 +667,7 @@ const revokeShareSchema = z.object({
 |--------|------|---------|-----------|-------------|---------------|
 | `PUT` | `/api/admin/mashwara/occurrences/[occId]/karguzari` | upsertKarguzari | `mashwara.manage` | resolveActorCity; must be draft (finalizedAt null) | `upsertKarguzariSchema` |
 | `POST` | `/api/admin/mashwara/occurrences/[occId]/karguzari/finalize` | finalizeKarguzari | `mashwara.manage` | resolveActorCity; occurrence must be completed | `finalizeKarguzariSchema` |
-| `GET` | `/api/admin/mashwara/occurrences/[occId]/karguzari` | getKarguzari | `mashwara.view` OR meeting share | resolveActorCity or active share | — |
+| `GET` | `/api/admin/mashwara/occurrences/[occId]/karguzari` | getKarguzari | `mashwara.manage` if draft; `mashwara.view` or meeting share if finalized | resolveActorCity or active share; draft returned only to manage users | — |
 | `POST` | `/api/admin/mashwara/occurrences/[occId]/karguzari/corrections` | createCorrectionNote | `mashwara.manage` | resolveActorCity; requires finalized Karguzari | `createCorrectionNoteSchema` |
 | `GET` | `/api/admin/mashwara/occurrences/[occId]/karguzari/corrections` | listCorrectionNotes | `mashwara.view` OR meeting share | resolveActorCity or active share | — |
 
@@ -775,11 +780,13 @@ Available from sidebar/profile: "My Action Items" (for team members) or "Mashwar
 | MSW-ALLOW-012 | City Head grants meeting share to same-city team member | 201 + Share |
 | MSW-ALLOW-013 | City Head revokes meeting share | 200 + revokedAt set |
 | MSW-ALLOW-014 | Team member (read-only) lists Mashwara in own city | 200 + mashwara array |
-| MSW-ALLOW-015 | Team member reads finalized Karguzari | 200 + Karguzari |
-| MSW-ALLOW-016 | Team member updates own-team action item status to completed | 200 + updated status |
+| MSW-ALLOW-015 | Team member updates own-team action item status to completed | 200 + updated status |
+| MSW-ALLOW-016 | City Head creates action item with both teamId and assignedToStaffMetaId (both optional, at least one required) | 201 + ActionItem |
 | MSW-ALLOW-017 | Meeting share recipient reads occurrence detail | 200 + read-only data |
 | MSW-ALLOW-018 | City Head carries forward an action item | 200 + status = carried_forward |
 | MSW-ALLOW-019 | City Head archives Mashwara | 200 + status = archived |
+| MSW-ALLOW-020 | Team member reads finalized Karguzari | 200 + Karguzari content |
+| MSW-ALLOW-021 | Meeting share recipient reads finalized Karguzari | 200 + Karguzari content |
 
 ### 10.2 Deny Tests (Negative Paths)
 
@@ -805,6 +812,16 @@ Available from sidebar/profile: "My Action Items" (for team members) or "Mashwar
 | MSW-DENY-018 | City Head accesses Mashwara in another city | 403 |
 | MSW-DENY-019 | Park Lead (no team membership) accesses Mashwara | 403 |
 | MSW-DENY-020 | City Head creates Karguzari on non-completed occurrence | 409 |
+| MSW-DENY-021 | Team member reads draft Karguzari (not yet finalized) | 403 |
+| MSW-DENY-022 | Meeting share recipient reads draft Karguzari | 403 |
+| MSW-DENY-023 | User with mashwara.view denied by override accesses Karguzari via meeting share | 403 (share never bypasses capability deny) |
+| MSW-DENY-024 | Client supplies preparedBy in Karguzari request — field ignored/silently overridden | 200 + Karguzari with server-derived preparedBy |
+| MSW-DENY-025 | Client supplies recordedBy in attendance request — field ignored/silently overridden | 201 + records with server-derived recordedBy |
+| MSW-DENY-026 | City Head creates action item without teamId or assignedToStaffMetaId | 400 (at least one assignee required) |
+| MSW-DENY-027 | City Head creates action item with assignedToStaffMetaId that does not belong to occurrence's city | 403 (assignee outside city) |
+| MSW-DENY-028 | City Head creates action item with deactivated staff member as assignee | 403 (StaffMeta not active) |
+| MSW-DENY-029 | Team member updates action item assigned to different team (not their own) | 403 |
+| MSW-DENY-030 | Team member updates action item title (non-permitted field) | 403 |
 
 ### 10.3 Error/Failure Tests
 
@@ -854,33 +871,35 @@ Available from sidebar/profile: "My Action Items" (for team members) or "Mashwar
 
 2. **Generate Prisma client** (both SQLite and PostgreSQL).
 
-3. **Create additive local migration (SQLite):** `npx prisma migrate dev --name add_mashwara_models`
+3. **Create additive local migration (SQLite):** `npx prisma migrate dev --name add_mashwara_models`. This generates the migration file for local development only.
 
-4. **Align PostgreSQL:** Copy migration SQL or generate via `prisma migrate dev --schema prisma/postgres/schema.prisma`
+4. **Align PostgreSQL:** Copy the generated migration SQL to `prisma/postgres/migrations/` or run `npx prisma migrate dev --schema prisma/postgres/schema.prisma --name add_mashwara_models` for local generation only.
 
-5. **Add capability constants** to `src/lib/auth/capabilities.ts`:
+5. **Staging/production migration** uses `npx prisma migrate deploy` (or `--schema prisma/postgres/schema.prisma` for PostgreSQL). Never run `migrate dev` against staging or production — it is a local-development command that may reset data. Only committed migrations are applied via `migrate deploy`.
+
+6. **Add capability constants** to `src/lib/auth/capabilities.ts`:
    - `"mashwara.manage"`
    - `"mashwara.attend"`
    - `"mashwara.view"`
 
-6. **Add role defaults.**
+7. **Add role defaults.**
 
-7. **Create API routes** as defined in Section 8.
+8. **Create API routes** as defined in Section 8.
 
-8. **Add helpers:**
+9. **Add helpers:**
    - `src/lib/mashwara/scope.ts` — `resolveActorCity` (reuse from PKG-04 or implement variant), `hasMashwaraParticipantAccess()` checks StaffMeta + team membership in city
    - `src/lib/mashwara/zod.ts` — all Zod schemas
    - `src/lib/mashwara/audit.ts` — audit action wrappers
 
-9. **Add tests** (Section 10).
+10. **Add tests** (Section 10).
 
-10. **Run full quality gates:** lint, typecheck, test suite, SQLite build, PostgreSQL build.
+11. **Run full quality gates:** lint, typecheck, test suite, SQLite build, PostgreSQL build.
 
 ### 11.3 Rollback Plan
 
 **General principles:**
 - Backup before migration.
-- Standard rollback: disable access (remove capabilities + routes). Tables remain intact.
+- Standard rollback: disable access (remove capabilities + routes) while preserving all additive tables and their data. No destructive `DROP TABLE` rollback.
 - Verified restore (Codex-and-owner incident only): restore from pre-migration backup.
 
 Under no circumstances are `AuditLog` records referencing Mashwara entities dropped or altered.
@@ -963,6 +982,7 @@ Under no circumstances are `AuditLog` records referencing Mashwara entities drop
 | D3 | Attendance scope — should attendance marking show all StaffMeta in the city, or only those with team memberships? | All staff vs Team members only | Affects attendance UI list |
 | D4 | Correction note visibility — should correction notes be publicly visible alongside Karguzari, or restricted to mashwara.manage? | Public vs Restricted | Affects endpoint auth for corrections list |
 | D5 | Series archive — should archiving a Mashwara also cancel all pending occurrences? | Cascade vs Preserve | Affects archive handler behavior |
+| D6 | Meeting share semantics — shares are partially redundant with automatic team-member access. Should shares be removed from the pilot, or retained for the narrow case of non-team-member access? Owner should confirm whether §1.3's share rule is still desired. | Remove vs Retain | Affects whether MeetingShare model and endpoints are built |
 
 ---
 
@@ -970,7 +990,7 @@ Under no circumstances are `AuditLog` records referencing Mashwara entities drop
 
 ### Summary
 
-This contract turns the MASHWARA_DESIGN.md into an implementation-ready specification. It defines 8 additive Prisma models, 3 new capabilities, 19 API route groups, 53 tests (19 allow, 20 deny, 9 error, 5 audit), and a complete migration/rollback plan.
+This contract turns the MASHWARA_DESIGN.md into an implementation-ready specification. It defines 8 additive Prisma models, 3 new capabilities, 19 API route groups, 65 tests (21 allow, 30 deny, 9 error, 5 audit), and a complete migration/rollback plan.
 
 ### Key rules preserved
 
@@ -1000,7 +1020,7 @@ This contract turns the MASHWARA_DESIGN.md into an implementation-ready specific
 - [ ] 19 API route files created
 - [ ] Scope helpers, Zod schemas, audit helpers created
 - [ ] UI components created (10)
-- [ ] All 53 tests pass
+- [ ] All 65 tests pass
 - [ ] Lint, typecheck, full suite, SQLite/PostgreSQL builds pass
 - [ ] Owner decisions D1-D5 resolved
 - [ ] This contract updated with deviations
