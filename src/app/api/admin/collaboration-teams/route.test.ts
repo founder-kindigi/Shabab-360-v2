@@ -2,14 +2,16 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest, NextResponse } from "next/server";
 
 const mocks = vi.hoisted(() => ({
-  requireRole: vi.fn(),
   requireCapability: vi.fn(),
+  resolveActorCity: vi.fn(),
   teamFindMany: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/authorize", () => ({
-  requireRole: mocks.requireRole,
   requireCapability: mocks.requireCapability,
+}));
+vi.mock("@/lib/auth/events-scope", () => ({
+  resolveActorCity: mocks.resolveActorCity,
 }));
 vi.mock("@/lib/db", () => ({
   db: { collaborationTeam: { findMany: mocks.teamFindMany } },
@@ -20,17 +22,16 @@ import { GET } from "./route";
 describe("GET /api/admin/collaboration-teams", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.requireRole.mockResolvedValue(null);
     mocks.requireCapability.mockResolvedValue({ user: { id: "super-admin", role: "super_admin" } });
+    mocks.resolveActorCity.mockResolvedValue({ cityId: "city-lhr", isHQ: true });
   });
 
-  it("denies a non-Super-Admin before listing teams", async () => {
-    mocks.requireRole.mockResolvedValue(NextResponse.json({ error: "Forbidden" }, { status: 403 }));
+  it("denies access when organisation.view capability is missing", async () => {
+    mocks.requireCapability.mockResolvedValue(NextResponse.json({ error: "Forbidden" }, { status: 403 }));
 
     const response = await GET(new NextRequest("http://localhost/api/admin/collaboration-teams"));
 
     expect(response.status).toBe(403);
-    expect(mocks.requireCapability).not.toHaveBeenCalled();
     expect(mocks.teamFindMany).not.toHaveBeenCalled();
   });
 
