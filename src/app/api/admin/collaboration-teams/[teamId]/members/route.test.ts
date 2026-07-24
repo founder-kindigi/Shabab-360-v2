@@ -2,8 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest, NextResponse } from "next/server";
 
 const mocks = vi.hoisted(() => ({
-  requireRole: vi.fn(),
   requireCapability: vi.fn(),
+  resolveActorCity: vi.fn(),
   teamFindUnique: vi.fn(),
   staffFindUnique: vi.fn(),
   membershipFindFirst: vi.fn(),
@@ -12,8 +12,10 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/auth/authorize", () => ({
-  requireRole: mocks.requireRole,
   requireCapability: mocks.requireCapability,
+}));
+vi.mock("@/lib/auth/events-scope", () => ({
+  resolveActorCity: mocks.resolveActorCity,
 }));
 vi.mock("@/lib/db", () => ({
   db: {
@@ -29,12 +31,12 @@ import { POST } from "./route";
 describe("POST /api/admin/collaboration-teams/[teamId]/members", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.requireRole.mockResolvedValue(null);
     mocks.requireCapability.mockResolvedValue({ user: { id: "super-admin", role: "super_admin" } });
+    mocks.resolveActorCity.mockResolvedValue({ cityId: "city-lhr", isHQ: true });
   });
 
-  it("denies a non-Super-Admin before reading team or staff data", async () => {
-    mocks.requireRole.mockResolvedValue(NextResponse.json({ error: "Forbidden" }, { status: 403 }));
+  it("denies access when organisation.manage capability is missing", async () => {
+    mocks.requireCapability.mockResolvedValue(NextResponse.json({ error: "Forbidden" }, { status: 403 }));
 
     const response = await POST(new NextRequest("http://localhost/api/admin/collaboration-teams/team-lhr/members", {
       method: "POST",
@@ -90,10 +92,11 @@ describe("POST /api/admin/collaboration-teams/[teamId]/members", () => {
 
     expect(response.status).toBe(201);
     expect(mocks.membershipCreate).toHaveBeenCalledWith(expect.objectContaining({
-      data: { teamId: "team-lhr", staffMetaId: "staff-1", title: "Sports POC" },
+      data: { teamId: "team-lhr", staffMetaId: "staff-1", title: "Sports POC", isActive: true, startedAt: expect.any(Date) },
     }));
     expect(mocks.logAudit).toHaveBeenCalledWith(expect.objectContaining({
-      entityType: "staff_team_membership",
+      action: "team_membership.assign",
+      entityType: "StaffTeamMembership",
       newValues: { teamId: "team-lhr", staffMetaId: "staff-1", title: "Sports POC" },
     }));
   });
