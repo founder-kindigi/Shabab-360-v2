@@ -110,6 +110,8 @@ const pageTitles: Record<PageId, string> = {
   "admin-students": "Students",
   "admin-guardians": "Guardians",
   "admin-attendance-events": "Attendance Events",
+  "admin-events": "Events",
+  "admin-events-detail": "Event Detail",
   "admin-settings": "Settings",
   "admin-users": "Users",
   "admin-access": "Access Provisioning",

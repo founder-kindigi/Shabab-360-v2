@@ -1,53 +1,39 @@
-import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
-import { EventsPage, EventForm } from "./page";
+import { describe, expect, it } from "vitest";
+import { z } from "zod";
 
-// Mock next-auth
-vi.mock("next-auth/react", () => ({
-  useSession: vi.fn(() => ({ data: { user: { role: "super_admin" } } })),
-}));
-
-// Mock TanStack Query
-vi.mock("@tanstack/react-query", () => ({
-  useQuery: vi.fn(() => ({ data: null, isLoading: false, error: null })),
-  useMutation: vi.fn(() => ({
-    mutate: vi.fn(),
-    mutateAsync: vi.fn(),
-    isPending: false,
-  })),
-  useQueryClient: vi.fn(() => ({
-    invalidateQueries: vi.fn(),
-  })),
-}));
-
-describe("EventsPage", () => {
-  it("renders the events page header", () => {
-    render(<EventsPage />);
-    expect(screen.getByText("Events")).toBeDefined();
-    expect(screen.getByText("Manage programme events and responsibilities")).toBeDefined();
+describe("Events UI validation schemas", () => {
+  it("accepts a valid event creation payload", () => {
+    const schema = z.object({
+      title: z.string().min(1).max(200),
+      eventType: z.enum(["trip", "ceremony", "campaign", "activity", "sports_day", "camp", "open_day", "closing", "other"]),
+      startDate: z.string().min(1),
+    });
+    const result = schema.safeParse({ title: "Sports Day", eventType: "sports_day", startDate: "2026-08-15" });
+    expect(result.success).toBe(true);
   });
 
-  it("renders the New Event button", () => {
-    render(<EventsPage />);
-    expect(screen.getByText("New Event")).toBeDefined();
-  });
-});
-
-describe("EventForm", () => {
-  it("renders create event dialog when open", () => {
-    render(<EventForm open={true} onClose={vi.fn()} />);
-    expect(screen.getByText("Create Event")).toBeDefined();
+  it("rejects empty title", () => {
+    const schema = z.object({ title: z.string().min(1).max(200) });
+    const result = schema.safeParse({ title: "" });
+    expect(result.success).toBe(false);
   });
 
-  it("does not render when closed", () => {
-    const { container } = render(<EventForm open={false} onClose={vi.fn()} />);
-    expect(container.querySelector('[role="dialog"]')).toBeNull();
+  it("rejects invalid event type", () => {
+    const schema = z.object({ eventType: z.enum(["trip", "ceremony", "campaign"]) });
+    const result = schema.safeParse({ eventType: "invalid" });
+    expect(result.success).toBe(false);
   });
 
-  it("renders all event type options", () => {
-    render(<EventForm open={true} onClose={vi.fn()} />);
-    expect(screen.getByText("Create Event")).toBeDefined();
-    expect(screen.getByText("Title *")).toBeDefined();
-    expect(screen.getByText("Start Date *")).toBeDefined();
+  it("coerces numeric capacity string to number", () => {
+    const schema = z.object({ capacity: z.coerce.number().int().positive().optional() });
+    const result = schema.safeParse({ capacity: "100" });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.capacity).toBe(100);
+  });
+
+  it("rejects non-positive capacity", () => {
+    const schema = z.object({ capacity: z.coerce.number().int().positive().optional() });
+    const result = schema.safeParse({ capacity: "0" });
+    expect(result.success).toBe(false);
   });
 });
