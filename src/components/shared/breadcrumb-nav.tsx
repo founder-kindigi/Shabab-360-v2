@@ -26,6 +26,8 @@ const pageSectionMap: Partial<Record<PageId, BreadcrumbSection>> = {
 
   // Admin – Operations
   "admin-attendance-events": { section: "Operations", sectionPage: null },
+  "admin-events": { section: "Operations", sectionPage: null },
+  "admin-events-detail": { section: "Operations", sectionPage: null },
   "admin-users": { section: "Operations", sectionPage: null },
   "admin-access": { section: "Operations", sectionPage: null },
   "admin-admissions": { section: "Operations", sectionPage: null },
@@ -84,6 +86,8 @@ const pageTitles: Record<PageId, string> = {
   "admin-students": "Students",
   "admin-guardians": "Guardians",
   "admin-attendance-events": "Attendance Events",
+  "admin-events": "Events",
+  "admin-events-detail": "Event Detail",
   "admin-settings": "Settings",
   "admin-users": "Users",
   "admin-access": "Access Provisioning",

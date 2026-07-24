@@ -74,7 +74,14 @@ const eventSchema = z.object({
   capacity: z.coerce.number().int().positive().optional().or(z.literal("")),
 });
 
-type EventFormData = z.infer<typeof eventSchema>;
+type EventFormData = {
+  title: string;
+  eventType: "trip" | "ceremony" | "campaign" | "activity" | "sports_day" | "camp" | "open_day" | "closing" | "other";
+  venue: string;
+  startDate: string;
+  endDate: string;
+  capacity: number | "";
+};
 
 const EVENT_TYPES = [
   { value: "trip", label: "Trip" },
@@ -156,7 +163,11 @@ export function EventForm({
     const payload: Record<string, unknown> = { ...parsed.data };
     if (!payload.venue) delete payload.venue;
     if (!payload.endDate) delete payload.endDate;
-    if (!payload.capacity) delete payload.capacity;
+    if (payload.capacity === "" || payload.capacity === undefined) {
+      delete payload.capacity;
+    } else {
+      payload.capacity = Number(payload.capacity);
+    }
     createMutation.mutate(payload);
   };
 
