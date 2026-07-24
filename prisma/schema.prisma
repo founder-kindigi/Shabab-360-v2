@@ -31,6 +31,7 @@ model User {
   externalSupportCallers ExternalSupportCaller[]
   callingTemplateUses    CallingTemplateUse[]
   callInteractions       CallInteraction[]
+  mashwaraMeetings       MashwaraMeeting[]
 
   @@map("users")
 }
@@ -111,6 +112,7 @@ model City {
   events                Event[]
   callingCampaigns      CallingCampaign[]
   callingTemplates      CallingTemplate[]
+  mashwaraMeetings      MashwaraMeeting[]
 
   @@map("cities")
 }
@@ -199,6 +201,11 @@ model StaffMeta {
   eventResponsibilities     EventResponsibility[]
   assignedEventPlannerItems EventPlannerItem[]    @relation("EventPlannerAssignee")
   callingAssignments        CallingAssignment[]
+  mashwaraAttendees         MashwaraAttendee[]
+  mashwaraDecisions         MashwaraDecision[]
+  mashwaraActionItems       MashwaraActionItem[]
+  mashwaraShares            MashwaraMeetingShare[] @relation("MashwaraShareRecipient")
+  mashwaraGrants            MashwaraMeetingShare[] @relation("MashwaraShareGranter")
 
   @@map("staff_meta")
 }
@@ -218,6 +225,8 @@ model CollaborationTeam {
   memberships StaffTeamMembership[]
   contentBlocks ContentPlanBlock[]
   activityPlans ActivityPlanItem[]
+  mashwaraDecisionTargets  MashwaraDecision[] @relation("MashwaraDecisionTargetTeam")
+  mashwaraActionItemsTeams MashwaraActionItem[] @relation("MashwaraActionItemTeam")
 
   @@unique([cityId, code])
   @@index([cityId, isActive])
@@ -968,4 +977,104 @@ model CallInteraction {
 
   @@index([assignmentId, createdAt])
   @@map("call_interactions")
+}
+
+// ========== MASHWARA (Weekly Meetings) ==========
+
+model MashwaraMeeting {
+  id             String   @id @default(cuid())
+  cityId         String
+  title          String
+  scheduledAt    DateTime
+  location       String?
+  status         String   @default("scheduled")
+  minutesSummary String?
+  createdById    String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  city      City   @relation(fields: [cityId], references: [id], onDelete: Cascade)
+  createdBy User   @relation(fields: [createdById], references: [id], onDelete: Cascade)
+
+  attendees   MashwaraAttendee[]
+  decisions   MashwaraDecision[]
+  actionItems MashwaraActionItem[]
+  shares      MashwaraMeetingShare[]
+
+  @@index([cityId, status])
+  @@index([scheduledAt])
+  @@map("mashwara_meetings")
+}
+
+model MashwaraAttendee {
+  id               String    @id @default(cuid())
+  meetingId        String
+  staffMetaId      String
+  attendanceStatus String    @default("present")
+  notes            String?
+  checkedInAt      DateTime?
+
+  meeting   MashwaraMeeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  staffMeta StaffMeta       @relation(fields: [staffMetaId], references: [id], onDelete: Cascade)
+
+  @@unique([meetingId, staffMetaId])
+  @@index([meetingId])
+  @@index([staffMetaId])
+  @@map("mashwara_attendees")
+}
+
+model MashwaraDecision {
+  id           String   @id @default(cuid())
+  meetingId    String
+  decision     String
+  category     String?
+  targetTeamId String?
+  assignedToId String?
+  status       String   @default("pending")
+  createdAt    DateTime @default(now())
+
+  meeting    MashwaraMeeting    @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  targetTeam CollaborationTeam? @relation("MashwaraDecisionTargetTeam", fields: [targetTeamId], references: [id], onDelete: SetNull)
+  assignedTo StaffMeta?         @relation(fields: [assignedToId], references: [id], onDelete: SetNull)
+
+  @@index([meetingId, status])
+  @@map("mashwara_decisions")
+}
+
+model MashwaraActionItem {
+  id           String    @id @default(cuid())
+  meetingId    String
+  description  String
+  teamId       String
+  assignedToId String
+  dueDate      DateTime?
+  status       String    @default("open")
+  createdAt    DateTime  @default(now())
+
+  meeting    MashwaraMeeting   @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  team       CollaborationTeam @relation("MashwaraActionItemTeam", fields: [teamId], references: [id], onDelete: Cascade)
+  assignedTo StaffMeta         @relation(fields: [assignedToId], references: [id], onDelete: Cascade)
+
+  @@index([meetingId, status])
+  @@index([assignedToId, status])
+  @@map("mashwara_action_items")
+}
+
+model MashwaraMeetingShare {
+  id          String   @id @default(cuid())
+  meetingId   String
+  staffMetaId String
+  grantedById String
+  grantedAt   DateTime @default(now())
+  revokedAt   DateTime?
+  isRevoked   Boolean  @default(false)
+
+  meeting   MashwaraMeeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  staffMeta StaffMeta       @relation("MashwaraShareRecipient", fields: [staffMetaId], references: [id], onDelete: Cascade)
+  grantedBy StaffMeta       @relation("MashwaraShareGranter", fields: [grantedById], references: [id], onDelete: Cascade)
+
+  @@unique([meetingId, staffMetaId])
+  @@index([meetingId, staffMetaId, isRevoked])
+  @@index([staffMetaId])
+  @@map("mashwara_meeting_shares")
 }
