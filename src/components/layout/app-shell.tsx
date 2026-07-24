@@ -38,6 +38,7 @@ const ReportsPage = lazy(() => import("@/components/modules/admin/reports-page")
 const AccessProvisioningPage = lazy(() => import("@/components/modules/admin/access-provisioning-page").then(m => ({ default: m.AccessProvisioningPage })));
 const AccessManagementPage = lazy(() => import("@/components/modules/admin/access-management-page").then(m => ({ default: m.AccessManagementPage })));
 const CollaborationTeamsPage = lazy(() => import("@/components/modules/admin/collaboration-teams-page").then(m => ({ default: m.CollaborationTeamsPage })));
+const CallingPage = lazy(() => import("@/app/admin/calling/page").then(m => ({ default: m.default })));
 const EventsPage = lazy(() => import("@/app/admin/events/page").then(m => ({ default: m.EventsPage })));
 const FeesPage = lazy(() => import("@/components/modules/admin/fees-page").then(m => ({ default: m.FeesPage })));
 const NotificationsPage = lazy(() => import("@/components/modules/admin/notifications-page").then(m => ({ default: m.NotificationsPage })));
@@ -112,6 +113,9 @@ const pageTitles: Record<PageId, string> = {
   "admin-attendance-events": "Attendance Events",
   "admin-events": "Events",
   "admin-events-detail": "Event Detail",
+  "admin-calling": "Calling System",
+  "admin-calling-campaign-detail": "Campaign Detail",
+  "admin-calling-templates": "Templates",
   "admin-settings": "Settings",
   "admin-users": "Users",
   "admin-access": "Access Provisioning",
@@ -229,6 +233,8 @@ function PageContentInner({ pageId }: { pageId: PageId }) {
       return <AccessManagementPage />;
     case "admin-collaboration-teams":
       return <CollaborationTeamsPage />;
+    case "admin-calling":
+      return <CallingPage />;
     case "admin-audit-log":
       return <AuditLogPage />;
     case "notifications":
