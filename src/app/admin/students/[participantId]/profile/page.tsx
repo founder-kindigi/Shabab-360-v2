@@ -1,13 +1,9 @@
-"use client";
+export const dynamic = "force-dynamic";
 
-import { useSearchParams } from "next/navigation";
-import { StudentProfilePage } from "@/components/modules/student-profile/profile-page";
+import nextDynamic from "next/dynamic";
+
+const ProfileClient = nextDynamic(() => import("./_client"));
 
 export default function ExtendedProfilePage() {
-  const searchParams = useSearchParams();
-  const participantId = searchParams.get("participantId");
-  if (!participantId) {
-    return <div className="p-4 text-muted-foreground">No participant selected.</div>;
-  }
-  return <StudentProfilePage participantId={participantId} />;
+  return <ProfileClient />;
 }

@@ -39,7 +39,7 @@ const AccessProvisioningPage = lazy(() => import("@/components/modules/admin/acc
 const AccessManagementPage = lazy(() => import("@/components/modules/admin/access-management-page").then(m => ({ default: m.AccessManagementPage })));
 const CollaborationTeamsPage = lazy(() => import("@/components/modules/admin/collaboration-teams-page").then(m => ({ default: m.CollaborationTeamsPage })));
 const CallingPage = lazy(() => import("@/app/admin/calling/page").then(m => ({ default: m.default })));
-const EventsPage = lazy(() => import("@/app/admin/events/page").then(m => ({ default: m.EventsPage })));
+const EventsPage = lazy(() => import("@/app/admin/events/page").then(m => ({ default: m.default })));
 const FeesPage = lazy(() => import("@/components/modules/admin/fees-page").then(m => ({ default: m.FeesPage })));
 const NotificationsPage = lazy(() => import("@/components/modules/admin/notifications-page").then(m => ({ default: m.NotificationsPage })));
 const AdmissionsPage = lazy(() => import("@/components/modules/admin/admissions-page").then(m => ({ default: m.AdmissionsPage })));
