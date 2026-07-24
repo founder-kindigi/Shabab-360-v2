@@ -121,8 +121,8 @@ describe("GET /api/admin/collaboration-teams/[teamId]/members", () => {
     const body = await res.json();
     expect(body).toMatchObject({ total: 1, page: 1 });
     expect(body.data).toHaveLength(1);
-    const findManyCall = vi.mocked(db.staffTeamMembership.findMany).mock.calls[0][0];
-    expect(findManyCall.where).toMatchObject({ isActive: true });
+    const findManyCall = vi.mocked(db.staffTeamMembership.findMany).mock.calls[0]?.[0];
+    expect(findManyCall?.where).toMatchObject({ isActive: true });
   });
 
   it("omits isActive filter when status=all", async () => {
@@ -134,8 +134,8 @@ describe("GET /api/admin/collaboration-teams/[teamId]/members", () => {
 
     await GET(new NextRequest(`${url("t1")}?status=all`), params("t1"));
 
-    const findManyCall = vi.mocked(db.staffTeamMembership.findMany).mock.calls[0][0];
-    expect(findManyCall.where).not.toHaveProperty("isActive");
+    const findManyCall = vi.mocked(db.staffTeamMembership.findMany).mock.calls[0]?.[0];
+    expect(findManyCall?.where).not.toHaveProperty("isActive");
   });
 });
 

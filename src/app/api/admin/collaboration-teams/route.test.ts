@@ -68,7 +68,7 @@ describe("GET /api/admin/collaboration-teams", () => {
     const body = await res.json();
     expect(body).toMatchObject({ total: 0, page: 1, pageSize: 20 });
     // No cityId constraint in the where clause
-    const callWhere = vi.mocked(db.collaborationTeam.findMany).mock.calls[0][0].where;
+    const callWhere = vi.mocked(db.collaborationTeam.findMany).mock.calls[0]?.[0]?.where;
     expect(callWhere).not.toHaveProperty("cityId");
   });
 
@@ -80,7 +80,7 @@ describe("GET /api/admin/collaboration-teams", () => {
 
     await GET(new NextRequest(`${BASE}?cityId=city-lhr`));
 
-    const callWhere = vi.mocked(db.collaborationTeam.findMany).mock.calls[0][0].where;
+    const callWhere = vi.mocked(db.collaborationTeam.findMany).mock.calls[0]?.[0]?.where;
     expect(callWhere).toMatchObject({ cityId: "city-lhr" });
   });
 
@@ -92,7 +92,7 @@ describe("GET /api/admin/collaboration-teams", () => {
 
     await GET(new NextRequest(BASE));
 
-    const callWhere = vi.mocked(db.collaborationTeam.findMany).mock.calls[0][0].where;
+    const callWhere = vi.mocked(db.collaborationTeam.findMany).mock.calls[0]?.[0]?.where;
     expect(callWhere).toMatchObject({ cityId: "city-lhr" });
   });
 
@@ -128,7 +128,7 @@ describe("GET /api/admin/collaboration-teams", () => {
 
     await GET(new NextRequest(`${BASE}?status=inactive`));
 
-    const callWhere = vi.mocked(db.collaborationTeam.findMany).mock.calls[0][0].where;
+    const callWhere = vi.mocked(db.collaborationTeam.findMany).mock.calls[0]?.[0]?.where;
     expect(callWhere).toMatchObject({ isActive: false });
   });
 
@@ -140,7 +140,7 @@ describe("GET /api/admin/collaboration-teams", () => {
 
     await GET(new NextRequest(`${BASE}?status=all`));
 
-    const callWhere = vi.mocked(db.collaborationTeam.findMany).mock.calls[0][0].where;
+    const callWhere = vi.mocked(db.collaborationTeam.findMany).mock.calls[0]?.[0]?.where;
     expect(callWhere).not.toHaveProperty("isActive");
   });
 });
