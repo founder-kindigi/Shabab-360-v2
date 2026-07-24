@@ -18,6 +18,8 @@ export type PageId =
   | "admin-students"
   | "admin-guardians"
   | "admin-attendance-events"
+  | "admin-events"
+  | "admin-events-detail"
   | "admin-settings"
   | "admin-users"
   | "admin-admissions"
