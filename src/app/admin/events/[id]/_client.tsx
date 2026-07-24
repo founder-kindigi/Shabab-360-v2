@@ -1,0 +1,320 @@
+"use client";
+
+import { useState } from "react";
+import { useParams } from "next/navigation";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useSession } from "next-auth/react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  ArrowLeft,
+  Calendar,
+  MapPin,
+  Users,
+  ClipboardList,
+  Lock,
+  Plus,
+  Loader2,
+  CheckCircle2,
+  XCircle,
+  Trash2,
+} from "lucide-react";
+import { EventResponsibilityCard } from "@/components/events/EventResponsibilityCard";
+import { EventTeamRoster } from "@/components/events/EventTeamRoster";
+
+type EventDetail = {
+  id: string;
+  cityId: string;
+  title: string;
+  description: string | null;
+  eventType: string;
+  status: string;
+  venue: string | null;
+  venueNotes: string | null;
+  startDate: string;
+  endDate: string | null;
+  capacity: number | null;
+  requiresConsent: boolean;
+  requiresMedical: boolean;
+  teams: { id: string; title: string; _count?: { memberships: number } }[];
+  responsibilities: { id: string; title: string; isActive: boolean; endDate: string }[];
+  plannerItems: PlannerItem[];
+};
+
+type PlannerItem = {
+  id: string;
+  title: string;
+  description: string | null;
+  status: string;
+  dueDate: string | null;
+  priority: string;
+  assignedToStaffMetaId: string | null;
+  teamId: string | null;
+};
+
+const STATUS_STYLES: Record<string, string> = {
+  planned: "bg-muted text-muted-foreground",
+  confirmed: "bg-blue-100 text-blue-700",
+  in_progress: "bg-amber-100 text-amber-700",
+  completed: "bg-emerald-100 text-emerald-700",
+  cancelled: "bg-red-100 text-red-700",
+};
+
+const PRIORITY_STYLES: Record<string, string> = {
+  low: "bg-muted text-muted-foreground",
+  medium: "bg-blue-100 text-blue-700",
+  high: "bg-amber-100 text-amber-700",
+  critical: "bg-red-100 text-red-700",
+};
+
+export default function EventDetailPage() {
+  const params = useParams<{ id: string }>();
+  const eventId = params.id;
+  const { data: session } = useSession();
+  const userRole = (session?.user as { role?: string } | undefined)?.role;
+  const canManage = ["super_admin", "program_admin", "city_head"].includes(userRole || "");
+  const queryClient = useQueryClient();
+
+  const [showPlanner, setShowPlanner] = useState(false);
+  const [plannerTitle, setPlannerTitle] = useState("");
+  const [plannerPriority, setPlannerPriority] = useState("medium");
+  const [plannerDue, setPlannerDue] = useState("");
+
+  const { data, isLoading, error } = useQuery<EventDetail>({
+    queryKey: ["event-detail", eventId],
+    queryFn: () => fetch(`/api/admin/events/${eventId}`).then((r) => {
+      if (!r.ok) throw new Error("Failed to load event");
+      return r.json();
+    }),
+  });
+
+  const cancelMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/admin/events/${eventId}/cancel`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason: "Cancelled by manager" }),
+      });
+      if (!res.ok) throw new Error("Failed to cancel");
+      return res.json();
+    },
+    onSuccess: () => { toast.success("Event cancelled"); queryClient.invalidateQueries({ queryKey: ["event-detail", eventId] }); },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const completeMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/admin/events/${eventId}/complete`, { method: "POST" });
+      if (!res.ok) throw new Error("Failed to complete");
+      return res.json();
+    },
+    onSuccess: () => { toast.success("Event completed"); queryClient.invalidateQueries({ queryKey: ["event-detail", eventId] }); },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const createPlannerMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/admin/events/${eventId}/planner`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: plannerTitle, priority: plannerPriority, dueDate: plannerDue ? new Date(plannerDue).toISOString() : undefined }),
+      });
+      if (!res.ok) throw new Error("Failed to create task");
+      return res.json();
+    },
+    onSuccess: () => {
+      toast.success("Task created");
+      setShowPlanner(false);
+      setPlannerTitle("");
+      setPlannerDue("");
+      queryClient.invalidateQueries({ queryKey: ["event-detail", eventId] });
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const updatePlannerMutation = useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: string }) => {
+      const res = await fetch(`/api/admin/events/planner/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      if (!res.ok) throw new Error("Failed to update task");
+      return res.json();
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["event-detail", eventId] }),
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  if (isLoading) {
+    return <div className="space-y-4 p-4 md:p-6">{Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-12 w-full rounded-lg" />)}</div>;
+  }
+  if (error || !data) {
+    return <div className="p-4 md:p-6 text-center text-muted-foreground">Event not found.</div>;
+  }
+
+  const isTerminal = data.status === "completed" || data.status === "cancelled";
+
+  return (
+    <div className="space-y-6 p-4 md:p-6">
+      {/* Back + Header */}
+      <div className="flex items-start gap-3">
+        <Button variant="ghost" size="icon" className="mt-0.5 shrink-0" onClick={() => window.history.back()}>
+          <ArrowLeft className="size-5" />
+        </Button>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h1 className="text-xl font-bold truncate">{data.title}</h1>
+            <Badge className={STATUS_STYLES[data.status]}>{data.status.replace(/_/g, " ")}</Badge>
+            <Badge variant="outline" className="text-[10px]">{data.eventType.replace(/_/g, " ")}</Badge>
+          </div>
+          <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground flex-wrap">
+            <span className="flex items-center gap-1"><Calendar className="size-3" />{new Date(data.startDate).toLocaleDateString()}</span>
+            {data.venue && <span className="flex items-center gap-1"><MapPin className="size-3" />{data.venue}</span>}
+            {data.capacity && <span className="flex items-center gap-1"><Users className="size-3" />Capacity: {data.capacity}</span>}
+          </div>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          {canManage && !isTerminal && data.status !== "cancelled" && (
+            <Button size="sm" variant="outline" className="text-red-500 border-red-200" onClick={() => cancelMutation.mutate()}>
+              <XCircle className="size-3.5 mr-1" /> Cancel
+            </Button>
+          )}
+          {canManage && data.status === "in_progress" && (
+            <Button size="sm" onClick={() => completeMutation.mutate()}>
+              <CheckCircle2 className="size-3.5 mr-1" /> Complete
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <Tabs defaultValue="overview">
+        <TabsList className="flex-wrap">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="teams">Teams ({data.teams?.length || 0})</TabsTrigger>
+          <TabsTrigger value="responsibilities">Responsibilities ({data.responsibilities?.length || 0})</TabsTrigger>
+          <TabsTrigger value="planner">Planner ({data.plannerItems?.length || 0})</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="overview" className="space-y-4 pt-4">
+          {data.description && (
+            <Card>
+              <CardHeader><CardTitle className="text-base">Description</CardTitle></CardHeader>
+              <CardContent><p className="text-sm">{data.description}</p></CardContent>
+            </Card>
+          )}
+          <Card>
+            <CardHeader><CardTitle className="text-base">Details</CardTitle></CardHeader>
+            <CardContent className="grid grid-cols-2 gap-4 text-sm">
+              <div><span className="text-muted-foreground">Type</span><p className="font-medium">{data.eventType}</p></div>
+              <div><span className="text-muted-foreground">Status</span><p className="font-medium">{data.status}</p></div>
+              <div><span className="text-muted-foreground">Start</span><p className="font-medium">{new Date(data.startDate).toLocaleDateString()}</p></div>
+              {data.endDate && <div><span className="text-muted-foreground">End</span><p className="font-medium">{new Date(data.endDate).toLocaleDateString()}</p></div>}
+              {data.venue && <div className="col-span-2"><span className="text-muted-foreground">Venue</span><p className="font-medium">{data.venue}</p></div>}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="teams" className="space-y-4 pt-4">
+          {data.teams?.length === 0 && <p className="text-sm text-muted-foreground text-center py-8">No teams created yet.</p>}
+          {data.teams?.map((team) => (
+            <div key={team.id}>
+              <Card className="mb-4">
+                <CardHeader><CardTitle className="text-base">{team.title}</CardTitle></CardHeader>
+              </Card>
+              <EventTeamRoster teamId={team.id} eventId={eventId} canManage={canManage} />
+            </div>
+          ))}
+        </TabsContent>
+
+        <TabsContent value="responsibilities" className="space-y-4 pt-4">
+          <EventResponsibilityCard eventId={eventId} canManage={canManage} />
+        </TabsContent>
+
+        <TabsContent value="planner" className="space-y-4 pt-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-medium">Tasks</h3>
+            {canManage && (
+              <Button size="sm" variant="outline" onClick={() => setShowPlanner(true)}>
+                <Plus className="size-3.5 mr-1" /> Add Task
+              </Button>
+            )}
+          </div>
+          {data.plannerItems?.length === 0 && <p className="text-sm text-muted-foreground text-center py-8">No tasks yet.</p>}
+          {data.plannerItems?.map((item) => (
+            <div key={item.id} className="flex items-center justify-between p-3 rounded-lg border">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-medium">{item.title}</p>
+                  <Badge variant="outline" className={cn("text-[10px]", PRIORITY_STYLES[item.priority])}>{item.priority}</Badge>
+                  <Badge variant="outline" className="text-[10px]">{item.status}</Badge>
+                </div>
+                {item.dueDate && <p className="text-xs text-muted-foreground mt-0.5">Due: {new Date(item.dueDate).toLocaleDateString()}</p>}
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                {canManage && item.status === "pending" && (
+                  <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => updatePlannerMutation.mutate({ id: item.id, status: "in_progress" })}>Start</Button>
+                )}
+                {canManage && item.status === "in_progress" && (
+                  <Button size="sm" variant="ghost" className="h-7 text-xs text-emerald-600" onClick={() => updatePlannerMutation.mutate({ id: item.id, status: "completed" })}>Done</Button>
+                )}
+                {canManage && !["completed", "cancelled"].includes(item.status) && (
+                  <Button size="sm" variant="ghost" className="h-7 text-xs text-red-500" onClick={() => updatePlannerMutation.mutate({ id: item.id, status: "cancelled" })}>Cancel</Button>
+                )}
+              </div>
+            </div>
+          ))}
+        </TabsContent>
+      </Tabs>
+
+      {/* Create Planner Item Dialog */}
+      <Dialog open={showPlanner} onOpenChange={(v) => !v && setShowPlanner(false)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Add Task</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <Input placeholder="Task title" value={plannerTitle} onChange={(e) => setPlannerTitle(e.target.value)} />
+            <Select value={plannerPriority} onValueChange={setPlannerPriority}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="low">Low</SelectItem>
+                <SelectItem value="medium">Medium</SelectItem>
+                <SelectItem value="high">High</SelectItem>
+                <SelectItem value="critical">Critical</SelectItem>
+              </SelectContent>
+            </Select>
+            <Input type="date" value={plannerDue} onChange={(e) => setPlannerDue(e.target.value)} />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowPlanner(false)}>Cancel</Button>
+            <Button onClick={() => createPlannerMutation.mutate()} disabled={!plannerTitle || createPlannerMutation.isPending}>
+              {createPlannerMutation.isPending ? <Loader2 className="size-4 animate-spin" /> : "Create"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}

@@ -1,7 +1,9 @@
-"use client";
+export const dynamic = "force-dynamic";
 
-import { CollaborationTeamsPage } from "@/components/modules/admin/collaboration-teams-page";
+import nextDynamic from "next/dynamic";
+
+const TeamsContent = nextDynamic(() => import("@/components/modules/admin/collaboration-teams-page").then(m => ({ default: m.CollaborationTeamsPage })));
 
 export default function CollaborationTeamsPageRoute() {
-  return <CollaborationTeamsPage />;
+  return <TeamsContent />;
 }
