@@ -187,7 +187,7 @@ export function EventForm({
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Type *</Label>
-              <Select value={form.eventType} onValueChange={(v) => setForm({ ...form, eventType: v })}>
+              <Select value={form.eventType} onValueChange={(v) => setForm({ ...form, eventType: v as EventFormData["eventType"] })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {EVENT_TYPES.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
@@ -212,7 +212,7 @@ export function EventForm({
           </div>
           <div className="space-y-2">
             <Label htmlFor="capacity">Capacity</Label>
-            <Input id="capacity" type="number" min="1" value={form.capacity} onChange={(e) => setForm({ ...form, capacity: e.target.value })} placeholder="Optional max attendees" />
+            <Input id="capacity" type="number" min="1" value={form.capacity} onChange={(e) => setForm({ ...form, capacity: e.target.value ? Number(e.target.value) : "" })} placeholder="Optional max attendees" />
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
