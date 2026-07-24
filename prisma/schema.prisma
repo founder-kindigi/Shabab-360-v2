@@ -21,13 +21,16 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  staffMeta     StaffMeta?
-  guardian      Guardian?
-  participant   Participant?
-  auditLogs     AuditLog[]
-  announcements Announcement[]
-  notifications Notification[]
+  staffMeta           StaffMeta?
+  guardian            Guardian?
+  participant         Participant?
+  auditLogs           AuditLog[]
+  announcements       Announcement[]
+  notifications       Notification[]
   capabilityOverrides UserCapabilityOverride[]
+  externalSupportCallers ExternalSupportCaller[]
+  callingTemplateUses    CallingTemplateUse[]
+  callInteractions       CallInteraction[]
 
   @@map("users")
 }
@@ -105,6 +108,9 @@ model City {
   collaborationTeams    CollaborationTeam[]
   contentPlans          ContentPlan[]
   admissionApplications AdmissionApplication[]
+  events                Event[]
+  callingCampaigns      CallingCampaign[]
+  callingTemplates      CallingTemplate[]
 
   @@map("cities")
 }
@@ -191,6 +197,10 @@ model StaffMeta {
   assignedActivityPlans ActivityPlanItem[] @relation("ActivityAssignee")
   authoredChatMessages TeamChatMessage[] @relation("MessageAuthor")
   createdDocumentLinks TeamDocumentLink[] @relation("DocumentLinkCreator")
+  eventTeamMemberships      EventTeamMembership[]
+  eventResponsibilities     EventResponsibility[]
+  assignedEventPlannerItems EventPlannerItem[]    @relation("EventPlannerAssignee")
+  callingAssignments        CallingAssignment[]
 
   @@map("staff_meta")
 }
@@ -383,6 +393,81 @@ model ActivityPlanItem {
   @@map("activity_plan_items")
 }
 
+// Student Extended Profile — supplementary biographical, developmental, and
+// wellbeing data beyond the canonical Participant record. Created on demand.
+// Never duplicates Participant, Guardian, Group, Batch, Park, or City fields.
+model StudentExtendedProfile {
+  id                    String   @id @default(cuid())
+  participantId         String   @unique
+  // Education tab
+  school                String?
+  college               String?
+  educationSystem       String?
+  previousResults       String?
+  awardsAchievements    String?
+  averageGrade          String?
+  favouriteSubjects     String?
+  // Family & Background tab
+  fatherName            String?
+  fatherOccupation      String?
+  siblings              String?
+  financialStatus       String?
+  nativeArea            String?
+  ethnicity             String?
+  modeOfTransport       String?
+  // Interests & Skills tab
+  subjectsOfInterest    String?
+  extraCurricular       String?
+  hobbies               String?
+  sports                String?
+  learningStyle         String?
+  curiosity             String?
+  specialTalent         String?
+  currentSkills         String?
+  skillsWantToLearn     String?
+  // Goals & Development tab
+  generalGoals          String?
+  vision                String?
+  mission               String?
+  deenBackground        String?
+  careerAspirations     String?
+  academicInterests     String?
+  collegePlans          String?
+  futureCareerGoals     String?
+  strengths             String?
+  weaknesses            String?
+  goodHabits            String?
+  badHabits             String?
+  // Support & Wellbeing tab
+  disability            String?
+  specialNeed           String?
+  moralCharacter        String?
+  namaz                 String?
+  // Personality & Skills tab
+  leadershipSkills      String?
+  personalityResponsibility String?
+  communicationSkills   String?
+  teamworkSkills        String?
+  problemSolvingSkills  String?
+  creativity            String?
+  criticalThinking      String?
+  adaptability          String?
+  initiative            String?
+  selfMotivation        String?
+  integrity             String?
+  empathy               String?
+  reading               String?
+  learningInterest      String?
+  // Metadata
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  participant Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+
+  @@index([participantId])
+  @@map("student_extended_profiles")
+}
+
 model Guardian {
   id        String   @id @default(cuid())
   userId    String?  @unique
@@ -436,6 +521,7 @@ model Participant {
   attendanceRecords AttendanceRecord[]
   payments          Payment[]
   convertedFromApp  AdmissionApplication? @relation("ConvertedFrom")
+  extendedProfile   StudentExtendedProfile?
 
   @@index([groupId, state])
   @@map("participants")
@@ -581,6 +667,7 @@ model AdmissionApplication {
   preferredPark        Park?                @relation(fields: [preferredParkId], references: [id], onDelete: SetNull)
   interviews           AdmissionInterview[]
   convertedParticipant Participant?         @relation("ConvertedFrom", fields: [convertedParticipantId], references: [id])
+  callingAssignments   CallingAssignment[]
 
   @@map("admission_applications")
 }
@@ -655,4 +742,270 @@ model ReportPreset {
   updatedAt  DateTime @updatedAt
 
   @@map("report_presets")
+}
+
+// ========== PROGRAMME EVENTS ==========
+
+model Event {
+  id              String   @id @default(cuid())
+  cityId          String
+  title           String
+  description     String?
+  eventType       String
+  status          String   @default("planned")
+  venue           String?
+  venueNotes      String?
+  startDate       DateTime
+  endDate         DateTime?
+  capacity        Int?
+  cost            Decimal? @default(0)
+  requiresConsent Boolean  @default(false)
+  requiresMedical Boolean  @default(false)
+  createdBy       String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  city             City                  @relation(fields: [cityId], references: [id], onDelete: Cascade)
+  teams            TemporaryEventTeam[]
+  responsibilities EventResponsibility[]
+  plannerItems     EventPlannerItem[]
+
+  @@index([cityId, status])
+  @@index([cityId, startDate])
+  @@index([status, startDate])
+  @@map("events")
+}
+
+model TemporaryEventTeam {
+  id          String   @id @default(cuid())
+  eventId     String
+  title       String
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  event        Event                 @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  memberships  EventTeamMembership[]
+  plannerItems EventPlannerItem[]
+
+  @@unique([eventId, title])
+  @@index([eventId, isActive])
+  @@map("temporary_event_teams")
+}
+
+model EventTeamMembership {
+  id            String    @id @default(cuid())
+  teamId        String
+  staffMetaId   String
+  title         String?
+  assignedAt    DateTime  @default(now())
+  assignedUntil DateTime?
+  revokedAt     DateTime?
+  revokedReason String?
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  team      TemporaryEventTeam @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  staffMeta StaffMeta          @relation(fields: [staffMetaId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, staffMetaId])
+  @@index([staffMetaId, isActive])
+  @@index([teamId, isActive])
+  @@map("event_team_memberships")
+}
+
+model EventResponsibility {
+  id                    String    @id @default(cuid())
+  eventId               String?
+  mashwaraId            String?
+  mashwaraOccurrenceId String?
+  title                 String
+  description           String?
+  assignedToStaffMetaId String
+  assignedBy            String
+  cityId                String
+  startDate             DateTime
+  endDate               DateTime
+  revokedAt             DateTime?
+  revokedBy             String?
+  revokedReason         String?
+  isActive              Boolean   @default(true)
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  event               Event?    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  assignedToStaffMeta StaffMeta @relation(fields: [assignedToStaffMetaId], references: [id], onDelete: Cascade)
+  callingPOCAssignments CallingPOCAssignment[]
+
+  @@index([assignedToStaffMetaId, isActive])
+  @@index([eventId, isActive])
+  @@index([cityId, isActive])
+  @@index([endDate, isActive])
+  @@map("event_responsibilities")
+}
+
+model EventPlannerItem {
+  id                    String    @id @default(cuid())
+  eventId               String
+  title                 String
+  description           String?
+  assignedToStaffMetaId String?
+  teamId                String?
+  dueDate               DateTime?
+  priority              String    @default("medium")
+  status                String    @default("pending")
+  completedAt           DateTime?
+  completionNote        String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  event             Event               @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  assignedStaffMeta StaffMeta?          @relation("EventPlannerAssignee", fields: [assignedToStaffMetaId], references: [id], onDelete: SetNull)
+  team              TemporaryEventTeam? @relation(fields: [teamId], references: [id], onDelete: SetNull)
+
+  @@index([eventId, status])
+  @@index([assignedToStaffMetaId, status])
+  @@index([teamId, status])
+  @@index([dueDate, status])
+  @@map("event_planner_items")
+}
+
+// ========== CALLING MODULE ADDITIVE MODELS ==========
+
+model CallingCampaign {
+  id          String   @id @default(cuid())
+  cityId      String
+  name        String
+  description String?
+  status      String   @default("draft")
+  startDate   DateTime
+  endDate     DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  city            City                    @relation(fields: [cityId], references: [id], onDelete: Cascade)
+  pocAssignments  CallingPOCAssignment[]
+  assignments     CallingAssignment[]
+  templates       CallingTemplate[]
+  externalCallers ExternalSupportCaller[]
+
+  @@unique([cityId, name])
+  @@index([cityId, status])
+  @@map("calling_campaigns")
+}
+
+model CallingPOCAssignment {
+  id                    String   @id @default(cuid())
+  campaignId            String
+  eventResponsibilityId String
+  isActive              Boolean  @default(true)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  campaign            CallingCampaign     @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  eventResponsibility EventResponsibility @relation(fields: [eventResponsibilityId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, eventResponsibilityId])
+  @@map("calling_poc_assignments")
+}
+
+model ExternalSupportCaller {
+  id         String    @id @default(cuid())
+  userId     String
+  campaignId String
+  isActive   Boolean   @default(true)
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  revokedBy  String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  campaign    CallingCampaign     @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  assignments CallingAssignment[]
+
+  @@index([userId, isActive])
+  @@index([campaignId, isActive])
+  @@map("external_support_callers")
+}
+
+model CallingTemplate {
+  id         String   @id @default(cuid())
+  cityId     String
+  campaignId String?
+  title      String
+  body       String
+  status     String   @default("draft")
+  version    Int      @default(1)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  city     City                 @relation(fields: [cityId], references: [id], onDelete: Cascade)
+  campaign CallingCampaign?     @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  uses     CallingTemplateUse[]
+
+  @@unique([cityId, title, version])
+  @@map("calling_templates")
+}
+
+model CallingTemplateUse {
+  id              String   @id @default(cuid())
+  templateId      String
+  templateVersion Int
+  callerUserId    String
+  assignmentId    String
+  variablesUsed   String
+  valuesHmac      String
+  usedAt          DateTime @default(now())
+
+  template   CallingTemplate   @relation(fields: [templateId], references: [id], onDelete: Restrict)
+  caller     User              @relation(fields: [callerUserId], references: [id], onDelete: Restrict)
+  assignment CallingAssignment @relation(fields: [assignmentId], references: [id], onDelete: Restrict)
+
+  @@index([templateId])
+  @@index([callerUserId])
+  @@map("calling_template_uses")
+}
+
+model CallingAssignment {
+  id                String    @id @default(cuid())
+  campaignId        String
+  applicationId     String
+  callerStaffMetaId String?
+  callerExternalId  String?
+  status            String    @default("pending")
+  isActive          Boolean   @default(true)
+  startedAt         DateTime  @default(now())
+  endedAt           DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  campaign       CallingCampaign        @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  application    AdmissionApplication   @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  staffCaller    StaffMeta?             @relation(fields: [callerStaffMetaId], references: [id], onDelete: SetNull)
+  externalCaller ExternalSupportCaller? @relation(fields: [callerExternalId], references: [id], onDelete: SetNull)
+  interactions   CallInteraction[]
+  templateUses   CallingTemplateUse[]
+
+  @@index([callerStaffMetaId, isActive])
+  @@index([callerExternalId, isActive])
+  @@map("calling_assignments")
+}
+
+model CallInteraction {
+  id           String    @id @default(cuid())
+  assignmentId String
+  callerUserId String
+  outcome      String
+  notes        String?
+  scheduledFor DateTime?
+  createdAt    DateTime  @default(now())
+
+  assignment CallingAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  caller     User              @relation(fields: [callerUserId], references: [id], onDelete: Cascade)
+
+  @@index([assignmentId, createdAt])
+  @@map("call_interactions")
 }
