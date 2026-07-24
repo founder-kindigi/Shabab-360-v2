@@ -1,47 +1,146 @@
+/**
+ * Tests for GET /api/admin/collaboration-teams
+ * Covers: capability gate, HQ unrestricted, scoped-city allow/deny,
+ * foreign-city 403, no-city 403, pagination, status filter.
+ */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest, NextResponse } from "next/server";
 
-const mocks = vi.hoisted(() => ({
-  requireRole: vi.fn(),
-  requireCapability: vi.fn(),
-  teamFindMany: vi.fn(),
-}));
-
 vi.mock("@/lib/auth/authorize", () => ({
-  requireRole: mocks.requireRole,
-  requireCapability: mocks.requireCapability,
+  requireCapability: vi.fn(),
+  requireCityScope: vi.fn().mockReturnValue(true),
+  isHqRole: vi.fn(),
 }));
 vi.mock("@/lib/db", () => ({
-  db: { collaborationTeam: { findMany: mocks.teamFindMany } },
+  db: {
+    collaborationTeam: {
+      findMany: vi.fn(),
+      count: vi.fn(),
+    },
+  },
 }));
 
+import * as auth from "@/lib/auth/authorize";
+import { db } from "@/lib/db";
 import { GET } from "./route";
+
+const BASE = "http://localhost/api/admin/collaboration-teams";
 
 describe("GET /api/admin/collaboration-teams", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.requireRole.mockResolvedValue(null);
-    mocks.requireCapability.mockResolvedValue({ user: { id: "super-admin", role: "super_admin" } });
+    vi.mocked(db.collaborationTeam.findMany).mockResolvedValue([] as any);
+    vi.mocked(db.collaborationTeam.count).mockResolvedValue(0);
   });
 
-  it("denies a non-Super-Admin before listing teams", async () => {
-    mocks.requireRole.mockResolvedValue(NextResponse.json({ error: "Forbidden" }, { status: 403 }));
+  it("returns 403 when organisation.manage capability is missing", async () => {
+    vi.mocked(auth.requireCapability).mockResolvedValue(
+      NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    );
 
-    const response = await GET(new NextRequest("http://localhost/api/admin/collaboration-teams"));
+    const res = await GET(new NextRequest(BASE));
 
-    expect(response.status).toBe(403);
-    expect(mocks.requireCapability).not.toHaveBeenCalled();
-    expect(mocks.teamFindMany).not.toHaveBeenCalled();
+    expect(res.status).toBe(403);
+    expect(db.collaborationTeam.findMany).not.toHaveBeenCalled();
   });
 
-  it("applies a validated city filter without exposing inactive teams by default", async () => {
-    mocks.teamFindMany.mockResolvedValue([]);
+  it("returns 400 on invalid pageSize", async () => {
+    vi.mocked(auth.requireCapability).mockResolvedValue(
+      { user: { id: "u1", role: "super_admin" } } as any
+    );
+    vi.mocked(auth.isHqRole).mockReturnValue(true);
 
-    const response = await GET(new NextRequest("http://localhost/api/admin/collaboration-teams?cityId=city-lhr"));
+    const res = await GET(new NextRequest(`${BASE}?pageSize=9999`));
 
-    expect(response.status).toBe(200);
-    expect(mocks.teamFindMany).toHaveBeenCalledWith(expect.objectContaining({
-      where: { cityId: "city-lhr", isActive: true },
-    }));
+    expect(res.status).toBe(400);
+    expect(db.collaborationTeam.findMany).not.toHaveBeenCalled();
+  });
+
+  it("HQ user lists all cities when no cityId supplied", async () => {
+    vi.mocked(auth.requireCapability).mockResolvedValue(
+      { user: { id: "u1", role: "super_admin" } } as any
+    );
+    vi.mocked(auth.isHqRole).mockReturnValue(true);
+
+    const res = await GET(new NextRequest(BASE));
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body).toMatchObject({ total: 0, page: 1, pageSize: 20 });
+    // No cityId constraint in the where clause
+    const callWhere = vi.mocked(db.collaborationTeam.findMany).mock.calls[0][0].where;
+    expect(callWhere).not.toHaveProperty("cityId");
+  });
+
+  it("HQ user narrows to supplied cityId", async () => {
+    vi.mocked(auth.requireCapability).mockResolvedValue(
+      { user: { id: "u1", role: "super_admin" } } as any
+    );
+    vi.mocked(auth.isHqRole).mockReturnValue(true);
+
+    await GET(new NextRequest(`${BASE}?cityId=city-lhr`));
+
+    const callWhere = vi.mocked(db.collaborationTeam.findMany).mock.calls[0][0].where;
+    expect(callWhere).toMatchObject({ cityId: "city-lhr" });
+  });
+
+  it("city_head sees only their assigned city when no cityId supplied", async () => {
+    vi.mocked(auth.requireCapability).mockResolvedValue(
+      { user: { id: "u2", role: "city_head", assignedCityId: "city-lhr" } } as any
+    );
+    vi.mocked(auth.isHqRole).mockReturnValue(false);
+
+    await GET(new NextRequest(BASE));
+
+    const callWhere = vi.mocked(db.collaborationTeam.findMany).mock.calls[0][0].where;
+    expect(callWhere).toMatchObject({ cityId: "city-lhr" });
+  });
+
+  it("returns 403 when city_head supplies a foreign cityId", async () => {
+    vi.mocked(auth.requireCapability).mockResolvedValue(
+      { user: { id: "u2", role: "city_head", assignedCityId: "city-lhr" } } as any
+    );
+    vi.mocked(auth.isHqRole).mockReturnValue(false);
+
+    const res = await GET(new NextRequest(`${BASE}?cityId=city-khi`));
+
+    expect(res.status).toBe(403);
+    expect(db.collaborationTeam.findMany).not.toHaveBeenCalled();
+  });
+
+  it("returns 403 when scoped user has no assignedCityId", async () => {
+    vi.mocked(auth.requireCapability).mockResolvedValue(
+      { user: { id: "u3", role: "city_head", assignedCityId: null } } as any
+    );
+    vi.mocked(auth.isHqRole).mockReturnValue(false);
+
+    const res = await GET(new NextRequest(BASE));
+
+    expect(res.status).toBe(403);
+    expect(db.collaborationTeam.findMany).not.toHaveBeenCalled();
+  });
+
+  it("applies isActive=false when status=inactive", async () => {
+    vi.mocked(auth.requireCapability).mockResolvedValue(
+      { user: { id: "u1", role: "super_admin" } } as any
+    );
+    vi.mocked(auth.isHqRole).mockReturnValue(true);
+
+    await GET(new NextRequest(`${BASE}?status=inactive`));
+
+    const callWhere = vi.mocked(db.collaborationTeam.findMany).mock.calls[0][0].where;
+    expect(callWhere).toMatchObject({ isActive: false });
+  });
+
+  it("omits isActive when status=all", async () => {
+    vi.mocked(auth.requireCapability).mockResolvedValue(
+      { user: { id: "u1", role: "super_admin" } } as any
+    );
+    vi.mocked(auth.isHqRole).mockReturnValue(true);
+
+    await GET(new NextRequest(`${BASE}?status=all`));
+
+    const callWhere = vi.mocked(db.collaborationTeam.findMany).mock.calls[0][0].where;
+    expect(callWhere).not.toHaveProperty("isActive");
   });
 });
