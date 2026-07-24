@@ -23,14 +23,14 @@ export async function GET(
   // Validate GuardianChild link
   const link = await db.guardianChild.findFirst({
     where: {
-      participantId: params.participantId,
+      participantId,
       guardian: { userId: user.id },
     },
   });
   if (!link) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const profile = await db.studentExtendedProfile.findUnique({
-    where: { participantId: params.participantId },
+    where: { participantId },
   });
   if (!profile) return NextResponse.json(null, { status: 200 });
 

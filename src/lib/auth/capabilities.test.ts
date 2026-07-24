@@ -155,7 +155,7 @@ describe("access capability policy", () => {
     // sensitive.view and sensitive.manage are role-level only.
     expect(USER_OVERRIDE_CAPABILITIES.includes("students.profile.view")).toBe(true);
     expect(USER_OVERRIDE_CAPABILITIES.includes("students.profile.manage")).toBe(true);
-    expect(USER_OVERRIDE_CAPABILITIES.includes("students.profile.sensitive.view")).toBe(false);
-    expect(USER_OVERRIDE_CAPABILITIES.includes("students.profile.sensitive.manage")).toBe(false);
+    expect((USER_OVERRIDE_CAPABILITIES as readonly string[]).includes("students.profile.sensitive.view")).toBe(false);
+    expect((USER_OVERRIDE_CAPABILITIES as readonly string[]).includes("students.profile.sensitive.manage")).toBe(false);
   });
 });
