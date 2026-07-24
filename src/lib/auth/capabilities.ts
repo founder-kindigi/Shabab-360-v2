@@ -38,6 +38,7 @@ export const ACCESS_CAPABILITIES = [
   "students.profile.sensitive.manage",
   "mashwara.view",
   "mashwara.manage",
+  "reports.export",
 ] as const;
 
 // Individual overrides must never grant audit, system-setting, or access
@@ -65,6 +66,7 @@ export const USER_OVERRIDE_CAPABILITIES = [
   "students.profile.manage",
   "mashwara.view",
   "mashwara.manage",
+  "reports.export",
 ] as const;
 
 export type AccessCapability = (typeof ACCESS_CAPABILITIES)[number];
@@ -114,6 +116,7 @@ export const ROLE_DEFAULT_CAPABILITIES: Readonly<Record<UserRole, readonly Acces
     "students.profile.sensitive.manage",
     "mashwara.view",
     "mashwara.manage",
+    "reports.export",
   ],
   city_head: [
     "dashboard.view",
@@ -144,6 +147,7 @@ export const ROLE_DEFAULT_CAPABILITIES: Readonly<Record<UserRole, readonly Acces
     "students.profile.sensitive.manage",
     "mashwara.view",
     "mashwara.manage",
+    "reports.export",
   ],
   park_lead: [
     "dashboard.view",
