@@ -152,38 +152,40 @@ export async function PATCH(
       );
     }
 
-    // Create participant
-    const participant = await db.participant.create({
-      data: {
-        name: existing.applicantName,
-        dateOfBirth: existing.applicantDOB,
-        gender: existing.gender,
-        groupId: data.groupId,
-      },
-    });
-
-    // Optionally create guardian
-    if (data.createGuardian) {
-      const guardian = await db.guardian.create({
+    // Use transaction for enrollment data integrity
+    const enrollmentResult = await db.$transaction(async (tx) => {
+      const participant = await tx.participant.create({
         data: {
-          name: existing.guardianName,
-          phone: existing.guardianPhone,
+          name: existing.applicantName,
+          dateOfBirth: existing.applicantDOB,
+          gender: existing.gender,
+          groupId: data.groupId!,
         },
       });
 
-      await db.guardianChild.create({
-        data: {
-          guardianId: guardian.id,
-          participantId: participant.id,
-          relation: existing.guardianRelation || undefined,
-        },
-      });
-    }
+      if (data.createGuardian) {
+        const guardian = await tx.guardian.create({
+          data: {
+            name: existing.guardianName,
+            phone: existing.guardianPhone,
+          },
+        });
 
-    // Link participant to application
-    await db.admissionApplication.update({
-      where: { id },
-      data: { convertedParticipantId: participant.id, status: "enrolled" },
+        await tx.guardianChild.create({
+          data: {
+            guardianId: guardian.id,
+            participantId: participant.id,
+            relation: existing.guardianRelation || undefined,
+          },
+        });
+      }
+
+      await tx.admissionApplication.update({
+        where: { id },
+        data: { convertedParticipantId: participant.id, status: "enrolled" },
+      });
+
+      return participant;
     });
 
     await logAudit({
@@ -191,7 +193,7 @@ export async function PATCH(
       action: "enroll",
       entityType: "admission_application",
       entityId: id,
-      newValues: { status: "enrolled", participantId: participant.id, groupId: data.groupId },
+      newValues: { status: "enrolled", participantId: enrollmentResult.id, groupId: data.groupId },
     });
 
     // Return updated application with participant

@@ -6,7 +6,7 @@
     "dev": "next dev -p 3000",
     "build": "next build",
     "build:postgres": "npm run db:postgres:generate && next build",
-    "prestart": "node -e \"if (!process.env.NEXTAUTH_SECRET) { console.error('NEXTAUTH_SECRET must be set'); process.exit(1); }\"",
+    "prestart": "node -e \"var s=process.env.NEXTAUTH_SECRET||''; if(!s||s==='replace-with-a-unique-random-secret'||s.length<20){console.error('NEXTAUTH_SECRET must be set to a unique, strong secret');process.exit(1)}\"",
     "start": "next start -p 3000",
     "lint": "eslint .",
     "test": "vitest run",

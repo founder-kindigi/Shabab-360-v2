@@ -3,27 +3,41 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import { db } from "@/lib/db";
 import bcrypt from "bcryptjs";
 
-// Simple in-memory rate limiter: email -> { count, resetAt }
-const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 const MAX_LOGIN_ATTEMPTS = 5;
 const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
 
-function checkRateLimit(email: string): boolean {
-  const now = Date.now();
-  const entry = rateLimitMap.get(email);
-  if (!entry || now > entry.resetAt) {
-    rateLimitMap.set(email, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+// DB-backed rate limiter using the login_attempts table
+async function checkRateLimit(identifier: string): Promise<boolean> {
+  try {
+    const windowStart = new Date(Date.now() - RATE_LIMIT_WINDOW_MS);
+    
+    // Clean old entries
+    await db.loginAttempt.deleteMany({
+      where: { createdAt: { lt: windowStart } },
+    });
+
+    // Count recent attempts
+    const recentCount = await db.loginAttempt.count({
+      where: {
+        identifier,
+        createdAt: { gte: windowStart },
+      },
+    });
+
+    if (recentCount >= MAX_LOGIN_ATTEMPTS) {
+      return false;
+    }
+
+    // Record this attempt
+    await db.loginAttempt.create({
+      data: { identifier },
+    });
+
+    return true;
+  } catch {
+    // Fail open on DB error to avoid locking everyone out
     return true;
   }
-  if (entry.count >= MAX_LOGIN_ATTEMPTS) {
-    return false;
-  }
-  entry.count++;
-  return true;
-}
-
-function resetRateLimit(email: string) {
-  rateLimitMap.delete(email);
 }
 
 // Augment NextAuth types to include custom user properties
@@ -78,7 +92,8 @@ export const authOptions: NextAuthOptions = {
         }
 
         // Rate limiting: check before DB query
-        if (!checkRateLimit(credentials.email)) {
+        const allowed = await checkRateLimit(credentials.email);
+        if (!allowed) {
           return null;
         }
 
@@ -97,8 +112,10 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
-        // Successful login: reset rate limit
-        resetRateLimit(credentials.email);
+        // Successful login: clean up rate limit records
+        await db.loginAttempt.deleteMany({
+          where: { identifier: credentials.email },
+        });
 
         // Resolve role
         let role: string | null = null;

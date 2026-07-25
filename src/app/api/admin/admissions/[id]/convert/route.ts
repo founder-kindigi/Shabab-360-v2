@@ -76,42 +76,41 @@ export async function POST(
     );
   }
 
-  // Create participant
-  const participant = await db.participant.create({
-    data: {
-      name: existing.applicantName,
-      dateOfBirth: existing.applicantDOB,
-      gender: existing.gender,
-      groupId: groupId,
-      state: "active",
-    },
-  });
-
-  // Optionally create guardian
-  if (createGuardian) {
-    const guardian = await db.guardian.create({
+  // Create participant + guardian + update in a transaction
+  const enrollmentResult = await db.$transaction(async (tx) => {
+    const participant = await tx.participant.create({
       data: {
-        name: existing.guardianName,
-        phone: existing.guardianPhone,
+        name: existing.applicantName,
+        dateOfBirth: existing.applicantDOB,
+        gender: existing.gender,
+        groupId: groupId,
+        state: "active",
       },
     });
 
-    await db.guardianChild.create({
-      data: {
-        guardianId: guardian.id,
-        participantId: participant.id,
-        relation: existing.guardianRelation || undefined,
-      },
-    });
-  }
+    if (createGuardian) {
+      const guardian = await tx.guardian.create({
+        data: {
+          name: existing.guardianName,
+          phone: existing.guardianPhone,
+        },
+      });
 
-  // Update application
-  await db.admissionApplication.update({
-    where: { id },
-    data: {
-      convertedParticipantId: participant.id,
-      status: "enrolled",
-    },
+      await tx.guardianChild.create({
+        data: {
+          guardianId: guardian.id,
+          participantId: participant.id,
+          relation: existing.guardianRelation || undefined,
+        },
+      });
+    }
+
+    await tx.admissionApplication.update({
+      where: { id },
+      data: { convertedParticipantId: participant.id, status: "enrolled" },
+    });
+
+    return participant;
   });
 
   await logAudit({
@@ -121,7 +120,7 @@ export async function POST(
     entityId: id,
     newValues: {
       status: "enrolled",
-      participantId: participant.id,
+      participantId: enrollmentResult.id,
       groupId,
       createGuardian,
     },

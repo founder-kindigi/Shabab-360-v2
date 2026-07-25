@@ -12,7 +12,7 @@ export interface AuditParams {
 
 const REDACTED_VALUE = "[REDACTED]";
 const MAX_AUDIT_TEXT_LENGTH = 500;
-const SENSITIVE_AUDIT_FIELD = /(?:password|token|secret|email|phone|cnic|address|dateofbirth|^name$|name$|reason|message|body|content)/i;
+const SENSITIVE_AUDIT_FIELD = /(?:password|token|secret|email|phone|cnic|address|dateofbirth|^name$|invitationCode|temporaryPassword)/i;
 
 function sanitizeAuditText(value: string): string {
   return value.length > MAX_AUDIT_TEXT_LENGTH

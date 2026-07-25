@@ -979,6 +979,17 @@ model CallInteraction {
   @@map("call_interactions")
 }
 
+// ========== AUTH / RATE LIMITING ==========
+
+model LoginAttempt {
+  id         String   @id @default(cuid())
+  identifier String
+  createdAt  DateTime @default(now())
+
+  @@index([identifier, createdAt])
+  @@map("login_attempts")
+}
+
 // ========== MASHWARA (Weekly Meetings) ==========
 
 model MashwaraMeeting {
