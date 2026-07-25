@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { readFileSync, existsSync, readdirSync } from "fs";
 import { join } from "path";
 
-const ROOT = join(__dirname, "../../..");
+const ROOT = process.cwd();
 const PG_MIGRATIONS = join(ROOT, "prisma/postgres/migrations");
 const SQLITE_MIGRATIONS = join(ROOT, "prisma/migrations");
 

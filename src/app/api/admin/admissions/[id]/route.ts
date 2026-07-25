@@ -159,7 +159,7 @@ export async function PATCH(
           name: existing.applicantName,
           dateOfBirth: existing.applicantDOB,
           gender: existing.gender,
-          groupId: data.groupId!,
+          groupId: group.id,
         },
       });
 
