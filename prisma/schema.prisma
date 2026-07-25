@@ -49,8 +49,6 @@ model AuditLog {
 
   user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
 
-  @@index([userId])
-  @@index([entityType, entityId])
   @@map("audit_log")
 }
 
@@ -453,8 +451,6 @@ model Guardian {
   user     User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
   children GuardianChild[]
 
-  @@index([phone])
-  @@index([isActive])
   @@map("guardians")
 }
 
@@ -469,7 +465,6 @@ model GuardianChild {
   participant Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
 
   @@unique([guardianId, participantId])
-  @@index([participantId])
   @@map("guardian_children")
 }
 
@@ -498,7 +493,6 @@ model Participant {
   extendedProfile   StudentExtendedProfile?
 
   @@index([groupId, state])
-  @@index([state])
   @@map("participants")
 }
 
@@ -563,9 +557,9 @@ model FeeEvent {
   batchId        String
   title          String
   feeType        String
-  amount         Decimal   @default(0)
+  amount         Float
   dueDate        DateTime?
-  discountAmount Decimal   @default(0)
+  discountAmount Float     @default(0)
   waiverReason   String?
   waivedBy       String?
   waivedAt       DateTime?
@@ -579,7 +573,6 @@ model FeeEvent {
   payments Payment[]
 
   @@index([batchId, isActive, createdAt])
-  @@index([batchId])
   @@index([isActive, createdAt])
   @@map("fee_events")
 }
@@ -588,13 +581,13 @@ model Payment {
   id            String   @id @default(cuid())
   feeEventId    String
   participantId String
-  amount        Decimal   @default(0)
+  amount        Float
   method        String
   receiptNo     String?  @unique
   recordedBy    String?
   notes         String?
   isPartial     Boolean  @default(false)
-  waivedAmount  Decimal   @default(0)
+  waivedAmount  Float    @default(0)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -645,7 +638,6 @@ model AdmissionApplication {
   convertedParticipant Participant?         @relation("ConvertedFrom", fields: [convertedParticipantId], references: [id])
   callingAssignments   CallingAssignment[]
 
-  @@index([cityId, status, createdAt])
   @@map("admission_applications")
 }
 
@@ -666,7 +658,6 @@ model AdmissionInterview {
 
   application AdmissionApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
 
-  @@index([applicationId])
   @@map("admission_interviews")
 }
 
@@ -679,11 +670,10 @@ model Announcement {
   priority    String    @default("normal")
   targetRoles String
   authorId    String
-  author      User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  author      User      @relation(fields: [authorId], references: [id])
   createdAt   DateTime  @default(now())
   expiresAt   DateTime?
 
-  @@index([expiresAt])
   @@map("announcements")
 }
 
@@ -691,18 +681,18 @@ model Announcement {
 
 model Notification {
   id             String    @id @default(cuid())
-  type           String    @default("in_app")
-  channel        String
+  type           String    @default("in_app") // "email" | "in_app" | "push"
+  channel        String // "password_reset" | "invite" | "fee_reminder" | "absence_alert" | "admission_status"
   recipientId    String?
   recipientEmail String?
   subject        String
   body           String
-  data           String?
-  status         String    @default("pending")
+  data           String? // JSON metadata
+  status         String    @default("pending") // "pending" | "sent" | "failed"
   sentAt         DateTime?
   createdAt      DateTime  @default(now())
 
-  user User? @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+  user User? @relation(fields: [recipientId], references: [id])
 
   @@index([recipientId])
   @@index([status])
@@ -720,7 +710,6 @@ model ReportPreset {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  @@index([userId])
   @@map("report_presets")
 }
 
@@ -988,17 +977,6 @@ model CallInteraction {
 
   @@index([assignmentId, createdAt])
   @@map("call_interactions")
-}
-
-// ========== AUTH / RATE LIMITING ==========
-
-model LoginAttempt {
-  id         String   @id @default(cuid())
-  identifier String
-  createdAt  DateTime @default(now())
-
-  @@index([identifier, createdAt])
-  @@map("login_attempts")
 }
 
 // ========== MASHWARA (Weekly Meetings) ==========
