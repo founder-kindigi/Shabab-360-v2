@@ -489,6 +489,144 @@ async function main() {
   }
   console.log(`Created 1 fee event and ${paymentParticipants.length} sample payments`);
 
+  // ---- 6. Sample Calling Campaigns & Templates ----
+  console.log("Creating calling campaigns and templates...");
+  const callingCampaign1 = await db.callingCampaign.create({
+    data: {
+      cityId: karachi.id,
+      name: "Karachi Batch 2024-D Recruitment Drive",
+      description: "Outreach campaign for prospective applicants across Karachi parks.",
+      status: "active",
+      startDate: new Date("2024-11-01"),
+      endDate: new Date("2024-12-31"),
+    },
+  });
+
+  const callingCampaign2 = await db.callingCampaign.create({
+    data: {
+      cityId: lahore.id,
+      name: "Lahore Batch 4 Admissions Follow-up",
+      description: "Follow-up calls for shortlisted candidates in Lahore.",
+      status: "active",
+      startDate: new Date("2024-10-15"),
+      endDate: new Date("2024-12-15"),
+    },
+  });
+
+  await db.callingTemplate.create({
+    data: {
+      cityId: karachi.id,
+      campaignId: callingCampaign1.id,
+      title: "Initial Contact - Welcome & Overview",
+      body: "Assalamu Alaikum {prospectName}, calling from Shabab 360 Karachi. We noticed your inquiry for {allocatedPark}. Would you like to attend this Saturday's orientation session?",
+      status: "published",
+      version: 1,
+    },
+  });
+
+  await db.callingTemplate.create({
+    data: {
+      cityId: lahore.id,
+      campaignId: callingCampaign2.id,
+      title: "Orientation Confirmation - Lahore",
+      body: "Assalamu Alaikum {prospectName}, confirming your registration for Lahore Batch 4 orientation at {allocatedPark}. Please arrive at 9:00 AM.",
+      status: "published",
+      version: 1,
+    },
+  });
+  console.log("Created 2 calling campaigns and 2 calling templates");
+
+  // ---- 7. Sample Content Planner Curriculum Plans ----
+  console.log("Creating content planner curriculum plans...");
+  await db.contentPlan.create({
+    data: {
+      cityId: karachi.id,
+      batchId: batch1.id,
+      name: "Master Character Building & Tarbiyah Curriculum 2024-2025",
+      kind: "base",
+      status: "published",
+      version: 1,
+      description: "Comprehensive 24-week tarbiyah syllabus covering Mind (Fikr), Body (Sehat), and Soul (Tazkiyah).",
+      authorId: programAdminUser.id,
+      blocks: {
+        create: [
+          {
+            title: "Block 1: Spiritual Foundations & Self-Purification (Soul)",
+            orderIndex: 1,
+            description: "Focus on Ikhlas, Niyyah, and daily Adhkar.",
+            sessions: {
+              create: [
+                {
+                  title: "Session 1: Understanding Sincerity (Ikhlas)",
+                  pillar: "soul",
+                  durationMinutes: 60,
+                  orderIndex: 1,
+                  objectives: "Understand the role of intentions in all actions; memorize key Hadith on Ikhlas.",
+                },
+                {
+                  title: "Session 2: Morning & Evening Adhkar",
+                  pillar: "soul",
+                  durationMinutes: 45,
+                  orderIndex: 2,
+                  objectives: "Establish daily protective remembrances and spiritual mindfulness.",
+                },
+              ],
+            },
+          },
+          {
+            title: "Block 2: Physical Discipline & Team Building (Body)",
+            orderIndex: 2,
+            description: "Physical fitness, martial movement, and group coordination.",
+            sessions: {
+              create: [
+                {
+                  title: "Session 3: Outdoor Obstacle & Fitness Circuit",
+                  pillar: "body",
+                  durationMinutes: 90,
+                  orderIndex: 3,
+                  objectives: "Build endurance, agility, and teamwork under Park Lead supervision.",
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  });
+
+  await db.contentPlan.create({
+    data: {
+      cityId: lahore.id,
+      name: "Youth Leadership & Public Speaking Master Series",
+      kind: "base",
+      status: "published",
+      version: 1,
+      description: "12-session interactive module on effective communication, team management, and ethical leadership.",
+      authorId: programAdminUser.id,
+      blocks: {
+        create: [
+          {
+            title: "Block 1: Mindset & Public Communication (Mind)",
+            orderIndex: 1,
+            description: "Art of articulate speech, confidence, and active listening.",
+            sessions: {
+              create: [
+                {
+                  title: "Session 1: Articulation & Public Confidence",
+                  pillar: "mind",
+                  durationMinutes: 75,
+                  orderIndex: 1,
+                  objectives: "Develop confidence in public speaking and structuring short presentations.",
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  });
+  console.log("Created 2 master content plans with blocks & sessions");
+
   console.log("\nSeed completed successfully!");
   console.log("─".repeat(50));
   console.log("Demo accounts (all passwords: password123):");
