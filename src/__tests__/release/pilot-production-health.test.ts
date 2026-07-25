@@ -64,19 +64,21 @@ describe("PILOT-PROD-001: Pilot Production Health", () => {
 
   /* ── 2. Migration health ─────────────────────────────────────────── */
   describe("Migration health", () => {
-    it("POSTGRES has 11 migration folders", () => {
-      expect(allMigrations(PG_MIGRATIONS)).toHaveLength(11);
+    it("POSTGRES has 12 migration folders", () => {
+      expect(allMigrations(PG_MIGRATIONS)).toHaveLength(12);
     });
 
-    it("SQLITE has 3 migration folders", () => {
-      expect(allMigrations(SQLITE_MIGRATIONS)).toHaveLength(3);
+    it("SQLITE has 4 migration folders", () => {
+      expect(allMigrations(SQLITE_MIGRATIONS)).toHaveLength(4);
     });
 
-    it("both chains have the latest mashwara migration", () => {
-      const pg = allMigrations(PG_MIGRATIONS);
-      const sqlite = allMigrations(SQLITE_MIGRATIONS);
-      expect(pg[pg.length - 1]).toContain("add_mashwara_module");
-      expect(sqlite[sqlite.length - 1]).toContain("add_mashwara_module");
+    it("both chains contain mashwara and login_attempts migrations", () => {
+      const pg = allMigrations(PG_MIGRATIONS).join(",");
+      const sqlite = allMigrations(SQLITE_MIGRATIONS).join(",");
+      expect(pg).toContain("add_mashwara_module");
+      expect(sqlite).toContain("add_mashwara_module");
+      expect(pg).toContain("add_login_attempts");
+      expect(sqlite).toContain("add_login_attempts");
     });
 
     it("no POSTGRES migration drops tables", () => {
