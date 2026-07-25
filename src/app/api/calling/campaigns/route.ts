@@ -14,6 +14,23 @@ export async function GET(request: NextRequest) {
   const requestedCityId = url.searchParams.get("cityId");
   const statusParam = url.searchParams.get("status");
 
+  const isHq = user.role === "super_admin" || user.role === "program_admin";
+
+  // HQ can list all campaigns without a cityId filter
+  if (isHq && !requestedCityId) {
+    const where: any = {};
+    if (statusParam) where.status = statusParam;
+    const campaigns = await db.callingCampaign.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      include: {
+        city: { select: { id: true, name: true, code: true } },
+        _count: { select: { assignments: true, pocAssignments: true, templates: true } },
+      },
+    });
+    return NextResponse.json(campaigns);
+  }
+
   const resolved = await resolveActorCity(user, requestedCityId);
   if (resolved.error || !resolved.cityId) {
     return NextResponse.json({ error: resolved.error || "City resolution failed" }, { status: resolved.status || 400 });
@@ -22,9 +39,7 @@ export async function GET(request: NextRequest) {
   const where: any = {
     cityId: resolved.cityId,
   };
-  if (statusParam) {
-    where.status = statusParam;
-  }
+  if (statusParam) where.status = statusParam;
 
   const campaigns = await db.callingCampaign.findMany({
     where,

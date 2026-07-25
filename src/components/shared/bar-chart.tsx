@@ -47,7 +47,9 @@ export function BarChart({
 
   const maxValue = useMemo(() => {
     if (data.length === 0) return 10;
-    const max = Math.max(...data.map((d) => d.value), 1);
+    const values = data.map((d) => d.value ?? 0).filter(v => v > 0);
+    if (values.length === 0) return 10;
+    const max = Math.max(...values);
     const magnitude = Math.pow(10, Math.floor(Math.log10(max)));
     return Math.ceil((max * 1.15) / magnitude) * magnitude || 10;
   }, [data]);
@@ -159,7 +161,8 @@ export function BarChart({
               (i / data.length) * chartW +
               chartW / data.length / 2 -
               barWidth / 2;
-            const barH = Math.max((d.value / maxValue) * chartH, 0);
+            const val = d.value ?? 0;
+            const barH = Math.max((val / maxValue) * chartH, 0);
             const y = PADDING.top + chartH - barH;
             const labelX =
               PADDING.left +
