@@ -99,81 +99,76 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
-        // Find active user
-        const user = await db.user.findUnique({
-          where: { email: credentials.email },
-        });
-
-        if (!user) {
-          console.warn(`[NextAuth Authorize] User not found in database: ${credentials.email}`);
-          return null;
-        }
-
-        if (!user.isActive) {
-          console.warn(`[NextAuth Authorize] User account is inactive: ${credentials.email}`);
-          return null;
-        }
-
-        // Verify password
-        const isValid = await bcrypt.compare(credentials.password, user.passwordHash);
-        if (!isValid) {
-          console.warn(`[NextAuth Authorize] Password verification failed for: ${credentials.email}`);
-          return null;
-        }
-
-        // Successful login: clean up rate limit records
-        await db.loginAttempt.deleteMany({
-          where: { identifier: credentials.email },
-        });
-
-        // Resolve role
-        let role: string | null = null;
-        let assignedCityId: string | null = null;
-        let assignedParkId: string | null = null;
-        let assignedGroupId: string | null = null;
-
-        const staffMeta = await db.staffMeta.findUnique({
-          where: { userId: user.id },
-        });
-
-        if (staffMeta && staffMeta.isActive) {
-          role = staffMeta.role;
-          assignedCityId = staffMeta.assignedCityId;
-          assignedParkId = staffMeta.assignedParkId;
-          assignedGroupId = staffMeta.assignedGroupId;
-        } else {
-          // Check if guardian
-          const guardian = await db.guardian.findUnique({
-            where: { userId: user.id },
+        try {
+          // Find active user
+          const user = await db.user.findUnique({
+            where: { email: credentials.email },
+            include: {
+              staffMeta: true,
+              guardian: true,
+              participant: true,
+            },
           });
-          if (guardian && guardian.isActive) {
-            role = "guardian";
-          } else {
-            // Check if student/participant
-            const participant = await db.participant.findUnique({
-              where: { userId: user.id },
-            });
-            if (participant) {
-              role = "student";
-            }
-          }
-        }
 
-        if (!role) {
+          if (!user) {
+            console.warn(`[NextAuth Authorize] User not found in database: ${credentials.email}`);
+            return null;
+          }
+
+          if (!user.isActive) {
+            console.warn(`[NextAuth Authorize] User account is inactive: ${credentials.email}`);
+            return null;
+          }
+
+          // Verify password
+          const isValid = await bcrypt.compare(credentials.password, user.passwordHash);
+          if (!isValid) {
+            console.warn(`[NextAuth Authorize] Password verification failed for: ${credentials.email}`);
+            return null;
+          }
+
+          // Successful login: clean up rate limit records
+          await db.loginAttempt.deleteMany({
+            where: { identifier: credentials.email },
+          }).catch(() => {});
+
+          // Resolve role
+          let role: string | null = null;
+          let assignedCityId: string | null = null;
+          let assignedParkId: string | null = null;
+          let assignedGroupId: string | null = null;
+
+          if (user.staffMeta && user.staffMeta.isActive) {
+            role = user.staffMeta.role;
+            assignedCityId = user.staffMeta.assignedCityId;
+            assignedParkId = user.staffMeta.assignedParkId;
+            assignedGroupId = user.staffMeta.assignedGroupId;
+          } else if (user.guardian && user.guardian.isActive) {
+            role = "guardian";
+          } else if (user.participant) {
+            role = "student";
+          }
+
+          if (!role) {
+            console.warn(`[NextAuth Authorize] User has no active role or scope assigned: ${credentials.email}`);
+            return null;
+          }
+
+          return {
+            id: user.id,
+            email: user.email,
+            name: user.name || user.email.split("@")[0],
+            role,
+            mustResetPwd: user.mustResetPwd,
+            tokenVersion: user.tokenVersion,
+            assignedCityId,
+            assignedParkId,
+            assignedGroupId,
+          };
+        } catch (dbErr: unknown) {
+          console.error("[NextAuth Authorize DB Error]:", dbErr);
           return null;
         }
-
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.name || user.email.split("@")[0],
-          role,
-          mustResetPwd: user.mustResetPwd,
-          tokenVersion: user.tokenVersion,
-          assignedCityId,
-          assignedParkId,
-          assignedGroupId,
-        };
       },
     }),
   ],
