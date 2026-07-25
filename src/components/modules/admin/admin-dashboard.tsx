@@ -338,7 +338,8 @@ export function AdminDashboard() {
   const { selectedCityId, selectedParkId, setSelectedCity, navigateTo } = useAppStore();
   const { t } = useTranslation();
   const user = session?.user as { role?: string; name?: string } | undefined;
-  const isHQ = ["super_admin", "program_admin"].includes(user?.role || "");
+  const userRole = (user?.role || "").toLowerCase().trim();
+  const isHQ = ["super_admin", "program_admin"].includes(userRole);
 
   const apiUrl =
     selectedCityId || selectedParkId
