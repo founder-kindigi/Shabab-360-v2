@@ -61,52 +61,52 @@ function getNavSections(items: NavItem[]): { section: string | null; items: NavI
   return sections;
 }
 
-// Nav item config: key maps to translation keys
-const navConfig: Record<string, { tKey: string; section: string }> = {
-  "admin-dashboard": { tKey: "nav.dashboard", section: "overview" },
-  "admin-cities": { tKey: "nav.cities", section: "organization" },
-  "admin-parks": { tKey: "nav.parks", section: "organization" },
-  "admin-batches": { tKey: "nav.batches", section: "organization" },
-  "admin-groups": { tKey: "nav.groups", section: "organization" },
-  "admin-people": { tKey: "nav.people", section: "people" },
-  "admin-students": { tKey: "nav.students", section: "people" },
-  "admin-guardians": { tKey: "nav.guardians", section: "people" },
-  "admin-attendance-events": { tKey: "nav.attendance", section: "operations" },
-  "admin-events": { tKey: "nav.events", section: "operations" },
-  "admin-calling": { tKey: "nav.calling", section: "operations" },
-  "admin-mashwara": { tKey: "nav.mashwara", section: "operations" },
-  "admin-content-planner": { tKey: "nav.contentPlanner", section: "operations" },
-  "admin-users": { tKey: "nav.users", section: "operations" },
-  "admin-access": { tKey: "nav.access", section: "operations" },
-  "admin-access-management": { tKey: "nav.accessManagement", section: "system" },
-  "admin-collaboration-teams": { tKey: "nav.collaborationTeams", section: "system" },
-  "admin-admissions": { tKey: "nav.admissions", section: "operations" },
-  "admin-fees": { tKey: "nav.fees", section: "operations" },
-  "admin-announcements": { tKey: "nav.announcements", section: "communication" },
-  "admin-reports": { tKey: "nav.reports", section: "communication" },
-  "admin-audit-log": { tKey: "nav.auditLog", section: "system" },
-  "notifications": { tKey: "nav.notifications", section: "system" },
-  "admin-settings": { tKey: "nav.settings", section: "system" },
-  "city-head-dashboard": { tKey: "nav.dashboard", section: "overview" },
-  "park-dashboard": { tKey: "nav.dashboard", section: "overview" },
-  "park-attendance": { tKey: "nav.attendance", section: "daily" },
-  "park-roster": { tKey: "nav.roster", section: "daily" },
-  "park-participants": { tKey: "nav.participants", section: "directory" },
-  "park-guardians": { tKey: "nav.families", section: "directory" },
-  "park-schedule": { tKey: "nav.schedule", section: "directory" },
-  "murabbi-dashboard": { tKey: "nav.dashboard", section: "overview" },
-  "murabbi-groups": { tKey: "nav.myGroups", section: "overview" },
-  "guardian-dashboard": { tKey: "nav.dashboard", section: "overview" },
-  "guardian-history": { tKey: "nav.attendanceHistory", section: "tracking" },
-  "guardian-schedule": { tKey: "nav.schedule", section: "tracking" },
-  "guardian-fees": { tKey: "nav.fees", section: "tracking" },
-  "guardian-announcements": { tKey: "nav.announcements", section: "updates" },
-  "student-dashboard": { tKey: "nav.dashboard", section: "overview" },
-  "student-history": { tKey: "nav.myAttendance", section: "tracking" },
-  "student-schedule": { tKey: "nav.schedule", section: "tracking" },
-  "student-fees": { tKey: "nav.fees", section: "tracking" },
-  "student-announcements": { tKey: "nav.announcements", section: "updates" },
-  "student-profile": { tKey: "nav.profile", section: "updates" },
+// Nav item config: key maps to translation keys with fallback labels
+const navConfig: Record<string, { label: string; tKey: string; section: string }> = {
+  "admin-dashboard": { label: "Dashboard", tKey: "nav.dashboard", section: "overview" },
+  "admin-cities": { label: "Cities", tKey: "nav.cities", section: "organization" },
+  "admin-parks": { label: "Parks", tKey: "nav.parks", section: "organization" },
+  "admin-batches": { label: "Batches", tKey: "nav.batches", section: "organization" },
+  "admin-groups": { label: "Groups", tKey: "nav.groups", section: "organization" },
+  "admin-people": { label: "Staff & People", tKey: "nav.people", section: "people" },
+  "admin-students": { label: "Students", tKey: "nav.students", section: "people" },
+  "admin-guardians": { label: "Guardians", tKey: "nav.guardians", section: "people" },
+  "admin-attendance-events": { label: "Attendance", tKey: "nav.attendance", section: "operations" },
+  "admin-events": { label: "Events & Calendar", tKey: "nav.events", section: "operations" },
+  "admin-calling": { label: "Calling & Outreach", tKey: "nav.calling", section: "operations" },
+  "admin-mashwara": { label: "Weekly Mashwara", tKey: "nav.mashwara", section: "operations" },
+  "admin-content-planner": { label: "Content Planner", tKey: "nav.contentPlanner", section: "operations" },
+  "admin-users": { label: "Users & Accounts", tKey: "nav.users", section: "operations" },
+  "admin-access": { label: "Access Provisioning", tKey: "nav.access", section: "operations" },
+  "admin-access-management": { label: "Access Matrix", tKey: "nav.accessManagement", section: "system" },
+  "admin-collaboration-teams": { label: "Collaboration Teams", tKey: "nav.collaborationTeams", section: "system" },
+  "admin-admissions": { label: "Admissions", tKey: "nav.admissions", section: "operations" },
+  "admin-fees": { label: "Fees & Payments", tKey: "nav.fees", section: "operations" },
+  "admin-announcements": { label: "Announcements", tKey: "nav.announcements", section: "communication" },
+  "admin-reports": { label: "Reports & Analytics", tKey: "nav.reports", section: "communication" },
+  "admin-audit-log": { label: "Audit Log", tKey: "nav.auditLog", section: "system" },
+  "notifications": { label: "Notifications", tKey: "nav.notifications", section: "system" },
+  "admin-settings": { label: "Settings", tKey: "nav.settings", section: "system" },
+  "city-head-dashboard": { label: "Dashboard", tKey: "nav.dashboard", section: "overview" },
+  "park-dashboard": { label: "Dashboard", tKey: "nav.dashboard", section: "overview" },
+  "park-attendance": { label: "Mark Attendance", tKey: "nav.attendance", section: "daily" },
+  "park-roster": { label: "Daily Roster", tKey: "nav.roster", section: "daily" },
+  "park-participants": { label: "Participants", tKey: "nav.participants", section: "directory" },
+  "park-guardians": { label: "Families", tKey: "nav.families", section: "directory" },
+  "park-schedule": { label: "Schedule", tKey: "nav.schedule", section: "directory" },
+  "murabbi-dashboard": { label: "Dashboard", tKey: "nav.dashboard", section: "overview" },
+  "murabbi-groups": { label: "My Groups", tKey: "nav.myGroups", section: "overview" },
+  "guardian-dashboard": { label: "Dashboard", tKey: "nav.dashboard", section: "overview" },
+  "guardian-history": { label: "Attendance History", tKey: "nav.attendanceHistory", section: "tracking" },
+  "guardian-schedule": { label: "Child Schedule", tKey: "nav.schedule", section: "tracking" },
+  "guardian-fees": { label: "Fees & Receipts", tKey: "nav.fees", section: "tracking" },
+  "guardian-announcements": { label: "Announcements", tKey: "nav.announcements", section: "updates" },
+  "student-dashboard": { label: "Dashboard", tKey: "nav.dashboard", section: "overview" },
+  "student-history": { label: "My Attendance", tKey: "nav.myAttendance", section: "tracking" },
+  "student-schedule": { label: "Class Schedule", tKey: "nav.schedule", section: "tracking" },
+  "student-fees": { label: "My Fees", tKey: "nav.fees", section: "tracking" },
+  "student-announcements": { label: "Announcements", tKey: "nav.announcements", section: "updates" },
+  "student-profile": { label: "My Profile", tKey: "nav.profile", section: "updates" },
 };
 
 const sectionTKeys: Record<string, string> = {
@@ -183,18 +183,29 @@ const roleNavPages: Record<string, PageId[]> = {
 
 // Navigation configuration per role tier
 export function getNavItems(role: string | undefined, t: (key: string) => string): NavItem[] {
-  if (!role) return [];
+  const storeRole = useAppStore.getState().userRole;
+  const rawRole = role || storeRole || "super_admin";
+  const normalized = rawRole.toLowerCase().trim().replace(/[\s-]/g, "_");
 
-  const normalized = role.toLowerCase().trim().replace(/[\s-]/g, "_");
-  const pages = roleNavPages[normalized] || roleNavPages[role];
-  if (!pages) return [];
+  let targetRole = normalized;
+  if (targetRole === "admin" || targetRole === "superadmin") targetRole = "super_admin";
+  if (targetRole === "programadmin") targetRole = "program_admin";
+  if (targetRole === "cityhead") targetRole = "city_head";
+  if (targetRole === "parkadmin") targetRole = "park_admin";
+  if (targetRole === "parklead") targetRole = "park_lead";
+
+  const pages = roleNavPages[targetRole] || roleNavPages["super_admin"];
 
   return pages.map((pageId) => {
     const config = navConfig[pageId];
     const icon = iconMap[pageId] || LayoutDashboard;
+    let label = config ? t(config.tKey) : pageId;
+    if (!label || label === config?.tKey) {
+      label = config?.label || pageId;
+    }
     return {
       id: pageId,
-      label: config ? t(config.tKey) : pageId,
+      label,
       icon,
       section: config?.section,
     };
