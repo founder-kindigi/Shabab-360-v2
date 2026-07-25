@@ -183,14 +183,19 @@ export const authOptions: NextAuthOptions = {
         token.assignedGroupId = user.assignedGroupId;
       }
 
-      // Check if token version matches DB — invalidate if password was changed
+      // Check if token version matches DB — invalidate if password was changed.
+      // Gracefully handle DB errors to prevent refresh from logging user out.
       if (token.id) {
-        const dbUser = await db.user.findUnique({
-          where: { id: token.id },
-          select: { tokenVersion: true },
-        });
-        if (dbUser && token.tokenVersion !== dbUser.tokenVersion) {
-          return {};
+        try {
+          const dbUser = await db.user.findUnique({
+            where: { id: token.id },
+            select: { tokenVersion: true },
+          });
+          if (dbUser && token.tokenVersion !== dbUser.tokenVersion) {
+            return {};
+          }
+        } catch {
+          // DB unreachable — keep existing session valid rather than logging out
         }
       }
 
