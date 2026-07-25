@@ -536,54 +536,50 @@ async function main() {
   });
   console.log("Created 2 calling campaigns and 2 calling templates");
 
-  // ---- 7. Sample Content Planner Curriculum Plans ----
-  console.log("Creating content planner curriculum plans...");
+  // ---- 7. Sample Collaboration Teams & Content Planner Curriculum Plans ----
+  console.log("Creating collaboration teams and content planner curriculum plans...");
+  const sportsTeamKarachi = await db.collaborationTeam.create({
+    data: {
+      cityId: karachi.id,
+      name: "Sports & Physical Fitness",
+      code: "SPORTS",
+      description: "Outdoor drills, martial arts, and team sports planning.",
+    },
+  });
+
+  const tadreebTeamLahore = await db.collaborationTeam.create({
+    data: {
+      cityId: lahore.id,
+      name: "Tadreeb & Tarbiyah",
+      code: "TADREEB",
+      description: "Character building, Seerah, and spiritual curriculum.",
+    },
+  });
+
   await db.contentPlan.create({
     data: {
       cityId: karachi.id,
       batchId: batch1.id,
       name: "Master Character Building & Tarbiyah Curriculum 2024-2025",
-      kind: "base",
+      kind: "template",
       status: "published",
-      description: "Comprehensive 24-week tarbiyah syllabus covering Mind (Fikr), Body (Sehat), and Soul (Tazkiyah).",
-      authorId: programAdminUser.id,
-      blocks: {
+      sessions: {
         create: [
           {
-            title: "Block 1: Spiritual Foundations & Self-Purification (Soul)",
-            orderIndex: 1,
-            description: "Focus on Ikhlas, Niyyah, and daily Adhkar.",
-            sessions: {
+            weekLabel: "Week 1",
+            dayLabel: "Saturday",
+            sessionDate: new Date("2024-11-02"),
+            focusArea: "Spiritual Foundations & Self-Purification",
+            status: "published",
+            blocks: {
               create: [
                 {
-                  title: "Session 1: Understanding Sincerity (Ikhlas)",
-                  pillar: "soul",
-                  durationMinutes: 60,
-                  orderIndex: 1,
-                  objectives: "Understand the role of intentions in all actions; memorize key Hadith on Ikhlas.",
-                },
-                {
-                  title: "Session 2: Morning & Evening Adhkar",
-                  pillar: "soul",
-                  durationMinutes: 45,
-                  orderIndex: 2,
-                  objectives: "Establish daily protective remembrances and spiritual mindfulness.",
-                },
-              ],
-            },
-          },
-          {
-            title: "Block 2: Physical Discipline & Team Building (Body)",
-            orderIndex: 2,
-            description: "Physical fitness, martial movement, and group coordination.",
-            sessions: {
-              create: [
-                {
-                  title: "Session 3: Outdoor Obstacle & Fitness Circuit",
-                  pillar: "body",
-                  durationMinutes: 90,
-                  orderIndex: 3,
-                  objectives: "Build endurance, agility, and teamwork under Park Lead supervision.",
+                  teamId: sportsTeamKarachi.id,
+                  category: "Sports",
+                  title: "Outdoor Obstacle & Fitness Circuit",
+                  content: "Build endurance, agility, and teamwork under Park Lead supervision.",
+                  sortOrder: 1,
+                  status: "published",
                 },
               ],
             },
@@ -597,24 +593,25 @@ async function main() {
     data: {
       cityId: lahore.id,
       name: "Youth Leadership & Public Speaking Master Series",
-      kind: "base",
+      kind: "template",
       status: "published",
-      description: "12-session interactive module on effective communication, team management, and ethical leadership.",
-      authorId: programAdminUser.id,
-      blocks: {
+      sessions: {
         create: [
           {
-            title: "Block 1: Mindset & Public Communication (Mind)",
-            orderIndex: 1,
-            description: "Art of articulate speech, confidence, and active listening.",
-            sessions: {
+            weekLabel: "Week 1",
+            dayLabel: "Sunday",
+            sessionDate: new Date("2024-11-03"),
+            focusArea: "Mindset & Public Communication",
+            status: "published",
+            blocks: {
               create: [
                 {
-                  title: "Session 1: Articulation & Public Confidence",
-                  pillar: "mind",
-                  durationMinutes: 75,
-                  orderIndex: 1,
-                  objectives: "Develop confidence in public speaking and structuring short presentations.",
+                  teamId: tadreebTeamLahore.id,
+                  category: "Tadreeb",
+                  title: "Articulation & Public Confidence",
+                  content: "Develop confidence in public speaking and structuring short presentations.",
+                  sortOrder: 1,
+                  status: "published",
                 },
               ],
             },
@@ -623,7 +620,7 @@ async function main() {
       },
     },
   });
-  console.log("Created 2 master content plans with blocks & sessions");
+  console.log("Created collaboration teams and master content plans with sessions & blocks");
 
   console.log("\nSeed completed successfully!");
   console.log("─".repeat(50));
