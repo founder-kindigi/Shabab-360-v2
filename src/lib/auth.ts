@@ -214,5 +214,4 @@ export const authOptions: NextAuthOptions = {
     signIn: "/",
   },
   secret: process.env.NEXTAUTH_SECRET,
-  trustHost: true,
 };
