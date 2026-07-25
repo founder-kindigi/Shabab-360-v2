@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
   }
 
   if (!isAuthorizedCaller) {
-    const pocCheck = await verifyCallingManagerOrPoc(user, assignment.campaignId);
+    const pocCheck = await verifyCallingManagerOrPoc(user as { id: string; role?: string | null }, assignment.campaignId);
     if (!pocCheck.error && pocCheck.campaign) {
       isAuthorizedCaller = true;
     }
@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
   const interaction = await db.callInteraction.create({
     data: {
       assignmentId,
-      callerUserId: user.id,
+      callerUserId: user.id!,
       outcome,
       notes: notes || null,
       scheduledFor: scheduledFor ? new Date(scheduledFor) : null,

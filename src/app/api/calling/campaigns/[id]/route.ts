@@ -14,7 +14,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   const user = auth.user;
 
   const { id } = await params;
-  const verified = await verifyCallingManagerOrPoc(user, id);
+  const verified = await verifyCallingManagerOrPoc(user as { id: string; role?: string | null }, id);
   if (verified.error || !verified.campaign) {
     return NextResponse.json({ error: verified.error }, { status: verified.status });
   }
@@ -50,7 +50,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   const user = auth.user;
 
   const { id } = await params;
-  const verified = await verifyCallingManagerOrPoc(user, id);
+  const verified = await verifyCallingManagerOrPoc(user as { id: string; role?: string | null }, id);
   if (verified.error || !verified.campaign) {
     return NextResponse.json({ error: verified.error }, { status: verified.status });
   }

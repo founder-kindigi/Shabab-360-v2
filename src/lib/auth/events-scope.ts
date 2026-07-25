@@ -3,8 +3,6 @@ import type { PrismaClient } from "@prisma/client";
 
 type DbClient = PrismaClient | typeof defaultDb;
 
-type DbClient = PrismaClient | typeof defaultDb;
-
 export interface ResolvedActorCitySuccess {
   cityId: string;
   isHQ: boolean;

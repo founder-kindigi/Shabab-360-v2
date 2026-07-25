@@ -467,6 +467,7 @@ model GuardianChild {
   participant Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
 
   @@unique([guardianId, participantId])
+  @@index([participantId])
   @@map("guardian_children")
 }
 
@@ -495,6 +496,7 @@ model Participant {
   extendedProfile   StudentExtendedProfile?
 
   @@index([groupId, state])
+  @@index([state])
   @@map("participants")
 }
 
@@ -672,10 +674,11 @@ model Announcement {
   priority    String    @default("normal")
   targetRoles String
   authorId    String
-  author      User      @relation(fields: [authorId], references: [id])
+  author      User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
   createdAt   DateTime  @default(now())
   expiresAt   DateTime?
 
+  @@index([expiresAt])
   @@map("announcements")
 }
 
@@ -683,18 +686,18 @@ model Announcement {
 
 model Notification {
   id             String    @id @default(cuid())
-  type           String    @default("in_app") // "email" | "in_app" | "push"
-  channel        String // "password_reset" | "invite" | "fee_reminder" | "absence_alert" | "admission_status"
+  type           String    @default("in_app")
+  channel        String
   recipientId    String?
   recipientEmail String?
   subject        String
   body           String
-  data           String? // JSON metadata
-  status         String    @default("pending") // "pending" | "sent" | "failed"
+  data           String?
+  status         String    @default("pending")
   sentAt         DateTime?
   createdAt      DateTime  @default(now())
 
-  user User? @relation(fields: [recipientId], references: [id])
+  user User? @relation(fields: [recipientId], references: [id], onDelete: Cascade)
 
   @@index([recipientId])
   @@index([status])
@@ -712,6 +715,7 @@ model ReportPreset {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
+  @@index([userId])
   @@map("report_presets")
 }
 

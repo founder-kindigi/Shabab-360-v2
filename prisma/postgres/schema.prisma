@@ -510,6 +510,7 @@ model GuardianChild {
   participant Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
 
   @@unique([guardianId, participantId])
+  @@index([participantId])
   @@map("guardian_children")
 }
 
@@ -708,7 +709,7 @@ model Announcement {
   priority    String    @default("normal")
   targetRoles String
   authorId    String
-  author      User      @relation(fields: [authorId], references: [id])
+  author      User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
   createdAt   DateTime  @default(now())
   expiresAt   DateTime?
 
@@ -729,7 +730,7 @@ model Notification {
   sentAt         DateTime?
   createdAt      DateTime            @default(now())
 
-  user User? @relation(fields: [recipientId], references: [id])
+  user User? @relation(fields: [recipientId], references: [id], onDelete: Cascade)
 
   @@index([recipientId])
   @@index([status])
@@ -745,6 +746,7 @@ model ReportPreset {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
+  @@index([userId])
   @@map("report_presets")
 }
 
