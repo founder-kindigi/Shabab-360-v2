@@ -236,31 +236,7 @@ export function LoginPage() {
                   </button>
                 </div>
 
-                {/* Demo Accounts Quick Login */}
-                <div className="mt-3">
-                  <p className="text-xs text-muted-foreground text-center mb-2">{t("auth.quickLogin")}</p>
-                  <div className="bg-muted/30 rounded-lg p-3 grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                    {DEMO_ACCOUNTS.map((account) => (
-                      <button
-                        key={account.email}
-                        type="button"
-                        disabled={loading}
-                        onClick={() => doQuickLogin(account.email, setLoading, setError, () => setShaking(true))}
-                        className="flex items-center gap-3 p-2 rounded-md hover:bg-muted/50 cursor-pointer transition-colors border-l-[3px] text-left disabled:opacity-50 disabled:cursor-not-allowed"
-                        style={{ borderLeftColor: account.color }}
-                      >
-                        <div className="min-w-0">
-                          <p className="text-xs font-semibold text-foreground truncate">
-                            {account.role}
-                          </p>
-                          <p className="text-[11px] text-muted-foreground truncate">
-                            {account.email}
-                          </p>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
+
               </form>
             </CardContent>
           </Card>
