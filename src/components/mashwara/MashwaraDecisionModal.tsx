@@ -123,9 +123,8 @@ export function MashwaraDecisionModal({
       }
       return res.json();
     },
-    onSuccess: (data) => {
-      const hasActionItem = !!data?.actionItem;
-      toast.success(hasActionItem ? "Decision and action item recorded" : "Decision recorded");
+    onSuccess: () => {
+      toast.success("Decision and action item recorded");
       queryClient.invalidateQueries({ queryKey: ["mashwara-detail", meetingId] });
       onClose();
       resetForm();
@@ -200,16 +199,13 @@ export function MashwaraDecisionModal({
             <Textarea
               id="decision-text"
               placeholder="State the decision clearly..."
-              maxLength={1000}
               value={form.decision}
               onChange={(e) => setForm({ ...form, decision: e.target.value })}
               rows={3}
             />
-            <div className="flex justify-between items-center">
-              {errors.decision && <p className="text-xs text-red-500">{errors.decision}</p>}
-              {!errors.decision && <span />}
-              <span className="text-xs text-muted-foreground">{form.decision.length}/1000</span>
-            </div>
+            {errors.decision && (
+              <p className="text-xs text-red-500">{errors.decision}</p>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -290,19 +286,16 @@ export function MashwaraDecisionModal({
                   <Input
                     id="action-desc"
                     placeholder="Specific deliverable or task..."
-                    maxLength={500}
                     value={form.actionItemDescription}
                     onChange={(e) =>
                       setForm({ ...form, actionItemDescription: e.target.value })
                     }
                   />
-                  <div className="flex justify-between items-center">
-                    {errors.actionItemDescription && (
-                      <p className="text-xs text-red-500">{errors.actionItemDescription}</p>
-                    )}
-                    {!errors.actionItemDescription && <span />}
-                    <span className="text-xs text-muted-foreground">{(form.actionItemDescription || '').length}/500</span>
-                  </div>
+                  {errors.actionItemDescription && (
+                    <p className="text-xs text-red-500">
+                      {errors.actionItemDescription}
+                    </p>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">

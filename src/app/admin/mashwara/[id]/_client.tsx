@@ -12,16 +12,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import {
   ArrowLeft,
   Calendar,
   MapPin,
@@ -103,7 +93,6 @@ export default function MashwaraDetailClient() {
   const queryClient = useQueryClient();
   const [showDecisionModal, setShowDecisionModal] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
-  const [revokingShareId, setRevokingShareId] = useState<string | null>(null);
 
   const { data, isLoading, error } = useQuery<MashwaraDetailResponse>({
     queryKey: ["mashwara-detail", meetingId],
@@ -450,14 +439,10 @@ export default function MashwaraDetailClient() {
                         variant="ghost"
                         size="sm"
                         className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30"
-                        disabled={revokeShareMutation.isPending && revokingShareId === share.id}
-                        onClick={() => setRevokingShareId(share.id)}
+                        disabled={revokeShareMutation.isPending}
+                        onClick={() => revokeShareMutation.mutate(share.id)}
                       >
-                        {revokeShareMutation.isPending && revokingShareId === share.id ? (
-                          <><Loader2 className="size-4 mr-1 animate-spin" /> Revoking</>
-                        ) : (
-                          <><Trash2 className="size-4 mr-1" /> Revoke</>
-                        )}
+                        <Trash2 className="size-4 mr-1" /> Revoke
                       </Button>
                     </div>
                   ))}
@@ -486,31 +471,6 @@ export default function MashwaraDetailClient() {
           </Card>
         </TabsContent>
       </Tabs>
-
-      {/* Confirm Revoke Share */}
-      <AlertDialog open={!!revokingShareId} onOpenChange={(v) => { if (!v) setRevokingShareId(null); }}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Revoke Meeting Share?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will immediately revoke the meeting access granted to this staff member.
-              This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setRevokingShareId(null)}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-red-600 hover:bg-red-700 text-white"
-              onClick={() => {
-                if (revokingShareId) revokeShareMutation.mutate(revokingShareId);
-                setRevokingShareId(null);
-              }}
-            >
-              Revoke Access
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
 
       {/* Modals */}
       <MashwaraDecisionModal

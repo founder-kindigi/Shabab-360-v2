@@ -384,19 +384,16 @@ export default function MashwaraDashboardClient() {
       {/* Content Grid / List */}
       {isLoading && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {Array.from({ length: 12 }).map((_, i) => (
+          {Array.from({ length: 6 }).map((_, i) => (
             <Skeleton key={i} className="h-40 rounded-xl" />
           ))}
         </div>
       )}
 
       {error && (
-        <div className="flex flex-col items-center gap-3 p-8 rounded-lg bg-red-50 border border-red-200 dark:bg-red-950/30 text-red-700">
-          <AlertTriangle className="size-8 shrink-0" />
+        <div className="flex items-center gap-2 p-4 rounded-lg bg-red-50 border border-red-200 dark:bg-red-950/30 text-red-700">
+          <AlertTriangle className="size-4 shrink-0" />
           <p className="text-sm">Failed to load Mashwara meetings. Please try again.</p>
-          <Button variant="outline" size="sm" onClick={() => window.location.reload()}>
-            Try Again
-          </Button>
         </div>
       )}
 
@@ -427,11 +424,8 @@ export default function MashwaraDashboardClient() {
               animate={{ opacity: 1, y: 0 }}
             >
               <Card
-                className="hover:shadow-md transition-shadow cursor-pointer border flex flex-col h-full focus-visible:ring-2 focus-visible:ring-primary"
-                role="button"
-                tabIndex={0}
+                className="hover:shadow-md transition-shadow cursor-pointer border flex flex-col h-full"
                 onClick={() => handleViewDetail(meeting.id)}
-                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleViewDetail(meeting.id); } }}
               >
                 <CardHeader className="pb-2">
                   <div className="flex items-start justify-between gap-2">

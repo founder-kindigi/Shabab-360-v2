@@ -32,12 +32,12 @@ function allMigrations(base: string): string[] {
 describe("PILOT-PROD-001: Pilot Production Health", () => {
   /* ── 1. Schema health ────────────────────────────────────────────── */
   describe("Schema health", () => {
-    it("SQLITE schema has 49 models", () => {
-      expect(modelNames(SQLITE_SCHEMA).length).toBe(49);
+    it("SQLITE schema has 48 models", () => {
+      expect(modelNames(SQLITE_SCHEMA).length).toBe(48);
     });
 
-    it("POSTGRES schema has 49 models", () => {
-      expect(modelNames(PG_SCHEMA).length).toBe(49);
+    it("POSTGRES schema has 48 models", () => {
+      expect(modelNames(PG_SCHEMA).length).toBe(48);
     });
 
     it("all models present in both schemas", () => {
@@ -64,19 +64,19 @@ describe("PILOT-PROD-001: Pilot Production Health", () => {
 
   /* ── 2. Migration health ─────────────────────────────────────────── */
   describe("Migration health", () => {
-    it("POSTGRES has 12 migration folders", () => {
-      expect(allMigrations(PG_MIGRATIONS)).toHaveLength(12);
+    it("POSTGRES has 11 migration folders", () => {
+      expect(allMigrations(PG_MIGRATIONS)).toHaveLength(11);
     });
 
-    it("SQLITE has 4 migration folders", () => {
-      expect(allMigrations(SQLITE_MIGRATIONS)).toHaveLength(4);
+    it("SQLITE has 3 migration folders", () => {
+      expect(allMigrations(SQLITE_MIGRATIONS)).toHaveLength(3);
     });
 
     it("both chains have the latest mashwara migration", () => {
       const pg = allMigrations(PG_MIGRATIONS);
       const sqlite = allMigrations(SQLITE_MIGRATIONS);
-      expect(pg[pg.length - 1]).toContain("login_attempts");
-      expect(sqlite[sqlite.length - 1]).toContain("login_attempts");
+      expect(pg[pg.length - 1]).toContain("add_mashwara_module");
+      expect(sqlite[sqlite.length - 1]).toContain("add_mashwara_module");
     });
 
     it("no POSTGRES migration drops tables", () => {
