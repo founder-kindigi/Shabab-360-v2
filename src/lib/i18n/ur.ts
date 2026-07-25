@@ -72,6 +72,8 @@ export const ur: Record<string, string> = {
   "nav.families": "خاندان",
   "nav.fees": "فیس",
   "nav.attendance": "حاضری",
+  "nav.events": "تقاریب و کیلنڈر",
+  "nav.calling": "کالنگ مہمات",
   "nav.markAttendance": "حاضری لگائیں",
   "nav.announcements": "اعلانات",
   "nav.reports": "رپورٹس",

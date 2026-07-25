@@ -72,6 +72,8 @@ export const en: Record<string, string> = {
   "nav.families": "Families",
   "nav.fees": "Fees",
   "nav.attendance": "Attendance",
+  "nav.events": "Events & Calendar",
+  "nav.calling": "Calling & Outreach",
   "nav.markAttendance": "Mark Attendance",
   "nav.announcements": "Announcements",
   "nav.reports": "Reports",

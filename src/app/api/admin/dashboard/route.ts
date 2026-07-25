@@ -94,7 +94,8 @@ export async function GET(request: NextRequest) {
   if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
   // Get user's scope
-  const isHQ = ["super_admin", "program_admin"].includes(user.role || "");
+  const userRole = (user.role || "").toLowerCase().trim();
+  const isHQ = ["super_admin", "program_admin"].includes(userRole);
 
   if (isHQ) {
     const [cities, parks, batches, groups, participants, staff] = await Promise.all([

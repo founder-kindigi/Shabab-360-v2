@@ -323,7 +323,7 @@ function DesktopSidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
       </div>
 
       {/* Navigation */}
-      <ScrollArea className="flex-1 py-3 px-2">
+      <ScrollArea className="flex-1 min-h-0 py-3 px-2 overflow-y-auto">
         <nav className="flex flex-col gap-0.5">
           {getNavSections(navItems).map((group, gIdx) => (
             <div key={group.section || `s-${gIdx}`}>
