@@ -8,7 +8,7 @@ import { createCampaignSchema } from "@/lib/validations/calling";
 export async function GET(request: NextRequest) {
   const auth = await requireCapability("calling.view");
   if (auth instanceof NextResponse) return auth;
-  const user = auth.user as any;
+  const user = auth.user;
 
   const url = new URL(request.url);
   const requestedCityId = url.searchParams.get("cityId");
@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const auth = await requireCapability("calling.poc.manage");
   if (auth instanceof NextResponse) return auth;
-  const user = auth.user as any;
+  const user = auth.user;
 
   let body: any;
   try {

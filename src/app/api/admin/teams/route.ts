@@ -7,7 +7,7 @@ import { teamListQuerySchema } from "@/lib/validations/team";
 export async function GET(request: NextRequest) {
   const auth = await requireCapability("organisation.view");
   if (auth instanceof NextResponse) return auth;
-  const user = auth.user as any;
+  const user = auth.user;
 
   const url = new URL(request.url);
   const rawParams = {

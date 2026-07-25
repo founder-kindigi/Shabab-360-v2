@@ -10,7 +10,7 @@ interface RouteParams {
 export async function GET(request: NextRequest, { params }: RouteParams) {
   const auth = await requireCapability("organisation.view");
   if (auth instanceof NextResponse) return auth;
-  const user = auth.user as any;
+  const user = auth.user;
 
   const { id } = await params;
   const team = await db.collaborationTeam.findUnique({

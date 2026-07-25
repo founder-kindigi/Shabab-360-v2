@@ -11,5 +11,12 @@ export default defineConfig({
     environment: "node",
     include: ["src/**/*.test.ts"],
     clearMocks: true,
+    testTimeout: 30000,
+    setupFiles: ["./vitest.setup.ts"],
+    coverage: {
+      provider: "v8",
+      include: ["src/**"],
+      exclude: ["src/**/*.test.ts", "src/**/*.spec.ts"],
+    },
   },
 });

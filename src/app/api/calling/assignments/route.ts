@@ -8,7 +8,7 @@ import { assignLeadsSchema } from "@/lib/validations/calling";
 export async function POST(request: NextRequest) {
   const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
-  const user = auth.user as any;
+  const user = auth.user;
 
   let body: any;
   try {
@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
 
   const { campaignId, applicationIds, callerStaffMetaId, callerExternalId } = parsed.data;
 
-  const verified = await verifyCallingManagerOrPoc(user, campaignId);
+  const verified = await verifyCallingManagerOrPoc(user as { id: string; role?: string | null }, campaignId);
   if (verified.error || !verified.campaign) {
     return NextResponse.json({ error: verified.error }, { status: verified.status });
   }

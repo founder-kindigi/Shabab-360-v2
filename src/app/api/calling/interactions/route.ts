@@ -8,7 +8,7 @@ import { logInteractionSchema } from "@/lib/validations/calling";
 export async function POST(request: NextRequest) {
   const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
-  const user = auth.user as any;
+  const user = auth.user;
 
   let body: any;
   try {

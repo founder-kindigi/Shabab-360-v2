@@ -11,7 +11,7 @@ interface RouteParams {
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   const auth = await requireCapability("organisation.manage");
   if (auth instanceof NextResponse) return auth;
-  const user = auth.user as any;
+  const user = auth.user;
 
   const { membershipId } = await params;
   const membership = await db.staffTeamMembership.findUnique({
