@@ -87,6 +87,7 @@ async function buildTodayAttendance(
 }
 
 export async function GET(request: NextRequest) {
+  try {
   const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
   const { user } = auth;
@@ -474,4 +475,8 @@ export async function GET(request: NextRequest) {
   }
 
   return NextResponse.json({});
+  } catch (error) {
+    console.error(JSON.stringify({ level: "error", event: "dashboard_failed", errorType: error instanceof Error ? error.name : "Unknown", timestamp: new Date().toISOString() }));
+    return NextResponse.json({ error: "Failed to load dashboard data" }, { status: 500 });
+  }
 }
