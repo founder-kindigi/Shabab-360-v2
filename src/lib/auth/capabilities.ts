@@ -17,6 +17,7 @@ export const ACCESS_CAPABILITIES = [
   "fees.manage",
   "announcements.manage",
   "reports.view",
+  "reports.export",
   "audit.view",
   "settings.manage",
   "content.view",

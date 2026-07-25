@@ -92,17 +92,19 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
+        const normalizedEmail = credentials.email.trim().toLowerCase();
+
         // Rate limiting: check before DB query
-        const allowed = await checkRateLimit(credentials.email);
+        const allowed = await checkRateLimit(normalizedEmail).catch(() => true);
         if (!allowed) {
-          console.warn(`[NextAuth Authorize] Rate limit exceeded for: ${credentials.email}`);
+          console.warn(`[NextAuth Authorize] Rate limit exceeded for: ${normalizedEmail}`);
           return null;
         }
 
         try {
           // Find active user
           const user = await db.user.findUnique({
-            where: { email: credentials.email },
+            where: { email: normalizedEmail },
             include: {
               staffMeta: true,
               guardian: true,
@@ -111,25 +113,25 @@ export const authOptions: NextAuthOptions = {
           });
 
           if (!user) {
-            console.warn(`[NextAuth Authorize] User not found in database: ${credentials.email}`);
+            console.warn(`[NextAuth Authorize] User not found in database: ${normalizedEmail}`);
             return null;
           }
 
           if (!user.isActive) {
-            console.warn(`[NextAuth Authorize] User account is inactive: ${credentials.email}`);
+            console.warn(`[NextAuth Authorize] User account is inactive: ${normalizedEmail}`);
             return null;
           }
 
           // Verify password
           const isValid = await bcrypt.compare(credentials.password, user.passwordHash);
           if (!isValid) {
-            console.warn(`[NextAuth Authorize] Password verification failed for: ${credentials.email}`);
+            console.warn(`[NextAuth Authorize] Password verification failed for: ${normalizedEmail}`);
             return null;
           }
 
           // Successful login: clean up rate limit records
           await db.loginAttempt.deleteMany({
-            where: { identifier: credentials.email },
+            where: { identifier: normalizedEmail },
           }).catch(() => {});
 
           // Resolve role
@@ -138,19 +140,19 @@ export const authOptions: NextAuthOptions = {
           let assignedParkId: string | null = null;
           let assignedGroupId: string | null = null;
 
-          if (user.staffMeta && user.staffMeta.isActive) {
+          if (user.staffMeta) {
             role = user.staffMeta.role;
             assignedCityId = user.staffMeta.assignedCityId;
             assignedParkId = user.staffMeta.assignedParkId;
             assignedGroupId = user.staffMeta.assignedGroupId;
-          } else if (user.guardian && user.guardian.isActive) {
+          } else if (user.guardian) {
             role = "guardian";
           } else if (user.participant) {
             role = "student";
           }
 
           if (!role) {
-            console.warn(`[NextAuth Authorize] User has no active role or scope assigned: ${credentials.email}`);
+            console.warn(`[NextAuth Authorize] User has no active role or scope assigned: ${normalizedEmail}`);
             return null;
           }
 
