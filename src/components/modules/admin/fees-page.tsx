@@ -1387,7 +1387,7 @@ export function FeesPage() {
             </div>
 
             {/* Pagination */}
-            {pagination.totalPages > 1 && (
+            {pagination && pagination.totalPages > 1 && (
               <div className="flex items-center justify-between px-4 py-3 border-t bg-[#F3ECF6]/30 dark:bg-[#1F086080]/30">
                 <p className="text-xs text-muted-foreground">
                   Page {pagination.page} of {pagination.totalPages} ({pagination.total} total)
