@@ -7,7 +7,8 @@ async function main() {
   console.log("Seeding database...");
 
   // Hash password
-  const passwordHash = await bcrypt.hash("password123", 12);
+  const seedPassword = process.env.SEED_PASSWORD || "password123";
+  const passwordHash = await bcrypt.hash(seedPassword, 12);
 
   // 1. Create cities
   const karachi = await db.city.create({
