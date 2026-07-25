@@ -171,9 +171,9 @@ const roleNavPages: Record<string, PageId[]> = {
   super_admin: ["admin-dashboard","admin-cities","admin-parks","admin-batches","admin-groups","admin-people","admin-students","admin-guardians","admin-attendance-events","admin-events","admin-calling","admin-mashwara","admin-users","admin-access","admin-admissions","admin-fees","admin-announcements","admin-reports","notifications","admin-audit-log","admin-access-management","admin-collaboration-teams","admin-settings"],
   program_admin: ["admin-dashboard","admin-cities","admin-parks","admin-batches","admin-groups","admin-people","admin-students","admin-guardians","admin-attendance-events","admin-events","admin-calling","admin-mashwara","admin-users","admin-access","admin-admissions","admin-fees","admin-announcements","admin-reports","notifications","admin-audit-log","admin-settings"],
   city_head: ["city-head-dashboard","admin-parks","admin-batches","admin-groups","admin-people","admin-students","admin-attendance-events","admin-events","admin-calling","admin-mashwara","admin-access","admin-announcements","admin-reports","notifications"],
-  park_admin: ["park-dashboard","park-attendance","notifications"],
-  park_lead: ["park-dashboard","admin-groups","park-attendance","notifications"],
-  murabbi: ["murabbi-dashboard","park-attendance","notifications"],
+  park_admin: ["park-dashboard","park-attendance","park-roster","park-participants","park-guardians","park-schedule","notifications"],
+  park_lead: ["park-dashboard","admin-groups","park-attendance","park-roster","park-participants","park-guardians","park-schedule","notifications"],
+  murabbi: ["murabbi-dashboard","murabbi-groups","park-attendance","park-schedule","notifications"],
   guardian: ["guardian-dashboard","guardian-history","guardian-schedule","guardian-fees","guardian-announcements"],
   student: ["student-dashboard","student-history","student-schedule","student-fees","student-announcements","student-profile"],
 };
@@ -182,7 +182,8 @@ const roleNavPages: Record<string, PageId[]> = {
 export function getNavItems(role: string | undefined, t: (key: string) => string): NavItem[] {
   if (!role) return [];
 
-  const pages = roleNavPages[role];
+  const normalized = role.toLowerCase().trim().replace(/[\s-]/g, "_");
+  const pages = roleNavPages[normalized] || roleNavPages[role];
   if (!pages) return [];
 
   return pages.map((pageId) => {
