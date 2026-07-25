@@ -88,12 +88,14 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
+          console.warn("[NextAuth Authorize] Missing credentials email or password");
           return null;
         }
 
         // Rate limiting: check before DB query
         const allowed = await checkRateLimit(credentials.email);
         if (!allowed) {
+          console.warn(`[NextAuth Authorize] Rate limit exceeded for: ${credentials.email}`);
           return null;
         }
 
@@ -102,13 +104,20 @@ export const authOptions: NextAuthOptions = {
           where: { email: credentials.email },
         });
 
-        if (!user || !user.isActive) {
+        if (!user) {
+          console.warn(`[NextAuth Authorize] User not found in database: ${credentials.email}`);
+          return null;
+        }
+
+        if (!user.isActive) {
+          console.warn(`[NextAuth Authorize] User account is inactive: ${credentials.email}`);
           return null;
         }
 
         // Verify password
         const isValid = await bcrypt.compare(credentials.password, user.passwordHash);
         if (!isValid) {
+          console.warn(`[NextAuth Authorize] Password verification failed for: ${credentials.email}`);
           return null;
         }
 
