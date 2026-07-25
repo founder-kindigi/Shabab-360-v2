@@ -33,6 +33,8 @@ export type PageId =
   | "admin-access"
   | "admin-access-management"
   | "admin-collaboration-teams"
+  | "admin-mashwara"
+  | "admin-mashwara-detail"
   | "notifications"
   // Murabbi pages
   | "murabbi-dashboard"
