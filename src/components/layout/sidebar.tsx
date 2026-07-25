@@ -312,7 +312,7 @@ function DesktopSidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
       animate={{ width: collapsed ? 64 : 256 }}
       transition={{ duration: 0.2, ease: "easeInOut" }}
       style={{ minWidth: collapsed ? 64 : 256 }}
-      className="hidden lg:flex flex-col h-screen border-r bg-card/50 backdrop-blur-sm flex-none relative"
+      className="hidden lg:flex flex-col h-screen border-r bg-card/50 backdrop-blur-sm flex-none overflow-hidden"
     >
       {/* Header / Brand */}
       <div className="group/brand flex items-center gap-3 px-4 h-14 border-b shrink-0 transition-shadow duration-500 hover:shadow-[0_0_20px_rgba(75,10,143,0.15)]">
