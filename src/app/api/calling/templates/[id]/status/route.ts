@@ -12,7 +12,7 @@ interface RouteParams {
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   const auth = await requireCapability("calling.templates.manage");
   if (auth instanceof NextResponse) return auth;
-  const user = auth.user as any;
+  const user = auth.user;
 
   const { id } = await params;
   const template = await db.callingTemplate.findUnique({
