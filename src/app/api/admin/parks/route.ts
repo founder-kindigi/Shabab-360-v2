@@ -26,7 +26,8 @@ export async function GET(request: NextRequest) {
   }
   const { cityId } = parsedQuery.data;
 
-  const isHQ = ["super_admin", "program_admin"].includes(user.role || "");
+  const userRole = (user.role || "").toLowerCase().trim();
+  const isHQ = ["super_admin", "program_admin"].includes(userRole);
 
   if (isHQ) {
     const where: any = { isActive: true };
@@ -43,7 +44,7 @@ export async function GET(request: NextRequest) {
   }
 
   // City head: only parks in their city
-  if (user.role === "city_head" && user.assignedCityId) {
+  if (userRole === "city_head" && user.assignedCityId) {
     const parks = await db.park.findMany({
       where: { cityId: user.assignedCityId, isActive: true },
       include: {
@@ -57,7 +58,7 @@ export async function GET(request: NextRequest) {
 
   // Park staff: only their assigned park
   if (
-    ["park_admin", "park_lead", "murabbi"].includes(user.role || "") &&
+    ["park_admin", "park_lead", "murabbi"].includes(userRole) &&
     user.assignedParkId
   ) {
     const park = await db.park.findUnique({

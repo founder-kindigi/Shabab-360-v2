@@ -43,7 +43,8 @@ export async function GET(request: NextRequest) {
   }
   const { batchId, parkId, search, status } = query.data;
 
-  const isHQ = ["super_admin", "program_admin"].includes(user.role || "");
+  const userRole = (user.role || "").toLowerCase().trim();
+  const isHQ = ["super_admin", "program_admin"].includes(userRole);
 
   // Build where clause based on role
   let where: any = {};
@@ -63,7 +64,7 @@ export async function GET(request: NextRequest) {
       ];
     }
     if (batchId) where.batchId = batchId;
-  } else if (user.role === "city_head" && user.assignedCityId) {
+  } else if (userRole === "city_head" && user.assignedCityId) {
     where.OR = [
       { park: { cityId: user.assignedCityId } },
       { parkId: null, batch: { park: { cityId: user.assignedCityId } } },
@@ -77,7 +78,7 @@ export async function GET(request: NextRequest) {
     }
     if (batchId) where.batchId = batchId;
   } else if (
-    ["park_admin", "park_lead"].includes(user.role || "") &&
+    ["park_admin", "park_lead"].includes(userRole) &&
     user.assignedParkId
   ) {
     where.OR = [
@@ -85,7 +86,7 @@ export async function GET(request: NextRequest) {
       { parkId: null, batch: { parkId: user.assignedParkId } },
     ];
     if (batchId) where.batchId = batchId;
-  } else if (user.role === "murabbi" && user.assignedGroupId) {
+  } else if (userRole === "murabbi" && user.assignedGroupId) {
     // Murabbi: only their own group
     where.id = user.assignedGroupId;
   } else {

@@ -44,11 +44,13 @@ export type ResourceScope = {
 };
 
 export function isHqRole(role?: string | null): role is "super_admin" | "program_admin" {
-  return HQ_ROLES.includes(role as StaffRole);
+  const normalized = (role || "").toLowerCase().trim() as StaffRole;
+  return HQ_ROLES.includes(normalized);
 }
 
 export function isStaffRole(role?: string | null): role is StaffRole {
-  return STAFF_ROLES.includes(role as StaffRole);
+  const normalized = (role || "").toLowerCase().trim() as StaffRole;
+  return STAFF_ROLES.includes(normalized);
 }
 
 /**
@@ -61,19 +63,21 @@ export function canAccessResourceScope(
   scope: ResourceScope,
   allowedRoles: readonly StaffRole[] = STAFF_ROLES
 ): boolean {
-  if (!user.id || !isStaffRole(user.role) || !allowedRoles.includes(user.role)) {
+  const userRole = (user.role || "").toLowerCase().trim() as StaffRole;
+  const normalizedAllowed = allowedRoles.map((r) => r.toLowerCase());
+  if (!user.id || !isStaffRole(userRole) || !normalizedAllowed.includes(userRole)) {
     return false;
   }
 
-  if (isHqRole(user.role)) {
+  if (isHqRole(userRole)) {
     return true;
   }
 
-  if (user.role === "city_head") {
+  if (userRole === "city_head") {
     return Boolean(scope.cityId && user.assignedCityId && scope.cityId === user.assignedCityId);
   }
 
-  if (user.role === "park_admin" || user.role === "park_lead") {
+  if (userRole === "park_admin" || userRole === "park_lead") {
     return Boolean(scope.parkId && user.assignedParkId && scope.parkId === user.assignedParkId);
   }
 

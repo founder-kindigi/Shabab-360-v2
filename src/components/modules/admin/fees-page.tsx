@@ -295,7 +295,8 @@ export function FeesPage() {
 
   // Session for role check
   const { data: session } = useSession();
-  const isAdmin = session?.user?.role === "ADMIN" || session?.user?.role === "SUPER_ADMIN";
+  const userRole = (session?.user?.role || "").toLowerCase().trim();
+  const isAdmin = ["super_admin", "program_admin", "admin"].includes(userRole);
 
   // ---- Queries ----
 

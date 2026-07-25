@@ -37,7 +37,9 @@ export async function requireRole(roles: (UserRole | StaffRole)[]): Promise<Next
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  if (!user.role || !roles.includes(user.role as UserRole)) {
+  const userRole = (user.role || "").toLowerCase().trim();
+  const normalizedAllowed = roles.map((r) => r.toLowerCase());
+  if (!userRole || !normalizedAllowed.includes(userRole)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

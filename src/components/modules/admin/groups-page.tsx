@@ -275,7 +275,8 @@ export function GroupsPage() {
   });
 
   // Determine if user can create/edit/delete groups
-  const canCreate = ["super_admin", "program_admin", "city_head"].includes(user?.role || "");
+  const userRole = (user?.role || "").toLowerCase().trim();
+  const canCreate = ["super_admin", "program_admin", "city_head"].includes(userRole);
   const canEditDelete = canCreate;
 
   return (
