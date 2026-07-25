@@ -545,7 +545,6 @@ async function main() {
       name: "Master Character Building & Tarbiyah Curriculum 2024-2025",
       kind: "base",
       status: "published",
-      version: 1,
       description: "Comprehensive 24-week tarbiyah syllabus covering Mind (Fikr), Body (Sehat), and Soul (Tazkiyah).",
       authorId: programAdminUser.id,
       blocks: {
@@ -600,7 +599,6 @@ async function main() {
       name: "Youth Leadership & Public Speaking Master Series",
       kind: "base",
       status: "published",
-      version: 1,
       description: "12-session interactive module on effective communication, team management, and ethical leadership.",
       authorId: programAdminUser.id,
       blocks: {
