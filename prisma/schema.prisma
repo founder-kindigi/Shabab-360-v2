@@ -453,6 +453,8 @@ model Guardian {
   user     User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
   children GuardianChild[]
 
+  @@index([phone])
+  @@index([isActive])
   @@map("guardians")
 }
 
@@ -561,9 +563,9 @@ model FeeEvent {
   batchId        String
   title          String
   feeType        String
-  amount         Float
+  amount         Decimal   @default(0)
   dueDate        DateTime?
-  discountAmount Float     @default(0)
+  discountAmount Decimal   @default(0)
   waiverReason   String?
   waivedBy       String?
   waivedAt       DateTime?
@@ -577,6 +579,7 @@ model FeeEvent {
   payments Payment[]
 
   @@index([batchId, isActive, createdAt])
+  @@index([batchId])
   @@index([isActive, createdAt])
   @@map("fee_events")
 }
@@ -585,13 +588,13 @@ model Payment {
   id            String   @id @default(cuid())
   feeEventId    String
   participantId String
-  amount        Float
+  amount        Decimal   @default(0)
   method        String
   receiptNo     String?  @unique
   recordedBy    String?
   notes         String?
   isPartial     Boolean  @default(false)
-  waivedAmount  Float    @default(0)
+  waivedAmount  Decimal   @default(0)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -642,6 +645,7 @@ model AdmissionApplication {
   convertedParticipant Participant?         @relation("ConvertedFrom", fields: [convertedParticipantId], references: [id])
   callingAssignments   CallingAssignment[]
 
+  @@index([cityId, status, createdAt])
   @@map("admission_applications")
 }
 
@@ -662,6 +666,7 @@ model AdmissionInterview {
 
   application AdmissionApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
 
+  @@index([applicationId])
   @@map("admission_interviews")
 }
 
