@@ -81,6 +81,7 @@ export const ur: Record<string, string> = {
   "nav.auditLog": "آڈٹ لاگ",
   "nav.notifications": "اطلاعات",
   "nav.admissions": "داخلے",
+  "nav.contentPlanner": "مواد کی منصوبہ بندی",
   "nav.access": "رسائی",
   "nav.accessManagement": "رسائی کا انتظام",
   "nav.collaborationTeams": "تعاونی ٹیمیں",

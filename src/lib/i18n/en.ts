@@ -81,6 +81,7 @@ export const en: Record<string, string> = {
   "nav.auditLog": "Audit Log",
   "nav.notifications": "Notifications",
   "nav.admissions": "Admissions",
+  "nav.contentPlanner": "Content Planner",
   "nav.access": "Access Provisioning",
   "nav.accessManagement": "Access Management",
   "nav.collaborationTeams": "Collaboration Teams",

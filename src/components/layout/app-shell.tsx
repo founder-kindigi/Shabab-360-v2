@@ -45,6 +45,7 @@ const EventsPage = lazy(() => import("@/app/admin/events/page").then(m => ({ def
 const FeesPage = lazy(() => import("@/components/modules/admin/fees-page").then(m => ({ default: m.FeesPage })));
 const NotificationsPage = lazy(() => import("@/components/modules/admin/notifications-page").then(m => ({ default: m.NotificationsPage })));
 const AdmissionsPage = lazy(() => import("@/components/modules/admin/admissions-page").then(m => ({ default: m.AdmissionsPage })));
+const ContentPlannerPage = lazy(() => import("@/components/modules/admin/content-planner-page").then(m => ({ default: m.ContentPlannerPage })));
 const MurabbiDashboard = lazy(() => import("@/components/modules/murabbi/murabbi-dashboard").then(m => ({ default: m.MurabbiDashboard })));
 const MurabbiGroupsPage = lazy(() => import("@/components/modules/murabbi/murabbi-groups-page").then(m => ({ default: m.MurabbiGroupsPage })));
 const ParkDashboard = lazy(() => import("@/components/modules/park/park-dashboard").then(m => ({ default: m.ParkDashboard })));
@@ -127,6 +128,7 @@ const pageTitles: Record<PageId, string> = {
   "admin-mashwara-detail": "Mashwara Detail",
   "admin-admissions": "Admissions",
   "admin-fees": "Fees",
+  "admin-content-planner": "Content Planner",
   "admin-announcements": "Announcements",
   "admin-reports": "Reports",
   "admin-audit-log": "Audit Log",
@@ -164,7 +166,7 @@ function isKnownPage(pageId: PageId): boolean {
     "admin-dashboard", "admin-cities", "admin-parks", "admin-batches",
     "admin-groups", "admin-people", "admin-students", "admin-guardians",
     "admin-attendance-events", "admin-settings", "admin-users",
-    "admin-admissions", "admin-fees", "admin-announcements",
+    "admin-admissions", "admin-fees", "admin-content-planner", "admin-announcements",
     "admin-events", "admin-events-detail",
     "admin-reports", "admin-audit-log", "admin-access", "admin-access-management", "admin-collaboration-teams", "notifications",
     "admin-mashwara",
@@ -267,6 +269,8 @@ function PageContentInner({ pageId }: { pageId: PageId }) {
       return <AdmissionsPage />;
     case "admin-fees":
       return <FeesPage />;
+    case "admin-content-planner":
+      return <ContentPlannerPage />;
     case "admin-events":
       return <EventsPage />;
     case "murabbi-dashboard":

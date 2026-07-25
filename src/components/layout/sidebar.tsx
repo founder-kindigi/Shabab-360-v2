@@ -31,6 +31,7 @@ import {
   Bell,
   Calendar,
   Phone,
+  BookOpen,
   type LucideIcon,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -80,6 +81,7 @@ const navConfig: Record<string, { tKey: string; section: string }> = {
   "admin-collaboration-teams": { tKey: "nav.collaborationTeams", section: "system" },
   "admin-admissions": { tKey: "nav.admissions", section: "operations" },
   "admin-fees": { tKey: "nav.fees", section: "operations" },
+  "admin-content-planner": { tKey: "nav.contentPlanner", section: "operations" },
   "admin-announcements": { tKey: "nav.announcements", section: "communication" },
   "admin-reports": { tKey: "nav.reports", section: "communication" },
   "admin-audit-log": { tKey: "nav.auditLog", section: "system" },
@@ -140,6 +142,7 @@ const iconMap: Record<string, LucideIcon> = {
   "admin-collaboration-teams": Users,
   "admin-admissions": FileText,
   "admin-fees": DollarSign,
+  "admin-content-planner": BookOpen,
   "admin-announcements": Megaphone,
   "admin-reports": BarChart3,
   "admin-audit-log": ScrollText,
@@ -168,9 +171,9 @@ const iconMap: Record<string, LucideIcon> = {
 };
 
 const roleNavPages: Record<string, PageId[]> = {
-  super_admin: ["admin-dashboard","admin-cities","admin-parks","admin-batches","admin-groups","admin-people","admin-students","admin-guardians","admin-attendance-events","admin-events","admin-calling","admin-mashwara","admin-users","admin-access","admin-admissions","admin-fees","admin-announcements","admin-reports","notifications","admin-audit-log","admin-access-management","admin-collaboration-teams","admin-settings"],
-  program_admin: ["admin-dashboard","admin-cities","admin-parks","admin-batches","admin-groups","admin-people","admin-students","admin-guardians","admin-attendance-events","admin-events","admin-calling","admin-mashwara","admin-users","admin-access","admin-admissions","admin-fees","admin-announcements","admin-reports","notifications","admin-audit-log","admin-settings"],
-  city_head: ["city-head-dashboard","admin-parks","admin-batches","admin-groups","admin-people","admin-students","admin-attendance-events","admin-events","admin-calling","admin-mashwara","admin-access","admin-announcements","admin-reports","notifications"],
+  super_admin: ["admin-dashboard","admin-cities","admin-parks","admin-batches","admin-groups","admin-people","admin-students","admin-guardians","admin-attendance-events","admin-events","admin-calling","admin-mashwara","admin-users","admin-access","admin-admissions","admin-fees","admin-content-planner","admin-announcements","admin-reports","notifications","admin-audit-log","admin-access-management","admin-collaboration-teams","admin-settings"],
+  program_admin: ["admin-dashboard","admin-cities","admin-parks","admin-batches","admin-groups","admin-people","admin-students","admin-guardians","admin-attendance-events","admin-events","admin-calling","admin-mashwara","admin-users","admin-access","admin-admissions","admin-fees","admin-content-planner","admin-announcements","admin-reports","notifications","admin-audit-log","admin-settings"],
+  city_head: ["city-head-dashboard","admin-parks","admin-batches","admin-groups","admin-people","admin-students","admin-attendance-events","admin-events","admin-calling","admin-mashwara","admin-content-planner","admin-access","admin-announcements","admin-reports","notifications"],
   park_admin: ["park-dashboard","park-attendance","park-roster","park-participants","park-guardians","park-schedule","notifications"],
   park_lead: ["park-dashboard","admin-groups","park-attendance","park-roster","park-participants","park-guardians","park-schedule","notifications"],
   murabbi: ["murabbi-dashboard","murabbi-groups","park-attendance","park-schedule","notifications"],
