@@ -1,6 +1,6 @@
 # MEDIA-001: Media Operations Workspace Contract
 
-- **Document Version:** 1.0.0
+- **Document Version:** 1.1.0
 - **Task ID:** `MEDIA-001-MEDIA-OPERATIONS-CONTRACT`
 - **Complexity:** C2
 - **Status:** `PROPOSED` — Pending Owner Review & Approval
@@ -77,9 +77,9 @@ model ActivityPlanItem {
 }
 ```
 
-### 1.2 Existing Capabilities (from `src/lib/auth/capabilities.ts`)
+### 1.2 Existing Capabilities (from `src/lib/auth/capabilities.ts` — base commit `054dbb7`)
 
-Verified — 34 fixed capability codes. No media-specific codes exist yet. Relevant existing codes:
+No media-specific codes exist yet. The `ACCESS_CAPABILITIES` array at the base contains the following capability codes relevant to this contract; the full catalogue is unchanged and available in the source file:
 
 | Code | Used By |
 |------|---------|
@@ -87,8 +87,6 @@ Verified — 34 fixed capability codes. No media-specific codes exist yet. Relev
 | `organisation.manage` | Old (write) + all new `/api/admin/collaboration-teams` routes |
 | `content.view` | Content Planner read |
 | `content.manage` | Content Planner write |
-| `mashwara.view` | Weekly Mashwara read |
-| `mashwara.manage` | Weekly Mashwara write |
 
 ### 1.3 Existing Authorization Pattern (Verified in Code)
 
@@ -131,13 +129,14 @@ A brief is the unit of media work. Each brief belongs to one city and one Media 
 | `priority` | enum | yes | `"low"` \| `"medium"` \| `"high"` \| `"urgent"` |
 | `dueAt` | datetime? | no | Deadline — server warns but does not block; overdue is informational |
 | `contentBlockId` | cuid? | no | Optional link to ContentPlanBlock for cross-reference |
-| `approvalState` | enum? | no | See approval state §2.3 |
-| `approvedByStaffMetaId` | cuid? | no | Set when `approvalState === "approved"` |
-| `approvedAt` | datetime? | no | Set when `approvalState === "approved"` |
-| `rejectionReason` | string(1000)? | no | Set when `approvalState === "rejected"` |
-| `assetMetadata` | json? | no | Structured metadata — see §2.4 |
+| `approvalState` | enum? | no | Server-derived — never from client. Set to `"pending"` on `ready_for_review`, `"approved"` on `approved`, `"rejected"` on `revision_requested`. See §2.3. |
+| `approvedByStaffMetaId` | cuid? | no | Server-derived — set when status reaches `"approved"` |
+| `approvedAt` | datetime? | no | Server-derived — set when status reaches `"approved"` |
+| `rejectionReason` | string(1000)? | no | Provided in body alongside `status: "revision_requested"` — stored by server, not directly settable |
+| `assetMetadata` | json? | no | Structured metadata — see §2.4. URL fields fail-closed. |
 | `cancellationReason` | string(500)? | no | Required when status transitions to `"cancelled"` |
 | `isActive` | boolean | auto default true | Soft-delete for audit preservation |
+| `version` | int | auto default 1 | Optimistic concurrency — incremented on every PATCH; client sends current version, server rejects 409 on mismatch |
 | `createdBy` | cuid | auto | Server-derived from authenticated actor |
 | `createdAt` | datetime | auto | |
 | `updatedAt` | datetime | auto | |
@@ -168,21 +167,25 @@ draft ──→ open ──→ in_progress ──→ ready_for_review ──→ 
 - Forward-only except `revision_requested` → `in_progress` (the only backward transition).
 - `cancelled` and `archived` are terminal — no further transitions allowed.
 - A cancelled brief requires `cancellationReason` (validated by Zod).
-- `approvalState` is set to `"approved"` automatically when status reaches `"approved"`.
+- **`approvalState` is never accepted from the client.** It is derived server-side from status transitions:
+  - On status → `ready_for_review`: server sets `approvalState = "pending"`.
+  - On status → `approved`: server sets `approvalState = "approved"`, `approvedByStaffMetaId`, and `approvedAt` from the authenticated actor.
+  - On status → `revision_requested` with `rejectionReason`: server sets `approvalState = "rejected"`.
+  - On status → `in_progress` (from `revision_requested`): server resets `approvalState = null`.
 - `approvedByStaffMetaId` and `approvedAt` are set server-side — never from client.
 
 ### 2.3 Approval State
 
-Separate from status — tracks the explicit approval gate before delivery.
+`approvalState` is a derived field — never set or modified by the client. It reflects the review lifecycle and is updated server-side based on status transitions:
 
-| Approval State | Meaning |
-|----------------|---------|
-| `null` | Not yet submitted for approval |
-| `pending` | Submitted, awaiting review |
-| `approved` | Review passed |
-| `rejected` | Review failed (rejectionReason required) |
+| `approvalState` | Triggering Status Transition | Meaning |
+|-----------------|------------------------------|---------|
+| `"pending"` | status → `ready_for_review` | Submitted for review, awaiting decision |
+| `"approved"` | status → `approved` | Review passed (server also sets `approvedByStaffMetaId` + `approvedAt`) |
+| `"rejected"` | status → `revision_requested` | Review failed; rejection reason captured |
+| `null` | status → `in_progress` (from `revision_requested`) | Reset on rework |
 
-The approval state is managed by `media.workspace.manage`. On `approved`, the system automatically sets `approvedByStaffMetaId` and `approvedAt` from the authenticated actor — never from the client.
+The client **must never** supply `approvalState`, `rejectionReason`, `approvedByStaffMetaId`, or `approvedAt` in any request. The `updateBriefSchema` rejects these fields via `.strict()`. The server derives them from the authenticated actor and the requested status transition.
 
 ### 2.4 Asset Metadata
 
@@ -196,13 +199,17 @@ const assetMetadataSchema = z.object({
   duration: z.string().max(20).optional(),         // "MM:SS" or "HH:MM:SS"
   resolution: z.string().max(20).optional(),        // "1920x1080"
   format: z.string().max(100).optional(),
-  thumbnailUrl: z.string().url().optional(),        // External thumbnail link only
-  externalStorageUrl: z.string().url().optional(),  // Link to external storage
+  // URL fields remain in the schema for documentation only.
+  // All external link registrations are fail-closed (rejected server-side)
+  // until an owner-approved domain whitelist and safe-redirect warning
+  // policy are approved. See §8.2.
+  thumbnailUrl: z.string().url().optional(),
+  externalStorageUrl: z.string().url().optional(),
 }).strict();
 ```
 
 > [!IMPORTANT]
-> **File uploads are disabled for this phase.** No file storage, no Multer, no S3 presigned URLs. The `externalStorageUrl` and `thumbnailUrl` fields accept links to externally hosted assets only. See §8 for the full uploads policy.
+> **File uploads are disabled for this phase.** No file storage, no Multer, no S3 presigned URLs. **External URL registration is also fail-closed** — no `thumbnailUrl` or `externalStorageUrl` may be persisted until an owner-approved domain whitelist exists. See §8.2 for the full policy.
 
 ### 2.5 Server-Derived Audit Fields
 
@@ -217,7 +224,7 @@ Three new capabilities are required. The `media.*` prefix follows the establishe
 | Code | Purpose | Role Defaults |
 |------|---------|---------------|
 | `media.briefs.manage` | Create, edit, cancel briefs. Manage the brief lifecycle through `draft` → `open` → `cancelled`. | `super_admin`, `program_admin`, `city_head` |
-| `media.workspace.view` | View the Media workspace dashboard, brief list, and brief details. Self-assignee may transition own work `in_progress` → `ready_for_review`. | `super_admin`, `program_admin`, `city_head`, plus active Media team members with `mashwara.view` |
+| `media.workspace.view` | View the Media workspace dashboard, brief list, and brief details. Self-assignee may transition own work `in_progress` → `ready_for_review`. | `super_admin`, `program_admin`, `city_head` |
 | `media.workspace.manage` | Full workspace management: assign/reassign briefs, review/approve/reject deliverables, transition to `delivered`, `archived`, `revision_requested`. | `super_admin`, `program_admin`, `city_head` |
 
 ### 3.1 Proposed Additions to ACCESS_CAPABILITIES
@@ -246,11 +253,15 @@ These should be inserted alphabetically in `src/lib/auth/capabilities.ts`:
 | `super_admin` | YES | YES | YES |
 | `program_admin` | YES | YES | YES |
 | `city_head` | YES (own city) | YES (own city) | YES (own city) |
-| `park_lead` | — | YES (if active Media team member) | — |
-| `park_admin` | — | YES (if active Media team member) | — |
-| `murabbi` | — | YES (if active Media team member) | — |
+| `park_lead` | — | YES (own park's city) ** | — |
+| `park_admin` | — | YES (own park's city) ** | — |
+| `murabbi` | — | YES (own group's city) ** | — |
 | `guardian` | — | — | — |
 | `student` | — | — | — |
+
+> ** Active Media team membership is enforced server-side on every route as a separate predicate (see §4.1). Role default grants `media.workspace.view` at the capability level; the membership gate then restricts access to Media team members only. A staff role with this default but no active Media membership will be denied at the active membership check, not at the capability gate.
+
+**Membership is separate from capability:** The role defaults above grant `media.workspace.view` as a normal static default to park_lead, park_admin, and murabbi. Active Media team membership is enforced server-side on every route as a **separate access predicate** (see §4.1). A user with `media.workspace.view` who lacks an active `StaffTeamMembership` in the Media team is denied at the membership check, not at the capability gate. This avoids coupling the Media module to Mashwara or any other team.
 
 **Override behavior:** Standard resolution order (user override → role override → default). A deny override always wins.
 
@@ -324,13 +335,14 @@ All routes are additive. No existing route is modified.
 
 | Field | `media.workspace.view` (own assignment) | `media.workspace.manage` | `media.briefs.manage` |
 |-------|----------------------------------------|--------------------------|------------------------|
-| `status` | `in_progress` ↔ `ready_for_review` only, on own brief | All transitions | Initial: draft → open |
+| `status` | Own brief: `in_progress` ↔ `ready_for_review` only. Server derives `approvalState = "pending"` on `ready_for_review`. | All transitions. `ready_for_review` → `approved` sets `approvalState = "approved"` + approver fields. `ready_for_review` → `revision_requested` sets `approvalState = "rejected"` + `rejectionReason`. `revision_requested` → `in_progress` resets `approvalState = null`. | Initial: `draft` → `open` |
 | `assignedToStaffMetaId` | No | Yes | No |
 | `title`, `description`, `mediaType`, `format`, `priority`, `dueAt`, `contentBlockId` | No | Yes | Yes (draft only) |
-| `approvalState` | No | Yes (`pending` → `approved`/`rejected`) | No |
-| `rejectionReason` | No | Yes (when rejecting) | No |
-| `assetMetadata` | No | Yes (on approved/delivered) | No |
+| `rejectionReason` | No | Server-derived on `ready_for_review` → `revision_requested` (provided in body) | No |
+| `assetMetadata` | No | Yes (on approved/delivered; URL fields fail-closed) | No |
 | `cancellationReason` | No | Yes | Yes (on own briefs) |
+
+> `approvalState`, `approvedByStaffMetaId`, `approvedAt`, and `rejectionReason` are **never accepted from the client**. The `rejectionReason` is supplied in the body alongside a `status: "revision_requested"` transition, but the server copies it to the model — it is not a directly settable field. All of these are rejected by Zod `.strict()` if sent directly.
 
 ### 5.3 Media Team Browsing Endpoint
 
@@ -375,9 +387,10 @@ const createBriefSchema = z.object({
   priority: prioritySchema.default("medium"),
   dueAt: z.coerce.date().optional(),
   contentBlockId: z.string().cuid().optional(),
-}).strict();  // Rejects client-supplied createdBy, status, approvalState, etc.
+}).strict();  // Rejects client-supplied createdBy, approvalState, approvedBy, approvedAt, status
 
 const updateBriefSchema = z.object({
+  version: z.number().int().positive(),  // Required for optimistic concurrency — server compares and 409s on mismatch
   title: z.string().trim().min(3).max(200).optional(),
   description: z.string().trim().max(5000).optional(),
   mediaType: mediaTypeSchema.optional(),
@@ -387,11 +400,16 @@ const updateBriefSchema = z.object({
   contentBlockId: z.string().cuid().optional().nullable(),
   status: briefStatusSchema.optional(),
   assignedToStaffMetaId: staffMetaIdSchema.optional().nullable(),
-  approvalState: approvalStateSchema.optional(),
   rejectionReason: z.string().trim().max(1000).optional().nullable(),
   assetMetadata: assetMetadataSchema.optional().nullable(),
   cancellationReason: z.string().trim().max(500).optional().nullable(),
-}).strict();  // Rejects client-supplied createdBy, approvedByStaffMetaId, approvedAt
+}).refine(
+  (data) => !(data.rejectionReason && data.status !== "revision_requested"),
+  { message: "rejectionReason is only allowed when status is revision_requested" }
+).refine(
+  (data) => !(data.status === "revision_requested" && !data.rejectionReason),
+  { message: "rejectionReason is required when status is revision_requested" }
+).strict();  // Rejects client-supplied createdBy, approvalState, approvedByStaffMetaId, approvedAt
 
 const briefListQuerySchema = z.object({
   status: briefStatusSchema.optional(),
@@ -413,9 +431,14 @@ const assetMetadataSchema = z.object({
   duration: z.string().regex(/^\d{1,2}:\d{2}$|^\d{1,2}:\d{2}:\d{2}$/).optional(),
   resolution: z.string().regex(/^\d+x\d+$/).optional(),
   format: z.string().max(100).optional(),
+  // Fail-closed — server rejects any value until whitelist policy is approved.
   thumbnailUrl: z.string().url().optional(),
   externalStorageUrl: z.string().url().optional(),
 }).strict();
+
+// Server-side validation: if assetMetadata contains a non-null thumbnailUrl
+// or externalStorageUrl and the whitelist policy flag is not enabled, the
+// server must reject with 403 + informative message.
 ```
 
 ---
@@ -446,15 +469,16 @@ model MediaBrief {
   assetMetadata           String?   // JSON string — validated server-side via Zod
   cancellationReason      String?
   isActive                Boolean   @default(true)
+  version                 Int       @default(1)
   createdBy               String    // server-derived userId
   createdAt               DateTime  @default(now())
   updatedAt               DateTime  @updatedAt
 
-  team            CollaborationTeam @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  team            CollaborationTeam @relation(fields: [teamId], references: [id], onDelete: Restrict)
   assignedStaff   StaffMeta?        @relation("MediaAssignee", fields: [assignedToStaffMetaId], references: [id], onDelete: SetNull)
   contentBlock    ContentPlanBlock? @relation(fields: [contentBlockId], references: [id], onDelete: SetNull)
   approvedByStaff StaffMeta?        @relation("MediaApprover", fields: [approvedByStaffMetaId], references: [id], onDelete: SetNull)
-  createdByUser   User              @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+  createdByUser   User              @relation(fields: [createdBy], references: [id], onDelete: Restrict)
 
   @@index([teamId, status])
   @@index([teamId, assignedToStaffMetaId, status])
@@ -500,16 +524,20 @@ File uploads are explicitly disabled for this phase. This applies to all Media w
 - Image, video, or audio file storage
 - Base64 inline data encoding in API payloads
 
-### 8.2 What Is Allowed
+### 8.2 External URL Registration (Fail-Closed)
 
-- External URL references in `assetMetadata.externalStorageUrl` and `assetMetadata.thumbnailUrl`
-- Link registration only — no file transfer, no server-side download, no storage
+External URL fields (`thumbnailUrl`, `externalStorageUrl`) exist in the schema as **documentation placeholders only**. All link registration is rejected server-side in this phase. No `thumbnailUrl` or `externalStorageUrl` value may be persisted until:
+
+1. An **owner-approved domain whitelist** is defined (e.g. `*.google.com`, `*.sharepoint.com`, trusted cloud storage).
+2. A **safe-redirect warning policy** is approved (direct navigation vs intermediate warning page).
+
+Until both conditions are met, the server must return 403 on any PATCH that includes `assetMetadata.thumbnailUrl` or `assetMetadata.externalStorageUrl`. The response body must read: `"External link registration is not yet available. An owner-approved domain whitelist and redirect policy are required before links can be stored."`
 
 ### 8.3 UI Treatment
 
-- All file-picker/dropzone controls are hidden or replaced with a disabled state
-- When displayed, the disabled area shows: `"File uploads are currently disabled. External links can be registered after delivery."`
-- URL input fields for external storage links are text inputs only — no upload UI
+- All file-picker/dropzone controls are hidden or replaced with a disabled state.
+- URL input fields for external storage links are disabled (greyed out) with a tooltip: `"External link registration is not yet available."`
+- If displayed (e.g. as future-proofed layout), the note reads: `"File uploads and external link registration are currently disabled."`
 
 ---
 
@@ -591,18 +619,24 @@ Every state-changing operation on a MediaBrief is logged via `logAudit()`:
 |--------|---------|---------------|
 | `media_brief.create` | POST create brief | `entityType: "media_brief"`, `entityId: brief.id`, `newValues: { title, mediaType, priority }` |
 | `media_brief.update` | PATCH brief fields | `entityType: "media_brief"`, `entityId: brief.id`, `oldValues`/`newValues` for changed fields |
-| `media_brief.status_change` | Status transition | `entityType: "media_brief"`, `entityId: brief.id`, `oldValues: { status }`, `newValues: { status }`, `reason` for cancellation |
+| `media_brief.status_change` | Status transition | `entityType: "media_brief"`, `entityId: brief.id`, `oldValues: { status }`, `newValues: { status }`, `reason` for cancellation (redacted — see §11.1) |
 | `media_brief.assign` | Assignee changed | `entityType: "media_brief"`, `entityId: brief.id`, `oldValues: { assignedTo }`, `newValues: { assignedTo }` |
-| `media_brief.approve` | Approval granted | `entityType: "media_brief"`, `entityId: brief.id`, `newValues: { approvalState: "approved", approvedBy }` |
-| `media_brief.reject` | Approval rejected | `entityType: "media_brief"`, `entityId: brief.id`, `newValues: { approvalState: "rejected", rejectionReason }` |
-| `media_brief.asset_metadata` | Asset metadata set | `entityType: "media_brief"`, `entityId: brief.id`, `newValues: { fileName, mimeType }` (excludes `externalStorageUrl` from audit if deemed sensitive) |
-| `media_brief.delete` | Soft-delete | `entityType: "media_brief"`, `entityId: brief.id`, `reason` |
+| `media_brief.approve` | Approval granted (status → approved) | `entityType: "media_brief"`, `entityId: brief.id`, `newValues: { approvalState: "approved", approvedBy }` |
+| `media_brief.reject` | Approval rejected (status → revision_requested) | `entityType: "media_brief"`, `entityId: brief.id`, `newValues: { approvalState: "rejected" }` (rejectionReason is **not** logged — see §11.1) |
+| `media_brief.asset_metadata` | Asset metadata set | `entityType: "media_brief"`, `entityId: brief.id`, `newValues: { fileName, mimeType }` (excludes URLs — see §11.1) |
+| `media_brief.delete` | Soft-delete | `entityType: "media_brief"`, `entityId: brief.id` |
 
-### 11.1 Redaction Rules
+### 11.1 Redaction Rules (Audit Sanitizer)
 
-- `externalStorageUrl` and `thumbnailUrl` are redacted from audit logs (logged as `"[REDACTED]"`).
-- `rejectionReason` and `cancellationReason` are logged in full (not PII in these fields).
+A dedicated audit sanitizer (`sanitizeMediaAuditData()`) must be applied before any audit log entry is created. The sanitizer enforces:
+
+- `rejectionReason` — **excluded entirely** from audit logs. Not present in `oldValues` or `newValues`. Presence indicates rejection occurred; the content is not recorded.
+- `cancellationReason` — **excluded entirely** from audit logs. The auditor sees only that a cancellation occurred (via the `media_brief.status_change` action with status transition to `"cancelled"`).
+- `externalStorageUrl` — **redacted** to `"[REDACTED]"` in audit logs.
+- `thumbnailUrl` — **redacted** to `"[REDACTED]"` in audit logs.
 - No user credentials, tokens, or session data are ever written to audit.
+
+The sanitizer is a pure function with unit tests proving that any free-text reason fields are absent from the resulting audit payload.
 
 ### 11.2 Audit Read Access
 
@@ -612,6 +646,8 @@ Every state-changing operation on a MediaBrief is logged via `logAudit()`:
 
 ## 12. Allow, Deny, Failure, and Audit Test Matrix
 
+> **Totals:** 12 allow, 21 deny, 12 error, 7 audit = 52 tests
+
 ### 12.1 Allow Tests (Success Paths)
 
 | ID | Actor Capabilities | Context | Action | Expected | Audit? |
@@ -619,13 +655,13 @@ Every state-changing operation on a MediaBrief is logged via `logAudit()`:
 | MD-ALLOW-001 | `media.briefs.manage` (LHR city_head) | LHR Media team, create brief | POST brief (draft) | 201 | Yes (create) |
 | MD-ALLOW-002 | `media.workspace.manage` (LHR city_head) | LHR Media, transition draft → open | PATCH status | 200 | Yes (status_change) |
 | MD-ALLOW-003 | `media.workspace.view` (LHR active member) | Assigned own brief, transition in_progress → ready_for_review | PATCH status | 200 | Yes (status_change) |
-| MD-ALLOW-004 | `media.workspace.manage` (LHR city_head) | Brief in ready_for_review, approve | PATCH approvalState → approved | 200 | Yes (approve) |
-| MD-ALLOW-005 | `media.workspace.manage` (LHR city_head) | Approved brief, set asset metadata | PATCH assetMetadata | 200 | Yes (asset_metadata) |
+| MD-ALLOW-004 | `media.workspace.manage` (LHR city_head) | Brief in ready_for_review, approve | PATCH status → "approved" | 200 | Yes (approve) |
+| MD-ALLOW-005 | `media.workspace.manage` (LHR city_head) | Approved brief, set asset metadata (no URL fields) | PATCH assetMetadata | 200 | Yes (asset_metadata) |
 | MD-ALLOW-006 | `media.workspace.manage` (LHR city_head) | Brief delivered, archive | PATCH status → archived | 200 | Yes (status_change) |
 | MD-ALLOW-007 | `media.workspace.view` (LHR active member) | Own brief list | GET briefs | 200 | No |
 | MD-ALLOW-008 | `media.briefs.manage` (HQ with explicit cityId) | LHR Media team | POST brief (open) | 201 | Yes (create) |
 | MD-ALLOW-009 | `media.workspace.manage` (LHR city_head) | Assign brief to active LHR Media team member | PATCH assignedToStaffMetaId | 200 | Yes (assign) |
-| MD-ALLOW-010 | `media.workspace.manage` (LHR city_head) | Brief in ready_for_review, reject with reason | PATCH approvalState → rejected, rejectionReason set | 200 | Yes (reject) |
+| MD-ALLOW-010 | `media.workspace.manage` (LHR city_head) | Brief in ready_for_review, reject with reason | PATCH status → "revision_requested", rejectionReason set | 200 | Yes (reject) |
 | MD-ALLOW-011 | `media.briefs.manage` (LHR city_head) | Cancel own brief with reason | PATCH status → cancelled, cancellationReason set | 200 | Yes (status_change) |
 | MD-ALLOW-012 | `media.workspace.view` (LHR active member) | View single brief detail | GET brief | 200 | No |
 
@@ -638,19 +674,23 @@ Every state-changing operation on a MediaBrief is logged via `logAudit()`:
 | MD-DENY-003 | `media.workspace.view` only (active member) | Create new brief | POST brief | 403 (requires media.briefs.manage) |
 | MD-DENY-004 | `media.workspace.view` (active member, not assignee) | Try to transition another's brief | PATCH status → in_progress | 403 |
 | MD-DENY-005 | `media.workspace.view` (active member, own brief) | Try to skip to approved | PATCH status → approved | 403 |
-| MD-DENY-006 | `media.workspace.view` (active member) | Try to approve own brief | PATCH approvalState → approved | 403 |
+| MD-DENY-006 | `media.workspace.view` (active member) | Try to approve (only manage can use status → approved) | PATCH status → "approved" | 403 |
+| MD-DENY-007 | `media.workspace.manage` (LHR city_head, NOT a Media team member) | Has capability but lacks active StaffTeamMembership in Media team | GET briefs | 403 (membership predicate independent of capability) |
 | MD-DENY-007 | `media.workspace.manage` (LHR city_head) | Assign brief to staff not in LHR | PATCH assignedToStaffMetaId | 400 (city mismatch) |
 | MD-DENY-008 | `media.workspace.manage` (LHR city_head) | Assign brief to inactive StaffMeta | PATCH assignedToStaffMetaId | 400 (inactive staff) |
 | MD-DENY-009 | `media.workspace.manage` (LHR city_head) | Assign brief to non-Media-team staff | PATCH assignedToStaffMetaId | 400 (not team member) |
 | MD-DENY-010 | `media.briefs.manage` (LHR city_head) | Cancel without cancellationReason | PATCH status → cancelled | 400 |
 | MD-DENY-011 | `media.workspace.view` (active member) | Transition from cancelled to anything | PATCH status → in_progress | 400 (terminal) |
-| MD-DENY-012 | `media.briefs.manage` (LHR city_head) | Update brief after it's open (use manage for draft) | Client supplies `createdBy` in payload | 400 (strict schema) |
+| MD-DENY-012 | `media.briefs.manage` (LHR city_head) | Client supplies `createdBy` in payload | POST brief with createdBy | 400 (strict schema) |
 | MD-DENY-013 | `media.briefs.manage` (LHR city_head) | Create brief with invalid mediaType | POST with mediaType="unknown" | 400 (Zod enum) |
 | MD-DENY-014 | `media.workspace.manage` (ISB city_head) | Access LHR Media team workspace | GET /api/teams/[LHR-teamId]/media | 403 (cross-city) |
 | MD-DENY-015 | `media.workspace.manage` (HQ, no cityId) | No explicit cityId provided | GET briefs | 400 (missing cityId) |
 | MD-DENY-016 | `media.workspace.view` (active member) | Set asset metadata | PATCH assetMetadata | 403 |
 | MD-DENY-017 | Inactive Media membership (endedAt set) | All workspace routes | Any | 403 |
-| MD-DENY-018 | `media.workspace.manage` (LHR city_head) | Client supplies `approvedByStaffMetaId` in payload | PATCH approvalState → approved | 400 (strict schema) |
+| MD-DENY-018 | `media.workspace.manage` (LHR city_head) | Client supplies `approvalState`, `approvedByStaffMetaId`, or `approvedAt` in payload | PATCH with approvalState in body | 400 (strict schema rejects server-derived fields) |
+| MD-DENY-019 | `media.workspace.view` (active member) | Set rejectionReason without status → revision_requested | PATCH rejectionReason only | 400 (rejectionReason requires revision_requested) |
+| MD-DENY-020 | `media.workspace.manage` (LHR city_head) | Set status → revision_requested without rejectionReason | PATCH status → revision_requested, no rejectionReason | 400 (rejectionReason required) |
+| MD-DENY-021 | `media.workspace.manage` (LHR city_head) | Set asset metadata with external URL (whitelist not enabled) | PATCH assetMetadata with thumbnailUrl | 403 (fail-closed) |
 
 ### 12.3 Error/Failure Tests
 
@@ -665,17 +705,21 @@ Every state-changing operation on a MediaBrief is logged via `logAudit()`:
 | MD-ERR-007 | List with invalid limit (> 100) | 400 |
 | MD-ERR-008 | PATCH with no valid fields in body | 400 (empty update) |
 | MD-ERR-009 | Asset metadata with invalid duration format ("abc") | 400 |
-| MD-ERR-010 | Concurrent PATCH (stale data) | 409 (or last-write-wins — to be decided) |
+| MD-ERR-010 | Concurrent PATCH (stale data) | 409 — see §15 D4 |
+| MD-ERR-011 | Attempt to delete a User that has created MediaBriefs | 409 (Restrict prevents cascade delete — team or user must be deactivated, not deleted) |
+| MD-ERR-012 | Attempt to delete a CollaborationTeam that has MediaBriefs | 409 (Restrict prevents cascade delete — team must be deactivated) |
 
 ### 12.4 Audit Tests
 
 | ID | Test | Expected |
 |----|------|----------|
 | MD-AUDIT-001 | Creating a brief creates audit log entry | AuditLog with action `media_brief.create` exists |
-| MD-AUDIT-002 | Rejecting a brief logs reason | AuditLog.rejectionReason matches |
-| MD-AUDIT-003 | Setting asset metadata redacts externalStorageUrl | AuditLog.newValues.externalStorageUrl is `"[REDACTED]"` |
-| MD-AUDIT-004 | Assigning brief logs both old and new assignee | AuditLog.oldValues and .newValues contain assignedToStaffMetaId |
-| MD-AUDIT-005 | Non-audit.view user cannot read Media audit entries | 403 |
+| MD-AUDIT-002 | Rejecting a brief — reason is excluded from audit record | AuditLog.newValues.rejectionReason is absent (undefined) |
+| MD-AUDIT-003 | Cancelling a brief — cancellation reason is excluded from audit | AuditLog.newValues.cancellationReason is absent (undefined) |
+| MD-AUDIT-004 | Setting asset metadata redacts externalStorageUrl | AuditLog.newValues.externalStorageUrl is `"[REDACTED]"` |
+| MD-AUDIT-005 | Assigning brief logs both old and new assignee | AuditLog.oldValues and .newValues contain assignedToStaffMetaId |
+| MD-AUDIT-006 | Non-audit.view user cannot read Media audit entries | 403 |
+| MD-AUDIT-007 | Sanitizer unit test: rejectionReason is stripped before audit write | Raw reason text is absent from sanitized payload |
 
 ---
 
@@ -750,9 +794,9 @@ The following features require separate owner review and approval before impleme
 | File | Action |
 |------|--------|
 | `src/__tests__/api/media/allow.test.ts` | 12 allow tests |
-| `src/__tests__/api/media/deny.test.ts` | 18 deny tests |
-| `src/__tests__/api/media/error.test.ts` | 10 error tests |
-| `src/__tests__/api/media/audit.test.ts` | 5 audit tests |
+| `src/__tests__/api/media/deny.test.ts` | 21 deny tests |
+| `src/__tests__/api/media/error.test.ts` | 12 error tests |
+| `src/__tests__/api/media/audit.test.ts` | 7 audit tests |
 | `src/__tests__/lib/media/zod.test.ts` | Zod validation tests |
 | `src/__tests__/lib/media/scope.test.ts` | Media membership + scope tests |
 
@@ -767,7 +811,7 @@ The following items require product owner resolution before implementation begin
 | D1 | **Brief ID format** — human-readable vs cuid | CUID / Sequential / Custom format | Affects URL structure and display |
 | D2 | **Approval flow** — single approver or multiple? | Single approvedBy / Multi-step approval chain | Affects approvalState enum and auth rules |
 | D3 | **Overdue handling** — should server auto-escalate overdue briefs? | No auto-action / Notify assignee / Notify city_head | Affects optional cron or read-time escalation |
-| D4 | **Concurrent edit conflict** — how to handle simultaneous PATCH? | Last-write-wins / 409 Conflict with stale data | Affects optimistic concurrency control |
+| D4 | **Concurrent edit conflict** — how to handle simultaneous PATCH? | **Optimistic concurrency with deterministic 409 (Recommended).** Server stores a `version` integer (default 1, incremented on every PATCH). Client sends current `version`; server rejects with 409 if mismatch. |
 | D5 | **Asset metadata** — should `externalStorageUrl` be mandatory on delivery? | Optional / Required before delivered | Affects Zod validation on status → delivered |
 | D6 | **Grade/band for mediaType** — allow free-text format or constrained catalogue? | Free-text / Constrained per mediaType | Affects format field validation |
 | D7 | **Notification during pilot** — should status changes trigger any notification? | In-app polling only / Sidebar badge count | Affects client-side polling strategy |
@@ -793,7 +837,7 @@ The following items require product owner resolution before implementation begin
 10. Implement all empty/error/loading states
 
 ### Phase 4 — Testing & Quality (Depends on Phase 2-3)
-11. Write 45 tests (12 allow, 18 deny, 10 error, 5 audit)
+11. Write 52 tests (12 allow, 21 deny, 12 error, 7 audit)
 12. Zod + scope unit tests
 13. Lint, typecheck, full suite, SQLite/PostgreSQL builds
 
@@ -807,7 +851,7 @@ The following items require product owner resolution before implementation begin
 - [ ] 3 API route files created with full auth chain (capability + scope + membership)
 - [ ] Scope helpers, Zod schemas, audit helpers created
 - [ ] UI components created (8)
-- [ ] All 45+ tests pass
+- [ ] All 52+ tests pass
 - [ ] Lint, typecheck, full suite, SQLite/PostgreSQL builds pass
 - [ ] Uploads disabled — no file storage endpoints
 - [ ] Mobile 375px/390px responsive verified
