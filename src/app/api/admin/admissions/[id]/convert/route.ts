@@ -3,13 +3,13 @@ import { requireRole, requireAuth, requireCapability } from "@/lib/auth/authoriz
 import { db } from "@/lib/db";
 import { z } from "zod";
 import { logAudit } from "@/lib/audit";
-import bcrypt from "bcryptjs";
-import crypto from "crypto";
 
 const convertSchema = z.object({
   groupId: z.string().min(1, "Group is required"),
   createGuardian: z.boolean().optional().default(true),
 });
+
+class ConversionConflictError extends Error {}
 
 export async function POST(
   request: NextRequest,
@@ -24,6 +24,14 @@ export async function POST(
   if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
   const { id } = await params;
+  const parsed = convertSchema.safeParse(await request.json().catch(() => null));
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: parsed.error.flatten().fieldErrors },
+      { status: 400 }
+    );
+  }
+  const { groupId, createGuardian } = parsed.data;
 
   const existing = await db.admissionApplication.findUnique({
     where: { id },
@@ -47,17 +55,6 @@ export async function POST(
     );
   }
 
-  const body = await request.json();
-  const parsed = convertSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json(
-      { error: parsed.error.flatten().fieldErrors },
-      { status: 400 }
-    );
-  }
-
-  const { groupId, createGuardian } = parsed.data;
-
   // Validate group exists
   const group = await db.group.findUnique({
     where: { id: groupId, isActive: true },
@@ -76,43 +73,50 @@ export async function POST(
     );
   }
 
-  // Create participant
-  const participant = await db.participant.create({
-    data: {
-      name: existing.applicantName,
-      dateOfBirth: existing.applicantDOB,
-      gender: existing.gender,
-      groupId: groupId,
-      state: "active",
-    },
-  });
+  let participant;
+  try {
+    participant = await db.$transaction(async (tx) => {
+      const createdParticipant = await tx.participant.create({
+        data: {
+          name: existing.applicantName,
+          dateOfBirth: existing.applicantDOB,
+          gender: existing.gender,
+          groupId,
+          state: "active",
+        },
+      });
 
-  // Optionally create guardian
-  if (createGuardian) {
-    const guardian = await db.guardian.create({
-      data: {
-        name: existing.guardianName,
-        phone: existing.guardianPhone,
-      },
-    });
+      if (createGuardian) {
+        const guardian = await tx.guardian.create({
+          data: { name: existing.guardianName, phone: existing.guardianPhone },
+        });
 
-    await db.guardianChild.create({
-      data: {
-        guardianId: guardian.id,
-        participantId: participant.id,
-        relation: existing.guardianRelation || undefined,
-      },
+        await tx.guardianChild.create({
+          data: {
+            guardianId: guardian.id,
+            participantId: createdParticipant.id,
+            relation: existing.guardianRelation || undefined,
+          },
+        });
+      }
+
+      const transition = await tx.admissionApplication.updateMany({
+        where: { id, status: "accepted", convertedParticipantId: null },
+        data: { convertedParticipantId: createdParticipant.id, status: "enrolled" },
+      });
+      if (transition.count !== 1) throw new ConversionConflictError();
+
+      return createdParticipant;
     });
+  } catch (error) {
+    if (error instanceof ConversionConflictError) {
+      return NextResponse.json(
+        { error: "Application was already converted or its status changed" },
+        { status: 409 }
+      );
+    }
+    throw error;
   }
-
-  // Update application
-  await db.admissionApplication.update({
-    where: { id },
-    data: {
-      convertedParticipantId: participant.id,
-      status: "enrolled",
-    },
-  });
 
   await logAudit({
     userId: auth.user.id,
