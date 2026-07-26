@@ -3,8 +3,6 @@ import { requireRole, requireAuth, requireCapability } from "@/lib/auth/authoriz
 import { db } from "@/lib/db";
 import { z } from "zod";
 import { logAudit } from "@/lib/audit";
-import bcrypt from "bcryptjs";
-import crypto from "crypto";
 
 const convertSchema = z.object({
   groupId: z.string().min(1, "Group is required"),
