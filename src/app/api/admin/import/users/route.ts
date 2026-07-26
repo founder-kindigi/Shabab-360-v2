@@ -176,7 +176,7 @@ export async function POST(request: NextRequest) {
 
         // Generate password
         const password = generatePassword();
-        const hash = await bcrypt.hash(password, 10);
+        const hash = await bcrypt.hash(password, 12);
 
         const phone = row["phone"] || row["Phone"] || "";
 

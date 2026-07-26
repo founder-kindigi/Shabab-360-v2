@@ -5,6 +5,14 @@ const mocks = vi.hoisted(() => ({
   requireRole: vi.fn(),
   requireCapability: vi.fn(),
   requireResourceScope: vi.fn(),
+  bcryptHash: vi.fn(),
+  db: {
+    city: { findMany: vi.fn() },
+    park: { findMany: vi.fn() },
+    group: { findMany: vi.fn() },
+    user: { findUnique: vi.fn() },
+    $transaction: vi.fn(),
+  },
 }));
 
 vi.mock("@/lib/auth/authorize", () => ({
@@ -12,8 +20,9 @@ vi.mock("@/lib/auth/authorize", () => ({
   requireCapability: mocks.requireCapability,
   requireResourceScope: mocks.requireResourceScope,
 }));
-vi.mock("@/lib/db", () => ({ db: {} }));
+vi.mock("@/lib/db", () => ({ db: mocks.db }));
 vi.mock("@/lib/audit", () => ({ logAudit: vi.fn() }));
+vi.mock("bcryptjs", () => ({ default: { hash: mocks.bcryptHash } }));
 
 import { POST as importGuardians } from "./guardians/route";
 import { POST as importParticipants } from "./participants/route";
@@ -82,4 +91,30 @@ describe("bulk import capability gates", () => {
       await expect(response.json()).resolves.toEqual({ error: "Import processing failed" });
     }
   );
+
+  it("uses the standard bcrypt cost when importing a staff account", async () => {
+    mocks.requireCapability.mockResolvedValue({ user: { id: "admin-1" } });
+    mocks.db.city.findMany.mockResolvedValue([]);
+    mocks.db.park.findMany.mockResolvedValue([]);
+    mocks.db.group.findMany.mockResolvedValue([]);
+    mocks.db.user.findUnique.mockResolvedValue(null);
+    mocks.bcryptHash.mockResolvedValue("bcrypt-hash");
+    mocks.db.$transaction.mockImplementation((callback) =>
+      callback({
+        user: { create: vi.fn().mockResolvedValue({ id: "user-1" }) },
+        staffMeta: { create: vi.fn().mockResolvedValue({ id: "staff-1" }) },
+      })
+    );
+
+    const file = new File(
+      ["name,email,role\nImported Staff,staff@example.invalid,murabbi"],
+      "users.csv",
+      { type: "text/csv" }
+    );
+
+    const response = await importUsers(requestWithFile(file));
+
+    expect(response.status).toBe(200);
+    expect(mocks.bcryptHash).toHaveBeenCalledWith(expect.any(String), 12);
+  });
 });
