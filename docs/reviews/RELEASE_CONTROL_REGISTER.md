@@ -1,6 +1,6 @@
 # Release Control Register
 
-**Last reviewed:** 2026-07-26  
+**Last reviewed:** 2026-07-26
 **Purpose:** Track verified release gates and blockers. This document does not
 authorize deployment by itself.
 
