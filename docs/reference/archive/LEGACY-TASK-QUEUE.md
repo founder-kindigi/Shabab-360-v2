@@ -1,3 +1,9 @@
+# Archived Task Queue
+
+> Historical delegation snapshot only. Do not use this file to assign work or
+> determine release status. Use the master blueprint, current code, and the
+> active task board instead.
+
 # Shabab 360 Remaining Delivery Tasks
 
 **Owner:** Codex is the final reviewer and only approves, commits, pushes, or

@@ -47,11 +47,20 @@ hygiene guide, not a replacement for the master product blueprint.
 | `docs/reviews/` | Code review, QA reports, release readiness, and UAT evidence indexes. |
 | `docs/modules/` | Stable module reference documents when maintained. |
 | `docs/reference/` | External/reference material that informs the project but does not define current behavior. |
+| `docs/reference/imported/` | Source documents imported for context. Include a source and retention purpose. |
+| `docs/reference/snapshots/` | Sanitized captures of public reference material; never runtime input. |
+| `docs/reference/archive/` | Superseded task queues and historical agent notes. Never use these to decide current work. |
 | `worklog.md` | Historical chronology only. Do not use as planning authority. |
 
 New screenshots and browser evidence belong under a dated folder inside
 `docs/reviews/`, with no personal data or credentials. Root-level `qa-*.png`
 and `upload/` files are legacy captures; do not add new files there.
+
+Root-level package handoffs, task queues, downloaded documents, external-site
+captures, and agent notes belong in the appropriate `docs/` subfolder. Before
+moving a legacy item, confirm it is not a runtime input and update every active
+link. QA captures, raw tool output, and upload folders require a separate
+retention and personal-data review before relocation or deletion.
 
 ## Clean-Code Boundaries
 

@@ -434,11 +434,11 @@ If module routes must be rolled back, delete the route files and revert `capabil
 
 ### 11.2 Module Implementation Contracts (Each Defines Its Own Routes)
 
-- Content Planner: [PKG-01](docs/product-discovery/PKG-01-HANDOFF.md) — uses `content.view`, `content.manage`
-- Collaboration Teams: [TEAM-003](docs/product-discovery/TEAM-003-COLLABORATION-TEAM-WORKSPACE-CONTRACT.md) — uses `teams.*`
-- Events: [EVENT-303](docs/product-discovery/EVENT-303-IMPLEMENTATION-CONTRACT.md) — uses `events.*`
-- Mashwara: [MASHWARA-303](docs/product-discovery/MASHWARA-303-IMPLEMENTATION-CONTRACT.md) — uses `mashwara.*`
-- Calling: [CALL-308](docs/product-discovery/CALL-308-CALLING-MODULE-IMPLEMENTATION-CONTRACT.md) — uses `calling.*`
+- Content Planner: [PKG-01](PKG-01-HANDOFF.md) — uses `content.view`, `content.manage`
+- Collaboration Teams: [TEAM-003](TEAM-003-COLLABORATION-TEAM-WORKSPACE-CONTRACT.md) — uses `teams.*`
+- Events: [EVENT-303](EVENT-303-IMPLEMENTATION-CONTRACT.md) — uses `events.*`
+- Mashwara: [MASHWARA-303](MASHWARA-303-IMPLEMENTATION-CONTRACT.md) — uses `mashwara.*`
+- Calling: [CALL-308](CALL-308-CALLING-MODULE-IMPLEMENTATION-CONTRACT.md) — uses `calling.*`
 
 Each module contract defines its own API routes, Zod schemas, scope helpers, UI components, and focused tests. This contract does not duplicate those.
 
