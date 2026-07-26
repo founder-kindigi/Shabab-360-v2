@@ -2,28 +2,38 @@ import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { db } from "@/lib/db";
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
 
-// Simple in-memory rate limiter: email -> { count, resetAt }
-const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 const MAX_LOGIN_ATTEMPTS = 5;
-const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
+const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
 
-function checkRateLimit(email: string): boolean {
-  const now = Date.now();
-  const entry = rateLimitMap.get(email);
-  if (!entry || now > entry.resetAt) {
-    rateLimitMap.set(email, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
-    return true;
-  }
-  if (entry.count >= MAX_LOGIN_ATTEMPTS) {
-    return false;
-  }
-  entry.count++;
-  return true;
+function fingerprintLoginIdentifier(email: string): string {
+  const secret = process.env.NEXTAUTH_SECRET;
+  if (!secret) throw new Error("Login rate limit secret is unavailable");
+  return crypto.createHmac("sha256", secret).update(email).digest("hex");
 }
 
-function resetRateLimit(email: string) {
-  rateLimitMap.delete(email);
+function loginAttemptWindowStart() {
+  return new Date(Date.now() - RATE_LIMIT_WINDOW_MS);
+}
+
+async function isLoginRateLimited(identifier: string) {
+  const attempts = await db.loginAttempt.count({
+    where: { identifier, createdAt: { gte: loginAttemptWindowStart() } },
+  });
+  return attempts >= MAX_LOGIN_ATTEMPTS;
+}
+
+async function recordFailedLogin(identifier: string) {
+  const windowStart = loginAttemptWindowStart();
+  await db.$transaction(async (tx) => {
+    await tx.loginAttempt.deleteMany({ where: { createdAt: { lt: windowStart } } });
+    await tx.loginAttempt.create({ data: { identifier } });
+  });
+}
+
+async function clearFailedLogins(identifier: string) {
+  await db.loginAttempt.deleteMany({ where: { identifier } });
 }
 
 // Augment NextAuth types to include custom user properties
@@ -79,43 +89,54 @@ export const authOptions: NextAuthOptions = {
         }
 
         const normalizedEmail = credentials.email.trim().toLowerCase();
+        let loginIdentifier: string;
 
-        // Rate limiting: check before DB query
-        if (!checkRateLimit(normalizedEmail)) {
-          console.warn("[NextAuth Authorize] Rate limit exceeded");
+        try {
+          loginIdentifier = fingerprintLoginIdentifier(normalizedEmail);
+          if (await isLoginRateLimited(loginIdentifier)) {
+            console.warn("[NextAuth Authorize] Rate limit exceeded");
+            return null;
+          }
+        } catch {
+          console.warn("[NextAuth Authorize] Rate limit unavailable");
           return null;
         }
 
-        // Find active user (try exact normalized email first, fallback to contains)
-        let user = await db.user.findUnique({
+        async function rejectLogin(reason: string) {
+          try {
+            await recordFailedLogin(loginIdentifier);
+          } catch {
+            console.warn("[NextAuth Authorize] Rate limit persistence failed");
+          }
+          console.warn(reason);
+          return null;
+        }
+
+        // Authentication must use an exact normalized identifier. A partial-match
+        // fallback can select the wrong account when addresses share a substring.
+        const user = await db.user.findUnique({
           where: { email: normalizedEmail },
         });
 
         if (!user) {
-          user = await db.user.findFirst({
-            where: { email: { contains: normalizedEmail } },
-          });
-        }
-
-        if (!user) {
-          console.warn("[NextAuth Authorize] User not found");
-          return null;
+          return rejectLogin("[NextAuth Authorize] User not found");
         }
 
         if (!user.isActive) {
-          console.warn("[NextAuth Authorize] Account inactive");
-          return null;
+          return rejectLogin("[NextAuth Authorize] Account inactive");
         }
 
         // Verify password
         const isValid = await bcrypt.compare(credentials.password, user.passwordHash);
         if (!isValid) {
-          console.warn("[NextAuth Authorize] Password invalid");
-          return null;
+          return rejectLogin("[NextAuth Authorize] Password invalid");
         }
 
-        // Successful login: reset rate limit
-        resetRateLimit(normalizedEmail);
+        try {
+          await clearFailedLogins(loginIdentifier);
+        } catch {
+          console.warn("[NextAuth Authorize] Rate limit cleanup failed");
+        }
 
         // Resolve role
         let role: string | null = null;

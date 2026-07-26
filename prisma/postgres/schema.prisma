@@ -84,6 +84,16 @@ model User {
   @@map("users")
 }
 
+// Stores HMAC-fingerprinted failed login identifiers for persistent throttling.
+model LoginAttempt {
+  id         String   @id @default(cuid())
+  identifier String
+  createdAt  DateTime @default(now())
+
+  @@index([identifier, createdAt])
+  @@map("login_attempts")
+}
+
 model AuditLog {
   id         String   @id @default(cuid())
   userId     String?
