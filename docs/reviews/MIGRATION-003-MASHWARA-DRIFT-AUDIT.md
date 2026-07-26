@@ -1,0 +1,254 @@
+# MIGRATION-003: Mashwara Drift Audit
+
+- **Document Version:** 2.0.0
+- **Task ID:** `MIGRATION-003-MASHWARA-DRIFT-AUDIT`
+- **Complexity:** C2
+- **Status:** `COMPLETE` — Audit findings only (no schema, migration, or database changes)
+- **Base:** `1bf33f9`
+- **Objective:** Audit the confirmed SQLite Mashwara migration/schema drift after the baseline was added in MIGRATION-002.
+
+---
+
+## 1. Full-Chain Diff Reproduction
+
+**Command:**
+```bash
+npx prisma migrate diff --from-migrations prisma/migrations \
+  --to-schema-datamodel prisma/schema.prisma --script
+```
+
+**Result:** The diff emits `RedefineTables` blocks for all 5 Mashwara tables only. No `CREATE TABLE`, `DROP TABLE`, or index changes appear for any other model, confirming the baseline + 3 additive migrations cover all non-Mashwara models exactly.
+
+```
+mashwara_meetings       → RedefineTables
+mashwara_attendees      → RedefineTables
+mashwara_decisions      → RedefineTables
+mashwara_action_items   → RedefineTables
+mashwara_meeting_shares → RedefineTables
+```
+
+Inside each `RedefineTables` block, Prisma rebuilds the table with:
+1. `CREATE TABLE "new_<table>"` — including inline `PRIMARY KEY` and all **foreign-key constraints** via `REFERENCES` clauses.
+2. `INSERT INTO ... SELECT` — copies existing rows.
+3. `DROP TABLE "<table>"` — drops the constraint-free original.
+4. `ALTER TABLE ... RENAME` — restores the name.
+5. Recreates indices.
+
+---
+
+## 2. Structural Gap: Missing Foreign-Key Constraints
+
+### 2.1 SQLite Migration (`prisma/migrations/20260724200000_add_mashwala_module/migration.sql`)
+
+The migration creates all 5 tables **without any `REFERENCES` clause**. Zero foreign-key constraints are enforced.
+
+| Table | Expected FK (from current schema) | Migration has it? |
+|-------|----------------------------------|-------------------|
+| `mashwara_meetings` | `cityId → City(id)`, `createdById → User(id)` | ❌ Neither |
+| `mashwara_attendees` | `meetingId → MashwaraMeeting(id)`, `staffMetaId → StaffMeta(id)` | ❌ Neither |
+| `mashwara_decisions` | `meetingId → MashwaraMeeting(id)`, `targetTeamId → CollaborationTeam(id)`, `assignedToId → StaffMeta(id)` | ❌ None |
+| `mashwara_action_items` | `meetingId → MashwaraMeeting(id)`, `teamId → CollaborationTeam(id)`, `assignedToId → StaffMeta(id)` | ❌ None |
+| `mashwara_meeting_shares` | `meetingId → MashwaraMeeting(id)`, `staffMetaId → StaffMeta(id)`, `grantedById → StaffMeta(id)` | ❌ None |
+
+**Total: 13 missing foreign-key constraints.**
+
+### 2.2 Comparison: The `new_` Tables in the Diff
+
+The `RedefineTables` block's `CREATE TABLE "new_..."` includes all required `REFERENCES` clauses:
+
+```sql
+-- From the diff output:
+CONSTRAINT "mashwara_meetings_cityId_fkey" FOREIGN KEY ("cityId") REFERENCES "cities" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+CONSTRAINT "mashwara_meetings_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "users" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+```
+
+Also includes table-level fkey for decisions targets/assignees, action items teams/assignees, and share recipients/granters.
+
+### 2.3 Index Discrepancy
+
+| Index | In migration? |
+|-------|:---:|
+| `mashwara_meetings_cityId_status_idx` | ✅ |
+| `mashwara_meetings_scheduledAt_idx` | ✅ |
+| `mashwara_attendees_meetingId_idx` | ✅ |
+| `mashwara_attendees_staffMetaId_idx` | ✅ |
+| `mashwara_attendees_meetingId_staffMetaId_key` (unique) | ✅ |
+| `mashwara_decisions_meetingId_status_idx` | ✅ |
+| `mashwara_action_items_meetingId_status_idx` | ✅ |
+| `mashwara_action_items_assignedToId_status_idx` | ✅ |
+| `mashwara_meeting_shares_meetingId_staffMetaId_key` (unique) | ✅ |
+| `mashwara_meeting_shares_meetingId_staffMetaId_isRevoked_idx` | ✅ |
+| `mashwara_meeting_shares_staffMetaId_idx` | ✅ |
+
+All 11 indices/unique constraints present in the migration. The index gap is **not confirmed** — the sole structural gap is the missing FKs.
+
+---
+
+## 3. Severity: High
+
+**Why this is High, not cosmetic:**
+
+1. A fresh SQLite database created via `prisma migrate dev` using these 4 migrations will have all 5 Mashwara tables **without any foreign-key enforcement**. Orphan rows, dangling references, and cascading delete failures become possible at the database level. Prisma Client enforces relations in application code, but direct database access, raw queries, or future tooling that relies on referential integrity will not be protected.
+
+2. The `RedefineTables` blocks that appear in `migrate diff` are structural repair work — they add the missing 13 FK constraints. This is not a PRIMARY KEY syntax preference; it is correcting a constraint deficit.
+
+3. Because Prisma Client handles FK enforcement in its generated queries (SQLite does not enforce FK constraints by default unless `PRAGMA foreign_keys = ON` is set before the CREATE TABLE), existing applications may not observe failures today. However, the database lacks integrity guarantees.
+
+---
+
+## 4. Root Cause
+
+The migration `20260724200000_add_mashwara_module/migration.sql` was generated by a Prisma version or configuration that did not emit inline `REFERENCES` clauses for SQLite. The parent commit `bb2743c` (merged at `cea80ad`) produced the constraint-free SQL. No later commit modified the Mashwara model structure or the migration file.
+
+**Confirmed:** `git diff 159ba85 -- prisma/schema.prisma` is empty — the schema has not changed. `git diff 159ba85 -- prisma/migrations/20260724200000_add_mashwara_module/migration.sql` is empty — the migration file has not been edited. The divergence is between the migration as-generated and the schema as-generated by the **current Prisma version**.
+
+---
+
+## 5. PostgreSQL Parity
+
+### 5.1 PostgreSQL Migration Has All FKs
+
+The PostgreSQL migration at `prisma/postgres/migrations/20260724200000_add_mashwara_module/migration.sql` contains **all 13 `FOREIGN KEY` constraints** via `ALTER TABLE` statements:
+
+```
+FOREIGN KEY ("cityId") REFERENCES "cities"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+FOREIGN KEY ("createdById") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+FOREIGN KEY ("meetingId") REFERENCES "mashwara_meetings"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+FOREIGN KEY ("staffMetaId") REFERENCES "staff_meta"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+FOREIGN KEY ("meetingId") REFERENCES "mashwara_meetings"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+FOREIGN KEY ("targetTeamId") REFERENCES "collaboration_teams"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+FOREIGN KEY ("assignedToId") REFERENCES "staff_meta"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+FOREIGN KEY ("meetingId") REFERENCES "mashwara_meetings"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+FOREIGN KEY ("teamId") REFERENCES "collaboration_teams"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+FOREIGN KEY ("assignedToId") REFERENCES "staff_meta"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+FOREIGN KEY ("meetingId") REFERENCES "mashwara_meetings"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+FOREIGN KEY ("staffMetaId") REFERENCES "staff_meta"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+FOREIGN KEY ("grantedById") REFERENCES "staff_meta"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+```
+
+**PostgreSQL has no drift for Mashwara.** The shadow-database diff would likely be empty for the Mashwara tables.
+
+### 5.2 Shadow-Database Diff Is Still Required
+
+PostgreSQL parity at the file level does not guarantee runtime parity. A disposable PostgreSQL shadow database must still be used to run:
+
+```bash
+npx prisma migrate diff \
+  --from-migrations prisma/postgres/migrations \
+  --to-schema-datamodel prisma/postgres/schema.prisma \
+  --shadow-database-url "postgresql://..." \
+  --script
+```
+
+Expected output: **empty** (no diff). This is an independent release gate.
+
+---
+
+## 6. Remediation
+
+### 6.1 Recommended: Forward-Only SQLite Repair Migration
+
+A corrective additive migration should be generated that captures the current Prisma generator's SQLite output for the Mashwara models. This is the only safe approach — it preserves existing migration history and does not modify or roll back any applied migration.
+
+**Steps:**
+
+1. **Verify prerequisites:**
+   - `prisma/migrations/migration_lock.toml` provider is `sqlite` — confirmed.
+   - No unapplied migrations exist in the chain — confirmed (4 migrations, all applied).
+   - Fresh SQLite database available for verification — see §7.
+
+2. **Generate the repair migration:**
+   ```bash
+   npx prisma migrate dev --name add_mashwara_fk_constraints --schema=prisma/schema.prisma
+   ```
+   This creates a new migration file `20260726XXXXXX_add_mashwara_fk_constraints/` containing the `RedefineTables` blocks for all 5 tables, rebuilding them with inline FKs.
+
+3. **Verify on a fresh disposable SQLite database:**
+   - Delete any previous temp database.
+   - Run `prisma migrate dev` — all 5 migrations apply cleanly.
+   - Run `prisma migrate status` — "Database schema is up to date!"
+   - Run `migrate diff` — **empty output** (full parity achieved).
+
+4. **Verify on existing local development SQLite database:**
+   - Back up `prisma/dev.db` first.
+   - Run `prisma migrate dev` — the repair migration applies `RedefineTables` for each Mashwara table, adding the missing FKs.
+   - Run `migrate diff` — empty output.
+   - Run existing tests to confirm no regressions.
+
+5. **Commit only the new migration directory.** Do not modify `20260724200000_add_mashwara_module`.
+
+**Risks and safeguards:**
+- The `RedefineTables` operation is **data-safe** — it creates a new table, copies all rows via `INSERT INTO ... SELECT`, drops the old table, and renames. No data loss occurs.
+- `PRAGMA foreign_keys = OFF` during the operation prevents FK violations during the transition.
+- On an existing database with valid data, the operation is transparent. On a database with orphaned rows, the `INSERT INTO ... SELECT` may fail if any row violates a new FK constraint. This is the **desired behavior** — it surfaces latent integrity issues.
+
+### 6.2 PostgreSQL
+
+No repair needed for PostgreSQL — the migration already contains all FKs. The shadow-database diff is the only remaining gate.
+
+---
+
+## 7. Verification Steps
+
+### 7.1 Fresh Disposable SQLite Database
+
+| Step | Expected | Status |
+|------|----------|--------|
+| Create temp SQLite database | Clean apply of 5 migrations | ❓ After repair migration |
+| `prisma migrate status` | "Database schema is up to date!" | ❓ After repair migration |
+| `migrate diff` | Empty output | ❓ After repair migration |
+
+### 7.2 Existing Development SQLite Database
+
+| Step | Expected | Status |
+|------|----------|--------|
+| Backup `prisma/dev.db` | Copy saved | ❓ Owner action |
+| `prisma migrate status` | 4 migrations applied | ✅ |
+| Run repair migration | RedefineTables for 5 tables | ❓ Owner action |
+| `prisma migrate status` | 5 migrations applied | ❓ After repair |
+| `migrate diff` | Empty output | ❓ After repair |
+
+### 7.3 PostgreSQL Shadow Database
+
+| Step | Expected | Status |
+|------|----------|--------|
+| Provision disposable PostgreSQL instance | Connection string ready | ❓ Owner action |
+| Run shadow-database diff | Empty output | ❓ Blocks staging |
+| `migrate status` on staging | 11 migrations "Already Applied" | ❓ Owner/staging access |
+
+---
+
+## 8. Does This Block Staging Release?
+
+**Staging release is blocked** until:
+
+1. PostgreSQL shadow-database parity is proven via `migrate diff` with empty output — **independent release gate** regardless of Mashwara audit outcome.
+2. The owner confirms a recent staging database backup exists.
+3. The owner has reviewed and approved the deploy scope.
+
+The SQLite repair migration is a local-development fix. It does not directly affect staging (which runs PostgreSQL, where FKs are already correct). However, the release gate condition from MIGRATION-001 remains: **no staging migration deployment until PostgreSQL shadow-database parity is proven.**
+
+---
+
+## 9. Summary of Findings
+
+| # | Finding | Severity | Evidence |
+|---|---------|----------|----------|
+| F1 | **SQLite Mashwara migration lacks all 13 foreign-key constraints.** Fresh databases created with this migration have no referential integrity on Mashwara tables. | **High** | Migration SQL: zero `REFERENCES` clauses. Current schema: 13 FK constraints across 5 tables. |
+| F2 | **PostgreSQL Mashwara migration has all 13 FKs.** No PostgreSQL drift for Mashwara. | **None** | 13 `FOREIGN KEY` statements found in `prisma/postgres/migrations/20260724200000_.../migration.sql`. |
+| F3 | **All 11 indices and unique constraints are present** in the SQLite Mashwara migration. | **None** — only FKs are missing. | Index matches confirmed by line-by-line comparison. |
+| F4 | **Staging release is blocked** until PostgreSQL shadow-database parity is proven (independent gate). | **Release blocker** | Shadow-database diff not yet run. |
+
+### Action Items
+
+| # | Action | Owner | Status |
+|---|--------|-------|--------|
+| R1 | Generate forward-only SQLite repair migration (`add_mashwara_fk_constraints`) | Codex | ❓ Pending approval |
+| R2 | Verify on fresh + existing SQLite databases | Codex | ❓ After R1 |
+| R3 | Run PostgreSQL shadow-database parity diff | Owner | ❓ Blocks staging |
+| R4 | Confirm staging database backup | Owner | ❓ Blocks staging |
+| R5 | Approve staging deploy scope | Owner | ❓ Blocks staging |
+
+---
+
+*End of MIGRATION-003-MASHWARA-DRIFT-AUDIT.md*
