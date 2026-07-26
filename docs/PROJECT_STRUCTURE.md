@@ -9,9 +9,10 @@ hygiene guide, not a replacement for the master product blueprint.
    is the product and delivery authority.
 2. [.agents/memory/current.md](../.agents/memory/current.md) records only
    verified durable state and active blockers.
-3. Current code and fresh test or browser evidence win when older documents
+3. [CONTRIBUTING.md](../CONTRIBUTING.md) defines the shared developer workflow.
+4. Current code and fresh test or browser evidence win when older documents
    disagree.
-4. Capability checks never replace server-derived city, park, or group scope.
+5. Capability checks never replace server-derived city, park, or group scope.
 
 ## Application Layout
 
