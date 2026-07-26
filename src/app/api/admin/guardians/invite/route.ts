@@ -3,6 +3,7 @@ import { requireRole, requireAuth, requireCapability } from "@/lib/auth/authoriz
 import { db } from "@/lib/db";
 import { z } from "zod";
 import { logAudit } from "@/lib/audit";
+import { SENSITIVE_RESPONSE_HEADERS } from "@/lib/security/sensitive-response";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 
@@ -111,6 +112,6 @@ export async function POST(request: NextRequest) {
       temporaryPassword,
       relationship,
     },
-    { status: 201 }
+    { status: 201, headers: SENSITIVE_RESPONSE_HEADERS }
   );
 }
