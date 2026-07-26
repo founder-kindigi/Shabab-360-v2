@@ -103,11 +103,11 @@ The SQLite chain begins with an **additive** migration (`add_student_extended_pr
 
 **Presumptive cause:** `prisma db push` was used during initial development to apply the schema to SQLite. This is a common local-development workflow, but it creates a divergence between the migration directory and the actual database state.
 
-### 3.2 No Migration-Schema Drift Detected
+### 3.2 Inventory Is Orderly; Executable Parity Is Still Required
 
-All 3 SQLite additive migrations match the current schema at `159ba85`. No model has been removed, renamed, or restructured since its migration was created.
+The three shared additive migrations have matching names and timestamps in both providers. That inventory check is useful, but it does **not** establish that either migration chain reproduces the current schema. Only an executable diff against a fresh SQLite database and a PostgreSQL shadow database can establish parity.
 
-The only source of the non-empty diff is the **missing initial baseline**, not any underlying model corruption.
+The missing SQLite baseline is confirmed. No additional migration-schema drift should be claimed absent those executable checks.
 
 ### 3.3 PostgreSQL Baseline Exists but Parity Is Unverified
 
@@ -137,13 +137,7 @@ The SQLite chain needs an initial-baseline migration that captures the schema **
 
 1. **Freeze `prisma/schema.prisma`.** No schema changes during this operation.
 
-2. **Determine the pre-additive schema.** The 3 existing additive migrations cover `student_extended_profiles` (profile), events/calling, and Mashwaka. The baseline must match the schema before any of these. The simplest approach: temporarily comment out those 3 models in `schema.prisma`, generate the diff, then restore them.
-
-   Equivalent safe command on a disposable temp schema:
-   ```
-   # Generate diff from schema with only the core models
-   # (Owner to execute — see §5)
-   ```
+2. **Use the verified pre-additive schema revision.** The baseline must match the schema before any of the three additive migrations. At this base, that revision is `60bc3f17d992beec3e9b332ae6e16d3d43847642`, the parent of `18501be72b416358645f9317a6ce585d372d6cd2` (the commit that added `StudentExtendedProfile` and the first SQLite migration). Generate baseline SQL from a temporary copy of that historical schema or an isolated worktree at that revision. Do not comment out models or alter the active `schema.prisma`.
 
 3. **Create the migration directory** with a timestamp predating all existing migrations:
    ```
@@ -153,13 +147,15 @@ The SQLite chain needs an initial-baseline migration that captures the schema **
 
 4. **Verify on a fresh SQLite database:**
    - Create or point to a blank SQLite database (no existing data).
+   - Apply the baseline plus all three additive migrations.
    - Run `npx prisma migrate diff --from-migrations prisma/migrations --to-schema-datamodel prisma/schema.prisma --script`.
    - **Expected:** Empty output (no diff).
-   - Run `npx prisma migrate dev` and confirm zero errors.
+   - Run `npx prisma migrate status` and confirm the baseline plus all three additive migrations are recorded as applied.
 
-5. **Verify on the existing local SQLite development database** (with real data):
-   - Run `prisma migrate resolve --applied 20260701000000_init_sqlite` to mark the baseline as applied without re-executing SQL (non-destructive).
-   - Confirm `prisma migrate status` shows all 4 migrations applied.
+5. **Assess each existing local SQLite development database before any metadata change:**
+   - Inspect its `_prisma_migrations` records and database schema first.
+   - Only if the schema matches the proposed baseline and the migration record sequence is understood, use `prisma migrate resolve --applied 20260701000000_init_sqlite` to mark the baseline without re-executing SQL.
+   - Confirm `prisma migrate status` shows the expected baseline plus additive migrations.
    - Confirm `migrate diff` now outputs empty.
 
 **Why not generate the baseline from the current schema?** The current schema includes `student_extended_profiles`, events/calling tables, and Mashwara tables. A `--from-empty` diff of the current schema would produce `CREATE TABLE` for every model, including those already created by migrations 1–3. On a fresh database, `migrate dev` would then attempt to create those tables twice, producing duplicates.
@@ -223,7 +219,7 @@ If the SQLite migration chain is used only for isolated local development that i
 
 | Risk | Impact |
 |------|--------|
-| `migrate dev` on a fresh clone will produce a full-schema diff | Developers must use `db push` instead |
+| Fresh clones cannot reliably reproduce the local schema from migration history | Developers must use an undocumented `db push` workaround or the baseline must be created |
 | CI checks expecting clean `migrate diff` will need the baseline | CI must either create the baseline or skip the check |
 | PostgreSQL is unaffected for staging deploy | The staging concern is PostgreSQL, which has a complete chain pending parity verification |
 
@@ -251,7 +247,7 @@ The following commands must **only** be executed by the repository owner or Code
 
 | Action | Command | Risk Level |
 |--------|---------|------------|
-| Generate SQLite pre-baseline migration SQL (local, no DB contact) | `npx prisma migrate diff --from-empty --to-schema-datamodel <pre-additive-schema> --script > prisma/migrations/20260701000000_init_sqlite/migration.sql` | Low — creates a file, no database contact. Requires a temporary schema file with additive models excluded. |
+| Generate SQLite pre-baseline migration SQL (local, no DB contact) | `npx prisma migrate diff --from-empty --to-schema-datamodel <temporary schema exported from 60bc3f17> --script > prisma/migrations/20260701000000_init_sqlite/migration.sql` | Low — creates a file, no database contact. The temporary schema must come from the verified historical revision, not a manually edited active schema. |
 | Apply baseline to a fresh SQLite database (data-safe) | `npx prisma migrate dev` | Low — fresh database, no data. |
 | Mark baseline as applied on existing local SQLite dev database | `npx prisma migrate resolve --applied 20260701000000_init_sqlite --schema=prisma/schema.prisma` | Low — modifies only `_prisma_migrations`. Must confirm backup exists and `migrate status` is clean first. |
 | Check PostgreSQL migrate status against staging (read-only) | `npx prisma migrate status --schema=prisma/postgres/schema.prisma` | Low — read-only query. Still connects to staging. |
@@ -267,7 +263,7 @@ The following commands must **only** be executed by the repository owner or Code
 |---|---------|----------|----------|
 | F1 | **SQLite has no initial-baseline migration.** The core schema (~25 models) was created outside migration history. | **High** — `migrate diff` emits full schema; blocks clean CI; confuses onboarding. | File review: 3 additive migrations only; `migrate diff` output is a complete schema. |
 | F2 | **PostgreSQL baseline exists but parity is unverified.** The `init_postgres` migration looks complete on file review, but a disposable shadow-database diff is required for certainty. | **Medium** — blocks staging deploy until shadow-database parity is proven. | `migrate diff` on PostgreSQL returns error without shadow DB; file review cannot detect drift. |
-| F3 | **No migration-schema drift detected at base `159ba85`.** All 3 SQLite and 11 PostgreSQL migration files match their current schemas. No models removed, renamed, or diverged. | **None** — confirms no corruption. | Schema and migration files cross-reference cleanly at file level. |
+| F3 | **No migration naming or ordering mismatch was found at base `159ba85`.** This is not proof of schema parity; only executable diffs against a fresh SQLite database and a PostgreSQL shadow database can establish that. | **Low** — inventory is orderly, but parity remains a release gate. | The three shared additive migrations have matching names and timestamps; executable parity remains pending. |
 | F4 | **Both chains share their last 3 migrations** with identical timestamps and names. Migration ordering is correct within each chain. | **None** — confirmed aligned. | Timestamps and file contents match. |
 | F5 | **PostgreSQL diff requires a shadow database** and cannot be run locally without one. | **Medium** — adds setup overhead. | Command errors with `--shadow-database-url` required. |
 
