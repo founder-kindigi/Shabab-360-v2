@@ -2,13 +2,17 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   findUnique: vi.fn(),
+  findFirst: vi.fn(),
   credentialsProvider: vi.fn((config) => config),
 }));
 
 vi.mock("next-auth/providers/credentials", () => ({ default: mocks.credentialsProvider }));
 vi.mock("@/lib/db", () => ({
   db: {
-    user: { findUnique: mocks.findUnique },
+    user: {
+      findUnique: mocks.findUnique,
+      findFirst: mocks.findFirst,
+    },
   },
 }));
 
@@ -40,5 +44,22 @@ describe("JWT session invalidation", () => {
     const result = await callback!({ token } as never);
 
     expect(result).toEqual(token);
+  });
+
+  it("does not log an email address when a login is rejected", async () => {
+    const email = "private.user@example.invalid";
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    mocks.findUnique.mockResolvedValue(null);
+    mocks.findFirst.mockResolvedValue(null);
+    const provider = authOptions.providers[0] as unknown as {
+      authorize: (credentials: { email: string; password: string }) => Promise<unknown>;
+    };
+
+    const result = await provider.authorize({ email, password: "incorrect-password" });
+
+    expect(result).toBeNull();
+    expect(warn).toHaveBeenCalledWith("[NextAuth Authorize] User not found");
+    expect(warn.mock.calls.flat().join(" ")).not.toContain(email);
+    warn.mockRestore();
   });
 });

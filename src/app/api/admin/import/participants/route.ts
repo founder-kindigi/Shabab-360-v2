@@ -5,6 +5,7 @@ import { logAudit } from "@/lib/audit";
 import Papa from "papaparse";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
+import { PASSWORD_HASH_ROUNDS } from "@/lib/auth/password-policy";
 import { validateImportFile, sanitizeImportError } from "@/lib/import-utils";
 import { participantProfileFieldsFromCsv, participantProfileFieldsSchema } from "@/lib/participants/profile-fields";
 
@@ -186,7 +187,7 @@ export async function POST(request: NextRequest) {
           ? crypto.randomBytes(24).toString("base64url")
           : undefined;
         const generatedPasswordHash = generatedTemporaryPassword
-          ? await bcrypt.hash(generatedTemporaryPassword, 12)
+          ? await bcrypt.hash(generatedTemporaryPassword, PASSWORD_HASH_ROUNDS)
           : undefined;
 
         // Handle guardian

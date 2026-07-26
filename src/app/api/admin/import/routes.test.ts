@@ -1,10 +1,20 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest, NextResponse } from "next/server";
+import { PASSWORD_HASH_ROUNDS } from "@/lib/auth/password-policy";
 
 const mocks = vi.hoisted(() => ({
   requireRole: vi.fn(),
   requireCapability: vi.fn(),
   requireResourceScope: vi.fn(),
+  cityFindMany: vi.fn(),
+  parkFindMany: vi.fn(),
+  groupFindMany: vi.fn(),
+  userFindUnique: vi.fn(),
+  userCreate: vi.fn(),
+  staffMetaCreate: vi.fn(),
+  transaction: vi.fn(),
+  bcryptHash: vi.fn(),
+  logAudit: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/authorize", () => ({
@@ -12,8 +22,17 @@ vi.mock("@/lib/auth/authorize", () => ({
   requireCapability: mocks.requireCapability,
   requireResourceScope: mocks.requireResourceScope,
 }));
-vi.mock("@/lib/db", () => ({ db: {} }));
-vi.mock("@/lib/audit", () => ({ logAudit: vi.fn() }));
+vi.mock("@/lib/db", () => ({
+  db: {
+    city: { findMany: mocks.cityFindMany },
+    park: { findMany: mocks.parkFindMany },
+    group: { findMany: mocks.groupFindMany },
+    user: { findUnique: mocks.userFindUnique },
+    $transaction: mocks.transaction,
+  },
+}));
+vi.mock("@/lib/audit", () => ({ logAudit: mocks.logAudit }));
+vi.mock("bcryptjs", () => ({ default: { hash: mocks.bcryptHash } }));
 
 import { POST as importGuardians } from "./guardians/route";
 import { POST as importParticipants } from "./participants/route";
@@ -39,6 +58,20 @@ describe("bulk import capability gates", () => {
     mocks.requireCapability.mockResolvedValue(
       NextResponse.json({ error: "Forbidden" }, { status: 403 })
     );
+    mocks.cityFindMany.mockResolvedValue([]);
+    mocks.parkFindMany.mockResolvedValue([]);
+    mocks.groupFindMany.mockResolvedValue([]);
+    mocks.userFindUnique.mockResolvedValue(null);
+    mocks.bcryptHash.mockResolvedValue("bcrypt-hash");
+    mocks.userCreate.mockResolvedValue({ id: "new-user" });
+    mocks.staffMetaCreate.mockResolvedValue({ id: "staff-meta" });
+    mocks.transaction.mockImplementation(async (callback) =>
+      callback({
+        user: { create: mocks.userCreate },
+        staffMeta: { create: mocks.staffMetaCreate },
+      })
+    );
+    mocks.logAudit.mockResolvedValue(undefined);
   });
 
   it.each([
@@ -82,4 +115,22 @@ describe("bulk import capability gates", () => {
       await expect(response.json()).resolves.toEqual({ error: "Import processing failed" });
     }
   );
+
+  it("hashes imported staff passwords with the approved bcrypt work factor", async () => {
+    mocks.requireCapability.mockResolvedValue({ user: { id: "admin-1" } });
+    const file = new File([], "users.csv", { type: "text/csv" });
+    vi.spyOn(file, "text").mockResolvedValue(
+      ["name,email,role", "Test User,test.user@example.invalid,park_lead"].join(
+        String.fromCharCode(10)
+      )
+    );
+
+    const response = await importUsers(requestWithFile(file));
+
+    const body = await response.json();
+    expect(body).toMatchObject({ success: 1, errors: [] });
+    expect(response.status).toBe(200);
+    expect(mocks.bcryptHash).toHaveBeenCalledWith(expect.any(String), PASSWORD_HASH_ROUNDS);
+    expect(mocks.bcryptHash).not.toHaveBeenCalledWith(expect.any(String), 10);
+  });
 });

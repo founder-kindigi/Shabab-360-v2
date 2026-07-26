@@ -6,6 +6,7 @@ import bcrypt from "bcryptjs";
 import { sendPasswordChangeConfirmation } from "@/lib/email-service";
 import { isSameOriginRequest } from "@/lib/security/origin";
 import { z } from "zod";
+import { PASSWORD_HASH_ROUNDS } from "@/lib/auth/password-policy";
 import { getPasswordValidationError } from "@/lib/auth/password-policy";
 
 const resetPasswordSchema = z.object({
@@ -69,7 +70,7 @@ export async function POST(request: Request) {
     }
 
     // Hash new password and increment tokenVersion to invalidate all existing sessions
-    const passwordHash = await bcrypt.hash(newPassword, 12);
+    const passwordHash = await bcrypt.hash(newPassword, PASSWORD_HASH_ROUNDS);
 
     await db.user.update({
       where: { id: user.id },

@@ -39,7 +39,6 @@ export const ACCESS_CAPABILITIES = [
   "students.profile.sensitive.manage",
   "mashwara.view",
   "mashwara.manage",
-  "reports.export",
 ] as const;
 
 // Individual overrides must never grant audit, system-setting, or access

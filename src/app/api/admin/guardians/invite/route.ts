@@ -5,6 +5,7 @@ import { z } from "zod";
 import { logAudit } from "@/lib/audit";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
+import { PASSWORD_HASH_ROUNDS } from "@/lib/auth/password-policy";
 
 const inviteSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
@@ -41,7 +42,7 @@ export async function POST(request: NextRequest) {
   const { name, email, phone, cnic, address, relationship } = parsed.data;
   const userEmail = email || generateEmailFromPhone(phone);
   const temporaryPassword = crypto.randomBytes(24).toString("base64url");
-  const passwordHash = await bcrypt.hash(temporaryPassword, 12);
+  const passwordHash = await bcrypt.hash(temporaryPassword, PASSWORD_HASH_ROUNDS);
 
   // Check for existing user with same email
   const existingUser = await db.user.findUnique({ where: { email: userEmail } });

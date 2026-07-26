@@ -1,5 +1,7 @@
 export const PASSWORD_MIN_LENGTH = 12;
 export const PASSWORD_MAX_LENGTH = 128;
+// Keep every application-created password on the same bcrypt work factor.
+export const PASSWORD_HASH_ROUNDS = 12;
 
 export function getPasswordValidationError(password: string) {
   if (password.length < PASSWORD_MIN_LENGTH) {

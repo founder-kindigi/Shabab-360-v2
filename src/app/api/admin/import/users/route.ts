@@ -6,6 +6,7 @@ import Papa from "papaparse";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { validateImportFile, sanitizeImportError } from "@/lib/import-utils";
+import { PASSWORD_HASH_ROUNDS } from "@/lib/auth/password-policy";
 
 const VALID_ROLES = [
   "super_admin",
@@ -176,7 +177,7 @@ export async function POST(request: NextRequest) {
 
         // Generate password
         const password = generatePassword();
-        const hash = await bcrypt.hash(password, 10);
+        const hash = await bcrypt.hash(password, PASSWORD_HASH_ROUNDS);
 
         const phone = row["phone"] || row["Phone"] || "";
 

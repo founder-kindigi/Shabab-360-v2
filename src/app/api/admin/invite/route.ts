@@ -6,6 +6,7 @@ import { sendInviteEmail } from "@/lib/email-service";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
+import { PASSWORD_HASH_ROUNDS } from "@/lib/auth/password-policy";
 
 const ALL_ROLES = [
   "super_admin",
@@ -152,7 +153,7 @@ export async function POST(request: NextRequest) {
 
   // Display this once to the administrator; never persist it in a notification or audit log.
   const temporaryPassword = crypto.randomBytes(24).toString("base64url");
-  const passwordHash = await bcrypt.hash(temporaryPassword, 12);
+  const passwordHash = await bcrypt.hash(temporaryPassword, PASSWORD_HASH_ROUNDS);
 
   // Create User + StaffMeta in a Prisma transaction
   const user = await db.$transaction(async (tx) => {

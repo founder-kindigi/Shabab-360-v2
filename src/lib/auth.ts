@@ -82,7 +82,7 @@ export const authOptions: NextAuthOptions = {
 
         // Rate limiting: check before DB query
         if (!checkRateLimit(normalizedEmail)) {
-          console.warn(`[NextAuth Authorize] Rate limit exceeded for: ${normalizedEmail}`);
+          console.warn("[NextAuth Authorize] Rate limit exceeded");
           return null;
         }
 
@@ -98,19 +98,19 @@ export const authOptions: NextAuthOptions = {
         }
 
         if (!user) {
-          console.warn(`[NextAuth Authorize] User not found in DB: ${normalizedEmail}`);
+          console.warn("[NextAuth Authorize] User not found");
           return null;
         }
 
         if (!user.isActive) {
-          console.warn(`[NextAuth Authorize] Account inactive: ${normalizedEmail}`);
+          console.warn("[NextAuth Authorize] Account inactive");
           return null;
         }
 
         // Verify password
         const isValid = await bcrypt.compare(credentials.password, user.passwordHash);
         if (!isValid) {
-          console.warn(`[NextAuth Authorize] Password invalid for: ${normalizedEmail}`);
+          console.warn("[NextAuth Authorize] Password invalid");
           return null;
         }
 
@@ -149,7 +149,7 @@ export const authOptions: NextAuthOptions = {
         }
 
         if (!role) {
-          console.warn(`[NextAuth Authorize] No role found for user: ${normalizedEmail}`);
+          console.warn("[NextAuth Authorize] No role found");
           return null;
         }
 

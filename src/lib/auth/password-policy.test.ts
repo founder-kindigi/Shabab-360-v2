@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { getPasswordValidationError } from "./password-policy";
+import {
+  getPasswordValidationError,
+  PASSWORD_HASH_ROUNDS,
+} from "./password-policy";
 
 describe("password policy", () => {
+  it("uses the approved bcrypt work factor", () => {
+    expect(PASSWORD_HASH_ROUNDS).toBe(12);
+  });
+
   it("accepts a 12-character password", () => {
     expect(getPasswordValidationError("strong-pass1")).toBeNull();
   });
