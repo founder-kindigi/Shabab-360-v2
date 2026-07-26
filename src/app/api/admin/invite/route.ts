@@ -3,6 +3,7 @@ import { requireCapability, requireRole } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
 import { sendInviteEmail } from "@/lib/email-service";
+import { SENSITIVE_RESPONSE_HEADERS } from "@/lib/security/sensitive-response";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
@@ -241,5 +242,8 @@ export async function POST(request: NextRequest) {
     role
   ).catch(() => {});
 
-  return NextResponse.json({ user, temporaryPassword }, { status: 201 });
+  return NextResponse.json(
+    { user, temporaryPassword },
+    { status: 201, headers: SENSITIVE_RESPONSE_HEADERS }
+  );
 }

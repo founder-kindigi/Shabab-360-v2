@@ -7,6 +7,7 @@ import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { validateImportFile, sanitizeImportError } from "@/lib/import-utils";
 import { participantProfileFieldsFromCsv, participantProfileFieldsSchema } from "@/lib/participants/profile-fields";
+import { SENSITIVE_RESPONSE_HEADERS } from "@/lib/security/sensitive-response";
 
 export async function POST(request: NextRequest) {
   const authError = await requireRole([
@@ -286,12 +287,15 @@ export async function POST(request: NextRequest) {
       newValues: { success, errors: errors.length, total: rows.length },
     });
 
-    return NextResponse.json({
-      success,
-      errors,
-      total: rows.length,
-      generatedPasswords,
-    });
+    return NextResponse.json(
+      {
+        success,
+        errors,
+        total: rows.length,
+        generatedPasswords,
+      },
+      { headers: SENSITIVE_RESPONSE_HEADERS }
+    );
   } catch (err: unknown) {
     return NextResponse.json({ error: sanitizeImportError(err) }, { status: 500 });
   }

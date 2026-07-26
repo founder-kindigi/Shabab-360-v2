@@ -136,6 +136,9 @@ describe("POST /api/admin/invite", () => {
     );
 
     expect(response.status).toBe(201);
+    expect(response.headers.get("cache-control")).toBe("no-store, no-cache, max-age=0, must-revalidate");
+    expect(response.headers.get("pragma")).toBe("no-cache");
+    expect(response.headers.get("expires")).toBe("0");
     const body = await response.json();
     expect(body.user).toMatchObject({
       id: user.id,

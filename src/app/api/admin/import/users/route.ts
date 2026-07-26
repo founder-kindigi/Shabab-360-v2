@@ -6,6 +6,7 @@ import Papa from "papaparse";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { validateImportFile, sanitizeImportError } from "@/lib/import-utils";
+import { SENSITIVE_RESPONSE_HEADERS } from "@/lib/security/sensitive-response";
 
 const VALID_ROLES = [
   "super_admin",
@@ -224,12 +225,15 @@ export async function POST(request: NextRequest) {
       newValues: { success, errors: errors.length, total: rows.length },
     });
 
-    return NextResponse.json({
-      success,
-      errors,
-      total: rows.length,
-      generatedPasswords,
-    });
+    return NextResponse.json(
+      {
+        success,
+        errors,
+        total: rows.length,
+        generatedPasswords,
+      },
+      { headers: SENSITIVE_RESPONSE_HEADERS }
+    );
   } catch (err: unknown) {
     return NextResponse.json({ error: sanitizeImportError(err) }, { status: 500 });
   }
