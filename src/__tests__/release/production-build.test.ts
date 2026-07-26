@@ -5,6 +5,7 @@ import { join, basename } from "path";
 const PRISMA_CORE = join(__dirname, "../../../prisma/schema.prisma");
 const PRISMA_PG = join(__dirname, "../../../prisma/postgres/schema.prisma");
 const NEXT_CONFIG = join(__dirname, "../../../next.config.ts");
+const CI_WORKFLOW = join(__dirname, "../../../.github/workflows/ci.yml");
 
 /* ── Helpers ────────────────────────────────────────────────────────── */
 function countModels(schemaPath: string): number {
@@ -233,7 +234,16 @@ describe("RELEASE-001: Production Build Validation", () => {
     });
   });
 
-  /* ── 7. Git Ignore Exclusions ──────────────────────────────────────── */
+  /* ── 7. CI Runtime Parity ─────────────────────────────────────────── */
+  describe("CI runtime parity", () => {
+    it("builds with the PostgreSQL client used for deployment", () => {
+      const workflow = readFileSync(CI_WORKFLOW, "utf-8");
+
+      expect(workflow).toContain("npm run build:postgres");
+    });
+  });
+
+  /* ── 8. Git Ignore Exclusions ──────────────────────────────────────── */
   describe("Git ignore exclusions", () => {
     it(".gitignore excludes .env files (except .env.example)", () => {
       const gitignore = readFileSync(join(__dirname, "../../../.gitignore"), "utf-8");
