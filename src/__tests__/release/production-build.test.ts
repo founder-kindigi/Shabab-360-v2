@@ -265,4 +265,44 @@ describe("RELEASE-001: Production Build Validation", () => {
       expect(gitignore).toContain("*.db");
     });
   });
+
+  /* ── 8. CI Workflow — Prisma Schema Validation ───────────────────── */
+  describe("CI workflow validates both Prisma schemas", () => {
+    const ci = readFileSync(join(__dirname, "../../../.github/workflows/ci.yml"), "utf-8");
+
+    it("validates SQLite schema before client generation", () => {
+      expect(ci).toContain("prisma validate --schema=prisma/schema.prisma");
+    });
+
+    it("validates PostgreSQL schema before client generation", () => {
+      expect(ci).toContain("prisma validate --schema=prisma/postgres/schema.prisma");
+    });
+
+    it("uses placeholder datasource URLs for CI-only validation (no secrets)", () => {
+      expect(ci).toContain("DATABASE_URL: \"file:../tmp-ci-validate/ci.db\"");
+      expect(ci).toContain("DATABASE_URL: \"postgresql://ci:ci@localhost:5432/ci_shabab?pgbouncer=true\"");
+      expect(ci).toContain("DIRECT_URL: \"postgresql://ci:ci@localhost:5432/ci_shabab\"");
+    });
+
+    it("SQLite validation runs before PostgreSQL validation", () => {
+      const sqliteIdx = ci.indexOf("prisma validate --schema=prisma/schema.prisma");
+      const pgIdx = ci.indexOf("prisma validate --schema=prisma/postgres/schema.prisma");
+      expect(sqliteIdx).toBeGreaterThan(0);
+      expect(pgIdx).toBeGreaterThan(sqliteIdx);
+    });
+
+    it("both validations run before Prisma Client generation", () => {
+      const validateEnd = ci.lastIndexOf("prisma validate");
+      const generateIdx = ci.indexOf("db:generate");
+      expect(generateIdx).toBeGreaterThan(validateEnd);
+    });
+
+    it("no migration, db push, deploy, seed, or reset command is used", () => {
+      expect(ci).not.toContain("migrate dev");
+      expect(ci).not.toContain("migrate deploy");
+      expect(ci).not.toContain("migrate reset");
+      expect(ci).not.toContain("db push");
+      expect(ci).not.toContain("db seed");
+    });
+  });
 });
