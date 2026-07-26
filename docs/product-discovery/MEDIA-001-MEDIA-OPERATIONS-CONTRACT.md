@@ -224,7 +224,7 @@ Three new capabilities are required. The `media.*` prefix follows the establishe
 | Code | Purpose | Role Defaults |
 |------|---------|---------------|
 | `media.briefs.manage` | Create, edit, cancel briefs. Manage the brief lifecycle through `draft` → `open` → `cancelled`. | `super_admin`, `program_admin`, `city_head` |
-| `media.workspace.view` | View the Media workspace dashboard, brief list, and brief details. Self-assignee may transition own work `in_progress` → `ready_for_review`. | `super_admin`, `program_admin`, `city_head` |
+| `media.workspace.view` | View the Media workspace dashboard, brief list, and brief details. Self-assignee may transition own work `in_progress` → `ready_for_review`. | `super_admin`, `program_admin`, `city_head`, `park_lead`, `park_admin`, `murabbi` (see §3.3 for the full role matrix) |
 | `media.workspace.manage` | Full workspace management: assign/reassign briefs, review/approve/reject deliverables, transition to `delivered`, `archived`, `revision_requested`. | `super_admin`, `program_admin`, `city_head` |
 
 ### 3.1 Proposed Additions to ACCESS_CAPABILITIES
@@ -496,6 +496,12 @@ Opposite relation fields to add to `StaffMeta`:
   mediaApprovals   MediaBrief[]   @relation("MediaApprover")
 ```
 
+Opposite relation field to add to `User` (the `createdBy` relation on `MediaBrief` has no explicit name, so this is the inferred scalar field):
+
+```prisma
+  mediaBriefsCreated MediaBrief[]
+```
+
 Opposite relation field to add to `CollaborationTeam`:
 
 ```prisma
@@ -646,7 +652,7 @@ The sanitizer is a pure function with unit tests proving that any free-text reas
 
 ## 12. Allow, Deny, Failure, and Audit Test Matrix
 
-> **Totals:** 12 allow, 21 deny, 12 error, 7 audit = 52 tests
+> **Totals:** 12 allow, 22 deny, 12 error, 7 audit = 53 tests
 
 ### 12.1 Allow Tests (Success Paths)
 
@@ -676,21 +682,21 @@ The sanitizer is a pure function with unit tests proving that any free-text reas
 | MD-DENY-005 | `media.workspace.view` (active member, own brief) | Try to skip to approved | PATCH status → approved | 403 |
 | MD-DENY-006 | `media.workspace.view` (active member) | Try to approve (only manage can use status → approved) | PATCH status → "approved" | 403 |
 | MD-DENY-007 | `media.workspace.manage` (LHR city_head, NOT a Media team member) | Has capability but lacks active StaffTeamMembership in Media team | GET briefs | 403 (membership predicate independent of capability) |
-| MD-DENY-007 | `media.workspace.manage` (LHR city_head) | Assign brief to staff not in LHR | PATCH assignedToStaffMetaId | 400 (city mismatch) |
-| MD-DENY-008 | `media.workspace.manage` (LHR city_head) | Assign brief to inactive StaffMeta | PATCH assignedToStaffMetaId | 400 (inactive staff) |
-| MD-DENY-009 | `media.workspace.manage` (LHR city_head) | Assign brief to non-Media-team staff | PATCH assignedToStaffMetaId | 400 (not team member) |
-| MD-DENY-010 | `media.briefs.manage` (LHR city_head) | Cancel without cancellationReason | PATCH status → cancelled | 400 |
-| MD-DENY-011 | `media.workspace.view` (active member) | Transition from cancelled to anything | PATCH status → in_progress | 400 (terminal) |
-| MD-DENY-012 | `media.briefs.manage` (LHR city_head) | Client supplies `createdBy` in payload | POST brief with createdBy | 400 (strict schema) |
-| MD-DENY-013 | `media.briefs.manage` (LHR city_head) | Create brief with invalid mediaType | POST with mediaType="unknown" | 400 (Zod enum) |
-| MD-DENY-014 | `media.workspace.manage` (ISB city_head) | Access LHR Media team workspace | GET /api/teams/[LHR-teamId]/media | 403 (cross-city) |
-| MD-DENY-015 | `media.workspace.manage` (HQ, no cityId) | No explicit cityId provided | GET briefs | 400 (missing cityId) |
-| MD-DENY-016 | `media.workspace.view` (active member) | Set asset metadata | PATCH assetMetadata | 403 |
-| MD-DENY-017 | Inactive Media membership (endedAt set) | All workspace routes | Any | 403 |
-| MD-DENY-018 | `media.workspace.manage` (LHR city_head) | Client supplies `approvalState`, `approvedByStaffMetaId`, or `approvedAt` in payload | PATCH with approvalState in body | 400 (strict schema rejects server-derived fields) |
-| MD-DENY-019 | `media.workspace.view` (active member) | Set rejectionReason without status → revision_requested | PATCH rejectionReason only | 400 (rejectionReason requires revision_requested) |
-| MD-DENY-020 | `media.workspace.manage` (LHR city_head) | Set status → revision_requested without rejectionReason | PATCH status → revision_requested, no rejectionReason | 400 (rejectionReason required) |
-| MD-DENY-021 | `media.workspace.manage` (LHR city_head) | Set asset metadata with external URL (whitelist not enabled) | PATCH assetMetadata with thumbnailUrl | 403 (fail-closed) |
+| MD-DENY-008 | `media.workspace.manage` (LHR city_head) | Assign brief to staff not in LHR | PATCH assignedToStaffMetaId | 400 (city mismatch) |
+| MD-DENY-009 | `media.workspace.manage` (LHR city_head) | Assign brief to inactive StaffMeta | PATCH assignedToStaffMetaId | 400 (inactive staff) |
+| MD-DENY-010 | `media.workspace.manage` (LHR city_head) | Assign brief to non-Media-team staff | PATCH assignedToStaffMetaId | 400 (not team member) |
+| MD-DENY-011 | `media.briefs.manage` (LHR city_head) | Cancel without cancellationReason | PATCH status → cancelled | 400 |
+| MD-DENY-012 | `media.workspace.view` (active member) | Transition from cancelled to anything | PATCH status → in_progress | 400 (terminal) |
+| MD-DENY-013 | `media.briefs.manage` (LHR city_head) | Client supplies `createdBy` in payload | POST brief with createdBy | 400 (strict schema) |
+| MD-DENY-014 | `media.briefs.manage` (LHR city_head) | Create brief with invalid mediaType | POST with mediaType="unknown" | 400 (Zod enum) |
+| MD-DENY-015 | `media.workspace.manage` (ISB city_head) | Access LHR Media team workspace | GET /api/teams/[LHR-teamId]/media | 403 (cross-city) |
+| MD-DENY-016 | `media.workspace.manage` (HQ, no cityId) | No explicit cityId provided | GET briefs | 400 (missing cityId) |
+| MD-DENY-017 | `media.workspace.view` (active member) | Set asset metadata | PATCH assetMetadata | 403 |
+| MD-DENY-018 | Inactive Media membership (endedAt set) | All workspace routes | Any | 403 |
+| MD-DENY-019 | `media.workspace.manage` (LHR city_head) | Client supplies `approvalState`, `approvedByStaffMetaId`, or `approvedAt` in payload | PATCH with approvalState in body | 400 (strict schema rejects server-derived fields) |
+| MD-DENY-020 | `media.workspace.view` (active member) | Set rejectionReason without status → revision_requested | PATCH rejectionReason only | 400 (rejectionReason requires revision_requested) |
+| MD-DENY-021 | `media.workspace.manage` (LHR city_head) | Set status → revision_requested without rejectionReason | PATCH status → revision_requested, no rejectionReason | 400 (rejectionReason required) |
+| MD-DENY-022 | `media.workspace.manage` (LHR city_head) | Set asset metadata with external URL (whitelist not enabled) | PATCH assetMetadata with thumbnailUrl | 403 (fail-closed) |
 
 ### 12.3 Error/Failure Tests
 
@@ -794,7 +800,7 @@ The following features require separate owner review and approval before impleme
 | File | Action |
 |------|--------|
 | `src/__tests__/api/media/allow.test.ts` | 12 allow tests |
-| `src/__tests__/api/media/deny.test.ts` | 21 deny tests |
+| `src/__tests__/api/media/deny.test.ts` | 22 deny tests |
 | `src/__tests__/api/media/error.test.ts` | 12 error tests |
 | `src/__tests__/api/media/audit.test.ts` | 7 audit tests |
 | `src/__tests__/lib/media/zod.test.ts` | Zod validation tests |
@@ -837,7 +843,7 @@ The following items require product owner resolution before implementation begin
 10. Implement all empty/error/loading states
 
 ### Phase 4 — Testing & Quality (Depends on Phase 2-3)
-11. Write 52 tests (12 allow, 21 deny, 12 error, 7 audit)
+11. Write 53 tests (12 allow, 22 deny, 12 error, 7 audit)
 12. Zod + scope unit tests
 13. Lint, typecheck, full suite, SQLite/PostgreSQL builds
 
@@ -851,7 +857,7 @@ The following items require product owner resolution before implementation begin
 - [ ] 3 API route files created with full auth chain (capability + scope + membership)
 - [ ] Scope helpers, Zod schemas, audit helpers created
 - [ ] UI components created (8)
-- [ ] All 52+ tests pass
+- [ ] All 53+ tests pass
 - [ ] Lint, typecheck, full suite, SQLite/PostgreSQL builds pass
 - [ ] Uploads disabled — no file storage endpoints
 - [ ] Mobile 375px/390px responsive verified
