@@ -68,15 +68,20 @@ describe("PILOT-PROD-001: Pilot Production Health", () => {
       expect(allMigrations(PG_MIGRATIONS)).toHaveLength(11);
     });
 
-    it("SQLITE has 3 migration folders", () => {
-      expect(allMigrations(SQLITE_MIGRATIONS)).toHaveLength(3);
+    it("SQLITE includes the approved baseline and Mashwara FK repair", () => {
+      const sqlite = allMigrations(SQLITE_MIGRATIONS);
+
+      expect(sqlite).toContain("20260701000000_init_sqlite");
+      expect(sqlite).toContain("20260726100000_add_mashwara_fk_constraints");
     });
 
-    it("both chains have the latest mashwara migration", () => {
+    it("each chain includes its required Mashwara migration", () => {
       const pg = allMigrations(PG_MIGRATIONS);
       const sqlite = allMigrations(SQLITE_MIGRATIONS);
-      expect(pg[pg.length - 1]).toContain("add_mashwara_module");
-      expect(sqlite[sqlite.length - 1]).toContain("add_mashwara_module");
+
+      expect(pg).toContain("20260724200000_add_mashwara_module");
+      expect(sqlite).toContain("20260724200000_add_mashwara_module");
+      expect(sqlite).toContain("20260726100000_add_mashwara_fk_constraints");
     });
 
     it("no POSTGRES migration drops tables", () => {
@@ -86,9 +91,18 @@ describe("PILOT-PROD-001: Pilot Production Health", () => {
       }
     });
 
-    it("no SQLITE migration drops tables", () => {
+    it("allows table rebuilds only in the approved SQLite FK repair", () => {
       for (const dir of allMigrations(SQLITE_MIGRATIONS)) {
         const sql = readFileSync(join(SQLITE_MIGRATIONS, dir, "migration.sql"), "utf-8");
+
+        if (dir === "20260726100000_add_mashwara_fk_constraints") {
+          expect(sql).toContain("-- RedefineTables");
+          expect(sql).toContain("PRAGMA foreign_keys=OFF;");
+          expect(sql).toContain("PRAGMA foreign_keys=ON;");
+          expect(sql).toMatch(/INSERT INTO "new_mashwara_/);
+          continue;
+        }
+
         expect(sql).not.toMatch(/^\s*DROP\s+(TABLE|INDEX)\b/im);
       }
     });
