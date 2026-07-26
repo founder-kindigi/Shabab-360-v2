@@ -13,6 +13,7 @@ authorize deployment by itself.
 | Global same-origin mutation guard | Verified in code | `src/proxy.ts` protects mutating non-NextAuth `/api/*` requests. Do not add duplicate per-route CSRF code without a concrete exception. |
 | Invitation temporary password | Intentional controlled behavior | The authorized invitation route returns it once, forces reset, and does not place it in audit or queued email metadata. Keep this behavior covered by tests. |
 | Database-backed login rate limiting | Ready for review; staging gate remains | `src/lib/auth.ts` uses the dual-schema `LoginAttempt` model with an HMAC fingerprinted identifier. It denies the sixth attempt in a 15-minute window before account lookup, clears attempts after a successful login, and fails closed if rate-limit storage is unavailable. Apply `20260725120000_add_login_attempts` in staging and record expiry and multi-instance behavior before pilot release. |
+| Migration-chain parity | **Blocker** | A local `prisma migrate diff --from-migrations` emitted a full SQLite schema, showing that the checked-in SQLite migration history does not reproduce the current schema. PostgreSQL diffing requires an approved disposable shadow database. Before any staging deploy, take a backup/snapshot, run PostgreSQL `migrate status`, then compare the migration history to the staged schema using an approved shadow database. |
 | Browser UAT | **Blocker** | State-changing role, scope-denial, and 375px/390px mobile workflows need fresh staging evidence. |
 | Production secrets | **Owner gate** | Confirm current secret rotation and deployment environment values privately. Never commit or print them. |
 | Media Operations | Planned separately | Media is an existing collaboration team, not a Content Planner category. Public community and file uploads remain deferred. |
@@ -21,14 +22,17 @@ authorize deployment by itself.
 
 1. Isolate all currently dirty root-worktree changes into reviewed branches;
    do not commit local databases, captures, or agent configuration by accident.
-2. Apply the login-attempt migration in staging and test rate-limit denial,
+2. Take and verify a staging backup/snapshot. Confirm the PostgreSQL migration
+   history matches the staged schema using an approved disposable shadow
+   database; do not run `migrate deploy` while this is unresolved.
+3. Apply the login-attempt migration in staging and test rate-limit denial,
    expiry, successful-login reset, database-failure behavior, and concurrent
    requests across the deployed runtime instances.
-3. Rebase accepted feature branches onto one clean release candidate rather
+4. Rebase accepted feature branches onto one clean release candidate rather
    than merging historical package branches wholesale.
-4. Run lint, typecheck, full tests, PostgreSQL schema validation/generation,
+5. Run lint, typecheck, full tests, PostgreSQL schema validation/generation,
    and the production-oriented build on that candidate.
-5. Perform documented staging browser UAT and owner deployment checks.
+6. Perform documented staging browser UAT and owner deployment checks.
 
 ## Release Rules
 
