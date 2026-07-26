@@ -36,6 +36,17 @@ jobs:
       - name: Install locked dependencies
         run: npm ci
 
+      - name: Validate SQLite schema
+        run: npx prisma validate --schema=prisma/schema.prisma
+        env:
+          DATABASE_URL: "file:../tmp-ci-validate/ci.db"
+
+      - name: Validate PostgreSQL schema
+        run: npx prisma validate --schema=prisma/postgres/schema.prisma
+        env:
+          DATABASE_URL: "postgresql://ci:ci@localhost:5432/ci_shabab?pgbouncer=true"
+          DIRECT_URL: "postgresql://ci:ci@localhost:5432/ci_shabab"
+
       - name: Generate Prisma Client
         run: npm run db:generate
 
