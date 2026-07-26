@@ -61,6 +61,10 @@ examples/
 db/*.db-journal
 db/*.db-wal
 db/*.db
+# Local SQLite runtime state. Schema and forward migrations remain tracked.
+/prisma/dev.db
+/prisma/dev.db-journal
+/prisma/dev.db-wal
 prisma/generated/
 shabab360-v2/
 
@@ -68,3 +72,6 @@ shabab360-v2/
 tool-results/
 *.pid
 upload/
+
+# Local QA captures belong in the documented evidence location, not the root.
+/qa-*.png
