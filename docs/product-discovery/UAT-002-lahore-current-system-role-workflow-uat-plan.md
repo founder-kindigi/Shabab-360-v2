@@ -8,7 +8,7 @@
 
 ## 1. Goal
 
-Verify the current Lahore-backed system for the seven role families already in the app: Super Admin, City Head, Park Lead, Park Admin, Murabbi, Guardian, and Shabab.
+Verify the current Lahore testing candidate for all eight canonical roles: Super Admin, Program Admin, City Head, Park Lead, Park Admin, Murabbi, Student, and Guardian.
 
 The plan focuses on login, navigation, scope denial, empty/error states, People/Students/Guardians, groups, attendance history, dashboard counts, mobile attendance, and forced password reset.
 
@@ -67,7 +67,7 @@ Evidence: [`/.agents/memory/current.md`](../../.agents/memory/current.md#L103-L1
 | UAT-002-04 | Park Admin | Park-scoped account with assigned park | Sign in and open attendance and roster pages | Lands on park workspace; attendance list is scoped to the park and shows expected counts relative to Lahore baseline | Sign out; remove any `UAT_TEST_` attendance rows if created | Yes |
 | UAT-002-05 | Murabbi | Group-scoped account with assigned group | Sign in and open groups plus attendance history | Sees only own group data; attendance history and dashboard counts match the assigned group | Sign out; remove any `UAT_TEST_` group or event rows if created | Yes |
 | UAT-002-06 | Guardian | Linked-guardian account, and one no-link account for empty-state check | Sign in as linked guardian, then as no-link guardian | Linked guardian sees only linked children; no-link account returns empty guardian state, not cross-family data | Sign out; delete only `UAT_TEST_` link rows if created | Yes |
-| UAT-002-07 | Shabab | Participant-linked account, and one no-link account for empty-state check | Sign in as student and open dashboard, schedule, and attendance history | Sees only own record, own attendance history, and own schedule; no-link account gets empty participant state | Sign out; delete only `UAT_TEST_` participant link rows if created | Yes |
+| UAT-002-07 | Student | Participant-linked account, and one no-link account for empty-state check | Sign in as student and open dashboard, schedule, and attendance history | Sees only own record, own attendance history, and own schedule; no-link account gets empty participant state | Sign out; delete only `UAT_TEST_` participant link rows if created | Yes |
 | UAT-002-08 | Cross-role denial | At least one lower-scope role account | Attempt to open People, Students, Guardians, or a foreign city/park/group resource | Request is denied with 403/forbidden or equivalent scoped denial; no data leakage | None, unless a `UAT_TEST_` resource was created for the attempt | Yes |
 | UAT-002-09 | People listing | Super Admin or Program Admin account | Open People list with search, role, city, park, and active filters | Only staff-linked users appear; counts and filters respect the selected scope | Remove any `UAT_TEST_` staff/user row created for the test | Yes |
 | UAT-002-10 | Students listing | Super Admin or Program Admin account | Open Students list with search, city, park, group, gender, and state filters | Only participants in the selected scope appear; attendance rate and hierarchy fields render | Remove any `UAT_TEST_` participant row created for the test | Yes |

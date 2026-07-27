@@ -13,7 +13,7 @@
 
 ### 1.1 Included Modules
 
-The following modules are included in this UAT candidate. They reflect **existing implemented functionality** backed by real Lahore Batch 4 data on staging.
+The following modules are included in this UAT candidate. They reflect **existing implemented functionality** intended for verification against Lahore Batch 4 data after the deployer confirms the restricted staging environment.
 
 | # | Module | Coverage summary |
 | --- | --- | --- |

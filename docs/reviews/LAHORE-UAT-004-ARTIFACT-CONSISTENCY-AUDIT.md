@@ -1,7 +1,7 @@
 # LAHORE-UAT-004: Artifact Consistency Audit
 
 ## Conclusion
-**CHANGES REQUIRED FIRST** — The UAT document set contains non-canonical role names and unverified present-tense claims of live staging environment availability. It is **not safe to distribute** to the testing team until these issues are remediated.
+**RESOLVED FOR DISTRIBUTION** — The findings below were remediated in the Lahore UAT candidate documentation. The corrected pack is safe to distribute as a testing protocol, but it remains non-execution evidence until the deployer confirms the restricted environment and testers complete browser UAT.
 
 ---
 
@@ -39,3 +39,20 @@
 
 ### 4. Secret Values / Destructive Commands
 * **Finding:** No finding. Documents appear clear of credentials and personal data.
+
+---
+
+## Resolution Record
+
+The following corrections were applied after this audit:
+
+| Finding | Resolution |
+| --- | --- |
+| External Support Caller listed as a canonical role | Replaced with Program Admin in the role browser checklist. |
+| Shabab listed as a role | Replaced with Student in the Lahore workflow plan. |
+| Present-tense staging-data claim | Reworded as an intended restricted-staging verification after deployer confirmation. |
+| Historical evidence presented as a current baseline | Reclassified UAT-005 as historical static review; a fresh restricted-staging baseline is required. |
+| Staff-placeholder variance exposed to testers | Removed historical counts and variance from the tester-facing evidence log. |
+| Screenshot naming example | Updated to `<Scenario-ID>-<Role>-<Viewport>-<Index>.png`. |
+
+The findings remain in this report as an audit trail. They do not represent unresolved blockers in the corrected documentation set.

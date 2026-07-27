@@ -1,8 +1,8 @@
 # UAT-005: Staging Execution Evidence Log
 
-- **Document Version:** 1.2.0
+- **Document Version:** 1.3.0
 - **Task ID:** `UAT-005`
-- **Status:** `DOCUMENTATION RECONCILIATION AND STATIC REVIEW COMPLETE; BROWSER UAT BLOCKED AND PENDING`
+- **Status:** `HISTORICAL STATIC REVIEW RECORDED; FRESH RESTRICTED-STAGING BASELINE AND BROWSER UAT PENDING`
 - **Integration Base:** `99f9460` (on branch `agent/antigravity/pkg-02-lahore-uat`)
 - **UAT Blocker Note:** The local Chrome DevTools / browser connector plugin was unavailable. All mobile browser UAT checks were blocked. No simulated/fake browser screenshots were fabricated. However, a comprehensive codebase static audit, route inspection, responsive layout CSS analysis, and unit test suite verification were completed to produce the static candidates backlog.
 
@@ -10,11 +10,11 @@
 
 ## 1. Document Instructions
 
-This document records the execution evidence and audit logs for the staging UAT cycle of PKG-02.
+This document preserves historical static-review notes from PKG-02. It is not current restricted-staging execution evidence and must not be used to approve deployment, account readiness, data counts, or browser UAT.
 
 ### 1.1 Safety Constraints
-* **No Real Lahore Alteration:** All testing was non-destructive. No staging PostgreSQL data was modified or written.
-* **Cleanup Validation:** Verified that the staging database counts match the original baseline values exactly.
+* **No Current-Environment Claim:** This historical record does not establish the current restricted-staging database state.
+* **Fresh Baseline Required:** The deployer must record a new read-only baseline after confirming the restricted testing environment and before executing UAT.
 
 ---
 
@@ -28,63 +28,12 @@ This document records the execution evidence and audit logs for the staging UAT 
 
 ---
 
-## 3. UAT-004 Staging Isolation Baseline Audit
+## 3. Restricted-Staging Baseline Record
 
-Staging baseline counts were reconciled against the imported Lahore Batch 4 data:
+Historical count snapshots and query excerpts were removed from this tester-facing log because they do not establish the current restricted-staging state. Before UAT begins, the deployer records a fresh read-only baseline in the LAHORE-UAT-002 evidence register, including the current counts, test-account readiness, and any reconciliation issue that blocks reliable testing.
 
-| Metric | Target Baseline Count | Observed Count (Pre-UAT) | Matches? (Y/N) |
-| --- | --- | --- | --- |
-| **Total Cities** | 1 (`LHR`) | 1 | Y |
-| **Total Parks** | 6 | 6 | Y |
-| **Total Batches** | 6 | 6 | Y |
-| **Total Groups** | 13 | 13 | Y |
-| **Total Participants** | 277 | 277 | Y |
-| **Total AttendanceEvents** | 180 | 180 | Y |
-| **Total AttendanceRecords** | 2,967 | 2,967 | Y |
-| **Total Staff / Users** | 54 | 54 | Y |
-
-### 3.1 Staff and User Baseline Reconciliation Evidence
-To examine the count of 54 staff members, a read-only Prisma query was executed against the staging PostgreSQL database.
-
-#### Read-Only Query Executed:
-```javascript
-const totalUsers = await prisma.user.count();
-const activeUsers = await prisma.user.count({ where: { isActive: true } });
-const inactiveUsers = await prisma.user.count({ where: { isActive: false } });
-
-const totalStaff = await prisma.staffMeta.count();
-const activeStaff = await prisma.staffMeta.count({ where: { isActive: true } });
-const inactiveStaff = await prisma.staffMeta.count({ where: { isActive: false } });
-
-const activeStaffByRole = await prisma.staffMeta.groupBy({
-  by: ['role'],
-  where: { isActive: true },
-  _count: true,
-});
-
-const inactiveStaffByRole = await prisma.staffMeta.groupBy({
-  by: ['role'],
-  where: { isActive: false },
-  _count: true,
-});
-```
-
-#### Query Output and Audit:
-* **Total Staff Records:** `54`
-* **Active Authorized Users:** `10`
-  * `super_admin`: 1 (global authorized system admin)
-  * `city_head`: 1 (assigned to Lahore city `LHR`)
-  * `park_admin`: 1 (assigned to State Life Park)
-  * `park_lead`: 6 (assigned to the 6 Lahore parks)
-  * `murabbi`: 1 (assigned to a Lahore group)
-* **Inactive Placeholders:** `44`
-  * `pending_assignment`: 13 (placeholders for roles awaiting park/group mappings)
-  * `murabbi`: 30 (placeholder murabbis imported but inactive/unassigned)
-  * `system_import`: 1 (placeholder account for import actions)
-
-> [!WARNING]
-> **UNRESOLVED RECONCILIATION VARIANCE**
-> The query output shows 10 active staff and 44 inactive placeholders (totaling 54 StaffMeta records). This count of 44 inactive placeholders conflicts with the earlier recorded Lahore baseline of 51 inactive placeholders. This discrepancy remains an unresolved reconciliation variance.
+> [!IMPORTANT]
+> Do not mark a baseline as verified, or reuse historic staff-placeholder counts, until the restricted testing environment and candidate head have been confirmed for the current UAT cycle.
 
 
 ---

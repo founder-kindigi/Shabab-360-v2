@@ -64,11 +64,11 @@ This UAT checklist establishes the comprehensive manual browser verification sui
 - [ ] **Fee & Schedule Status:** View child's fee status and session calendar.
 - [ ] **PII Protection:** Confirm address, CNIC, and unmasked personal identifiers are strictly hidden in student/guardian views.
 
-### 3.8 External Support Caller (`external_caller`)
-- [ ] **Caller Workspace:** Access assigned lead queue and view contact timeline.
-- [ ] **Assigned Leads Only:** Confirm caller sees only explicitly assigned leads (expiry-bounded).
-- [ ] **WhatsApp Handoff:** Click WhatsApp action link to launch pre-approved deep-link template.
-- [ ] **General Portal Denial:** Attempt access to general Shabab admin modules. Verify HTTP 403 denial.
+### 3.8 Program Admin (`program_admin`)
+- [ ] **Programme Administration:** View cross-city programme dashboards, reports, and approved operational workspaces.
+- [ ] **City Selection:** Confirm the required city context is selected before viewing city-scoped records; no unfiltered cross-city list is shown.
+- [ ] **Cities Boundary:** Confirm city creation and global access-administration controls remain unavailable unless an explicitly granted capability permits them.
+- [ ] **Scope and Capability Denial:** Attempt an action outside the granted capability or selected city context. Verify fail-closed denial without data leakage.
 
 ---
 

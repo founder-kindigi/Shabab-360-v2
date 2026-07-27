@@ -143,7 +143,7 @@ For each test scenario executed in `UAT-003`, the tester must document results u
 4. Verified City Dashboard data counts: matches UAT_TEST_ assigned city scope exactly.
 
 #### Verification Evidence:
-- **UI Screenshot / Log Reference:** `docs/uat-evidence/UAT-002-02-sidebar-375px.png`
+- **UI Screenshot / Log Reference:** `docs/uat-evidence/UAT-002-02-CityHead-375px-01.png`
 - **HTTP Status Code:** `403 Forbidden`
 - **Scope Leakage Detected:** `NONE`
 
