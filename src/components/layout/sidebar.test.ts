@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { getNavItems } from "./sidebar";
+import { translations } from "@/lib/i18n";
 
 const translate = (key: string) => key;
 
@@ -35,5 +36,12 @@ describe("sidebar navigation access boundaries", () => {
         )
       ).toBe(false);
     }
+  });
+
+  it("renders configured event and calling navigation labels", () => {
+    const items = getNavItems("super_admin", (key) => translations.en[key] ?? key);
+
+    expect(items.find((item) => item.id === "admin-events")?.label).toBe("Events");
+    expect(items.find((item) => item.id === "admin-calling")?.label).toBe("Calling");
   });
 });

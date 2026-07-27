@@ -15,6 +15,11 @@ interface BarChartProps {
 
 const PADDING = { top: 24, right: 8, bottom: 28, left: 8 };
 
+export function toFiniteChartValue(value: unknown): number {
+  const numberValue = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(numberValue) && numberValue > 0 ? numberValue : 0;
+}
+
 export function BarChart({
   data,
   height = 120,
@@ -47,7 +52,7 @@ export function BarChart({
 
   const maxValue = useMemo(() => {
     if (data.length === 0) return 10;
-    const max = Math.max(...data.map((d) => d.value), 1);
+    const max = Math.max(...data.map((d) => toFiniteChartValue(d.value)), 1);
     const magnitude = Math.pow(10, Math.floor(Math.log10(max)));
     return Math.ceil((max * 1.15) / magnitude) * magnitude || 10;
   }, [data]);
@@ -154,12 +159,13 @@ export function BarChart({
 
           {/* Bars */}
           {data.map((d, i) => {
+            const value = toFiniteChartValue(d.value);
             const x =
               PADDING.left +
               (i / data.length) * chartW +
               chartW / data.length / 2 -
               barWidth / 2;
-            const barH = Math.max((d.value / maxValue) * chartH, 0);
+            const barH = Math.max((value / maxValue) * chartH, 0);
             const y = PADDING.top + chartH - barH;
             const labelX =
               PADDING.left +
@@ -181,7 +187,7 @@ export function BarChart({
                 />
 
                 {/* Bar (with rounded top corners) */}
-                {d.value > 0 ? (
+                {value > 0 ? (
                   <motion.rect
                     x={x}
                     y={animate ? PADDING.top + chartH : y}
@@ -216,7 +222,7 @@ export function BarChart({
                 )}
 
                 {/* Value label above bar */}
-                {showValues && d.value > 0 && (
+                {showValues && value > 0 && (
                   <motion.text
                     x={labelX}
                     y={y - 5}
@@ -234,7 +240,7 @@ export function BarChart({
                       delay: 0.3 + i * 0.05,
                     }}
                   >
-                    {formatVal(d.value)}
+                    {formatVal(value)}
                   </motion.text>
                 )}
 
@@ -251,7 +257,7 @@ export function BarChart({
 
                 {/* Hover tooltip */}
                 <AnimatePresence>
-                  {hoveredIndex === i && d.value > 0 && (
+                  {hoveredIndex === i && value > 0 && (
                     <g>
                       <motion.rect
                         x={labelX - 42}
@@ -285,7 +291,7 @@ export function BarChart({
                         exit={{ opacity: 0 }}
                         transition={{ duration: 0.15 }}
                       >
-                        {formatVal(d.value)}
+                        {formatVal(value)}
                       </motion.text>
                       <motion.text
                         x={labelX}
