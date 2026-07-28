@@ -51,56 +51,90 @@ export async function POST(
     return NextResponse.json({ error: parsed.error.flatten().fieldErrors }, { status: 400 });
   }
 
-  const decision = await db.mashwaraDecision.create({
-    data: {
-      meetingId,
-      decision: parsed.data.decision,
-      category: parsed.data.category ?? null,
-      targetTeamId: parsed.data.targetTeamId ?? null,
-      assignedToId: parsed.data.assignedToId ?? null,
-    },
-    select: {
-      id: true,
-      meetingId: true,
-      decision: true,
-      category: true,
-      targetTeamId: true,
-      assignedToId: true,
-      status: true,
-      createdAt: true,
-    },
-  });
+  // Collect all assignedToIds
+  const assignedIds = new Set<string>();
+  if (parsed.data.assignedToId) assignedIds.add(parsed.data.assignedToId);
+  if (parsed.data.actionItem?.assignedToId) assignedIds.add(parsed.data.actionItem.assignedToId);
 
-  let actionItem: Record<string, unknown> | null = null;
-  if (parsed.data.actionItem) {
-    actionItem = await db.mashwaraActionItem.create({
-      data: {
-        meetingId,
-        description: parsed.data.actionItem.description,
-        teamId: parsed.data.actionItem.teamId,
-        assignedToId: parsed.data.actionItem.assignedToId,
-        dueDate: parsed.data.actionItem.dueDate ?? null,
-      },
-      select: {
-        id: true,
-        meetingId: true,
-        description: true,
-        teamId: true,
-        assignedToId: true,
-        dueDate: true,
-        status: true,
-        createdAt: true,
-      },
+  // Validate assignees existence, active status, and same-city membership
+  if (assignedIds.size > 0) {
+    const assignees = await db.staffMeta.findMany({
+      where: { id: { in: Array.from(assignedIds) } },
+      select: { id: true, isActive: true, assignedCityId: true },
     });
+
+    if (assignees.length !== assignedIds.size) {
+      return NextResponse.json({ error: "One or more assignees not found" }, { status: 400 });
+    }
+
+    for (const assignee of assignees) {
+      if (!assignee.isActive) {
+        return NextResponse.json({ error: "Assignee is not active" }, { status: 400 });
+      }
+      if (assignee.assignedCityId !== meeting.cityId) {
+        return NextResponse.json({ error: "Assignee must belong to the meeting's city" }, { status: 400 });
+      }
+    }
   }
 
-  await logAudit({
-    userId: auth.user.id,
-    action: "create",
-    entityType: "mashwara_decision",
-    entityId: decision.id,
-    newValues: { meetingId, decision: parsed.data.decision, hasActionItem: !!actionItem },
-  });
+  try {
+    const result = await db.$transaction(async (tx) => {
+      const decision = await tx.mashwaraDecision.create({
+        data: {
+          meetingId,
+          decision: parsed.data.decision,
+          category: parsed.data.category ?? null,
+          targetTeamId: parsed.data.targetTeamId ?? null,
+          assignedToId: parsed.data.assignedToId ?? null,
+        },
+        select: {
+          id: true,
+          meetingId: true,
+          decision: true,
+          category: true,
+          targetTeamId: true,
+          assignedToId: true,
+          status: true,
+          createdAt: true,
+        },
+      });
 
-  return NextResponse.json({ decision, actionItem }, { status: 201 });
+      let actionItem: Record<string, unknown> | null = null;
+      if (parsed.data.actionItem) {
+        actionItem = await tx.mashwaraActionItem.create({
+          data: {
+            meetingId,
+            description: parsed.data.actionItem.description,
+            teamId: parsed.data.actionItem.teamId,
+            assignedToId: parsed.data.actionItem.assignedToId,
+            dueDate: parsed.data.actionItem.dueDate ?? null,
+          },
+          select: {
+            id: true,
+            meetingId: true,
+            description: true,
+            teamId: true,
+            assignedToId: true,
+            dueDate: true,
+            status: true,
+            createdAt: true,
+          },
+        });
+      }
+
+      await logAudit({
+        userId: auth.user.id,
+        action: "create",
+        entityType: "mashwara_decision",
+        entityId: decision.id,
+        newValues: { meetingId, decision: parsed.data.decision, hasActionItem: !!actionItem },
+      });
+
+      return { decision, actionItem };
+    });
+
+    return NextResponse.json(result, { status: 201 });
+  } catch (error) {
+    return NextResponse.json({ error: "Transaction failed" }, { status: 500 });
+  }
 }

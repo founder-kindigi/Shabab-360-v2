@@ -22,8 +22,11 @@ const mocks = vi.hoisted(() => ({
   shareUpdate: vi.fn(),
   staffFindFirst: vi.fn(),
   staffFindUnique: vi.fn(),
+  staffFindMany: vi.fn(),
+  transaction: vi.fn(),
   logAudit: vi.fn(),
   resolveMashwaraAccess: vi.fn(),
+  resolveMashwaraActorCity: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/authorize", () => ({
@@ -32,6 +35,13 @@ vi.mock("@/lib/auth/authorize", () => ({
 }));
 vi.mock("@/lib/db", () => ({
   db: {
+    $transaction: vi.fn(async (callback) => {
+      return callback({
+        mashwaraDecision: { create: mocks.decisionCreate },
+        mashwaraActionItem: { create: mocks.actionItemCreate },
+        mashwaraMeetingShare: { create: mocks.shareCreate, update: mocks.shareUpdate },
+      });
+    }),
     mashwaraMeeting: {
       findUnique: mocks.meetingFindUnique,
       findMany: mocks.meetingFindMany,
@@ -48,12 +58,13 @@ vi.mock("@/lib/db", () => ({
       create: mocks.shareCreate,
       update: mocks.shareUpdate,
     },
-    staffMeta: { findFirst: mocks.staffFindFirst, findUnique: mocks.staffFindUnique },
+    staffMeta: { findFirst: mocks.staffFindFirst, findUnique: mocks.staffFindUnique, findMany: mocks.staffFindMany },
   },
 }));
 vi.mock("@/lib/audit", () => ({ logAudit: mocks.logAudit }));
 vi.mock("@/lib/auth/mashwara-scope", () => ({
   resolveMashwaraAccess: mocks.resolveMashwaraAccess,
+  resolveMashwaraActorCity: mocks.resolveMashwaraActorCity,
 }));
 
 /* ── Route imports ──────────────────────────────────────────────────── */
@@ -95,10 +106,18 @@ describe("MASHWARA-E2E-001: End-to-End Mashwara Integration", () => {
     mocks.requireAuth.mockResolvedValue({ user: HQ_USER });
     mocks.requireCapability.mockResolvedValue({ user: HQ_USER });
     mocks.resolveMashwaraAccess.mockResolvedValue(true);
+    mocks.resolveMashwaraActorCity.mockResolvedValue({ cityId: "city-lhr" });
     mocks.meetingFindUnique.mockResolvedValue(BASE_MEETING);
     mocks.meetingFindMany.mockResolvedValue([BASE_MEETING]);
     mocks.meetingCount.mockResolvedValue(1);
     mocks.staffFindFirst.mockResolvedValue({ id: "staff-admin-1" });
+    mocks.staffFindMany.mockImplementation(async (args: any) => {
+      const all = [{ id: "staff-coach", isActive: true, assignedCityId: "city-lhr" }, { id: "staff-photo", isActive: true, assignedCityId: "city-lhr" }];
+      if (args?.where?.id?.in) {
+        return all.filter(s => args.where.id.in.includes(s.id));
+      }
+      return all;
+    });
   });
 
   /* ── 1. Meeting Lifecycle ────────────────────────────────────────── */
@@ -430,7 +449,7 @@ describe("MASHWARA-E2E-001: End-to-End Mashwara Integration", () => {
     it("denies share grant from cross-city head via granter scope check", async () => {
       mocks.requireAuth.mockResolvedValue({ user: CITY_HEAD_KHI });
       mocks.requireCapability.mockResolvedValue({ user: CITY_HEAD_KHI });
-      mocks.meetingFindUnique.mockResolvedValue({ id: "meeting-1", cityId: "city-lhr" });
+      mocks.resolveMashwaraActorCity.mockResolvedValue({ error: "Access denied", status: 403 });
 
       const response = await grantSharePOST(
         req("http://localhost/api/admin/mashwara/meeting-1/shares", {

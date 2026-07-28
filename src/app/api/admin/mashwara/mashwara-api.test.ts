@@ -20,8 +20,11 @@ const mocks = vi.hoisted(() => ({
   shareUpdate: vi.fn(),
   staffFindFirst: vi.fn(),
   staffFindUnique: vi.fn(),
+  staffFindMany: vi.fn(),
+  transaction: vi.fn(),
   logAudit: vi.fn(),
   resolveMashwaraAccess: vi.fn(),
+  resolveMashwaraActorCity: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/authorize", () => ({
@@ -30,6 +33,12 @@ vi.mock("@/lib/auth/authorize", () => ({
 }));
 vi.mock("@/lib/db", () => ({
   db: {
+    $transaction: vi.fn(async (callback) => {
+      return callback({
+        mashwaraDecision: { create: mocks.decisionCreate },
+        mashwaraActionItem: { create: mocks.actionItemCreate },
+      });
+    }),
     mashwaraMeeting: {
       findUnique: mocks.meetingFindUnique,
       findMany: mocks.meetingFindMany,
@@ -46,12 +55,13 @@ vi.mock("@/lib/db", () => ({
       create: mocks.shareCreate,
       update: mocks.shareUpdate,
     },
-    staffMeta: { findFirst: mocks.staffFindFirst, findUnique: mocks.staffFindUnique },
+    staffMeta: { findFirst: mocks.staffFindFirst, findUnique: mocks.staffFindUnique, findMany: mocks.staffFindMany },
   },
 }));
 vi.mock("@/lib/audit", () => ({ logAudit: mocks.logAudit }));
 vi.mock("@/lib/auth/mashwara-scope", () => ({
   resolveMashwaraAccess: mocks.resolveMashwaraAccess,
+  resolveMashwaraActorCity: mocks.resolveMashwaraActorCity,
 }));
 
 import { GET as listGET, POST as createPOST } from "./route";
@@ -86,6 +96,7 @@ describe("GET /api/admin/mashwara", () => {
     vi.clearAllMocks();
     mocks.requireAuth.mockResolvedValue({ user: hqUser });
     mocks.requireCapability.mockResolvedValue({ user: hqUser });
+    mocks.resolveMashwaraActorCity.mockResolvedValue({ cityId: "city-lhr" });
   });
 
   it("denies access when not authenticated", async () => {
@@ -106,28 +117,22 @@ describe("GET /api/admin/mashwara", () => {
     expect(mocks.meetingFindMany).not.toHaveBeenCalled();
   });
 
-  it("returns paginated meetings for HQ", async () => {
-    mocks.meetingFindMany.mockResolvedValue([sampleMeeting]);
-    mocks.meetingCount.mockResolvedValue(1);
+  it("requires cityId for HQ", async () => {
+    mocks.resolveMashwaraActorCity.mockResolvedValue({ error: "HQ must specify cityId", status: 400 });
 
     const response = await listGET(req("http://localhost/api/admin/mashwara?page=1&pageSize=20"));
-    const body = await response.json();
 
-    expect(response.status).toBe(200);
-    expect(body.data).toHaveLength(1);
-    expect(body.pagination).toMatchObject({ page: 1, pageSize: 20, total: 1, totalPages: 1 });
-    expect(mocks.meetingFindMany).toHaveBeenCalledWith(expect.objectContaining({
-      where: {},
-      skip: 0, take: 20,
-    }));
+    expect(response.status).toBe(400);
+    expect(mocks.meetingFindMany).not.toHaveBeenCalled();
   });
 
   it("filters by cityId for HQ", async () => {
-    mocks.meetingFindMany.mockResolvedValue([]);
-    mocks.meetingCount.mockResolvedValue(0);
+    mocks.meetingFindMany.mockResolvedValue([sampleMeeting]);
+    mocks.meetingCount.mockResolvedValue(1);
 
-    await listGET(req("http://localhost/api/admin/mashwara?cityId=city-lhr"));
+    const response = await listGET(req("http://localhost/api/admin/mashwara?cityId=city-lhr"));
 
+    expect(response.status).toBe(200);
     expect(mocks.meetingFindMany).toHaveBeenCalledWith(expect.objectContaining({
       where: expect.objectContaining({ cityId: "city-lhr" }),
     }));
@@ -159,6 +164,7 @@ describe("POST /api/admin/mashwara", () => {
     vi.clearAllMocks();
     mocks.requireAuth.mockResolvedValue({ user: hqUser });
     mocks.requireCapability.mockResolvedValue({ user: hqUser });
+    mocks.resolveMashwaraActorCity.mockResolvedValue({ cityId: "city-lhr" });
     mocks.staffFindFirst.mockResolvedValue({ id: "staff-admin-1" });
   });
 
@@ -215,7 +221,7 @@ describe("POST /api/admin/mashwara", () => {
   });
 
   it("rejects when staff record not found", async () => {
-    mocks.staffFindFirst.mockResolvedValue(null);
+    mocks.resolveMashwaraActorCity.mockResolvedValue({ error: "Staff record not found", status: 403 });
 
     const response = await createPOST(req("http://localhost/api/admin/mashwara", {
       method: "POST",
@@ -284,6 +290,7 @@ describe("POST /api/admin/mashwara/[id]/shares", () => {
     vi.clearAllMocks();
     mocks.requireAuth.mockResolvedValue({ user: hqUser });
     mocks.requireCapability.mockResolvedValue({ user: hqUser });
+    mocks.resolveMashwaraActorCity.mockResolvedValue({ cityId: "city-lhr" });
     mocks.meetingFindUnique.mockResolvedValue({ id: "meeting-1", cityId: "city-lhr" });
     mocks.staffFindUnique.mockResolvedValue({
       id: "staff-sharee", isActive: true, assignedCityId: "city-lhr",
@@ -353,6 +360,7 @@ describe("POST /api/admin/mashwara/[id]/shares", () => {
   it("rejects a city_head from another city", async () => {
     mocks.requireAuth.mockResolvedValue({ user: crossCityUser });
     mocks.requireCapability.mockResolvedValue({ user: crossCityUser });
+    mocks.resolveMashwaraActorCity.mockResolvedValue({ error: "Access denied", status: 403 });
 
     const response = await grantSharePOST(
       req("http://localhost/api/admin/mashwara/meeting-1/shares", {
@@ -389,6 +397,7 @@ describe("DELETE /api/admin/mashwara/[id]/shares/[shareId]", () => {
     vi.clearAllMocks();
     mocks.requireAuth.mockResolvedValue({ user: hqUser });
     mocks.requireCapability.mockResolvedValue({ user: hqUser });
+    mocks.resolveMashwaraActorCity.mockResolvedValue({ cityId: "city-lhr" });
     mocks.meetingFindUnique.mockResolvedValue({ id: "meeting-1", cityId: "city-lhr" });
     mocks.shareFindFirst.mockResolvedValue({ id: "share-1", isRevoked: false, staffMetaId: "staff-sharee" });
   });
@@ -470,6 +479,9 @@ describe("POST /api/admin/mashwara/[id]/decisions", () => {
   });
 
   it("records a decision with inline action item", async () => {
+    mocks.staffFindMany.mockResolvedValue([
+      { id: "staff-1", isActive: true, assignedCityId: "city-lhr" }
+    ]);
     mocks.decisionCreate.mockResolvedValue({
       id: "decision-2", meetingId: "meeting-1", decision: "Assign task",
       category: "operations", targetTeamId: "team-1", assignedToId: "staff-1",
