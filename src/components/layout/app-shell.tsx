@@ -120,6 +120,7 @@ const pageTitles: Record<PageId, string> = {
   "admin-calling-templates": "Templates",
   "admin-settings": "Settings",
   "admin-users": "Users",
+  "admin-content-planner": "Content Planner",
   "admin-access": "Access Provisioning",
   "admin-access-management": "Access Management",
   "admin-collaboration-teams": "Collaboration Teams",
