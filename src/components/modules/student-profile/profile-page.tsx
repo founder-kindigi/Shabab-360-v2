@@ -291,9 +291,10 @@ export function StudentProfilePage({
                 <CardContent className="grid gap-4 sm:grid-cols-2">
                   {fields.map((fieldKey) => {
                     const isSensitive = SENSITIVE_FIELDS.has(fieldKey);
-                    // In read mode, hide sensitive fields unless showSensitive is on and user has access
+                    // Hide if read mode and showSensitive is off
                     if (!editMode && isSensitive && !showSensitive) return null;
-                    if (isSensitive && editMode && !canEdit) return null;
+                    // Hide if edit mode and they cannot even view sensitive
+                    if (editMode && isSensitive && !canViewSensitive) return null;
 
                     return (
                       <ProfileField
@@ -301,7 +302,7 @@ export function StudentProfilePage({
                         label={fieldLabels[fieldKey] || fieldKey}
                         value={displayData[fieldKey] as string | null | undefined}
                         fieldKey={fieldKey}
-                        editMode={editMode && canEdit}
+                        editMode={editMode && (isSensitive ? capabilities.canManageSensitive : canEdit)}
                         onChange={handleFieldChange}
                       />
                     );

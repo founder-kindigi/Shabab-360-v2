@@ -23,9 +23,9 @@ export async function resolveActorCity(
   // Scoped: derive from StaffMeta
   const staffMeta = await db.staffMeta.findUnique({
     where: { userId: user.id! },
-    select: { assignedCityId: true, assignedParkId: true, assignedGroupId: true },
+    select: { assignedCityId: true, assignedParkId: true, assignedGroupId: true, isActive: true },
   });
-  if (!staffMeta) return null;
+  if (!staffMeta || !staffMeta.isActive) return null;
 
   let derivedCity: string | null = null;
 
@@ -54,8 +54,8 @@ export async function resolveActorCity(
  * Verify the user can access a specific participant's extended profile.
  * HQ: resolvedCity must match the participant's city.
  * City Head: city-level match (already enforced via resolvedCity).
- * Park Lead: participant's park must equal assignedParkId.
- * Murabbi: participant's group must equal assignedGroupId.
+ * Park Lead: participant's park must equal active StaffMeta assignedParkId.
+ * Murabbi: participant's group must equal active StaffMeta assignedGroupId.
  * Guardian: must have a GuardianChild link to the participant.
  * Student: must own the participant record.
  * Returns true if access is granted.
@@ -98,18 +98,29 @@ export async function canAccessParticipantProfile(
   const participantCity = participant.group?.batch?.cityId;
   if (!participantCity || participantCity !== resolvedCity) return false;
 
+  // HQ and City Head: city-level match is sufficient
+  if (isHqRole(user.role) || user.role === "city_head") {
+    return true;
+  }
+
+  // For exact scopes, we must use current DB assignment, not stale session properties.
+  const staffMeta = await db.staffMeta.findUnique({
+    where: { userId: user.id! },
+    select: { assignedParkId: true, assignedGroupId: true, isActive: true },
+  });
+  if (!staffMeta || !staffMeta.isActive) return false;
+
   // Park Lead: participant's park must match own assigned park.
   // group.parkId may be null during hierarchy transition — fall back to batch.parkId.
   if (user.role === "park_lead") {
     const participantParkId = participant.group?.parkId ?? participant.group?.batch?.parkId;
-    return participantParkId === user.assignedParkId;
+    return participantParkId === staffMeta.assignedParkId;
   }
 
   // Murabbi: participant's group must match own assigned group
   if (user.role === "murabbi") {
-    return participant.groupId === user.assignedGroupId;
+    return participant.groupId === staffMeta.assignedGroupId;
   }
 
-  // HQ and City Head: city-level match is sufficient
-  return true;
+  return false;
 }
