@@ -157,6 +157,14 @@ function getRateColor(rate: number | null) {
   return "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-400";
 }
 
+async function fetchArrayResponse<T>(url: string): Promise<T[]> {
+  const response = await fetch(url);
+  if (!response.ok) return [];
+
+  const data: unknown = await response.json();
+  return Array.isArray(data) ? data as T[] : [];
+}
+
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export function GuardiansPage() {
@@ -325,7 +333,7 @@ export function GuardiansPage() {
 
   const { data: cities } = useQuery<CityOption[]>({
     queryKey: ["admin-cities-dropdown"],
-    queryFn: () => fetch("/api/admin/cities").then((r) => r.json()),
+    queryFn: () => fetchArrayResponse<CityOption>("/api/admin/cities"),
     staleTime: 60000,
   });
 
@@ -360,7 +368,7 @@ export function GuardiansPage() {
     enabled: linkChildOpen,
   });
 
-  const guardians = data?.data || [];
+  const guardians = Array.isArray(data?.data) ? data.data : [];
   const pagination = data?.pagination;
 
   // Selection helpers (after data is available)

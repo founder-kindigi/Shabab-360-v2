@@ -177,6 +177,14 @@ function getRateBarColor(rate: number | null) {
   return "bg-red-500 dark:bg-red-400";
 }
 
+async function fetchArrayResponse<T>(url: string): Promise<T[]> {
+  const response = await fetch(url);
+  if (!response.ok) return [];
+
+  const data: unknown = await response.json();
+  return Array.isArray(data) ? data as T[] : [];
+}
+
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export function StudentsPage() {
@@ -260,14 +268,13 @@ export function StudentsPage() {
 
   const { data: cities } = useQuery<CityOption[]>({
     queryKey: ["admin-cities-dropdown"],
-    queryFn: () => fetch("/api/admin/cities").then((r) => r.json()),
+    queryFn: () => fetchArrayResponse<CityOption>("/api/admin/cities"),
     staleTime: 60000,
   });
 
   const { data: parks } = useQuery<ParkOption[]>({
     queryKey: ["admin-parks-dropdown", cityId],
-    queryFn: () =>
-      fetch(`/api/admin/parks${cityId ? `?cityId=${cityId}` : ""}`).then((r) => r.json()),
+    queryFn: () => fetchArrayResponse<ParkOption>(`/api/admin/parks${cityId ? `?cityId=${cityId}` : ""}`),
     staleTime: 60000,
     enabled: !!cityId,
   });
@@ -275,18 +282,18 @@ export function StudentsPage() {
   // Fetch all groups for filter and dialogs
   const { data: allGroups } = useQuery<GroupOption[]>({
     queryKey: ["admin-groups-all-dropdown"],
-    queryFn: () => fetch("/api/admin/groups").then((r) => r.json()),
+    queryFn: () => fetchArrayResponse<GroupOption>("/api/admin/groups"),
     staleTime: 60000,
   });
 
   // Filtered groups for cascading selects
   const filteredGroups = useMemo(() => {
-    if (!allGroups) return [];
+    if (!Array.isArray(allGroups)) return [];
     return allGroups.filter((g) => {
       if (parkId) return g.batch.park.id === parkId;
       if (cityId) {
         // We don't have cityId on groups, but we have parkId from parks
-        const parkIds = parks?.map((p) => p.id) || [];
+        const parkIds = Array.isArray(parks) ? parks.map((p) => p.id) : [];
         return parkIds.includes(g.batch.park.id);
       }
       return true;
@@ -310,7 +317,7 @@ export function StudentsPage() {
     staleTime: 10000,
   });
 
-  const students = data?.data || [];
+  const students = Array.isArray(data?.data) ? data.data : [];
   const pagination = data?.pagination;
 
   // Selection helpers
