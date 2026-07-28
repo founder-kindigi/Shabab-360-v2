@@ -12,11 +12,16 @@ import { GET as getTeams } from "./route";
 import { GET as getTeamById } from "./[id]/route";
 import { GET as getTeamMembers, POST as addTeamMember } from "./[id]/members/route";
 import { DELETE as revokeTeamMember } from "./members/[membershipId]/route";
+import { GET as getCanManage } from "./can-manage/route";
 
 vi.mock("@/lib/auth/authorize", () => ({
   requireCapability: vi.fn(),
   requireCityScope: vi.fn(),
   isHqRole: vi.fn(),
+  requireAuth: vi.fn(),
+}));
+vi.mock("@/lib/auth/capability-access", () => ({
+  userHasCapability: vi.fn(),
 }));
 vi.mock("@/lib/audit", () => ({ logAudit: vi.fn() }));
 vi.mock("@/lib/db", () => ({
@@ -28,6 +33,7 @@ vi.mock("@/lib/db", () => ({
 }));
 
 import * as auth from "@/lib/auth/authorize";
+import * as capabilityAccess from "@/lib/auth/capability-access";
 import { db } from "@/lib/db";
 
 const TEAM = { id: "t1", cityId: "city-lhr", name: "Sports", code: "sports", description: null, isActive: true, createdAt: "2026-07-28T09:56:22.704Z", city: { id: "city-lhr", name: "Lahore" }, _count: { memberships: 5 } };
@@ -337,6 +343,63 @@ describe("TEAM-004: Canonical /api/admin/teams/** membership API", () => {
       expect(res.status).toBe(200);
       const body = await res.json();
       expect(body.isActive).toBe(false);
+    });
+  });
+
+  // ── 6. GET /api/admin/teams/can-manage (UI Permission Signal) ────
+
+  describe("GET /api/admin/teams/can-manage", () => {
+    it("returns 401 when unauthenticated", async () => {
+      vi.mocked(auth.requireAuth).mockResolvedValue(
+        NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+      );
+      const res = await getCanManage();
+      expect(res.status).toBe(401);
+      expect(vi.mocked(capabilityAccess.userHasCapability)).not.toHaveBeenCalled();
+    });
+
+    it("returns { canManage: true } when user has the capability", async () => {
+      vi.mocked(auth.requireAuth).mockResolvedValue({ user: { id: "u1", role: "super_admin" } } as any);
+      vi.mocked(capabilityAccess.userHasCapability).mockResolvedValue(true);
+      const res = await getCanManage();
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(body).toEqual({ canManage: true });
+    });
+
+    it("returns { canManage: false } when user lacks the capability", async () => {
+      vi.mocked(auth.requireAuth).mockResolvedValue({ user: { id: "u2", role: "murabbi" } } as any);
+      vi.mocked(capabilityAccess.userHasCapability).mockResolvedValue(false);
+      const res = await getCanManage();
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(body).toEqual({ canManage: false });
+    });
+
+    it("passes teams.memberships.manage to userHasCapability", async () => {
+      vi.mocked(auth.requireAuth).mockResolvedValue({ user: { id: "u1", role: "super_admin" } } as any);
+      vi.mocked(capabilityAccess.userHasCapability).mockResolvedValue(true);
+      await getCanManage();
+      expect(vi.mocked(capabilityAccess.userHasCapability)).toHaveBeenCalledWith(
+        expect.objectContaining({ id: "u1" }),
+        "teams.memberships.manage"
+      );
+    });
+  });
+
+  // ── 7. Team-list _count uses ACTIVE_MEMBERSHIP_FILTER ─────────────
+
+  describe("GET /api/admin/teams _count.memberships filter", () => {
+    it("uses endedAt: null in addition to isActive: true for membership count", async () => {
+      vi.mocked(auth.requireCapability).mockResolvedValue({ user: { id: "u1", role: "super_admin" } } as any);
+      vi.mocked(auth.isHqRole).mockReturnValue(true);
+      vi.mocked(db.collaborationTeam.findMany).mockResolvedValue([] as any);
+      vi.mocked(db.collaborationTeam.count).mockResolvedValue(0);
+
+      await getTeams(new NextRequest("http://localhost/api/admin/teams?cityId=city-lhr"));
+      const findManyCall = vi.mocked(db.collaborationTeam.findMany).mock.calls[0]?.[0];
+      const membershipsWhere = findManyCall?.select?._count?.select?.memberships?.where;
+      expect(membershipsWhere).toMatchObject({ isActive: true, endedAt: null });
     });
   });
 });

@@ -21,7 +21,7 @@ import {
 } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
 import { queryParamsToObject, queryValidationError } from "@/lib/api/query-params";
-import { teamListQuerySchema } from "@/lib/collaboration-teams/schemas";
+import { ACTIVE_MEMBERSHIP_FILTER, teamListQuerySchema } from "@/lib/collaboration-teams/schemas";
 
 export async function GET(request: NextRequest) {
   const auth = await requireCapability("teams.memberships.manage");
@@ -83,7 +83,7 @@ export async function GET(request: NextRequest) {
         description: true,
         isActive: true,
         city: { select: { id: true, name: true } },
-        _count: { select: { memberships: { where: { isActive: true } } } },
+        _count: { select: { memberships: { where: { ...ACTIVE_MEMBERSHIP_FILTER } } } },
       },
     }),
     db.collaborationTeam.count({ where }),
