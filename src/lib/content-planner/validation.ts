@@ -91,7 +91,7 @@ export const contentPlanListQuerySchema = paginatedQuerySchema().extend({
  * Create content plan payload
  */
 export const createContentPlanSchema = z.object({
-  cityId: z.string().trim().min(1).max(MAX_IDENTIFIER_LENGTH),
+  cityId: z.string().trim().min(1).max(MAX_IDENTIFIER_LENGTH).optional(),
   batchId: z.string().trim().min(1).max(MAX_IDENTIFIER_LENGTH).optional().nullable(),
   parkId: z.string().trim().min(1).max(MAX_IDENTIFIER_LENGTH).optional().nullable(),
   basePlanId: z.string().trim().min(1).max(MAX_IDENTIFIER_LENGTH).optional().nullable(),
