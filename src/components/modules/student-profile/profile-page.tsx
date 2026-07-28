@@ -269,16 +269,22 @@ export function StudentProfilePage({
       <Tabs defaultValue="education">
         <TabsList className="flex-wrap">
           {TABS.map((tab) => {
-            // Hide wellbeing tab if user doesn't have sensitive view capability or it's not active
-            if (tab.id === "wellbeing" && (!canViewSensitive || (!showSensitive && !editMode))) return null;
+            // Hide wellbeing tab if user lacks both view and manage capabilities, or if read mode and showSensitive is off
+            if (tab.id === "wellbeing") {
+              const hasAccess = canViewSensitive || (editMode && capabilities.canManageSensitive);
+              if (!hasAccess || (!editMode && !showSensitive)) return null;
+            }
             return <TabsTrigger key={tab.id} value={tab.id}>{tab.label}</TabsTrigger>;
           })}
         </TabsList>
 
         {TABS.map((tab) => {
           const fields = tabFields[tab.id] || [];
-          // Skip rendering wellbeing tab if user doesn't have sensitive view capability or it's not active
-          if (tab.id === "wellbeing" && (!canViewSensitive || (!showSensitive && !editMode))) return null;
+          // Skip rendering wellbeing tab if user lacks both view and manage capabilities, or if read mode and showSensitive is off
+          if (tab.id === "wellbeing") {
+            const hasAccess = canViewSensitive || (editMode && capabilities.canManageSensitive);
+            if (!hasAccess || (!editMode && !showSensitive)) return null;
+          }
           // Skip tab if no fields
           if (fields.length === 0) return null;
 
@@ -293,8 +299,8 @@ export function StudentProfilePage({
                     const isSensitive = SENSITIVE_FIELDS.has(fieldKey);
                     // Hide if read mode and showSensitive is off
                     if (!editMode && isSensitive && !showSensitive) return null;
-                    // Hide if edit mode and they cannot even view sensitive
-                    if (editMode && isSensitive && !canViewSensitive) return null;
+                    // Hide if edit mode and they have neither view nor manage capabilities
+                    if (editMode && isSensitive && !canViewSensitive && !capabilities.canManageSensitive) return null;
 
                     return (
                       <ProfileField
