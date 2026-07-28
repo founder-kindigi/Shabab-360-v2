@@ -268,8 +268,15 @@ describe("RELEASE-001: Production Build Validation", () => {
       expect(ci).toContain("prisma validate --schema=prisma/postgres/schema.prisma");
     });
 
+    it("SQLite migration-chain step exists and uses exactly migrate deploy and migrate status", () => {
+      expect(ci).toContain("Validate SQLite migration chain");
+      expect(ci).toContain("npx prisma migrate deploy --schema=prisma/schema.prisma");
+      expect(ci).toContain("npx prisma migrate status --schema=prisma/schema.prisma");
+    });
+
     it("uses placeholder datasource URLs for CI-only validation (no secrets)", () => {
       expect(ci).toContain("DATABASE_URL: \"file:../tmp-ci-validate/ci.db\"");
+      expect(ci).toContain("DATABASE_URL: \"file:./.ci-migrate/ci-migration.db\"");
       expect(ci).toContain("DATABASE_URL: \"postgresql://ci:ci@localhost:5432/ci_shabab?pgbouncer=true\"");
       expect(ci).toContain("DIRECT_URL: \"postgresql://ci:ci@localhost:5432/ci_shabab\"");
     });
@@ -281,18 +288,28 @@ describe("RELEASE-001: Production Build Validation", () => {
       expect(pgIdx).toBeGreaterThan(sqliteIdx);
     });
 
+    it("SQLite migration chain runs after SQLite schema validation and before Prisma Client generation", () => {
+      const validateSqliteIdx = ci.indexOf("Validate SQLite schema");
+      const migrateChainIdx = ci.indexOf("Validate SQLite migration chain");
+      const generateIdx = ci.indexOf("Generate Prisma Client");
+
+      expect(validateSqliteIdx).toBeGreaterThan(0);
+      expect(migrateChainIdx).toBeGreaterThan(validateSqliteIdx);
+      expect(generateIdx).toBeGreaterThan(migrateChainIdx);
+    });
+
     it("both validations run before Prisma Client generation", () => {
       const validateEnd = ci.lastIndexOf("prisma validate");
       const generateIdx = ci.indexOf("db:generate");
       expect(generateIdx).toBeGreaterThan(validateEnd);
     });
 
-    it("no migration, db push, deploy, seed, or reset command is used", () => {
+    it("no migrate dev, db push, migrate reset, db seed, or PostgreSQL deploy command is used", () => {
       expect(ci).not.toContain("migrate dev");
-      expect(ci).not.toContain("migrate deploy");
       expect(ci).not.toContain("migrate reset");
       expect(ci).not.toContain("db push");
       expect(ci).not.toContain("db seed");
+      expect(ci).not.toContain("migrate deploy --schema=prisma/postgres/schema.prisma");
     });
   });
 });
