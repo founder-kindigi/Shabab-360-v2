@@ -192,6 +192,34 @@ describe("user session invalidation mutations", () => {
     expect(mocks.transaction).toHaveBeenCalledTimes(1);
   });
 
+  it("generates a one-time temporary password without auditing its value", async () => {
+    const updatedUser = { id: "user-1", name: "Park Admin", staffMeta: oldMeta };
+    mocks.userFindUnique.mockResolvedValueOnce(oldUser).mockResolvedValueOnce(updatedUser);
+    mocks.staffMetaFindUnique.mockResolvedValue(oldMeta);
+    mocks.cityFindUnique.mockResolvedValue({ id: "city-1" });
+    mocks.parkFindUnique.mockResolvedValue({ cityId: "city-1" });
+
+    const response = await PATCH(
+      request("PATCH", { generateTemporaryPassword: true }),
+      routeParams()
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toContain("no-store");
+    expect(body.temporaryPassword).toEqual(expect.any(String));
+    expect(body.temporaryPassword.length).toBeGreaterThan(20);
+    expect(mocks.txUserUpdate).toHaveBeenCalledWith({
+      where: { id: "user-1" },
+      data: expect.objectContaining({
+        passwordHash: expect.any(String),
+        mustResetPwd: true,
+        tokenVersion: { increment: 1 },
+      }),
+    });
+    expect(JSON.stringify(mocks.txAuditCreate.mock.calls)).not.toContain(body.temporaryPassword);
+  });
+
   it("denies a City Head attempting to assign unmanageable roles (e.g. program_admin)", async () => {
     mocks.requireAuth.mockResolvedValue({
       user: { id: "city-head-1", role: "city_head", assignedCityId: "city-1" },

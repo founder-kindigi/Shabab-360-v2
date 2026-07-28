@@ -254,8 +254,9 @@ describe("UAT-002: Multi-Role Boundary Verification", () => {
       }
     });
 
-    it("denies program_admin access management capabilities", () => {
-      for (const cap of ["access.role_defaults.manage", "access.user_overrides.manage", "access.scope.manage"] as AccessCapability[]) {
+    it("grants Program Admin scoped staffing without access configuration", () => {
+      expect(resolveEffectiveCapability("program_admin", "access.scope.manage", null, null, now)).toBe(true);
+      for (const cap of ["access.role_defaults.manage", "access.user_overrides.manage"] as AccessCapability[]) {
         expect(resolveEffectiveCapability("program_admin", cap, null, null, now)).toBe(false);
       }
     });

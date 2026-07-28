@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireRole, requireAuth, requireCapability } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
 import { createAuditLogData } from "@/lib/audit";
+import { SENSITIVE_RESPONSE_HEADERS } from "@/lib/security/sensitive-response";
 import { z } from "zod";
+import bcrypt from "bcryptjs";
+import crypto from "crypto";
 import type { StaffRole } from "@/types";
 
 const VALID_ROLES: StaffRole[] = [
@@ -21,6 +24,7 @@ const updateSchema = z.object({
   phone: z.string().nullable().optional(),
   isActive: z.boolean().optional(),
   mustResetPwd: z.boolean().optional(),
+  generateTemporaryPassword: z.literal(true).optional(),
   // StaffMeta fields
   role: z.enum(VALID_ROLES).optional(),
   assignedCityId: z.string().nullable().optional(),
@@ -201,10 +205,24 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   if (data.isActive !== undefined) userData.isActive = data.isActive;
   if (data.mustResetPwd !== undefined) userData.mustResetPwd = data.mustResetPwd;
 
+  // Credentials are generated server-side and returned once only to the authorized administrator.
+  const temporaryPassword = data.generateTemporaryPassword
+    ? crypto.randomBytes(24).toString("base64url")
+    : undefined;
+  if (temporaryPassword) {
+    userData.passwordHash = await bcrypt.hash(temporaryPassword, 12);
+    userData.mustResetPwd = true;
+  }
+
   const shouldInvalidateSessions =
     hasStaffChanges ||
     (data.isActive !== undefined && data.isActive !== oldUser.isActive) ||
-    (data.mustResetPwd !== undefined && data.mustResetPwd !== oldUser.mustResetPwd);
+    (data.mustResetPwd !== undefined && data.mustResetPwd !== oldUser.mustResetPwd) ||
+    Boolean(temporaryPassword);
+
+  // Do not include passwordHash in audit input, even though audit sanitization also redacts it.
+  const auditUserData = { ...userData };
+  delete auditUserData.passwordHash;
 
   await db.$transaction(async (tx) => {
     if (Object.keys(userData).length > 0 || shouldInvalidateSessions) {
@@ -246,8 +264,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         entityId: id,
         oldValues: { ...oldUser, ...oldMeta },
         newValues: {
-          ...userData,
+          ...auditUserData,
           ...(hasStaffChanges ? { role: effectiveRole, ...nextScope } : {}),
+          ...(temporaryPassword ? { temporaryPasswordGenerated: true } : {}),
           ...(shouldInvalidateSessions ? { sessionInvalidated: true } : {}),
         },
       }),
@@ -280,6 +299,13 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       },
     },
   });
+
+  if (temporaryPassword) {
+    return NextResponse.json(
+      { user: updatedUser, temporaryPassword },
+      { headers: SENSITIVE_RESPONSE_HEADERS }
+    );
+  }
 
   return NextResponse.json(updatedUser);
 }

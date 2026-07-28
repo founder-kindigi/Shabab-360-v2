@@ -305,14 +305,15 @@ export function UsersPage() {
       fetch(`/api/admin/users/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mustResetPwd: true }),
+        body: JSON.stringify({ generateTemporaryPassword: true }),
       }).then((r) => {
         if (!r.ok) return r.json().then((e) => Promise.reject(e));
         return r.json();
       }),
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["admin-users"] });
-      toast.success("Password reset flag set. User will be prompted on next login.");
+      setTemporaryPassword(data.temporaryPassword);
+      toast.success("Temporary password generated. Share it securely now.");
       setResetPwdOpen(false);
       setSelectedUser(null);
     },
@@ -765,7 +766,7 @@ export function UsersPage() {
         actions={(user) => {
           const items: { label: string; icon?: React.ComponentType<{ className?: string }>; onClick: () => void; destructive?: boolean }[] = [
             { label: "Edit", icon: Pencil, onClick: () => openEditDialog(user) },
-            { label: "Reset Password", icon: KeyRound, onClick: () => openResetPwdDialog(user) },
+            { label: "Generate Temporary Password", icon: KeyRound, onClick: () => openResetPwdDialog(user) },
           ];
           if (user.isActive) {
             items.push({
@@ -1267,17 +1268,18 @@ export function UsersPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Reset Password Confirmation */}
+      {/* Generate Temporary Password Confirmation */}
       <AlertDialog open={resetPwdOpen} onOpenChange={setResetPwdOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              Reset password for &ldquo;{selectedUser?.name || selectedUser?.email}
+              Generate a temporary password for &ldquo;{selectedUser?.name || selectedUser?.email}
               &rdquo;?
             </AlertDialogTitle>
             <AlertDialogDescription>
-              This will require the user to set a new password on their next
-              login. They will be redirected to the password reset page.
+              This replaces the current password, invalidates active sessions,
+              and shows a one-time credential for you to share securely. The
+              user must set a new password at first login.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -1297,7 +1299,7 @@ export function UsersPage() {
               className="bg-amber-600 hover:bg-amber-700 text-white"
               disabled={resetPwdMutation.isPending}
             >
-              {resetPwdMutation.isPending ? "Setting..." : "Require Reset"}
+              {resetPwdMutation.isPending ? "Generating..." : "Generate Password"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
