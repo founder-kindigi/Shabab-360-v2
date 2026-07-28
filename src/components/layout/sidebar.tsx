@@ -297,7 +297,7 @@ function DesktopSidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
       animate={{ width: collapsed ? 64 : 256 }}
       transition={{ duration: 0.2, ease: "easeInOut" }}
       style={{ minWidth: collapsed ? 64 : 256 }}
-      className="hidden lg:flex flex-col h-screen border-r bg-card/50 backdrop-blur-sm flex-none overflow-hidden relative"
+      className="hidden lg:flex flex-col h-full border-r bg-card/50 backdrop-blur-sm flex-none overflow-hidden relative"
     >
       {/* Header / Brand */}
       <div className="group/brand flex items-center gap-3 px-4 h-14 border-b shrink-0 transition-shadow duration-500 hover:shadow-[0_0_20px_rgba(75,10,143,0.15)]">
@@ -322,8 +322,9 @@ function DesktopSidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
       </div>
 
       {/* Navigation */}
-      <ScrollArea className="flex-1 min-h-0 py-3 px-2">
-        <nav className="flex flex-col gap-0.5">
+      <div className="flex-1 min-h-0 overflow-hidden">
+        <ScrollArea className="h-full w-full">
+          <nav className="flex flex-col gap-0.5 py-3 px-2">
           {getNavSections(navItems).map((group, gIdx) => (
             <div key={group.section || `s-${gIdx}`}>
               {group.section && !collapsed && (
@@ -349,8 +350,9 @@ function DesktopSidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
               ))}
             </div>
           ))}
-        </nav>
-      </ScrollArea>
+          </nav>
+        </ScrollArea>
+      </div>
 
       {/* Footer: User info + Sign out + Collapse toggle */}
       <div className="border-t p-2 shrink-0 space-y-1">
