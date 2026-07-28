@@ -2,16 +2,18 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, requireCapability } from "@/lib/auth/authorize";
 import { resolveMashwaraActorCity } from "@/lib/auth/mashwara-scope";
 import { db } from "@/lib/db";
-import { logAudit } from "@/lib/audit";
+import { createAuditLogData } from "@/lib/audit";
 import { z } from "zod";
 
-const grantShareSchema = z.object({
-  staffMetaId: z.string().min(1, "Staff member is required"),
-});
+const grantShareSchema = z
+  .object({
+    staffMetaId: z.string().min(1, "Staff member is required"),
+  })
+  .strict();
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
@@ -30,15 +32,30 @@ export async function POST(
   }
 
   // Verify granter has city access to the meeting
-  const actorCityResult = await resolveMashwaraActorCity(auth.user, meeting.cityId);
+  const actorCityResult = await resolveMashwaraActorCity(
+    auth.user,
+    meeting.cityId,
+  );
   if ("error" in actorCityResult) {
-    return NextResponse.json({ error: actorCityResult.error }, { status: actorCityResult.status });
+    return NextResponse.json(
+      { error: actorCityResult.error },
+      { status: actorCityResult.status },
+    );
   }
 
-  const body = await request.json();
+  let body;
+  try {
+    body = await request.json();
+  } catch (err) {
+    return NextResponse.json({ error: "Malformed JSON" }, { status: 400 });
+  }
+
   const parsed = grantShareSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten().fieldErrors }, { status: 400 });
+    return NextResponse.json(
+      { error: parsed.error.flatten().fieldErrors },
+      { status: 400 },
+    );
   }
 
   // Validate target staff exists, is active, and belongs to the same city
@@ -49,29 +66,44 @@ export async function POST(
       isActive: true,
       assignedCityId: true,
       assignedPark: { select: { cityId: true } },
-      assignedGroup: { select: { batch: { select: { cityId: true, park: { select: { cityId: true } } } } } },
+      assignedGroup: {
+        select: {
+          park: { select: { cityId: true } },
+          batch: {
+            select: { cityId: true, park: { select: { cityId: true } } },
+          },
+        },
+      },
     },
   });
-  if (!targetStaff || !targetStaff.isActive) {
-    return NextResponse.json({ error: "Active staff member not found" }, { status: 404 });
+
+  if (!targetStaff) {
+    return NextResponse.json(
+      { error: "Staff member not found" },
+      { status: 404 },
+    );
+  }
+
+  if (!targetStaff.isActive) {
+    return NextResponse.json(
+      { error: "Staff member is inactive" },
+      { status: 403 },
+    );
   }
 
   const staffCityId =
     targetStaff.assignedCityId ??
     targetStaff.assignedPark?.cityId ??
-    targetStaff.assignedGroup?.batch.cityId ??
-    targetStaff.assignedGroup?.batch.park.cityId;
-  if (!staffCityId || staffCityId !== meeting.cityId) {
-    return NextResponse.json({ error: "Staff member must belong to the meeting city" }, { status: 400 });
-  }
+    targetStaff.assignedGroup?.park?.cityId ??
+    targetStaff.assignedGroup?.batch?.cityId ??
+    targetStaff.assignedGroup?.batch?.park?.cityId ??
+    null;
 
-  // Check for existing share
-  const existing = await db.mashwaraMeetingShare.findUnique({
-    where: { meetingId_staffMetaId: { meetingId, staffMetaId: targetStaff.id } },
-    select: { id: true, isRevoked: true },
-  });
-  if (existing && !existing.isRevoked) {
-    return NextResponse.json({ error: "Staff member already has an active share for this meeting" }, { status: 409 });
+  if (staffCityId !== meeting.cityId) {
+    return NextResponse.json(
+      { error: "Staff member must belong to the meeting city" },
+      { status: 403 },
+    );
   }
 
   // Resolve granter's staffMetaId
@@ -80,31 +112,86 @@ export async function POST(
     select: { id: true },
   });
   if (!granterStaff) {
-    return NextResponse.json({ error: "Active staff record not found" }, { status: 403 });
+    return NextResponse.json(
+      { error: "Active staff record not found" },
+      { status: 403 },
+    );
   }
 
-  let share;
-  if (existing) {
-    // Re-activate a previously revoked share
-    share = await db.mashwaraMeetingShare.update({
-      where: { id: existing.id },
-      data: { isRevoked: false, revokedAt: null, grantedAt: new Date(), grantedById: granterStaff.id },
-      select: { id: true, meetingId: true, staffMetaId: true, grantedAt: true, isRevoked: true },
+  try {
+    const shareResult = await db.$transaction(async (tx) => {
+      // Check for existing share inside transaction
+      const existing = await tx.mashwaraMeetingShare.findUnique({
+        where: {
+          meetingId_staffMetaId: { meetingId, staffMetaId: targetStaff.id },
+        },
+        select: { id: true, isRevoked: true, revokedAt: true },
+      });
+
+      if (existing && !existing.isRevoked && existing.revokedAt === null) {
+        throw new Error(
+          "Staff member already has an active share for this meeting",
+        );
+      }
+
+      let share;
+      if (existing) {
+        // Re-activate a previously revoked share
+        share = await tx.mashwaraMeetingShare.update({
+          where: { id: existing.id },
+          data: {
+            isRevoked: false,
+            revokedAt: null,
+            grantedAt: new Date(),
+            grantedById: granterStaff.id,
+          },
+          select: {
+            id: true,
+            meetingId: true,
+            staffMetaId: true,
+            grantedAt: true,
+            isRevoked: true,
+          },
+        });
+      } else {
+        share = await tx.mashwaraMeetingShare.create({
+          data: {
+            meetingId,
+            staffMetaId: targetStaff.id,
+            grantedById: granterStaff.id,
+          },
+          select: {
+            id: true,
+            meetingId: true,
+            staffMetaId: true,
+            grantedAt: true,
+            isRevoked: true,
+          },
+        });
+      }
+
+      await tx.auditLog.create({
+        data: createAuditLogData({
+          userId: auth.user.id,
+          action: "create",
+          entityType: "mashwara_meeting_share",
+          entityId: share.id,
+          newValues: { meetingId, staffMetaId: targetStaff.id },
+        }),
+      });
+
+      return share;
     });
-  } else {
-    share = await db.mashwaraMeetingShare.create({
-      data: { meetingId, staffMetaId: targetStaff.id, grantedById: granterStaff.id },
-      select: { id: true, meetingId: true, staffMetaId: true, grantedAt: true, isRevoked: true },
-    });
+
+    return NextResponse.json(shareResult, { status: 201 });
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      error.message ===
+        "Staff member already has an active share for this meeting"
+    ) {
+      return NextResponse.json({ error: error.message }, { status: 409 });
+    }
+    return NextResponse.json({ error: "Transaction failed" }, { status: 500 });
   }
-
-  await logAudit({
-    userId: auth.user.id,
-    action: "create",
-    entityType: "mashwara_meeting_share",
-    entityId: share.id,
-    newValues: { meetingId, staffMetaId: targetStaff.id },
-  });
-
-  return NextResponse.json(share, { status: 201 });
 }
