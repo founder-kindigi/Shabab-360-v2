@@ -68,6 +68,13 @@ export async function POST(request: NextRequest) {
     if (!campaign) {
       return NextResponse.json({ error: "Target campaign not found" }, { status: 400 });
     }
+    // Enforce city match between campaign and template
+    if (data.cityId && data.cityId !== campaign.cityId) {
+      return NextResponse.json(
+        { error: "Template city must match campaign city" },
+        { status: 400 }
+      );
+    }
     const resolved = await resolveActorCity(user, campaign.cityId);
     if (resolved.error || !resolved.cityId) {
       return NextResponse.json({ error: resolved.error }, { status: resolved.status });

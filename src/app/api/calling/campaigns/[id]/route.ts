@@ -3,6 +3,7 @@ import { requireCapability } from "@/lib/auth/authorize";
 import { verifyCallingManagerOrPoc } from "@/lib/calling/poc-auth";
 import { db } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
+import { updateCampaignSchema } from "@/lib/validations/calling";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -66,12 +67,20 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: "cityId is immutable" }, { status: 400 });
   }
 
-  const updateData: any = {};
-  if (typeof body.name === "string") updateData.name = body.name.trim();
-  if (typeof body.description === "string" || body.description === null) updateData.description = body.description;
-  if (["draft", "active", "completed", "archived"].includes(body.status)) updateData.status = body.status;
-  if (body.startDate) updateData.startDate = new Date(body.startDate);
-  if (body.endDate) updateData.endDate = new Date(body.endDate);
+  const parsed = updateCampaignSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: "Validation failed", details: parsed.error.format() },
+      { status: 400 }
+    );
+  }
+
+  const updateData: Record<string, any> = {};
+  if (parsed.data.name !== undefined) updateData.name = parsed.data.name;
+  if (parsed.data.description !== undefined) updateData.description = parsed.data.description;
+  if (parsed.data.status !== undefined) updateData.status = parsed.data.status;
+  if (parsed.data.startDate !== undefined) updateData.startDate = new Date(parsed.data.startDate);
+  if (parsed.data.endDate !== undefined) updateData.endDate = new Date(parsed.data.endDate);
 
   const updated = await db.callingCampaign.update({
     where: { id },
