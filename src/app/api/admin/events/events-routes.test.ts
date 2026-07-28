@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   dbEventFindMany: vi.fn(),
   dbTeamMembershipCreate: vi.fn(),
   dbTeamMembershipFindFirst: vi.fn(),
+  dbTeamMembershipUpdate: vi.fn(),
   dbTeamFindUnique: vi.fn(),
   dbResponsibilityCreate: vi.fn(),
   dbPlannerItemCreate: vi.fn(),
@@ -42,6 +43,7 @@ vi.mock("@/lib/db", () => ({
     eventTeamMembership: {
       create: mocks.dbTeamMembershipCreate,
       findFirst: mocks.dbTeamMembershipFindFirst,
+      update: mocks.dbTeamMembershipUpdate,
     },
     temporaryEventTeam: {
       findUnique: mocks.dbTeamFindUnique,
@@ -151,12 +153,41 @@ describe("EVENT-304: Event Route API Tests", () => {
       expect(mocks.dbEventUpdate).toHaveBeenCalledWith(expect.objectContaining({ data: { status: "cancelled" } }));
       expect(mocks.logAudit).toHaveBeenCalled();
     });
+
+    it("rejects PATCH on a cancelled event with 409", async () => {
+      mocks.dbEventFindUnique.mockResolvedValue({ id: "evt-1", cityId: "city-1", status: "cancelled" });
+      const req = new NextRequest("http://localhost/api/admin/events/evt-1", {
+        method: "PATCH",
+        body: JSON.stringify({ title: "Updated" }),
+      });
+      const res = await PATCHEvent(req, { params: Promise.resolve({ id: "evt-1" }) });
+      expect(res.status).toBe(409);
+    });
   });
 
   describe("Temporary Teams & Planner Invariants", () => {
     it("assigns same-city temporary team member successfully", async () => {
       mocks.dbTeamFindUnique.mockResolvedValue({ id: "team-1", event: { cityId: "city-1" } });
       mocks.dbStaffMetaFindUnique.mockResolvedValue({ id: "sm-1", isActive: true, assignedCityId: "city-1" });
+      mocks.dbTeamMembershipFindFirst.mockResolvedValue(null);
+      mocks.dbTeamMembershipCreate.mockResolvedValue({ id: "mem-1" });
+
+      const req = new NextRequest("http://localhost/api/admin/events/teams/team-1/memberships", {
+        method: "POST",
+        body: JSON.stringify({ staffMetaId: "sm-1" }),
+      });
+      const res = await POSTMembership(req, { params: Promise.resolve({ teamId: "team-1" }) });
+      expect(res.status).toBe(201);
+    });
+
+    it("assigns same-city team member when city is derived from assignedGroup", async () => {
+      mocks.dbTeamFindUnique.mockResolvedValue({ id: "team-1", event: { cityId: "city-1" } });
+      mocks.dbStaffMetaFindUnique.mockResolvedValue({
+        id: "sm-1",
+        isActive: true,
+        assignedCityId: null,
+        assignedGroup: { batch: { park: { cityId: "city-1" } } }
+      });
       mocks.dbTeamMembershipFindFirst.mockResolvedValue(null);
       mocks.dbTeamMembershipCreate.mockResolvedValue({ id: "mem-1" });
 
@@ -229,6 +260,31 @@ describe("EVENT-304: Event Route API Tests", () => {
       });
       const res = await POSTMembership(req, { params: Promise.resolve({ teamId: "team-1" }) });
       expect(res.status).toBe(409);
+    });
+
+    it("reactivates a previously revoked membership instead of creating a new one", async () => {
+      mocks.dbTeamFindUnique.mockResolvedValue({ id: "team-1", event: { cityId: "city-1" } });
+      mocks.dbStaffMetaFindUnique.mockResolvedValue({ id: "sm-1", isActive: true, assignedCityId: "city-1" });
+      mocks.dbTeamMembershipFindFirst.mockResolvedValue({ id: "mem-revoked", isActive: false });
+      mocks.dbTeamMembershipUpdate.mockResolvedValue({ id: "mem-revoked", isActive: true });
+
+      const req = new NextRequest("http://localhost/api/admin/events/teams/team-1/memberships", {
+        method: "POST",
+        body: JSON.stringify({ staffMetaId: "sm-1", title: "New Title" }),
+      });
+      const res = await POSTMembership(req, { params: Promise.resolve({ teamId: "team-1" }) });
+
+      expect(res.status).toBe(200);
+      expect(mocks.dbTeamMembershipUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: "mem-revoked" },
+          data: expect.objectContaining({ isActive: true, title: "New Title", revokedAt: null }),
+        })
+      );
+      expect(mocks.dbTeamMembershipCreate).not.toHaveBeenCalled();
+      expect(mocks.logAudit).toHaveBeenCalledWith(
+        expect.objectContaining({ action: "event.team_member.reactivate" })
+      );
     });
   });
 });
