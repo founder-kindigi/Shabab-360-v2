@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, requireCapability } from "@/lib/auth/authorize";
+import { resolveMashwaraActorCity } from "@/lib/auth/mashwara-scope";
 import { db } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
 
@@ -24,9 +25,9 @@ export async function DELETE(
   }
 
   // Verify actor has city access
-  const isHq = auth.user.role === "super_admin" || auth.user.role === "program_admin";
-  if (!isHq && auth.user.assignedCityId !== meeting.cityId) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const actorCityResult = await resolveMashwaraActorCity(auth.user, meeting.cityId);
+  if ("error" in actorCityResult) {
+    return NextResponse.json({ error: actorCityResult.error }, { status: actorCityResult.status });
   }
 
   const share = await db.mashwaraMeetingShare.findFirst({

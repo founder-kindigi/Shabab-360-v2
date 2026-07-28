@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, requireCapability } from "@/lib/auth/authorize";
+import { resolveMashwaraActorCity } from "@/lib/auth/mashwara-scope";
 import { db } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
 import { z } from "zod";
@@ -37,15 +38,15 @@ export async function GET(request: NextRequest) {
   }
 
   const { page, pageSize, status, cityId } = query.data;
-  const user = auth.user;
-  const isHq = user.role === "super_admin" || user.role === "program_admin";
 
-  const where: Record<string, unknown> = {};
-  if (!isHq && user.assignedCityId) {
-    where.cityId = user.assignedCityId;
-  } else if (cityId) {
-    where.cityId = cityId;
+  const actorCityResult = await resolveMashwaraActorCity(auth.user, cityId);
+  if ("error" in actorCityResult) {
+    return NextResponse.json({ error: actorCityResult.error }, { status: actorCityResult.status });
   }
+
+  const where: Record<string, unknown> = {
+    cityId: actorCityResult.cityId,
+  };
   if (status) where.status = status;
 
   const [data, total] = await Promise.all([
@@ -92,17 +93,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: parsed.error.flatten().fieldErrors }, { status: 400 });
   }
 
-  const staffMeta = await db.staffMeta.findFirst({
-    where: { userId: auth.user.id, isActive: true },
-    select: { id: true },
-  });
-  if (!staffMeta) {
-    return NextResponse.json({ error: "Active staff record not found" }, { status: 403 });
+  const actorCityResult = await resolveMashwaraActorCity(auth.user, parsed.data.cityId);
+  if ("error" in actorCityResult) {
+    return NextResponse.json({ error: actorCityResult.error }, { status: actorCityResult.status });
   }
 
   const meeting = await db.mashwaraMeeting.create({
     data: {
-      cityId: parsed.data.cityId,
+      cityId: actorCityResult.cityId,
       title: parsed.data.title,
       scheduledAt: parsed.data.scheduledAt,
       location: parsed.data.location ?? null,
