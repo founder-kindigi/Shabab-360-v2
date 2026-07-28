@@ -4,6 +4,7 @@ import { verifyCallingManagerOrPoc } from "@/lib/calling/poc-auth";
 import { db } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
 import { assignLeadsSchema } from "@/lib/validations/calling";
+import { Prisma } from "@prisma/client";
 
 export async function POST(request: NextRequest) {
   const auth = await requireAuth();
@@ -91,62 +92,70 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Close existing active assignments and create new ones atomically.
-  // No database unique constraint exists for campaignId+applicationId+isActive,
-  // so the transaction itself provides the concurrency guard: after the insert
-  // we verify exactly one active assignment per application.
   let concurrencyConflict = false;
   let newAssignments: any[] | null = null;
 
   try {
-    newAssignments = await db.$transaction(async (tx) => {
-      const now = new Date();
+    newAssignments = await db.$transaction(
+      async (tx) => {
+        const now = new Date();
 
-      // 1. Close all existing active assignments for these leads.
-      await tx.callingAssignment.updateMany({
-        where: {
-          campaignId,
-          applicationId: { in: applicationIds },
-          isActive: true,
-        },
-        data: { isActive: false, status: "reassigned", endedAt: now },
-      });
-
-      // 2. Create new assignments.
-      const created: any[] = [];
-      for (const appId of applicationIds) {
-        const newAssignment = await tx.callingAssignment.create({
-          data: {
+        // 1. Close all existing active assignments for these leads.
+        await tx.callingAssignment.updateMany({
+          where: {
             campaignId,
-            applicationId: appId,
-            callerStaffMetaId: callerStaffMetaId || null,
-            callerExternalId: callerExternalId || null,
-            status: "pending",
+            applicationId: { in: applicationIds },
             isActive: true,
-            startedAt: now,
           },
+          data: { isActive: false, status: "reassigned", endedAt: now },
         });
-        created.push(newAssignment);
-      }
 
-      // 3. Concurrency guard — verify no duplicate active assignments exist.
-      const activeAfter = await tx.callingAssignment.findMany({
-        where: {
-          campaignId,
-          applicationId: { in: applicationIds },
-          isActive: true,
-        },
-        select: { applicationId: true, id: true, callerStaffMetaId: true, callerExternalId: true },
-      });
-      if (activeAfter.length !== applicationIds.length) {
-        concurrencyConflict = true;
-        throw new Error("ROLLBACK");
-      }
+        // 2. Create new assignments.
+        const created: any[] = [];
+        for (const appId of applicationIds) {
+          const newAssignment = await tx.callingAssignment.create({
+            data: {
+              campaignId,
+              applicationId: appId,
+              callerStaffMetaId: callerStaffMetaId || null,
+              callerExternalId: callerExternalId || null,
+              status: "pending",
+              isActive: true,
+              startedAt: now,
+            },
+          });
+          created.push(newAssignment);
+        }
 
-      return created;
-    });
+        // 3. Per-application concurrency guard — verify exactly one active
+        //    assignment exists for each individual application after insertion.
+        for (const appId of applicationIds) {
+          const count = await tx.callingAssignment.count({
+            where: {
+              campaignId,
+              applicationId: appId,
+              isActive: true,
+            },
+          });
+          if (count !== 1) {
+            concurrencyConflict = true;
+            throw new Prisma.PrismaClientKnownRequestError(
+              "Concurrent assignment conflict — rollback",
+              { code: "P2000", clientVersion: "6.11" }
+            );
+          }
+        }
+
+        return created;
+      },
+      { isolationLevel: "Serializable" }
+    );
   } catch (e) {
-    if (concurrencyConflict) {
+    if (
+      concurrencyConflict ||
+      (e instanceof Prisma.PrismaClientKnownRequestError &&
+        ["P2000", "P2034", "40001"].includes(e.code))
+    ) {
       return NextResponse.json(
         { error: "Concurrent assignment conflict — one or more leads have multiple active assignments" },
         { status: 409 }
