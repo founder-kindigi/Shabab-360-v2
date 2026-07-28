@@ -117,6 +117,7 @@ export const ROLE_DEFAULT_CAPABILITIES: Readonly<Record<UserRole, readonly Acces
     "mashwara.view",
     "mashwara.manage",
     "reports.export",
+    "access.scope.manage",
   ],
   city_head: [
     "dashboard.view",

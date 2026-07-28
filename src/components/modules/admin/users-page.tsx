@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
@@ -211,43 +211,19 @@ export function UsersPage() {
     enabled: !!formCityId || !!selectedUser?.staffMeta?.assignedCityId,
   });
 
-  // Fetch groups for dropdowns (filtered by park — need batch first)
-  // For groups, we need batches belonging to the selected park
-  const { data: batches } = useQuery<
-    { id: string; name: string; parkId: string }[]
-  >({
-    queryKey: ["admin-batches-dropdown", formParkId || selectedUser?.staffMeta?.assignedParkId],
+  const { data: groups } = useQuery<GroupOption[]>({
+    queryKey: ["admin-groups-dropdown", formParkId || selectedUser?.staffMeta?.assignedParkId],
     queryFn: () => {
       const parkId = formParkId || selectedUser?.staffMeta?.assignedParkId;
-      return fetch(`/api/admin/batches?parkId=${parkId}`)
-        .then((r) => r.json())
-        .then((data: any[]) =>
-          data.map((b) => ({ id: b.id, name: b.name, parkId: b.parkId }))
-        );
-    },
-    staleTime: 30000,
-    enabled: !!formParkId || !!selectedUser?.staffMeta?.assignedParkId,
-  });
-
-  const batchIds = useMemo(
-    () => batches?.map((b) => b.id) || [],
-    [batches]
-  );
-
-  const { data: groups } = useQuery<GroupOption[]>({
-    queryKey: ["admin-groups-dropdown", batchIds.join(",")],
-    queryFn: () => {
-      // Use the first batch for simplicity (or fetch all)
-      const batchId = batchIds[0];
-      if (!batchId) return Promise.resolve([]);
-      return fetch(`/api/admin/groups?batchId=${batchId}`)
+      if (!parkId) return Promise.resolve([]);
+      return fetch(`/api/admin/groups?parkId=${parkId}`)
         .then((r) => r.json())
         .then((data: any[]) =>
           data.map((g) => ({ id: g.id, name: g.name, batchId: g.batchId }))
         );
     },
     staleTime: 30000,
-    enabled: batchIds.length > 0,
+    enabled: !!formParkId || !!selectedUser?.staffMeta?.assignedParkId,
   });
 
   // Create mutation

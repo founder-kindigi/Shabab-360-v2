@@ -38,6 +38,12 @@ describe("sidebar navigation access boundaries", () => {
     }
   });
 
+  it("shows City Heads the city-scoped staff management page", () => {
+    expect(
+      getNavItems("city_head", translate).some((item) => item.id === "admin-users")
+    ).toBe(true);
+  });
+
   it("renders configured event and calling navigation labels", () => {
     const items = getNavItems("super_admin", (key) => translations.en[key] ?? key);
 

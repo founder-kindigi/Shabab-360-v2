@@ -34,7 +34,7 @@ interface RouteParams {
 }
 
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
-  const authError = await requireRole(["super_admin", "city_head"]);
+  const authError = await requireRole(["super_admin", "program_admin", "city_head"]);
   if (authError) return authError;
 
   const auth = await requireAuth();

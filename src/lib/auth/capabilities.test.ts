@@ -35,10 +35,11 @@ describe("access capability policy", () => {
     ]);
   });
 
-  it("reserves access administration for Super Admin at soft launch", () => {
+  it("reserves role and user override administration for Super Admin", () => {
     expect(roleHasDefaultCapability("super_admin", "access.role_defaults.manage")).toBe(true);
     expect(roleHasDefaultCapability("super_admin", "access.user_overrides.manage")).toBe(true);
     expect(roleHasDefaultCapability("super_admin", "access.scope.manage")).toBe(true);
+    expect(roleHasDefaultCapability("program_admin", "access.scope.manage")).toBe(true);
     expect(roleHasDefaultCapability("program_admin", "access.user_overrides.manage")).toBe(false);
     expect(roleHasDefaultCapability("city_head", "access.user_overrides.manage")).toBe(false);
     expect(roleHasDefaultCapability("city_head", "access.city_staff.manage")).toBe(true);

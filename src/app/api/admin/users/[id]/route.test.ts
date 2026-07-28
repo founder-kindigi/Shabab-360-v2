@@ -166,6 +166,32 @@ describe("user session invalidation mutations", () => {
     expect(mocks.transaction).toHaveBeenCalledTimes(1);
   });
 
+  it("permits a Program Admin to update staff assignments", async () => {
+    mocks.requireAuth.mockResolvedValue({
+      user: { id: "program-admin-1", role: "program_admin" },
+    });
+    mocks.userFindUnique.mockResolvedValueOnce(oldUser).mockResolvedValueOnce({
+      id: "user-1", name: "Park Admin", staffMeta: oldMeta,
+    });
+    mocks.staffMetaFindUnique.mockResolvedValue(oldMeta);
+    mocks.cityFindUnique.mockResolvedValue({ id: "city-1" });
+    mocks.parkFindUnique.mockResolvedValue({ cityId: "city-1" });
+    mocks.groupFindUnique.mockResolvedValue({ batch: { parkId: "park-1" } });
+
+    const response = await PATCH(
+      request("PATCH", { assignedGroupId: "group-1" }),
+      routeParams()
+    );
+
+    expect(response.status).toBe(200);
+    expect(mocks.requireRole).toHaveBeenCalledWith([
+      "super_admin",
+      "program_admin",
+      "city_head",
+    ]);
+    expect(mocks.transaction).toHaveBeenCalledTimes(1);
+  });
+
   it("denies a City Head attempting to assign unmanageable roles (e.g. program_admin)", async () => {
     mocks.requireAuth.mockResolvedValue({
       user: { id: "city-head-1", role: "city_head", assignedCityId: "city-1" },
