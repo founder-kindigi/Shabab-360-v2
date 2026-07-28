@@ -85,23 +85,29 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     include: {
       assignedCity: true,
       assignedPark: { include: { city: true } },
+      assignedGroup: { include: { park: { include: { city: true } }, batch: { include: { park: { include: { city: true } }, city: true } } } },
     },
   });
 
-  if (!assigneeStaffMeta || !assigneeStaffMeta.isActive) {
-    return NextResponse.json(
-      { error: "Assignee staff assignment not found or inactive" },
-      { status: 400 }
-    );
+  if (!assigneeStaffMeta) {
+    return NextResponse.json({ error: "Assignee staff member not found" }, { status: 404 });
+  }
+
+  if (!assigneeStaffMeta.isActive) {
+    return NextResponse.json({ error: "Assignee staff member is inactive" }, { status: 403 });
   }
 
   const assigneeCityId =
-    assigneeStaffMeta.assignedCityId || assigneeStaffMeta.assignedPark?.cityId;
+    assigneeStaffMeta.assignedCityId ||
+    assigneeStaffMeta.assignedPark?.cityId ||
+    assigneeStaffMeta.assignedGroup?.park?.cityId ||
+    assigneeStaffMeta.assignedGroup?.batch?.cityId ||
+    assigneeStaffMeta.assignedGroup?.batch?.park?.cityId;
 
   if (assigneeCityId !== verified.event.cityId) {
     return NextResponse.json(
       { error: "Assignee staff member belongs to a different city than the event" },
-      { status: 400 }
+      { status: 403 }
     );
   }
 

@@ -65,7 +65,11 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   if (data.assignedToStaffMetaId) {
     const staffMeta = await db.staffMeta.findUnique({
       where: { id: data.assignedToStaffMetaId },
-      include: { assignedCity: true, assignedPark: { include: { city: true } } },
+      include: {
+        assignedCity: true,
+        assignedPark: { include: { city: true } },
+        assignedGroup: { include: { park: { include: { city: true } }, batch: { include: { park: { include: { city: true } }, city: true } } } },
+      },
     });
     if (!staffMeta) {
       return NextResponse.json({ error: "Assignee staff member not found" }, { status: 404 });
@@ -73,7 +77,13 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     if (!staffMeta.isActive) {
       return NextResponse.json({ error: "Assignee staff member is inactive" }, { status: 403 });
     }
-    const staffCityId = staffMeta.assignedCityId || staffMeta.assignedPark?.cityId;
+    const staffCityId =
+      staffMeta.assignedCityId ||
+      staffMeta.assignedPark?.cityId ||
+      staffMeta.assignedGroup?.park?.cityId ||
+      staffMeta.assignedGroup?.batch?.cityId ||
+      staffMeta.assignedGroup?.batch?.park?.cityId;
+
     if (staffCityId !== verified.event.cityId) {
       return NextResponse.json(
         { error: "Assignee staff member belongs to a different city than the event" },
