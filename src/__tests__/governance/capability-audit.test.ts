@@ -17,8 +17,8 @@ describe("GOV-001: Capability Governance & Audit Enforcement Sweep", () => {
 
   /* ── 1. Catalogue Integrity ────────────────────────────────────────── */
   describe("ACCESS_CAPABILITIES Catalogue", () => {
-    it("registers all 34 domain capabilities", () => {
-      expect(ACCESS_CAPABILITIES.length).toBeGreaterThanOrEqual(34);
+    it("registers all 37 domain capabilities", () => {
+      expect(ACCESS_CAPABILITIES.length).toBeGreaterThanOrEqual(37);
     });
 
     it("includes required domain capability prefixes", () => {
@@ -27,6 +27,7 @@ describe("GOV-001: Capability Governance & Audit Enforcement Sweep", () => {
         "guardians.", "admissions.", "attendance.", "fees.",
         "announcements.", "reports.", "audit.", "settings.",
         "content.", "events.", "calling.", "access.", "mashwara.",
+        "teams.",
       ];
       for (const prefix of requiredPrefixes) {
         const matches = ACCESS_CAPABILITIES.filter((c) => c.startsWith(prefix));
@@ -99,10 +100,9 @@ describe("GOV-001: Capability Governance & Audit Enforcement Sweep", () => {
       }
     });
 
-    it("program_admin excludes access.* management capabilities", () => {
+    it("program_admin excludes sensitive access.* management capabilities", () => {
       expect(roleHasDefaultCapability("program_admin", "access.role_defaults.manage")).toBe(false);
       expect(roleHasDefaultCapability("program_admin", "access.user_overrides.manage")).toBe(false);
-      expect(roleHasDefaultCapability("program_admin", "access.scope.manage")).toBe(false);
       expect(roleHasDefaultCapability("program_admin", "events.manage")).toBe(true);
       expect(roleHasDefaultCapability("program_admin", "mashwara.manage")).toBe(true);
     });

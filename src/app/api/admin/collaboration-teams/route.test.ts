@@ -33,7 +33,7 @@ describe("GET /api/admin/collaboration-teams", () => {
     vi.mocked(db.collaborationTeam.count).mockResolvedValue(0);
   });
 
-  it("returns 403 when organisation.manage capability is missing", async () => {
+  it("returns 403 when teams.memberships.manage capability is missing", async () => {
     vi.mocked(auth.requireCapability).mockResolvedValue(
       NextResponse.json({ error: "Forbidden" }, { status: 403 })
     );

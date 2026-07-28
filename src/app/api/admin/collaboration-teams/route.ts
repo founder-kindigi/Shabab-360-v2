@@ -25,7 +25,7 @@ import { queryParamsToObject, queryValidationError } from "@/lib/api/query-param
 import { teamListQuerySchema } from "@/lib/collaboration-teams/schemas";
 
 export async function GET(request: NextRequest) {
-  const auth = await requireCapability("organisation.manage");
+  const auth = await requireCapability("teams.memberships.manage");
   if (auth instanceof NextResponse) return auth;
 
   const parsed = teamListQuerySchema.safeParse(

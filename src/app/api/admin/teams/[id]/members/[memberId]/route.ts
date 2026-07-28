@@ -1,9 +1,9 @@
 /**
- * PATCH  /api/admin/collaboration-teams/[teamId]/members/[memberId]
- * DELETE /api/admin/collaboration-teams/[teamId]/members/[memberId]
+ * PATCH  /api/admin/teams/[id]/members/[memberId]
+ * DELETE /api/admin/teams/[id]/members/[memberId]
  *
- * Authorization: dynamic capability (organisation.manage) + city scope.
- * No static role gate.
+ * Canonical membership mutation endpoints.
+ * Authorization: teams.memberships.manage + city scope.
  */
 import { NextRequest, NextResponse } from "next/server";
 import { requireCapability, requireCityScope } from "@/lib/auth/authorize";
@@ -11,7 +11,7 @@ import { db } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
 import { updateMembershipSchema } from "@/lib/collaboration-teams/schemas";
 
-type Params = { params: Promise<{ teamId: string; memberId: string }> };
+type Params = { params: Promise<{ id: string; memberId: string }> };
 
 // ── Shared lookup ─────────────────────────────────────────────────────────────
 
@@ -36,7 +36,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   const auth = await requireCapability("teams.memberships.manage");
   if (auth instanceof NextResponse) return auth;
 
-  const { teamId, memberId } = await params;
+  const { id: teamId, memberId } = await params;
 
   let body: unknown;
   try {
@@ -75,9 +75,6 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     where: { id: memberId },
     data: {
       ...(parsed.data.title !== undefined && { title: parsed.data.title }),
-      ...(parsed.data.endedAt !== undefined && {
-        endedAt: parsed.data.endedAt ? new Date(parsed.data.endedAt) : null,
-      }),
     },
     select: {
       id: true,
@@ -108,7 +105,7 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
   const auth = await requireCapability("teams.memberships.manage");
   if (auth instanceof NextResponse) return auth;
 
-  const { teamId, memberId } = await params;
+  const { id: teamId, memberId } = await params;
 
   const membership = await resolveMembership(teamId, memberId);
   if (!membership || membership.teamId !== teamId) {
