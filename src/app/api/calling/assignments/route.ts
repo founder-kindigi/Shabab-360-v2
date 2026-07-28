@@ -6,6 +6,14 @@ import { logAudit } from "@/lib/audit";
 import { assignLeadsSchema } from "@/lib/validations/calling";
 import { Prisma } from "@prisma/client";
 
+// Dedicated marker for our own count-mismatch guard — never a Prisma error code.
+class CountMismatchError extends Error {
+  constructor() {
+    super("Count mismatch — concurrent assignment conflict");
+    this.name = "CountMismatchError";
+  }
+}
+
 export async function POST(request: NextRequest) {
   const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
@@ -139,10 +147,7 @@ export async function POST(request: NextRequest) {
           });
           if (count !== 1) {
             concurrencyConflict = true;
-            throw new Prisma.PrismaClientKnownRequestError(
-              "Concurrent assignment conflict — rollback",
-              { code: "P2000", clientVersion: "6.11" }
-            );
+            throw new CountMismatchError();
           }
         }
 
@@ -154,7 +159,7 @@ export async function POST(request: NextRequest) {
     if (
       concurrencyConflict ||
       (e instanceof Prisma.PrismaClientKnownRequestError &&
-        ["P2000", "P2034", "40001"].includes(e.code))
+        (e.code === "P2034" || e.code === "40001"))
     ) {
       return NextResponse.json(
         { error: "Concurrent assignment conflict — one or more leads have multiple active assignments" },
