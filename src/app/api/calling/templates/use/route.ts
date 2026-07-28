@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireCapability } from "@/lib/auth/authorize";
+import { requireAuth } from "@/lib/auth/authorize";
 import { computeValuesHmac } from "@/lib/calling/template-hmac";
 import { db } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
 import { useTemplateSchema } from "@/lib/validations/calling";
 
 export async function POST(request: NextRequest) {
-  const auth = await requireCapability("calling.view");
+  const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
-  const { user } = auth;
+  const user = auth.user as any;
 
   let body: any;
   try {
@@ -27,35 +27,80 @@ export async function POST(request: NextRequest) {
 
   const { templateId, assignmentId, variablesUsed, valuesUsed } = parsed.data;
 
-  const template = await db.callingTemplate.findUnique({
-    where: { id: templateId },
-  });
+  const [template, assignment] = await Promise.all([
+    db.callingTemplate.findUnique({ where: { id: templateId } }),
+    db.callingAssignment.findUnique({
+      where: { id: assignmentId },
+      include: { campaign: true },
+    }),
+  ]);
 
   if (!template) {
     return NextResponse.json({ error: "Template not found" }, { status: 404 });
   }
 
   if (template.status !== "approved") {
-    // Retired templates must not be used for live calls; draft templates
-    // have not been reviewed for routing.
     return NextResponse.json(
       { error: `Template is ${template.status}; only approved templates may be used` },
       { status: 400 }
     );
   }
 
-  const assignment = await db.callingAssignment.findUnique({
-    where: { id: assignmentId },
-  });
-
   if (!assignment || !assignment.isActive) {
     return NextResponse.json(
       { error: "Calling assignment not found or inactive" },
-      { status: 400 }
+      { status: 404 }
     );
   }
 
-  const valuesHmac = computeValuesHmac(valuesUsed || {});
+  // Verify the template is eligible for this assignment's campaign and city.
+  // A campaign-bound template must match; a city-only template is compatible
+  // with any campaign in its city.
+  if (template.campaignId && template.campaignId !== assignment.campaignId) {
+    return NextResponse.json(
+      { error: "Template is bound to a different campaign than this lead" },
+      { status: 403 }
+    );
+  }
+  if (template.cityId !== assignment.campaign.cityId) {
+    return NextResponse.json(
+      { error: "Template city does not match lead campaign city" },
+      { status: 403 }
+    );
+  }
+
+  // Direct-caller authorization: only the assigned staff caller or a valid
+  // external caller may record template use for this lead.
+  let isAuthorizedCaller = false;
+
+  if (assignment.callerExternalId) {
+    const extCaller = await db.externalSupportCaller.findFirst({
+      where: {
+        id: assignment.callerExternalId,
+        userId: user.id,
+        isActive: true,
+        revokedAt: null,
+        expiresAt: { gt: new Date() },
+      },
+    });
+    if (extCaller) isAuthorizedCaller = true;
+  }
+
+  if (!isAuthorizedCaller && assignment.callerStaffMetaId) {
+    const staffMeta = await db.staffMeta.findFirst({
+      where: { id: assignment.callerStaffMetaId, userId: user.id, isActive: true },
+    });
+    if (staffMeta) isAuthorizedCaller = true;
+  }
+
+  if (!isAuthorizedCaller) {
+    return NextResponse.json(
+      { error: "Forbidden: only the assigned caller may record template use" },
+      { status: 403 }
+    );
+  }
+
+  const valuesHmac = computeValuesHmac(valuesUsed);
 
   const useRecord = await db.callingTemplateUse.create({
     data: {
@@ -79,9 +124,7 @@ export async function POST(request: NextRequest) {
       templateId,
       templateVersion: template.version,
       assignmentId,
-      // Log only variable keys — no raw merge values, names, phones, or notes.
       variablesUsed,
-      // HMAC evidence permits later verification without exposing PII.
       valuesHmac,
     },
   });

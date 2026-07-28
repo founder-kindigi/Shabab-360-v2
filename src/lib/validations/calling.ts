@@ -77,10 +77,35 @@ export const useTemplateSchema = z
         (vars) => vars.every((v) => (ALLOWED_MERGE_VARIABLES as readonly string[]).includes(v)),
         { message: `Variables must be one of: ${ALLOWED_MERGE_VARIABLES.join(", ")}` }
       ),
-    // Accepted for HMAC computation only — never persisted in audit or DB.
-    valuesUsed: z.record(z.string(), z.any()).default({}),
+    // Restricted to approved merge-variable keys with bounded string values.
+    // Keys must match variablesUsed — enforced via refine below.
+    valuesUsed: z
+      .record(z.string(), z.string().min(1).max(500))
+      .default({}),
   })
-  .strict();
+  .strict()
+  .refine(
+    (data) => {
+      const valsKeys = Object.keys(data.valuesUsed);
+      if (valsKeys.length === 0) return true;
+      return valsKeys.every((k) => (ALLOWED_MERGE_VARIABLES as readonly string[]).includes(k));
+    },
+    {
+      message: `valuesUsed keys must be one of: ${ALLOWED_MERGE_VARIABLES.join(", ")}`,
+      path: ["valuesUsed"],
+    }
+  )
+  .refine(
+    (data) => {
+      const varsUsed = new Set(data.variablesUsed);
+      const valsKeys = Object.keys(data.valuesUsed);
+      return valsKeys.length === varsUsed.size && valsKeys.every((k) => varsUsed.has(k));
+    },
+    {
+      message: "valuesUsed keys must match variablesUsed exactly",
+      path: ["valuesUsed"],
+    }
+  );
 
 // ── Assignment schema ────────────────────────────────────────────────────────
 
