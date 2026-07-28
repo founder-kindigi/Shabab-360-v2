@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
-import { logAudit } from "@/lib/audit";
+import { createAuditLogData } from "@/lib/audit";
 import { logInteractionSchema } from "@/lib/validations/calling";
 
 export async function POST(request: NextRequest) {
@@ -39,8 +39,7 @@ export async function POST(request: NextRequest) {
   }
 
   // Only the directly assigned staff caller or directly assigned valid external
-  // caller may log an interaction. A manager or Calling POC without a direct
-  // assignment is denied — they must not log interactions for every campaign lead.
+  // caller may log an interaction.
   let isAuthorizedCaller = false;
 
   if (assignment.callerExternalId) {
@@ -70,10 +69,10 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Atomic: create interaction, update assignment status, and capture audit
-  // evidence in a single transaction.
   const nextStatus = outcome === "reached" ? "completed" : "in_progress";
 
+  // Atomic: create interaction, update assignment status, and capture audit
+  // evidence in one transaction. Sanitized audit values — no raw notes.
   const result = await db.$transaction(async (tx) => {
     const interaction = await tx.callInteraction.create({
       data: {
@@ -90,17 +89,17 @@ export async function POST(request: NextRequest) {
       data: { status: nextStatus },
     });
 
-    return interaction;
-  });
+    await tx.auditLog.create({
+      data: createAuditLogData({
+        userId: user.id,
+        action: "calling.interaction.log",
+        entityType: "CallInteraction",
+        entityId: interaction.id,
+        newValues: { assignmentId, outcome, nextStatus },
+      }),
+    });
 
-  // Audit logged outside the transaction — the record always exists and a
-  // failed audit must never roll back a valid interaction.
-  await logAudit({
-    userId: user.id,
-    action: "calling.interaction.log",
-    entityType: "CallInteraction",
-    entityId: result.id,
-    newValues: { assignmentId, outcome, nextStatus },
+    return interaction;
   });
 
   return NextResponse.json(result, { status: 201 });

@@ -44,7 +44,6 @@ export async function POST(request: NextRequest) {
     if (!staff || !staff.isActive) {
       return NextResponse.json({ error: "Target staff caller not found or inactive" }, { status: 400 });
     }
-    // Resolve staff city through the full hierarchy: direct city → park city → group batch/park city
     const staffCityId = staff.assignedCityId
       || staff.assignedPark?.cityId
       || staff.assignedGroup?.batch?.cityId
@@ -92,44 +91,69 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Deterministic 409 — check for existing active assignments before any mutation
-  const existingActive = await db.callingAssignment.findMany({
-    where: {
-      campaignId,
-      applicationId: { in: applicationIds },
-      isActive: true,
-    },
-    select: { applicationId: true, id: true, callerStaffMetaId: true, callerExternalId: true },
-  });
-  if (existingActive.length > 0) {
-    return NextResponse.json(
-      {
-        error: "One or more leads already have an active assignment",
-        existing: existingActive,
-      },
-      { status: 409 }
-    );
-  }
+  // Close existing active assignments and create new ones atomically.
+  // No database unique constraint exists for campaignId+applicationId+isActive,
+  // so the transaction itself provides the concurrency guard: after the insert
+  // we verify exactly one active assignment per application.
+  let concurrencyConflict = false;
+  let newAssignments: any[] | null = null;
 
-  const newAssignments = await db.$transaction(async (tx) => {
-    const created: any[] = [];
-    const now = new Date();
-    for (const appId of applicationIds) {
-      const newAssignment = await tx.callingAssignment.create({
-        data: {
+  try {
+    newAssignments = await db.$transaction(async (tx) => {
+      const now = new Date();
+
+      // 1. Close all existing active assignments for these leads.
+      await tx.callingAssignment.updateMany({
+        where: {
           campaignId,
-          applicationId: appId,
-          callerStaffMetaId: callerStaffMetaId || null,
-          callerExternalId: callerExternalId || null,
-          status: "pending",
+          applicationId: { in: applicationIds },
           isActive: true,
-          startedAt: now,
         },
+        data: { isActive: false, status: "reassigned", endedAt: now },
       });
-      created.push(newAssignment);
+
+      // 2. Create new assignments.
+      const created: any[] = [];
+      for (const appId of applicationIds) {
+        const newAssignment = await tx.callingAssignment.create({
+          data: {
+            campaignId,
+            applicationId: appId,
+            callerStaffMetaId: callerStaffMetaId || null,
+            callerExternalId: callerExternalId || null,
+            status: "pending",
+            isActive: true,
+            startedAt: now,
+          },
+        });
+        created.push(newAssignment);
+      }
+
+      // 3. Concurrency guard — verify no duplicate active assignments exist.
+      const activeAfter = await tx.callingAssignment.findMany({
+        where: {
+          campaignId,
+          applicationId: { in: applicationIds },
+          isActive: true,
+        },
+        select: { applicationId: true, id: true, callerStaffMetaId: true, callerExternalId: true },
+      });
+      if (activeAfter.length !== applicationIds.length) {
+        concurrencyConflict = true;
+        throw new Error("ROLLBACK");
+      }
+
+      return created;
+    });
+  } catch (e) {
+    if (concurrencyConflict) {
+      return NextResponse.json(
+        { error: "Concurrent assignment conflict — one or more leads have multiple active assignments" },
+        { status: 409 }
+      );
     }
-    return created;
-  });
+    throw e;
+  }
 
   await logAudit({
     userId: user.id!,
