@@ -45,6 +45,7 @@ const pageSectionMap: Partial<Record<PageId, BreadcrumbSection>> = {
   // Admin – System
   "admin-audit-log": { section: "System", sectionPage: null },
   "admin-access-management": { section: "System", sectionPage: null },
+  "admin-content-planner": { section: "Operations", sectionPage: null },
   "admin-collaboration-teams": { section: "System", sectionPage: null },
   "admin-settings": { section: "System", sectionPage: null },
 
@@ -102,6 +103,7 @@ const pageTitles: Record<PageId, string> = {
   "admin-users": "Users",
   "admin-access": "Access Provisioning",
   "admin-access-management": "Access Management",
+  "admin-content-planner": "Content Planner",
   "admin-collaboration-teams": "Collaboration Teams",
   "admin-admissions": "Admissions",
   "admin-fees": "Fees",
