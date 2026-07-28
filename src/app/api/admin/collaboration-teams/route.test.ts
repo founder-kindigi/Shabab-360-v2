@@ -56,7 +56,7 @@ describe("GET /api/admin/collaboration-teams", () => {
     expect(db.collaborationTeam.findMany).not.toHaveBeenCalled();
   });
 
-  it("HQ user lists all cities when no cityId supplied", async () => {
+  it("returns 400 when HQ omits cityId", async () => {
     vi.mocked(auth.requireCapability).mockResolvedValue(
       { user: { id: "u1", role: "super_admin" } } as any
     );
@@ -64,12 +64,8 @@ describe("GET /api/admin/collaboration-teams", () => {
 
     const res = await GET(new NextRequest(BASE));
 
-    expect(res.status).toBe(200);
-    const body = await res.json();
-    expect(body).toMatchObject({ total: 0, page: 1, pageSize: 20 });
-    // No cityId constraint in the where clause
-    const callWhere = vi.mocked(db.collaborationTeam.findMany).mock.calls[0]?.[0]?.where;
-    expect(callWhere).not.toHaveProperty("cityId");
+    expect(res.status).toBe(400);
+    expect(db.collaborationTeam.findMany).not.toHaveBeenCalled();
   });
 
   it("HQ user narrows to supplied cityId", async () => {
@@ -125,11 +121,13 @@ describe("GET /api/admin/collaboration-teams", () => {
       { user: { id: "u1", role: "super_admin" } } as any
     );
     vi.mocked(auth.isHqRole).mockReturnValue(true);
+    vi.mocked(db.collaborationTeam.findMany).mockResolvedValue([] as any);
+    vi.mocked(db.collaborationTeam.count).mockResolvedValue(0);
 
-    await GET(new NextRequest(`${BASE}?status=inactive`));
+    await GET(new NextRequest(`${BASE}?cityId=city-lhr&status=inactive`));
 
     const callWhere = vi.mocked(db.collaborationTeam.findMany).mock.calls[0]?.[0]?.where;
-    expect(callWhere).toMatchObject({ isActive: false });
+    expect(callWhere).toMatchObject({ cityId: "city-lhr", isActive: false });
   });
 
   it("omits isActive when status=all", async () => {
@@ -137,10 +135,13 @@ describe("GET /api/admin/collaboration-teams", () => {
       { user: { id: "u1", role: "super_admin" } } as any
     );
     vi.mocked(auth.isHqRole).mockReturnValue(true);
+    vi.mocked(db.collaborationTeam.findMany).mockResolvedValue([] as any);
+    vi.mocked(db.collaborationTeam.count).mockResolvedValue(0);
 
-    await GET(new NextRequest(`${BASE}?status=all`));
+    await GET(new NextRequest(`${BASE}?cityId=city-lhr&status=all`));
 
     const callWhere = vi.mocked(db.collaborationTeam.findMany).mock.calls[0]?.[0]?.where;
+    expect(callWhere).toMatchObject({ cityId: "city-lhr" });
     expect(callWhere).not.toHaveProperty("isActive");
   });
 });

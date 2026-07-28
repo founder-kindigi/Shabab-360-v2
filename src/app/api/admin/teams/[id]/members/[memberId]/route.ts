@@ -9,7 +9,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireCapability, requireCityScope } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
-import { updateMembershipSchema } from "@/lib/collaboration-teams/schemas";
+import { updateMembershipSchema, ACTIVE_MEMBERSHIP_FILTER } from "@/lib/collaboration-teams/schemas";
 
 type Params = { params: Promise<{ id: string; memberId: string }> };
 
@@ -62,20 +62,18 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  if (!membership.isActive) {
+  if (!membership.isActive || membership.endedAt !== null) {
     return NextResponse.json(
       { error: "Cannot update an inactive membership" },
       { status: 409 }
     );
   }
 
-  const oldValues = { title: membership.title, endedAt: membership.endedAt };
+  const oldTitle = membership.title;
 
   const updated = await db.staffTeamMembership.update({
     where: { id: memberId },
-    data: {
-      ...(parsed.data.title !== undefined && { title: parsed.data.title }),
-    },
+    data: { title: parsed.data.title },
     select: {
       id: true,
       teamId: true,
@@ -92,8 +90,8 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     action: "update",
     entityType: "staff_team_membership",
     entityId: memberId,
-    oldValues,
-    newValues: { title: updated.title, endedAt: updated.endedAt },
+    oldValues: { title: oldTitle },
+    newValues: { title: updated.title },
   });
 
   return NextResponse.json(updated);
@@ -116,7 +114,7 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  if (!membership.isActive) {
+  if (!membership.isActive || membership.endedAt !== null) {
     return NextResponse.json(
       { error: "Membership is already inactive" },
       { status: 409 }

@@ -10,6 +10,11 @@ import {
   paginatedQuerySchema,
 } from "@/lib/api/query-params";
 
+// ── Active membership filter ──────────────────────────────────────────────────
+/** Prisma where clause for "active membership": isActive must be true and
+ * endedAt must be null. A record with endedAt set is historical, not active. */
+export const ACTIVE_MEMBERSHIP_FILTER = { isActive: true, endedAt: null } as const;
+
 // ── Field limits ─────────────────────────────────────────────────────────────
 export const TEAM_TITLE_MAX = 120;
 export const TEAM_NAME_MAX = 100;
@@ -38,14 +43,12 @@ export const createMembershipSchema = z.object({
 });
 
 // ── Update membership ─────────────────────────────────────────────────────────
+// Title-only updates. endedAt is set only by revoke; rejected if supplied here.
 export const updateMembershipSchema = z
   .object({
-    title: z.string().trim().min(2).max(TEAM_TITLE_MAX).optional().nullable(),
-    endedAt: z.string().datetime().optional().nullable(),
+    title: z.string().trim().min(2).max(TEAM_TITLE_MAX),
   })
-  .refine((d) => d.title !== undefined || d.endedAt !== undefined, {
-    message: "At least one field must be provided",
-  });
+  .strict();
 
 export type TeamListQuery = z.infer<typeof teamListQuerySchema>;
 export type MemberListQuery = z.infer<typeof memberListQuerySchema>;

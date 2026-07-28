@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireCapability, requireCityScope } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
+import { ACTIVE_MEMBERSHIP_FILTER } from "@/lib/collaboration-teams/schemas";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -29,7 +30,7 @@ export async function GET(_request: NextRequest, { params }: Params) {
       city: { select: { id: true, name: true } },
       _count: {
         select: {
-          memberships: { where: { isActive: true } },
+          memberships: { where: { ...ACTIVE_MEMBERSHIP_FILTER } },
         },
       },
     },

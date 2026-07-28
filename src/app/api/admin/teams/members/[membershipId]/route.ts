@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireCapability, requireCityScope } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
+import { ACTIVE_MEMBERSHIP_FILTER } from "@/lib/collaboration-teams/schemas";
 
 interface RouteParams {
   params: Promise<{ membershipId: string }>;
@@ -27,7 +28,8 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  if (!membership.isActive) {
+  // Only active (isActive && endedAt === null) memberships can be revoked.
+  if (!membership.isActive || membership.endedAt !== null) {
     return NextResponse.json(
       { error: "Membership is already inactive" },
       { status: 409 }

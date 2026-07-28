@@ -37,10 +37,19 @@ export async function GET(request: NextRequest) {
   const { page, pageSize, cityId: requestedCityId, status } = parsed.data;
 
   // ── City scope ────────────────────────────────────────────────────────────
+  // HQ must supply an explicit cityId; missing cityId returns 400.
+  // Scoped users derive city from their session assignment; a foreign cityId
+  // in the request is rejected before any DB query.
   let effectiveCityId: string | undefined;
 
   if (isHqRole(auth.user.role)) {
-    effectiveCityId = requestedCityId ?? undefined;
+    if (!requestedCityId) {
+      return NextResponse.json(
+        { error: "HQ actor must supply a valid cityId" },
+        { status: 400 }
+      );
+    }
+    effectiveCityId = requestedCityId;
   } else {
     const sessionCityId = auth.user.assignedCityId ?? null;
     if (!sessionCityId) {
@@ -56,7 +65,7 @@ export async function GET(request: NextRequest) {
     status === "all" ? undefined : status === "active";
 
   const where = {
-    ...(effectiveCityId && { cityId: effectiveCityId }),
+    cityId: effectiveCityId,
     ...(isActiveFilter !== undefined && { isActive: isActiveFilter }),
   };
 

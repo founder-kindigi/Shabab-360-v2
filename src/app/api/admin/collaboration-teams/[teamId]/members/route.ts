@@ -13,6 +13,7 @@ import { logAudit } from "@/lib/audit";
 import {
   memberListQuerySchema,
   createMembershipSchema,
+  ACTIVE_MEMBERSHIP_FILTER,
 } from "@/lib/collaboration-teams/schemas";
 import {
   queryParamsToObject,
@@ -72,12 +73,13 @@ export async function GET(
   }
 
   const { page, pageSize, status } = parsed.data;
-  const isActiveFilter =
-    status === "all" ? undefined : status === "active";
+
+  // Active membership requires both isActive=true and endedAt=null.
+  const memberWhere = status === "all" ? {} : status === "active" ? { ...ACTIVE_MEMBERSHIP_FILTER } : { isActive: false };
 
   const [memberships, total] = await Promise.all([
     db.staffTeamMembership.findMany({
-      where: { teamId, ...(isActiveFilter !== undefined && { isActive: isActiveFilter }) },
+      where: { teamId, ...memberWhere },
       orderBy: { startedAt: "asc" },
       skip: (page - 1) * pageSize,
       take: pageSize,
@@ -99,7 +101,7 @@ export async function GET(
       },
     }),
     db.staffTeamMembership.count({
-      where: { teamId, ...(isActiveFilter !== undefined && { isActive: isActiveFilter }) },
+      where: { teamId, ...memberWhere },
     }),
   ]);
 
@@ -177,9 +179,9 @@ export async function POST(
     );
   }
 
-  // Duplicate check: no two active memberships for the same person in the same team.
+  // Duplicate check: enforce isActive && endedAt === null.
   const existing = await db.staffTeamMembership.findFirst({
-    where: { teamId, staffMetaId: staff.id, isActive: true },
+    where: { teamId, staffMetaId: staff.id, ...ACTIVE_MEMBERSHIP_FILTER },
     select: { id: true },
   });
   if (existing) {
