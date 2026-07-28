@@ -35,13 +35,21 @@ export async function POST(request: NextRequest) {
   if (callerStaffMetaId) {
     const staff = await db.staffMeta.findUnique({
       where: { id: callerStaffMetaId },
-      include: { assignedCity: true, assignedPark: { include: { city: true } } },
+      include: {
+        assignedCity: true,
+        assignedPark: { include: { city: true } },
+        assignedGroup: { include: { batch: { include: { city: true } }, park: { include: { city: true } } } },
+      },
     });
     if (!staff || !staff.isActive) {
       return NextResponse.json({ error: "Target staff caller not found or inactive" }, { status: 400 });
     }
-    const staffCityId = staff.assignedCityId || staff.assignedPark?.cityId;
-    if (staffCityId !== verified.campaign.cityId) {
+    // Resolve staff city through the full hierarchy: direct city → park city → group batch/park city
+    const staffCityId = staff.assignedCityId
+      || staff.assignedPark?.cityId
+      || staff.assignedGroup?.batch?.cityId
+      || staff.assignedGroup?.park?.cityId;
+    if (!staffCityId || staffCityId !== verified.campaign.cityId) {
       return NextResponse.json(
         { error: "Target staff caller city does not match campaign city" },
         { status: 400 }
@@ -84,15 +92,29 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // Deterministic 409 — check for existing active assignments before any mutation
+  const existingActive = await db.callingAssignment.findMany({
+    where: {
+      campaignId,
+      applicationId: { in: applicationIds },
+      isActive: true,
+    },
+    select: { applicationId: true, id: true, callerStaffMetaId: true, callerExternalId: true },
+  });
+  if (existingActive.length > 0) {
+    return NextResponse.json(
+      {
+        error: "One or more leads already have an active assignment",
+        existing: existingActive,
+      },
+      { status: 409 }
+    );
+  }
+
   const newAssignments = await db.$transaction(async (tx) => {
     const created: any[] = [];
     const now = new Date();
     for (const appId of applicationIds) {
-      await tx.callingAssignment.updateMany({
-        where: { campaignId, applicationId: appId, isActive: true },
-        data: { isActive: false, status: "reassigned", endedAt: now },
-      });
-
       const newAssignment = await tx.callingAssignment.create({
         data: {
           campaignId,

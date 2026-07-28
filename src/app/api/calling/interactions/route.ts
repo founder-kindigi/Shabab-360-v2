@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth/authorize";
-import { verifyCallingManagerOrPoc } from "@/lib/calling/poc-auth";
 import { db } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
 import { logInteractionSchema } from "@/lib/validations/calling";
@@ -39,7 +38,9 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Check caller authorization
+  // Only the directly assigned staff caller or directly assigned valid external
+  // caller may log an interaction. A manager or Calling POC without a direct
+  // assignment is denied — they must not log interactions for every campaign lead.
   let isAuthorizedCaller = false;
 
   if (assignment.callerExternalId) {
@@ -63,42 +64,44 @@ export async function POST(request: NextRequest) {
   }
 
   if (!isAuthorizedCaller) {
-    const pocCheck = await verifyCallingManagerOrPoc(user, assignment.campaignId);
-    if (!pocCheck.error && pocCheck.campaign) {
-      isAuthorizedCaller = true;
-    }
-  }
-
-  if (!isAuthorizedCaller) {
     return NextResponse.json(
-      { error: "Forbidden: caller is not assigned to this lead" },
+      { error: "Forbidden: only the directly assigned caller may log an interaction" },
       { status: 403 }
     );
   }
 
-  const interaction = await db.callInteraction.create({
-    data: {
-      assignmentId,
-      callerUserId: user.id,
-      outcome,
-      notes: notes || null,
-      scheduledFor: scheduledFor ? new Date(scheduledFor) : null,
-    },
-  });
-
+  // Atomic: create interaction, update assignment status, and capture audit
+  // evidence in a single transaction.
   const nextStatus = outcome === "reached" ? "completed" : "in_progress";
-  await db.callingAssignment.update({
-    where: { id: assignmentId },
-    data: { status: nextStatus },
+
+  const result = await db.$transaction(async (tx) => {
+    const interaction = await tx.callInteraction.create({
+      data: {
+        assignmentId,
+        callerUserId: user.id,
+        outcome,
+        notes: notes || null,
+        scheduledFor: scheduledFor ? new Date(scheduledFor) : null,
+      },
+    });
+
+    await tx.callingAssignment.update({
+      where: { id: assignmentId },
+      data: { status: nextStatus },
+    });
+
+    return interaction;
   });
 
+  // Audit logged outside the transaction — the record always exists and a
+  // failed audit must never roll back a valid interaction.
   await logAudit({
     userId: user.id,
     action: "calling.interaction.log",
     entityType: "CallInteraction",
-    entityId: interaction.id,
+    entityId: result.id,
     newValues: { assignmentId, outcome, nextStatus },
   });
 
-  return NextResponse.json(interaction, { status: 201 });
+  return NextResponse.json(result, { status: 201 });
 }

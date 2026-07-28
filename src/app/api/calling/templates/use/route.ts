@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireCapability } from "@/lib/auth/authorize";
 import { computeValuesHmac } from "@/lib/calling/template-hmac";
 import { db } from "@/lib/db";
+import { logAudit } from "@/lib/audit";
 import { useTemplateSchema } from "@/lib/validations/calling";
 
 export async function POST(request: NextRequest) {
@@ -30,9 +31,15 @@ export async function POST(request: NextRequest) {
     where: { id: templateId },
   });
 
-  if (!template || template.status !== "approved") {
+  if (!template) {
+    return NextResponse.json({ error: "Template not found" }, { status: 404 });
+  }
+
+  if (template.status !== "approved") {
+    // Retired templates must not be used for live calls; draft templates
+    // have not been reviewed for routing.
     return NextResponse.json(
-      { error: "Template not found or not in approved status" },
+      { error: `Template is ${template.status}; only approved templates may be used` },
       { status: 400 }
     );
   }
@@ -56,7 +63,25 @@ export async function POST(request: NextRequest) {
       templateVersion: template.version,
       callerUserId: user.id!,
       assignmentId,
+      // Only variable keys and HMAC evidence — never raw merge values,
+      // candidate message bodies, names, phones, or notes.
       variablesUsed: JSON.stringify(variablesUsed),
+      valuesHmac,
+    },
+  });
+
+  await logAudit({
+    userId: user.id!,
+    action: "calling.template.use",
+    entityType: "CallingTemplateUse",
+    entityId: useRecord.id,
+    newValues: {
+      templateId,
+      templateVersion: template.version,
+      assignmentId,
+      // Log only variable keys — no raw merge values, names, phones, or notes.
+      variablesUsed,
+      // HMAC evidence permits later verification without exposing PII.
       valuesHmac,
     },
   });
