@@ -75,6 +75,14 @@ export function CollaborationTeamsPage() {
   const role = sessionQuery.data?.user?.role ?? "";
   const isHq = HQ_ROLES.includes(role);
 
+  // UI permission signal — resolved server-side through the full override chain
+  const canManageQuery = useQuery<{ canManage: boolean }>({
+    queryKey: ["can-manage-teams"],
+    queryFn: () => request("/api/admin/teams/can-manage"),
+    staleTime: 60000,
+  });
+  const canManage = canManageQuery.data?.canManage ?? false;
+
   // Cities (HQ only: pick a city; scoped: derive automatically)
   const cities = useQuery<CityItem[]>({
     queryKey: ["collaboration-team-cities"],
@@ -148,7 +156,6 @@ export function CollaborationTeamsPage() {
 
   const staffOptions = (staff.data?.data ?? []).filter((user) => user.isActive && user.staffMeta?.isActive);
   const assignedStaffIds = new Set((memberships.data?.data ?? []).map((membership) => membership.staffMeta.id));
-  const canManage = role === "super_admin" || role === "program_admin" || role === "city_head";
 
   return (
     <div className="space-y-6">
