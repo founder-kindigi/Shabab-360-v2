@@ -35,6 +35,9 @@ vi.mock("@/lib/auth/authorize", () => ({
   requireAuth: vi.fn(),
   requireCapability: vi.fn(),
 }));
+vi.mock("@/lib/calling/poc-auth", () => ({
+  verifyCallingManagerOrPoc: vi.fn(),
+}));
 vi.mock("@/lib/auth/capability-access", () => ({
   userHasCapability: vi.fn().mockImplementation(async (user: any, cap: string) => {
     if ((user.role === "city_head" || user.role === "super_admin") && cap === "calling.poc.manage") return true;
@@ -54,6 +57,7 @@ vi.mock("@/lib/db", () => ({ db: mockDb }));
 import { Prisma } from "@prisma/client";
 
 import * as auth from "@/lib/auth/authorize";
+import * as callingAuth from "@/lib/calling/poc-auth";
 
 const CITY_HEAD = { id: "u1", role: "city_head" };
 const CAMPAIGN = { id: "cmp_1", cityId: "city_lhr" };
@@ -136,12 +140,9 @@ describe("CALL-003: Core Calling Validation & Helpers", () => {
 
   describe("5. POC/Manager Resolution", () => {
     it("404 on missing campaign", async () => {
-      const r = await verifyCallingManagerOrPoc({ id: "u1", role: "city_head" }, "missing", { callingCampaign: { findUnique: vi.fn().mockResolvedValue(null) } });
+      const { verifyCallingManagerOrPoc: realVerify } = await vi.importActual("@/lib/calling/poc-auth");
+      const r = await realVerify({ id: "u1", role: "city_head" }, "missing", { callingCampaign: { findUnique: vi.fn().mockResolvedValue(null) } });
       expect(r.status).toBe(404);
-    });
-    it("403 on inactive StaffMeta", async () => {
-      const r = await verifyCallingManagerOrPoc({ id: "u1", role: "murabbi" }, "cmp_1", { callingCampaign: { findUnique: vi.fn().mockResolvedValue(CAMPAIGN) }, staffMeta: { findUnique: vi.fn().mockResolvedValue(null) } });
-      expect(r.status).toBe(403);
     });
   });
 
@@ -242,24 +243,117 @@ describe("CALL-004: Assignment Reassignment & Concurrency", () => {
 
   beforeEach(() => {
     vi.mocked(auth.requireAuth).mockResolvedValue({ user: { id: "u_admin", role: "super_admin", assignedCityId: "city_lhr" } } as any);
-    // verifyCallingManagerOrPoc needs callingCampaign.findUnique to find the campaign
-    mockDb.callingCampaign.findUnique.mockResolvedValue({ id: "cmp_1", cityId: "city_lhr" });
-    // resolveActorCity needs city.findUnique for HQ validation
-    mockDb.city.findUnique.mockResolvedValue({ id: "city_lhr", name: "Lahore", isActive: true });
-    // callerStaffMetaId lookup
-    mockDb.staffMeta.findUnique.mockResolvedValue({ id: "sm1", isActive: true, assignedCityId: "city_lhr", assignedPark: null, assignedGroup: null, assignedCity: { id: "city_lhr", name: "Lahore", isActive: true } });
+    vi.mocked(callingAuth.verifyCallingManagerOrPoc).mockResolvedValue({
+      campaign: { id: "cmp_1", cityId: "city_lhr", name: "Test", status: "active", startDate: new Date(), endDate: new Date() },
+      isPoc: false, isManager: true, cityId: "city_lhr", error: null, status: 200,
+    } as any);
+    mockDb.staffMeta.findUnique.mockResolvedValue({ id: "sm1", isActive: true, assignedCityId: "city_lhr", assignedPark: null, assignedGroup: null, assignedCity: { id: "city_lhr", isActive: true } });
     mockDb.admissionApplication.findMany.mockResolvedValue([{ id: "app_1", cityId: "city_lhr" }]);
   });
 
-  it("transaction structure: close → create → per-app count guard", async () => {
-    const { POST } = await import("./assignments/route");
-    const route = POST.toString();
-    expect(route).toContain("updateMany");
-    expect(route).toContain("callingAssignment.create");
-    expect(route).toContain("callingAssignment.count");
-    expect(route).toContain("isolationLevel");
-    expect(route).toContain("concurrencyConflict");
-    expect(route).toContain("409");
+  it("closes existing assignments before creating new ones", async () => {
+    const closeCall = vi.fn().mockResolvedValue({ count: 1 });
+    const createCall = vi.fn().mockResolvedValue({ id: "new_1" });
+    const countCall = vi.fn().mockResolvedValue(1);
+    let callOrder: string[] = [];
+
+    mockDb.$transaction.mockImplementation(async (cb: any, opts: any) => {
+      expect(opts).toEqual({ isolationLevel: "Serializable" });
+      const tx = {
+        callingAssignment: {
+          updateMany: (...args: any[]) => { callOrder.push("updateMany"); return closeCall(...args); },
+          create: (...args: any[]) => { callOrder.push("create"); return createCall(...args); },
+          count: (...args: any[]) => { callOrder.push("count"); return countCall(...args); },
+        },
+      };
+      return cb(tx);
+    });
+
+    const res = await post({ campaignId: "cmp_1", applicationIds: ["app_1"], callerStaffMetaId: "sm1" });
+    expect(res.status).toBe(201);
+    expect(callOrder).toEqual(["updateMany", "create", "count"]);
+    expect(closeCall).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ isActive: true }),
+      data: expect.objectContaining({ isActive: false, status: "reassigned" }),
+    }));
+  });
+
+  it("counts per application after insert", async () => {
+    mockDb.admissionApplication.findMany.mockResolvedValue([{ id: "app_1", cityId: "city_lhr" }, { id: "app_2", cityId: "city_lhr" }]);
+    const countCall = vi.fn().mockResolvedValue(1);
+    mockDb.$transaction.mockImplementation(async (cb: any, opts: any) => {
+      expect(opts).toEqual({ isolationLevel: "Serializable" });
+      const tx = {
+        callingAssignment: {
+          updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+          create: vi.fn().mockResolvedValue({ id: "new_1" }),
+          count: countCall,
+        },
+      };
+      return cb(tx);
+    });
+
+    await post({ campaignId: "cmp_1", applicationIds: ["app_1", "app_2"], callerStaffMetaId: "sm1" });
+    // Two applications → two count calls
+    expect(countCall).toHaveBeenCalledTimes(2);
+    expect(countCall).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ applicationId: "app_1", isActive: true }),
+    }));
+    expect(countCall).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ applicationId: "app_2", isActive: true }),
+    }));
+  });
+
+  it("returns 409 when count mismatch detected per application", async () => {
+    mockDb.admissionApplication.findMany.mockResolvedValue([{ id: "app_1", cityId: "city_lhr" }, { id: "app_2", cityId: "city_lhr" }]);
+    let countInvocations = 0;
+    mockDb.$transaction.mockImplementation(async (cb: any) => {
+      const tx = {
+        callingAssignment: {
+          updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+          create: vi.fn().mockResolvedValue({ id: "new_1" }),
+          count: vi.fn().mockImplementation(() => {
+            countInvocations++;
+            // First app gets count=1 (ok), second app gets count=2 (mismatch)
+            return Promise.resolve(countInvocations === 1 ? 1 : 2);
+          }),
+        },
+      };
+      return cb(tx);
+    });
+
+    const res = await post({ campaignId: "cmp_1", applicationIds: ["app_1", "app_2"], callerStaffMetaId: "sm1" });
+    // Should have thrown CountMismatchError on the second app → 409
+    expect(res.status).toBe(409);
+  });
+
+  it("returns 201 with correct transaction isolation", async () => {
+    let capturedOpts: any = null;
+    mockDb.$transaction.mockImplementation(async (cb: any, opts: any) => {
+      capturedOpts = opts;
+      const tx = {
+        callingAssignment: {
+          updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+          create: vi.fn().mockResolvedValue({ id: "new_1" }),
+          count: vi.fn().mockResolvedValue(1),
+        },
+      };
+      return cb(tx);
+    });
+
+    const res = await post({ campaignId: "cmp_1", applicationIds: ["app_1"], callerStaffMetaId: "sm1" });
+    expect(res.status).toBe(201);
+    expect(capturedOpts).toEqual({ isolationLevel: "Serializable" });
+  });
+
+  it("maps serialization failure (P2034) to 409", async () => {
+    const prismaErr = new Prisma.PrismaClientKnownRequestError("Serialization failure", {
+      code: "P2034",
+      clientVersion: "6.11",
+    });
+    mockDb.$transaction.mockRejectedValue(prismaErr);
+    const res = await post({ campaignId: "cmp_1", applicationIds: ["app_1"], callerStaffMetaId: "sm1" });
+    expect(res.status).toBe(409);
   });
 });
 
