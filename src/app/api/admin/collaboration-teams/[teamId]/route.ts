@@ -12,7 +12,7 @@ import { db } from "@/lib/db";
 type Params = { params: Promise<{ teamId: string }> };
 
 export async function GET(_request: NextRequest, { params }: Params) {
-  const auth = await requireCapability("organisation.manage");
+  const auth = await requireCapability("teams.memberships.manage");
   if (auth instanceof NextResponse) return auth;
 
   const { teamId } = await params;

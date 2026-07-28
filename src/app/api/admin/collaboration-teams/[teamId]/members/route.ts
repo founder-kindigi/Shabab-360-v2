@@ -49,7 +49,7 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ teamId: string }> }
 ) {
-  const auth = await requireCapability("organisation.manage");
+  const auth = await requireCapability("teams.memberships.manage");
   if (auth instanceof NextResponse) return auth;
 
   const { teamId } = await params;
@@ -60,7 +60,6 @@ export async function GET(
   });
   if (!team) return NextResponse.json({ error: "Team not found" }, { status: 404 });
 
-  // City-scope: HQ may read any city; scoped users must match the team city.
   if (!requireCityScope(auth.user, team.cityId)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
@@ -113,7 +112,7 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ teamId: string }> }
 ) {
-  const auth = await requireCapability("organisation.manage");
+  const auth = await requireCapability("teams.memberships.manage");
   if (auth instanceof NextResponse) return auth;
 
   const { teamId } = await params;

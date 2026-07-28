@@ -1,51 +1,84 @@
+/**
+ * GET /api/admin/teams
+ *
+ * Canonical paginated list of collaboration teams.
+ * Authorization: teams.memberships.manage + city scope.
+ *
+ * Scope rules:
+ *   - HQ (super_admin / program_admin): may supply any cityId or omit it
+ *     to list all cities.
+ *   - city_head / park staff: the request cityId must match their assigned
+ *     city. If they omit cityId the query is automatically narrowed to their
+ *     assigned city. A foreign cityId returns 403 before any DB access.
+ *
+ * Collaboration teams are operational memberships only — they must never
+ * alter the canonical staff role or grant city/park/group scope.
+ */
 import { NextRequest, NextResponse } from "next/server";
-import { requireCapability } from "@/lib/auth/authorize";
-import { resolveActorCity } from "@/lib/auth/events-scope";
+import {
+  requireCapability,
+  isHqRole,
+} from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
-import { teamListQuerySchema } from "@/lib/validations/team";
+import { queryParamsToObject, queryValidationError } from "@/lib/api/query-params";
+import { teamListQuerySchema } from "@/lib/collaboration-teams/schemas";
 
 export async function GET(request: NextRequest) {
-  const auth = await requireCapability("organisation.view");
+  const auth = await requireCapability("teams.memberships.manage");
   if (auth instanceof NextResponse) return auth;
-  const user = auth.user as any;
 
-  const url = new URL(request.url);
-  const rawParams = {
-    cityId: url.searchParams.get("cityId") || undefined,
-    status: url.searchParams.get("status") || "active",
-  };
-
-  const parsed = teamListQuerySchema.safeParse(rawParams);
+  const parsed = teamListQuerySchema.safeParse(
+    queryParamsToObject(new URL(request.url).searchParams)
+  );
   if (!parsed.success) {
-    return NextResponse.json(
-      { error: "Validation failed", details: parsed.error.format() },
-      { status: 400 }
-    );
+    return NextResponse.json(queryValidationError(parsed.error), { status: 400 });
   }
 
-  const resolved = await resolveActorCity(user, parsed.data.cityId);
-  if (resolved.error || !resolved.cityId) {
-    return NextResponse.json(
-      { error: resolved.error || "City resolution failed" },
-      { status: resolved.status || 400 }
-    );
+  const { page, pageSize, cityId: requestedCityId, status } = parsed.data;
+
+  // ── City scope ────────────────────────────────────────────────────────────
+  let effectiveCityId: string | undefined;
+
+  if (isHqRole(auth.user.role)) {
+    effectiveCityId = requestedCityId ?? undefined;
+  } else {
+    const sessionCityId = auth.user.assignedCityId ?? null;
+    if (!sessionCityId) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    if (requestedCityId && requestedCityId !== sessionCityId) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    effectiveCityId = sessionCityId;
   }
 
-  const where: any = {
-    cityId: resolved.cityId,
+  const isActiveFilter =
+    status === "all" ? undefined : status === "active";
+
+  const where = {
+    ...(effectiveCityId && { cityId: effectiveCityId }),
+    ...(isActiveFilter !== undefined && { isActive: isActiveFilter }),
   };
-  if (parsed.data.status !== "all") {
-    where.isActive = parsed.data.status === "active";
-  }
 
-  const teams = await db.collaborationTeam.findMany({
-    where,
-    orderBy: [{ city: { name: "asc" } }, { name: "asc" }],
-    include: {
-      city: { select: { id: true, name: true, code: true } },
-      _count: { select: { memberships: { where: { isActive: true } } } },
-    },
-  });
+  const [teams, total] = await Promise.all([
+    db.collaborationTeam.findMany({
+      where,
+      orderBy: [{ city: { name: "asc" } }, { name: "asc" }],
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+      select: {
+        id: true,
+        cityId: true,
+        name: true,
+        code: true,
+        description: true,
+        isActive: true,
+        city: { select: { id: true, name: true } },
+        _count: { select: { memberships: { where: { isActive: true } } } },
+      },
+    }),
+    db.collaborationTeam.count({ where }),
+  ]);
 
-  return NextResponse.json(teams);
+  return NextResponse.json({ data: teams, total, page, pageSize });
 }

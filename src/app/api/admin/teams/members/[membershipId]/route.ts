@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireCapability } from "@/lib/auth/authorize";
-import { resolveActorCity } from "@/lib/auth/events-scope";
+import { requireCapability, requireCityScope } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
 
@@ -9,9 +8,8 @@ interface RouteParams {
 }
 
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
-  const auth = await requireCapability("organisation.manage");
+  const auth = await requireCapability("teams.memberships.manage");
   if (auth instanceof NextResponse) return auth;
-  const user = auth.user as any;
 
   const { membershipId } = await params;
   const membership = await db.staffTeamMembership.findUnique({
@@ -25,11 +23,14 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: "Membership not found" }, { status: 404 });
   }
 
-  const resolved = await resolveActorCity(user, membership.team.cityId);
-  if (resolved.error || !resolved.cityId) {
+  if (!requireCityScope(auth.user, membership.team.cityId)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  if (!membership.isActive) {
     return NextResponse.json(
-      { error: resolved.error || "City resolution failed" },
-      { status: resolved.status || 400 }
+      { error: "Membership is already inactive" },
+      { status: 409 }
     );
   }
 
@@ -42,7 +43,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
   });
 
   await logAudit({
-    userId: user.id!,
+    userId: auth.user.id!,
     action: "team_membership.revoke",
     entityType: "StaffTeamMembership",
     entityId: membershipId,
