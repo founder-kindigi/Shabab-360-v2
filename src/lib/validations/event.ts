@@ -22,6 +22,17 @@ export const ALLOWED_EVENT_STATUSES = [
 
 const cuidSchema = z.string().trim().min(1, "Identifier required");
 
+export const getEventsQuerySchema = z
+  .object({
+    cityId: cuidSchema.optional(),
+    status: z.enum(ALLOWED_EVENT_STATUSES).optional(),
+    eventType: z.enum(ALLOWED_EVENT_TYPES).optional(),
+    limit: z.coerce.number().int().min(1).max(100).optional().default(50),
+    offset: z.coerce.number().int().min(0).optional().default(0),
+  })
+  .strict();
+
+
 export const createEventSchema = z
   .object({
     cityId: cuidSchema.optional(),

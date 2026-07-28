@@ -135,6 +135,10 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: verified.error }, { status: verified.status });
   }
 
+  if (verified.event.status === "cancelled") {
+    return NextResponse.json({ error: "Event is already cancelled" }, { status: 409 });
+  }
+
   const cancelledEvent = await db.event.update({
     where: { id },
     data: { status: "cancelled" },
