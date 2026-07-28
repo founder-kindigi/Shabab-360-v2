@@ -4,7 +4,7 @@ import { userHasCapability } from "@/lib/auth/capability-access";
 import { resolveActorCity } from "@/lib/auth/events-scope";
 import { db } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
-import { createEventSchema } from "@/lib/validations/event";
+import { createEventSchema, getEventsQuerySchema } from "@/lib/validations/event";
 
 export async function GET(request: NextRequest) {
   const auth = await requireCapability("events.view");
@@ -12,9 +12,20 @@ export async function GET(request: NextRequest) {
   const { user } = auth;
 
   const url = new URL(request.url);
-  const requestedCityId = url.searchParams.get("cityId");
-  const statusParam = url.searchParams.get("status");
-  const eventTypeParam = url.searchParams.get("eventType");
+  const queryData = {
+    cityId: url.searchParams.get("cityId") || undefined,
+    status: url.searchParams.get("status") || undefined,
+    eventType: url.searchParams.get("eventType") || undefined,
+    limit: url.searchParams.has("limit") ? url.searchParams.get("limit") : undefined,
+    offset: url.searchParams.has("offset") ? url.searchParams.get("offset") : undefined,
+  };
+
+  const parsedQuery = getEventsQuerySchema.safeParse(queryData);
+  if (!parsedQuery.success) {
+    return NextResponse.json({ error: "Invalid query parameters" }, { status: 400 });
+  }
+
+  const { cityId: requestedCityId, status: statusParam, eventType: eventTypeParam, limit, offset } = parsedQuery.data;
 
   const resolved = await resolveActorCity(user, requestedCityId);
   if (resolved.error || !resolved.cityId) {
@@ -49,6 +60,8 @@ export async function GET(request: NextRequest) {
   const events = await db.event.findMany({
     where,
     orderBy: { startDate: "desc" },
+    take: limit,
+    skip: offset,
     include: {
       city: { select: { id: true, name: true, code: true } },
       _count: { select: { teams: true, responsibilities: true, plannerItems: true } },

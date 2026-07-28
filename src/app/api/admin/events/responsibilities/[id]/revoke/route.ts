@@ -37,6 +37,10 @@ async function handleRevoke(request: NextRequest, { id }: { id: string }) {
     return NextResponse.json({ error: "Responsibility not found" }, { status: 404 });
   }
 
+  if (!responsibility.isActive) {
+    return NextResponse.json({ error: "Responsibility is already revoked or inactive" }, { status: 409 });
+  }
+
   const resolved = await resolveActorCity(user, responsibility.cityId);
   if (resolved.error) {
     return NextResponse.json({ error: resolved.error }, { status: resolved.status });

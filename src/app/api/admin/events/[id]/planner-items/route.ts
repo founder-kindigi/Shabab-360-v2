@@ -67,14 +67,17 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       where: { id: data.assignedToStaffMetaId },
       include: { assignedCity: true, assignedPark: { include: { city: true } } },
     });
-    if (!staffMeta || !staffMeta.isActive) {
-      return NextResponse.json({ error: "Assignee staff member not found or inactive" }, { status: 400 });
+    if (!staffMeta) {
+      return NextResponse.json({ error: "Assignee staff member not found" }, { status: 404 });
+    }
+    if (!staffMeta.isActive) {
+      return NextResponse.json({ error: "Assignee staff member is inactive" }, { status: 403 });
     }
     const staffCityId = staffMeta.assignedCityId || staffMeta.assignedPark?.cityId;
     if (staffCityId !== verified.event.cityId) {
       return NextResponse.json(
         { error: "Assignee staff member belongs to a different city than the event" },
-        { status: 400 }
+        { status: 403 }
       );
     }
   }
@@ -83,10 +86,16 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const team = await db.temporaryEventTeam.findUnique({
       where: { id: data.teamId },
     });
-    if (!team || team.eventId !== id || !team.isActive) {
+    if (!team || team.eventId !== id) {
       return NextResponse.json(
         { error: "Target temporary team not found or does not belong to this event" },
-        { status: 400 }
+        { status: 404 }
+      );
+    }
+    if (!team.isActive) {
+      return NextResponse.json(
+        { error: "Target temporary team is inactive" },
+        { status: 403 }
       );
     }
   }

@@ -49,15 +49,30 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     include: { assignedCity: true, assignedPark: { include: { city: true } } },
   });
 
-  if (!staffMeta || !staffMeta.isActive) {
-    return NextResponse.json({ error: "Staff member not found or inactive" }, { status: 400 });
+  if (!staffMeta) {
+    return NextResponse.json({ error: "Staff member not found" }, { status: 404 });
+  }
+
+  if (!staffMeta.isActive) {
+    return NextResponse.json({ error: "Staff member is inactive" }, { status: 403 });
   }
 
   const staffCityId = staffMeta.assignedCityId || staffMeta.assignedPark?.cityId;
   if (staffCityId !== team.event.cityId) {
     return NextResponse.json(
       { error: "Assignee staff member belongs to a different city than the event" },
-      { status: 400 }
+      { status: 403 }
+    );
+  }
+
+  const existingMembership = await db.eventTeamMembership.findFirst({
+    where: { teamId, staffMetaId: parsed.data.staffMetaId, isActive: true },
+  });
+
+  if (existingMembership) {
+    return NextResponse.json(
+      { error: "Active membership already exists for this staff member" },
+      { status: 409 }
     );
   }
 
