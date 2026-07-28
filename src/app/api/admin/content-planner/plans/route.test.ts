@@ -230,6 +230,8 @@ describe("Content Planner Plans API", () => {
         user: { id: "user1", role: "super_admin" },
       } as any);
       vi.mocked(authorize.requireCapability).mockResolvedValue({ user: {} } as any);
+      // HQ without cityId gets 400 because multi-city HQ must supply cityId
+      vi.mocked(scope.deriveContentPlannerCityScope).mockResolvedValue(["city1", "city2"]);
 
       const request = new NextRequest("http://localhost:3000/api/admin/content-planner/plans", {
         method: "POST",
