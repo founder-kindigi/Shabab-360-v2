@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth/authorize";
+import { requireCapability } from "@/lib/auth/authorize";
 import { computeValuesHmac } from "@/lib/calling/template-hmac";
 import { db } from "@/lib/db";
-import { logAudit } from "@/lib/audit";
+import { createAuditLogData } from "@/lib/audit";
 import { useTemplateSchema } from "@/lib/validations/calling";
 
 export async function POST(request: NextRequest) {
-  const auth = await requireAuth();
+  const auth = await requireCapability("calling.view");
   if (auth instanceof NextResponse) return auth;
   const user = auth.user as any;
 
@@ -102,31 +102,37 @@ export async function POST(request: NextRequest) {
 
   const valuesHmac = computeValuesHmac(valuesUsed);
 
-  const useRecord = await db.callingTemplateUse.create({
-    data: {
-      templateId,
-      templateVersion: template.version,
-      callerUserId: user.id!,
-      assignmentId,
-      // Only variable keys and HMAC evidence — never raw merge values,
-      // candidate message bodies, names, phones, or notes.
-      variablesUsed: JSON.stringify(variablesUsed),
-      valuesHmac,
-    },
-  });
+  // Atomic: create use record and capture audit evidence in one transaction.
+  // Sanitized audit payload — variable keys and HMAC only, never raw values.
+  const useRecord = await db.$transaction(async (tx) => {
+    const record = await tx.callingTemplateUse.create({
+      data: {
+        templateId,
+        templateVersion: template.version,
+        callerUserId: user.id!,
+        assignmentId,
+        variablesUsed: JSON.stringify(variablesUsed),
+        valuesHmac,
+      },
+    });
 
-  await logAudit({
-    userId: user.id!,
-    action: "calling.template.use",
-    entityType: "CallingTemplateUse",
-    entityId: useRecord.id,
-    newValues: {
-      templateId,
-      templateVersion: template.version,
-      assignmentId,
-      variablesUsed,
-      valuesHmac,
-    },
+    await tx.auditLog.create({
+      data: createAuditLogData({
+        userId: user.id!,
+        action: "calling.template.use",
+        entityType: "CallingTemplateUse",
+        entityId: record.id,
+        newValues: {
+          templateId,
+          templateVersion: template.version,
+          assignmentId,
+          variablesUsed,
+          valuesHmac,
+        },
+      }),
+    });
+
+    return record;
   });
 
   return NextResponse.json(useRecord, { status: 201 });

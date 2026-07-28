@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth/authorize";
+import { requireCapability } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
 import { createAuditLogData } from "@/lib/audit";
 import { logInteractionSchema } from "@/lib/validations/calling";
 
 export async function POST(request: NextRequest) {
-  const auth = await requireAuth();
+  const auth = await requireCapability("calling.view");
   if (auth instanceof NextResponse) return auth;
   const user = auth.user as any;
 

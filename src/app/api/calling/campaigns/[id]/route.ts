@@ -82,6 +82,16 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   if (parsed.data.startDate !== undefined) updateData.startDate = new Date(parsed.data.startDate);
   if (parsed.data.endDate !== undefined) updateData.endDate = new Date(parsed.data.endDate);
 
+  // Validate effective date integrity against existing campaign data.
+  const effectiveStart = updateData.startDate ?? verified.campaign.startDate;
+  const effectiveEnd = updateData.endDate ?? verified.campaign.endDate;
+  if (effectiveStart && effectiveEnd && new Date(effectiveStart) > new Date(effectiveEnd)) {
+    return NextResponse.json(
+      { error: "startDate must be less than or equal to endDate" },
+      { status: 400 }
+    );
+  }
+
   const updated = await db.callingCampaign.update({
     where: { id },
     data: updateData,
