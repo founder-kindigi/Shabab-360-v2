@@ -2,12 +2,13 @@
  * GET /api/admin/collaboration-teams/[teamId]
  *
  * Returns team detail with active-member count.
- * Authorization: dynamic capability (organisation.manage) + city scope.
+ * Authorization: teams.memberships.manage + city scope.
  * No static role gate.
  */
 import { NextRequest, NextResponse } from "next/server";
 import { requireCapability, requireCityScope } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
+import { ACTIVE_MEMBERSHIP_FILTER } from "@/lib/collaboration-teams/schemas";
 
 type Params = { params: Promise<{ teamId: string }> };
 
@@ -30,7 +31,7 @@ export async function GET(_request: NextRequest, { params }: Params) {
       city: { select: { id: true, name: true } },
       _count: {
         select: {
-          memberships: { where: { isActive: true } },
+          memberships: { where: { ...ACTIVE_MEMBERSHIP_FILTER } },
         },
       },
     },
