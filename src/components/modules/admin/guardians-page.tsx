@@ -75,6 +75,7 @@ import {
   Send,
   Check,
   FolderInput,
+  KeyRound,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { BulkActionToolbar, type BulkAction } from "@/components/shared/bulk-action-toolbar";
@@ -199,6 +200,7 @@ export function GuardiansPage() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [provisionAccountOpen, setProvisionAccountOpen] = useState(false);
 
   // Invite form
   const [inviteName, setInviteName] = useState("");
@@ -209,6 +211,8 @@ export function GuardiansPage() {
   const [inviteRelationship, setInviteRelationship] = useState("");
   const [inviteCode, setInviteCode] = useState("");
   const [inviteErrors, setInviteErrors] = useState<Record<string, string>>({});
+  const [accountEmail, setAccountEmail] = useState("");
+  const [temporaryPassword, setTemporaryPassword] = useState("");
   const [selectedGuardian, setSelectedGuardian] = useState<Guardian | null>(null);
   const [selectedDetailId, setSelectedDetailId] = useState<string | null>(null);
 
@@ -454,6 +458,24 @@ export function GuardiansPage() {
     },
   });
 
+  const provisionAccountMutation = useMutation({
+    mutationFn: ({ id, email }: { id: string; email: string }) =>
+      fetch(`/api/admin/guardians/${id}/account`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      }).then((response) => response.ok ? response.json() : response.json().then((error) => Promise.reject(error))),
+    onSuccess: (result) => {
+      setTemporaryPassword(result.temporaryPassword);
+      queryClient.invalidateQueries({ queryKey: ["admin-guardians"] });
+      toast.success("Guardian login created", { description: "The temporary password is shown once." });
+    },
+    onError: (error: { error?: string | Record<string, string[]> }) => {
+      const message = typeof error.error === "string" ? error.error : error.error?.email?.[0];
+      toast.error(message || "Failed to create guardian login");
+    },
+  });
+
   const linkChildMutation = useMutation({
     mutationFn: ({ id, participantIds }: { id: string; participantIds: string[] }) =>
       fetch(`/api/admin/guardians/${id}`, {
@@ -523,6 +545,20 @@ export function GuardiansPage() {
   function openDeleteDialog(guardian: Guardian) {
     setSelectedGuardian(guardian);
     setDeleteOpen(true);
+  }
+
+  function openProvisionAccountDialog(guardian: Guardian) {
+    setSelectedGuardian(guardian);
+    setAccountEmail("");
+    setTemporaryPassword("");
+    setProvisionAccountOpen(true);
+  }
+
+  function closeProvisionAccountDialog() {
+    setProvisionAccountOpen(false);
+    setAccountEmail("");
+    setTemporaryPassword("");
+    setSelectedGuardian(null);
   }
 
   function openDetailSheet(guardian: Guardian) {
@@ -798,6 +834,12 @@ export function GuardiansPage() {
                               <UserPlus className="size-4 mr-2" />
                               Manage Children
                             </DropdownMenuItem>
+                            {!guardian.userId && guardian.isActive && guardian.children.length > 0 && (
+                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openProvisionAccountDialog(guardian); }} className="cursor-pointer">
+                                <KeyRound className="size-4 mr-2" />
+                                Create login
+                              </DropdownMenuItem>
+                            )}
                             {guardian.isActive && (
                               <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openDeleteDialog(guardian); }} className="text-red-600 focus:text-red-600 cursor-pointer">
                                 <Trash2 className="size-4 mr-2" />
@@ -1318,6 +1360,42 @@ export function GuardiansPage() {
               )}
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={provisionAccountOpen} onOpenChange={(open) => { if (!open) closeProvisionAccountDialog(); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Create guardian login</DialogTitle>
+            <DialogDescription>
+              This links a login to the existing guardian and their current child records. The guardian must reset the temporary password on first sign-in.
+            </DialogDescription>
+          </DialogHeader>
+          {!temporaryPassword ? (
+            <form onSubmit={(event) => {
+              event.preventDefault();
+              if (selectedGuardian) provisionAccountMutation.mutate({ id: selectedGuardian.id, email: accountEmail.trim() });
+            }} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="guardian-account-email">Login email</Label>
+                <Input id="guardian-account-email" type="email" value={accountEmail} onChange={(event) => setAccountEmail(event.target.value)} required autoFocus />
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={closeProvisionAccountDialog} disabled={provisionAccountMutation.isPending}>Cancel</Button>
+                <Button type="submit" disabled={provisionAccountMutation.isPending || !accountEmail.trim()} className="bg-[#4B0A8F] hover:bg-[#4B0A8FE6] text-white">
+                  {provisionAccountMutation.isPending ? "Creating..." : "Create login"}
+                </Button>
+              </DialogFooter>
+            </form>
+          ) : (
+            <div className="space-y-4">
+              <div className="rounded-lg border-2 border-dashed border-[#4B0A8F]/30 bg-[#F3ECF6] p-4 text-center">
+                <p className="text-xs text-muted-foreground mb-1">Temporary password (show once)</p>
+                <p className="break-all font-mono font-bold text-[#4B0A8F]">{temporaryPassword}</p>
+              </div>
+              <DialogFooter><Button onClick={closeProvisionAccountDialog}>Close</Button></DialogFooter>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 

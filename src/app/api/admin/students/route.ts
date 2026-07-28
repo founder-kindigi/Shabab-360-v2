@@ -128,6 +128,7 @@ export async function GET(request: NextRequest) {
 
     return {
       id: s.id,
+      hasLogin: Boolean(s.userId),
       name: s.name,
       phone: s.phone,
       gender: s.gender,
