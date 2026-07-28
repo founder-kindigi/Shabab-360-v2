@@ -1,8 +1,7 @@
 "use client";
 
-import { useState, useCallback } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useSession } from "next-auth/react";
+import { useState, useCallback, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +11,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+
+export interface ProfileCapabilities {
+  canView: boolean;
+  canManage: boolean;
+  canViewSensitive: boolean;
+  canManageSensitive: boolean;
+}
 
 // ─── Sensitive field toggle ──────────────────────────────────────────
 
@@ -71,7 +77,6 @@ function ProfileField({
 // ─── Tab sections ────────────────────────────────────────────────────
 
 const TABS = [
-  { id: "overview", label: "Overview" },
   { id: "education", label: "Education" },
   { id: "family", label: "Family & Background" },
   { id: "interests", label: "Interests & Skills" },
@@ -82,44 +87,57 @@ const TABS = [
 
 // ─── Main component ──────────────────────────────────────────────────
 
-export function StudentProfilePage({ participantId }: { participantId: string }) {
-  const { data: session } = useSession();
-  const userRole = (session?.user as { role?: string } | undefined)?.role;
+export function StudentProfilePage({
+  participantId,
+  capabilities,
+  cityId,
+}: {
+  participantId: string;
+  capabilities: ProfileCapabilities;
+  cityId?: string;
+}) {
   const queryClient = useQueryClient();
 
   const [editMode, setEditMode] = useState(false);
   const [showSensitive, setShowSensitive] = useState(false);
   const [draft, setDraft] = useState<ProfileData>({});
-  const [hasFetched, setHasFetched] = useState(false);
 
-  const isStaff = ["super_admin", "program_admin", "city_head", "park_lead", "murabbi", "park_admin"].includes(userRole || "");
-  const canEdit = ["super_admin", "program_admin", "city_head"].includes(userRole || "");
+  const canEdit = capabilities.canManage;
+  const canViewSensitive = capabilities.canViewSensitive;
 
   // ── Fetch ──────────────────────────────────────────────────────────
 
-  const { data: profile, isLoading } = useQuery<ProfileData | null>({
-    queryKey: ["student-profile", participantId],
+  const { data: profile, isLoading, error } = useQuery<ProfileData | null>({
+    queryKey: ["student-profile", participantId, cityId, showSensitive],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (showSensitive) params.set("includeSensitive", "true");
+      if (cityId) params.set("cityId", cityId);
       const res = await fetch(`/api/admin/students/${participantId}/profile?${params}`);
       if (res.status === 403 && showSensitive) {
-        setShowSensitive(false);
-        toast.error("You do not have permission to view sensitive fields.");
-        return null;
+        throw new Error("SENSITIVE_FORBIDDEN");
       }
       if (!res.ok) throw new Error("Failed to load profile");
       const data = await res.json();
       return data;
     },
-    enabled: true,
+    enabled: capabilities.canView,
+    placeholderData: keepPreviousData,
   });
+
+  useEffect(() => {
+    if (error instanceof Error && error.message === "SENSITIVE_FORBIDDEN") {
+      setShowSensitive(false);
+      toast.error("You do not have permission to view sensitive fields.");
+    }
+  }, [error]);
 
   // ── Mutation ───────────────────────────────────────────────────────
 
   const saveMutation = useMutation({
     mutationFn: async (data: ProfileData) => {
       const params = new URLSearchParams();
+      if (cityId) params.set("cityId", cityId);
       const res = await fetch(`/api/admin/students/${participantId}/profile?${params}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -152,10 +170,11 @@ export function StudentProfilePage({ participantId }: { participantId: string })
   };
 
   // Sync fetched data to draft when entering edit mode
-  if (profile && !hasFetched) {
-    setDraft(profile as unknown as ProfileData);
-    setHasFetched(true);
-  }
+  useEffect(() => {
+    if (editMode && profile) {
+      setDraft(profile as unknown as ProfileData);
+    }
+  }, [editMode, profile]);
 
   // ── Loading ────────────────────────────────────────────────────────
 
@@ -199,7 +218,6 @@ export function StudentProfilePage({ participantId }: { participantId: string })
   };
 
   const tabFields: Record<string, string[]> = {
-    overview: ["fatherName"],
     education: ["school", "college", "educationSystem", "previousResults", "awardsAchievements", "averageGrade", "favouriteSubjects"],
     family: ["fatherName", "fatherOccupation", "siblings", "nativeArea", "ethnicity", "modeOfTransport"],
     interests: ["subjectsOfInterest", "extraCurricular", "hobbies", "sports", "learningStyle", "curiosity", "specialTalent", "currentSkills", "skillsWantToLearn"],
@@ -216,8 +234,8 @@ export function StudentProfilePage({ participantId }: { participantId: string })
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-bold">Student Profile</h2>
         <div className="flex items-center gap-2">
-          {isStaff && !editMode && canEdit && (
-            <Button size="sm" onClick={() => { setHasFetched(false); setEditMode(true); }}>
+          {!editMode && canEdit && (
+            <Button size="sm" onClick={() => setEditMode(true)}>
               Edit Profile
             </Button>
           )}
@@ -234,8 +252,8 @@ export function StudentProfilePage({ participantId }: { participantId: string })
         </div>
       </div>
 
-      {/* Sensitive toggle (staff only) */}
-      {isStaff && !editMode && (
+      {/* Sensitive toggle */}
+      {canViewSensitive && !editMode && (
         <label className="flex items-center gap-2 text-sm cursor-pointer">
           <input
             type="checkbox"
@@ -248,20 +266,20 @@ export function StudentProfilePage({ participantId }: { participantId: string })
       )}
 
       {/* Tabs */}
-      <Tabs defaultValue="overview">
+      <Tabs defaultValue="education">
         <TabsList className="flex-wrap">
           {TABS.map((tab) => {
-            // Hide wellbeing tab for non-staff or when sensitive is off for non-sensitive-reader
-            if (tab.id === "wellbeing" && (!isStaff || (!showSensitive && !editMode))) return null;
+            // Hide wellbeing tab if user doesn't have sensitive view capability or it's not active
+            if (tab.id === "wellbeing" && (!canViewSensitive || (!showSensitive && !editMode))) return null;
             return <TabsTrigger key={tab.id} value={tab.id}>{tab.label}</TabsTrigger>;
           })}
         </TabsList>
 
         {TABS.map((tab) => {
           const fields = tabFields[tab.id] || [];
-          // Skip rendering wellbeing tab for non-staff
-          if (tab.id === "wellbeing" && (!isStaff || (!showSensitive && !editMode))) return null;
-          // Skip overview tab if no fields
+          // Skip rendering wellbeing tab if user doesn't have sensitive view capability or it's not active
+          if (tab.id === "wellbeing" && (!canViewSensitive || (!showSensitive && !editMode))) return null;
+          // Skip tab if no fields
           if (fields.length === 0) return null;
 
           return (

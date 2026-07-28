@@ -106,10 +106,20 @@ export async function PUT(
   }
 
   // Parse and validate body
-  const body = await _req.json().catch(() => ({}));
+  let body: unknown;
+  try {
+    body = await _req.json();
+  } catch {
+    return NextResponse.json({ error: "Malformed JSON" }, { status: 400 });
+  }
+
   const parsed = updateProfileSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json({ error: "Invalid input", details: parsed.error.flatten() }, { status: 400 });
+  }
+
+  if (Object.keys(parsed.data).length === 0) {
+    return NextResponse.json({ error: "Empty update" }, { status: 400 });
   }
 
   // Check if this update includes sensitive fields
