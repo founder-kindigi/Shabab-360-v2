@@ -69,17 +69,18 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  staffMeta           StaffMeta?
-  guardian            Guardian?
-  participant         Participant?
-  auditLogs           AuditLog[]
-  announcements       Announcement[]
-  notifications       Notification[]
-  capabilityOverrides UserCapabilityOverride[]
+  staffMeta              StaffMeta?
+  guardian               Guardian?
+  participant            Participant?
+  auditLogs              AuditLog[]
+  announcements          Announcement[]
+  notifications          Notification[]
+  capabilityOverrides    UserCapabilityOverride[]
   externalSupportCallers ExternalSupportCaller[]
   callingTemplateUses    CallingTemplateUse[]
   callInteractions       CallInteraction[]
   mashwaraMeetings       MashwaraMeeting[]
+  mediaBriefsCreated     MediaBrief[]             @relation("MediaBriefCreator")
 
   @@map("users")
 }
@@ -123,16 +124,16 @@ model RoleCapabilityOverride {
 // without losing the original operational reason. Expired or inactive records
 // do not affect effective access.
 model UserCapabilityOverride {
-  id         String   @id @default(cuid())
+  id         String    @id @default(cuid())
   userId     String
   capability String
   effect     String
   reason     String
   expiresAt  DateTime?
-  isActive   Boolean  @default(true)
+  isActive   Boolean   @default(true)
   revokedAt  DateTime?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -159,6 +160,7 @@ model City {
   callingCampaigns      CallingCampaign[]
   callingTemplates      CallingTemplate[]
   mashwaraMeetings      MashwaraMeeting[]
+  mediaBriefs           MediaBrief[]
 
   @@map("cities")
 }
@@ -193,11 +195,11 @@ model Batch {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
-  park      Park           @relation(fields: [parkId], references: [id], onDelete: Cascade)
-  city      City?          @relation(fields: [cityId], references: [id], onDelete: Cascade)
-  groups    Group[]
-  settings  BatchSettings?
-  feeEvents FeeEvent[]
+  park         Park           @relation(fields: [parkId], references: [id], onDelete: Cascade)
+  city         City?          @relation(fields: [cityId], references: [id], onDelete: Cascade)
+  groups       Group[]
+  settings     BatchSettings?
+  feeEvents    FeeEvent[]
   contentPlans ContentPlan[]
 
   @@index([cityId, isActive])
@@ -235,21 +237,23 @@ model StaffMeta {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  user                      User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  assignedCity              City?                 @relation("CityHeadAssignment", fields: [assignedCityId], references: [id], onDelete: SetNull)
-  assignedPark              Park?                 @relation("ParkStaffAssignment", fields: [assignedParkId], references: [id], onDelete: SetNull)
-  assignedGroup             Group?                @relation("MurabbiAssignment", fields: [assignedGroupId], references: [id], onDelete: SetNull)
+  user                      User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assignedCity              City?                  @relation("CityHeadAssignment", fields: [assignedCityId], references: [id], onDelete: SetNull)
+  assignedPark              Park?                  @relation("ParkStaffAssignment", fields: [assignedParkId], references: [id], onDelete: SetNull)
+  assignedGroup             Group?                 @relation("MurabbiAssignment", fields: [assignedGroupId], references: [id], onDelete: SetNull)
   teamMemberships           StaffTeamMembership[]
-  assignedActivityPlans     ActivityPlanItem[]    @relation("ActivityAssignee")
+  assignedActivityPlans     ActivityPlanItem[]     @relation("ActivityAssignee")
   eventTeamMemberships      EventTeamMembership[]
   eventResponsibilities     EventResponsibility[]
-  assignedEventPlannerItems EventPlannerItem[]    @relation("EventPlannerAssignee")
+  assignedEventPlannerItems EventPlannerItem[]     @relation("EventPlannerAssignee")
   callingAssignments        CallingAssignment[]
   mashwaraAttendees         MashwaraAttendee[]
   mashwaraDecisions         MashwaraDecision[]
   mashwaraActionItems       MashwaraActionItem[]
   mashwaraShares            MashwaraMeetingShare[] @relation("MashwaraShareRecipient")
   mashwaraGrants            MashwaraMeetingShare[] @relation("MashwaraShareGranter")
+  mediaAssignments          MediaBrief[]           @relation("MediaAssignee")
+  mediaApprovals            MediaBrief[]           @relation("MediaApprover")
 
   @@map("staff_meta")
 }
@@ -265,12 +269,13 @@ model CollaborationTeam {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  city        City                  @relation(fields: [cityId], references: [id], onDelete: Cascade)
-  memberships StaffTeamMembership[]
-  contentBlocks ContentPlanBlock[]
-  activityPlans ActivityPlanItem[]
-  mashwaraDecisionTargets  MashwaraDecision[] @relation("MashwaraDecisionTargetTeam")
-  mashwaraActionItemsTeams MashwaraActionItem[] @relation("MashwaraActionItemTeam")
+  city                     City                  @relation(fields: [cityId], references: [id], onDelete: Cascade)
+  memberships              StaffTeamMembership[]
+  contentBlocks            ContentPlanBlock[]
+  activityPlans            ActivityPlanItem[]
+  mashwaraDecisionTargets  MashwaraDecision[]    @relation("MashwaraDecisionTargetTeam")
+  mashwaraActionItemsTeams MashwaraActionItem[]  @relation("MashwaraActionItemTeam")
+  mediaBriefs              MediaBrief[]
 
   @@unique([cityId, code])
   @@index([cityId, isActive])
@@ -279,15 +284,15 @@ model CollaborationTeam {
 
 // Keep team responsibility history without changing canonical role or hierarchy scope.
 model StaffTeamMembership {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   staffMetaId String
   teamId      String
   title       String?
-  startedAt   DateTime @default(now())
+  startedAt   DateTime  @default(now())
   endedAt     DateTime?
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   staffMeta StaffMeta         @relation(fields: [staffMetaId], references: [id], onDelete: Cascade)
   team      CollaborationTeam @relation(fields: [teamId], references: [id], onDelete: Cascade)
@@ -313,11 +318,11 @@ model ContentPlan {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  city      City          @relation(fields: [cityId], references: [id], onDelete: Cascade)
-  batch     Batch?        @relation(fields: [batchId], references: [id], onDelete: SetNull)
-  park      Park?         @relation(fields: [parkId], references: [id], onDelete: SetNull)
-  basePlan  ContentPlan?  @relation("ContentPlanOverrides", fields: [basePlanId], references: [id], onDelete: SetNull)
-  overrides ContentPlan[] @relation("ContentPlanOverrides")
+  city      City                 @relation(fields: [cityId], references: [id], onDelete: Cascade)
+  batch     Batch?               @relation(fields: [batchId], references: [id], onDelete: SetNull)
+  park      Park?                @relation(fields: [parkId], references: [id], onDelete: SetNull)
+  basePlan  ContentPlan?         @relation("ContentPlanOverrides", fields: [basePlanId], references: [id], onDelete: SetNull)
+  overrides ContentPlan[]        @relation("ContentPlanOverrides")
   sessions  ContentPlanSession[]
 
   @@index([cityId, status])
@@ -360,10 +365,11 @@ model ContentPlanBlock {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  session   ContentPlanSession   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  team      CollaborationTeam    @relation(fields: [teamId], references: [id], onDelete: Restrict)
-  resources ContentPlanResource[]
-  activities ActivityPlanItem[]
+  session     ContentPlanSession    @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  team        CollaborationTeam     @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  resources   ContentPlanResource[]
+  activities  ActivityPlanItem[]
+  mediaBriefs MediaBrief[]
 
   @@unique([sessionId, category, sortOrder])
   @@index([teamId, status])
@@ -386,16 +392,16 @@ model ContentPlanResource {
 
 // Team activity planning is separate from attendance and does not grant scope.
 model ActivityPlanItem {
-  id                  String   @id @default(cuid())
+  id                  String    @id @default(cuid())
   teamId              String
   contentBlockId      String?
   assignedStaffMetaId String?
   title               String
   description         String?
-  status              String   @default("planned")
+  status              String    @default("planned")
   scheduledFor        DateTime?
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
   team          CollaborationTeam @relation(fields: [teamId], references: [id], onDelete: Cascade)
   contentBlock  ContentPlanBlock? @relation(fields: [contentBlockId], references: [id], onDelete: SetNull)
@@ -410,70 +416,70 @@ model ActivityPlanItem {
 // wellbeing data beyond the canonical Participant record. Created on demand.
 // Never duplicates Participant, Guardian, Group, Batch, Park, or City fields.
 model StudentExtendedProfile {
-  id                    String   @id @default(cuid())
-  participantId         String   @unique
+  id                        String   @id @default(cuid())
+  participantId             String   @unique
   // Education tab
-  school                String?
-  college               String?
-  educationSystem       String?
-  previousResults       String?
-  awardsAchievements    String?
-  averageGrade          String?
-  favouriteSubjects     String?
+  school                    String?
+  college                   String?
+  educationSystem           String?
+  previousResults           String?
+  awardsAchievements        String?
+  averageGrade              String?
+  favouriteSubjects         String?
   // Family & Background tab
-  fatherName            String?
-  fatherOccupation      String?
-  siblings              String?
-  financialStatus       String?
-  nativeArea            String?
-  ethnicity             String?
-  modeOfTransport       String?
+  fatherName                String?
+  fatherOccupation          String?
+  siblings                  String?
+  financialStatus           String?
+  nativeArea                String?
+  ethnicity                 String?
+  modeOfTransport           String?
   // Interests & Skills tab
-  subjectsOfInterest    String?
-  extraCurricular       String?
-  hobbies               String?
-  sports                String?
-  learningStyle         String?
-  curiosity             String?
-  specialTalent         String?
-  currentSkills         String?
-  skillsWantToLearn     String?
+  subjectsOfInterest        String?
+  extraCurricular           String?
+  hobbies                   String?
+  sports                    String?
+  learningStyle             String?
+  curiosity                 String?
+  specialTalent             String?
+  currentSkills             String?
+  skillsWantToLearn         String?
   // Goals & Development tab
-  generalGoals          String?
-  vision                String?
-  mission               String?
-  deenBackground        String?
-  careerAspirations     String?
-  academicInterests     String?
-  collegePlans          String?
-  futureCareerGoals     String?
-  strengths             String?
-  weaknesses            String?
-  goodHabits            String?
-  badHabits             String?
+  generalGoals              String?
+  vision                    String?
+  mission                   String?
+  deenBackground            String?
+  careerAspirations         String?
+  academicInterests         String?
+  collegePlans              String?
+  futureCareerGoals         String?
+  strengths                 String?
+  weaknesses                String?
+  goodHabits                String?
+  badHabits                 String?
   // Support & Wellbeing tab
-  disability            String?
-  specialNeed           String?
-  moralCharacter        String?
-  namaz                 String?
+  disability                String?
+  specialNeed               String?
+  moralCharacter            String?
+  namaz                     String?
   // Personality & Skills tab
-  leadershipSkills      String?
+  leadershipSkills          String?
   personalityResponsibility String?
-  communicationSkills   String?
-  teamworkSkills        String?
-  problemSolvingSkills  String?
-  creativity            String?
-  criticalThinking      String?
-  adaptability          String?
-  initiative            String?
-  selfMotivation        String?
-  integrity             String?
-  empathy               String?
-  reading               String?
-  learningInterest      String?
+  communicationSkills       String?
+  teamworkSkills            String?
+  problemSolvingSkills      String?
+  creativity                String?
+  criticalThinking          String?
+  adaptability              String?
+  initiative                String?
+  selfMotivation            String?
+  integrity                 String?
+  empathy                   String?
+  reading                   String?
+  learningInterest          String?
   // Metadata
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
 
   participant Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
 
@@ -529,12 +535,12 @@ model Participant {
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
 
-  user              User?                 @relation(fields: [userId], references: [id], onDelete: SetNull)
-  group             Group                 @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user              User?                   @relation(fields: [userId], references: [id], onDelete: SetNull)
+  group             Group                   @relation(fields: [groupId], references: [id], onDelete: Cascade)
   guardianLinks     GuardianChild[]
   attendanceRecords AttendanceRecord[]
   payments          Payment[]
-  convertedFromApp  AdmissionApplication? @relation("ConvertedFrom")
+  convertedFromApp  AdmissionApplication?   @relation("ConvertedFrom")
   extendedProfile   StudentExtendedProfile?
 
   @@index([groupId, state])
@@ -751,23 +757,23 @@ model ReportPreset {
 // ========== PROGRAMME EVENTS ==========
 
 model Event {
-  id              String   @id @default(cuid())
+  id              String    @id @default(cuid())
   cityId          String
   title           String
   description     String?
   eventType       String
-  status          String   @default("planned")
+  status          String    @default("planned")
   venue           String?
   venueNotes      String?
   startDate       DateTime
   endDate         DateTime?
   capacity        Int?
-  cost            Decimal? @default(0)
-  requiresConsent Boolean  @default(false)
-  requiresMedical Boolean  @default(false)
+  cost            Decimal?  @default(0)
+  requiresConsent Boolean   @default(false)
+  requiresMedical Boolean   @default(false)
   createdBy       String
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   city             City                  @relation(fields: [cityId], references: [id], onDelete: Cascade)
   teams            TemporaryEventTeam[]
@@ -824,7 +830,7 @@ model EventResponsibility {
   id                    String    @id @default(cuid())
   eventId               String?
   mashwaraId            String?
-  mashwaraOccurrenceId String?
+  mashwaraOccurrenceId  String?
   title                 String
   description           String?
   assignedToStaffMetaId String
@@ -839,8 +845,8 @@ model EventResponsibility {
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
 
-  event               Event?    @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  assignedToStaffMeta StaffMeta @relation(fields: [assignedToStaffMetaId], references: [id], onDelete: Cascade)
+  event                 Event?                 @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  assignedToStaffMeta   StaffMeta              @relation(fields: [assignedToStaffMetaId], references: [id], onDelete: Cascade)
   callingPOCAssignments CallingPOCAssignment[]
 
   @@index([assignedToStaffMetaId, isActive])
@@ -1042,7 +1048,7 @@ enum MashwaraActionItemStatus {
 }
 
 model MashwaraMeeting {
-  id             String               @id @default(cuid())
+  id             String                @id @default(cuid())
   cityId         String
   title          String
   scheduledAt    DateTime
@@ -1050,11 +1056,11 @@ model MashwaraMeeting {
   status         MashwaraMeetingStatus @default(scheduled)
   minutesSummary String?
   createdById    String
-  createdAt      DateTime             @default(now())
-  updatedAt      DateTime             @updatedAt
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
 
-  city      City   @relation(fields: [cityId], references: [id], onDelete: Cascade)
-  createdBy User   @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  city      City @relation(fields: [cityId], references: [id], onDelete: Cascade)
+  createdBy User @relation(fields: [createdById], references: [id], onDelete: Cascade)
 
   attendees   MashwaraAttendee[]
   decisions   MashwaraDecision[]
@@ -1067,7 +1073,7 @@ model MashwaraMeeting {
 }
 
 model MashwaraAttendee {
-  id               String                 @id @default(cuid())
+  id               String                   @id @default(cuid())
   meetingId        String
   staffMetaId      String
   attendanceStatus MashwaraAttendanceStatus @default(present)
@@ -1102,14 +1108,14 @@ model MashwaraDecision {
 }
 
 model MashwaraActionItem {
-  id           String                  @id @default(cuid())
+  id           String                   @id @default(cuid())
   meetingId    String
   description  String
   teamId       String
   assignedToId String
   dueDate      DateTime?
   status       MashwaraActionItemStatus @default(open)
-  createdAt    DateTime                @default(now())
+  createdAt    DateTime                 @default(now())
 
   meeting    MashwaraMeeting   @relation(fields: [meetingId], references: [id], onDelete: Cascade)
   team       CollaborationTeam @relation("MashwaraActionItemTeam", fields: [teamId], references: [id], onDelete: Cascade)
@@ -1121,13 +1127,13 @@ model MashwaraActionItem {
 }
 
 model MashwaraMeetingShare {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   meetingId   String
   staffMetaId String
   grantedById String
-  grantedAt   DateTime @default(now())
+  grantedAt   DateTime  @default(now())
   revokedAt   DateTime?
-  isRevoked   Boolean  @default(false)
+  isRevoked   Boolean   @default(false)
 
   meeting   MashwaraMeeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
   staffMeta StaffMeta       @relation("MashwaraShareRecipient", fields: [staffMetaId], references: [id], onDelete: Cascade)
@@ -1137,4 +1143,46 @@ model MashwaraMeetingShare {
   @@index([meetingId, staffMetaId, isRevoked])
   @@index([staffMetaId])
   @@map("mashwara_meeting_shares")
+}
+
+// ========== MEDIA OPERATIONS ==========
+
+model MediaBrief {
+  id                    String    @id @default(cuid())
+  cityId                String
+  teamId                String
+  title                 String
+  description           String?
+  mediaType             String    @default("graphic")
+  format                String?
+  status                String    @default("draft")
+  priority              String    @default("medium")
+  dueAt                 DateTime?
+  contentBlockId        String?
+  approvalState         String?
+  approvedByStaffMetaId String?
+  approvedAt            DateTime?
+  rejectionReason       String?
+  cancellationReason    String?
+  assetMetadata         String?
+  assignedToStaffMetaId String?
+  version               Int       @default(1)
+  isActive              Boolean   @default(true)
+  createdById           String
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  city            City              @relation(fields: [cityId], references: [id], onDelete: Restrict)
+  team            CollaborationTeam @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  contentBlock    ContentPlanBlock? @relation(fields: [contentBlockId], references: [id], onDelete: SetNull)
+  assignedToStaff StaffMeta?        @relation("MediaAssignee", fields: [assignedToStaffMetaId], references: [id], onDelete: SetNull)
+  approvedByStaff StaffMeta?        @relation("MediaApprover", fields: [approvedByStaffMetaId], references: [id], onDelete: SetNull)
+  createdBy       User              @relation("MediaBriefCreator", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([teamId, status])
+  @@index([teamId, assignedToStaffMetaId, status])
+  @@index([cityId, status])
+  @@index([mediaType, status])
+  @@index([priority, status])
+  @@map("media_briefs")
 }

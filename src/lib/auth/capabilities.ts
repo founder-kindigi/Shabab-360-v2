@@ -42,6 +42,9 @@ export const ACCESS_CAPABILITIES = [
   "teams.memberships.manage",
   "teams.workspace.view",
   "teams.workspace.manage",
+  "media.briefs.manage",
+  "media.workspace.view",
+  "media.workspace.manage",
 ] as const;
 
 // Individual overrides must never grant audit, system-setting, or access
@@ -72,6 +75,8 @@ export const USER_OVERRIDE_CAPABILITIES = [
   "reports.export",
   "teams.workspace.view",
   "teams.workspace.manage",
+  "media.workspace.view",
+  "media.workspace.manage",
 ] as const;
 
 export type AccessCapability = (typeof ACCESS_CAPABILITIES)[number];
@@ -126,6 +131,9 @@ export const ROLE_DEFAULT_CAPABILITIES: Readonly<Record<UserRole, readonly Acces
     "teams.memberships.manage",
     "teams.workspace.view",
     "teams.workspace.manage",
+    "media.briefs.manage",
+    "media.workspace.view",
+    "media.workspace.manage",
   ],
   city_head: [
     "dashboard.view",
@@ -160,6 +168,9 @@ export const ROLE_DEFAULT_CAPABILITIES: Readonly<Record<UserRole, readonly Acces
     "teams.memberships.manage",
     "teams.workspace.view",
     "teams.workspace.manage",
+    "media.briefs.manage",
+    "media.workspace.view",
+    "media.workspace.manage",
   ],
   park_lead: [
     "dashboard.view",
@@ -172,11 +183,13 @@ export const ROLE_DEFAULT_CAPABILITIES: Readonly<Record<UserRole, readonly Acces
     "students.profile.view",
     "mashwara.view",
     "teams.workspace.view",
+    "media.workspace.view",
   ],
   park_admin: [
     "dashboard.view",
     "attendance.mark",
     "teams.workspace.view",
+    "media.workspace.view",
   ],
   murabbi: [
     "dashboard.view",
@@ -184,6 +197,7 @@ export const ROLE_DEFAULT_CAPABILITIES: Readonly<Record<UserRole, readonly Acces
     "content.view",
     "students.profile.view",
     "teams.workspace.view",
+    "media.workspace.view",
   ],
   guardian: ["dashboard.view", "people.view", "guardians.manage", "reports.view", "students.profile.view"],
   student: ["dashboard.view", "people.view", "students.manage", "reports.view", "students.profile.view"],
