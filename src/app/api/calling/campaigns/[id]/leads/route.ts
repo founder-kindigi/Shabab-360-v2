@@ -32,11 +32,15 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   const auth = await requireCapability("calling.view");
   if (auth instanceof NextResponse) return auth;
   const user = auth.user as SessionUser;
+  if (!user.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  const actor = { ...user, id: user.id };
 
   const { id: campaignId } = await params;
 
   // 1. Verify campaign & actor scope (managers, POCs, or valid external callers)
-  const verified = await verifyCallingManagerOrPoc(user, campaignId);
+  const verified = await verifyCallingManagerOrPoc(actor, campaignId);
   if (verified.error || !verified.campaign) {
     return NextResponse.json(
       { error: verified.error || "Campaign authorization failed" },
@@ -65,12 +69,12 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   // 3. Resolve active caller identity for user.id
   const [userStaffMeta, userExternalCallers] = await Promise.all([
     db.staffMeta.findFirst({
-      where: { userId: user.id, isActive: true },
+      where: { userId: actor.id, isActive: true },
       select: { id: true },
     }),
     db.externalSupportCaller.findMany({
       where: {
-        userId: user.id,
+        userId: actor.id,
         isActive: true,
         revokedAt: null,
         expiresAt: { gt: new Date() },

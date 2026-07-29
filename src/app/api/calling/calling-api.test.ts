@@ -86,7 +86,15 @@ beforeEach(() => {
   }
   vi.mocked(auth.requireAuth).mockResolvedValue({ user: CITY_HEAD } as any);
   vi.mocked(auth.requireCapability).mockResolvedValue({ user: CITY_HEAD } as any);
-  vi.mocked(callingAuth.verifyCallingManagerOrPoc).mockResolvedValue({ campaign: CAMPAIGN as any, error: undefined, status: 200 });
+  vi.mocked(callingAuth.verifyCallingManagerOrPoc).mockResolvedValue({
+    campaign: CAMPAIGN as any,
+    isPoc: false,
+    isManager: true,
+    isExternalCaller: false,
+    cityId: "city_lhr",
+    error: null,
+    status: 200,
+  });
   mockDb.city.findUnique.mockResolvedValue({ id: "city_lhr", name: "Lahore", isActive: true });
   mockDb.callingCampaign.findUnique.mockResolvedValue(CAMPAIGN);
   mockDb.callingAssignment.findUnique.mockResolvedValue(ASSIGNMENT);
@@ -141,7 +149,9 @@ describe("CALL-003: Core Calling Validation & Helpers", () => {
 
   describe("5. POC/Manager Resolution", () => {
     it("404 on missing campaign", async () => {
-      const { verifyCallingManagerOrPoc: realVerify } = await vi.importActual("@/lib/calling/poc-auth");
+      const { verifyCallingManagerOrPoc: realVerify } = await vi.importActual<
+        typeof import("@/lib/calling/poc-auth")
+      >("@/lib/calling/poc-auth");
       const r = await realVerify({ id: "u1", role: "city_head" }, "missing", { callingCampaign: { findUnique: vi.fn().mockResolvedValue(null) } });
       expect(r.status).toBe(404);
     });
@@ -472,6 +482,10 @@ describe("CALL-005: Campaign Leads Route", () => {
     vi.mocked(verifyCallingManagerOrPoc).mockResolvedValueOnce({
       error: "Campaign belongs to a different city",
       status: 403,
+      campaign: null,
+      isPoc: false,
+      isManager: false,
+      isExternalCaller: false,
     });
 
     const res = await getLeads("cmp_foreign");
@@ -483,6 +497,10 @@ describe("CALL-005: Campaign Leads Route", () => {
     vi.mocked(verifyCallingManagerOrPoc).mockResolvedValueOnce({
       error: "Campaign not found",
       status: 404,
+      campaign: null,
+      isPoc: false,
+      isManager: false,
+      isExternalCaller: false,
     });
 
     const res = await getLeads("cmp_missing");
@@ -498,7 +516,9 @@ describe("CALL-005: Campaign Leads Route", () => {
 
   describe("External Support Caller Authorization & Scope Regressions", () => {
     it("allows active non-revoked non-expired external caller in campaign's city", async () => {
-      const { verifyCallingManagerOrPoc: realVerify } = await vi.importActual("@/lib/calling/poc-auth");
+      const { verifyCallingManagerOrPoc: realVerify } = await vi.importActual<
+        typeof import("@/lib/calling/poc-auth")
+      >("@/lib/calling/poc-auth");
       const mockPrisma = {
         callingCampaign: { findUnique: vi.fn().mockResolvedValue({ id: "cmp_1", cityId: "city_lhr" }) },
         staffMeta: { findUnique: vi.fn().mockResolvedValue(null) },
@@ -525,7 +545,9 @@ describe("CALL-005: Campaign Leads Route", () => {
     });
 
     it("denies expired external support caller", async () => {
-      const { verifyCallingManagerOrPoc: realVerify } = await vi.importActual("@/lib/calling/poc-auth");
+      const { verifyCallingManagerOrPoc: realVerify } = await vi.importActual<
+        typeof import("@/lib/calling/poc-auth")
+      >("@/lib/calling/poc-auth");
       const mockPrisma = {
         callingCampaign: { findUnique: vi.fn().mockResolvedValue({ id: "cmp_1", cityId: "city_lhr" }) },
         staffMeta: { findUnique: vi.fn().mockResolvedValue(null) },
@@ -541,7 +563,9 @@ describe("CALL-005: Campaign Leads Route", () => {
     });
 
     it("denies external support caller bound to a foreign city campaign", async () => {
-      const { verifyCallingManagerOrPoc: realVerify } = await vi.importActual("@/lib/calling/poc-auth");
+      const { verifyCallingManagerOrPoc: realVerify } = await vi.importActual<
+        typeof import("@/lib/calling/poc-auth")
+      >("@/lib/calling/poc-auth");
       const mockPrisma = {
         callingCampaign: { findUnique: vi.fn().mockResolvedValue({ id: "cmp_1", cityId: "city_lhr" }) },
         staffMeta: { findUnique: vi.fn().mockResolvedValue(null) },
