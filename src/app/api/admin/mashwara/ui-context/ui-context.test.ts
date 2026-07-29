@@ -93,11 +93,11 @@ describe("GET /api/admin/mashwara/ui-context", () => {
     expect(mocks.resolveMashwaraActorCity).toHaveBeenCalledWith(cityHeadUser);
   });
 
-  it("returns actorCityId null when scoped resolver fails (data APIs enforce denial)", async () => {
+  it("returns 403 when scoped city resolution fails", async () => {
     mocks.requireAuth.mockResolvedValue({ user: cityHeadUser });
     mocks.userHasCapability
-      .mockResolvedValueOnce(true)
-      .mockResolvedValueOnce(false);
+      .mockResolvedValueOnce(true)  // mashwara.view
+      .mockResolvedValueOnce(false); // mashwara.manage
     mocks.isHqRole.mockReturnValue(false);
     mocks.resolveMashwaraActorCity.mockResolvedValue({
       error: "Active staff record not found",
@@ -107,11 +107,11 @@ describe("GET /api/admin/mashwara/ui-context", () => {
     const res = await GET();
     const body = await res.json();
 
-    expect(res.status).toBe(200);
-    expect(body.canView).toBe(true);
-    expect(body.canManage).toBe(false);
-    expect(body.isHq).toBe(false);
-    expect(body.actorCityId).toBeNull();
+    expect(res.status).toBe(403);
+    expect(body.error).toBe("Active staff record not found");
+    // Must not return a ui-context payload
+    expect(body).not.toHaveProperty("canView");
+    expect(body).not.toHaveProperty("actorCityId");
   });
 
   it("returns canManage false when user has view but not manage capability", async () => {

@@ -304,14 +304,15 @@ export type MashwaraUiContext = {
 export default function MashwaraDashboardClient() {
   // All capability and scope flags come from the server — no client-side role
   // or session checks allowed here. The data APIs remain the final authority.
-  const { data: ctx, isLoading: ctxLoading } = useQuery<MashwaraUiContext>({
+  const { data: ctx, isLoading: ctxLoading, error: ctxError } = useQuery<MashwaraUiContext>({
     queryKey: ["mashwara-ui-context"],
     queryFn: () =>
       fetch("/api/admin/mashwara/ui-context").then((r) => {
-        if (!r.ok) throw new Error("Failed to load Mashwara context");
+        if (!r.ok) throw new Error("access_denied");
         return r.json();
       }),
     staleTime: 60_000,
+    retry: false,
   });
 
   const isHq = ctx?.isHq ?? false;
@@ -353,7 +354,9 @@ export default function MashwaraDashboardClient() {
         if (!r.ok) throw new Error("Failed to load Mashwara meetings");
         return r.json();
       }),
-    enabled: !isHq || Boolean(cityFilter),
+    // Gate on ctx being loaded: if ui-context errored (e.g. 403) we must
+    // never fire the meetings query. Also enforce HQ city selection.
+    enabled: !!ctx && (!isHq || Boolean(cityFilter)),
   });
 
   const totalPages = data?.pagination?.totalPages || 0;
@@ -364,6 +367,21 @@ export default function MashwaraDashboardClient() {
     window.history.pushState({}, "", `/admin/mashwara/${meetingId}`);
     navigateTo("admin-mashwara-detail");
   };
+
+  // ui-context returned a non-OK status (e.g. 403 from scoped city resolution
+  // failure). Render a safe access-denied state — no meeting data is fetched.
+  if (ctxError) {
+    return (
+      <div className="py-16 text-center space-y-3 p-4 md:p-6">
+        <AlertTriangle className="size-12 mx-auto text-amber-500" />
+        <h2 className="text-lg font-semibold">Access Unavailable</h2>
+        <p className="text-sm text-muted-foreground">
+          Your Mashwara access could not be confirmed. Please contact your
+          administrator if this persists.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 p-4 md:p-6">

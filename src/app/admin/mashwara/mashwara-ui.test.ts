@@ -203,11 +203,18 @@ vi.mock('@tanstack/react-query', () => ({
   useQueryClient: vi.fn(() => ({ invalidateQueries: vi.fn() }))
 }));
 
-// Helper to build a context-aware useQuery mock with a given ui-context payload.
-function makeUseQueryMock(uiCtx: { canView: boolean; canManage: boolean; isHq: boolean; actorCityId: string | null }) {
+// Helper to build a context-aware useQuery mock.
+// Pass uiCtxError: true to simulate a failed (e.g. 403) ui-context fetch.
+function makeUseQueryMock(
+  uiCtx: { canView: boolean; canManage: boolean; isHq: boolean; actorCityId: string | null },
+  opts: { uiCtxError?: boolean } = {},
+) {
   return (options: any) => {
     if (options?.queryKey?.[0] === 'mashwara-ui-context') {
-      return { data: uiCtx, isLoading: false };
+      if (opts.uiCtxError) {
+        return { data: undefined, isLoading: false, error: new Error('access_denied') };
+      }
+      return { data: uiCtx, isLoading: false, error: null };
     }
     if (options?.queryKey?.[0] === 'cities-list') {
       return { data: [{ id: 'c-1', name: 'Lahore' }], isLoading: false };
@@ -289,5 +296,36 @@ describe('HQ City Gating UI Constraints', () => {
     render(React.createElement(MashwaraDashboardClient));
     expect(screen.queryByText('super_admin')).toBeNull();
     expect(screen.queryByText('program_admin')).toBeNull();
+  });
+});
+
+describe('Scoped City Resolution Failure (ui-context 403)', () => {
+  it('renders access-denied message when ui-context returns 403', () => {
+    vi.mocked(useQuery).mockImplementation(
+      makeUseQueryMock(
+        { canView: true, canManage: false, isHq: false, actorCityId: null },
+        { uiCtxError: true },
+      ) as any
+    );
+    render(React.createElement(MashwaraDashboardClient));
+    expect(screen.getByText('Access Unavailable')).toBeTruthy();
+    expect(screen.queryByText('Weekly Mashwara')).toBeNull();
+  });
+
+  it('does not issue a meetings-list query when ui-context returns 403', () => {
+    const mockImpl = makeUseQueryMock(
+      { canView: true, canManage: false, isHq: false, actorCityId: null },
+      { uiCtxError: true },
+    );
+    const spy = vi.fn(mockImpl);
+    vi.mocked(useQuery).mockImplementation(spy as any);
+
+    render(React.createElement(MashwaraDashboardClient));
+
+    const mashwaraCall = spy.mock.calls.find(
+      (call: any) => Array.isArray(call[0]?.queryKey) && call[0]?.queryKey[0] === 'admin-mashwara'
+    );
+    // enabled must be false because !!ctx is false when ctxError is set
+    expect(mashwaraCall?.[0]?.enabled).toBe(false);
   });
 });

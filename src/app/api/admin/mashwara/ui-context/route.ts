@@ -41,9 +41,15 @@ export async function GET() {
     const cityResult = await resolveMashwaraActorCity(user);
     if ("cityId" in cityResult) {
       actorCityId = cityResult.cityId;
+    } else {
+      // City resolution failed (e.g. no active StaffMeta). Return the
+      // resolver's deterministic status (normally 403) so the client knows
+      // not to attempt any meetings query.
+      return NextResponse.json(
+        { error: cityResult.error },
+        { status: cityResult.status },
+      );
     }
-    // If city resolution fails for a scoped user, canView is still true but
-    // actorCityId stays null, the data APIs will enforce the denial.
   }
 
   return NextResponse.json({
