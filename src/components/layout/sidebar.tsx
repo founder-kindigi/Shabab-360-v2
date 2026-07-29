@@ -173,9 +173,9 @@ const roleNavPages: Record<string, PageId[]> = {
   super_admin: ["admin-dashboard","admin-cities","admin-parks","admin-batches","admin-groups","admin-people","admin-students","admin-guardians","admin-attendance-events","admin-events","admin-calling","admin-content-planner","admin-mashwara","admin-users","admin-access","admin-admissions","admin-fees","admin-announcements","admin-reports","notifications","admin-audit-log","admin-access-management","admin-collaboration-teams","admin-settings"],
   program_admin: ["admin-dashboard","admin-cities","admin-parks","admin-batches","admin-groups","admin-people","admin-students","admin-guardians","admin-attendance-events","admin-events","admin-calling","admin-content-planner","admin-mashwara","admin-users","admin-access","admin-admissions","admin-fees","admin-announcements","admin-reports","notifications","admin-audit-log","admin-settings"],
   city_head: ["city-head-dashboard","admin-parks","admin-batches","admin-groups","admin-people","admin-students","admin-attendance-events","admin-events","admin-calling","admin-content-planner","admin-mashwara","admin-users","admin-access","admin-announcements","admin-reports","notifications"],
-  park_admin: ["park-dashboard","park-attendance","admin-content-planner","notifications"],
-  park_lead: ["park-dashboard","admin-groups","park-attendance","admin-content-planner","notifications"],
-  murabbi: ["murabbi-dashboard","park-attendance","admin-content-planner","notifications"],
+  park_admin: ["park-dashboard","park-attendance","notifications"],
+  park_lead: ["park-dashboard","admin-groups","park-attendance","notifications"],
+  murabbi: ["murabbi-dashboard","park-attendance","notifications"],
   guardian: ["guardian-dashboard","guardian-history","guardian-schedule","guardian-fees","guardian-announcements"],
   student: ["student-dashboard","student-history","student-schedule","student-fees","student-announcements","student-profile"],
 };
