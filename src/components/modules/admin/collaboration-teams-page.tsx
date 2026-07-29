@@ -12,6 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { TeamActivityPlanner } from "@/components/modules/admin/team-activity-planner";
 
 type Team = {
   id: string;
@@ -230,6 +231,17 @@ export function CollaborationTeamsPage() {
             </CardContent>
           </Card>}
         </div>}
+
+        {selectedTeam && (
+          <TeamActivityPlanner
+            teamId={activeTeamId}
+            members={(memberships.data?.data ?? []).map((membership) => ({
+              id: membership.id,
+              title: membership.title,
+              staffMeta: membership.staffMeta,
+            }))}
+          />
+        )}
       </>}
 
       <AlertDialog open={Boolean(membershipToEnd)} onOpenChange={(open) => !open && setMembershipToEnd(null)}>

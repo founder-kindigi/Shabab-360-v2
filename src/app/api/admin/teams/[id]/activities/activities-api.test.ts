@@ -96,6 +96,22 @@ describe("TEAM-006: activity planner routes", () => {
     expect(db.activityPlanItem.findMany).not.toHaveBeenCalled();
   });
 
+  it("returns only server-derived activity permissions with the list", async () => {
+    vi.mocked(requireTeamWorkspaceAccess)
+      .mockResolvedValueOnce(VIEW_ACCESS)
+      .mockResolvedValueOnce(MANAGE_ACCESS);
+    vi.mocked(db.activityPlanItem.findMany).mockResolvedValue([{ ...ACTIVITY, assignedStaff: null }] as any);
+    vi.mocked(db.activityPlanItem.count).mockResolvedValue(1);
+
+    const response = await GET(listRequest(), routeParams());
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      total: 1,
+      meta: { canManage: true, currentStaffMetaId: "staff-1" },
+    });
+  });
+
   it("returns 400 for malformed activity JSON before writes", async () => {
     vi.mocked(requireTeamWorkspaceAccess).mockResolvedValue(MANAGE_ACCESS);
     const request = new NextRequest(`http://localhost/api/admin/teams/${TEAM_ID}/activities`, {

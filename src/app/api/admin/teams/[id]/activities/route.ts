@@ -34,7 +34,17 @@ export async function GET(request: NextRequest, { params }: Params) {
     }),
     db.activityPlanItem.count({ where }),
   ]);
-  return NextResponse.json({ data, total, page, pageSize });
+  const manageAccess = await requireTeamWorkspaceAccess(auth.user, teamId, "teams.workspace.manage");
+  return NextResponse.json({
+    data,
+    total,
+    page,
+    pageSize,
+    meta: {
+      canManage: manageAccess.ok,
+      currentStaffMetaId: access.staffMetaId,
+    },
+  });
 }
 
 export async function POST(request: NextRequest, { params }: Params) {
