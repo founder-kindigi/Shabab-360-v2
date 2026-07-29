@@ -43,6 +43,7 @@ vi.mock("@/lib/db", () => ({
         mashwaraMeetingShare: {
           create: mocks.shareCreate,
           update: mocks.shareUpdate,
+          findFirst: mocks.shareFindFirst,
           findUnique: mocks.shareFindUnique,
         },
         auditLog: { create: mocks.logAudit },
@@ -369,6 +370,7 @@ describe("MASHWARA-E2E-001: End-to-End Mashwara Integration", () => {
       mocks.shareFindFirst.mockResolvedValue({
         id: "share-1",
         isRevoked: false,
+        revokedAt: null,
         staffMetaId: "staff-sharee",
       });
 
@@ -389,12 +391,12 @@ describe("MASHWARA-E2E-001: End-to-End Mashwara Integration", () => {
           }),
         }),
       );
-      expect(mocks.logAudit).toHaveBeenCalledWith(
-        expect.objectContaining({
+      expect(mocks.logAudit).toHaveBeenCalledWith({
+        data: expect.objectContaining({
           action: "delete",
           entityType: "mashwara_meeting_share",
         }),
-      );
+      });
     });
 
     it("denies access after share revoked — resolveMashwaraAccess returns false", async () => {
@@ -792,6 +794,7 @@ describe("MASHWARA-E2E-001: End-to-End Mashwara Integration", () => {
       mocks.shareFindFirst.mockResolvedValue({
         id: "share-1",
         isRevoked: false,
+        revokedAt: null,
         staffMetaId: "staff-1",
       });
 
@@ -802,14 +805,14 @@ describe("MASHWARA-E2E-001: End-to-End Mashwara Integration", () => {
         { params: Promise.resolve({ id: "meeting-1", shareId: "share-1" }) },
       );
 
-      expect(mocks.logAudit).toHaveBeenCalledWith(
-        expect.objectContaining({
+      expect(mocks.logAudit).toHaveBeenCalledWith({
+        data: expect.objectContaining({
           action: "delete",
           entityType: "mashwara_meeting_share",
           oldValues: expect.objectContaining({ isRevoked: false }),
           newValues: expect.objectContaining({ isRevoked: true }),
         }),
-      );
+      });
     });
   });
 

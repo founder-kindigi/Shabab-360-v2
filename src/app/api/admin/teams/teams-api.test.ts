@@ -398,7 +398,11 @@ describe("TEAM-004: Canonical /api/admin/teams/** membership API", () => {
 
       await getTeams(new NextRequest("http://localhost/api/admin/teams?cityId=city-lhr"));
       const findManyCall = vi.mocked(db.collaborationTeam.findMany).mock.calls[0]?.[0];
-      const membershipsWhere = findManyCall?.select?._count?.select?.memberships?.where;
+      const membershipsWhere = (
+        findManyCall as {
+          select?: { _count?: { select?: { memberships?: { where?: unknown } } } };
+        } | undefined
+      )?.select?._count?.select?.memberships?.where;
       expect(membershipsWhere).toMatchObject({ isActive: true, endedAt: null });
     });
   });
