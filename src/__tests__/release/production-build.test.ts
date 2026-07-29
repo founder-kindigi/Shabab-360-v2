@@ -40,12 +40,12 @@ describe("RELEASE-001: Production Build Validation", () => {
       expect(existsSync(PRISMA_PG)).toBe(true);
     });
 
-    it("SQLite schema has 48 models", () => {
-      expect(countModels(PRISMA_CORE)).toBe(48);
+    it("SQLite schema has 49 models", () => {
+      expect(countModels(PRISMA_CORE)).toBe(49);
     });
 
-    it("PostgreSQL schema has 48 models", () => {
-      expect(countModels(PRISMA_PG)).toBe(48);
+    it("PostgreSQL schema has 49 models", () => {
+      expect(countModels(PRISMA_PG)).toBe(49);
     });
 
     it("every SQLite model has a matching PostgreSQL model", () => {

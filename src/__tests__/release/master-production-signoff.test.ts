@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { readFileSync, existsSync, readdirSync } from "fs";
 import { join } from "path";
 
-const ROOT = join(__dirname, "../..");
+const ROOT = join(__dirname, "../../..");
 const PG_MIGRATIONS = join(ROOT, "prisma/postgres/migrations");
 const SQLITE_MIGRATIONS = join(ROOT, "prisma/migrations");
 
@@ -23,12 +23,12 @@ function allMigrationDirs(base: string): string[] {
 describe("PROD-HANDOVER-001: Master Production Sign-Off", () => {
   /* ── 1. Dual Schema Validation ───────────────────────────────────── */
   describe("Dual schema validation", () => {
-    it("SQLite schema has 48 models", () => {
-      expect(modelNames(join(ROOT, "prisma/schema.prisma")).length).toBe(48);
+    it("SQLite schema has 49 models", () => {
+      expect(modelNames(join(ROOT, "prisma/schema.prisma")).length).toBe(49);
     });
 
-    it("PostgreSQL schema has 48 models", () => {
-      expect(modelNames(join(ROOT, "prisma/postgres/schema.prisma")).length).toBe(48);
+    it("PostgreSQL schema has 49 models", () => {
+      expect(modelNames(join(ROOT, "prisma/postgres/schema.prisma")).length).toBe(49);
     });
 
     it("all SQLite models match PostgreSQL models bidirectionally", () => {
@@ -38,19 +38,19 @@ describe("PROD-HANDOVER-001: Master Production Sign-Off", () => {
       for (const m of pg) expect(sqlite.has(m)).toBe(true);
     });
 
-    it("PostgreSQL migrations chain complete (11 migrations)", () => {
-      expect(allMigrationDirs(PG_MIGRATIONS)).toHaveLength(11);
+    it("PostgreSQL migrations chain complete (12 migrations)", () => {
+      expect(allMigrationDirs(PG_MIGRATIONS)).toHaveLength(12);
     });
 
-    it("SQLite migrations chain complete (3 migrations)", () => {
-      expect(allMigrationDirs(SQLITE_MIGRATIONS)).toHaveLength(3);
+    it("SQLite migrations chain complete (6 migrations)", () => {
+      expect(allMigrationDirs(SQLITE_MIGRATIONS)).toHaveLength(6);
     });
 
-    it("latest migration matches in both chains (mashwara module)", () => {
+    it("latest migration matches in both chains (media briefs)", () => {
       const pg = allMigrationDirs(PG_MIGRATIONS);
       const sql = allMigrationDirs(SQLITE_MIGRATIONS);
-      expect(pg[pg.length - 1]).toContain("mashwara");
-      expect(sql[sql.length - 1]).toContain("mashwara");
+      expect(pg[pg.length - 1]).toContain("media_briefs");
+      expect(sql[sql.length - 1]).toContain("media_briefs");
     });
   });
 
@@ -98,9 +98,10 @@ describe("PROD-HANDOVER-001: Master Production Sign-Off", () => {
   describe("Capability governance", () => {
     const cap = readFileSync(join(ROOT, "src/lib/auth/capabilities.ts"), "utf-8");
 
-    it("34 capabilities registered in ACCESS_CAPABILITIES", () => {
-      const matches = cap.match(/^\s+"[\w.]+",$/gm);
-      expect(matches?.length).toBe(36); // 34 caps + trailing comma lines
+    it("40 capabilities registered in ACCESS_CAPABILITIES", () => {
+      const catalogue = cap.match(/export const ACCESS_CAPABILITIES = \[([\s\S]*?)\] as const;/)?.[1];
+      const matches = catalogue?.match(/^\s+"[\w.]+",$/gm);
+      expect(matches).toHaveLength(40);
     });
 
     it("8 roles defined in ROLE_DEFAULT_CAPABILITIES", () => {
