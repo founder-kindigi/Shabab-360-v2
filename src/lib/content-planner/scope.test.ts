@@ -431,7 +431,6 @@ describe("Content Planner Scope Helpers", () => {
       };
       vi.mocked(db.group.findUnique)
         .mockResolvedValueOnce({ id: "group1", park: { cityId: "city1" } } as any)
-        .mockResolvedValueOnce({ id: "group1", park: { cityId: "city1" } } as any)
         .mockResolvedValueOnce({ id: "group1", park: { id: "park1", cityId: "city1" } } as any);
 
       const result = await buildContentPlanScopeFilter(user, "city1");

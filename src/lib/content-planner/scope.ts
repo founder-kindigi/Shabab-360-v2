@@ -118,16 +118,6 @@ export async function deriveContentPlannerParkScope(
 ): Promise<string[] | null | "all"> {
   if (!user.id || !user.role) return null;
 
-  const citiesAllowed = await deriveContentPlannerCityScope(user);
-  if (!citiesAllowed || !citiesAllowed.includes(cityId)) {
-    return null;
-  }
-
-  // HQ and City Head have access to all parks in their allowed cities
-  if (isHqRole(user.role) || user.role === "city_head") {
-    return "all";
-  }
-
   // Park staff: only assigned park if in the correct city
   if (
     (user.role === "park_lead" ||
@@ -142,6 +132,7 @@ export async function deriveContentPlannerParkScope(
     if (park && park.cityId === cityId) {
       return [user.assignedParkId];
     }
+    return null;
   }
 
   // Murabbi with only group: derive park from group if in correct city
@@ -153,6 +144,17 @@ export async function deriveContentPlannerParkScope(
     if (group?.park && group.park.cityId === cityId) {
       return [group.park.id];
     }
+    return null;
+  }
+
+  const citiesAllowed = await deriveContentPlannerCityScope(user);
+  if (!citiesAllowed || !citiesAllowed.includes(cityId)) {
+    return null;
+  }
+
+  // HQ and City Head have access to all parks in their allowed cities.
+  if (isHqRole(user.role) || user.role === "city_head") {
+    return "all";
   }
 
   return null;

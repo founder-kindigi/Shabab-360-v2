@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   userHasCapability: vi.fn(),
   staffMetaFindFirst: vi.fn(),
   mashwaraShareFindUnique: vi.fn(),
+  cityFindFirst: vi.fn(),
 }));
 
 vi.mock("next-auth", () => ({ getServerSession: mocks.getServerSession }));
@@ -17,6 +18,7 @@ vi.mock("@/lib/db", () => ({
   db: {
     staffMeta: { findFirst: mocks.staffMetaFindFirst, findUnique: mocks.staffMetaFindFirst },
     mashwaraMeetingShare: { findUnique: mocks.mashwaraShareFindUnique },
+    city: { findFirst: mocks.cityFindFirst },
   },
 }));
 
@@ -365,19 +367,17 @@ describe("UAT-002: Multi-Role Boundary Verification", () => {
 
   /* ── 10. Mashwara share scope resolution ──────────────────────────── */
   describe("resolveMashwaraAccess — meeting share grant", () => {
-    it("resolves HQ access to any meeting with MashwaraMeetingShare check", async () => {
+    it("resolves HQ access to a meeting in an active requested city", async () => {
       mocks.getServerSession.mockResolvedValue(sessionFor("super_admin"));
-      mocks.staffMetaFindFirst.mockResolvedValue({ id: "staff-super" });
-      mocks.mashwaraShareFindUnique.mockResolvedValue(null); // no share needed — HQ bypasses
+      mocks.cityFindFirst.mockResolvedValue({ id: "city-foreign" });
 
-      // super_admin passes via HQ bypass, no DB calls needed
       const { resolveMashwaraAccess } = await import("@/lib/auth/mashwara-scope");
       const user = makeUser("super_admin");
       const result = await resolveMashwaraAccess(user, { id: "meeting-any", cityId: "city-foreign" });
       expect(result).toBe(true);
     });
 
-    it("resolves active share for cross-city actor", async () => {
+    it("rejects a share when actor city scope cannot be resolved", async () => {
       mocks.staffMetaFindFirst
         .mockResolvedValueOnce({ id: "staff-1" })
         .mockResolvedValueOnce({
@@ -391,7 +391,7 @@ describe("UAT-002: Multi-Role Boundary Verification", () => {
       const { resolveMashwaraAccess } = await import("@/lib/auth/mashwara-scope");
       const user = makeUser("park_admin", { assignedParkId: null, id: "user-park" });
       const result = await resolveMashwaraAccess(user, { id: "meeting-shared", cityId: "city-lhr" });
-      expect(result).toBe(true);
+      expect(result).toBe(false);
     });
 
     it("rejects when share is revoked", async () => {
