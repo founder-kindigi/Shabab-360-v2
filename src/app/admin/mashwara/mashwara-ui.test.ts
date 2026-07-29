@@ -291,5 +291,3 @@ describe('HQ City Gating UI Constraints', () => {
     expect(screen.queryByText('program_admin')).toBeNull();
   });
 });
-
-
