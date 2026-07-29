@@ -150,10 +150,6 @@ afterEach(() => {
   cleanup();
 });
 
-vi.mock('next-auth/react', () => ({
-  useSession: () => ({ data: { user: { role: 'super_admin', cityId: null } } }),
-}));
-
 vi.mock('next/navigation', () => ({
   useParams: () => ({ id: 'test-m-1' }),
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() })
@@ -161,19 +157,27 @@ vi.mock('next/navigation', () => ({
 
 vi.mock('@/stores/useAppStore', () => ({
   useAppStore: vi.fn((selector) => {
-    return typeof selector === 'function' ? selector({ selectedEventId: '', navigateTo: vi.fn() }) : undefined;
+    const store = { selectedEventId: '', navigateTo: vi.fn(), setSelectedEventId: vi.fn() };
+    return typeof selector === 'function' ? selector(store) : store;
   })
 }));
 
+// Default mock: scoped user with canManage true.
+// Individual tests override via vi.mocked(useQuery).mockImplementation(makeUseQueryMock(ctx)).
 vi.mock('@tanstack/react-query', () => ({
-  useQuery: vi.fn((options) => {
+  useQuery: vi.fn((options: any) => {
+    if (options?.queryKey?.[0] === 'mashwara-ui-context') {
+      // Default scoped context — overridden per test as needed
+      return { data: { canView: true, canManage: true, isHq: false, actorCityId: 'c-1' }, isLoading: false };
+    }
     if (options?.queryKey?.[0] === 'cities-list') {
       return { data: [{ id: 'c-1', name: 'Lahore' }], isLoading: false };
     }
     if (options?.queryKey?.[0] === 'admin-mashwara') {
       return {
         data: { data: [], pagination: { page: 1, pageSize: 12, total: 0, totalPages: 0 } },
-        isLoading: false
+        isLoading: false,
+        enabled: options?.enabled
       };
     }
     return {
@@ -183,6 +187,9 @@ vi.mock('@tanstack/react-query', () => ({
         title: 'Mock Meeting',
         status: 'scheduled',
         scheduledAt: new Date().toISOString(),
+        minutesSummary: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
         attendees: [],
         decisions: [],
         actionItems: [],
@@ -196,44 +203,93 @@ vi.mock('@tanstack/react-query', () => ({
   useQueryClient: vi.fn(() => ({ invalidateQueries: vi.fn() }))
 }));
 
+// Helper to build a context-aware useQuery mock with a given ui-context payload.
+function makeUseQueryMock(uiCtx: { canView: boolean; canManage: boolean; isHq: boolean; actorCityId: string | null }) {
+  return (options: any) => {
+    if (options?.queryKey?.[0] === 'mashwara-ui-context') {
+      return { data: uiCtx, isLoading: false };
+    }
+    if (options?.queryKey?.[0] === 'cities-list') {
+      return { data: [{ id: 'c-1', name: 'Lahore' }], isLoading: false };
+    }
+    if (options?.queryKey?.[0] === 'admin-mashwara') {
+      return {
+        data: { data: [], pagination: { page: 1, pageSize: 12, total: 0, totalPages: 0 } },
+        isLoading: false,
+        enabled: options?.enabled
+      };
+    }
+    return {
+      data: {
+        id: 'test-m-1',
+        cityId: 'c-1',
+        title: 'Mock Meeting',
+        status: 'scheduled',
+        scheduledAt: new Date().toISOString(),
+        minutesSummary: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        attendees: [],
+        decisions: [],
+        actionItems: [],
+        shares: [],
+        createdBy: { id: 'u-1', name: 'Mock Creator' }
+      },
+      isLoading: false
+    };
+  };
+}
+
 describe('Mashwara UI Capability Rendering', () => {
-  it('renders manage controls when canManage is true', () => {
-    render(
-      React.createElement(MashwaraDetailClient, { canView: true, canManage: true, isHq: false, actorCityId: 'c-1' })
-    );
+  it('renders manage controls (Add Decision / Grant Share) when ui-context returns canManage true', () => {
+    // Default mock already returns canManage: true for scoped user
+    render(React.createElement(MashwaraDetailClient));
     expect(screen.getByText('Add Decision')).toBeTruthy();
   });
 
-  it('hides manage controls when canManage is false', () => {
-    render(
-      React.createElement(MashwaraDetailClient, { canView: true, canManage: false, isHq: false, actorCityId: 'c-1' })
+  it('hides manage controls when ui-context returns canManage false', () => {
+    vi.mocked(useQuery).mockImplementation(
+      makeUseQueryMock({ canView: true, canManage: false, isHq: false, actorCityId: 'c-1' }) as any
     );
+    render(React.createElement(MashwaraDetailClient));
     expect(screen.queryByText('Grant Share')).toBeNull();
     expect(screen.queryByText('Add Decision')).toBeNull();
   });
 });
 
 describe('HQ City Gating UI Constraints', () => {
-  it('disables Schedule Mashwara button and prompts to select a city when HQ has no city selected', () => {
-    render(
-      React.createElement(MashwaraDashboardClient, { canView: true, canManage: true, isHq: true, actorCityId: null })
+  it('disables Schedule Mashwara button and shows city selection prompt when HQ has no city selected', () => {
+    vi.mocked(useQuery).mockImplementation(
+      makeUseQueryMock({ canView: true, canManage: true, isHq: true, actorCityId: null }) as any
     );
+    render(React.createElement(MashwaraDashboardClient));
 
     const scheduleBtn = screen.getByText('Schedule Mashwara').closest('button');
     expect(scheduleBtn?.disabled).toBe(true);
     expect(screen.getByText('Select a City')).toBeTruthy();
   });
 
-  it('does not fetch meeting list query for HQ until city is selected', () => {
-    const useQuerySpy = vi.mocked(useQuery);
-    render(
-      React.createElement(MashwaraDashboardClient, { canView: true, canManage: true, isHq: true, actorCityId: null })
-    );
+  it('does not fetch meetings list until HQ selects a city (enabled must be false)', () => {
+    const mockImpl = makeUseQueryMock({ canView: true, canManage: true, isHq: true, actorCityId: null });
+    const spy = vi.fn(mockImpl);
+    vi.mocked(useQuery).mockImplementation(spy as any);
 
-    const mashwaraQueryCall = useQuerySpy.mock.calls.find(
+    render(React.createElement(MashwaraDashboardClient));
+
+    const mashwaraCall = spy.mock.calls.find(
       (call: any) => Array.isArray(call[0]?.queryKey) && call[0]?.queryKey[0] === 'admin-mashwara'
     );
+    expect(mashwaraCall?.[0]?.enabled).toBe(false);
+  });
 
-    expect(mashwaraQueryCall?.[0]?.enabled).toBe(false);
+  it('does not leak role name or PII from ui-context into rendered DOM', () => {
+    vi.mocked(useQuery).mockImplementation(
+      makeUseQueryMock({ canView: true, canManage: true, isHq: true, actorCityId: null }) as any
+    );
+    render(React.createElement(MashwaraDashboardClient));
+    expect(screen.queryByText('super_admin')).toBeNull();
+    expect(screen.queryByText('program_admin')).toBeNull();
   });
 });
+
+

@@ -2,8 +2,6 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useSession } from "next-auth/react";
-import { isHqRole } from "@/lib/auth/scope";
 
 import { toast } from "sonner";
 import { motion } from "framer-motion";
@@ -292,21 +290,33 @@ function CreateMashwaraModal({
   );
 }
 
+// ─── UI Context Type ─────────────────────────────────────────────────────
+
+export type MashwaraUiContext = {
+  canView: boolean;
+  canManage: boolean;
+  isHq: boolean;
+  actorCityId: string | null;
+};
+
 // ─── Main Dashboard Client Page ───────────────────────────────────────────
 
-export default function MashwaraDashboardClient(props?: {
-  canView?: boolean;
-  canManage?: boolean;
-  isHq?: boolean;
-  actorCityId?: string | null;
-}) {
-  const { data: session } = useSession();
-  const user = session?.user as { role?: string; cityId?: string } | undefined;
+export default function MashwaraDashboardClient() {
+  // All capability and scope flags come from the server — no client-side role
+  // or session checks allowed here. The data APIs remain the final authority.
+  const { data: ctx, isLoading: ctxLoading } = useQuery<MashwaraUiContext>({
+    queryKey: ["mashwara-ui-context"],
+    queryFn: () =>
+      fetch("/api/admin/mashwara/ui-context").then((r) => {
+        if (!r.ok) throw new Error("Failed to load Mashwara context");
+        return r.json();
+      }),
+    staleTime: 60_000,
+  });
 
-  const isHq = props?.isHq ?? isHqRole(user?.role);
-  const actorCityId = props?.actorCityId ?? (user?.cityId || null);
-  const canView = props?.canView ?? true;
-  const canManage = props?.canManage ?? (isHq || Boolean(actorCityId));
+  const isHq = ctx?.isHq ?? false;
+  const actorCityId = ctx?.actorCityId ?? null;
+  const canManage = ctx?.canManage ?? false;
 
   const navigateTo = useAppStore((s) => s.navigateTo);
   const userCityId = actorCityId;
