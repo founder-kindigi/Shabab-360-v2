@@ -239,21 +239,24 @@ export function EventsPage() {
   const [cityFilter, setCityFilter] = useState<string>("");
 
   // ── Server-resolved capabilities via narrow endpoint ──────────────────
-  const { data: ctx } = useQuery<UiContext>({
+  const { data: ctx, isError: ctxError, error: ctxErr } = useQuery<UiContext>({
     queryKey: ["events-ui-context"],
     queryFn: () =>
       fetch("/api/admin/events/ui-context").then(async (r) => {
-        if (!r.ok) throw new Error("Failed to load context");
-        return r.json();
+        const json = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error((json as { error?: string }).error || "Failed to load access permissions");
+        return json as UiContext;
       }),
     staleTime: 60_000,
+    retry: false,
   });
 
   const canManage = ctx?.canManage ?? false;
   const isHq = ctx?.isHq ?? false;
 
-  // ── HQ must select a city before listing; scoped actors load immediately ──
-  const skipFetch = isHq && !cityFilter;
+  // ── Context-gated enabled check: must have ctx AND (if HQ, must have cityFilter selected) ──
+  const isEnabled = Boolean(ctx) && (!ctx.isHq || Boolean(cityFilter));
+  const isHqWaitingForCity = Boolean(ctx) && ctx.isHq && !cityFilter;
 
   const params = new URLSearchParams();
   if (cityFilter) params.set("cityId", cityFilter);
@@ -269,10 +272,10 @@ export function EventsPage() {
         if (!r.ok) throw new Error((json as { error?: string }).error || "Failed to load events");
         return json as EventItem[];
       }),
-    enabled: !skipFetch,
+    enabled: isEnabled,
   });
 
-  // Cities list — only fetched for HQ
+  // Cities list — only fetched for HQ after context resolves
   const { data: cities } = useQuery<{ id: string; name: string }[]>({
     queryKey: ["cities-list"],
     queryFn: () =>
@@ -280,6 +283,21 @@ export function EventsPage() {
     enabled: isHq,
     staleTime: 120_000,
   });
+
+  // Safe access state on context failure
+  if (ctxError) {
+    return (
+      <div className="p-4 md:p-6 space-y-4">
+        <div id="events-context-error" role="alert" className="flex items-center gap-2 p-4 rounded-lg bg-red-50 border border-red-200 text-red-700 dark:bg-red-950/30 dark:text-red-400">
+          <AlertTriangle className="size-5 shrink-0" />
+          <div>
+            <p className="text-sm font-medium">Access Verification Failed</p>
+            <p className="text-xs opacity-90">{(ctxErr as Error)?.message || "Failed to load access permissions"}</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 p-4 md:p-6">
@@ -293,8 +311,8 @@ export function EventsPage() {
           <Button
             id="events-new-btn"
             onClick={() => setShowCreate(true)}
-            disabled={skipFetch}
-            title={skipFetch ? "Select a city first" : undefined}
+            disabled={isHqWaitingForCity}
+            title={isHqWaitingForCity ? "Select a city first" : undefined}
           >
             <Plus className="size-4 mr-1.5" /> New Event
           </Button>
@@ -331,7 +349,7 @@ export function EventsPage() {
       </div>
 
       {/* HQ gate — must pick a city first */}
-      {skipFetch && (
+      {isHqWaitingForCity && (
         <div
           id="events-city-required"
           className="py-16 text-center border border-dashed rounded-lg bg-card/50"
@@ -343,7 +361,7 @@ export function EventsPage() {
       )}
 
       {/* Loading skeletons */}
-      {!skipFetch && isLoading && (
+      {isEnabled && isLoading && (
         <div className="space-y-3" aria-busy="true">
           {Array.from({ length: 5 }).map((_, i) => (
             <Skeleton key={i} className="h-20 w-full rounded-lg" />
@@ -352,7 +370,7 @@ export function EventsPage() {
       )}
 
       {/* Error state: 400/403/404/409 all surface the server message */}
-      {!skipFetch && error && (
+      {isEnabled && error && (
         <div
           id="events-error"
           role="alert"
@@ -364,7 +382,7 @@ export function EventsPage() {
       )}
 
       {/* Empty state */}
-      {!skipFetch && !isLoading && !error && events?.length === 0 && (
+      {isEnabled && !isLoading && !error && events?.length === 0 && (
         <div className="py-16 text-center border border-dashed rounded-lg bg-card/50">
           <Calendar className="size-12 mx-auto text-muted-foreground/40 mb-3" />
           <p className="text-muted-foreground">No events found.</p>
@@ -377,7 +395,7 @@ export function EventsPage() {
       )}
 
       {/* Event rows */}
-      {!skipFetch && events?.map((event) => (
+      {isEnabled && events?.map((event) => (
         <motion.div
           key={event.id}
           initial={{ opacity: 0, y: 4 }}

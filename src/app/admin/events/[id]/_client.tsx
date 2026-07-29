@@ -97,14 +97,16 @@ export default function EventDetailPage() {
   const [plannerDue, setPlannerDue] = useState("");
 
   // ── Server-resolved capabilities ──────────────────────────────────────
-  const { data: ctx } = useQuery<UiContext>({
+  const { data: ctx, isError: ctxError, error: ctxErr } = useQuery<UiContext>({
     queryKey: ["events-ui-context"],
     queryFn: () =>
       fetch("/api/admin/events/ui-context").then(async (r) => {
-        if (!r.ok) throw new Error("Failed to load context");
-        return r.json();
+        const json = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error((json as { error?: string }).error || "Failed to load access permissions");
+        return json as UiContext;
       }),
     staleTime: 60_000,
+    retry: false,
   });
 
   const canManage = ctx?.canManage ?? false;
@@ -117,6 +119,7 @@ export default function EventDetailPage() {
         if (!r.ok) throw new Error((json as { error?: string }).error || "Failed to load event");
         return json as EventDetail;
       }),
+    enabled: Boolean(eventId) && Boolean(ctx) && !ctxError,
   });
 
   // DELETE /api/admin/events/[id] for cancellation
@@ -161,16 +164,21 @@ export default function EventDetailPage() {
     onError: (err: Error) => toast.error(err.message),
   });
 
+  // POST /api/admin/events/[id]/planner-items
   const createPlannerMutation = useMutation({
     mutationFn: async () => {
-      const res = await fetch(`/api/admin/events/${eventId}/planner`, {
+      const payload: Record<string, unknown> = {
+        title: plannerTitle,
+        priority: plannerPriority,
+      };
+      if (plannerDue) {
+        payload.dueDate = new Date(plannerDue).toISOString();
+      }
+
+      const res = await fetch(`/api/admin/events/${eventId}/planner-items`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: plannerTitle,
-          priority: plannerPriority,
-          dueDate: plannerDue ? new Date(plannerDue).toISOString() : undefined,
-        }),
+        body: JSON.stringify(payload),
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json.error || "Failed to create task");
@@ -186,9 +194,10 @@ export default function EventDetailPage() {
     onError: (err: Error) => toast.error(err.message),
   });
 
+  // PATCH /api/admin/events/planner-items/[id]
   const updatePlannerMutation = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
-      const res = await fetch(`/api/admin/events/planner/${id}`, {
+      const res = await fetch(`/api/admin/events/planner-items/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status }),
@@ -201,7 +210,25 @@ export default function EventDetailPage() {
     onError: (err: Error) => toast.error(err.message),
   });
 
-  if (isLoading) {
+  // Safe access state on context failure
+  if (ctxError) {
+    return (
+      <div className="p-4 md:p-6 space-y-4">
+        <Button variant="ghost" size="sm" onClick={() => window.history.back()}>
+          <ArrowLeft className="size-4 mr-2" /> Back
+        </Button>
+        <div id="event-detail-context-error" role="alert" className="flex items-center gap-2 p-4 rounded-lg bg-red-50 border border-red-200 text-red-700 dark:bg-red-950/30 dark:text-red-400">
+          <AlertTriangle className="size-5 shrink-0" />
+          <div>
+            <p className="text-sm font-medium">Access Verification Failed</p>
+            <p className="text-xs opacity-90">{(ctxErr as Error)?.message || "Failed to load access permissions"}</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (isLoading || !ctx) {
     return (
       <div className="space-y-4 p-4 md:p-6" aria-busy="true">
         {Array.from({ length: 6 }).map((_, i) => (
@@ -372,7 +399,7 @@ export default function EventDetailPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowPlanner(false)}>Cancel</Button>
-            <Button onClick={() => createPlannerMutation.mutate()} disabled={!plannerTitle || createPlannerMutation.isPending}>
+            <Button id="planner-submit-btn" onClick={() => createPlannerMutation.mutate()} disabled={!plannerTitle || createPlannerMutation.isPending}>
               {createPlannerMutation.isPending ? <Loader2 className="size-4 animate-spin" /> : "Create"}
             </Button>
           </DialogFooter>

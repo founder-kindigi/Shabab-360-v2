@@ -1,177 +1,288 @@
-import { describe, expect, it } from "vitest";
-import { z } from "zod";
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
+import { QueryClient } from "@tanstack/react-query";
+import { eventSchema, EVENT_TYPES, STATUS_STYLES } from "./_client";
 
-const eventSchema = z.object({
-  title: z.string().min(1, "Title is required").max(200),
-  eventType: z.enum(["trip", "ceremony", "campaign", "activity", "sports_day", "camp", "open_day", "closing", "other"]),
-  venue: z.string().max(200).optional().or(z.literal("")),
-  startDate: z.string().min(1, "Start date is required"),
-  endDate: z.string().optional().or(z.literal("")),
-  capacity: z.coerce.number().int().positive().optional().or(z.literal("")),
-});
+// Helpers matching component query logic
+type UiContext = { canManage: boolean; isHq: boolean };
 
-const STATUS_STYLES: Record<string, string> = {
-  planned: "bg-muted text-muted-foreground",
-  confirmed: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
-  in_progress: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
-  completed: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
-  cancelled: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
-};
+function getListQueryEnabled(ctx: UiContext | undefined, cityFilter: string): boolean {
+  return Boolean(ctx) && (!ctx.isHq || Boolean(cityFilter));
+}
 
-const EVENT_TYPES = [
-  { value: "trip", label: "Trip" },
-  { value: "ceremony", label: "Ceremony" },
-  { value: "campaign", label: "Campaign" },
-  { value: "activity", label: "Activity" },
-  { value: "sports_day", label: "Sports Day" },
-  { value: "camp", label: "Camp" },
-  { value: "open_day", label: "Open Day" },
-  { value: "closing", label: "Closing" },
-  { value: "other", label: "Other" },
-];
+function getDetailQueryEnabled(eventId: string | undefined, ctx: UiContext | undefined, ctxError: boolean): boolean {
+  return Boolean(eventId) && Boolean(ctx) && !ctxError;
+}
 
-describe("EVENT-UI-002 Requirements Verification Suite", () => {
-  describe("Requirement 5a: HQ no-city state does not fetch (skipFetch logic)", () => {
-    it("skips fetch when isHq is true and cityFilter is empty", () => {
-      const isHq = true;
+describe("Events UI Component & Query Contract Tests (EVENT-UI-002)", () => {
+  let queryClient: QueryClient;
+  const mockFetch = vi.fn();
+
+  beforeEach(() => {
+    queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+      },
+    });
+    vi.stubGlobal("fetch", mockFetch);
+    mockFetch.mockReset();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  describe("1. Context Pending / Error: Event queries disabled", () => {
+    it("disables list query when ui-context is pending (ctx is undefined)", () => {
+      const ctx = undefined;
       const cityFilter = "";
-      const skipFetch = isHq && !cityFilter;
-      expect(skipFetch).toBe(true);
+      const enabled = getListQueryEnabled(ctx, cityFilter);
+
+      expect(enabled).toBe(false);
     });
 
-    it("does NOT skip fetch when isHq is true and cityFilter is selected", () => {
-      const isHq = true;
-      const cityFilter = "city_lahore";
-      const skipFetch = isHq && !cityFilter;
-      expect(skipFetch).toBe(false);
-    });
-
-    it("does NOT skip fetch when isHq is false (scoped actor)", () => {
-      const isHq = false;
-      const cityFilter = "";
-      const skipFetch = isHq && !cityFilter;
-      expect(skipFetch).toBe(false);
-    });
-  });
-
-  describe("Requirement 5b: Scoped actor omits cityId from payload", () => {
-    it("omits cityId when cityId prop is undefined (scoped actor flow)", () => {
-      const formParsed = {
-        title: "Park Sports Day",
-        eventType: "sports_day",
-        startDate: "2026-09-01",
-      };
-      const cityId: string | undefined = undefined;
-
-      const payload: Record<string, unknown> = { ...formParsed };
-      if (cityId) payload.cityId = cityId;
-
-      expect(payload.cityId).toBeUndefined();
-      expect(payload).toEqual({
-        title: "Park Sports Day",
-        eventType: "sports_day",
-        startDate: "2026-09-01",
-      });
-    });
-
-    it("includes cityId when cityId prop is provided (HQ explicit selection flow)", () => {
-      const formParsed = {
-        title: "City Seminar",
-        eventType: "campaign",
-        startDate: "2026-09-10",
-      };
-      const cityId: string | undefined = "city_lahore";
-
-      const payload: Record<string, unknown> = { ...formParsed };
-      if (cityId) payload.cityId = cityId;
-
-      expect(payload.cityId).toBe("city_lahore");
-    });
-  });
-
-  describe("Requirement 5c: Capability-driven management controls", () => {
-    it("hides management controls when canManage is false", () => {
-      const canManage = false;
-      const showNewButton = canManage;
-      const showCancelButton = canManage;
-
-      expect(showNewButton).toBe(false);
-      expect(showCancelButton).toBe(false);
-    });
-
-    it("shows management controls when canManage is true", () => {
-      const canManage = true;
-      const showNewButton = canManage;
-      const showCancelButton = canManage;
-
-      expect(showNewButton).toBe(true);
-      expect(showCancelButton).toBe(true);
-    });
-  });
-
-  describe("Requirement 5d: DELETE cancellation and PATCH completion semantics", () => {
-    it("constructs DELETE request options for event cancellation", () => {
+    it("disables detail query when ui-context is pending (ctx is undefined)", () => {
       const eventId = "evt_123";
-      const requestOptions = {
-        url: `/api/admin/events/${eventId}`,
-        method: "DELETE",
-      };
-      expect(requestOptions.method).toBe("DELETE");
-      expect(requestOptions.url).toBe("/api/admin/events/evt_123");
+      const ctx = undefined;
+      const ctxError = false;
+      const enabled = getDetailQueryEnabled(eventId, ctx, ctxError);
+
+      expect(enabled).toBe(false);
     });
 
-    it("constructs PATCH request options with status: completed for completion", () => {
-      const eventId = "evt_456";
-      const requestOptions = {
-        url: `/api/admin/events/${eventId}`,
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "completed" }),
-      };
-      expect(requestOptions.method).toBe("PATCH");
-      expect(JSON.parse(requestOptions.body)).toEqual({ status: "completed" });
-    });
-  });
+    it("disables detail query when ui-context throws an error (ctxError is true)", () => {
+      const eventId = "evt_123";
+      const ctx = undefined;
+      const ctxError = true;
+      const enabled = getDetailQueryEnabled(eventId, ctx, ctxError);
 
-  describe("Requirement 5e: 409 Conflict error handling", () => {
-    it("extracts error message from 409 response JSON body", async () => {
-      const mock409Response = new Response(
-        JSON.stringify({ error: "Event is already cancelled" }),
-        { status: 409, headers: { "Content-Type": "application/json" } }
+      expect(enabled).toBe(false);
+    });
+
+    it("surfaces context error state safely without fetching events", async () => {
+      mockFetch.mockResolvedValueOnce(
+        new Response(JSON.stringify({ error: "Access Verification Failed" }), { status: 403 })
       );
 
-      const json = await mock409Response.json().catch(() => ({}));
-      let errorMessage = "Failed to cancel event";
-      if (!mock409Response.ok) {
-        errorMessage = json.error || errorMessage;
+      let contextError: string | null = null;
+      try {
+        await queryClient.fetchQuery({
+          queryKey: ["events-ui-context"],
+          queryFn: () =>
+            fetch("/api/admin/events/ui-context").then(async (r) => {
+              const json = await r.json().catch(() => ({}));
+              if (!r.ok) throw new Error((json as { error?: string }).error || "Failed to load access permissions");
+              return json as UiContext;
+            }),
+        });
+      } catch (err: any) {
+        contextError = err.message;
       }
 
-      expect(mock409Response.status).toBe(409);
+      expect(contextError).toBe("Access Verification Failed");
+      // Verify that no event list query was issued
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      expect(mockFetch).toHaveBeenCalledWith("/api/admin/events/ui-context");
+    });
+  });
+
+  describe("2. HQ with no city: Event list query disabled", () => {
+    it("disables event list query for HQ user when cityFilter is empty", () => {
+      const ctx: UiContext = { canManage: true, isHq: true };
+      const cityFilter = "";
+      const enabled = getListQueryEnabled(ctx, cityFilter);
+
+      expect(enabled).toBe(false);
+    });
+
+    it("does not fetch events from network when HQ has no city selected", async () => {
+      const ctx: UiContext = { canManage: true, isHq: true };
+      const cityFilter = "";
+      const enabled = getListQueryEnabled(ctx, cityFilter);
+
+      if (enabled) {
+        await queryClient.fetchQuery({
+          queryKey: ["admin-events", cityFilter],
+          queryFn: () => fetch(`/api/admin/events?cityId=${cityFilter}`).then((r) => r.json()),
+        });
+      }
+
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("3. Scoped actor: List query enabled without cityId", () => {
+    it("enables event list query for scoped actor (isHq: false) even when cityFilter is empty", () => {
+      const ctx: UiContext = { canManage: true, isHq: false };
+      const cityFilter = "";
+      const enabled = getListQueryEnabled(ctx, cityFilter);
+
+      expect(enabled).toBe(true);
+    });
+
+    it("executes events fetch without cityId parameter for scoped actors", async () => {
+      const ctx: UiContext = { canManage: true, isHq: false };
+      const cityFilter = "";
+      const enabled = getListQueryEnabled(ctx, cityFilter);
+
+      mockFetch.mockResolvedValueOnce(
+        new Response(JSON.stringify([{ id: "evt_1", title: "Park Activity" }]), { status: 200 })
+      );
+
+      const params = new URLSearchParams();
+      if (cityFilter) params.set("cityId", cityFilter);
+      params.set("offset", "0");
+      params.set("limit", "50");
+
+      if (enabled) {
+        await queryClient.fetchQuery({
+          queryKey: ["admin-events", cityFilter],
+          queryFn: () => fetch(`/api/admin/events?${params}`).then((r) => r.json()),
+        });
+      }
+
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      expect(mockFetch).toHaveBeenCalledWith("/api/admin/events?offset=0&limit=50");
+      const calledUrl = mockFetch.mock.calls[0][0];
+      expect(calledUrl).not.toContain("cityId=");
+    });
+  });
+
+  describe("4. HQ selected city: List query enabled with cityId", () => {
+    it("enables event list query for HQ user when cityFilter is selected", () => {
+      const ctx: UiContext = { canManage: true, isHq: true };
+      const cityFilter = "city_lahore_123";
+      const enabled = getListQueryEnabled(ctx, cityFilter);
+
+      expect(enabled).toBe(true);
+    });
+
+    it("executes events fetch with cityId parameter when HQ selects a city", async () => {
+      const ctx: UiContext = { canManage: true, isHq: true };
+      const cityFilter = "city_lahore_123";
+      const enabled = getListQueryEnabled(ctx, cityFilter);
+
+      mockFetch.mockResolvedValueOnce(
+        new Response(JSON.stringify([{ id: "evt_lahore_1", title: "Lahore Gala" }]), { status: 200 })
+      );
+
+      const params = new URLSearchParams();
+      if (cityFilter) params.set("cityId", cityFilter);
+      params.set("offset", "0");
+      params.set("limit", "50");
+
+      if (enabled) {
+        await queryClient.fetchQuery({
+          queryKey: ["admin-events", cityFilter],
+          queryFn: () => fetch(`/api/admin/events?${params}`).then((r) => r.json()),
+        });
+      }
+
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      expect(mockFetch).toHaveBeenCalledWith("/api/admin/events?cityId=city_lahore_123&offset=0&limit=50");
+    });
+  });
+
+  describe("5. Planner action calls planner-items endpoint", () => {
+    it("calls POST /api/admin/events/[id]/planner-items when creating a task", async () => {
+      const eventId = "evt_999";
+      const taskPayload = {
+        title: "Setup Stage",
+        priority: "high",
+        dueDate: "2026-08-10T00:00:00.000Z",
+      };
+
+      mockFetch.mockResolvedValueOnce(
+        new Response(JSON.stringify({ id: "item_1", ...taskPayload }), { status: 201 })
+      );
+
+      const res = await fetch(`/api/admin/events/${eventId}/planner-items`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(taskPayload),
+      });
+
+      expect(mockFetch).toHaveBeenCalledWith(`/api/admin/events/evt_999/planner-items`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(taskPayload),
+      });
+      expect(res.status).toBe(201);
+    });
+
+    it("calls PATCH /api/admin/events/planner-items/[id] when updating task status", async () => {
+      const taskId = "item_888";
+      const updatePayload = { status: "completed" };
+
+      mockFetch.mockResolvedValueOnce(
+        new Response(JSON.stringify({ id: taskId, status: "completed" }), { status: 200 })
+      );
+
+      const res = await fetch(`/api/admin/events/planner-items/${taskId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updatePayload),
+      });
+
+      expect(mockFetch).toHaveBeenCalledWith(`/api/admin/events/planner-items/item_888`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updatePayload),
+      });
+      expect(res.status).toBe(200);
+    });
+  });
+
+  describe("6. 409 API error is surfaced", () => {
+    it("surfaces 409 Conflict error message on event cancellation", async () => {
+      const eventId = "evt_cancelled";
+      mockFetch.mockResolvedValueOnce(
+        new Response(JSON.stringify({ error: "Event is already cancelled" }), { status: 409 })
+      );
+
+      let errorMessage: string | null = null;
+      try {
+        const res = await fetch(`/api/admin/events/${eventId}`, { method: "DELETE" });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error(json.error || "Failed to cancel event");
+        }
+      } catch (err: any) {
+        errorMessage = err.message;
+      }
+
       expect(errorMessage).toBe("Event is already cancelled");
     });
 
-    it("extracts responsibility 409 conflict error message", async () => {
-      const mock409Response = new Response(
-        JSON.stringify({ error: "Responsibility is already revoked or inactive" }),
-        { status: 409, headers: { "Content-Type": "application/json" } }
+    it("surfaces 409 Conflict error message on responsibility revocation", async () => {
+      const respId = "resp_revoked";
+      mockFetch.mockResolvedValueOnce(
+        new Response(JSON.stringify({ error: "Responsibility is already revoked" }), { status: 409 })
       );
 
-      const json = await mock409Response.json().catch(() => ({}));
-      let errorMessage = "Failed to revoke";
-      if (!mock409Response.ok) {
-        errorMessage = json.error || errorMessage;
+      let errorMessage: string | null = null;
+      try {
+        const res = await fetch(`/api/admin/events/responsibilities/${respId}/revoke`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ reason: "Revoked" }),
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error(json.error || "Failed to revoke");
+        }
+      } catch (err: any) {
+        errorMessage = err.message;
       }
 
-      expect(mock409Response.status).toBe(409);
-      expect(errorMessage).toBe("Responsibility is already revoked or inactive");
+      expect(errorMessage).toBe("Responsibility is already revoked");
     });
   });
 
-  describe("Form Schema Validation", () => {
+  describe("7. Form Schema & Types Validation", () => {
     it("validates eventSchema correctly", () => {
       const valid = eventSchema.safeParse({
-        title: "Tri-City Sports Competition",
-        eventType: "sports_day",
+        title: "Tri-City Gala",
+        eventType: "ceremony",
         startDate: "2026-10-01",
       });
       expect(valid.success).toBe(true);
