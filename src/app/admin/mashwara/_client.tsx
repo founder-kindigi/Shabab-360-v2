@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useSession } from "next-auth/react";
+import { isHqRole } from "@/lib/auth/scope";
 
 import { toast } from "sonner";
 import { motion } from "framer-motion";
@@ -40,6 +42,7 @@ import {
   Clock,
   XCircle,
   FileText,
+  Building2,
 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -291,17 +294,20 @@ function CreateMashwaraModal({
 
 // ─── Main Dashboard Client Page ───────────────────────────────────────────
 
-export default function MashwaraDashboardClient({
-  canView,
-  canManage,
-  isHq,
-  actorCityId,
-}: {
-  canView: boolean;
-  canManage: boolean;
-  isHq: boolean;
-  actorCityId: string | null;
+export default function MashwaraDashboardClient(props?: {
+  canView?: boolean;
+  canManage?: boolean;
+  isHq?: boolean;
+  actorCityId?: string | null;
 }) {
+  const { data: session } = useSession();
+  const user = session?.user as { role?: string; cityId?: string } | undefined;
+
+  const isHq = props?.isHq ?? isHqRole(user?.role);
+  const actorCityId = props?.actorCityId ?? (user?.cityId || null);
+  const canView = props?.canView ?? true;
+  const canManage = props?.canManage ?? (isHq || Boolean(actorCityId));
+
   const navigateTo = useAppStore((s) => s.navigateTo);
   const userCityId = actorCityId;
 
@@ -321,14 +327,14 @@ export default function MashwaraDashboardClient({
     enabled: isHq,
   });
 
-  const cities = citiesData || [];
+  const cities = Array.isArray(citiesData) ? citiesData : [];
 
   const queryParams = new URLSearchParams();
   queryParams.set("page", String(page));
   queryParams.set("pageSize", String(pageSize));
   if (statusFilter && statusFilter !== "all")
     queryParams.set("status", statusFilter);
-  if (cityFilter && cityFilter !== "all") queryParams.set("cityId", cityFilter);
+  if (cityFilter) queryParams.set("cityId", cityFilter);
 
   const { data, isLoading, error } = useQuery<MashwaraListResponse>({
     queryKey: ["admin-mashwara", cityFilter, statusFilter, page],
@@ -337,6 +343,7 @@ export default function MashwaraDashboardClient({
         if (!r.ok) throw new Error("Failed to load Mashwara meetings");
         return r.json();
       }),
+    enabled: !isHq || Boolean(cityFilter),
   });
 
   const totalPages = data?.pagination?.totalPages || 0;
@@ -360,7 +367,10 @@ export default function MashwaraDashboardClient({
           </p>
         </div>
         {canManage && (
-          <Button onClick={() => setShowCreateModal(true)}>
+          <Button
+            disabled={isHq && !cityFilter}
+            onClick={() => setShowCreateModal(true)}
+          >
             <Plus className="size-4 mr-1.5" /> Schedule Mashwara
           </Button>
         )}
@@ -370,17 +380,16 @@ export default function MashwaraDashboardClient({
       <div className="flex flex-wrap gap-3 items-center">
         {isHq && (
           <Select
-            value={cityFilter || "all"}
+            value={cityFilter}
             onValueChange={(v) => {
               setCityFilter(v);
               setPage(1);
             }}
           >
             <SelectTrigger className="w-48">
-              <SelectValue placeholder="All Cities" />
+              <SelectValue placeholder="Select a city" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Cities</SelectItem>
               {cities.map((c) => (
                 <SelectItem key={c.id} value={c.id}>
                   {c.name}
@@ -428,7 +437,17 @@ export default function MashwaraDashboardClient({
         </div>
       )}
 
-      {data?.data?.length === 0 && !isLoading && (
+      {isHq && !cityFilter && !isLoading && (
+        <div className="py-16 text-center border rounded-xl bg-card">
+          <Building2 className="size-12 mx-auto text-muted-foreground/40 mb-3" />
+          <h3 className="text-base font-semibold">Select a City</h3>
+          <p className="text-sm text-muted-foreground mt-1">
+            Please select a city from the dropdown above to view or schedule Mashwara meetings.
+          </p>
+        </div>
+      )}
+
+      {(!isHq || Boolean(cityFilter)) && data?.data?.length === 0 && !isLoading && (
         <div className="py-16 text-center border rounded-xl bg-card">
           <Users className="size-12 mx-auto text-muted-foreground/40 mb-3" />
           <h3 className="text-base font-semibold">

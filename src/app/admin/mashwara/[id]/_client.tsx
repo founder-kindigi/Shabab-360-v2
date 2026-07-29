@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { useParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-
+import { useParams } from "next/navigation";
+import { useSession } from "next-auth/react";
+import { isHqRole } from "@/lib/auth/scope";
 import { toast } from "sonner";
 import { useAppStore } from "@/stores/useAppStore";
 import { Button } from "@/components/ui/button";
@@ -74,8 +75,8 @@ export type MashwaraDetailResponse = {
   actionItems: {
     id: string;
     description: string;
-    teamId: string;
-    assignedToId: string;
+    teamId: string | null;
+    assignedToId: string | null;
     dueDate: string | null;
     status: string;
     createdAt: string;
@@ -90,17 +91,18 @@ export type MashwaraDetailResponse = {
   }[];
 };
 
-export default function MashwaraDetailClient({
-  canView,
-  canManage,
-  isHq,
-  actorCityId,
-}: {
-  canView: boolean;
-  canManage: boolean;
-  isHq: boolean;
-  actorCityId: string | null;
+export default function MashwaraDetailClient(props?: {
+  canView?: boolean;
+  canManage?: boolean;
+  isHq?: boolean;
+  actorCityId?: string | null;
 }) {
+  const { data: session } = useSession();
+  const user = session?.user as { role?: string; cityId?: string } | undefined;
+
+  const isHq = props?.isHq ?? isHqRole(user?.role);
+  const actorCityId = props?.actorCityId ?? (user?.cityId || null);
+
   const storeEventId = useAppStore((s) => s.selectedEventId);
   const navigateTo = useAppStore((s) => s.navigateTo);
   const params = useParams<{ id?: string }>();
@@ -119,6 +121,8 @@ export default function MashwaraDetailClient({
       }),
     enabled: !!id,
   });
+
+  const canManage = props?.canManage ?? (isHq || Boolean(data?.cityId && actorCityId === data.cityId));
 
   const revokeShareMutation = useMutation({
     mutationFn: async (shareId: string) => {

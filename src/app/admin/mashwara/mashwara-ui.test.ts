@@ -143,10 +143,16 @@ import { render, screen, cleanup } from '@testing-library/react';
 import React from 'react';
 import { vi, afterEach } from 'vitest';
 import MashwaraDetailClient from './[id]/_client';
+import MashwaraDashboardClient from './_client';
+import { useQuery } from '@tanstack/react-query';
 
 afterEach(() => {
   cleanup();
 });
+
+vi.mock('next-auth/react', () => ({
+  useSession: () => ({ data: { user: { role: 'super_admin', cityId: null } } }),
+}));
 
 vi.mock('next/navigation', () => ({
   useParams: () => ({ id: 'test-m-1' }),
@@ -160,21 +166,32 @@ vi.mock('@/stores/useAppStore', () => ({
 }));
 
 vi.mock('@tanstack/react-query', () => ({
-  useQuery: vi.fn(() => ({
-    data: {
-      id: 'test-m-1',
-      cityId: 'c-1',
-      title: 'Mock Meeting',
-      status: 'scheduled',
-      scheduledAt: new Date().toISOString(),
-      attendees: [],
-      decisions: [],
-      actionItems: [],
-      shares: [],
-      createdBy: { id: 'u-1', name: 'Mock Creator' }
-    },
-    isLoading: false
-  })),
+  useQuery: vi.fn((options) => {
+    if (options?.queryKey?.[0] === 'cities-list') {
+      return { data: [{ id: 'c-1', name: 'Lahore' }], isLoading: false };
+    }
+    if (options?.queryKey?.[0] === 'admin-mashwara') {
+      return {
+        data: { data: [], pagination: { page: 1, pageSize: 12, total: 0, totalPages: 0 } },
+        isLoading: false
+      };
+    }
+    return {
+      data: {
+        id: 'test-m-1',
+        cityId: 'c-1',
+        title: 'Mock Meeting',
+        status: 'scheduled',
+        scheduledAt: new Date().toISOString(),
+        attendees: [],
+        decisions: [],
+        actionItems: [],
+        shares: [],
+        createdBy: { id: 'u-1', name: 'Mock Creator' }
+      },
+      isLoading: false
+    };
+  }),
   useMutation: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
   useQueryClient: vi.fn(() => ({ invalidateQueries: vi.fn() }))
 }));
@@ -192,7 +209,31 @@ describe('Mashwara UI Capability Rendering', () => {
       React.createElement(MashwaraDetailClient, { canView: true, canManage: false, isHq: false, actorCityId: 'c-1' })
     );
     expect(screen.queryByText('Grant Share')).toBeNull();
-    // In our UI, 'Add Decision' exists in both header and decisions tab, but shouldn't be rendered when canManage is false.
     expect(screen.queryByText('Add Decision')).toBeNull();
+  });
+});
+
+describe('HQ City Gating UI Constraints', () => {
+  it('disables Schedule Mashwara button and prompts to select a city when HQ has no city selected', () => {
+    render(
+      React.createElement(MashwaraDashboardClient, { canView: true, canManage: true, isHq: true, actorCityId: null })
+    );
+
+    const scheduleBtn = screen.getByText('Schedule Mashwara').closest('button');
+    expect(scheduleBtn?.disabled).toBe(true);
+    expect(screen.getByText('Select a City')).toBeTruthy();
+  });
+
+  it('does not fetch meeting list query for HQ until city is selected', () => {
+    const useQuerySpy = vi.mocked(useQuery);
+    render(
+      React.createElement(MashwaraDashboardClient, { canView: true, canManage: true, isHq: true, actorCityId: null })
+    );
+
+    const mashwaraQueryCall = useQuerySpy.mock.calls.find(
+      (call: any) => Array.isArray(call[0]?.queryKey) && call[0]?.queryKey[0] === 'admin-mashwara'
+    );
+
+    expect(mashwaraQueryCall?.[0]?.enabled).toBe(false);
   });
 });
