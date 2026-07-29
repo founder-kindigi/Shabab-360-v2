@@ -115,6 +115,41 @@ describe("bulk import capability gates", () => {
     const response = await importUsers(requestWithFile(file));
 
     expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("no-store, no-cache, max-age=0, must-revalidate");
+    expect(response.headers.get("pragma")).toBe("no-cache");
+    expect(response.headers.get("expires")).toBe("0");
+    expect(response.headers.get("x-robots-tag")).toBe("noindex, nofollow, noarchive");
     expect(mocks.bcryptHash).toHaveBeenCalledWith(expect.any(String), 12);
+  });
+
+  it("secures credentials when importing participants", async () => {
+    mocks.requireCapability.mockResolvedValue({ user: { id: "admin-1" } });
+    mocks.db.city.findMany.mockResolvedValue([]);
+    mocks.db.park.findMany.mockResolvedValue([]);
+    mocks.db.group.findMany.mockResolvedValue([]);
+    mocks.db.user.findUnique.mockResolvedValue(null);
+    mocks.bcryptHash.mockResolvedValue("bcrypt-hash");
+    mocks.db.$transaction.mockImplementation((callback) =>
+      callback({
+        user: { create: vi.fn().mockResolvedValue({ id: "user-1" }) },
+        student: { create: vi.fn().mockResolvedValue({ id: "student-1" }) },
+        guardian: { create: vi.fn().mockResolvedValue({ id: "guardian-1" }) },
+        family: { create: vi.fn().mockResolvedValue({ id: "family-1" }) },
+      })
+    );
+
+    const file = new File(
+      ["name,email\nImported Participant,student@example.invalid"],
+      "participants.csv",
+      { type: "text/csv" }
+    );
+
+    const response = await importParticipants(requestWithFile(file));
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("no-store, no-cache, max-age=0, must-revalidate");
+    expect(response.headers.get("pragma")).toBe("no-cache");
+    expect(response.headers.get("expires")).toBe("0");
+    expect(response.headers.get("x-robots-tag")).toBe("noindex, nofollow, noarchive");
   });
 });

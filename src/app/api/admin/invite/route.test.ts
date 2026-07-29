@@ -53,9 +53,11 @@ describe("POST /api/admin/invite", () => {
     );
 
     expect(response.status).toBe(400);
-    await expect(response.json()).resolves.toEqual({
+    const body = await response.json();
+    expect(body).toEqual({
       error: { assignedCityId: ["City assignment is required for this role"] },
     });
+    expect(body.temporaryPassword).toBeUndefined();
     expect(mocks.cityFindUnique).not.toHaveBeenCalled();
     expect(mocks.transaction).not.toHaveBeenCalled();
   });
@@ -139,6 +141,7 @@ describe("POST /api/admin/invite", () => {
     expect(response.headers.get("cache-control")).toBe("no-store, no-cache, max-age=0, must-revalidate");
     expect(response.headers.get("pragma")).toBe("no-cache");
     expect(response.headers.get("expires")).toBe("0");
+    expect(response.headers.get("x-robots-tag")).toBe("noindex, nofollow, noarchive");
     const body = await response.json();
     expect(body.user).toMatchObject({
       id: user.id,
