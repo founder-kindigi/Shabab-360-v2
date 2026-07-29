@@ -11,7 +11,6 @@ import {
   buildContentPlanScopeFilter,
   canWriteContentPlan,
   deriveContentPlannerCityScope,
-  deriveContentPlannerParkScope,
 } from "@/lib/content-planner/scope";
 import { isHqRole } from "@/lib/auth/scope";
 import type { SessionUser } from "@/lib/auth/scope";
@@ -136,14 +135,6 @@ export async function POST(request: NextRequest) {
 
   const { cityId: rawCityId, batchId, parkId, basePlanId, ...planData } = parsed.data;
 
-  // HQ must always supply an explicit cityId — never derive from scope.
-  if (isHqRole((auth.user as SessionUser).role) && !rawCityId) {
-    return NextResponse.json(
-      { error: "cityId is required for HQ users" },
-      { status: 400 }
-    );
-  }
-
   // Derive effective cityId from actor scope when omitted (scoped users).
   let effectiveCityId = rawCityId;
   if (!effectiveCityId) {
@@ -154,20 +145,13 @@ export async function POST(request: NextRequest) {
         { status: 403 }
       );
     }
-    effectiveCityId = cities[0];
-  }
-
-  // For park-scoped users (park_lead, park_admin, murabbi), derive parkId
-  // from scope when not supplied, so they can create own-park plans.
-  let effectiveParkId = parkId;
-  if (!effectiveParkId && !batchId) {
-    const parkScope = await deriveContentPlannerParkScope(
-      auth.user as SessionUser,
-      effectiveCityId
-    );
-    if (parkScope && parkScope !== "all") {
-      effectiveParkId = parkScope[0];
+    if (cities.length > 1) {
+      return NextResponse.json(
+        { error: "Multi-city HQ user must supply a cityId" },
+        { status: 400 }
+      );
     }
+    effectiveCityId = cities[0];
   }
 
   // Verify write permission for the target scope
@@ -175,7 +159,7 @@ export async function POST(request: NextRequest) {
     auth.user as SessionUser,
     effectiveCityId,
     batchId,
-    effectiveParkId
+    parkId
   );
 
   if (!canWrite) {
@@ -213,10 +197,10 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // Verify park belongs to city if provided or derived
-  if (effectiveParkId) {
+  // Verify park belongs to city if provided
+  if (parkId) {
     const park = await db.park.findUnique({
-      where: { id: effectiveParkId },
+      where: { id: parkId },
       select: { cityId: true, isActive: true },
     });
 
@@ -264,7 +248,7 @@ export async function POST(request: NextRequest) {
       ...planData,
       cityId: effectiveCityId,
       batchId,
-      parkId: effectiveParkId,
+      parkId,
       basePlanId,
     },
     include: {
