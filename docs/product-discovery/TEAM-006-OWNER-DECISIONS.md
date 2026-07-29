@@ -1,8 +1,8 @@
 # TEAM-006: Collaboration Workspace Owner Decisions
 
-**Status:** Partially approved. Activity planner implementation remains blocked
-until the canonical Teams API is selected. Chat and document-link policy
-decisions below are approved for the subsequent implementation package.
+**Status:** Approved for Phase A activity-planner implementation. Chat and
+document-link policy decisions below are approved for their subsequent
+implementation packages.
 
 ## Approved Decisions
 
@@ -41,13 +41,14 @@ The UI must show inactive members with a dimmed presentation and an explicit
 inactive status. Inactive staff must fail all active-access predicates and may
 not create, update, moderate, or receive new team assignments.
 
-## Remaining Blocker
+## Canonical API Decision
 
-Before any TEAM-006 route or UI code is started, select one canonical
-membership API and authorization helper. The existing `/api/admin/teams` and
-`/api/admin/collaboration-teams` surfaces use different capability and scope
-rules. The selected baseline must preserve dynamic capability checks,
-server-derived city scope, and the active-membership predicate:
+`/api/admin/teams` is the canonical membership API and authorization baseline
+for all new TEAM-006 workspace routes and UI. New feature work must not depend
+on or extend `/api/admin/collaboration-teams`.
+
+The canonical baseline preserves dynamic capability checks, server-derived city
+scope, and the active-membership predicate:
 
 `isActive === true && endedAt === null`.
 
