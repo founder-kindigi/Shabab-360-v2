@@ -72,6 +72,10 @@ describe("POST /api/admin/students/[id]/account", () => {
     const response = await POST(request({ email: "student@example.com" }), params);
 
     expect(response.status).toBe(201);
+    expect(response.headers.get("cache-control")).toBe("no-store, no-cache, max-age=0, must-revalidate");
+    expect(response.headers.get("pragma")).toBe("no-cache");
+    expect(response.headers.get("expires")).toBe("0");
+    expect(response.headers.get("x-robots-tag")).toBe("noindex, nofollow, noarchive");
     await expect(response.json()).resolves.toMatchObject({
       temporaryPassword: "temporary-password",
       user: { id: "user-1", mustResetPwd: true },

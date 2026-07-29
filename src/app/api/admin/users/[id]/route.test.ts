@@ -206,7 +206,10 @@ describe("user session invalidation mutations", () => {
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(response.headers.get("cache-control")).toContain("no-store");
+    expect(response.headers.get("cache-control")).toBe("no-store, no-cache, max-age=0, must-revalidate");
+    expect(response.headers.get("pragma")).toBe("no-cache");
+    expect(response.headers.get("expires")).toBe("0");
+    expect(response.headers.get("x-robots-tag")).toBe("noindex, nofollow, noarchive");
     expect(body.temporaryPassword).toEqual(expect.any(String));
     expect(body.temporaryPassword.length).toBeGreaterThan(20);
     expect(mocks.txUserUpdate).toHaveBeenCalledWith({
