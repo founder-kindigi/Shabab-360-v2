@@ -21,7 +21,7 @@ const mockDb = vi.hoisted(() => ({
   callingCampaign: { findUnique: vi.fn() },
   callingAssignment: { findUnique: vi.fn(), findMany: vi.fn(), count: vi.fn(), updateMany: vi.fn(), create: vi.fn(), update: vi.fn() },
   callInteraction: { create: vi.fn() },
-  externalSupportCaller: { findFirst: vi.fn(), findUnique: vi.fn() },
+  externalSupportCaller: { findFirst: vi.fn(), findUnique: vi.fn(), findMany: vi.fn() },
   staffMeta: { findFirst: vi.fn(), findUnique: vi.fn() },
   admissionApplication: { findMany: vi.fn() },
   callingTemplateUse: { create: vi.fn() },
@@ -86,6 +86,7 @@ beforeEach(() => {
   }
   vi.mocked(auth.requireAuth).mockResolvedValue({ user: CITY_HEAD } as any);
   vi.mocked(auth.requireCapability).mockResolvedValue({ user: CITY_HEAD } as any);
+  vi.mocked(callingAuth.verifyCallingManagerOrPoc).mockResolvedValue({ campaign: CAMPAIGN as any, error: undefined, status: 200 });
   mockDb.city.findUnique.mockResolvedValue({ id: "city_lhr", name: "Lahore", isActive: true });
   mockDb.callingCampaign.findUnique.mockResolvedValue(CAMPAIGN);
   mockDb.callingAssignment.findUnique.mockResolvedValue(ASSIGNMENT);
@@ -392,5 +393,106 @@ describe("CALL-004: Interaction Atomicity & Authorization", () => {
     }));
     await post({ assignmentId: "a1", outcome: "no_answer" });
     expect(audited).toBe(true);
+  });
+});
+
+describe("CALL-005: Campaign Leads Route", () => {
+  async function getLeads(campaignId: string, search = "") {
+    const { GET } = await import("./campaigns/[id]/leads/route");
+    const req = new NextRequest(`http://localhost/api/calling/campaigns/${campaignId}/leads${search}`);
+    return GET(req, { params: Promise.resolve({ id: campaignId }) });
+  }
+
+  const MOCK_ASSIGNMENT = {
+    id: "assign_1",
+    campaignId: "cmp_1",
+    applicationId: "app_1",
+    callerStaffMetaId: "sm1",
+    callerExternalId: null,
+    status: "pending",
+    isActive: true,
+    application: {
+      id: "app_1",
+      applicantName: "Ali Khan",
+      guardianPhone: "+923001234567",
+      status: "submitted",
+    },
+    interactions: [{ outcome: "callback_requested" }],
+  };
+
+  it("returns owner PII and canInteract=true for assigned caller", async () => {
+    mockDb.staffMeta.findFirst.mockResolvedValue({ id: "sm1", userId: "u1", isActive: true });
+    mockDb.externalSupportCaller.findMany.mockResolvedValue([]);
+    mockDb.callingAssignment.findMany.mockResolvedValue([MOCK_ASSIGNMENT]);
+
+    const res = await getLeads("cmp_1");
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body).toHaveLength(1);
+    expect(body[0]).toMatchObject({
+      id: "assign_1",
+      applicationId: "app_1",
+      status: "pending",
+      outcome: "callback_requested",
+      canInteract: true,
+      application: {
+        status: "submitted",
+        applicantName: "Ali Khan",
+        guardianPhone: "+923001234567",
+      },
+    });
+    // Ensure raw StaffMeta/External IDs are not exposed
+    expect(body[0]).not.toHaveProperty("callerStaffMetaId");
+    expect(body[0]).not.toHaveProperty("callerExternalId");
+  });
+
+  it("returns masked data and canInteract=false for non-owner manager", async () => {
+    mockDb.staffMeta.findFirst.mockResolvedValue({ id: "sm_mgr", userId: "u1", isActive: true });
+    mockDb.externalSupportCaller.findMany.mockResolvedValue([]);
+    mockDb.callingAssignment.findMany.mockResolvedValue([MOCK_ASSIGNMENT]);
+
+    const res = await getLeads("cmp_1");
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body[0]).toMatchObject({
+      id: "assign_1",
+      canInteract: false,
+      application: {
+        status: "submitted",
+      },
+    });
+    expect(body[0].application).not.toHaveProperty("applicantName");
+    expect(body[0].application).not.toHaveProperty("guardianPhone");
+    expect(body[0]).not.toHaveProperty("callerStaffMetaId");
+    expect(body[0]).not.toHaveProperty("callerExternalId");
+  });
+
+  it("returns 403 for foreign-city access denial", async () => {
+    const { verifyCallingManagerOrPoc } = await import("@/lib/calling/poc-auth");
+    vi.mocked(verifyCallingManagerOrPoc).mockResolvedValueOnce({
+      error: "Campaign belongs to a different city",
+      status: 403,
+    });
+
+    const res = await getLeads("cmp_foreign");
+    expect(res.status).toBe(403);
+  });
+
+  it("returns 404 for missing campaign", async () => {
+    const { verifyCallingManagerOrPoc } = await import("@/lib/calling/poc-auth");
+    vi.mocked(verifyCallingManagerOrPoc).mockResolvedValueOnce({
+      error: "Campaign not found",
+      status: 404,
+    });
+
+    const res = await getLeads("cmp_missing");
+    expect(res.status).toBe(404);
+  });
+
+  it("returns 400 for invalid status parameter", async () => {
+    const res = await getLeads("cmp_1", "?status=invalid_status_xyz");
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain("Invalid status parameter");
   });
 });
