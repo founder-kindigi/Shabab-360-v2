@@ -127,8 +127,11 @@ export function StudentProfilePage({
 
   useEffect(() => {
     if (error instanceof Error && error.message === "SENSITIVE_FORBIDDEN") {
-      setShowSensitive(false);
-      toast.error("You do not have permission to view sensitive fields.");
+      // A server-side capability change can invalidate a previously allowed toggle.
+      queueMicrotask(() => {
+        setShowSensitive(false);
+        toast.error("You do not have permission to view sensitive fields.");
+      });
     }
   }, [error]);
 
@@ -169,12 +172,10 @@ export function StudentProfilePage({
     saveMutation.mutate(draft);
   };
 
-  // Sync fetched data to draft when entering edit mode
-  useEffect(() => {
-    if (editMode && profile) {
-      setDraft(profile as unknown as ProfileData);
-    }
-  }, [editMode, profile]);
+  const handleStartEditing = () => {
+    setDraft((profile ?? {}) as ProfileData);
+    setEditMode(true);
+  };
 
   // ── Loading ────────────────────────────────────────────────────────
 
@@ -235,7 +236,7 @@ export function StudentProfilePage({
         <h2 className="text-lg font-bold">Student Profile</h2>
         <div className="flex items-center gap-2">
           {!editMode && canEdit && (
-            <Button size="sm" onClick={() => setEditMode(true)}>
+            <Button size="sm" onClick={handleStartEditing}>
               Edit Profile
             </Button>
           )}
