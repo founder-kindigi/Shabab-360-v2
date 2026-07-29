@@ -1,6 +1,8 @@
-"use client";
+export const dynamic = "force-dynamic";
 
-import MashwaraDashboardClient from "./_client";
+import nextDynamic from "next/dynamic";
+
+const MashwaraDashboardClient = nextDynamic(() => import("./_client"));
 
 export default function MashwaraPage() {
   return <MashwaraDashboardClient />;
