@@ -3,14 +3,20 @@
 import { useState } from "react";
 import { useParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useSession } from "next-auth/react";
+
 import { toast } from "sonner";
 import { useAppStore } from "@/stores/useAppStore";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import {
   ArrowLeft,
   Calendar,
@@ -84,40 +90,52 @@ export type MashwaraDetailResponse = {
   }[];
 };
 
-export default function MashwaraDetailClient() {
-  const params = useParams<{ id?: string }>();
+export default function MashwaraDetailClient({
+  canView,
+  canManage,
+  isHq,
+  actorCityId,
+}: {
+  canView: boolean;
+  canManage: boolean;
+  isHq: boolean;
+  actorCityId: string | null;
+}) {
   const storeEventId = useAppStore((s) => s.selectedEventId);
   const navigateTo = useAppStore((s) => s.navigateTo);
-  const meetingId = params?.id || storeEventId || "";
+  const params = useParams<{ id?: string }>();
+  const id = params?.id || storeEventId || "";
 
   const queryClient = useQueryClient();
   const [showDecisionModal, setShowDecisionModal] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
 
   const { data, isLoading, error } = useQuery<MashwaraDetailResponse>({
-    queryKey: ["mashwara-detail", meetingId],
+    queryKey: ["mashwara-detail", id],
     queryFn: () =>
-      fetch(`/api/admin/mashwara/${meetingId}`).then((r) => {
+      fetch(`/api/admin/mashwara/${id}`).then((r) => {
         if (!r.ok) throw new Error("Failed to load meeting details");
         return r.json();
       }),
-    enabled: !!meetingId,
+    enabled: !!id,
   });
 
   const revokeShareMutation = useMutation({
     mutationFn: async (shareId: string) => {
-      const res = await fetch(`/api/admin/mashwara/${meetingId}/shares/${shareId}`, {
+      const res = await fetch(`/api/admin/mashwara/${id}/shares/${shareId}`, {
         method: "DELETE",
       });
       if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: "Failed to revoke share" }));
+        const err = await res
+          .json()
+          .catch(() => ({ error: "Failed to revoke share" }));
         throw new Error(err.error || "Failed to revoke share");
       }
       return res.json();
     },
     onSuccess: () => {
       toast.success("Meeting share revoked");
-      queryClient.invalidateQueries({ queryKey: ["mashwara-detail", meetingId] });
+      queryClient.invalidateQueries({ queryKey: ["mashwara-detail", id] });
     },
     onError: (err: Error) => toast.error(err.message),
   });
@@ -143,7 +161,8 @@ export default function MashwaraDetailClient() {
         <AlertTriangle className="size-12 mx-auto text-amber-500" />
         <h2 className="text-lg font-semibold">Meeting Not Found</h2>
         <p className="text-sm text-muted-foreground">
-          The requested Mashwara meeting could not be loaded or you do not have permission to view it.
+          The requested Mashwara meeting could not be loaded or you do not have
+          permission to view it.
         </p>
         <Button onClick={handleBack}>Return to Mashwara Dashboard</Button>
       </div>
@@ -157,7 +176,12 @@ export default function MashwaraDetailClient() {
     <div className="space-y-6 p-4 md:p-6">
       {/* Back button & Header */}
       <div className="flex items-start gap-3">
-        <Button variant="ghost" size="icon" className="mt-0.5 shrink-0" onClick={handleBack}>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="mt-0.5 shrink-0"
+          onClick={handleBack}
+        >
           <ArrowLeft className="size-5" />
         </Button>
 
@@ -172,7 +196,10 @@ export default function MashwaraDetailClient() {
           <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground flex-wrap">
             <span className="flex items-center gap-1">
               <Calendar className="size-3.5 text-primary" />
-              {format(new Date(data.scheduledAt), "EEEE, MMMM d, yyyy 'at' h:mm a")}
+              {format(
+                new Date(data.scheduledAt),
+                "EEEE, MMMM d, yyyy 'at' h:mm a",
+              )}
             </span>
             {data.location && (
               <span className="flex items-center gap-1">
@@ -188,12 +215,20 @@ export default function MashwaraDetailClient() {
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
-          <Button variant="outline" size="sm" onClick={() => setShowShareModal(true)}>
-            <Share2 className="size-4 mr-1.5" /> Share
-          </Button>
-          <Button size="sm" onClick={() => setShowDecisionModal(true)}>
-            <Plus className="size-4 mr-1.5" /> Add Decision
-          </Button>
+          {canManage && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowShareModal(true)}
+            >
+              <Share2 className="size-4 mr-1.5" /> Grant Share
+            </Button>
+          )}
+          {canManage && (
+            <Button size="sm" onClick={() => setShowDecisionModal(true)}>
+              <Plus className="size-4 mr-1.5" /> Add Decision
+            </Button>
+          )}
         </div>
       </div>
 
@@ -205,7 +240,8 @@ export default function MashwaraDetailClient() {
             Attendees ({data.attendees.length})
           </TabsTrigger>
           <TabsTrigger value="decisions">
-            Decisions ({data.decisions.length}) & Action Items ({data.actionItems.length})
+            Decisions ({data.decisions.length}) & Action Items (
+            {data.actionItems.length})
           </TabsTrigger>
           <TabsTrigger value="shares">
             Shares ({activeShares.length})
@@ -218,7 +254,8 @@ export default function MashwaraDetailClient() {
             <Card className="md:col-span-2">
               <CardHeader>
                 <CardTitle className="text-base font-semibold flex items-center gap-2">
-                  <FileText className="size-4 text-primary" /> Agenda & Minutes Summary
+                  <FileText className="size-4 text-primary" /> Agenda & Minutes
+                  Summary
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -236,27 +273,42 @@ export default function MashwaraDetailClient() {
 
             <Card>
               <CardHeader>
-                <CardTitle className="text-base font-semibold">Session Summary</CardTitle>
+                <CardTitle className="text-base font-semibold">
+                  Session Summary
+                </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3 text-sm">
                 <div>
-                  <span className="text-xs text-muted-foreground block">Status</span>
-                  <Badge className={cn("mt-0.5 capitalize", STATUS_STYLES[data.status])}>
+                  <span className="text-xs text-muted-foreground block">
+                    Status
+                  </span>
+                  <Badge
+                    className={cn(
+                      "mt-0.5 capitalize",
+                      STATUS_STYLES[data.status],
+                    )}
+                  >
                     {data.status.replace(/_/g, " ")}
                   </Badge>
                 </div>
                 <div>
-                  <span className="text-xs text-muted-foreground block">Scheduled Time</span>
+                  <span className="text-xs text-muted-foreground block">
+                    Scheduled Time
+                  </span>
                   <span className="font-medium">
                     {format(new Date(data.scheduledAt), "PPpp")}
                   </span>
                 </div>
                 <div>
-                  <span className="text-xs text-muted-foreground block">Location</span>
+                  <span className="text-xs text-muted-foreground block">
+                    Location
+                  </span>
                   <span className="font-medium">{data.location || "N/A"}</span>
                 </div>
                 <div>
-                  <span className="text-xs text-muted-foreground block">Organized By</span>
+                  <span className="text-xs text-muted-foreground block">
+                    Organized By
+                  </span>
                   <span className="font-medium">{data.createdBy?.name}</span>
                 </div>
                 <div className="pt-2 border-t flex justify-between text-xs">
@@ -264,7 +316,9 @@ export default function MashwaraDetailClient() {
                   <span className="font-semibold">{data.attendees.length}</span>
                 </div>
                 <div className="flex justify-between text-xs">
-                  <span className="text-muted-foreground">Decisions Logged</span>
+                  <span className="text-muted-foreground">
+                    Decisions Logged
+                  </span>
                   <span className="font-semibold">{data.decisions.length}</span>
                 </div>
               </CardContent>
@@ -277,8 +331,12 @@ export default function MashwaraDetailClient() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
-                <CardTitle className="text-base font-semibold">Attendees Roster</CardTitle>
-                <CardDescription>Staff members present and check-in records.</CardDescription>
+                <CardTitle className="text-base font-semibold">
+                  Attendees Roster
+                </CardTitle>
+                <CardDescription>
+                  Staff members present and check-in records.
+                </CardDescription>
               </div>
             </CardHeader>
             <CardContent>
@@ -301,7 +359,9 @@ export default function MashwaraDetailClient() {
                           ({att.staffMeta?.role?.replace(/_/g, " ")})
                         </span>
                         {att.notes && (
-                          <p className="text-xs text-muted-foreground mt-0.5">{att.notes}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {att.notes}
+                          </p>
                         )}
                       </div>
                       <div className="flex items-center gap-3 text-xs">
@@ -310,7 +370,8 @@ export default function MashwaraDetailClient() {
                         </Badge>
                         {att.checkedInAt && (
                           <span className="text-muted-foreground">
-                            Checked in: {format(new Date(att.checkedInAt), "h:mm a")}
+                            Checked in:{" "}
+                            {format(new Date(att.checkedInAt), "h:mm a")}
                           </span>
                         )}
                       </div>
@@ -328,12 +389,22 @@ export default function MashwaraDetailClient() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
-                <CardTitle className="text-base font-semibold">Decisions Log</CardTitle>
-                <CardDescription>Decisions formally recorded during this meeting.</CardDescription>
+                <CardTitle className="text-base font-semibold">
+                  Decisions Log
+                </CardTitle>
+                <CardDescription>
+                  Decisions formally recorded during this meeting.
+                </CardDescription>
               </div>
-              <Button size="sm" onClick={() => setShowDecisionModal(true)}>
-                <Plus className="size-4 mr-1" /> Add Decision
-              </Button>
+              {canManage && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowDecisionModal(true)}
+                >
+                  <Plus className="size-4 mr-1.5" /> Add Decision / Action Item
+                </Button>
+              )}
             </CardHeader>
             <CardContent>
               {data.decisions.length === 0 ? (
@@ -343,18 +414,34 @@ export default function MashwaraDetailClient() {
               ) : (
                 <div className="space-y-3">
                   {data.decisions.map((dec) => (
-                    <div key={dec.id} className="p-3 rounded-lg border bg-card space-y-2">
+                    <div
+                      key={dec.id}
+                      className="p-3 rounded-lg border bg-card space-y-2"
+                    >
                       <div className="flex items-start justify-between gap-2">
-                        <p className="text-sm font-medium text-foreground">{dec.decision}</p>
+                        <p className="text-sm font-medium text-foreground">
+                          {dec.decision}
+                        </p>
                         {dec.category && (
-                          <Badge variant="secondary" className="text-[10px] shrink-0">
+                          <Badge
+                            variant="secondary"
+                            className="text-[10px] shrink-0"
+                          >
                             {dec.category}
                           </Badge>
                         )}
                       </div>
                       <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                        <span>Status: <strong className="capitalize text-foreground">{dec.status}</strong></span>
-                        <span>Logged: {format(new Date(dec.createdAt), "MMM d, h:mm a")}</span>
+                        <span>
+                          Status:{" "}
+                          <strong className="capitalize text-foreground">
+                            {dec.status}
+                          </strong>
+                        </span>
+                        <span>
+                          Logged:{" "}
+                          {format(new Date(dec.createdAt), "MMM d, h:mm a")}
+                        </span>
                       </div>
                     </div>
                   ))}
@@ -366,8 +453,12 @@ export default function MashwaraDetailClient() {
           {/* Action Items Section */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-base font-semibold">Action Items</CardTitle>
-              <CardDescription>Tasks assigned to collaboration teams and staff.</CardDescription>
+              <CardTitle className="text-base font-semibold">
+                Action Items
+              </CardTitle>
+              <CardDescription>
+                Tasks assigned to collaboration teams and staff.
+              </CardDescription>
             </CardHeader>
             <CardContent>
               {data.actionItems.length === 0 ? (
@@ -382,14 +473,20 @@ export default function MashwaraDetailClient() {
                       className="p-3 rounded-lg border flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-sm"
                     >
                       <div>
-                        <p className="font-medium text-foreground">{item.description}</p>
+                        <p className="font-medium text-foreground">
+                          {item.description}
+                        </p>
                         {item.dueDate && (
                           <p className="text-xs text-muted-foreground mt-0.5">
-                            Due date: {format(new Date(item.dueDate), "MMM d, yyyy")}
+                            Due date:{" "}
+                            {format(new Date(item.dueDate), "MMM d, yyyy")}
                           </p>
                         )}
                       </div>
-                      <Badge variant="outline" className="text-[10px] capitalize shrink-0 self-start sm:self-center">
+                      <Badge
+                        variant="outline"
+                        className="text-[10px] capitalize shrink-0 self-start sm:self-center"
+                      >
                         {item.status}
                       </Badge>
                     </div>
@@ -405,14 +502,19 @@ export default function MashwaraDetailClient() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
-                <CardTitle className="text-base font-semibold">Meeting Access Shares</CardTitle>
+                <CardTitle className="text-base font-semibold">
+                  Meeting Access Shares
+                </CardTitle>
                 <CardDescription>
-                  Restricted, meeting-specific view access granted to same-city team members.
+                  Restricted, meeting-specific view access granted to same-city
+                  team members.
                 </CardDescription>
               </div>
-              <Button size="sm" onClick={() => setShowShareModal(true)}>
-                <Share2 className="size-4 mr-1" /> Grant Share
-              </Button>
+              {canManage && (
+                <Button size="sm" onClick={() => setShowShareModal(true)}>
+                  <Share2 className="size-4 mr-1" /> Grant Share
+                </Button>
+              )}
             </CardHeader>
             <CardContent className="space-y-4">
               {activeShares.length === 0 ? (
@@ -421,29 +523,31 @@ export default function MashwaraDetailClient() {
                 </p>
               ) : (
                 <div className="divide-y">
-                  {activeShares.map((share) => (
+                  {activeShares.map((s) => (
                     <div
-                      key={share.id}
+                      key={s.id}
                       className="py-3 flex items-center justify-between gap-2 text-sm"
                     >
                       <div>
                         <p className="font-medium text-foreground">
-                          Granted Share #{share.id.slice(-6)}
+                          Granted Share #{s.id.slice(-6)}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          Granted by {share.grantedBy?.user?.name || "HQ/City Head"} on{" "}
-                          {format(new Date(share.grantedAt), "MMM d, yyyy")}
+                          Granted by {s.grantedBy?.user?.name || "HQ/City Head"}{" "}
+                          on {format(new Date(s.grantedAt), "MMM d, yyyy")}
                         </p>
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30"
-                        disabled={revokeShareMutation.isPending}
-                        onClick={() => revokeShareMutation.mutate(share.id)}
-                      >
-                        <Trash2 className="size-4 mr-1" /> Revoke
-                      </Button>
+                      {canManage && !s.isRevoked && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 px-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
+                          onClick={() => revokeShareMutation.mutate(s.id)}
+                          disabled={revokeShareMutation.isPending}
+                        >
+                          <XCircle className="size-4 mr-1.5" /> Revoke
+                        </Button>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -461,7 +565,12 @@ export default function MashwaraDetailClient() {
                         className="p-2 rounded bg-muted/40 text-xs text-muted-foreground flex justify-between"
                       >
                         <span>Share #{share.id.slice(-6)}</span>
-                        <span>Revoked {share.revokedAt ? format(new Date(share.revokedAt), "MMM d") : ""}</span>
+                        <span>
+                          Revoked{" "}
+                          {share.revokedAt
+                            ? format(new Date(share.revokedAt), "MMM d")
+                            : ""}
+                        </span>
                       </div>
                     ))}
                   </div>
@@ -473,19 +582,22 @@ export default function MashwaraDetailClient() {
       </Tabs>
 
       {/* Modals */}
-      <MashwaraDecisionModal
-        open={showDecisionModal}
-        onClose={() => setShowDecisionModal(false)}
-        meetingId={meetingId}
-        cityId={data.cityId}
-      />
-
-      <MashwaraShareModal
-        open={showShareModal}
-        onClose={() => setShowShareModal(false)}
-        meetingId={meetingId}
-        cityId={data.cityId}
-      />
+      {canManage && (
+        <>
+          <MashwaraDecisionModal
+            open={showDecisionModal}
+            onClose={() => setShowDecisionModal(false)}
+            meetingId={id}
+            cityId={data.cityId}
+          />
+          <MashwaraShareModal
+            open={showShareModal}
+            onClose={() => setShowShareModal(false)}
+            meetingId={id}
+            cityId={data.cityId}
+          />
+        </>
+      )}
     </div>
   );
 }

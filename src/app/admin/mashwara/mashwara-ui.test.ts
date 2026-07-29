@@ -1,3 +1,6 @@
+/**
+ * @vitest-environment jsdom
+ */
 import { describe, expect, it } from "vitest";
 import { createMashwaraSchema, STATUS_STYLES } from "./_client";
 import { decisionFormSchema } from "@/components/mashwara/MashwaraDecisionModal";
@@ -134,5 +137,62 @@ describe("Mashwara UI Validation Schemas", () => {
       expect(STATUS_STYLES.completed).toBeDefined();
       expect(STATUS_STYLES.cancelled).toBeDefined();
     });
+  });
+});
+import { render, screen, cleanup } from '@testing-library/react';
+import React from 'react';
+import { vi, afterEach } from 'vitest';
+import MashwaraDetailClient from './[id]/_client';
+
+afterEach(() => {
+  cleanup();
+});
+
+vi.mock('next/navigation', () => ({
+  useParams: () => ({ id: 'test-m-1' }),
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() })
+}));
+
+vi.mock('@/stores/useAppStore', () => ({
+  useAppStore: vi.fn((selector) => {
+    return typeof selector === 'function' ? selector({ selectedEventId: '', navigateTo: vi.fn() }) : undefined;
+  })
+}));
+
+vi.mock('@tanstack/react-query', () => ({
+  useQuery: vi.fn(() => ({
+    data: {
+      id: 'test-m-1',
+      cityId: 'c-1',
+      title: 'Mock Meeting',
+      status: 'scheduled',
+      scheduledAt: new Date().toISOString(),
+      attendees: [],
+      decisions: [],
+      actionItems: [],
+      shares: [],
+      createdBy: { id: 'u-1', name: 'Mock Creator' }
+    },
+    isLoading: false
+  })),
+  useMutation: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
+  useQueryClient: vi.fn(() => ({ invalidateQueries: vi.fn() }))
+}));
+
+describe('Mashwara UI Capability Rendering', () => {
+  it('renders manage controls when canManage is true', () => {
+    render(
+      React.createElement(MashwaraDetailClient, { canView: true, canManage: true, isHq: false, actorCityId: 'c-1' })
+    );
+    expect(screen.getByText('Add Decision')).toBeTruthy();
+  });
+
+  it('hides manage controls when canManage is false', () => {
+    render(
+      React.createElement(MashwaraDetailClient, { canView: true, canManage: false, isHq: false, actorCityId: 'c-1' })
+    );
+    expect(screen.queryByText('Grant Share')).toBeNull();
+    // In our UI, 'Add Decision' exists in both header and decisions tab, but shouldn't be rendered when canManage is false.
+    expect(screen.queryByText('Add Decision')).toBeNull();
   });
 });

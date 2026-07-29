@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useSession } from "next-auth/react";
+
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { useAppStore } from "@/stores/useAppStore";
@@ -82,8 +82,10 @@ export type CreateMashwaraValues = z.infer<typeof createMashwaraSchema>;
 
 export const STATUS_STYLES: Record<string, string> = {
   scheduled: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
-  in_progress: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
-  completed: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
+  in_progress:
+    "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
+  completed:
+    "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
   cancelled: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
 };
 
@@ -133,7 +135,9 @@ function CreateMashwaraModal({
         }),
       });
       if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: "Failed to schedule meeting" }));
+        const err = await res
+          .json()
+          .catch(() => ({ error: "Failed to schedule meeting" }));
         throw new Error(err.error || "Failed to schedule meeting");
       }
       return res.json();
@@ -182,7 +186,8 @@ function CreateMashwaraModal({
         <DialogHeader>
           <DialogTitle>Schedule Weekly Mashwara</DialogTitle>
           <DialogDescription>
-            Create a new weekly meeting session for decision-making and collaboration.
+            Create a new weekly meeting session for decision-making and
+            collaboration.
           </DialogDescription>
         </DialogHeader>
 
@@ -205,7 +210,9 @@ function CreateMashwaraModal({
                   ))}
                 </SelectContent>
               </Select>
-              {errors.cityId && <p className="text-xs text-red-500">{errors.cityId}</p>}
+              {errors.cityId && (
+                <p className="text-xs text-red-500">{errors.cityId}</p>
+              )}
             </div>
           )}
 
@@ -217,7 +224,9 @@ function CreateMashwaraModal({
               value={form.title}
               onChange={(e) => setForm({ ...form, title: e.target.value })}
             />
-            {errors.title && <p className="text-xs text-red-500">{errors.title}</p>}
+            {errors.title && (
+              <p className="text-xs text-red-500">{errors.title}</p>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -227,7 +236,9 @@ function CreateMashwaraModal({
                 id="m-scheduledAt"
                 type="datetime-local"
                 value={form.scheduledAt}
-                onChange={(e) => setForm({ ...form, scheduledAt: e.target.value })}
+                onChange={(e) =>
+                  setForm({ ...form, scheduledAt: e.target.value })
+                }
               />
               {errors.scheduledAt && (
                 <p className="text-xs text-red-500">{errors.scheduledAt}</p>
@@ -251,7 +262,9 @@ function CreateMashwaraModal({
               id="m-summary"
               placeholder="Key topics to discuss or meeting notes summary..."
               value={form.minutesSummary || ""}
-              onChange={(e) => setForm({ ...form, minutesSummary: e.target.value })}
+              onChange={(e) =>
+                setForm({ ...form, minutesSummary: e.target.value })
+              }
               rows={3}
             />
           </div>
@@ -278,13 +291,19 @@ function CreateMashwaraModal({
 
 // ─── Main Dashboard Client Page ───────────────────────────────────────────
 
-export default function MashwaraDashboardClient() {
-  const { data: session } = useSession();
+export default function MashwaraDashboardClient({
+  canView,
+  canManage,
+  isHq,
+  actorCityId,
+}: {
+  canView: boolean;
+  canManage: boolean;
+  isHq: boolean;
+  actorCityId: string | null;
+}) {
   const navigateTo = useAppStore((s) => s.navigateTo);
-  const user = session?.user as { role?: string; assignedCityId?: string } | undefined;
-  const userRole = user?.role;
-  const isHq = userRole === "super_admin" || userRole === "program_admin";
-  const userCityId = user?.assignedCityId;
+  const userCityId = actorCityId;
 
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>("");
@@ -307,7 +326,8 @@ export default function MashwaraDashboardClient() {
   const queryParams = new URLSearchParams();
   queryParams.set("page", String(page));
   queryParams.set("pageSize", String(pageSize));
-  if (statusFilter && statusFilter !== "all") queryParams.set("status", statusFilter);
+  if (statusFilter && statusFilter !== "all")
+    queryParams.set("status", statusFilter);
   if (cityFilter && cityFilter !== "all") queryParams.set("cityId", cityFilter);
 
   const { data, isLoading, error } = useQuery<MashwaraListResponse>({
@@ -335,18 +355,27 @@ export default function MashwaraDashboardClient() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Weekly Mashwara</h1>
           <p className="text-sm text-muted-foreground">
-            Manage city-scoped recurring meetings, attendance, decisions, action items, and shares.
+            Manage city-scoped recurring meetings, attendance, decisions, action
+            items, and shares.
           </p>
         </div>
-        <Button onClick={() => setShowCreateModal(true)}>
-          <Plus className="size-4 mr-1.5" /> Schedule Mashwara
-        </Button>
+        {canManage && (
+          <Button onClick={() => setShowCreateModal(true)}>
+            <Plus className="size-4 mr-1.5" /> Schedule Mashwara
+          </Button>
+        )}
       </div>
 
       {/* Filters Bar */}
       <div className="flex flex-wrap gap-3 items-center">
         {isHq && (
-          <Select value={cityFilter || "all"} onValueChange={(v) => { setCityFilter(v); setPage(1); }}>
+          <Select
+            value={cityFilter || "all"}
+            onValueChange={(v) => {
+              setCityFilter(v);
+              setPage(1);
+            }}
+          >
             <SelectTrigger className="w-48">
               <SelectValue placeholder="All Cities" />
             </SelectTrigger>
@@ -393,25 +422,31 @@ export default function MashwaraDashboardClient() {
       {error && (
         <div className="flex items-center gap-2 p-4 rounded-lg bg-red-50 border border-red-200 dark:bg-red-950/30 text-red-700">
           <AlertTriangle className="size-4 shrink-0" />
-          <p className="text-sm">Failed to load Mashwara meetings. Please try again.</p>
+          <p className="text-sm">
+            Failed to load Mashwara meetings. Please try again.
+          </p>
         </div>
       )}
 
       {data?.data?.length === 0 && !isLoading && (
         <div className="py-16 text-center border rounded-xl bg-card">
           <Users className="size-12 mx-auto text-muted-foreground/40 mb-3" />
-          <h3 className="text-base font-semibold">No Mashwara Meetings Found</h3>
+          <h3 className="text-base font-semibold">
+            No Mashwara Meetings Found
+          </h3>
           <p className="text-sm text-muted-foreground mt-1">
             There are no meetings matching your current filter criteria.
           </p>
-          <Button
-            variant="outline"
-            size="sm"
-            className="mt-4"
-            onClick={() => setShowCreateModal(true)}
-          >
-            Schedule First Meeting
-          </Button>
+          {canManage && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-4"
+              onClick={() => setShowCreateModal(true)}
+            >
+              Schedule First Meeting
+            </Button>
+          )}
         </div>
       )}
 
@@ -436,7 +471,7 @@ export default function MashwaraDashboardClient() {
                       variant="outline"
                       className={cn(
                         "text-[10px] capitalize shrink-0",
-                        STATUS_STYLES[meeting.status]
+                        STATUS_STYLES[meeting.status],
                       )}
                     >
                       {meeting.status.replace(/_/g, " ")}
@@ -448,7 +483,10 @@ export default function MashwaraDashboardClient() {
                     <div className="flex items-center gap-1.5">
                       <Calendar className="size-3.5 text-primary shrink-0" />
                       <span>
-                        {format(new Date(meeting.scheduledAt), "EEEE, MMM d, yyyy 'at' h:mm a")}
+                        {format(
+                          new Date(meeting.scheduledAt),
+                          "EEEE, MMM d, yyyy 'at' h:mm a",
+                        )}
                       </span>
                     </div>
 
@@ -461,13 +499,21 @@ export default function MashwaraDashboardClient() {
 
                     <div className="flex items-center gap-1.5 pt-1">
                       <FileText className="size-3.5 text-muted-foreground shrink-0" />
-                      <span>Created by {meeting.createdBy?.name || "Staff"}</span>
+                      <span>
+                        Created by {meeting.createdBy?.name || "Staff"}
+                      </span>
                     </div>
                   </div>
 
                   <div className="pt-3 border-t flex items-center justify-between text-xs">
-                    <span className="text-muted-foreground">Click for details</span>
-                    <Button variant="ghost" size="sm" className="h-7 px-2 text-primary">
+                    <span className="text-muted-foreground">
+                      Click for details
+                    </span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 px-2 text-primary"
+                    >
                       View <Eye className="size-3.5 ml-1" />
                     </Button>
                   </div>
