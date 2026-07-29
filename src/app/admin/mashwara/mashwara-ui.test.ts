@@ -242,7 +242,8 @@ function makeUseQueryMock(
         shares: [],
         createdBy: { id: 'u-1', name: 'Mock Creator' }
       },
-      isLoading: false
+      isLoading: false,
+      enabled: options?.enabled
     };
   };
 }
@@ -327,5 +328,33 @@ describe('Scoped City Resolution Failure (ui-context 403)', () => {
     );
     // enabled must be false because !!ctx is false when ctxError is set
     expect(mashwaraCall?.[0]?.enabled).toBe(false);
+  });
+
+  it('renders access-denied message on detail page when ui-context returns 403', () => {
+    vi.mocked(useQuery).mockImplementation(
+      makeUseQueryMock(
+        { canView: true, canManage: false, isHq: false, actorCityId: null },
+        { uiCtxError: true },
+      ) as any
+    );
+    render(React.createElement(MashwaraDetailClient));
+    expect(screen.getByText('Access Unavailable')).toBeTruthy();
+    expect(screen.queryByText('Mock Meeting')).toBeNull();
+  });
+
+  it('sets mashwara-detail query enabled to false when ui-context returns 403', () => {
+    const mockImpl = makeUseQueryMock(
+      { canView: true, canManage: false, isHq: false, actorCityId: null },
+      { uiCtxError: true },
+    );
+    const spy = vi.fn(mockImpl);
+    vi.mocked(useQuery).mockImplementation(spy as any);
+
+    render(React.createElement(MashwaraDetailClient));
+
+    const detailCall = spy.mock.calls.find(
+      (call: any) => Array.isArray(call[0]?.queryKey) && call[0]?.queryKey[0] === 'mashwara-detail'
+    );
+    expect(detailCall?.[0]?.enabled).toBe(false);
   });
 });
