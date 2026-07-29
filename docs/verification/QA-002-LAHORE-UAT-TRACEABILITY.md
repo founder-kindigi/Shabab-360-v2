@@ -92,14 +92,20 @@ Screenshot evidence filenames MUST match this exact format:
 | **PORTAL-01** | Role Portals | City Head | `/dashboard` | Desktop | Correct portal layout, data, and navigation for the specific role. | `docs/uat-evidence/PORTAL-01-CityHead-Desktop-01.png` | NOT_EXECUTED |  |
 | **PORTAL-01** | Role Portals | Park Lead | `/dashboard` | Desktop | Correct portal layout, data, and navigation for the specific role. | `docs/uat-evidence/PORTAL-01-ParkLead-Desktop-01.png` | NOT_EXECUTED |  |
 | **PORTAL-01** | Role Portals | Park Admin | `/dashboard` | Desktop | Correct portal layout, data, and navigation for the specific role. | `docs/uat-evidence/PORTAL-01-ParkAdmin-Desktop-01.png` | NOT_EXECUTED |  |
-| **PORTAL-01** | Role Portals | Murabbi | `/dashboard` | Desktop | Correct portal layout, data, and navigation for the specific role. | `docs/uat-evidence/PORTAL-01-Murabbi-Desktop-01.png` | NOT_EXECUTED |  |
-| **PORTAL-01** | Role Portals | Guardian | `/dashboard` | Desktop | Correct portal layout, data, and navigation for the specific role. | `docs/uat-evidence/PORTAL-01-Guardian-Desktop-01.png` | NOT_EXECUTED |  |
-| **PORTAL-01** | Role Portals | Student | `/dashboard` | Desktop | Correct portal layout, data, and navigation for the specific role. | `docs/uat-evidence/PORTAL-01-Student-Desktop-01.png` | NOT_EXECUTED |  |
+| **PORTAL-01** | Role Portals | Murabbi | `/dashboard` | 375px | Correct portal layout, data, and navigation for the specific role. | `docs/uat-evidence/PORTAL-01-Murabbi-375px-01.png` | NOT_EXECUTED |  |
+| **PORTAL-01** | Role Portals | Murabbi | `/dashboard` | 390px | Correct portal layout, data, and navigation for the specific role. | `docs/uat-evidence/PORTAL-01-Murabbi-390px-01.png` | NOT_EXECUTED |  |
+| **PORTAL-01** | Role Portals | Guardian | `/dashboard` | 375px | Correct portal layout, data, and navigation for the specific role. | `docs/uat-evidence/PORTAL-01-Guardian-375px-01.png` | NOT_EXECUTED |  |
+| **PORTAL-01** | Role Portals | Guardian | `/dashboard` | 390px | Correct portal layout, data, and navigation for the specific role. | `docs/uat-evidence/PORTAL-01-Guardian-390px-01.png` | NOT_EXECUTED |  |
+| **PORTAL-01** | Role Portals | Student | `/dashboard` | 375px | Correct portal layout, data, and navigation for the specific role. | `docs/uat-evidence/PORTAL-01-Student-375px-01.png` | NOT_EXECUTED |  |
+| **PORTAL-01** | Role Portals | Student | `/dashboard` | 390px | Correct portal layout, data, and navigation for the specific role. | `docs/uat-evidence/PORTAL-01-Student-390px-01.png` | NOT_EXECUTED |  |
 | **PORTAL-02** | Access Boundaries | City Head | `/admin/cities` | Desktop | Cannot access global Cities management; URL returns denial/403. | `docs/uat-evidence/PORTAL-02-CityHead-Desktop-01.png` | NOT_EXECUTED |  |
 | **PORTAL-03** | Access Boundaries | Park Lead | `/park/:id` | Desktop | Can only view assigned park; cross-park requests rejected. | `docs/uat-evidence/PORTAL-03-ParkLead-Desktop-01.png` | NOT_EXECUTED |  |
-| **PORTAL-04** | Access Boundaries | Murabbi | `/group/:id` | 375px, 390px | Views assigned group only; cross-group access rejected. | `docs/uat-evidence/PORTAL-04-Murabbi-375px_390px-01.png` | NOT_EXECUTED | Mobile stabilization focus |
-| **PORTAL-05** | Access Boundaries | Guardian | `/guardian/students` | 375px, 390px | Views linked children only; unlinked access rejected. | `docs/uat-evidence/PORTAL-05-Guardian-375px_390px-01.png` | NOT_EXECUTED | Mobile stabilization focus |
-| **PORTAL-06** | Access Boundaries | Student | `/student/profile` | 375px, 390px | Views own record only; cross-student access rejected. | `docs/uat-evidence/PORTAL-06-Student-375px_390px-01.png` | NOT_EXECUTED | Mobile stabilization focus |
+| **PORTAL-04** | Access Boundaries | Murabbi | `/group/:id` | 375px | Views assigned group only; cross-group access rejected. | `docs/uat-evidence/PORTAL-04-Murabbi-375px-01.png` | NOT_EXECUTED | Mobile stabilization focus |
+| **PORTAL-04** | Access Boundaries | Murabbi | `/group/:id` | 390px | Views assigned group only; cross-group access rejected. | `docs/uat-evidence/PORTAL-04-Murabbi-390px-01.png` | NOT_EXECUTED | Mobile stabilization focus |
+| **PORTAL-05** | Access Boundaries | Guardian | `/guardian/students` | 375px | Views linked children only; unlinked access rejected. | `docs/uat-evidence/PORTAL-05-Guardian-375px-01.png` | NOT_EXECUTED | Mobile stabilization focus |
+| **PORTAL-05** | Access Boundaries | Guardian | `/guardian/students` | 390px | Views linked children only; unlinked access rejected. | `docs/uat-evidence/PORTAL-05-Guardian-390px-01.png` | NOT_EXECUTED | Mobile stabilization focus |
+| **PORTAL-06** | Access Boundaries | Student | `/student/profile` | 375px | Views own record only; cross-student access rejected. | `docs/uat-evidence/PORTAL-06-Student-375px-01.png` | NOT_EXECUTED | Mobile stabilization focus |
+| **PORTAL-06** | Access Boundaries | Student | `/student/profile` | 390px | Views own record only; cross-student access rejected. | `docs/uat-evidence/PORTAL-06-Student-390px-01.png` | NOT_EXECUTED | Mobile stabilization focus |
 | **ORG-01** | Organisation | Program Admin | UI Navigation: Admin → Cities | Desktop | Expected imported Lahore city, park, batch, and group structure is visible. | `docs/uat-evidence/ORG-01-ProgramAdmin-Desktop-01.png` | NOT_EXECUTED | Validates imported staging data |
 | **ORG-02** | Organisation | City Head | UI Navigation: Admin → Parks → New | Desktop | Park successfully created within Lahore. | `docs/uat-evidence/ORG-02-CityHead-Desktop-01.png` | NOT_EXECUTED |  |
 | **ORG-03** | Hierarchy | City Head | UI Navigation: Admin → Groups | Desktop | Groups strictly link to Batch → Park → City. | `docs/uat-evidence/ORG-03-CityHead-Desktop-01.png` | NOT_EXECUTED |  |
@@ -108,12 +114,14 @@ Screenshot evidence filenames MUST match this exact format:
 | **ATT-03** | Attendance | Park Lead | UI Navigation: Portal → Attendance → Edit | Desktop | Corrects a marked record; audit trail visible. | `docs/uat-evidence/ATT-03-ParkLead-Desktop-01.png` | NOT_EXECUTED |  |
 | **ATT-04** | Attendance | Park Lead | UI Navigation: Portal → Attendance → Close | Desktop | Event locked; no further marks allowed. | `docs/uat-evidence/ATT-04-ParkLead-Desktop-01.png` | NOT_EXECUTED |  |
 | **ATT-05** | Attendance | Program Admin | UI Navigation: Admin → Reports → Attendance | Desktop | Expected historical attendance events and records are queryable. | `docs/uat-evidence/ATT-05-ProgramAdmin-Desktop-01.png` | NOT_EXECUTED | Validates historical data |
-| **ATT-06** | Attendance | Park Admin | UI Navigation: Portal → Attendance | 375px, 390px | Local Dexie queue stores marks; syncs on reconnect. | `docs/uat-evidence/ATT-06-ParkAdmin-375px_390px-01.png` | BLOCKED | Requires manual network toggle |
+| **ATT-06** | Attendance | Park Admin | UI Navigation: Portal → Attendance | 375px | Local Dexie queue stores marks; syncs on reconnect. | `docs/uat-evidence/ATT-06-ParkAdmin-375px-01.png` | BLOCKED | Requires manual network toggle |
+| **ATT-06** | Attendance | Park Admin | UI Navigation: Portal → Attendance | 390px | Local Dexie queue stores marks; syncs on reconnect. | `docs/uat-evidence/ATT-06-ParkAdmin-390px-01.png` | BLOCKED | Requires manual network toggle |
 | **STU-01** | Students | Murabbi | UI Navigation: Portal → Group Roster | Desktop | Correct students displayed with profiles. | `docs/uat-evidence/STU-01-Murabbi-Desktop-01.png` | NOT_EXECUTED |  |
 | **STU-02** | Students | City Head | UI Navigation: Admin → Students | Desktop | Name/ID search returns correct results within scope. | `docs/uat-evidence/STU-02-CityHead-Desktop-01.png` | NOT_EXECUTED |  |
 | **STU-03** | Students | Park Lead | UI Navigation: Admin → Students → Detail | Desktop | Guardian details accessible via student record. | `docs/uat-evidence/STU-03-ParkLead-Desktop-01.png` | NOT_EXECUTED |  |
 | **GRD-01** | Guardians | Park Admin | UI Navigation: Admin → Guardians → Lookup | Desktop | Phone lookup (exact match) returns masked data; no CNIC. | `docs/uat-evidence/GRD-01-ParkAdmin-Desktop-01.png` | NOT_EXECUTED |  |
-| **GRD-02** | Guardians | Guardian | `/dashboard` | 375px, 390px | Views linked children only. | `docs/uat-evidence/GRD-02-Guardian-375px_390px-01.png` | NOT_EXECUTED |  |
+| **GRD-02** | Guardians | Guardian | `/dashboard` | 375px | Views linked children only. | `docs/uat-evidence/GRD-02-Guardian-375px-01.png` | NOT_EXECUTED |  |
+| **GRD-02** | Guardians | Guardian | `/dashboard` | 390px | Views linked children only. | `docs/uat-evidence/GRD-02-Guardian-390px-01.png` | NOT_EXECUTED |  |
 | **ADM-01** | Admissions | Guardian | UI Navigation: Portal → Apply | Desktop | Application submitted and saved in pipeline. | `docs/uat-evidence/ADM-01-Guardian-Desktop-01.png` | NOT_EXECUTED |  |
 | **ADM-02** | Admissions | Park Admin | UI Navigation: Admin → Admissions | Desktop | Applications listed with correct status. | `docs/uat-evidence/ADM-02-ParkAdmin-Desktop-01.png` | NOT_EXECUTED |  |
 | **ADM-03** | Admissions | Park Lead | UI Navigation: Admin → Admissions → Decide | Desktop | Decision recorded and status updated. | `docs/uat-evidence/ADM-03-ParkLead-Desktop-01.png` | NOT_EXECUTED |  |
@@ -136,7 +144,8 @@ Screenshot evidence filenames MUST match this exact format:
 | **RPT-01** | Reports | Park Admin | UI Navigation: Admin → Reports → Attendance | Desktop | Report reflects actual attendance data for the park. | `docs/uat-evidence/RPT-01-ParkAdmin-Desktop-01.png` | NOT_EXECUTED |  |
 | **RPT-02** | Reports | City Head | UI Navigation: Admin → Reports → Export | Desktop | File downloads with correct scoped data. | `docs/uat-evidence/RPT-02-CityHead-Desktop-01.png` | NOT_EXECUTED |  |
 | **NTF-01** | Notifications | Program Admin | UI Navigation: Admin → Announcements | Desktop | Publish announcement; visible to target audience. | `docs/uat-evidence/NTF-01-ProgramAdmin-Desktop-01.png` | NOT_EXECUTED |  |
-| **NTF-02** | Notifications | Student | UI Navigation: Portal → Notifications | 375px, 390px | In-app notifications appear for targeted user. | `docs/uat-evidence/NTF-02-Student-375px_390px-01.png` | NOT_EXECUTED |  |
+| **NTF-02** | Notifications | Student | UI Navigation: Portal → Notifications | 375px | In-app notifications appear for targeted user. | `docs/uat-evidence/NTF-02-Student-375px-01.png` | NOT_EXECUTED |  |
+| **NTF-02** | Notifications | Student | UI Navigation: Portal → Notifications | 390px | In-app notifications appear for targeted user. | `docs/uat-evidence/NTF-02-Student-390px-01.png` | NOT_EXECUTED |  |
 | **SEC-01** | Security | Super Admin | API Route | Desktop | Cross-origin mutation yields 403. | `docs/uat-evidence/SEC-01-SuperAdmin-Desktop-01.png` | NOT_EXECUTED |  |
 | **SEC-01** | Security | Program Admin | API Route | Desktop | Cross-origin mutation yields 403. | `docs/uat-evidence/SEC-01-ProgramAdmin-Desktop-01.png` | NOT_EXECUTED |  |
 | **SEC-01** | Security | City Head | API Route | Desktop | Cross-origin mutation yields 403. | `docs/uat-evidence/SEC-01-CityHead-Desktop-01.png` | NOT_EXECUTED |  |
@@ -156,7 +165,7 @@ Screenshot evidence filenames MUST match this exact format:
 | **SEC-05** | Security | Murabbi | API Route | Desktop | Unimplemented capability denied by default (fail-closed). | `docs/uat-evidence/SEC-05-Murabbi-Desktop-01.png` | NOT_EXECUTED |  |
 | **SEC-05** | Security | Guardian | API Route | Desktop | Unimplemented capability denied by default (fail-closed). | `docs/uat-evidence/SEC-05-Guardian-Desktop-01.png` | NOT_EXECUTED |  |
 | **SEC-05** | Security | Student | API Route | Desktop | Unimplemented capability denied by default (fail-closed). | `docs/uat-evidence/SEC-05-Student-Desktop-01.png` | NOT_EXECUTED |  |
-| **SMOKE-01** | Smoke Test | Program Admin | UI Navigation: Admin → Events → Planner | Desktop | Existing Content Planner screens load without error. | `docs/uat-evidence/SMOKE-01-ProgramAdmin-Desktop-01.png` | NOT_EXECUTED |  |
+| **SMOKE-01** | Smoke Test | Program Admin | UI Navigation: Admin → Content Planner | Desktop | Existing Content Planner screens load without error. | `docs/uat-evidence/SMOKE-01-ProgramAdmin-Desktop-01.png` | NOT_EXECUTED |  |
 | **SMOKE-02** | Smoke Test | Park Lead | `/admin/events` | Desktop | Existing Events screens load without error. | `docs/uat-evidence/SMOKE-02-ParkLead-Desktop-01.png` | NOT_EXECUTED |  |
 | **SMOKE-03** | Smoke Test | Park Lead | `/admin/mashwara` | Desktop | Existing Mashwara screens load without error. | `docs/uat-evidence/SMOKE-03-ParkLead-Desktop-01.png` | NOT_EXECUTED |  |
 | **SMOKE-04** | Smoke Test | Park Admin | `/admin/calling` | Desktop | Existing Calling screens load without error. | `docs/uat-evidence/SMOKE-04-ParkAdmin-Desktop-01.png` | NOT_EXECUTED |  |
@@ -192,4 +201,4 @@ If a scenario fails, copy this template and log the defect. Use severity P0, P1,
 | --- | --- |
 | Prepared by | Agent (Antigravity) |
 | Task ID | QA-002-LAHORE-UAT-TRACEABILITY |
-| Matrix Summary | 105 NOT_EXECUTED, 1 BLOCKED, 0 PASSED, 0 FAILED |
+| Matrix Summary | 113 NOT_EXECUTED, 2 BLOCKED, 0 PASSED, 0 FAILED |
