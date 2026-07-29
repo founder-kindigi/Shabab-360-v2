@@ -2,12 +2,10 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -25,20 +23,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Plus,
   Calendar,
   MapPin,
-  Users,
-  ClipboardList,
-  Clock,
-  X,
-  Search,
   Eye,
-  Pencil,
-  Archive,
   AlertTriangle,
   Loader2,
 } from "lucide-react";
@@ -61,11 +51,11 @@ type EventItem = {
   _count?: { teams?: number; responsibilities?: number; plannerItems?: number };
 };
 
-type EventsResponse = { events: EventItem[]; total: number; page: number; limit: number };
+type UiContext = { canManage: boolean; isHq: boolean };
 
 // ─── Creation Zod Schema ─────────────────────────────────────────────────
 
-const eventSchema = z.object({
+export const eventSchema = z.object({
   title: z.string().min(1, "Title is required").max(200),
   eventType: z.enum(["trip", "ceremony", "campaign", "activity", "sports_day", "camp", "open_day", "closing", "other"]),
   venue: z.string().max(200).optional().or(z.literal("")),
@@ -83,7 +73,7 @@ type EventFormData = {
   capacity: number | "";
 };
 
-const EVENT_TYPES = [
+export const EVENT_TYPES = [
   { value: "trip", label: "Trip" },
   { value: "ceremony", label: "Ceremony" },
   { value: "campaign", label: "Campaign" },
@@ -95,7 +85,7 @@ const EVENT_TYPES = [
   { value: "other", label: "Other" },
 ];
 
-const STATUS_STYLES: Record<string, string> = {
+export const STATUS_STYLES: Record<string, string> = {
   planned: "bg-muted text-muted-foreground",
   confirmed: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
   in_progress: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
@@ -108,11 +98,13 @@ const STATUS_STYLES: Record<string, string> = {
 export function EventForm({
   open,
   onClose,
-  cityId,
+  cityId,   // HQ: explicit selection; scoped: omit so server derives it
+  canManage,
 }: {
   open: boolean;
   onClose: () => void;
   cityId?: string;
+  canManage: boolean;
 }) {
   const queryClient = useQueryClient();
   const [form, setForm] = useState<EventFormData>({
@@ -127,8 +119,7 @@ export function EventForm({
 
   const createMutation = useMutation({
     mutationFn: async (data: Record<string, unknown>) => {
-      const params = cityId ? `?cityId=${cityId}` : "";
-      const res = await fetch(`/api/admin/events${params}`, {
+      const res = await fetch("/api/admin/events", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
@@ -168,8 +159,13 @@ export function EventForm({
     } else {
       payload.capacity = Number(payload.capacity);
     }
+    // HQ must provide cityId in body; scoped actors must NOT — server derives from staff scope
+    if (cityId) payload.cityId = cityId;
+
     createMutation.mutate(payload);
   };
+
+  if (!canManage) return null;
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
@@ -180,8 +176,8 @@ export function EventForm({
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="title">Title *</Label>
-            <Input id="title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Event title" />
+            <Label htmlFor="ef-title">Title *</Label>
+            <Input id="ef-title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Event title" />
             {errors.title && <p className="text-xs text-red-500">{errors.title}</p>}
           </div>
           <div className="grid grid-cols-2 gap-4">
@@ -201,22 +197,29 @@ export function EventForm({
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="startDate">Start Date *</Label>
-              <Input id="startDate" type="date" value={form.startDate} onChange={(e) => setForm({ ...form, startDate: e.target.value })} />
+              <Label htmlFor="ef-startDate">Start Date *</Label>
+              <Input id="ef-startDate" type="date" value={form.startDate} onChange={(e) => setForm({ ...form, startDate: e.target.value })} />
               {errors.startDate && <p className="text-xs text-red-500">{errors.startDate}</p>}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="endDate">End Date</Label>
-              <Input id="endDate" type="date" value={form.endDate || ""} onChange={(e) => setForm({ ...form, endDate: e.target.value })} />
+              <Label htmlFor="ef-endDate">End Date</Label>
+              <Input id="ef-endDate" type="date" value={form.endDate || ""} onChange={(e) => setForm({ ...form, endDate: e.target.value })} />
             </div>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="capacity">Capacity</Label>
-            <Input id="capacity" type="number" min="1" value={form.capacity} onChange={(e) => setForm({ ...form, capacity: e.target.value ? Number(e.target.value) : "" })} placeholder="Optional max attendees" />
+            <Label htmlFor="ef-capacity">Capacity</Label>
+            <Input
+              id="ef-capacity"
+              type="number"
+              min="1"
+              value={form.capacity}
+              onChange={(e) => setForm({ ...form, capacity: e.target.value ? Number(e.target.value) : "" })}
+              placeholder="Optional max attendees"
+            />
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-            <Button type="submit" disabled={createMutation.isPending}>
+            <Button id="ef-submit" type="submit" disabled={createMutation.isPending}>
               {createMutation.isPending ? <><Loader2 className="size-4 mr-2 animate-spin" /> Creating…</> : "Create Event"}
             </Button>
           </DialogFooter>
@@ -229,65 +232,93 @@ export function EventForm({
 // ─── EventsPage (List) ───────────────────────────────────────────────────
 
 export function EventsPage() {
-  const { data: session } = useSession();
-  const userRole = (session?.user as { role?: string } | undefined)?.role;
-  const isHq = userRole === "super_admin" || userRole === "program_admin";
   const queryClient = useQueryClient();
 
   const [showCreate, setShowCreate] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [cityFilter, setCityFilter] = useState<string>("");
-  const [page, setPage] = useState(1);
+
+  // ── Server-resolved capabilities via narrow endpoint ──────────────────
+  const { data: ctx } = useQuery<UiContext>({
+    queryKey: ["events-ui-context"],
+    queryFn: () =>
+      fetch("/api/admin/events/ui-context").then(async (r) => {
+        if (!r.ok) throw new Error("Failed to load context");
+        return r.json();
+      }),
+    staleTime: 60_000,
+  });
+
+  const canManage = ctx?.canManage ?? false;
+  const isHq = ctx?.isHq ?? false;
+
+  // ── HQ must select a city before listing; scoped actors load immediately ──
+  const skipFetch = isHq && !cityFilter;
 
   const params = new URLSearchParams();
   if (cityFilter) params.set("cityId", cityFilter);
-  if (statusFilter) params.set("status", statusFilter);
-  params.set("page", String(page));
-  params.set("limit", "20");
+  if (statusFilter && statusFilter !== "all") params.set("status", statusFilter);
+  params.set("offset", "0");
+  params.set("limit", "50");
 
-  const { data, isLoading, error } = useQuery<EventsResponse>({
-    queryKey: ["admin-events", cityFilter, statusFilter, page],
-    queryFn: () => fetch(`/api/admin/events?${params}`).then((r) => {
-      if (!r.ok) throw new Error("Failed to load events");
-      return r.json();
-    }),
+  const { data: events, isLoading, error } = useQuery<EventItem[]>({
+    queryKey: ["admin-events", cityFilter, statusFilter],
+    queryFn: () =>
+      fetch(`/api/admin/events?${params}`).then(async (r) => {
+        const json = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error((json as { error?: string }).error || "Failed to load events");
+        return json as EventItem[];
+      }),
+    enabled: !skipFetch,
   });
 
-  // City selector for HQ
+  // Cities list — only fetched for HQ
   const { data: cities } = useQuery<{ id: string; name: string }[]>({
     queryKey: ["cities-list"],
-    queryFn: () => fetch("/api/admin/cities").then((r) => r.json()).then((d) => d.data || d),
+    queryFn: () =>
+      fetch("/api/admin/cities").then((r) => r.json()).then((d) => (d.data || d) as { id: string; name: string }[]),
     enabled: isHq,
+    staleTime: 120_000,
   });
-
-  const totalPages = data ? Math.ceil(data.total / data.limit) : 0;
 
   return (
     <div className="space-y-6 p-4 md:p-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold">Events</h1>
           <p className="text-sm text-muted-foreground">Manage programme events and responsibilities</p>
         </div>
-        <Button onClick={() => setShowCreate(true)} disabled={!isHq && userRole !== "city_head"}>
-          <Plus className="size-4 mr-1.5" /> New Event
-        </Button>
+        {canManage && (
+          <Button
+            id="events-new-btn"
+            onClick={() => setShowCreate(true)}
+            disabled={skipFetch}
+            title={skipFetch ? "Select a city first" : undefined}
+          >
+            <Plus className="size-4 mr-1.5" /> New Event
+          </Button>
+        )}
       </div>
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3">
-        {isHq && cities && (
-          <Select value={cityFilter} onValueChange={setCityFilter}>
-            <SelectTrigger className="w-48"><SelectValue placeholder="All cities" /></SelectTrigger>
+        {isHq && (
+          <Select value={cityFilter} onValueChange={(v) => { setCityFilter(v); }}>
+            <SelectTrigger id="events-city-filter" className="w-full sm:w-48">
+              <SelectValue placeholder="Select a city…" />
+            </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All cities</SelectItem>
-              {cities.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+              {(cities ?? []).map((c) => (
+                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
         )}
-        <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
-          <SelectTrigger className="w-40"><SelectValue placeholder="All statuses" /></SelectTrigger>
+        <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v)}>
+          <SelectTrigger id="events-status-filter" className="w-full sm:w-40">
+            <SelectValue placeholder="All statuses" />
+          </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All statuses</SelectItem>
             <SelectItem value="planned">Planned</SelectItem>
@@ -299,64 +330,98 @@ export function EventsPage() {
         </Select>
       </div>
 
-      {/* List */}
-      {isLoading && (
-        <div className="space-y-3">
-          {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-20 w-full rounded-lg" />)}
+      {/* HQ gate — must pick a city first */}
+      {skipFetch && (
+        <div
+          id="events-city-required"
+          className="py-16 text-center border border-dashed rounded-lg bg-card/50"
+        >
+          <MapPin className="size-12 mx-auto text-muted-foreground/40 mb-3" />
+          <p className="text-muted-foreground font-medium">Select a city to view events</p>
+          <p className="text-xs text-muted-foreground mt-1">HQ users must choose a city scope before loading data.</p>
         </div>
       )}
-      {error && (
-        <div className="flex items-center gap-2 p-4 rounded-lg bg-red-50 border border-red-200 dark:bg-red-950/30">
-          <AlertTriangle className="size-4 text-red-500" />
-          <p className="text-sm text-red-700">Failed to load events. Please try again.</p>
+
+      {/* Loading skeletons */}
+      {!skipFetch && isLoading && (
+        <div className="space-y-3" aria-busy="true">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Skeleton key={i} className="h-20 w-full rounded-lg" />
+          ))}
         </div>
       )}
-      {data?.events?.length === 0 && !isLoading && (
-        <div className="py-16 text-center">
+
+      {/* Error state: 400/403/404/409 all surface the server message */}
+      {!skipFetch && error && (
+        <div
+          id="events-error"
+          role="alert"
+          className="flex items-center gap-2 p-4 rounded-lg bg-red-50 border border-red-200 dark:bg-red-950/30"
+        >
+          <AlertTriangle className="size-4 text-red-500 shrink-0" />
+          <p className="text-sm text-red-700">{(error as Error).message}</p>
+        </div>
+      )}
+
+      {/* Empty state */}
+      {!skipFetch && !isLoading && !error && events?.length === 0 && (
+        <div className="py-16 text-center border border-dashed rounded-lg bg-card/50">
           <Calendar className="size-12 mx-auto text-muted-foreground/40 mb-3" />
           <p className="text-muted-foreground">No events found.</p>
-          <Button variant="outline" size="sm" className="mt-3" onClick={() => setShowCreate(true)}>Create your first event</Button>
+          {canManage && (
+            <Button variant="outline" size="sm" className="mt-3" onClick={() => setShowCreate(true)}>
+              Create your first event
+            </Button>
+          )}
         </div>
       )}
-      {data?.events?.map((event) => (
+
+      {/* Event rows */}
+      {!skipFetch && events?.map((event) => (
         <motion.div
           key={event.id}
           initial={{ opacity: 0, y: 4 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex items-center justify-between p-4 rounded-lg border bg-card hover:shadow-sm transition-shadow cursor-pointer"
-          onClick={() => window.location.href = `/admin/events/${event.id}`}
+          className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-lg border bg-card hover:shadow-sm transition-shadow cursor-pointer gap-4"
+          onClick={() => { window.location.href = `/admin/events/${event.id}`; }}
         >
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <p className="font-medium truncate">{event.title}</p>
               <Badge variant="outline" className={cn("text-[10px]", STATUS_STYLES[event.status])}>
                 {event.status.replace(/_/g, " ")}
               </Badge>
             </div>
-            <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
-              <span className="flex items-center gap-1"><Calendar className="size-3" />{format(new Date(event.startDate), "MMM d, yyyy")}</span>
-              {event.venue && <span className="flex items-center gap-1"><MapPin className="size-3" />{event.venue}</span>}
+            <div className="flex flex-wrap items-center gap-3 mt-1 text-xs text-muted-foreground">
+              <span className="flex items-center gap-1">
+                <Calendar className="size-3" />
+                {format(new Date(event.startDate), "MMM d, yyyy")}
+              </span>
+              {event.venue && (
+                <span className="flex items-center gap-1 max-w-[180px] truncate">
+                  <MapPin className="size-3 shrink-0" />
+                  <span className="truncate">{event.venue}</span>
+                </span>
+              )}
               <Badge variant="secondary" className="text-[10px]">{event.eventType}</Badge>
             </div>
           </div>
-          <div className="flex items-center gap-3 shrink-0 ml-3">
-            <span className="text-xs text-muted-foreground hidden sm:block">{event._count?.teams ?? 0} teams</span>
-            <Button variant="ghost" size="icon" className="size-8"><Eye className="size-4" /></Button>
+          <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0">
+            <span className="text-xs text-muted-foreground">{event._count?.teams ?? 0} teams</span>
+            <Button variant="ghost" size="icon" className="size-8 shrink-0" aria-label="View event">
+              <Eye className="size-4" />
+            </Button>
           </div>
         </motion.div>
       ))}
 
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-center gap-2">
-          <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>Previous</Button>
-          <span className="text-sm text-muted-foreground">Page {page} of {totalPages}</span>
-          <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage(page + 1)}>Next</Button>
-        </div>
-      )}
-
       {/* Create Dialog */}
-      <EventForm open={showCreate} onClose={() => setShowCreate(false)} cityId={cityFilter || undefined} />
+      <EventForm
+        open={showCreate}
+        onClose={() => setShowCreate(false)}
+        cityId={cityFilter || undefined}
+        canManage={canManage}
+      />
     </div>
   );
 }

@@ -3,13 +3,10 @@
 import { useState } from "react";
 import { useParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -33,13 +30,11 @@ import {
   Calendar,
   MapPin,
   Users,
-  ClipboardList,
-  Lock,
   Plus,
   Loader2,
   CheckCircle2,
   XCircle,
-  Trash2,
+  AlertTriangle,
 } from "lucide-react";
 import { EventResponsibilityCard } from "@/components/events/EventResponsibilityCard";
 import { EventTeamRoster } from "@/components/events/EventTeamRoster";
@@ -74,6 +69,8 @@ type PlannerItem = {
   teamId: string | null;
 };
 
+type UiContext = { canManage: boolean; isHq: boolean };
+
 const STATUS_STYLES: Record<string, string> = {
   planned: "bg-muted text-muted-foreground",
   confirmed: "bg-blue-100 text-blue-700",
@@ -92,9 +89,6 @@ const PRIORITY_STYLES: Record<string, string> = {
 export default function EventDetailPage() {
   const params = useParams<{ id: string }>();
   const eventId = params.id;
-  const { data: session } = useSession();
-  const userRole = (session?.user as { role?: string } | undefined)?.role;
-  const canManage = ["super_admin", "program_admin", "city_head"].includes(userRole || "");
   const queryClient = useQueryClient();
 
   const [showPlanner, setShowPlanner] = useState(false);
@@ -102,35 +96,68 @@ export default function EventDetailPage() {
   const [plannerPriority, setPlannerPriority] = useState("medium");
   const [plannerDue, setPlannerDue] = useState("");
 
-  const { data, isLoading, error } = useQuery<EventDetail>({
-    queryKey: ["event-detail", eventId],
-    queryFn: () => fetch(`/api/admin/events/${eventId}`).then((r) => {
-      if (!r.ok) throw new Error("Failed to load event");
-      return r.json();
-    }),
+  // ── Server-resolved capabilities ──────────────────────────────────────
+  const { data: ctx } = useQuery<UiContext>({
+    queryKey: ["events-ui-context"],
+    queryFn: () =>
+      fetch("/api/admin/events/ui-context").then(async (r) => {
+        if (!r.ok) throw new Error("Failed to load context");
+        return r.json();
+      }),
+    staleTime: 60_000,
   });
 
+  const canManage = ctx?.canManage ?? false;
+
+  const { data, isLoading, error } = useQuery<EventDetail>({
+    queryKey: ["event-detail", eventId],
+    queryFn: () =>
+      fetch(`/api/admin/events/${eventId}`).then(async (r) => {
+        const json = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error((json as { error?: string }).error || "Failed to load event");
+        return json as EventDetail;
+      }),
+  });
+
+  // DELETE /api/admin/events/[id] for cancellation
   const cancelMutation = useMutation({
     mutationFn: async () => {
-      const res = await fetch(`/api/admin/events/${eventId}/cancel`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reason: "Cancelled by manager" }),
+      const res = await fetch(`/api/admin/events/${eventId}`, {
+        method: "DELETE",
       });
-      if (!res.ok) throw new Error("Failed to cancel");
-      return res.json();
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(json.error || "Failed to cancel event");
+      }
+      return json;
     },
-    onSuccess: () => { toast.success("Event cancelled"); queryClient.invalidateQueries({ queryKey: ["event-detail", eventId] }); },
+    onSuccess: () => {
+      toast.success("Event cancelled successfully");
+      queryClient.invalidateQueries({ queryKey: ["event-detail", eventId] });
+      queryClient.invalidateQueries({ queryKey: ["admin-events"] });
+    },
     onError: (err: Error) => toast.error(err.message),
   });
 
+  // PATCH /api/admin/events/[id] with status: "completed" for completion
   const completeMutation = useMutation({
     mutationFn: async () => {
-      const res = await fetch(`/api/admin/events/${eventId}/complete`, { method: "POST" });
-      if (!res.ok) throw new Error("Failed to complete");
-      return res.json();
+      const res = await fetch(`/api/admin/events/${eventId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "completed" }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(json.error || "Failed to complete event");
+      }
+      return json;
     },
-    onSuccess: () => { toast.success("Event completed"); queryClient.invalidateQueries({ queryKey: ["event-detail", eventId] }); },
+    onSuccess: () => {
+      toast.success("Event completed");
+      queryClient.invalidateQueries({ queryKey: ["event-detail", eventId] });
+      queryClient.invalidateQueries({ queryKey: ["admin-events"] });
+    },
     onError: (err: Error) => toast.error(err.message),
   });
 
@@ -139,10 +166,15 @@ export default function EventDetailPage() {
       const res = await fetch(`/api/admin/events/${eventId}/planner`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: plannerTitle, priority: plannerPriority, dueDate: plannerDue ? new Date(plannerDue).toISOString() : undefined }),
+        body: JSON.stringify({
+          title: plannerTitle,
+          priority: plannerPriority,
+          dueDate: plannerDue ? new Date(plannerDue).toISOString() : undefined,
+        }),
       });
-      if (!res.ok) throw new Error("Failed to create task");
-      return res.json();
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || "Failed to create task");
+      return json;
     },
     onSuccess: () => {
       toast.success("Task created");
@@ -161,18 +193,36 @@ export default function EventDetailPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status }),
       });
-      if (!res.ok) throw new Error("Failed to update task");
-      return res.json();
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || "Failed to update task");
+      return json;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["event-detail", eventId] }),
     onError: (err: Error) => toast.error(err.message),
   });
 
   if (isLoading) {
-    return <div className="space-y-4 p-4 md:p-6">{Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-12 w-full rounded-lg" />)}</div>;
+    return (
+      <div className="space-y-4 p-4 md:p-6" aria-busy="true">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <Skeleton key={i} className="h-12 w-full rounded-lg" />
+        ))}
+      </div>
+    );
   }
+
   if (error || !data) {
-    return <div className="p-4 md:p-6 text-center text-muted-foreground">Event not found.</div>;
+    return (
+      <div className="p-4 md:p-6 space-y-4">
+        <Button variant="ghost" size="sm" onClick={() => window.history.back()}>
+          <ArrowLeft className="size-4 mr-2" /> Back
+        </Button>
+        <div className="flex items-center gap-2 p-4 rounded-lg bg-red-50 border border-red-200 text-red-700">
+          <AlertTriangle className="size-5 shrink-0" />
+          <p className="text-sm font-medium">{(error as Error)?.message || "Event not found."}</p>
+        </div>
+      </div>
+    );
   }
 
   const isTerminal = data.status === "completed" || data.status === "cancelled";
@@ -197,14 +247,27 @@ export default function EventDetailPage() {
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          {canManage && !isTerminal && data.status !== "cancelled" && (
-            <Button size="sm" variant="outline" className="text-red-500 border-red-200" onClick={() => cancelMutation.mutate()}>
-              <XCircle className="size-3.5 mr-1" /> Cancel
+          {canManage && !isTerminal && (
+            <Button
+              id="event-cancel-btn"
+              size="sm"
+              variant="outline"
+              className="text-red-500 border-red-200 hover:bg-red-50"
+              disabled={cancelMutation.isPending}
+              onClick={() => cancelMutation.mutate()}
+            >
+
+              {cancelMutation.isPending ? <Loader2 className="size-3.5 mr-1 animate-spin" /> : <XCircle className="size-3.5 mr-1" />} Cancel
             </Button>
           )}
           {canManage && data.status === "in_progress" && (
-            <Button size="sm" onClick={() => completeMutation.mutate()}>
-              <CheckCircle2 className="size-3.5 mr-1" /> Complete
+            <Button
+              id="event-complete-btn"
+              size="sm"
+              disabled={completeMutation.isPending}
+              onClick={() => completeMutation.mutate()}
+            >
+              {completeMutation.isPending ? <Loader2 className="size-3.5 mr-1 animate-spin" /> : <CheckCircle2 className="size-3.5 mr-1" />} Complete
             </Button>
           )}
         </div>
