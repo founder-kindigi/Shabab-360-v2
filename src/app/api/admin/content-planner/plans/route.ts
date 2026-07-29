@@ -10,7 +10,6 @@ import { queryValidationError } from "@/lib/api/query-params";
 import {
   buildContentPlanScopeFilter,
   canWriteContentPlan,
-  deriveContentPlannerCityScope,
 } from "@/lib/content-planner/scope";
 import { isHqRole } from "@/lib/auth/scope";
 import type { SessionUser } from "@/lib/auth/scope";
@@ -133,31 +132,12 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { cityId: rawCityId, batchId, parkId, basePlanId, ...planData } = parsed.data;
-
-  // Derive effective cityId from actor scope when omitted (scoped users).
-  let effectiveCityId = rawCityId;
-  if (!effectiveCityId) {
-    const cities = await deriveContentPlannerCityScope(auth.user as SessionUser);
-    if (!cities || cities.length === 0) {
-      return NextResponse.json(
-        { error: "Could not resolve city scope for this user" },
-        { status: 403 }
-      );
-    }
-    if (cities.length > 1) {
-      return NextResponse.json(
-        { error: "Multi-city HQ user must supply a cityId" },
-        { status: 400 }
-      );
-    }
-    effectiveCityId = cities[0];
-  }
+  const { cityId, batchId, parkId, basePlanId, ...planData } = parsed.data;
 
   // Verify write permission for the target scope
   const canWrite = await canWriteContentPlan(
     auth.user as SessionUser,
-    effectiveCityId,
+    cityId,
     batchId,
     parkId
   );
@@ -171,7 +151,7 @@ export async function POST(request: NextRequest) {
 
   // Verify city exists and is active
   const city = await db.city.findUnique({
-    where: { id: effectiveCityId },
+    where: { id: cityId },
     select: { id: true, isActive: true },
   });
 
@@ -189,7 +169,7 @@ export async function POST(request: NextRequest) {
       select: { cityId: true, isActive: true },
     });
 
-    if (!batch || !batch.isActive || batch.cityId !== effectiveCityId) {
+    if (!batch || !batch.isActive || batch.cityId !== cityId) {
       return NextResponse.json(
         { error: "Batch not found, inactive, or does not belong to city" },
         { status: 400 }
@@ -204,7 +184,7 @@ export async function POST(request: NextRequest) {
       select: { cityId: true, isActive: true },
     });
 
-    if (!park || !park.isActive || park.cityId !== effectiveCityId) {
+    if (!park || !park.isActive || park.cityId !== cityId) {
       return NextResponse.json(
         { error: "Park not found, inactive, or does not belong to city" },
         { status: 400 }
@@ -227,7 +207,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Base plan must be in the same city and must be a template
-    if (basePlan.cityId !== effectiveCityId) {
+    if (basePlan.cityId !== cityId) {
       return NextResponse.json(
         { error: "Base plan must be in the same city" },
         { status: 400 }
@@ -246,7 +226,7 @@ export async function POST(request: NextRequest) {
   const plan = await db.contentPlan.create({
     data: {
       ...planData,
-      cityId: effectiveCityId,
+      cityId,
       batchId,
       parkId,
       basePlanId,
