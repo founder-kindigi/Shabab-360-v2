@@ -255,8 +255,8 @@ export function EventsPage() {
   const isHq = ctx?.isHq ?? false;
 
   // ── Context-gated enabled check: must have ctx AND (if HQ, must have cityFilter selected) ──
-  const isEnabled = Boolean(ctx) && (!ctx.isHq || Boolean(cityFilter));
-  const isHqWaitingForCity = Boolean(ctx) && ctx.isHq && !cityFilter;
+  const isEnabled = Boolean(ctx) && (!ctx?.isHq || Boolean(cityFilter));
+  const isHqWaitingForCity = Boolean(ctx) && ctx?.isHq && !cityFilter;
 
   const params = new URLSearchParams();
   if (cityFilter) params.set("cityId", cityFilter);

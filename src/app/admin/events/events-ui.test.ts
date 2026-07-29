@@ -37,6 +37,14 @@ vi.mock("next/navigation", () => ({
 import { EventsPage } from "./_client";
 import EventDetailPage from "./[id]/_client";
 
+function requireQueryCall(queryKey: string) {
+  const call = mockUseQuery.mock.calls.find(
+    (entry) => Array.isArray(entry[0]?.queryKey) && entry[0].queryKey[0] === queryKey
+  );
+  if (!call) throw new Error(`Expected ${queryKey} query to be registered`);
+  return call;
+}
+
 describe("Events UI Component-Level React Query Contract Tests", () => {
   const mockFetch = vi.fn();
 
@@ -68,11 +76,7 @@ describe("Events UI Component-Level React Query Contract Tests", () => {
 
       EventsPage();
 
-      const listQueryCall = mockUseQuery.mock.calls.find(
-        (call) => Array.isArray(call[0]?.queryKey) && call[0].queryKey[0] === "admin-events"
-      );
-
-      expect(listQueryCall).toBeDefined();
+      const listQueryCall = requireQueryCall("admin-events");
       expect(listQueryCall[0].enabled).toBe(false);
     });
 
@@ -86,11 +90,7 @@ describe("Events UI Component-Level React Query Contract Tests", () => {
 
       const jsx = EventsPage();
 
-      const listQueryCall = mockUseQuery.mock.calls.find(
-        (call) => Array.isArray(call[0]?.queryKey) && call[0].queryKey[0] === "admin-events"
-      );
-
-      expect(listQueryCall).toBeDefined();
+      const listQueryCall = requireQueryCall("admin-events");
       expect(listQueryCall[0].enabled).toBe(false);
 
       expect(jsx).toBeDefined();
@@ -108,11 +108,7 @@ describe("Events UI Component-Level React Query Contract Tests", () => {
 
       EventsPage();
 
-      const listQueryCall = mockUseQuery.mock.calls.find(
-        (call) => Array.isArray(call[0]?.queryKey) && call[0].queryKey[0] === "admin-events"
-      );
-
-      expect(listQueryCall).toBeDefined();
+      const listQueryCall = requireQueryCall("admin-events");
       expect(listQueryCall[0].enabled).toBe(false);
     });
 
@@ -127,11 +123,7 @@ describe("Events UI Component-Level React Query Contract Tests", () => {
 
       EventsPage();
 
-      const listQueryCall = mockUseQuery.mock.calls.find(
-        (call) => Array.isArray(call[0]?.queryKey) && call[0].queryKey[0] === "admin-events"
-      );
-
-      expect(listQueryCall).toBeDefined();
+      const listQueryCall = requireQueryCall("admin-events");
       expect(listQueryCall[0].enabled).toBe(true);
     });
 
@@ -146,11 +138,7 @@ describe("Events UI Component-Level React Query Contract Tests", () => {
 
       EventsPage();
 
-      const listQueryCall = mockUseQuery.mock.calls.find(
-        (call) => Array.isArray(call[0]?.queryKey) && call[0].queryKey[0] === "admin-events"
-      );
-
-      expect(listQueryCall).toBeDefined();
+      const listQueryCall = requireQueryCall("admin-events");
       expect(listQueryCall[0].enabled).toBe(true);
     });
   });
@@ -166,11 +154,7 @@ describe("Events UI Component-Level React Query Contract Tests", () => {
 
       const jsx = EventDetailPage();
 
-      const detailQueryCall = mockUseQuery.mock.calls.find(
-        (call) => Array.isArray(call[0]?.queryKey) && call[0].queryKey[0] === "event-detail"
-      );
-
-      expect(detailQueryCall).toBeDefined();
+      const detailQueryCall = requireQueryCall("event-detail");
       expect(detailQueryCall[0].enabled).toBe(false);
 
       expect(jsx).toBeDefined();
