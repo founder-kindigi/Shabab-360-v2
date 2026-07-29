@@ -35,7 +35,6 @@ export type PageId =
   | "admin-collaboration-teams"
   | "admin-mashwara"
   | "admin-mashwara-detail"
-  | "admin-content-planner"
   | "notifications"
   // Murabbi pages
   | "murabbi-dashboard"
