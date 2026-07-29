@@ -19,12 +19,14 @@ const VALID_STATUSES = ["pending", "in_progress", "completed", "cancelled"];
  * Security & Scope Rules:
  * 1. Requires `calling.view` capability.
  * 2. Resolves campaign & actor city scope via `verifyCallingManagerOrPoc`.
- * 3. Returns 404 for missing campaign, 403 for foreign city/scope.
- * 4. For each lead:
+ *    Authorizes managers, POCs, and active non-revoked non-expired external callers.
+ * 3. Returns 404 for missing campaign, 403 for foreign city/scope or unauthorized actor.
+ * 4. External callers and non-manager/non-POC callers list ONLY their assigned leads.
+ * 5. For each lead:
  *    - `canInteract: true` ONLY if the authenticated active caller owns the assignment.
  *    - PII (applicantName, guardianPhone) included ONLY when `canInteract === true`.
  *    - Non-owner responses omit PII and NEVER expose raw StaffMeta / external IDs.
- * 5. Bounded status filter: rejects invalid values with 400.
+ * 6. Bounded status filter: rejects invalid values with 400.
  */
 export async function GET(request: NextRequest, { params }: RouteParams) {
   const auth = await requireCapability("calling.view");
@@ -33,7 +35,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
   const { id: campaignId } = await params;
 
-  // 1. Verify campaign & actor scope
+  // 1. Verify campaign & actor scope (managers, POCs, or valid external callers)
   const verified = await verifyCallingManagerOrPoc(user, campaignId);
   if (verified.error || !verified.campaign) {
     return NextResponse.json(
@@ -87,6 +89,22 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   };
   if (statusParam && statusParam !== "all") {
     whereClause.status = statusParam;
+  }
+
+  // External callers and non-manager/non-POC callers list ONLY their assigned leads
+  if (!verified.isManager && !verified.isPoc) {
+    const orFilters: Prisma.CallingAssignmentWhereInput[] = [];
+    if (myStaffMetaId) {
+      orFilters.push({ callerStaffMetaId: myStaffMetaId });
+    }
+    if (myExternalIds.size > 0) {
+      orFilters.push({ callerExternalId: { in: Array.from(myExternalIds) } });
+    }
+    if (orFilters.length > 0) {
+      whereClause.OR = orFilters;
+    } else {
+      return NextResponse.json([]);
+    }
   }
 
   // 5. Fetch assignments

@@ -495,4 +495,124 @@ describe("CALL-005: Campaign Leads Route", () => {
     const body = await res.json();
     expect(body.error).toContain("Invalid status parameter");
   });
+
+  describe("External Support Caller Authorization & Scope Regressions", () => {
+    it("allows active non-revoked non-expired external caller in campaign's city", async () => {
+      const { verifyCallingManagerOrPoc: realVerify } = await vi.importActual("@/lib/calling/poc-auth");
+      const mockPrisma = {
+        callingCampaign: { findUnique: vi.fn().mockResolvedValue({ id: "cmp_1", cityId: "city_lhr" }) },
+        staffMeta: { findUnique: vi.fn().mockResolvedValue(null) },
+        externalSupportCaller: {
+          findFirst: vi.fn().mockResolvedValue({
+            id: "ext_1",
+            userId: "u_ext",
+            campaignId: "cmp_1",
+            isActive: true,
+            expiresAt: new Date(Date.now() + 86400_000),
+            revokedAt: null,
+            campaign: { cityId: "city_lhr" },
+          }),
+        },
+      };
+
+      const mockCap = await import("@/lib/auth/capability-access");
+      vi.mocked(mockCap.userHasCapability).mockResolvedValueOnce(false);
+
+      const r = await realVerify({ id: "u_ext", role: "external_caller" }, "cmp_1", mockPrisma);
+      expect(r.status).toBe(200);
+      expect(r.isExternalCaller).toBe(true);
+      expect(r.campaign).toBeDefined();
+    });
+
+    it("denies expired external support caller", async () => {
+      const { verifyCallingManagerOrPoc: realVerify } = await vi.importActual("@/lib/calling/poc-auth");
+      const mockPrisma = {
+        callingCampaign: { findUnique: vi.fn().mockResolvedValue({ id: "cmp_1", cityId: "city_lhr" }) },
+        staffMeta: { findUnique: vi.fn().mockResolvedValue(null) },
+        externalSupportCaller: { findFirst: vi.fn().mockResolvedValue(null) }, // findFirst excludes expired
+      };
+
+      const mockCap = await import("@/lib/auth/capability-access");
+      vi.mocked(mockCap.userHasCapability).mockResolvedValueOnce(false);
+
+      const r = await realVerify({ id: "u_ext", role: "external_caller" }, "cmp_1", mockPrisma);
+      expect(r.status).toBe(403);
+      expect(r.error).toContain("insufficient calling permissions");
+    });
+
+    it("denies external support caller bound to a foreign city campaign", async () => {
+      const { verifyCallingManagerOrPoc: realVerify } = await vi.importActual("@/lib/calling/poc-auth");
+      const mockPrisma = {
+        callingCampaign: { findUnique: vi.fn().mockResolvedValue({ id: "cmp_1", cityId: "city_lhr" }) },
+        staffMeta: { findUnique: vi.fn().mockResolvedValue(null) },
+        externalSupportCaller: {
+          findFirst: vi.fn().mockResolvedValue({
+            id: "ext_1",
+            userId: "u_ext",
+            campaignId: "cmp_1",
+            isActive: true,
+            expiresAt: new Date(Date.now() + 86400_000),
+            revokedAt: null,
+            campaign: { cityId: "city_khi" }, // Foreign city
+          }),
+        },
+      };
+
+      const mockCap = await import("@/lib/auth/capability-access");
+      vi.mocked(mockCap.userHasCapability).mockResolvedValueOnce(false);
+
+      const r = await realVerify({ id: "u_ext", role: "external_caller" }, "cmp_1", mockPrisma);
+      expect(r.status).toBe(403);
+    });
+
+    it("allows external caller to list assigned leads with canInteract=true and PII", async () => {
+      const externalAssignment = {
+        id: "assign_ext_1",
+        campaignId: "cmp_1",
+        applicationId: "app_1",
+        callerStaffMetaId: null,
+        callerExternalId: "ext_1",
+        status: "pending",
+        isActive: true,
+        application: {
+          id: "app_1",
+          applicantName: "Zahra Ahmed",
+          guardianPhone: "+923009876543",
+          status: "submitted",
+        },
+        interactions: [],
+      };
+
+      const { verifyCallingManagerOrPoc } = await import("@/lib/calling/poc-auth");
+      vi.mocked(verifyCallingManagerOrPoc).mockResolvedValueOnce({
+        campaign: CAMPAIGN as any,
+        isPoc: false,
+        isManager: false,
+        isExternalCaller: true,
+        cityId: "city_lhr",
+        error: null,
+        status: 200,
+      } as any);
+
+      mockDb.staffMeta.findFirst.mockResolvedValue(null);
+      mockDb.externalSupportCaller.findMany.mockResolvedValue([{ id: "ext_1" }]);
+      mockDb.callingAssignment.findMany.mockResolvedValue([externalAssignment]);
+
+      const res = await getLeads("cmp_1");
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(body).toHaveLength(1);
+      expect(body[0]).toMatchObject({
+        id: "assign_ext_1",
+        canInteract: true,
+        application: {
+          applicantName: "Zahra Ahmed",
+          guardianPhone: "+923009876543",
+          status: "submitted",
+        },
+      });
+      expect(body[0]).not.toHaveProperty("callerExternalId");
+      expect(body[0]).not.toHaveProperty("callerStaffMetaId");
+    });
+  });
 });
