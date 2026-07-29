@@ -10,6 +10,8 @@
  * - Page registration in store, sidebar, and breadcrumb
  */
 import { describe, expect, it } from "vitest";
+import { readFile } from "node:fs/promises";
+import { resolve } from "node:path";
 
 describe("CP-UI-001: Content Planner UI Behavior", () => {
   it("exports the ContentPlannerPage component", async () => {
@@ -52,6 +54,15 @@ describe("CP-UI-001: Page Registration", () => {
     const ids = items.map((i: any) => i.id);
     expect(ids).toContain("admin-content-planner");
   }, 15000);
+
+  it("app shell renders the Content Planner component for its sidebar page ID", async () => {
+    const appShellPath = resolve(process.cwd(), "src/components/layout/app-shell.tsx");
+    const appShell = await readFile(appShellPath, "utf8");
+
+    expect(appShell).toContain('const ContentPlannerPage = lazy(');
+    expect(appShell).toContain('case "admin-content-planner":');
+    expect(appShell).toContain("return <ContentPlannerPage />;");
+  });
 });
 
 describe("CP-UI-001: Taste — no static role gates", () => {
