@@ -95,18 +95,16 @@ Last consolidated: 2026-07-18. Verify changing facts against the checkout before
   Super Admin records, forces a password reset, and records no credentials in audit data.
   Owner-approved deletion/replacement additionally requires its own explicit execution flag;
   it preserves audit rows but nulls their prior actor reference.
-- Owner approved a full `shabab360-staging` data clear before importing fresh Lahore data.
-  The staging-locked reset command deletes all application rows, including audit/access
-  records, but preserves schema and migration history. It must never target Pilot Production.
-- The owner accepted unnumbered Lahore Batch 4 roster rows, chose each workbook's first
-  `Dropout` date as effective, excluded the malformed attendance value, and deferred the
-  blank Murabbi assignment. A guarded staging-only importer now dry-runs at 277 participants,
-  51 inactive `example.invalid` staff placeholders, 180 historical events, and 2,967 attendance
-  records. The owner approved execution on 2026-07-20 and the atomic staging
-  import then completed and reconciled: 1 city, 6 parks, 6 batches, 13 groups,
-  277 participants (257 active, 20 dropout), 180 events, 2,967 records, 51
-  inactive staff placeholders, and the existing Super Admin. The temporary
-  local staging URI was deleted after verification.
+- Lahore Batch 4 is now reconciled from the supplied current workbook, never replaced wholesale.
+  The last complete session is 2026-07-26 (all 6 parks and 13 groups); later isolated future-dated
+  Leave values are not attendance sessions. A non-writing parser correction excludes 14 formula-derived
+  summary rows that had been misidentified as people, leaving 12 genuine unassigned candidate students.
+  Owner decisions: preserve those students without a group after a nullable-group migration; defer the
+  missing Murabbi; ignore the malformed value; preserve existing data and upsert only reviewed additions.
+  Dropout will support an audited manual student-profile action and a configurable disabled-by-default
+  automatic policy of three consecutive completed absence weeks. Configured weekend/off days do not count.
+  Student, Murabbi, and class summaries must be calculated from normalized records; Murabbi summaries
+  require separate staff-attendance records rather than student attendance rows.
 - The additive collaboration-team migration is deployed to staging. Lahore now
   has Sports, Skills, Tadreeb, Media, and Muawin teams with zero memberships.
   Team membership is intentionally separate from login role/scope, and no
