@@ -24,31 +24,35 @@ Priority is fixed as follows:
 
 ### Fresh Read-Only Reconciliation
 
-The existing non-writing Lahore parser was executed using `2026-07-29` only as an analysis cutoff, not as an owner-approved import cutoff.
+The owner approved the last completed attendance session as the reconciliation cutoff. The workbook has isolated `Leave` values in future-dated columns through `2026-08-30`; those are not complete sessions and must not be imported. The latest date with records for all six parks and all 13 groups is **2026-07-26**. That is the approved reconciliation cutoff for this workbook revision.
 
 | Measure | Result |
 | --- | ---: |
 | Parsed numbered students | 262 |
-| Candidate attendance events | 234 |
-| Candidate attendance records | 3,848 |
-| Present | 975 |
-| Absent | 1,616 |
-| Late | 830 |
-| Excused / leave | 427 |
-| Withheld after analysis cutoff | 958 |
-| Blocking issues | 71 |
+| Genuine unnumbered student candidates | 12 |
+| Formula-derived group summary rows excluded | 14 |
+| Completed session date | 2026-07-26 |
+| Completed-session coverage | 6 parks / 13 groups / 211 marked records |
 
 | Issue | Count | Required disposition |
 | --- | ---: | --- |
-| Dropout markers | 42 | Owner confirms effective date/status policy before import. |
-| Unnumbered student candidates | 26 | Owner accepts, rejects, or maps each candidate to a participant. |
-| Group with no Murabbi | 1 | Assign or explicitly allow a group without a Murabbi. |
-| Malformed attendance value | 1 | Correct source or choose an allowed replacement status. |
+| Dropout markers | 42 | Reconcile their explicit historical dropout state; future automatic policy is configurable. |
+| Unnumbered student candidates | 12 | Import as participants with no group assignment after the `Participant.groupId` nullable migration. |
+| Formula-derived rows misread as candidates | 14 | Exclude. They are Strength/Absent/Leave/Present/Late/Total/Percentage summary rows, not people. |
+| Group with no Murabbi | 1 | Import group without Murabbi; assign later. |
+| Malformed attendance value | 1 | Ignore; record the source-row exclusion in the reconciliation report. |
 | Age/grade schema requirement | 1 | Confirm the deployed schema matches the approved profile fields before writing. |
 | Missing student phone | 85 | Review-only unless participant identity cannot be matched. |
 | Staff rows needing assignment nomination | 57 | Never activate/create staff from the workbook without named owner approval. |
 
-The source differs from the earlier Lahore baseline (277 participants and 2,967 historical attendance records). This is expected only if it is a new operational extract; it must not overwrite or duplicate the existing import without an owner-approved cutover/reconciliation.
+The source must reconcile with the existing Lahore data (rather than replace it). The reconciler must upsert by approved scoped identity, preserve existing records, add only newly completed attendance, and produce a no-delete variance report before any write. A raw roster count difference is not permission to remove a participant.
+
+### Owner-Approved Attendance Policy
+
+- Manual dropout: an authorized staff member may mark a participant as dropout from the student profile. This ends future attendance eligibility while preserving all historical records.
+- Automatic dropout: configurable per batch; default policy is disabled until configured. When enabled, three consecutive **completed calendar weeks** with no present/late attendance mark the participant as dropout. `Leave`, `N/A`, an unclosed event, and configured off days do not count as an absence week.
+- Weekend/off days: configurable per batch using selected weekday values and explicit one-off off dates. The workbook's `OFF` formula is source metadata only; the application policy is authoritative going forward.
+- Historical workbook `Dropout` cells: retain the first valid marker as the reconciliation recommendation, then write an auditable manual/imported dropout state only after the reconciler matches the participant.
 
 ### Import Pattern
 
@@ -57,6 +61,30 @@ The source differs from the earlier Lahore baseline (277 participants and 2,967 
 - Match a participant only within the declared city, park, and group. A name alone is never sufficient identity.
 - Create attendance only for records on or before the owner-confirmed completed-through date.
 - Use one atomic transaction per approved import batch and report source-row references without exposing names or phone numbers.
+
+## Attendance Product Design From Summary Sheets
+
+The workbook has three useful summary products, but they must be calculated from normalized application records rather than imported as spreadsheet totals.
+
+### Student Summary
+
+Per participant, scoped by city/park/batch/group/date range: enrolled date, current state, completed sessions eligible to the participant, present, late, absent, excused, attendance rate, last marked date, consecutive missed weeks, and dropout reason/date. `N/A` and configured off days are excluded from the denominator.
+
+### Murabbi Summary
+
+Per active or historical staff assignment, scoped by city/park/date range: role/title, assigned park/group, scheduled staff sessions, present, late, absent, excused, attendance rate, and assignment state. This requires a new `StaffAttendanceRecord` linked to an `AttendanceEvent` and `StaffMeta`; staff attendance must not be stored in student `AttendanceRecord` rows.
+
+### Class Stats
+
+Per group event, scoped by city/park/batch/group/date range: scheduled roster strength, marked count, present, late, absent, excused, unmarked count, and attendance rate. For historical accuracy, an event needs an eligibility/roster snapshot at close time; later group changes must not rewrite past class strength.
+
+## Implementation Sequence
+
+1. **Attendance data foundation:** make participant group assignment nullable, add audited dropout metadata, batch off-day/dropout policy fields, and a staff-attendance model in both schemas with forward SQLite/PostgreSQL migrations.
+2. **Policy engine:** centralize completed-week calculation, manual/automatic dropout transitions, event-close roster snapshots, and idempotent notification/audit behavior. Remove the current event-count-based dropout interpretation.
+3. **Scoped APIs and UI:** batch policy editor, student-profile dropout action, staff attendance marking, and the three summaries. Server scope remains city/park/group derived and fail-closed.
+4. **Reconciliation importer:** add an idempotent update mode that accepts exactly `2026-07-26`, ignores malformed data, preserves unassigned students, and produces create/update/no-op/variance counts before a confirmation-gated transaction.
+5. **UAT:** verify manual and automatic dropout, configured weekend/off days, unassigned roster handling, student/Murabbi/class summaries, mobile attendance marking, and reconciliation idempotency.
 
 ## 2. Content Plan Workbook
 

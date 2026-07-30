@@ -20,6 +20,15 @@ const STATUS_MAP = new Map([
   ["leave", "excused"],
 ]);
 const IGNORED_STATUSES = new Set(["", "off", "sat off", "n/a"]);
+const GROUP_SUMMARY_LABELS = new Set([
+  "strength",
+  "absent",
+  "leave",
+  "present",
+  "late",
+  "total present",
+  "attendance percentage",
+]);
 
 function text(value) {
   if (value === null || value === undefined) return "";
@@ -73,6 +82,10 @@ function isSourceDataRow(value) {
   return typeof value === "number" || (typeof value === "string" && /^\d+$/.test(value.trim()));
 }
 
+function isGroupSummaryLabel(value) {
+  return GROUP_SUMMARY_LABELS.has(text(value).toLowerCase());
+}
+
 function readParkSheet(sheet, sheetName, parkName, startYear) {
   const attendanceColumns = [];
   for (let column = 9; column <= sheet.columnCount; column += 1) {
@@ -95,7 +108,7 @@ function readParkSheet(sheet, sheetName, parkName, startYear) {
 
     const nameValue = sheet.getCell(row, 2).value;
     if (!isSourceDataRow(sheet.getCell(row, 1).value)) {
-      if (currentGroup && typeof nameValue === "string" && text(nameValue) && !nameValue.trim().startsWith("=")) {
+      if (currentGroup && typeof nameValue === "string" && text(nameValue) && !nameValue.trim().startsWith("=") && !isGroupSummaryLabel(nameValue)) {
         const name = text(nameValue);
         const phone = text(sheet.getCell(row, 3).value).replace(/^'/, "");
         const hasPhone = Boolean(text(sheet.getCell(row, 3).value));
@@ -292,7 +305,7 @@ async function main() {
   console.log(JSON.stringify({ mode: report.mode, writesPerformed: false, students: report.roster.students, proposedEvents: report.attendanceEligibility.proposedEvents, proposedRecords: report.attendanceEligibility.proposedRecords, blockingIssues: report.reconciliation.blockingIssues }, null, 2));
 }
 
-module.exports = { PARK_SHEETS, STATUS_MAP, buildDryRunReport, classifyStatus, isSourceDataRow, parseSessionDates, readParkSheet, renderMarkdown, text };
+module.exports = { PARK_SHEETS, STATUS_MAP, buildDryRunReport, classifyStatus, isGroupSummaryLabel, isSourceDataRow, parseSessionDates, readParkSheet, renderMarkdown, text };
 
 if (require.main === module) {
   main().catch((error) => {

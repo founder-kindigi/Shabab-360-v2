@@ -11,6 +11,9 @@ describe("Lahore Batch 4 dry-run report", () => {
     expect(parser.isSourceDataRow(1)).toBe(true);
     expect(parser.isSourceDataRow("23")).toBe(true);
     expect(parser.isSourceDataRow("Group Strength")).toBe(false);
+    expect(parser.isGroupSummaryLabel("Strength")).toBe(true);
+    expect(parser.isGroupSummaryLabel("Attendance Percentage")).toBe(true);
+    expect(parser.isGroupSummaryLabel("A participant name")).toBe(false);
   });
 
   it("treats the workbook's weekend OFF formulas as non-attendance", () => {
