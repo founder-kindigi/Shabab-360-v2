@@ -47,6 +47,10 @@ Any approved change to product scope, role permissions, data ownership,
 security, deployment, or workflow must update this file before implementation
 tasks are assigned.
 
+### 1.1 Owner Requirements Addendum - 2026-07-30
+
+The confirmed operational requirements for event registration/fees and attendance projection, Saturday/Sunday classes, configurable off days and dropout policy, attendance summaries, workbook-aligned Content Planner and Calling imports, Mashwara task notifications, mobile-first Urdu RTL UX, reliability, complete CRUD, and final Access Management coverage are recorded in [OWNER-REQUIREMENTS-2026-07-30.md](product-discovery/OWNER-REQUIREMENTS-2026-07-30.md). The detailed addendum governs those topics where it is more specific than earlier planning text.
+
 ## 2. Executive Product Decision
 
 Shabab 360 should become the operational system for the Shabab Alburhan
