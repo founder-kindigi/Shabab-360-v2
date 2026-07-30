@@ -3,7 +3,9 @@ const { PrismaClient } = require("@prisma/client");
 
 const FIXTURE_PREFIX = "Preview UAT - ";
 const LAHORE_CODE = "LHR";
-const STAGING_POOLER_USERNAME = "postgres.qbyvrqigbojkrjowfsru";
+const SUPABASE_PROJECT_REF = "qbyvrqigbojkrjowfsru";
+const STAGING_POOLER_USERNAME = `postgres.${SUPABASE_PROJECT_REF}`;
+const STAGING_DIRECT_HOST = `db.${SUPABASE_PROJECT_REF}.supabase.co`;
 
 class PreviewSeedError extends Error {}
 
@@ -32,7 +34,11 @@ function requirePreviewTarget() {
   }
 
   const url = new URL(value);
-  if (url.username !== STAGING_POOLER_USERNAME || !url.hostname.endsWith("pooler.supabase.com")) {
+  const isApprovedPooler = url.username === STAGING_POOLER_USERNAME
+    && url.hostname.endsWith("pooler.supabase.com");
+  const isApprovedDirectHost = url.username === "postgres"
+    && url.hostname === STAGING_DIRECT_HOST;
+  if (!isApprovedPooler && !isApprovedDirectHost) {
     throw new PreviewSeedError("Refusing to seed: DIRECT_URL is not the approved Lahore Preview database target");
   }
   return value;
