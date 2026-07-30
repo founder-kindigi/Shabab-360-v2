@@ -32,12 +32,12 @@ function allMigrations(base: string): string[] {
 describe("PILOT-PROD-001: Pilot Production Health", () => {
   /* ── 1. Schema health ────────────────────────────────────────────── */
   describe("Schema health", () => {
-    it("SQLITE schema has 49 models", () => {
-      expect(modelNames(SQLITE_SCHEMA).length).toBe(49);
+    it("SQLITE schema has 53 models", () => {
+      expect(modelNames(SQLITE_SCHEMA).length).toBe(53);
     });
 
-    it("POSTGRES schema has 49 models", () => {
-      expect(modelNames(PG_SCHEMA).length).toBe(49);
+    it("POSTGRES schema has 53 models", () => {
+      expect(modelNames(PG_SCHEMA).length).toBe(53);
     });
 
     it("all models present in both schemas", () => {
@@ -64,8 +64,8 @@ describe("PILOT-PROD-001: Pilot Production Health", () => {
 
   /* ── 2. Migration health ─────────────────────────────────────────── */
   describe("Migration health", () => {
-    it("POSTGRES has 12 migration folders", () => {
-      expect(allMigrations(PG_MIGRATIONS)).toHaveLength(12);
+    it("POSTGRES has 13 migration folders", () => {
+      expect(allMigrations(PG_MIGRATIONS)).toHaveLength(13);
     });
 
     it("SQLITE includes the approved baseline and Mashwara FK repair", () => {
@@ -91,15 +91,17 @@ describe("PILOT-PROD-001: Pilot Production Health", () => {
       }
     });
 
-    it("allows table rebuilds only in the approved SQLite FK repair", () => {
+    it("allows table rebuilds only in approved SQLite migrations", () => {
       for (const dir of allMigrations(SQLITE_MIGRATIONS)) {
         const sql = readFileSync(join(SQLITE_MIGRATIONS, dir, "migration.sql"), "utf-8");
 
-        if (dir === "20260726100000_add_mashwara_fk_constraints") {
-          expect(sql).toContain("-- RedefineTables");
+        if (
+          dir === "20260726100000_add_mashwara_fk_constraints" ||
+          dir === "20260730060714_add_attendance_foundation"
+        ) {
           expect(sql).toContain("PRAGMA foreign_keys=OFF;");
           expect(sql).toContain("PRAGMA foreign_keys=ON;");
-          expect(sql).toMatch(/INSERT INTO "new_mashwara_/);
+          expect(sql).toMatch(/INSERT INTO "new_/);
           continue;
         }
 

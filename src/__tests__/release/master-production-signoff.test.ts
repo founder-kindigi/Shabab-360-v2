@@ -23,12 +23,12 @@ function allMigrationDirs(base: string): string[] {
 describe("PROD-HANDOVER-001: Master Production Sign-Off", () => {
   /* ── 1. Dual Schema Validation ───────────────────────────────────── */
   describe("Dual schema validation", () => {
-    it("SQLite schema has 49 models", () => {
-      expect(modelNames(join(ROOT, "prisma/schema.prisma")).length).toBe(49);
+    it("SQLite schema has 53 models", () => {
+      expect(modelNames(join(ROOT, "prisma/schema.prisma")).length).toBe(53);
     });
 
-    it("PostgreSQL schema has 49 models", () => {
-      expect(modelNames(join(ROOT, "prisma/postgres/schema.prisma")).length).toBe(49);
+    it("PostgreSQL schema has 53 models", () => {
+      expect(modelNames(join(ROOT, "prisma/postgres/schema.prisma")).length).toBe(53);
     });
 
     it("all SQLite models match PostgreSQL models bidirectionally", () => {
@@ -38,19 +38,19 @@ describe("PROD-HANDOVER-001: Master Production Sign-Off", () => {
       for (const m of pg) expect(sqlite.has(m)).toBe(true);
     });
 
-    it("PostgreSQL migrations chain complete (12 migrations)", () => {
-      expect(allMigrationDirs(PG_MIGRATIONS)).toHaveLength(12);
+    it("PostgreSQL migrations chain complete (13 migrations)", () => {
+      expect(allMigrationDirs(PG_MIGRATIONS)).toHaveLength(13);
     });
 
-    it("SQLite migrations chain complete (6 migrations)", () => {
-      expect(allMigrationDirs(SQLITE_MIGRATIONS)).toHaveLength(6);
+    it("SQLite migrations chain complete (7 migrations)", () => {
+      expect(allMigrationDirs(SQLITE_MIGRATIONS)).toHaveLength(7);
     });
 
-    it("latest migration matches in both chains (media briefs)", () => {
+    it("latest migration matches in both chains (attendance foundation)", () => {
       const pg = allMigrationDirs(PG_MIGRATIONS);
       const sql = allMigrationDirs(SQLITE_MIGRATIONS);
-      expect(pg[pg.length - 1]).toContain("media_briefs");
-      expect(sql[sql.length - 1]).toContain("media_briefs");
+      expect(pg[pg.length - 1]).toContain("add_attendance_foundation");
+      expect(sql[sql.length - 1]).toContain("add_attendance_foundation");
     });
   });
 
