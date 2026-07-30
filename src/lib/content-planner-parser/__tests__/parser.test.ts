@@ -7,8 +7,8 @@ const pctx: WorkbookContext = { cityName: "Lahore", batchName: "Batch 4", parkNa
 
 const r1 = { Week: "1", Day: "1", Date: "2026-05-23", Exercises: "Jogging", Sports: null, Skills: null, Tadreeb: null, "Areas to Focus": null };
 const r2 = { Week: "2", Day: "3", Date: "2026-05-30", Exercises: "Drills", Sports: "Cricket", Skills: "Teamwork", Tadreeb: "Values", "Areas to Focus": "Team building" };
-const rd = { Week: "3", Day: "0", Date: "2026-06-01", Exercises: "Off Day", Sports: null, Skills: null, Tadreeb: null, "Areas to Focus": null };
-const rc = { Week: "3", Day: "0", Date: "2026-06-02", Exercises: "CANCELLED", Sports: "", Skills: "no session", Tadreeb: null, "Areas to Focus": null };
+const rd = { Week: "3", Day: "5", Date: "2026-06-01", Exercises: "Off Day", Sports: null, Skills: null, Tadreeb: null, "Areas to Focus": null };
+const rc = { Week: "3", Day: "6", Date: "2026-06-02", Exercises: "CANCELLED", Sports: "", Skills: "no session", Tadreeb: null, "Areas to Focus": null };
 const rl = { Week: "4", Day: "2", Date: "2026-06-06", Exercises: "See https://example.com/vid", Sports: "Map https://example.com/loc", Skills: null, Tadreeb: null, "Areas to Focus": null };
 const rbad = { Week: "5", Day: "1", Date: "bad-date", Exercises: "X", Sports: null, Skills: null, Tadreeb: null, "Areas to Focus": null };
 const rimp = { Week: "5", Day: "1", Date: "2026-99-99", Exercises: "X", Sports: null, Skills: null, Tadreeb: null, "Areas to Focus": null };
@@ -133,6 +133,20 @@ describe("parseSheet", () => {
     const row = { week: "1", day: "1", date: "2026-05-23", exercises: "X", sports: null, skills: null, tadreeb: null, "Focus Area": "Leadership" };
     const { sheet } = parseSheet("AP", [row], ctx);
     expect(sheet!.sessions[0].focusArea).toBe("Leadership");
+  });
+
+  it("accepts labelled Week and Day values from the Lahore workbook", () => {
+    const row = { Week: "Week 1", Day: "Day 1", Date: "2026-05-23", Exercises: "Jogging", Sports: null, Skills: null, Tadreeb: null, "Areas to Focus": null };
+    const { sheet, errors } = parseSheet("AP", [row], ctx);
+    expect(errors).toHaveLength(0);
+    expect(sheet!.sessions[0]).toMatchObject({ weekLabel: "1", dayLabel: "1" });
+  });
+
+  it("accepts Day as a bounded programme-session sequence, not a weekday", () => {
+    const row = { Week: "Week 12", Day: "Day 24", Date: "2026-10-10", Exercises: "Jogging", Sports: null, Skills: null, Tadreeb: null, "Areas to Focus": null };
+    const { sheet, errors } = parseSheet("AP", [row], ctx);
+    expect(errors).toHaveLength(0);
+    expect(sheet!.sessions[0]).toMatchObject({ weekLabel: "12", dayLabel: "24" });
   });
 });
 

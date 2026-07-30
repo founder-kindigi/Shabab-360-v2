@@ -41,6 +41,19 @@ function isValidDateStr(s: string): boolean {
   return `${y}-${m}-${day}` === s;
 }
 
+/**
+ * Source workbooks label sequence fields as either `1` or `Week 1` / `Day 1`.
+ * Accept both forms while keeping the stored values numeric and bounded.
+ */
+function parseSequenceLabel(value: unknown, label: "week" | "day"): number | null {
+  if (typeof value === "number") return Number.isInteger(value) ? value : null;
+  if (typeof value !== "string") return null;
+
+  const normalized = value.trim();
+  const match = new RegExp(`^(?:${label}\\s*)?(\\d+)$`, "i").exec(normalized);
+  return match ? Number(match[1]) : null;
+}
+
 export function parseSheet(
   sheetName: string,
   rawRows: Record<string, unknown>[],
@@ -103,7 +116,8 @@ export function parseSheet(
 
     if (!anyContent && !rowOff) { skipped++; continue; }
 
-    const weekNum = Number(w), dayNum = Number(d);
+    const weekNum = parseSequenceLabel(w, "week");
+    const dayNum = parseSequenceLabel(d, "day");
     const dateStr = typeof dt === "string" ? dt.trim() : "";
     const focus = typeof m["areas_to_focus"] === "string" ? (m["areas_to_focus"] as string).trim() : null;
 
@@ -115,12 +129,12 @@ export function parseSheet(
       errors.push({ row: i + 1, column: "date", message: `Impossible calendar date: "${dateStr}".` });
       continue;
     }
-    if (isNaN(weekNum) || !Number.isFinite(weekNum) || weekNum < 1 || !Number.isInteger(weekNum)) {
+    if (weekNum === null || !Number.isFinite(weekNum) || weekNum < 1) {
       errors.push({ row: i + 1, column: "week", message: `Invalid week: "${w}". Must be a positive integer.` });
       continue;
     }
-    if (isNaN(dayNum) || !Number.isFinite(dayNum) || dayNum < 0 || dayNum > 7 || !Number.isInteger(dayNum)) {
-      errors.push({ row: i + 1, column: "day", message: `Invalid day: "${d}". Must be an integer 0-7.` });
+    if (dayNum === null || !Number.isFinite(dayNum) || dayNum < 1 || dayNum > 366) {
+      errors.push({ row: i + 1, column: "day", message: `Invalid day: "${d}". Must be an integer 1-366.` });
       continue;
     }
 

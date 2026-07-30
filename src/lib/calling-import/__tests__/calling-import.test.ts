@@ -16,6 +16,7 @@ import {
   PrismaInterviewLookupService,
 } from "../interview-matcher";
 import { processCallingImport } from "../importer";
+import { parseCallingWorkbook } from "../parser";
 import type { RawSourceRow, CallingImportOptions } from "../types";
 
 describe("Calling Import Preparation — PKG-03 Test Suite", () => {
@@ -107,6 +108,27 @@ describe("Calling Import Preparation — PKG-03 Test Suite", () => {
       expect(normalizePakistanPhone(null)).toBeNull();
       expect(isValidPakistanPhone("03001234567")).toBe(true);
       expect(isValidPakistanPhone("123")).toBe(false);
+    });
+  });
+
+  describe("Real Lahore Calling Workbook Headers", () => {
+    it("maps Full Name, Mobile Number, and comments without misclassifying WhatsApp as guardian data", async () => {
+      const workbook = new ExcelJS.Workbook();
+      const sheet = workbook.addWorksheet("Calls for Phase 2");
+      sheet.addRow(["Full Name", "Mobile Number", "Whatsapp Number", "Old Comments", "New Comments"]);
+      sheet.addRow(["Test Applicant", "+923001234567", "+923009876543", "Historic note", "Current note"]);
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "calling-real-header-test-"));
+      createdTempDirs.push(tmpDir);
+      const filePath = path.join(tmpDir, "calling.xlsx");
+      await workbook.xlsx.writeFile(filePath);
+
+      const [row] = await parseCallingWorkbook(filePath);
+      expect(row).toMatchObject({
+        prospectName: "Test Applicant",
+        contactPhone: "+923001234567",
+        callNotes: "Current note",
+      });
+      expect(row.guardianPhone).toBeUndefined();
     });
   });
 

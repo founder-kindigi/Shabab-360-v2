@@ -66,6 +66,29 @@ describe("readWorkbook", () => {
     expect(result.errors).toHaveLength(1);
     expect(result.errors[0].message).toContain("Failed to read .xlsx");
   });
+
+  it("preserves rich-text cell content instead of serializing it as an object", async () => {
+    const workbook = new ExcelJS.Workbook();
+    const ws = workbook.addWorksheet("All Parks");
+    ws.addRow(header);
+    ws.addRow(["Week 1", "Day 1", "2026-05-23", null, null, null, null, null]);
+    ws.getCell("D2").value = { richText: [{ text: "Warmup\n" }, { text: "Time: 40 minutes" }] };
+    const result = await readWorkbook(Buffer.from(await workbook.xlsx.writeBuffer()), ctx);
+
+    expect(result.errors).toHaveLength(0);
+    expect(result.sheets[0].rawRows[0].Exercises).toBe("Warmup\nTime: 40 minutes");
+  });
+
+  it("preserves visible hyperlink text and its URL for fail-closed link review", async () => {
+    const workbook = new ExcelJS.Workbook();
+    const ws = workbook.addWorksheet("All Parks");
+    ws.addRow(header);
+    ws.addRow(["Week 1", "Day 1", "2026-05-23", null, null, null, null, null]);
+    ws.getCell("D2").value = { text: "Video guide", hyperlink: "https://example.com/guide" };
+    const result = await readWorkbook(Buffer.from(await workbook.xlsx.writeBuffer()), ctx);
+
+    expect(result.sheets[0].rawRows[0].Exercises).toBe("Video guide\nhttps://example.com/guide");
+  });
 });
 
 describe("dryRun (end-to-end)", () => {
@@ -76,7 +99,7 @@ describe("dryRun (end-to-end)", () => {
       rows: [
         ["1", "1", "2026-05-23", "Warm-up", null, null, null, "Fitness"],
         ["2", "3", "2026-05-30", "Running", "Cricket", "Teamwork", "Values", null],
-        ["3", "0", "2026-06-01", "Off Day", null, null, null, null],
+        ["3", "3", "2026-06-01", "Off Day", null, null, null, null],
       ],
     }, {
       name: "State Life School",

@@ -32,6 +32,32 @@ function normaliseSheetName(raw: string): string {
   return raw.trim().toLowerCase();
 }
 
+function cellText(value: unknown): string {
+  if (value === null || value === undefined) return "";
+  if (value instanceof Date) return value.toISOString().slice(0, 10);
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") return String(value);
+  if (typeof value !== "object") return "";
+
+  const cell = value as {
+    result?: unknown;
+    text?: unknown;
+    richText?: Array<{ text?: unknown }>;
+    hyperlink?: unknown;
+  };
+  if (Array.isArray(cell.richText)) {
+    return cell.richText.map((part) => (typeof part.text === "string" ? part.text : "")).join("");
+  }
+  if (cell.result !== undefined) return cellText(cell.result);
+  if (cell.text !== undefined) {
+    const visibleText = cellText(cell.text);
+    const hyperlink = typeof cell.hyperlink === "string" ? cell.hyperlink.trim() : "";
+    return hyperlink && !visibleText.includes(hyperlink)
+      ? `${visibleText}\n${hyperlink}`.trim()
+      : visibleText;
+  }
+  return "";
+}
+
 /**
  * Read an .xlsx buffer and return raw rows for each recognised sheet.
  * Unrecognised/empty/duplicate sheets produce bounded errors.
@@ -96,8 +122,7 @@ export async function readWorkbook(
     const headerCells: { colIdx: number; name: string }[] = [];
     for (let c = 1; c <= maxCols; c++) {
       const cell = headerRow.getCell(c);
-      const val = cell.value;
-      const name = val !== null && val !== undefined ? String(val).trim() : "";
+      const name = cellText(cell.value).trim();
       if (name) {
         headerCells.push({ colIdx: c, name });
       }
@@ -113,16 +138,8 @@ export async function readWorkbook(
       // Always include every header key so the parser sees all expected columns.
       for (const { colIdx, name } of headerCells) {
         const cell = row.getCell(colIdx);
-        const val = cell.value;
-        if (val !== null && val !== undefined && val !== "") {
-          let sv: string;
-          if (val instanceof Date) {
-            sv = val.toISOString().slice(0, 10);
-          } else if (typeof val === "object" && "text" in (val as object)) {
-            sv = (val as { text: string }).text;
-          } else {
-            sv = String(val);
-          }
+        const sv = cellText(cell.value);
+        if (sv !== "") {
           record[name] = sv;
           hasAnyValue = true;
         }
