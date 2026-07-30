@@ -1,32 +1,11 @@
 "use client";
 
-import { SessionProvider, useSession, signOut } from "next-auth/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { useSession, signOut } from "next-auth/react";
 import { useAppStore } from "@/stores/useAppStore";
 import { useEffect, useRef } from "react";
-import { Toaster } from "@/components/ui/sonner";
 import { PageRouter } from "@/components/layout/page-router";
 import { LoadingState } from "@/components/layout/loading-state";
 import { useServiceWorker } from "@/hooks/use-service-worker";
-import {
-  QUERY_CACHE_TIME,
-  QUERY_RETRY_COUNT,
-  QUERY_STALE_TIMES,
-} from "@/lib/query-config";
-
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: QUERY_STALE_TIMES.DEFAULT,
-      gcTime: QUERY_CACHE_TIME,
-      retry: QUERY_RETRY_COUNT,
-      refetchOnWindowFocus: false,
-    },
-    mutations: {
-      retry: 0,
-    },
-  },
-});
 
 function AuthenticatedApp() {
   const { data: session, status } = useSession();
@@ -107,12 +86,5 @@ function AuthenticatedApp() {
 }
 
 export default function Home() {
-  return (
-    <QueryClientProvider client={queryClient}>
-      <SessionProvider>
-        <AuthenticatedApp />
-        <Toaster position="top-right" />
-      </SessionProvider>
-    </QueryClientProvider>
-  );
+  return <AuthenticatedApp />;
 }

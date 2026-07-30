@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -65,10 +64,14 @@ type Lead = {
   };
 };
 
+type CallingUiContext = {
+  canView: true;
+  canManagePoc: boolean;
+  canManageTemplates: boolean;
+  isHq: boolean;
+};
+
 export default function CallingPage() {
-  const { data: session } = useSession();
-  const userRole = (session?.user as { role?: string } | undefined)?.role;
-  const isHq = userRole === "super_admin" || userRole === "program_admin";
   const queryClient = useQueryClient();
 
   const [cityFilter, setCityFilter] = useState("");
@@ -78,23 +81,34 @@ export default function CallingPage() {
   const [campaignStart, setCampaignStart] = useState("");
   const [campaignEnd, setCampaignEnd] = useState("");
 
-  const canManage = ["super_admin", "program_admin", "city_head"].includes(userRole || "");
+  const { data: ctx, isError: ctxError, error: ctxErr } = useQuery<CallingUiContext>({
+    queryKey: ["calling-ui-context"],
+    queryFn: async () => {
+      const response = await fetch("/api/calling/ui-context");
+      if (!response.ok) throw new Error("Unable to verify Calling access");
+      return response.json();
+    },
+    retry: false,
+  });
+  const isHq = ctx?.isHq ?? false;
+  const canManage = ctx?.canManagePoc === true;
 
   const params = new URLSearchParams();
-  if (cityFilter) params.set("cityId", cityFilter);
+  if (isHq && cityFilter) params.set("cityId", cityFilter);
 
   const { data: campaigns, isLoading } = useQuery<Campaign[]>({
     queryKey: ["calling-campaigns", cityFilter],
     queryFn: () => fetch(`/api/calling/campaigns?${params}`).then((r) => {
       if (!r.ok) throw new Error("Failed to load campaigns");
-      return r.json();
+        return r.json();
     }),
+    enabled: Boolean(ctx) && !ctxError && (!isHq || Boolean(cityFilter)),
   });
 
   const { data: cities } = useQuery<{ id: string; name: string }[]>({
     queryKey: ["cities-list"],
     queryFn: () => fetch("/api/admin/cities").then((r) => r.json()).then((d) => d.data || d),
-    enabled: isHq,
+    enabled: Boolean(ctx) && !ctxError && isHq,
   });
 
   const createMutation = useMutation({
@@ -105,7 +119,7 @@ export default function CallingPage() {
         startDate: new Date(campaignStart).toISOString(),
         endDate: new Date(campaignEnd).toISOString(),
       };
-      if (cityFilter) body.cityId = cityFilter;
+      if (isHq && cityFilter) body.cityId = cityFilter;
       const res = await fetch("/api/calling/campaigns", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -126,6 +140,14 @@ export default function CallingPage() {
     onError: (err: Error) => toast.error(err.message),
   });
 
+  if (ctxError) {
+    return (
+      <div id="calling-context-error" role="alert" className="p-6 text-sm text-destructive">
+        Access Verification Failed: {ctxErr instanceof Error ? ctxErr.message : "Unable to load Calling permissions."}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 p-4 md:p-6">
       <div className="flex items-center justify-between">
@@ -143,14 +165,17 @@ export default function CallingPage() {
       <div className="flex flex-wrap gap-3">
         {isHq && cities && (
           <Select value={cityFilter} onValueChange={setCityFilter}>
-            <SelectTrigger className="w-48"><SelectValue placeholder="All cities" /></SelectTrigger>
+            <SelectTrigger className="w-48"><SelectValue placeholder="Select a city" /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All cities</SelectItem>
               {cities.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
             </SelectContent>
           </Select>
         )}
       </div>
+
+      {isHq && !cityFilter && !ctxError && (
+        <p className="text-sm text-muted-foreground">Please select a city to view campaigns.</p>
+      )}
 
       {isLoading && <div className="space-y-3">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-20 w-full rounded-lg" />)}</div>}
 

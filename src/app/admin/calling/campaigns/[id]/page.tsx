@@ -2,9 +2,7 @@
 
 import { useState } from "react";
 import { useParams } from "next/navigation";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useSession } from "next-auth/react";
-import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -32,13 +30,6 @@ import {
 import { cn } from "@/lib/utils";
 import { CampaignStatusBadge } from "@/components/calling/CampaignStatusBadge";
 import { CallInteractionModal } from "@/components/calling/CallInteractionModal";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
 
 type CampaignDetail = {
   id: string;
@@ -53,16 +44,17 @@ type CampaignDetail = {
 type LeadItem = {
   id: string;
   applicationId: string;
-  callerStaffMetaId: string | null;
-  callerExternalId: string | null;
   status: string;
   outcome: string | null;
+  canInteract: boolean;
   application?: {
-    applicantName: string;
-    guardianPhone: string;
+    applicantName?: string;
+    guardianPhone?: string;
     status: string;
-  };
+  } | null;
 };
+
+type CallingUiContext = { canView: true; canManagePoc: boolean; canManageTemplates: boolean; isHq: boolean };
 
 const OUTCOME_ICONS: Record<string, typeof Phone> = {
   reached: CheckCircle2,
@@ -83,48 +75,36 @@ const OUTCOME_STYLES: Record<string, string> = {
 export default function CampaignDetailPage() {
   const params = useParams<{ id: string }>();
   const campaignId = params.id;
-  const { data: session } = useSession();
-  const userRole = (session?.user as { role?: string } | undefined)?.role;
-  const canManage = ["super_admin", "program_admin", "city_head"].includes(userRole || "");
-  const queryClient = useQueryClient();
 
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [logModal, setLogModal] = useState<{ open: boolean; assignmentId: string }>({ open: false, assignmentId: "" });
-  const [assignModal, setAssignModal] = useState<{ open: boolean; leadId: string }>({ open: false, leadId: "" });
-  const [callerId, setCallerId] = useState("");
+
+  const { data: ctx, isError: ctxError, error: ctxErr } = useQuery<CallingUiContext>({
+    queryKey: ["calling-ui-context"],
+    queryFn: async () => {
+      const response = await fetch("/api/calling/ui-context");
+      if (!response.ok) throw new Error("Unable to verify Calling access");
+      return response.json();
+    },
+    retry: false,
+  });
 
   const { data: campaign, isLoading: campaignLoading } = useQuery<CampaignDetail>({
     queryKey: ["campaign", campaignId],
     queryFn: () => fetch(`/api/calling/campaigns/${campaignId}`).then((r) => r.json()),
+    enabled: Boolean(campaignId) && Boolean(ctx) && !ctxError,
   });
 
   const { data: leads, isLoading: leadsLoading } = useQuery<LeadItem[]>({
     queryKey: ["campaign-leads", campaignId, statusFilter],
     queryFn: () => {
       const p = new URLSearchParams();
-      if (statusFilter) p.set("status", statusFilter);
-      return fetch(`/api/calling/campaigns/${campaignId}/leads?${p}`).then((r) => r.json());
+      if (statusFilter !== "all") p.set("status", statusFilter);
+      const suffix = p.size > 0 ? `?${p}` : "";
+      return fetch(`/api/calling/campaigns/${campaignId}/leads${suffix}`).then((r) => r.json());
     },
-  });
-
-  const assignMutation = useMutation({
-    mutationFn: async (applicationId: string) => {
-      const res = await fetch("/api/calling/assignments", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ campaignId, applicationId, callerStaffMetaId: callerId || undefined }),
-      });
-      if (!res.ok) throw new Error("Failed to assign lead");
-      return res.json();
-    },
-    onSuccess: () => {
-      toast.success("Lead assigned");
-      setAssignModal({ open: false, leadId: "" });
-      setCallerId("");
-      queryClient.invalidateQueries({ queryKey: ["campaign-leads", campaignId] });
-    },
-    onError: (err: Error) => toast.error(err.message),
+    enabled: Boolean(campaignId) && Boolean(ctx) && !ctxError,
   });
 
   const filteredLeads = leads?.filter((l) => {
@@ -133,7 +113,14 @@ export default function CampaignDetailPage() {
     return name.includes(search.toLowerCase());
   });
 
-  if (campaignLoading) return <div className="p-4 md:p-6 space-y-4">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}</div>;
+  if (ctxError) {
+    return (
+      <div id="calling-context-error" role="alert" className="p-6 text-sm text-destructive">
+        Access Verification Failed: {ctxErr instanceof Error ? ctxErr.message : "Unable to load Calling permissions."}
+      </div>
+    );
+  }
+  if (campaignLoading || !ctx) return <div className="p-4 md:p-6 space-y-4">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}</div>;
   if (!campaign) return <div className="p-4 md:p-6 text-center text-muted-foreground">Campaign not found.</div>;
 
   return (
@@ -181,17 +168,12 @@ export default function CampaignDetailPage() {
             return (
               <div key={lead.id} className="flex items-center justify-between p-3 rounded-lg border">
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium">{lead.application?.applicantName || "Unknown"}</p>
+                  <p className="text-sm font-medium">{lead.application?.applicantName || "—"}</p>
                   <p className="text-xs text-muted-foreground">{lead.application?.guardianPhone || "—"} &middot; {lead.status}</p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   {lead.outcome && OutcomeIcon && <OutcomeIcon className={cn("size-4", OUTCOME_STYLES[lead.outcome])} />}
-                  {canManage && !lead.callerStaffMetaId && !lead.callerExternalId && (
-                    <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setAssignModal({ open: true, leadId: lead.applicationId })}>
-                      Assign
-                    </Button>
-                  )}
-                  {(lead.callerStaffMetaId || lead.callerExternalId) && (
+                  {lead.canInteract && (
                     <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setLogModal({ open: true, assignmentId: lead.id })}>
                       <Phone className="size-3 mr-1" /> Log Call
                     </Button>
@@ -212,16 +194,6 @@ export default function CampaignDetailPage() {
         />
       )}
 
-      <Dialog open={assignModal.open} onOpenChange={(v) => !v && setAssignModal({ open: false, leadId: "" })}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Assign Lead</DialogTitle></DialogHeader>
-          <Input placeholder="Caller Staff Meta ID" value={callerId} onChange={(e) => setCallerId(e.target.value)} />
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setAssignModal({ open: false, leadId: "" })}>Cancel</Button>
-            <Button onClick={() => assignMutation.mutate(assignModal.leadId)} disabled={!callerId}>Assign</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
