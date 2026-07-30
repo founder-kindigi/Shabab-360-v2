@@ -69,7 +69,6 @@ const StudentFeesPage = lazy(() => import("@/components/modules/student/student-
 const StudentProfilePage = lazy(() => import("@/components/modules/student/student-profile-page").then(m => ({ default: m.StudentProfilePage })));
 
 // Shared components (always loaded — used on every page)
-import { ScopeSelector } from "@/components/shared/scope-selector";
 import { BreadcrumbNav } from "@/components/shared/breadcrumb-nav";
 import { KeyboardShortcutsDialog } from "@/components/shared/keyboard-shortcuts-dialog";
 import { CommandPalette } from "@/components/shared/command-palette";
@@ -380,9 +379,6 @@ export function AppShell() {
   const pageTitle = pageTitles[currentPage] || "Dashboard";
   const showPageHeader = !["admin-dashboard", "city-head-dashboard", "murabbi-dashboard", "park-dashboard", "park-attendance-roster", "park-roster", "park-participants", "park-guardians", "park-schedule", "guardian-dashboard", "guardian-history", "guardian-announcements", "guardian-schedule", "guardian-fees", "student-dashboard", "student-history", "student-announcements", "student-schedule", "student-fees", "student-profile", "admin-cities", "admin-parks", "admin-batches", "admin-groups", "admin-users", "admin-access", "admin-audit-log", "admin-settings", "admin-attendance-events", "admin-people", "admin-announcements", "admin-reports", "admin-students", "admin-guardians", "admin-fees", "admin-admissions", "notifications"].includes(currentPage);
 
-  // Show scope selector on admin pages (not dashboard, settings, or audit-log)
-  const showScopeSelector = currentPage.startsWith("admin-") && !(["admin-dashboard", "admin-settings", "admin-audit-log", "admin-people", "admin-announcements", "admin-access", "admin-students", "admin-guardians", "admin-fees", "admin-admissions"] as const).includes(currentPage as any);
-
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       {/* Sidebar */}
@@ -492,9 +488,8 @@ export function AppShell() {
         {/* Page content */}
         <main className="flex-1 overflow-y-auto pb-24 lg:pb-0">
           <div className="p-4 md:p-6 space-y-4">
-            {showScopeSelector && <ScopeSelector />}
             {showPageHeader && <PageHeader title={pageTitle} />}
-            {!showPageHeader && !showScopeSelector && <div className="mb-6" />}
+            {!showPageHeader && <div className="mb-6" />}
             <AnimatePresence mode="wait">
               <motion.div
                 key={currentPage}
