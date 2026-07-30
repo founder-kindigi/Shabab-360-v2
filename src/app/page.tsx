@@ -65,6 +65,26 @@ function AuthenticatedApp() {
     }
   }, [hasInvalidatedSession]);
 
+  // Restore SPA state from URL params after a server redirect (MASH-005).
+  // This handles direct navigation or refresh on pages like Mashwara which
+  // redirect to /?page=... so the AuthenticatedApp SPA shell can render them.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const page = params.get("page");
+
+    if (page === "admin-mashwara") {
+      navigateTo("admin-mashwara");
+      window.history.replaceState({}, "", "/admin/mashwara");
+    } else if (page === "admin-mashwara-detail") {
+      const id = params.get("id");
+      if (id) {
+        useAppStore.getState().setSelectedEventId(id);
+        navigateTo("admin-mashwara-detail");
+        window.history.replaceState({}, "", `/admin/mashwara/${id}`);
+      }
+    }
+  }, [navigateTo]);
+
   // When session is cleared AFTER being authenticated (sign out), reload
   useEffect(() => {
     if (!session && status !== "loading" && wasAuthenticated.current) {

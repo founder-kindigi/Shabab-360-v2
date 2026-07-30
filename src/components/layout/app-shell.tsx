@@ -38,8 +38,8 @@ const ReportsPage = lazy(() => import("@/components/modules/admin/reports-page")
 const AccessProvisioningPage = lazy(() => import("@/components/modules/admin/access-provisioning-page").then(m => ({ default: m.AccessProvisioningPage })));
 const AccessManagementPage = lazy(() => import("@/components/modules/admin/access-management-page").then(m => ({ default: m.AccessManagementPage })));
 const CollaborationTeamsPage = lazy(() => import("@/components/modules/admin/collaboration-teams-page").then(m => ({ default: m.CollaborationTeamsPage })));
-const MashwaraPage = lazy(() => import("@/app/admin/mashwara/page").then(m => ({ default: m.default })));
-const MashwaraDetailPage = lazy(() => import("@/app/admin/mashwara/[id]/page").then(m => ({ default: m.default })));
+const MashwaraPage = lazy(() => import("@/app/admin/mashwara/_client").then(m => ({ default: m.default })));
+const MashwaraDetailPage = lazy(() => import("@/app/admin/mashwara/[id]/_client").then(m => ({ default: m.default })));
 const CallingPage = lazy(() => import("@/app/admin/calling/page").then(m => ({ default: m.default })));
 const EventsPage = lazy(() => import("@/app/admin/events/page").then(m => ({ default: m.default })));
 const ContentPlannerPage = lazy(() => import("@/components/modules/content-planner/content-planner-page").then(m => ({ default: m.ContentPlannerPage })));

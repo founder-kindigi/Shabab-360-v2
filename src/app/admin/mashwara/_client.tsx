@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { toast } from "sonner";
@@ -328,6 +328,15 @@ export default function MashwaraDashboardClient() {
   const [page, setPage] = useState(1);
   const pageSize = 12;
 
+  // If we arrived via a SPA redirect with ?page=, clean the URL to show the
+  // real path instead of the query-parameter URL from the server redirect.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.has("page")) {
+      window.history.replaceState({}, "", "/admin/mashwara");
+    }
+  }, []);
+
   // Query cities for filter (HQ)
   const { data: citiesData } = useQuery<{ id: string; name: string }[]>({
     queryKey: ["cities-list"],
@@ -367,6 +376,27 @@ export default function MashwaraDashboardClient() {
     window.history.pushState({}, "", `/admin/mashwara/${meetingId}`);
     navigateTo("admin-mashwara-detail");
   };
+
+  // Show a skeleton layout while the server-resolved ui-context is loading,
+  // so the user never sees a blank or partially-rendered page.
+  if (ctxLoading) {
+    return (
+      <div className="space-y-6 p-4 md:p-6">
+        <div className="flex items-start justify-between gap-4">
+          <div className="space-y-2">
+            <Skeleton className="h-8 w-48" />
+            <Skeleton className="h-4 w-72" />
+          </div>
+          <Skeleton className="h-10 w-36 shrink-0" />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Skeleton key={i} className="h-40 rounded-xl" />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   // ui-context returned a non-OK status (e.g. 403 from scoped city resolution
   // failure). Render a safe access-denied state — no meeting data is fetched.

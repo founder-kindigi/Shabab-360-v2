@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams } from "next/navigation";
 import { toast } from "sonner";
@@ -148,10 +148,40 @@ export default function MashwaraDetailClient() {
     onError: (err: Error) => toast.error(err.message),
   });
 
+  // If we arrived via a SPA redirect with ?page=admin-mashwara-detail,
+  // clean the URL to show the real path instead of the query parameter.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.has("page") && id) {
+      window.history.replaceState({}, "", `/admin/mashwara/${id}`);
+    }
+  }, [id]);
+
   const handleBack = () => {
     window.history.pushState({}, "", "/admin/mashwara");
     navigateTo("admin-mashwara");
   };
+
+  // Show a skeleton while the server-resolved ui-context is loading,
+  // preventing a false "Meeting Not Found" state when the detail query
+  // hasn't started yet (it is gated on ctx being resolved).
+  if (ctxLoading) {
+    return (
+      <div className="space-y-4 p-4 md:p-6">
+        <div className="flex items-center gap-3">
+          <Skeleton className="size-9 rounded-md" />
+          <div className="space-y-2 flex-1">
+            <Skeleton className="h-8 w-96" />
+            <Skeleton className="h-4 w-[32rem]" />
+          </div>
+          <Skeleton className="h-9 w-28" />
+          <Skeleton className="h-9 w-32" />
+        </div>
+        <Skeleton className="h-10 w-96" />
+        <Skeleton className="h-64 w-full rounded-xl" />
+      </div>
+    );
+  }
 
   if (ctxError) {
     return (
