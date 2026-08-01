@@ -34,7 +34,8 @@ To enforce module-scoped localization without mutating global document state:
    }
    ```
 2. **Super Admin Management Gate:**
-   Only `super_admin` role users (governed by capability code `system.localization.manage`) can view or update module localization configurations. All other roles consume read-only resolved module settings.
+   `system.localization.manage` is a **proposed RTL-002 capability**, not a capability available in the current baseline. Module localization changes must require a server-side `user.role === "super_admin"` check. If the proposed capability is added, require it in addition to the role check; role or named-user overrides alone must never grant this global setting.
+   All other roles consume only the resolved setting for modules they may already view.
 3. **Fail-Closed Fallback:**
    If module configuration cannot be resolved or is unconfigured, the system fails closed to English (`en`) / LTR (`dir="ltr"`).
 
@@ -147,7 +148,7 @@ Inside Weekly Mashwara, meeting topics, Karguzari notes, and decision descriptio
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │ PHASE 1: Server Config & Module Scope Infrastructure                       │
 │ - Database schema & server API for ModuleLocalizationConfig                 │
-│ - Super Admin authorization gate (system.localization.manage)               │
+│ - Super Admin role gate plus proposed system.localization.manage capability │
 │ - Create ModuleLocalizationBoundary & Radix dir context bridge              │
 └─────────────────────────────────────────────────────────────────────────────┘
                                       │
@@ -181,8 +182,9 @@ Inside Weekly Mashwara, meeting topics, Karguzari notes, and decision descriptio
 | Action / Setting | Minimum Role | Required Capability | Boundary Scope |
 | :--- | :--- | :--- | :--- |
 | View Module Localization Status | All Authenticated Staff | `mashwara.view` (or module view) | Resolved for assigned city/park |
-| Toggle Module RTL/Urdu Setting | `super_admin` | `system.localization.manage` | Global Super Admin only |
-| Create/Edit Mashwara in Urdu | Scoped Staff (`city_head`, `park_lead`, etc.) | `mashwara.create` / `mashwara.edit` | Enforced assigned city/park scope |
+| Toggle Module RTL/Urdu Setting | `super_admin` | Proposed `system.localization.manage`, required in addition to server role check | Global Super Admin only |
+| View resolved Mashwara localization | Authorized Mashwara viewer | Existing `mashwara.view` | Same scope as Mashwara access; never exposes global settings |
+| Create/Edit Mashwara in Urdu | Scoped staff with existing meeting authority | Existing `mashwara.manage` | Enforced assigned city/park scope |
 
 ---
 
