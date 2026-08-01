@@ -1,9 +1,10 @@
 import { redirect } from "next/navigation";
 
-export default function MashwaraDetailPage({
+export default async function MashwaraDetailPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
-  redirect(`/?page=admin-mashwara-detail&id=${params.id}`);
+  const { id } = await params;
+  redirect(`/?page=admin-mashwara-detail&id=${encodeURIComponent(id)}`);
 }
