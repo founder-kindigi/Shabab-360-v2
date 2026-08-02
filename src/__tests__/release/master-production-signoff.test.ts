@@ -38,18 +38,18 @@ describe("PROD-HANDOVER-001: Master Production Sign-Off", () => {
       for (const m of pg) expect(sqlite.has(m)).toBe(true);
     });
 
-    it("PostgreSQL migrations chain complete (13 migrations)", () => {
-      expect(allMigrationDirs(PG_MIGRATIONS)).toHaveLength(13);
+    it("PostgreSQL migrations chain complete (14 migrations)", () => {
+      expect(allMigrationDirs(PG_MIGRATIONS)).toHaveLength(14);
     });
 
     it("SQLite migrations chain complete (7 migrations)", () => {
       expect(allMigrationDirs(SQLITE_MIGRATIONS)).toHaveLength(7);
     });
 
-    it("latest migration matches in both chains (attendance foundation)", () => {
+    it("keeps the SQLite attendance foundation and PostgreSQL repair in order", () => {
       const pg = allMigrationDirs(PG_MIGRATIONS);
       const sql = allMigrationDirs(SQLITE_MIGRATIONS);
-      expect(pg[pg.length - 1]).toContain("add_attendance_foundation");
+      expect(pg[pg.length - 1]).toContain("repair_participant_group_nullable");
       expect(sql[sql.length - 1]).toContain("add_attendance_foundation");
     });
   });
