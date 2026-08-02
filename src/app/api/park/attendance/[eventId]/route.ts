@@ -191,14 +191,21 @@ export async function POST(
       }
     }
 
-    // Verify participant belongs to the event's group
+    // Verify participant belongs to the event's group and is active
     const participant = await db.participant.findFirst({
-      where: { id: participantId, groupId: event.groupId, state: "active" },
+      where: { id: participantId, groupId: event.groupId },
     });
 
     if (!participant) {
       return NextResponse.json(
         { error: "Participant not in this group" },
+        { status: 409 }
+      );
+    }
+
+    if (participant.state === "dropped_out") {
+      return NextResponse.json(
+        { error: "Cannot mark attendance for a dropped out student" },
         { status: 409 }
       );
     }
