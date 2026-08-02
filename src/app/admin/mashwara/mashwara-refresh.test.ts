@@ -25,4 +25,10 @@ describe("MASH-005 direct navigation", () => {
       "/?page=admin-mashwara-detail&id=meeting%2Flahore%20001",
     );
   });
+
+  it("requires a detail identifier instead of silently redirecting to an empty workspace", async () => {
+    // @ts-expect-error The App Router always provides params; this verifies
+    // the page contract does not accept an empty SPA-shell invocation.
+    await expect(MashwaraDetailPage()).rejects.toThrow();
+  });
 });
