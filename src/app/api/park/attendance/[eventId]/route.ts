@@ -27,6 +27,7 @@ export async function GET(
             batch: { include: { park: true } },
           },
         },
+        rosterSnapshots: { select: { participantId: true } },
       },
     });
 
@@ -41,9 +42,13 @@ export async function GET(
     );
     if (scopeError) return scopeError;
 
-    // Get all active participants in the group
+    // Prefer the immutable event roster. Older events created before snapshots
+    // fall back to the live active group roster until reconciled.
+    const snapshotParticipantIds = event.rosterSnapshots.map((snapshot) => snapshot.participantId);
     const participants = await db.participant.findMany({
-      where: { groupId: event.groupId, state: "active" },
+      where: snapshotParticipantIds.length > 0
+        ? { id: { in: snapshotParticipantIds } }
+        : { groupId: event.groupId, state: "active" },
       orderBy: { name: "asc" },
     });
 

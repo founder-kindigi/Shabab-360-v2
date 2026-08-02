@@ -38,20 +38,26 @@ export async function GET(request: Request) {
 
   const { participantId, groupId, parkId, cityId, from, to, limit, offset } = parseResult.data;
 
+  const isHq = user.role === "super_admin" || user.role === "program_admin";
+  if (isHq && !cityId) {
+    return NextResponse.json({ error: "cityId is required for HQ reports" }, { status: 400 });
+  }
+  const effectiveScope = {
+    cityId: cityId ?? user.assignedCityId ?? null,
+    parkId: parkId ?? user.assignedParkId ?? null,
+    groupId: groupId ?? user.assignedGroupId ?? null,
+  };
+
   // Hierarchy scope check
-  const scopeError = requireResourceScope(user, {
-    cityId: cityId ?? null,
-    parkId: parkId ?? null,
-    groupId: groupId ?? null,
-  });
+  const scopeError = requireResourceScope(user, effectiveScope);
   if (scopeError) return scopeError;
 
   try {
     const summary = await getStudentSummary({
       participantId,
-      groupId,
-      parkId,
-      cityId,
+      groupId: effectiveScope.groupId ?? undefined,
+      parkId: effectiveScope.parkId ?? undefined,
+      cityId: effectiveScope.cityId ?? undefined,
       from: from ? new Date(from) : undefined,
       to: to ? new Date(to) : undefined,
       limit,
