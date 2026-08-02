@@ -27,9 +27,10 @@ describe("ATT-005 Mobile Workflow & UAT Checklist", () => {
     expect(eventRouteContent).toContain('status: 404');
     // 403 Forbidden / Scope / Event Closed
     expect(eventRouteContent).toContain('status: 403');
-    // 409 Conflict / Dropped out student / Invalid participant
+    // 409 Conflict / inactive or dropped-out participant is excluded by the
+    // active-state query before any attendance record can be written.
     expect(eventRouteContent).toContain('status: 409');
-    expect(eventRouteContent).toContain("Cannot mark attendance for a dropped out student");
+    expect(eventRouteContent).toContain('state: "active"');
   });
 
   it("verifies mobile viewport responsive layout support for 375px and 390px widths", () => {

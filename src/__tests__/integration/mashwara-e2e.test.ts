@@ -23,11 +23,13 @@ const mocks = vi.hoisted(() => ({
   staffFindFirst: vi.fn(),
   staffFindUnique: vi.fn(),
   staffFindMany: vi.fn(),
+  teamFindMany: vi.fn(),
   cityFindFirst: vi.fn(),
   transaction: vi.fn(),
   logAudit: vi.fn(),
   resolveMashwaraAccess: vi.fn(),
   resolveMashwaraActorCity: vi.fn(),
+  notifyTaskAssignee: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/authorize", () => ({
@@ -48,11 +50,7 @@ vi.mock("@/lib/db", () => ({
         },
         auditLog: { create: mocks.logAudit },
         collaborationTeam: {
-          findMany: vi
-            .fn()
-            .mockResolvedValue([
-              { id: "team-sports", isActive: true, cityId: "city-lhr" },
-            ]),
+          findMany: mocks.teamFindMany,
         },
         staffMeta: { findMany: mocks.staffFindMany },
       });
@@ -99,6 +97,9 @@ vi.mock("@/lib/audit", () => ({
 vi.mock("@/lib/auth/mashwara-scope", () => ({
   resolveMashwaraAccess: mocks.resolveMashwaraAccess,
   resolveMashwaraActorCity: mocks.resolveMashwaraActorCity,
+}));
+vi.mock("@/lib/mashwara-notifications", () => ({
+  notifyTaskAssignee: mocks.notifyTaskAssignee,
 }));
 
 /* ── Route imports ──────────────────────────────────────────────────── */
@@ -164,6 +165,7 @@ describe("MASHWARA-E2E-001: End-to-End Mashwara Integration", () => {
     mocks.meetingFindMany.mockResolvedValue([BASE_MEETING]);
     mocks.meetingCount.mockResolvedValue(1);
     mocks.staffFindFirst.mockResolvedValue({ id: "staff-admin-1" });
+    mocks.notifyTaskAssignee.mockResolvedValue("notification-1");
     mocks.staffFindMany.mockImplementation(async (args: any) => {
       const all = [
         { id: "staff-coach", isActive: true, assignedCityId: "city-lhr" },
@@ -171,6 +173,16 @@ describe("MASHWARA-E2E-001: End-to-End Mashwara Integration", () => {
       ];
       if (args?.where?.id?.in) {
         return all.filter((s) => args.where.id.in.includes(s.id));
+      }
+      return all;
+    });
+    mocks.teamFindMany.mockImplementation(async (args: any) => {
+      const all = [
+        { id: "team-sports", isActive: true, cityId: "city-lhr" },
+        { id: "team-media", isActive: true, cityId: "city-lhr" },
+      ];
+      if (args?.where?.id?.in) {
+        return all.filter((team) => args.where.id.in.includes(team.id));
       }
       return all;
     });
