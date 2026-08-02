@@ -1,9 +1,6 @@
-export const dynamic = "force-dynamic";
+import { redirect } from "next/navigation";
+import type { JSX } from "react";
 
-import nextDynamic from "next/dynamic";
-
-const MashwaraDashboardClient = nextDynamic(() => import("./_client"));
-
-export default function MashwaraPage() {
-  return <MashwaraDashboardClient />;
+export default function MashwaraPage(): JSX.Element {
+  redirect("/?page=admin-mashwara");
 }
