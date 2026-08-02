@@ -7,6 +7,9 @@ const mocks = vi.hoisted(() => ({
   requireResourceScope: vi.fn(),
   eventFindUnique: vi.fn(),
   eventUpdate: vi.fn(),
+  participantFindMany: vi.fn(),
+  evaluateAutomaticDropout: vi.fn(),
+  staffMetaFindUnique: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/authorize", () => ({
@@ -15,9 +18,16 @@ vi.mock("@/lib/auth/authorize", () => ({
   requireResourceScope: mocks.requireResourceScope,
 }));
 vi.mock("@/lib/db", () => ({
-  db: { attendanceEvent: { findUnique: mocks.eventFindUnique, update: mocks.eventUpdate } },
+  db: {
+    attendanceEvent: { findUnique: mocks.eventFindUnique, update: mocks.eventUpdate },
+    participant: { findMany: mocks.participantFindMany },
+    staffMeta: { findUnique: mocks.staffMetaFindUnique },
+  },
 }));
 vi.mock("@/lib/audit", () => ({ logAudit: vi.fn() }));
+vi.mock("@/lib/attendance/policy-engine", () => ({
+  evaluateAutomaticDropout: mocks.evaluateAutomaticDropout,
+}));
 
 import { PATCH } from "./route";
 
@@ -37,6 +47,11 @@ describe("PATCH /api/park/attendance/[eventId]/close", () => {
     mocks.requireResourceScope.mockReturnValue(
       NextResponse.json({ error: "Forbidden" }, { status: 403 })
     );
+    mocks.participantFindMany.mockResolvedValue([]);
+    mocks.staffMetaFindUnique.mockResolvedValue({
+      id: "staff-1",
+      user: { name: "Park Lead" },
+    });
   });
 
   it("passes the Park Lead-only correction policy to the scope checker", async () => {
@@ -70,5 +85,28 @@ describe("PATCH /api/park/attendance/[eventId]/close", () => {
 
     expect(response.status).toBe(400);
     expect(mocks.eventFindUnique).not.toHaveBeenCalled();
+  });
+
+  it("evaluates the automatic policy only after a successful close", async () => {
+    mocks.requireResourceScope.mockReturnValue(null);
+    mocks.eventUpdate.mockResolvedValue({
+      id: "event-2",
+      isClosed: true,
+      closedAt: new Date("2026-08-02T10:00:00.000Z"),
+    });
+    mocks.participantFindMany.mockResolvedValue([{ id: "participant-1" }]);
+    mocks.evaluateAutomaticDropout.mockResolvedValue({ droppedOut: false });
+
+    const response = await PATCH(
+      new Request("http://localhost/api/park/attendance/event-2/close", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ reason: "Attendance verified by the Park Lead" }),
+      }),
+      { params: Promise.resolve({ eventId: "event-2" }) },
+    );
+
+    expect(response.status).toBe(200);
+    expect(mocks.evaluateAutomaticDropout).toHaveBeenCalledWith("participant-1");
   });
 });

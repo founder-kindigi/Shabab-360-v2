@@ -3,6 +3,7 @@ import { requireAuth, requireCapability, requireResourceScope } from "@/lib/auth
 import { db } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
 import { closeAttendanceEventSchema } from "@/lib/attendance/schemas";
+import { evaluateAutomaticDropout } from "@/lib/attendance/policy-engine";
 
 const EVENT_SUPERVISOR_ROLES = ["park_lead"] as const;
 
@@ -77,6 +78,25 @@ export async function PATCH(
       newValues: { reason, closedByName: staffMeta?.user?.name },
     });
 
+    // Automatic dropout is evaluated only after an event is closed. This
+    // prevents draft/unmarked attendance from being treated as an absence.
+    const activeParticipants = await db.participant.findMany({
+      where: { groupId: event.groupId, state: "active" },
+      select: { id: true },
+    });
+    const dropoutResults = await Promise.allSettled(
+      activeParticipants.map(({ id }) => evaluateAutomaticDropout(id)),
+    );
+    const dropoutEvaluationFailures = dropoutResults.filter(
+      (result) => result.status === "rejected",
+    ).length;
+    if (dropoutEvaluationFailures > 0) {
+      console.error("Automatic dropout evaluation failed", {
+        eventId,
+        failures: dropoutEvaluationFailures,
+      });
+    }
+
     return NextResponse.json({
       success: true,
       event: {
@@ -85,6 +105,7 @@ export async function PATCH(
         closedAt: updatedEvent.closedAt?.toISOString(),
         closedByName: staffMeta?.user?.name || null,
       },
+      dropoutEvaluationFailures,
     });
   } catch (error) {
     console.error("Close event error:", error);
