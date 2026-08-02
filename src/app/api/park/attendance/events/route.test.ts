@@ -50,6 +50,23 @@ describe("POST /api/park/attendance/events", () => {
     expect(mocks.groupFindUnique).not.toHaveBeenCalled();
   });
 
+  it("rejects unknown event fields before querying group scope", async () => {
+    const response = await POST(
+      new Request("http://localhost/api/park/attendance/events", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          groupId: "ckggggggggggggggggggggggg",
+          title: "Park Event",
+          clientSuppliedCityId: "foreign-city",
+        }),
+      })
+    );
+
+    expect(response.status).toBe(400);
+    expect(mocks.groupFindUnique).not.toHaveBeenCalled();
+  });
+
   it("denies attendance mark capability before parsing request body", async () => {
     mocks.requireCapability.mockResolvedValue(
       NextResponse.json({ error: "Forbidden" }, { status: 403 })

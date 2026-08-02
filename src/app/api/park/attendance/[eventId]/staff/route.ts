@@ -7,8 +7,8 @@ import { z } from "zod";
 const markStaffAttendanceSchema = z.object({
   staffId: z.string().min(1, "Staff ID is required"),
   status: z.enum(["present", "absent", "late", "excused"]),
-  editReason: z.string().optional(),
-});
+  editReason: z.string().trim().min(1).max(500).optional(),
+}).strict();
 
 export async function GET(
   _req: Request,
