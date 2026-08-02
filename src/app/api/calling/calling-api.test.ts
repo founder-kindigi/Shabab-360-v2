@@ -434,12 +434,14 @@ describe("CALL-005: Campaign Leads Route", () => {
     mockDb.staffMeta.findFirst.mockResolvedValue({ id: "sm1", userId: "u1", isActive: true });
     mockDb.externalSupportCaller.findMany.mockResolvedValue([]);
     mockDb.callingAssignment.findMany.mockResolvedValue([MOCK_ASSIGNMENT]);
+    mockDb.callingAssignment.count.mockResolvedValue(1);
 
     const res = await getLeads("cmp_1");
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body).toHaveLength(1);
-    expect(body[0]).toMatchObject({
+    expect(body.data).toHaveLength(1);
+    expect(body.pagination).toMatchObject({ page: 1, pageSize: 50, total: 1, totalPages: 1 });
+    expect(body.data[0]).toMatchObject({
       id: "assign_1",
       applicationId: "app_1",
       status: "pending",
@@ -452,29 +454,30 @@ describe("CALL-005: Campaign Leads Route", () => {
       },
     });
     // Ensure raw StaffMeta/External IDs are not exposed
-    expect(body[0]).not.toHaveProperty("callerStaffMetaId");
-    expect(body[0]).not.toHaveProperty("callerExternalId");
+    expect(body.data[0]).not.toHaveProperty("callerStaffMetaId");
+    expect(body.data[0]).not.toHaveProperty("callerExternalId");
   });
 
   it("returns masked data and canInteract=false for non-owner manager", async () => {
     mockDb.staffMeta.findFirst.mockResolvedValue({ id: "sm_mgr", userId: "u1", isActive: true });
     mockDb.externalSupportCaller.findMany.mockResolvedValue([]);
     mockDb.callingAssignment.findMany.mockResolvedValue([MOCK_ASSIGNMENT]);
+    mockDb.callingAssignment.count.mockResolvedValue(1);
 
     const res = await getLeads("cmp_1");
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body[0]).toMatchObject({
+    expect(body.data[0]).toMatchObject({
       id: "assign_1",
       canInteract: false,
       application: {
         status: "submitted",
       },
     });
-    expect(body[0].application).not.toHaveProperty("applicantName");
-    expect(body[0].application).not.toHaveProperty("guardianPhone");
-    expect(body[0]).not.toHaveProperty("callerStaffMetaId");
-    expect(body[0]).not.toHaveProperty("callerExternalId");
+    expect(body.data[0].application).not.toHaveProperty("applicantName");
+    expect(body.data[0].application).not.toHaveProperty("guardianPhone");
+    expect(body.data[0]).not.toHaveProperty("callerStaffMetaId");
+    expect(body.data[0]).not.toHaveProperty("callerExternalId");
   });
 
   it("returns 403 for foreign-city access denial", async () => {
@@ -511,7 +514,13 @@ describe("CALL-005: Campaign Leads Route", () => {
     const res = await getLeads("cmp_1", "?status=invalid_status_xyz");
     expect(res.status).toBe(400);
     const body = await res.json();
-    expect(body.error).toContain("Invalid status parameter");
+    expect(body.error).toBe("Invalid query parameters");
+  });
+
+  it("rejects an out-of-range page before querying assignments", async () => {
+    const res = await getLeads("cmp_1", "?page=0");
+    expect(res.status).toBe(400);
+    expect(mockDb.callingAssignment.findMany).not.toHaveBeenCalled();
   });
 
   describe("External Support Caller Authorization & Scope Regressions", () => {
@@ -625,8 +634,8 @@ describe("CALL-005: Campaign Leads Route", () => {
       const res = await getLeads("cmp_1");
       expect(res.status).toBe(200);
       const body = await res.json();
-      expect(body).toHaveLength(1);
-      expect(body[0]).toMatchObject({
+      expect(body.data).toHaveLength(1);
+      expect(body.data[0]).toMatchObject({
         id: "assign_ext_1",
         canInteract: true,
         application: {
@@ -635,8 +644,8 @@ describe("CALL-005: Campaign Leads Route", () => {
           status: "submitted",
         },
       });
-      expect(body[0]).not.toHaveProperty("callerExternalId");
-      expect(body[0]).not.toHaveProperty("callerStaffMetaId");
+      expect(body.data[0]).not.toHaveProperty("callerExternalId");
+      expect(body.data[0]).not.toHaveProperty("callerStaffMetaId");
     });
   });
 });

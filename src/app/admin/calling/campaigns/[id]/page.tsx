@@ -54,6 +54,11 @@ type LeadItem = {
   } | null;
 };
 
+type LeadListResponse = {
+  data: LeadItem[];
+  pagination: { page: number; pageSize: number; total: number; totalPages: number };
+};
+
 type CallingUiContext = { canView: true; canManagePoc: boolean; canManageTemplates: boolean; isHq: boolean };
 
 const OUTCOME_ICONS: Record<string, typeof Phone> = {
@@ -78,6 +83,7 @@ export default function CampaignDetailPage() {
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [leadPage, setLeadPage] = useState(1);
   const [logModal, setLogModal] = useState<{ open: boolean; assignmentId: string }>({ open: false, assignmentId: "" });
 
   const { data: ctx, isError: ctxError, error: ctxErr } = useQuery<CallingUiContext>({
@@ -96,18 +102,20 @@ export default function CampaignDetailPage() {
     enabled: Boolean(campaignId) && Boolean(ctx) && !ctxError,
   });
 
-  const { data: leads, isLoading: leadsLoading } = useQuery<LeadItem[]>({
-    queryKey: ["campaign-leads", campaignId, statusFilter],
+  const { data: leads, isLoading: leadsLoading } = useQuery<LeadListResponse>({
+    queryKey: ["campaign-leads", campaignId, statusFilter, leadPage],
     queryFn: () => {
       const p = new URLSearchParams();
       if (statusFilter !== "all") p.set("status", statusFilter);
+      p.set("page", String(leadPage));
+      p.set("pageSize", "50");
       const suffix = p.size > 0 ? `?${p}` : "";
       return fetch(`/api/calling/campaigns/${campaignId}/leads${suffix}`).then((r) => r.json());
     },
     enabled: Boolean(campaignId) && Boolean(ctx) && !ctxError,
   });
 
-  const filteredLeads = leads?.filter((l) => {
+  const filteredLeads = leads?.data.filter((l) => {
     if (!search) return true;
     const name = l.application?.applicantName?.toLowerCase() || "";
     return name.includes(search.toLowerCase());
@@ -149,7 +157,7 @@ export default function CampaignDetailPage() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
               <Input className="pl-9" placeholder="Search leads..." value={search} onChange={(e) => setSearch(e.target.value)} />
             </div>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <Select value={statusFilter} onValueChange={(value) => { setStatusFilter(value); setLeadPage(1); }}>
               <SelectTrigger className="w-36"><SelectValue placeholder="All status" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All</SelectItem>
@@ -182,6 +190,19 @@ export default function CampaignDetailPage() {
               </div>
             );
           })}
+          {leads && leads.pagination.totalPages > 1 && (
+            <div className="flex items-center justify-between gap-3 pt-2">
+              <Button variant="outline" size="sm" disabled={leadPage === 1} onClick={() => setLeadPage((page) => page - 1)}>
+                Previous
+              </Button>
+              <span className="text-xs text-muted-foreground">
+                Page {leads.pagination.page} of {leads.pagination.totalPages}
+              </span>
+              <Button variant="outline" size="sm" disabled={leadPage >= leads.pagination.totalPages} onClick={() => setLeadPage((page) => page + 1)}>
+                Next
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
 

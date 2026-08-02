@@ -4,12 +4,19 @@ import { verifyCallingManagerOrPoc } from "@/lib/calling/poc-auth";
 import { db } from "@/lib/db";
 import { Prisma } from "@prisma/client";
 import { SessionUser } from "@/lib/auth/scope";
+import { paginatedQuerySchema, queryParamsToObject, queryValidationError } from "@/lib/api/query-params";
+import { z } from "zod";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
 }
 
 const VALID_STATUSES = ["pending", "in_progress", "completed", "cancelled"];
+const leadsQuerySchema = z
+  .object({
+    status: z.enum(VALID_STATUSES).optional(),
+  })
+  .merge(paginatedQuerySchema({ defaultPageSize: 50, maxPageSize: 100 }));
 
 /**
  * GET /api/calling/campaigns/[id]/leads
@@ -48,23 +55,13 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     );
   }
 
-  // 2. Validate status parameter
+  // 2. Validate bounded filters and pagination before querying.
   const { searchParams } = new URL(request.url);
-  const statusParam = searchParams.get("status");
-  if (
-    statusParam &&
-    statusParam !== "all" &&
-    !VALID_STATUSES.includes(statusParam)
-  ) {
-    return NextResponse.json(
-      {
-        error: `Invalid status parameter. Allowed values: ${VALID_STATUSES.join(
-          ", "
-        )}`,
-      },
-      { status: 400 }
-    );
-  }
+  const rawQuery = queryParamsToObject(searchParams);
+  if (rawQuery.status === "all") delete rawQuery.status;
+  const query = leadsQuerySchema.safeParse(rawQuery);
+  if (!query.success) return NextResponse.json(queryValidationError(query.error), { status: 400 });
+  const { status: statusParam, page, pageSize } = query.data;
 
   // 3. Resolve active caller identity for user.id
   const [userStaffMeta, userExternalCallers] = await Promise.all([
@@ -112,7 +109,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   }
 
   // 5. Fetch assignments
-  const assignments = await db.callingAssignment.findMany({
+  const [assignments, total] = await Promise.all([
+    db.callingAssignment.findMany({
     where: whereClause,
     include: {
       application: {
@@ -130,7 +128,11 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       },
     },
     orderBy: { createdAt: "desc" },
-  });
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    }),
+    db.callingAssignment.count({ where: whereClause }),
+  ]);
 
   // 6. Map to sanitized lead objects
   const leads = assignments.map((assignment) => {
@@ -166,5 +168,13 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     };
   });
 
-  return NextResponse.json(leads);
+  return NextResponse.json({
+    data: leads,
+    pagination: {
+      page,
+      pageSize,
+      total,
+      totalPages: Math.ceil(total / pageSize),
+    },
+  });
 }
