@@ -47,7 +47,7 @@ function requirePreviewUrl() {
   if (!value?.startsWith("postgres")) throw new ReconciliationError("DIRECT_URL must be a PostgreSQL Preview connection URL");
   const url = new URL(value);
   const isSupabasePooler = url.hostname.endsWith("pooler.supabase.com");
-  const isSupabaseDirect = /^db\.[a-z0-9-]+\.supabase\.co$/i.test(url.hostname);
+  const isSupabaseDirect = /^db\.[a-z0-9-]+\.supabase\.co(m)?$/i.test(url.hostname);
   if (!isSupabasePooler && !isSupabaseDirect) {
     throw new ReconciliationError("Refusing non-Supabase Preview target");
   }
