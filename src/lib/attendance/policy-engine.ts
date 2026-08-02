@@ -1,13 +1,12 @@
 import { db } from "@/lib/db";
+import { isConfiguredBatchOffDay, type BatchScheduleSettings } from "@/lib/schedule/batch-off-days";
 import { formatPKT, toPKT } from "@/lib/timezone";
 import { createAuditLogData } from "@/lib/audit";
 import { startOfWeek } from "date-fns";
 
-export interface BatchSettingsWithOffDays {
+export interface BatchSettingsWithOffDays extends BatchScheduleSettings {
   automaticDropoutEnabled: boolean;
   dropoutConsecutiveWeeks: number;
-  offWeekdays?: { weekday: number }[];
-  offDates?: { offDate: Date }[];
 }
 
 /**
@@ -17,30 +16,7 @@ export function isBatchOffDay(
   batchSettings: BatchSettingsWithOffDays | null | undefined,
   date: Date
 ): boolean {
-  if (!batchSettings) return false;
-
-  const datePKT = toPKT(date);
-  const weekday = datePKT.getDay(); // 0 = Sun, 1 = Mon, ..., 6 = Sat
-
-  // Check offWeekdays
-  if (batchSettings.offWeekdays && batchSettings.offWeekdays.length > 0) {
-    if (batchSettings.offWeekdays.some((w) => w.weekday === weekday)) {
-      return true;
-    }
-  }
-
-  // Check offDates
-  if (batchSettings.offDates && batchSettings.offDates.length > 0) {
-    const targetDateKey = formatPKT(datePKT, "yyyy-MM-dd");
-    for (const od of batchSettings.offDates) {
-      const offDateKey = formatPKT(toPKT(od.offDate), "yyyy-MM-dd");
-      if (offDateKey === targetDateKey) {
-        return true;
-      }
-    }
-  }
-
-  return false;
+  return isConfiguredBatchOffDay(batchSettings, date);
 }
 
 export interface ManualDropoutParams {
