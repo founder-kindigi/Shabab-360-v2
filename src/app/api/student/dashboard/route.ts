@@ -59,7 +59,7 @@ export async function GET() {
       entityType: "student_dashboard",
     });
 
-    const groupId = participant.group.id;
+    const groupId = participant.group?.id;
     const todayStart = todayPKT();
     const todayEnd = endOfTodayPKT();
 
@@ -72,20 +72,22 @@ export async function GET() {
     const monthStartPKT = startOfMonth(todayStart);
     const monthEndPKT = endOfMonth(todayStart);
 
-    const recordsThisMonth = await db.attendanceRecord.findMany({
-      where: {
-        participantId: participant.id,
-        event: {
-          groupId,
-          eventDate: { gte: monthStartPKT, lte: monthEndPKT },
-        },
-      },
-      include: {
-        event: {
-          select: { eventDate: true },
-        },
-      },
-    });
+    const recordsThisMonth = groupId
+      ? await db.attendanceRecord.findMany({
+          where: {
+            participantId: participant.id,
+            event: {
+              groupId,
+              eventDate: { gte: monthStartPKT, lte: monthEndPKT },
+            },
+          },
+          include: {
+            event: {
+              select: { eventDate: true },
+            },
+          },
+        })
+      : [];
 
     // Build a map: dateKey -> status (last status if multiple events per day)
     const monthStatusMap = new Map<string, string>();
@@ -253,25 +255,27 @@ export async function GET() {
           groupParticipantCount > 0
             ? Math.round((evt._count.records / groupParticipantCount) * 100)
             : 0,
-        groupName: participant.group.name,
+        groupName: participant.group?.name || "Unassigned",
       };
     }
 
     // ── Upcoming events (next attendance event) ──
-    const upcomingEvents = await db.attendanceEvent.findMany({
-      where: {
-        groupId,
-        eventDate: { gt: todayEnd },
-        isClosed: false,
-      },
-      orderBy: { eventDate: "asc" },
-      take: 1,
-      select: {
-        id: true,
-        title: true,
-        eventDate: true,
-      },
-    });
+    const upcomingEvents = groupId
+      ? await db.attendanceEvent.findMany({
+          where: {
+            groupId,
+            eventDate: { gt: todayEnd },
+            isClosed: false,
+          },
+          orderBy: { eventDate: "asc" },
+          take: 1,
+          select: {
+            id: true,
+            title: true,
+            eventDate: true,
+          },
+        })
+      : [];
 
     const upcomingEvent = upcomingEvents.length > 0 ? {
       id: upcomingEvents[0].id,
@@ -286,7 +290,7 @@ export async function GET() {
       dateKey: formatPKT(new Date(r.event.eventDate), "yyyy-MM-dd"),
       status: r.status,
       eventTitle: r.event.title,
-      groupName: participant.group.name,
+      groupName: participant.group?.name || null,
     }));
 
     // ── 7-day daily trend ──
@@ -306,12 +310,14 @@ export async function GET() {
     }
 
     // ── Fee summary with next due date ──
-    const batchId = participant.group.batchId;
-    const feeEvents = await db.feeEvent.findMany({
-      where: { batchId, isActive: true },
-      select: { id: true, title: true, amount: true, dueDate: true },
-      orderBy: { dueDate: "asc" },
-    });
+    const batchId = participant.group?.batchId;
+    const feeEvents = batchId
+      ? await db.feeEvent.findMany({
+          where: { batchId, isActive: true },
+          select: { id: true, title: true, amount: true, dueDate: true },
+          orderBy: { dueDate: "asc" },
+        })
+      : [];
     const feeEventIds = feeEvents.map((f) => f.id);
     const totalExpected = feeEvents.reduce(
       (sum, feeEvent) => sum + moneyToNumber(feeEvent.amount),
@@ -356,10 +362,10 @@ export async function GET() {
       participant: {
         id: participant.id,
         name: participant.name,
-        group: participant.group.name,
-        batch: participant.group.batch.name,
-        park: participant.group.batch.park.name,
-        city: participant.group.batch.park.city?.name || null,
+        group: participant.group?.name || null,
+        batch: participant.group?.batch.name || null,
+        park: participant.group?.batch.park.name || null,
+        city: participant.group?.batch.park.city?.name || null,
         state: participant.state,
         joinedAt: participant.joinedAt,
       },

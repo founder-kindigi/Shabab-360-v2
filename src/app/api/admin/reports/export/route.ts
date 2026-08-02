@@ -82,10 +82,10 @@ export async function POST(request: NextRequest) {
         "City,Park,Batch,Group,Event,Date,Participant,Status,MarkedAt",
         ...records.map((r) =>
           [
-            r.participant.group.batch.park.city.name,
-            r.participant.group.batch.park.name,
-            r.participant.group.batch.name,
-            r.participant.group.name,
+            r.participant.group?.batch.park.city?.name || "",
+            r.participant.group?.batch.park.name || "",
+            r.participant.group?.batch.name || "",
+            r.participant.group?.name || "Unassigned",
             r.event.title,
             r.event.eventDate.toISOString().split("T")[0],
             r.participant.name,

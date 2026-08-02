@@ -70,9 +70,9 @@ export async function GET(
     guardian.children.length > 0 &&
     guardian.children.every((child) =>
       canAccessResourceScope(auth.user, {
-        cityId: child.participant.group.batch.park.cityId,
-        parkId: child.participant.group.batch.parkId,
-        groupId: child.participant.group.id,
+        cityId: child.participant.group?.batch.park.cityId ?? null,
+        parkId: child.participant.group?.batch.parkId ?? null,
+        groupId: child.participant.group?.id ?? null,
       })
     );
   if (!canAccessAllChildren) {
@@ -99,7 +99,9 @@ export async function GET(
     // Get all active fee events for all children's batches
     const batchIds = [
       ...new Set(
-        guardian.children.map((c) => c.participant.group.batchId)
+        guardian.children
+          .map((c) => c.participant.group?.batchId)
+          .filter((id): id is string => typeof id === "string")
       ),
     ];
 
@@ -200,22 +202,26 @@ export async function GET(
           joinedAt: c.participant.joinedAt.toISOString(),
         },
         relation: c.relation,
-        group: {
-          id: c.participant.group.id,
-          name: c.participant.group.name,
-          batch: {
-            id: c.participant.group.batch.id,
-            name: c.participant.group.batch.name,
-            park: {
-              id: c.participant.group.batch.park.id,
-              name: c.participant.group.batch.park.name,
-              city: {
-                id: c.participant.group.batch.park.city.id,
-                name: c.participant.group.batch.park.city.name,
+        group: c.participant.group
+          ? {
+              id: c.participant.group.id,
+              name: c.participant.group.name,
+              batch: {
+                id: c.participant.group.batch.id,
+                name: c.participant.group.batch.name,
+                park: {
+                  id: c.participant.group.batch.park.id,
+                  name: c.participant.group.batch.park.name,
+                  city: c.participant.group.batch.park.city
+                    ? {
+                        id: c.participant.group.batch.park.city.id,
+                        name: c.participant.group.batch.park.city.name,
+                      }
+                    : null,
+                },
               },
-            },
-          },
-        },
+            }
+          : null,
       })),
     },
     feeSummary: {

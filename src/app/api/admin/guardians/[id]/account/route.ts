@@ -65,7 +65,13 @@ export async function POST(
     return NextResponse.json({ error: "Guardian not found" }, { status: 404 });
   }
 
-  const cityIds = [...new Set(guardian.children.map((child) => child.participant.group.batch.park.cityId))];
+  const cityIds = [
+    ...new Set(
+      guardian.children
+        .map((child) => child.participant.group?.batch.park.cityId)
+        .filter((id): id is string => typeof id === "string")
+    ),
+  ];
   if (cityIds.length !== 1) {
     return NextResponse.json(
       { error: "Guardian must be linked to participants in exactly one city before a login can be created" },

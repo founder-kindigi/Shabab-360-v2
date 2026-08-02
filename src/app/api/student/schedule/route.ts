@@ -49,7 +49,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ participant: null });
     }
 
-    const groupId = participant.group.id;
+    const groupId = participant.group?.id;
 
     // ── Week calculation (Mon-Sun in PKT) ──
     const nowPKT = toPKT(new Date());
@@ -65,16 +65,18 @@ export async function GET(request: Request) {
     weekSunday.setHours(23, 59, 59, 999);
 
     // ── Get events for the selected week ──
-    const weekEvents = await db.attendanceEvent.findMany({
-      where: {
-        groupId,
-        eventDate: { gte: weekMonday, lte: weekSunday },
-      },
-      include: {
-        _count: { select: { records: true } },
-      },
-      orderBy: { eventDate: "asc" },
-    });
+    const weekEvents = groupId
+      ? await db.attendanceEvent.findMany({
+          where: {
+            groupId,
+            eventDate: { gte: weekMonday, lte: weekSunday },
+          },
+          include: {
+            _count: { select: { records: true } },
+          },
+          orderBy: { eventDate: "asc" },
+        })
+      : [];
 
     // ── Get student's attendance records for these events ──
     const weekEventIds = weekEvents.map((e) => e.id);
@@ -173,13 +175,15 @@ export async function GET(request: Request) {
         id: participant.id,
         name: participant.name,
       },
-      group: {
-        id: participant.group.id,
-        name: participant.group.name,
-        batchName: participant.group.batch.name,
-        parkName: participant.group.batch.park.name,
-        cityName: participant.group.batch.park.city?.name || null,
-      },
+      group: participant.group
+        ? {
+            id: participant.group.id,
+            name: participant.group.name,
+            batchName: participant.group.batch.name,
+            parkName: participant.group.batch.park.name,
+            cityName: participant.group.batch.park.city?.name || null,
+          }
+        : null,
       events,
       typicalDays,
       upcoming,

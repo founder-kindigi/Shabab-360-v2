@@ -35,19 +35,21 @@ export async function GET() {
       return NextResponse.json({ participant: null, feeEvents: [] });
     }
 
-    const batchId = participant.group.batch.id;
+    const batchId = participant.group?.batch.id;
 
     // Get all fee events for this batch
-    const feeEvents = await db.feeEvent.findMany({
-      where: { batchId, isActive: true },
-      include: {
-        payments: {
-          where: { participantId: participant.id },
-          orderBy: { createdAt: "desc" },
-        },
-      },
-      orderBy: { dueDate: "desc" },
-    });
+    const feeEvents = batchId
+      ? await db.feeEvent.findMany({
+          where: { batchId, isActive: true },
+          include: {
+            payments: {
+              where: { participantId: participant.id },
+              orderBy: { createdAt: "desc" },
+            },
+          },
+          orderBy: { dueDate: "desc" },
+        })
+      : [];
 
     // Format fee events with payment status
     const formatted = feeEvents.map((fee) => {
@@ -91,10 +93,10 @@ export async function GET() {
       participant: {
         id: participant.id,
         name: participant.name,
-        group: participant.group.name,
-        batch: participant.group.batch.name,
-        park: participant.group.batch.park.name,
-        city: participant.group.batch.park.city?.name || null,
+        group: participant.group?.name || null,
+        batch: participant.group?.batch.name || null,
+        park: participant.group?.batch.park.name || null,
+        city: participant.group?.batch.park.city?.name || null,
       },
       feeEvents: formatted,
       summary: {

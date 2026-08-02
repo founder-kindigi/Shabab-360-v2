@@ -63,9 +63,9 @@ export async function POST(
   }
 
   const scopeError = requireResourceScope(auth.user, {
-    cityId: participant.group.batch.park.cityId,
-    parkId: participant.group.batch.park.id,
-    groupId: participant.group.id,
+    cityId: participant.group?.batch.park.cityId ?? null,
+    parkId: participant.group?.batch.park.id ?? null,
+    groupId: participant.group?.id ?? null,
   });
   if (scopeError) return scopeError;
 

@@ -289,7 +289,7 @@ export async function GET(request: NextRequest) {
         present: 0, absent: 0, late: 0, excused: 0, total: 0, lastDate: null,
       };
       const rate = stats.total > 0 ? Math.round(((stats.present + stats.late) / stats.total) * 100) : 0;
-      const group = groupMap.get(p.groupId);
+      const group = p.groupId ? groupMap.get(p.groupId) : undefined;
       const guardianLink = p.guardianLinks.length > 0 ? p.guardianLinks[0] : null;
 
       return {

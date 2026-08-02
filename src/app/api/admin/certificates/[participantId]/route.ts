@@ -42,9 +42,9 @@ export async function GET(
     },
   });
 
-  if (!participant) {
+  if (!participant || !participant.group) {
     return NextResponse.json(
-      { error: "Participant not found" },
+      { error: "Participant or group not found" },
       { status: 404 }
     );
   }
@@ -58,21 +58,25 @@ export async function GET(
   if (scopeError) return scopeError;
 
   // Fetch attendance events for the group
-  const attendanceEvents = await db.attendanceEvent.findMany({
-    where: { groupId: participant.groupId },
-    select: { id: true },
-  });
+  const attendanceEvents = participant.groupId
+    ? await db.attendanceEvent.findMany({
+        where: { groupId: participant.groupId },
+        select: { id: true },
+      })
+    : [];
 
   const totalEvents = attendanceEvents.length;
 
   // Fetch attendance records for this participant
-  const presentCount = await db.attendanceRecord.count({
-    where: {
-      participantId,
-      eventId: { in: attendanceEvents.map((e) => e.id) },
-      status: { in: ["present", "late"] },
-    },
-  });
+  const presentCount = attendanceEvents.length > 0
+    ? await db.attendanceRecord.count({
+        where: {
+          participantId,
+          eventId: { in: attendanceEvents.map((e) => e.id) },
+          status: { in: ["present", "late"] },
+        },
+      })
+    : 0;
 
   const attendanceRate =
     totalEvents > 0

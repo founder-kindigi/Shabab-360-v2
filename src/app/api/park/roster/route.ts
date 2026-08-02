@@ -266,6 +266,7 @@ export async function GET(request: NextRequest) {
     // Group participants by groupId
     const participantsByGroup = new Map<string, typeof participants>();
     for (const p of participants) {
+      if (!p.groupId) continue;
       const arr = participantsByGroup.get(p.groupId) || [];
       arr.push(p);
       participantsByGroup.set(p.groupId, arr);

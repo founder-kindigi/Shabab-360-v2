@@ -72,7 +72,13 @@ export async function GET(request: Request) {
     weekSunday.setHours(23, 59, 59, 999);
 
     // Collect group IDs
-    const groupIds = [...new Set(guardianChildren.map((gc) => gc.participant.groupId))];
+    const groupIds = [
+      ...new Set(
+        guardianChildren
+          .map((gc) => gc.participant.groupId)
+          .filter((id): id is string => typeof id === "string")
+      ),
+    ];
 
     // Get events for all groups in the week
     const weekEvents = await db.attendanceEvent.findMany({
@@ -98,7 +104,7 @@ export async function GET(request: Request) {
     const children = guardianChildren.map((gc) => {
       const p = gc.participant;
       const gid = p.groupId;
-      const events = (eventsByGroup.get(gid) || []).map((e) => {
+      const events = (gid ? eventsByGroup.get(gid) || [] : []).map((e) => {
         const d = toPKT(new Date(e.eventDate));
         let dow = d.getDay();
         dow = dow === 0 ? 6 : dow - 1;

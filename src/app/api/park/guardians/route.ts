@@ -142,7 +142,7 @@ export async function GET(request: NextRequest) {
     }>();
 
     for (const p of participants) {
-      const groupInfo = groupMap.get(p.groupId);
+      const groupInfo = p.groupId ? groupMap.get(p.groupId) : undefined;
       for (const link of p.guardianLinks) {
         const g = link.guardian;
         if (!g) continue;
@@ -325,7 +325,7 @@ export async function POST(request: NextRequest) {
       include: { group: { include: { batch: { select: { parkId: true } } } } },
     });
 
-    if (!participant || participant.group.batch.parkId !== staffMeta.assignedParkId) {
+    if (!participant || !participant.group || participant.group.batch.parkId !== staffMeta.assignedParkId) {
       return NextResponse.json({ error: "Invalid participant" }, { status: 400 });
     }
 

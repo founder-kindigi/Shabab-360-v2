@@ -64,13 +64,20 @@ export async function GET(request: Request) {
     const to = toParam ? new Date(toParam) : new Date();
 
     // Fetch records with pagination
-    const whereClause = {
-      participantId: participant.id,
-      event: {
-        groupId: participant.groupId,
-        eventDate: { gte: from, lte: to },
-      },
-    };
+    const whereClause = participant.groupId
+      ? {
+          participantId: participant.id,
+          event: {
+            groupId: participant.groupId,
+            eventDate: { gte: from, lte: to },
+          },
+        }
+      : {
+          participantId: participant.id,
+          event: {
+            eventDate: { gte: from, lte: to },
+          },
+        };
 
     const [records, total] = await Promise.all([
       db.attendanceRecord.findMany({

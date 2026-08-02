@@ -140,19 +140,21 @@ export async function GET(request: NextRequest) {
         name: c.participant.name,
         state: c.participant.state,
         relation: c.relation,
-        group: {
-          id: c.participant.group.id,
-          name: c.participant.group.name,
-          batch: {
-            id: c.participant.group.batch.id,
-            name: c.participant.group.batch.name,
-            park: {
-              id: c.participant.group.batch.park.id,
-              name: c.participant.group.batch.park.name,
-              city: c.participant.group.batch.park.city,
-            },
-          },
-        },
+        group: c.participant.group
+          ? {
+              id: c.participant.group.id,
+              name: c.participant.group.name,
+              batch: {
+                id: c.participant.group.batch.id,
+                name: c.participant.group.batch.name,
+                park: {
+                  id: c.participant.group.batch.park.id,
+                  name: c.participant.group.batch.park.name,
+                  city: c.participant.group.batch.park.city,
+                },
+              },
+            }
+          : null,
         attendanceRate,
       };
     });

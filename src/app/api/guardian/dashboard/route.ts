@@ -20,7 +20,7 @@ type GuardianDashboardChild = {
   batchName: string | null;
   parkName: string | null;
   cityName: string | null;
-  groupId: string;
+  groupId: string | null;
   todayStatus: string | null;
   sparkline7Day: number[];
   attendance: {
@@ -118,12 +118,11 @@ export async function GET() {
     const thirtyDaysAgo = new Date(todayStart.getTime() - 29 * 24 * 60 * 60 * 1000);
     const sevenDaysAgo = new Date(todayStart.getTime() - 6 * 24 * 60 * 60 * 1000);
 
-    // Collect all group IDs for today's events query
-    const groupIds = [
+    const groupIds: string[] = [
       ...new Set(
         guardianChildren
           .map((gc) => gc.participant.groupId)
-          .filter(Boolean)
+          .filter((id): id is string => typeof id === "string")
       ),
     ];
 
@@ -294,19 +293,21 @@ export async function GET() {
     }
 
     // Today's events for all children's groups
-    const todayEvents = await db.attendanceEvent.findMany({
-      where: {
-        groupId: { in: groupIds },
-        eventDate: { gte: todayStart, lte: todayEnd },
-      },
-      include: {
-        _count: { select: { records: true } },
-        group: {
-          select: { name: true, batch: { select: { park: { select: { name: true } } } } },
-        },
-      },
-      orderBy: { eventDate: "desc" },
-    });
+    const todayEvents = groupIds.length > 0
+      ? await db.attendanceEvent.findMany({
+          where: {
+            groupId: { in: groupIds },
+            eventDate: { gte: todayStart, lte: todayEnd },
+          },
+          include: {
+            _count: { select: { records: true } },
+            group: {
+              select: { name: true, batch: { select: { park: { select: { name: true } } } } },
+            },
+          },
+          orderBy: { eventDate: "desc" },
+        })
+      : [];
 
     // Get participant counts per group for progress calculation
     const todayEventsFormatted: GuardianDashboardTodayEvent[] = [];

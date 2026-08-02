@@ -340,8 +340,8 @@ export async function GET() {
         } else {
           participantAttendance.set(rec.participantId, {
             name: rec.participant.name,
-            groupId: rec.participant.group.id,
-            groupName: rec.participant.group.name,
+            groupId: rec.participant.group?.id || "",
+            groupName: rec.participant.group?.name || "",
             attended: 1,
           });
         }
@@ -578,13 +578,13 @@ export async function GET() {
 
         // Check each participant
         for (const participant of allParticipants) {
-          const batchId = groupBatchMap.get(participant.groupId);
+          const batchId = participant.groupId ? groupBatchMap.get(participant.groupId) : null;
           const settings = batchId ? batchSettingsMap.get(batchId) : null;
           const warningAbsents = settings?.warningAbsents || 3;
           const dropoutAbsents = settings?.dropoutAbsents || 6;
           const criticalThreshold = Math.ceil(warningAbsents * 0.67);
 
-          const groupEvents = eventsByGroup.get(participant.groupId) || [];
+          const groupEvents = participant.groupId ? eventsByGroup.get(participant.groupId) || [] : [];
           const participantAttended = attendedByParticipant.get(participant.id);
 
           let consecutiveAbsents = 0;

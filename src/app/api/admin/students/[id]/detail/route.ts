@@ -59,8 +59,8 @@ export async function GET(
   }
 
   const scopeError = requireResourceScope(auth.user, {
-    cityId: participant.group.batch.park.cityId,
-    parkId: participant.group.batch.parkId,
+    cityId: participant.group?.batch.park.cityId ?? null,
+    parkId: participant.group?.batch.parkId ?? null,
     groupId: participant.groupId,
   });
   if (scopeError) return scopeError;
@@ -113,14 +113,16 @@ export async function GET(
   }));
 
   // ─── Fee Summary ─────────────────────────────────────────────────────
-  // Get all fee events for this participant's batch
-  const batchFeeEvents = await db.feeEvent.findMany({
-    where: {
-      batchId: participant.group.batchId,
-      isActive: true,
-    },
-    select: { id: true, title: true, amount: true },
-  });
+  const batchId = participant.group?.batchId;
+  const batchFeeEvents = batchId
+    ? await db.feeEvent.findMany({
+        where: {
+          batchId,
+          isActive: true,
+        },
+        select: { id: true, title: true, amount: true },
+      })
+    : [];
 
   const totalFees = batchFeeEvents.length;
   const totalExpected = batchFeeEvents.reduce(
@@ -197,22 +199,24 @@ export async function GET(
       address: participant.address,
       state: participant.state,
       joinedAt: participant.joinedAt.toISOString(),
-      group: {
-        id: participant.group.id,
-        name: participant.group.name,
-        batch: {
-          id: participant.group.batch.id,
-          name: participant.group.batch.name,
-          park: {
-            id: participant.group.batch.park.id,
-            name: participant.group.batch.park.name,
-            city: {
-              id: participant.group.batch.park.city.id,
-              name: participant.group.batch.park.city.name,
+      group: participant.group
+        ? {
+            id: participant.group.id,
+            name: participant.group.name,
+            batch: {
+              id: participant.group.batch.id,
+              name: participant.group.batch.name,
+              park: {
+                id: participant.group.batch.park.id,
+                name: participant.group.batch.park.name,
+                city: {
+                  id: participant.group.batch.park.city.id,
+                  name: participant.group.batch.park.city.name,
+                },
+              },
             },
-          },
-        },
-      },
+          }
+        : null,
       user: participant.user
         ? { id: participant.user.id, email: participant.user.email }
         : null,

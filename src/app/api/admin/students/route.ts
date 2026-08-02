@@ -138,19 +138,21 @@ export async function GET(request: NextRequest) {
       state: s.state,
       joinedAt: s.joinedAt,
       createdAt: s.createdAt,
-      group: {
-        id: s.group.id,
-        name: s.group.name,
-        batch: {
-          id: s.group.batch.id,
-          name: s.group.batch.name,
-          park: {
-            id: s.group.batch.park.id,
-            name: s.group.batch.park.name,
-            city: s.group.batch.park.city,
-          },
-        },
-      },
+      group: s.group
+        ? {
+            id: s.group.id,
+            name: s.group.name,
+            batch: {
+              id: s.group.batch.id,
+              name: s.group.batch.name,
+              park: {
+                id: s.group.batch.park.id,
+                name: s.group.batch.park.name,
+                city: s.group.batch.park.city,
+              },
+            },
+          }
+        : null,
       guardians: s.guardianLinks.map((gl) => ({
         id: gl.guardian.id,
         name: gl.guardian.name,
