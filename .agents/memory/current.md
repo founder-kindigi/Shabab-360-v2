@@ -96,6 +96,7 @@ Last consolidated: 2026-07-18. Verify changing facts against the checkout before
   Owner-approved deletion/replacement additionally requires its own explicit execution flag;
   it preserves audit rows but nulls their prior actor reference.
 - Lahore Batch 4 is reconciled from the supplied current workbook, never replaced wholesale. On 2026-08-02, the guarded Preview reconciliation completed with 262 existing participant matches, 12 approved unassigned participant creates, 53 event creates, 875 attendance-record creates, one audited workbook-status correction, and 2,961 unchanged records. Twenty-nine unmatched attendance rows were intentionally excluded because their students remain unassigned.
+- The owner accepted Attendance as complete for the current delivery phase on 2026-08-02. Browser/mobile UAT evidence remains a recommended operational follow-up rather than a release-blocking gate for this acceptance.
   The last complete session is 2026-07-26 (all 6 parks and 13 groups); later isolated future-dated
   Leave values are not attendance sessions. A non-writing parser correction excludes 14 formula-derived
   summary rows that had been misidentified as people, leaving 12 genuine unassigned candidate students.
