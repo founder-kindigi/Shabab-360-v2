@@ -13,6 +13,9 @@ function text(value) {
   if (value === null || value === undefined) return "";
   if (typeof value === "object" && "result" in value) return text(value.result);
   if (typeof value === "object" && "text" in value) return text(value.text);
+  if (typeof value === "object" && Array.isArray(value.richText)) {
+    return value.richText.map((part) => part.text ?? "").join("").trim();
+  }
   return String(value).trim();
 }
 
@@ -98,6 +101,52 @@ function parseContentSheet(sheet, sheetName, options) {
 }
 
 /**
+ * Parses the approved Batch 4 workbook layout. Each dated row becomes one
+ * planned session with up to four independently owned delivery blocks.
+ */
+function parseBatch4Sheet(sheet, sheetName, options) {
+  const isStateLifeOverride = sheetName === "State Life School";
+  const blocks = [];
+  const sessions = [];
+  const blockedUrls = [];
+  const errors = [];
+  const lanes = [
+    [4, "exercises"],
+    [5, "sports"],
+    [6, "skills"],
+    [7, "tadreeb"],
+  ];
+
+  for (let rowNum = 2; rowNum <= sheet.rowCount; rowNum += 1) {
+    const row = sheet.getRow(rowNum);
+    const weekLabel = text(row.getCell(1).value);
+    const dayLabel = text(row.getCell(2).value);
+    const dateValue = row.getCell(3).value;
+    const sessionDate = dateValue instanceof Date ? dateValue.toISOString().slice(0, 10) : text(dateValue);
+    const focusArea = text(row.getCell(8).value) || null;
+    const laneValues = lanes.map(([column]) => text(row.getCell(column).value));
+    if (!weekLabel && !dayLabel && !sessionDate && laneValues.every((value) => !value)) continue;
+    if (!weekLabel || !dayLabel || !/^\d{4}-\d{2}-\d{2}/.test(sessionDate)) {
+      errors.push({ sheet: sheetName, row: rowNum, code: "invalid_session_identity" });
+      continue;
+    }
+    const isOffDay = laneValues.some((value) => /^off\s*day/i.test(value));
+    sessions.push({ sourceSheet: sheetName, sourceRow: rowNum, weekLabel, dayLabel, sessionDate: sessionDate.slice(0, 10), focusArea: isOffDay ? null : focusArea, isOffDay, isStateLifeOverride });
+    if (isOffDay) continue;
+    lanes.forEach(([column, category], sortOrder) => {
+      const raw = row.getCell(column).value;
+      const content = text(raw);
+      if (!content) return;
+      const urls = detectUrls(content);
+      if (raw && typeof raw === "object" && raw.hyperlink) urls.push(raw.hyperlink);
+      for (const url of [...new Set(urls)]) blockedUrls.push({ sheet: sheetName, row: rowNum, category, url, status: "blocked_proposed_resource" });
+      blocks.push({ sourceSheet: sheetName, sourceRow: rowNum, weekLabel, dayLabel, sessionDate: sessionDate.slice(0, 10), category, content, title: content.split("\n")[0].slice(0, 200) || null, focusArea, sortOrder, isStateLifeOverride, hasBlockedUrls: urls.length > 0 });
+    });
+  }
+  return { sessions, blocks, blockedUrls, errors };
+}
+
+/**
  * Builds zero-write import preview report.
  */
 function buildPreviewReport(parsedData, options) {
@@ -142,5 +191,6 @@ module.exports = {
   text,
   detectUrls,
   parseContentSheet,
+  parseBatch4Sheet,
   buildPreviewReport,
 };

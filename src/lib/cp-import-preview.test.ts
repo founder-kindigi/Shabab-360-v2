@@ -106,4 +106,17 @@ describe("CP-IMPORT-001 Content Planner Zero-Write Import Preview", () => {
     });
     expect(report.metrics.proposedBlocks).toBe(1);
   });
+
+  it("parses the approved dated Batch 4 layout with an off-day and rich-text URL", () => {
+    const rows: Record<number, Record<number, any>> = {
+      2: { 1: "Week 1", 2: "Day 1", 3: new Date("2026-05-23T00:00:00Z"), 4: { richText: [{ text: "Warmup\nhttps://example.test/video" }] }, 5: "Frisbee", 8: "Discipline" },
+      3: { 1: "Week 2", 2: "Day 2", 3: new Date("2026-05-30T00:00:00Z"), 4: "OFF DAY (EID)", 5: "OFF DAY (EID)" },
+    };
+    const sheet = { rowCount: 3, getRow: (row: number) => ({ getCell: (column: number) => ({ value: rows[row]?.[column] ?? null }) }) };
+    const parsed = parser.parseBatch4Sheet(sheet, "All Parks", {});
+    expect(parsed.sessions).toHaveLength(2);
+    expect(parsed.sessions[1].isOffDay).toBe(true);
+    expect(parsed.blocks).toHaveLength(2);
+    expect(parsed.blocks[0]).toMatchObject({ category: "exercises", sessionDate: "2026-05-23", hasBlockedUrls: true });
+  });
 });
