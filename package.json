@@ -23,6 +23,7 @@
     "import:lahore:staging": "node scripts/import-lahore-batch-4-staging.cjs",
     "reconcile:lahore:preview": "node scripts/reconcile-lahore-batch-4-preview.cjs",
     "preview:content-plan:batch-4": "node scripts/cp-import-batch-4-preview.cjs",
+    "reconcile:content-plan:preview": "node scripts/reconcile-content-plan-batch-4-preview.cjs",
     "db:reset:staging-data": "node scripts/reset-staging-data.cjs",
     "db:migrate:sqlite-to-postgres": "node scripts/migrate-sqlite-to-postgres.cjs",
     "db:reconcile:sqlite-to-postgres": "node scripts/reconcile-sqlite-to-postgres.cjs",
