@@ -122,8 +122,8 @@ describe("ATT-003 Attendance Summaries and Staff Attendance", () => {
       vi.mocked(db.participant.findMany).mockResolvedValue(mockParticipants as any);
       vi.mocked(db.participant.count).mockResolvedValue(2);
       vi.mocked(db.attendanceRecord.findMany).mockResolvedValue([
-        { participantId: "p-1", status: "present" },
-        { participantId: "p-1", status: "absent" },
+        { participantId: "p-1", status: "present", event: { eventDate: new Date("2026-07-12") } },
+        { participantId: "p-1", status: "absent", event: { eventDate: new Date("2026-07-19") } },
       ] as any);
 
       const result = await getStudentSummary({ limit: 10, offset: 0 });
@@ -132,7 +132,13 @@ describe("ATT-003 Attendance Summaries and Staff Attendance", () => {
       expect(result.items.length).toBe(2);
       expect(result.items[0].groupName).toBe("Group 1");
       expect(result.items[0].attendanceRate).toBe(50); // 1 present out of 2 events
+      expect(result.items[0].lastAttendanceAt).toEqual(new Date("2026-07-12"));
+      expect(result.items[0].missedWeekStreak).toBe(1);
+      expect(result.items[0].dropoutAt).toBeUndefined();
       expect(result.items[1].groupName).toBe("Unassigned");
+      expect(db.attendanceRecord.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: expect.objectContaining({ event: { isClosed: true } }) }),
+      );
     });
   });
 
@@ -142,9 +148,10 @@ describe("ATT-003 Attendance Summaries and Staff Attendance", () => {
         {
           id: "s-1",
           role: "murabbi",
+          isActive: false,
           user: { name: "Murabbi Tariq", email: "tariq@shabab360.org" },
           assignedPark: { name: "Model Town", city: { name: "Lahore" } },
-          assignedGroup: { name: "Group A" },
+          assignedGroup: { name: "Group A", batch: { park: { name: "Model Town", city: { name: "Lahore" } } } },
         },
       ];
 
@@ -162,6 +169,7 @@ describe("ATT-003 Attendance Summaries and Staff Attendance", () => {
       expect(result.items[0].name).toBe("Murabbi Tariq");
       expect(result.items[0].totalSessions).toBe(3);
       expect(result.items[0].attendanceRate).toBe(100); // 3 present/late out of 3
+      expect(result.items[0].isActive).toBe(false);
     });
   });
 
@@ -190,7 +198,12 @@ describe("ATT-003 Attendance Summaries and Staff Attendance", () => {
       expect(result.total).toBe(1);
       expect(result.items[0].groupName).toBe("Class 1");
       expect(result.items[0].snapshotRosterTotal).toBe(2);
+      expect(result.items[0].markedCount).toBe(2);
+      expect(result.items[0].unmarkedCount).toBe(0);
       expect(result.items[0].averageAttendanceRate).toBe(50);
+      expect(db.attendanceEvent.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: expect.objectContaining({ isClosed: true }) }),
+      );
     });
   });
 });

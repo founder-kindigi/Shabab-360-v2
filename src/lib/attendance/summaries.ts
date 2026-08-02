@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { formatPKT, toPKT } from "@/lib/timezone";
+import { getISOWeek, getISOWeekYear } from "date-fns";
 
 export interface DateAndPaginationParams {
   from?: Date;
@@ -130,6 +130,9 @@ export async function getStudentSummary(params: StudentSummaryParams) {
         id: true,
         name: true,
         state: true,
+        dropoutAt: true,
+        dropoutReason: true,
+        dropoutSource: true,
         groupId: true,
         group: {
           select: {
@@ -156,9 +159,11 @@ export async function getStudentSummary(params: StudentSummaryParams) {
 
   const recordsWhere: any = {
     participantId: { in: participantIds },
+    event: { isClosed: true },
   };
   if (from || to) {
     recordsWhere.event = {
+      isClosed: true,
       eventDate: {
         ...(from ? { gte: from } : {}),
         ...(to ? { lte: to } : {}),
@@ -172,23 +177,61 @@ export async function getStudentSummary(params: StudentSummaryParams) {
         select: {
           participantId: true,
           status: true,
+          event: { select: { eventDate: true } },
         },
       })
     : [];
 
-  const recordMap = new Map<string, { present: number; absent: number; late: number; excused: number; total: number }>();
+  const recordMap = new Map<string, {
+    present: number;
+    absent: number;
+    late: number;
+    excused: number;
+    total: number;
+    lastAttendanceAt: Date | null;
+    missedWeekKeys: Set<string>;
+    attendedWeekKeys: Set<string>;
+  }>();
   for (const r of attendanceRecords) {
-    const stats = recordMap.get(r.participantId) || { present: 0, absent: 0, late: 0, excused: 0, total: 0 };
+    const stats = recordMap.get(r.participantId) || {
+      present: 0,
+      absent: 0,
+      late: 0,
+      excused: 0,
+      total: 0,
+      lastAttendanceAt: null,
+      missedWeekKeys: new Set<string>(),
+      attendedWeekKeys: new Set<string>(),
+    };
     stats.total++;
     if (r.status === "present") stats.present++;
     else if (r.status === "absent") stats.absent++;
     else if (r.status === "late") stats.late++;
     else if (r.status === "excused") stats.excused++;
+    const eventDate = r.event.eventDate;
+    const weekKey = `${getISOWeekYear(eventDate)}-${getISOWeek(eventDate)}`;
+    if (r.status === "present" || r.status === "late") {
+      stats.attendedWeekKeys.add(weekKey);
+      if (!stats.lastAttendanceAt || eventDate > stats.lastAttendanceAt) {
+        stats.lastAttendanceAt = eventDate;
+      }
+    } else if (r.status === "absent") {
+      stats.missedWeekKeys.add(weekKey);
+    }
     recordMap.set(r.participantId, stats);
   }
 
   const items = participants.map((p) => {
-    const stats = recordMap.get(p.id) || { present: 0, absent: 0, late: 0, excused: 0, total: 0 };
+    const stats = recordMap.get(p.id) || {
+      present: 0,
+      absent: 0,
+      late: 0,
+      excused: 0,
+      total: 0,
+      lastAttendanceAt: null,
+      missedWeekKeys: new Set<string>(),
+      attendedWeekKeys: new Set<string>(),
+    };
     const attended = stats.present + stats.late;
     const rate = stats.total > 0 ? Math.round((attended / stats.total) * 100) : 0;
 
@@ -196,6 +239,9 @@ export async function getStudentSummary(params: StudentSummaryParams) {
       participantId: p.id,
       name: p.name,
       state: p.state,
+      dropoutAt: p.dropoutAt,
+      dropoutReason: p.dropoutReason,
+      dropoutSource: p.dropoutSource,
       groupName: p.group?.name || "Unassigned",
       batchName: p.group?.batch.name || null,
       parkName: p.group?.batch.park.name || null,
@@ -206,6 +252,10 @@ export async function getStudentSummary(params: StudentSummaryParams) {
       late: stats.late,
       excused: stats.excused,
       attendanceRate: rate,
+      lastAttendanceAt: stats.lastAttendanceAt,
+      missedWeekStreak: [...stats.missedWeekKeys].filter(
+        (weekKey) => !stats.attendedWeekKeys.has(weekKey),
+      ).length,
     };
   });
 
@@ -238,9 +288,15 @@ export async function getMurabbiSummary(params: MurabbiSummaryParams) {
       select: {
         id: true,
         role: true,
+        isActive: true,
         user: { select: { name: true, email: true } },
         assignedPark: { select: { name: true, city: { select: { name: true } } } },
-        assignedGroup: { select: { name: true } },
+        assignedGroup: {
+          select: {
+            name: true,
+            batch: { select: { park: { select: { name: true, city: { select: { name: true } } } } } },
+          },
+        },
       },
       skip: offset,
       take: limit,
@@ -295,9 +351,10 @@ export async function getMurabbiSummary(params: MurabbiSummaryParams) {
       name: s.user.name || "Unknown",
       email: s.user.email,
       role: s.role,
+      isActive: s.isActive,
       groupName: s.assignedGroup?.name || null,
-      parkName: s.assignedPark?.name || null,
-      cityName: s.assignedPark?.city?.name || null,
+      parkName: s.assignedPark?.name || s.assignedGroup?.batch.park.name || null,
+      cityName: s.assignedPark?.city?.name || s.assignedGroup?.batch.park.city?.name || null,
       totalSessions: stats.total,
       present: stats.present,
       absent: stats.absent,
@@ -354,6 +411,7 @@ export async function getClassStats(params: ClassStatsParams) {
 
   const eventsWhere: any = {
     groupId: { in: groupIds },
+    isClosed: true,
   };
   if (from || to) {
     eventsWhere.eventDate = {
@@ -419,6 +477,8 @@ export async function getClassStats(params: ClassStatsParams) {
       cityName: g.batch.park.city?.name || null,
       totalEvents: stats.totalEvents,
       snapshotRosterTotal: stats.totalSnapshots,
+      markedCount: totalMarked,
+      unmarkedCount: Math.max(0, stats.totalSnapshots - totalMarked),
       totalPresent: stats.totalPresent,
       totalAbsent: stats.totalAbsent,
       totalLate: stats.totalLate,
