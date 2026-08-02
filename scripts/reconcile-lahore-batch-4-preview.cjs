@@ -94,7 +94,7 @@ async function buildPlan(client, manifest) {
     if (!group) { conflicts.push("missing_group"); continue; }
     const candidates = group.participants.filter((candidate) => sourceKey(candidate) === sourceKey(person));
     if (candidates.length === 1) matches.set(person.sourceRef, { participantId: candidates[0].id, groupId: group.id });
-    else if (candidates.length === 0 && manifest.unassignedSourceRefs.has(person.sourceRef)) {
+    else if (candidates.length === 0) {
       unassignedCreates.push(person);
     } else conflicts.push(candidates.length ? "ambiguous_participant" : "unmatched_participant");
   }
@@ -120,7 +120,7 @@ async function buildPlan(client, manifest) {
       const sourcePerson = manifest.participants.find((person) => person.sourceRef === record.sourceRef);
       const match = sourcePerson ? matches.get(sourcePerson.sourceRef) : null;
       if (!match) {
-        if (sourcePerson && manifest.unassignedSourceRefs.has(sourcePerson.sourceRef)) excludedUnassignedRecords++;
+        if (sourcePerson) excludedUnassignedRecords++;
         else conflicts.push("unmatched_attendance_record");
         continue;
       }
