@@ -62,7 +62,11 @@ async function loadManifest(options) {
     if (!sheet) throw new ReconciliationError(`Required sheet is missing: ${sheetName}`);
     return parser.readParkSheet(sheet, sheetName, parkName, 2026);
   });
-  return importer.toImportManifest(parks, options.completedThrough);
+  const manifest = importer.toImportManifest(parks, options.completedThrough);
+  manifest.unassignedSourceRefs = new Set(
+    parks.flatMap((park) => (park.unnumberedCandidates ?? []).map((candidate) => candidate.sourceRef)),
+  );
+  return manifest;
 }
 
 function dateKey(value) {
@@ -80,6 +84,8 @@ async function buildPlan(client, manifest) {
   const groupBySource = new Map(groups.map((group) => [`${normalise(group.batch.park.name)}|${normalise(group.name)}`, group]));
   const sourceParticipants = new Map(manifest.participants.map((person) => [`${normalise(person.park)}|${normalise(person.group)}|${sourceKey(person)}`, person]));
   const matches = new Map();
+  const participantByRef = new Map(manifest.participants.map((person) => [person.sourceRef, person]));
+  const unassignedCreates = [];
   const conflicts = [];
 
   for (const [key, person] of sourceParticipants) {
@@ -88,7 +94,9 @@ async function buildPlan(client, manifest) {
     if (!group) { conflicts.push("missing_group"); continue; }
     const candidates = group.participants.filter((candidate) => sourceKey(candidate) === sourceKey(person));
     if (candidates.length === 1) matches.set(person.sourceRef, { participantId: candidates[0].id, groupId: group.id });
-    else conflicts.push(candidates.length ? "ambiguous_participant" : "unmatched_participant");
+    else if (candidates.length === 0 && manifest.unassignedSourceRefs.has(person.sourceRef)) {
+      unassignedCreates.push(person);
+    } else conflicts.push(candidates.length ? "ambiguous_participant" : "unmatched_participant");
   }
 
   const groupIds = [...new Set([...matches.values()].map((match) => match.groupId))];
@@ -96,6 +104,7 @@ async function buildPlan(client, manifest) {
   const eventByKey = new Map(existingEvents.map((event) => [`${event.groupId}|${dateKey(event.eventDate)}`, event]));
   const eventCreates = [];
   const recordCandidates = [];
+  let excludedUnassignedRecords = 0;
 
   for (const sourceEvent of manifest.events) {
     const sourceGroup = groupBySource.get(`${normalise(sourceEvent.park)}|${normalise(sourceEvent.group)}`);
@@ -110,30 +119,45 @@ async function buildPlan(client, manifest) {
     for (const record of sourceEvent.records) {
       const sourcePerson = manifest.participants.find((person) => person.sourceRef === record.sourceRef);
       const match = sourcePerson ? matches.get(sourcePerson.sourceRef) : null;
-      if (!match) { conflicts.push("unmatched_attendance_record"); continue; }
+      if (!match) {
+        if (sourcePerson && manifest.unassignedSourceRefs.has(sourcePerson.sourceRef)) excludedUnassignedRecords++;
+        else conflicts.push("unmatched_attendance_record");
+        continue;
+      }
       recordCandidates.push({ eventKey: key, participantId: match.participantId, status: record.status });
     }
   }
 
   const existingEventIds = existingEvents.map((event) => event.id);
   const existingRecords = existingEventIds.length
-    ? await client.attendanceRecord.findMany({ where: { eventId: { in: existingEventIds } }, select: { eventId: true, participantId: true, status: true } })
+    ? await client.attendanceRecord.findMany({ where: { eventId: { in: existingEventIds } }, select: { id: true, eventId: true, participantId: true, status: true } })
     : [];
   const recordByKey = new Map(existingRecords.map((record) => [`${record.eventId}|${record.participantId}`, record]));
-  let recordsCreate = 0; let recordsNoop = 0;
+  let recordsCreate = 0; let recordsNoop = 0; const recordUpdates = [];
   for (const candidate of recordCandidates) {
     const event = eventByKey.get(candidate.eventKey);
     const existing = event?.id.startsWith("planned:") ? null : recordByKey.get(`${event?.id}|${candidate.participantId}`);
     if (!existing) recordsCreate++;
     else if (existing.status === candidate.status) recordsNoop++;
-    else conflicts.push("attendance_status_conflict");
+    else recordUpdates.push({ id: existing.id, status: candidate.status });
   }
-  return { cityId: city.id, matches, conflicts, eventCreates, recordCandidates, eventByKey, recordsCreate, recordsNoop, sourceParticipants: sourceParticipants.size };
+  return { cityId: city.id, matches, conflicts, eventCreates, recordCandidates, eventByKey, recordsCreate, recordsNoop, recordUpdates, unassignedCreates, excludedUnassignedRecords, participantByRef, sourceParticipants: sourceParticipants.size };
 }
 
 async function executePlan(client, plan) {
   if (plan.conflicts.length) throw new ReconciliationError("Refusing execution while reconciliation conflicts remain");
   return client.$transaction(async (tx) => {
+    if (plan.unassignedCreates.length) {
+      await tx.participant.createMany({ data: plan.unassignedCreates.map((person) => ({
+        name: person.name,
+        phone: person.phone || null,
+        age: person.age ?? null,
+        gradeClass: person.gradeClass ?? null,
+        groupId: null,
+        state: person.state,
+        joinedAt: new Date(`${person.joinedAt}T00:00:00.000Z`),
+      })) });
+    }
     const createdEvents = new Map();
     for (const event of plan.eventCreates) {
       const created = await tx.attendanceEvent.create({ data: { groupId: event.groupId, title: "Regular Session - Batch 4", eventDate: event.eventDate, isClosed: true, closedAt: new Date() } });
@@ -147,8 +171,11 @@ async function executePlan(client, plan) {
       return eventId && !existing.has(`${eventId}|${candidate.participantId}`) ? [{ eventId, participantId: candidate.participantId, status: candidate.status, markedAt: new Date(), editReason: "Reconciled from Lahore Batch 4 workbook" }] : [];
     });
     if (rows.length) await tx.attendanceRecord.createMany({ data: rows });
-    await tx.auditLog.create({ data: { action: "reconcile_lahore_batch_4", entityType: "city", entityId: plan.cityId, newValues: JSON.stringify({ createdEvents: createdEvents.size, createdRecords: rows.length, sourceParticipants: plan.sourceParticipants }) } });
-    return { createdEvents: createdEvents.size, createdRecords: rows.length };
+    for (const update of plan.recordUpdates) {
+      await tx.attendanceRecord.update({ where: { id: update.id }, data: { status: update.status, editReason: "Reconciled from latest Lahore Batch 4 workbook" } });
+    }
+    await tx.auditLog.create({ data: { action: "reconcile_lahore_batch_4", entityType: "city", entityId: plan.cityId, newValues: JSON.stringify({ createdEvents: createdEvents.size, createdRecords: rows.length, updatedRecords: plan.recordUpdates.length, createdUnassignedParticipants: plan.unassignedCreates.length, excludedUnassignedRecords: plan.excludedUnassignedRecords, sourceParticipants: plan.sourceParticipants }) } });
+    return { createdEvents: createdEvents.size, createdRecords: rows.length, updatedRecords: plan.recordUpdates.length, createdUnassignedParticipants: plan.unassignedCreates.length, excludedUnassignedRecords: plan.excludedUnassignedRecords };
   }, { isolationLevel: "Serializable", timeout: 300000, maxWait: 30000 });
 }
 
@@ -157,7 +184,7 @@ async function main() {
   const client = new PrismaClient({ datasources: { db: { url: requirePreviewUrl() } } });
   try {
     const plan = await buildPlan(client, await loadManifest(options));
-    const summary = { mode: options.execute ? "execute" : "dry-run", writesPerformed: false, sourceParticipants: plan.sourceParticipants, matchedParticipants: plan.matches.size, conflicts: plan.conflicts.reduce((counts, code) => ({ ...counts, [code]: (counts[code] ?? 0) + 1 }), {}), createEvents: plan.eventCreates.length, createRecords: plan.recordsCreate, unchangedRecords: plan.recordsNoop };
+    const summary = { mode: options.execute ? "execute" : "dry-run", writesPerformed: false, sourceParticipants: plan.sourceParticipants, matchedParticipants: plan.matches.size, createUnassignedParticipants: plan.unassignedCreates.length, excludedUnassignedRecords: plan.excludedUnassignedRecords, conflicts: plan.conflicts.reduce((counts, code) => ({ ...counts, [code]: (counts[code] ?? 0) + 1 }), {}), createEvents: plan.eventCreates.length, createRecords: plan.recordsCreate, updateRecords: plan.recordUpdates.length, unchangedRecords: plan.recordsNoop };
     if (!options.execute) { console.log(JSON.stringify(summary, null, 2)); return; }
     const result = await executePlan(client, plan);
     console.log(JSON.stringify({ ...summary, ...result, writesPerformed: true }, null, 2));
