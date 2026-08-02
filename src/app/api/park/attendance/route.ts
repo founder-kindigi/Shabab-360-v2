@@ -12,6 +12,7 @@ import {
 } from "@/lib/api/query-params";
 import { z } from "zod";
 import { createAttendanceEventSchema } from "@/lib/attendance/schemas";
+import { createRosterSnapshot } from "@/lib/attendance/summaries";
 
 const listQuerySchema = z.object({
   parkId: optionalIdentifier(),
@@ -232,6 +233,8 @@ export async function POST(req: Request) {
         eventDate: date,
       },
     });
+
+    await createRosterSnapshot(event.id);
 
     await logAudit({
       userId: user.id,

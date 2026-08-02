@@ -101,6 +101,27 @@ export async function POST(
     );
     if (scopeError) return scopeError;
 
+    const targetStaff = await db.staffMeta.findUnique({
+      where: { id: staffId },
+      include: {
+        assignedPark: { select: { cityId: true } },
+        assignedGroup: { select: { batch: { select: { park: { select: { cityId: true } } } } } },
+      },
+    });
+    if (!targetStaff) {
+      return NextResponse.json({ error: "Staff member not found" }, { status: 404 });
+    }
+    if (!targetStaff.isActive) {
+      return NextResponse.json({ error: "Staff member is inactive" }, { status: 403 });
+    }
+    const targetCityId =
+      targetStaff.assignedCityId ??
+      targetStaff.assignedPark?.cityId ??
+      targetStaff.assignedGroup?.batch.park.cityId;
+    if (!targetCityId || targetCityId !== event.group.batch.park.cityId) {
+      return NextResponse.json({ error: "Staff member is outside the event city" }, { status: 403 });
+    }
+
     // Get staff meta ID of current marker
     const markerStaffMeta = await db.staffMeta.findUnique({
       where: { userId: user.id },

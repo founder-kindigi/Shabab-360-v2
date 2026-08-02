@@ -3,6 +3,7 @@ import { requireAuth, requireCapability } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
 import { createAuditLogData } from "@/lib/audit";
 import { resolveMashwaraAccess } from "@/lib/auth/mashwara-scope";
+import { notifyTaskAssignee } from "@/lib/mashwara-notifications";
 import { z } from "zod";
 
 const actionItemSubSchema = z
@@ -165,7 +166,7 @@ export async function POST(
 
       let actionItem: Record<string, unknown> | null = null;
       if (parsed.data.actionItem) {
-        actionItem = await tx.mashwaraActionItem.create({
+        const createdActionItem = await tx.mashwaraActionItem.create({
           data: {
             meetingId,
             description: parsed.data.actionItem.description,
@@ -184,6 +185,19 @@ export async function POST(
             createdAt: true,
           },
         });
+        actionItem = createdActionItem;
+
+        await notifyTaskAssignee(
+          {
+            actionItemId: createdActionItem.id,
+            meetingId,
+            assignedToStaffMetaId: createdActionItem.assignedToId,
+            description: createdActionItem.description,
+            dueDate: createdActionItem.dueDate,
+            type: "assigned",
+          },
+          tx
+        );
       }
 
       await tx.auditLog.create({

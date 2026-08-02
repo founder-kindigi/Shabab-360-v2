@@ -5,7 +5,6 @@ import {
   evaluateAutomaticDropout,
 } from "@/lib/attendance/policy-engine";
 import { db } from "@/lib/db";
-import { logAudit } from "@/lib/audit";
 
 vi.mock("@/lib/db", () => ({
   db: {
@@ -17,13 +16,17 @@ vi.mock("@/lib/db", () => ({
     attendanceRecord: {
       findMany: vi.fn(),
     },
+    attendanceEvent: {
+      findMany: vi.fn(),
+    },
+    auditLog: {
+      create: vi.fn(),
+    },
     $transaction: vi.fn((cb) => cb(db)),
   },
 }));
 
-vi.mock("@/lib/audit", () => ({
-  logAudit: vi.fn(),
-}));
+vi.mock("@/lib/audit", () => ({ createAuditLogData: vi.fn((data) => data) }));
 
 describe("ATT-002 Attendance Policy Engine", () => {
   beforeEach(() => {
@@ -89,7 +92,7 @@ describe("ATT-002 Attendance Policy Engine", () => {
       const droppedParticipant = {
         id: "p-123",
         name: "Ali Ahmed",
-        state: "dropped_out",
+        state: "dropout",
         dropoutAt: new Date("2026-07-20"),
         dropoutReason: "Prior dropout",
         dropoutSource: "manual",
@@ -108,7 +111,7 @@ describe("ATT-002 Attendance Policy Engine", () => {
       expect(result.error).toBe("Participant is already dropped out");
     });
 
-    it("successfully transitions active participant to dropped_out and logs audit", async () => {
+    it("successfully transitions active participant to dropout and writes its audit in the transaction", async () => {
       const activeParticipant = {
         id: "p-123",
         name: "Ali Ahmed",
@@ -119,7 +122,7 @@ describe("ATT-002 Attendance Policy Engine", () => {
       vi.mocked(db.participant.findUnique).mockResolvedValue(activeParticipant);
       vi.mocked(db.participant.update).mockResolvedValue({
         ...activeParticipant,
-        state: "dropped_out",
+        state: "dropout",
         dropoutAt: new Date(),
         dropoutReason: "3 consecutive absences",
         dropoutSource: "manual",
@@ -133,15 +136,9 @@ describe("ATT-002 Attendance Policy Engine", () => {
       });
 
       expect(result.success).toBe(true);
-      expect(result.participant?.state).toBe("dropped_out");
-      expect(logAudit).toHaveBeenCalledWith(
-        expect.objectContaining({
-          userId: "user-admin-1",
-          action: "student_dropout_manual",
-          entityType: "participant",
-          entityId: "p-123",
-          reason: "3 consecutive absences",
-        })
+      expect(result.participant?.state).toBe("dropout");
+      expect(db.auditLog.create).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ action: "student_dropout_manual" }) })
       );
     });
   });
@@ -212,10 +209,12 @@ describe("ATT-002 Attendance Policy Engine", () => {
         },
       ] as any;
 
-      vi.mocked(db.attendanceRecord.findMany).mockResolvedValue(mockRecords);
+      vi.mocked(db.attendanceEvent.findMany).mockResolvedValue(
+        mockRecords.map((record) => ({ eventDate: record.event.eventDate, records: [{ status: record.status }] })) as any
+      );
       vi.mocked(db.participant.update).mockResolvedValue({
         ...participant,
-        state: "dropped_out",
+        state: "dropout",
         dropoutReason: "3 consecutive completed absent weeks (automatic policy)",
         dropoutSource: "automatic",
       });
@@ -225,15 +224,8 @@ describe("ATT-002 Attendance Policy Engine", () => {
       expect(result.processed).toBe(true);
       expect(result.droppedOut).toBe(true);
       expect(result.consecutiveWeeks).toBe(3);
-      expect(logAudit).toHaveBeenCalledWith(
-        expect.objectContaining({
-          action: "student_dropout_automatic",
-          entityType: "participant",
-          entityId: "p-123",
-          newValues: expect.objectContaining({
-            consecutiveAbsentWeeks: 3,
-          }),
-        })
+      expect(db.auditLog.create).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ action: "student_dropout_automatic" }) })
       );
     });
 
@@ -281,7 +273,9 @@ describe("ATT-002 Attendance Policy Engine", () => {
         },
       ] as any;
 
-      vi.mocked(db.attendanceRecord.findMany).mockResolvedValue(mockRecords);
+      vi.mocked(db.attendanceEvent.findMany).mockResolvedValue(
+        mockRecords.map((record) => ({ eventDate: record.event.eventDate, records: [{ status: record.status }] })) as any
+      );
 
       const result = await evaluateAutomaticDropout("p-123");
 

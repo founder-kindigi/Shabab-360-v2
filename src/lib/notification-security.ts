@@ -7,6 +7,8 @@ export const NOTIFICATION_CHANNELS = [
   "fee_reminder",
   "absence_alert",
   "admission_status",
+  "mashwara_task_assigned",
+  "mashwara_task_updated",
 ] as const;
 
 export type NotificationChannel = (typeof NOTIFICATION_CHANNELS)[number];
@@ -46,6 +48,21 @@ const notificationMetadataSchemas = {
     .object({
       applicationId: identifierSchema.optional(),
       status: z.string().trim().min(1).max(64).regex(/^[a-z_]+$/).optional(),
+    })
+    .strict(),
+  mashwara_task_assigned: z
+    .object({
+      actionItemId: identifierSchema,
+      meetingId: identifierSchema,
+      dueDate: z.string().optional(),
+    })
+    .strict(),
+  mashwara_task_updated: z
+    .object({
+      actionItemId: identifierSchema,
+      meetingId: identifierSchema,
+      status: z.string().optional(),
+      dueDate: z.string().optional(),
     })
     .strict(),
 } satisfies Record<NotificationChannel, z.ZodType>;

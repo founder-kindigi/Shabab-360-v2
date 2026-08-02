@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import { formatPKT, toPKT } from "@/lib/timezone";
-import { logAudit } from "@/lib/audit";
-import { startOfWeek, endOfWeek, subWeeks } from "date-fns";
+import { createAuditLogData } from "@/lib/audit";
+import { startOfWeek } from "date-fns";
 
 export interface BatchSettingsWithOffDays {
   automaticDropoutEnabled: boolean;
@@ -46,8 +46,8 @@ export function isBatchOffDay(
 export interface ManualDropoutParams {
   participantId: string;
   reason: string;
-  source?: string;
   actorUserId: string;
+  source?: string;
 }
 
 /**
@@ -57,7 +57,6 @@ export interface ManualDropoutParams {
 export async function performManualDropout({
   participantId,
   reason,
-  source = "manual",
   actorUserId,
 }: ManualDropoutParams) {
   const participant = await db.participant.findUnique({
@@ -79,7 +78,7 @@ export async function performManualDropout({
     return { success: false, notFound: true, error: "Participant not found" };
   }
 
-  if (participant.state === "dropped_out") {
+  if (participant.state === "dropout") {
     return {
       success: false,
       conflict: true,
@@ -93,23 +92,22 @@ export async function performManualDropout({
     const updated = await tx.participant.update({
       where: { id: participantId },
       data: {
-        state: "dropped_out",
+        state: "dropout",
         dropoutAt: now,
         dropoutReason: reason,
-        dropoutSource: source,
+        dropoutSource: "manual",
       },
     });
 
-    logAudit({
-      userId: actorUserId,
-      action: "student_dropout_manual",
-      entityType: "participant",
-      entityId: participantId,
-      reason,
-      newValues: {
-        source,
-        previousState: participant.state,
-      },
+    await tx.auditLog.create({
+      data: createAuditLogData({
+        userId: actorUserId,
+        action: "student_dropout_manual",
+        entityType: "participant",
+        entityId: participantId,
+        reason,
+        newValues: { source: "manual", previousState: participant.state },
+      }),
     });
 
     return updated;
@@ -156,7 +154,7 @@ export async function evaluateAutomaticDropout(
     return { processed: false, droppedOut: false, consecutiveWeeks: 0, reason: "participant_not_found" };
   }
 
-  if (participant.state === "dropped_out") {
+  if (participant.state === "dropout") {
     return { processed: false, droppedOut: false, consecutiveWeeks: 0, reason: "already_dropped_out" };
   }
 
@@ -167,35 +165,36 @@ export async function evaluateAutomaticDropout(
 
   const requiredConsecutiveWeeks = batchSettings.dropoutConsecutiveWeeks || 3;
 
-  // Fetch all attendance records for closed events
-  const records = await db.attendanceRecord.findMany({
+  // Evaluate closed sessions, not only rows that happen to have an attendance
+  // record. A missing/unmarked session cannot be treated as an absence.
+  const events = await db.attendanceEvent.findMany({
     where: {
-      participantId,
-      event: { isClosed: true },
+      groupId: participant.groupId ?? undefined,
+      isClosed: true,
     },
     include: {
-      event: { select: { eventDate: true, isClosed: true } },
+      records: {
+        where: { participantId },
+        select: { status: true },
+      },
     },
-    orderBy: { event: { eventDate: "asc" } },
+    orderBy: { eventDate: "asc" },
   });
 
-  if (records.length === 0) {
+  if (events.length === 0) {
     return { processed: true, droppedOut: false, consecutiveWeeks: 0 };
   }
 
-  // Filter out off-days
-  const validRecords = records.filter(
-    (r) => !isBatchOffDay(batchSettings, r.event.eventDate)
-  );
-
-  // Group valid records into calendar week buckets (Monday to Sunday)
-  const weekMap = new Map<string, typeof validRecords>();
-  for (const r of validRecords) {
-    const datePKT = toPKT(r.event.eventDate);
+  // Group eligible closed sessions into calendar-week buckets. Off days are
+  // removed entirely; unmarked or excused sessions invalidate that week.
+  const weekMap = new Map<string, typeof events>();
+  for (const event of events) {
+    if (isBatchOffDay(batchSettings, event.eventDate)) continue;
+    const datePKT = toPKT(event.eventDate);
     const weekStart = startOfWeek(datePKT, { weekStartsOn: 1 });
     const weekKey = formatPKT(weekStart, "yyyy-MM-dd");
     const existing = weekMap.get(weekKey) || [];
-    existing.push(r);
+    existing.push(event);
     weekMap.set(weekKey, existing);
   }
 
@@ -203,25 +202,30 @@ export async function evaluateAutomaticDropout(
   const sortedWeekKeys = Array.from(weekMap.keys()).sort();
 
   let consecutiveAbsentWeeks = 0;
+  let previousWeekStart: Date | null = null;
   for (const weekKey of sortedWeekKeys) {
-    const weekRecords = weekMap.get(weekKey)!;
-    const hasPresent = weekRecords.some(
-      (r) => r.status === "present" || r.status === "late"
-    );
-    const hasAbsent = weekRecords.some((r) => r.status === "absent");
-    const isAllExcusedOrNA = weekRecords.every(
-      (r) => r.status === "excused" || r.status === "na"
-    );
+    const weekStart = new Date(`${weekKey}T00:00:00.000Z`);
+    if (previousWeekStart && weekStart.getTime() - previousWeekStart.getTime() > 7 * 24 * 60 * 60 * 1000) {
+      consecutiveAbsentWeeks = 0;
+    }
+    previousWeekStart = weekStart;
 
-    if (hasPresent) {
+    const weekEvents = weekMap.get(weekKey)!;
+    const statuses = weekEvents.flatMap((event) => event.records.map((record) => record.status));
+    const hasUnmarked = weekEvents.some((event) => event.records.length === 0);
+    const hasPresent = statuses.some((status) => status === "present" || status === "late");
+    const hasAbsent = statuses.some((status) => status === "absent");
+
+    if (hasUnmarked || hasPresent) {
       // Attended this week -> resets streak
       consecutiveAbsentWeeks = 0;
     } else if (hasAbsent) {
       // Absent this week without any present -> increment streak
       consecutiveAbsentWeeks++;
-    } else if (isAllExcusedOrNA) {
-      // Leave / N/A -> does NOT count as absent and does NOT reset count
-      continue;
+    } else {
+      // Leave/excused/N/A-only weeks do not count as absence and cannot keep a
+      // consecutive absence streak alive.
+      consecutiveAbsentWeeks = 0;
     }
   }
 
@@ -232,23 +236,21 @@ export async function evaluateAutomaticDropout(
       await tx.participant.update({
         where: { id: participantId },
         data: {
-          state: "dropped_out",
+          state: "dropout",
           dropoutAt: now,
           dropoutReason: reason,
           dropoutSource: "automatic",
         },
       });
 
-      logAudit({
-        userId: "system",
-        action: "student_dropout_automatic",
-        entityType: "participant",
-        entityId: participantId,
-        reason,
-        newValues: {
-          consecutiveAbsentWeeks,
-          threshold: requiredConsecutiveWeeks,
-        },
+      await tx.auditLog.create({
+        data: createAuditLogData({
+          action: "student_dropout_automatic",
+          entityType: "participant",
+          entityId: participantId,
+          reason,
+          newValues: { consecutiveAbsentWeeks, threshold: requiredConsecutiveWeeks },
+        }),
       });
     });
 

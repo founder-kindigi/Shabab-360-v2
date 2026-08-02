@@ -5,6 +5,7 @@ import { todayPKT, fromPKT } from "@/lib/timezone";
 import { logAudit } from "@/lib/audit";
 import { parseISO } from "date-fns";
 import { createAttendanceEventSchema } from "@/lib/attendance/schemas";
+import { createRosterSnapshot } from "@/lib/attendance/summaries";
 
 export async function POST(req: Request) {
   const auth = await requireAuth();
@@ -69,6 +70,8 @@ export async function POST(req: Request) {
         eventDate: date,
       },
     });
+
+    await createRosterSnapshot(event.id);
 
     await logAudit({
       userId: user.id,

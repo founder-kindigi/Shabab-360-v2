@@ -46,7 +46,8 @@ vi.mock("@/lib/db", () => ({
         },
         auditLog: { create: mocks.logAudit },
         collaborationTeam: { findMany: mocks.teamFindMany },
-        staffMeta: { findMany: mocks.staffFindMany },
+        staffMeta: { findMany: mocks.staffFindMany, findUnique: mocks.staffFindUnique },
+        notification: { create: vi.fn() },
       });
     }),
     mashwaraMeeting: {

@@ -6,8 +6,7 @@ import { z } from "zod";
 
 const dropoutRequestSchema = z.object({
   reason: z.string().min(1, "Reason is required").max(500, "Reason too long"),
-  source: z.string().optional().default("manual"),
-});
+}).strict();
 
 export async function POST(
   request: Request,
@@ -18,12 +17,10 @@ export async function POST(
   if (auth instanceof NextResponse) return auth;
   const { user } = auth;
 
-  // Authorization: requires students.manage or attendance.mark capability
+  // Dropout changes the participant lifecycle; attendance marking alone is not
+  // sufficient authority to end a student's future attendance eligibility.
   const capAuth = await requireCapability("students.manage");
-  if (capAuth instanceof NextResponse) {
-    const markAuth = await requireCapability("attendance.mark");
-    if (markAuth instanceof NextResponse) return markAuth;
-  }
+  if (capAuth instanceof NextResponse) return capAuth;
 
   try {
     const body = await request.json().catch(() => ({}));
@@ -34,7 +31,7 @@ export async function POST(
         { status: 400 }
       );
     }
-    const { reason, source } = parseResult.data;
+    const { reason } = parseResult.data;
 
     // Fetch participant with group scope for hierarchy authorization
     const participant = await db.participant.findUnique({
@@ -65,7 +62,7 @@ export async function POST(
     if (scopeError) return scopeError;
 
     // Check if already dropped out (idempotency conflict)
-    if (participant.state === "dropped_out") {
+    if (participant.state === "dropout") {
       return NextResponse.json(
         {
           error: "Participant is already dropped out",
@@ -86,7 +83,6 @@ export async function POST(
     const result = await performManualDropout({
       participantId: id,
       reason,
-      source,
       actorUserId: user.id || "system",
     });
 
