@@ -81,7 +81,12 @@ async function findLahoreContext(tx) {
 }
 
 async function ensureTeam(tx, cityId, code, name) {
-  const existing = await tx.collaborationTeam.findUnique({ where: { cityId_code: { cityId, code } } });
+  // Legacy Lahore teams used display names/casing rather than canonical codes.
+  // Reuse that record before creating a new canonical-code team.
+  const existing = await tx.collaborationTeam.findFirst({
+    where: { cityId, OR: [{ code }, { name }] },
+    orderBy: { createdAt: "asc" },
+  });
   if (existing) return { record: existing, created: false };
   return {
     record: await tx.collaborationTeam.create({ data: { cityId, code, name, description: "Preview UAT fixture team" } }),

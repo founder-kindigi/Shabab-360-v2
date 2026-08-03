@@ -28,7 +28,8 @@
     "db:migrate:sqlite-to-postgres": "node scripts/migrate-sqlite-to-postgres.cjs",
     "db:reconcile:sqlite-to-postgres": "node scripts/reconcile-sqlite-to-postgres.cjs",
     "seed": "bun run prisma/seed.ts",
-    "seed:preview:modules": "node scripts/seed-preview-module-fixtures.cjs"
+    "seed:preview:modules": "node scripts/seed-preview-module-fixtures.cjs",
+    "reconcile:preview:teams": "node scripts/reconcile-preview-collaboration-teams.cjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
