@@ -25,9 +25,26 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
   const registrations = await db.eventRegistration.findMany({
     where: { eventId: access.event.id },
     orderBy: { registeredAt: "asc" },
-    select: { id: true, participantId: true, status: true, consentStatus: true, feeStatus: true, registeredAt: true, cancelledAt: true },
+    select: {
+      id: true, participantId: true, status: true, consentStatus: true, feeStatus: true, registeredAt: true, cancelledAt: true,
+      feeSchedule: { select: { feeEvent: { select: { id: true, amount: true } } } },
+    },
   });
-  return NextResponse.json({ data: registrations });
+  const feeEventIds = registrations.flatMap((registration) => registration.feeSchedule ? [registration.feeSchedule.feeEvent.id] : []);
+  const participantIds = registrations.map((registration) => registration.participantId);
+  const paymentTotals = feeEventIds.length === 0 ? [] : await db.payment.groupBy({
+    by: ["feeEventId", "participantId"],
+    where: { feeEventId: { in: feeEventIds }, participantId: { in: participantIds } },
+    _sum: { amount: true },
+  });
+  const paidByRegistration = new Map(paymentTotals.map((payment) => [`${payment.feeEventId}:${payment.participantId}`, Number(payment._sum.amount ?? 0)]));
+  return NextResponse.json({ data: registrations.map((registration) => {
+    const feeEvent = registration.feeSchedule?.feeEvent;
+    const paid = feeEvent ? paidByRegistration.get(`${feeEvent.id}:${registration.participantId}`) ?? 0 : 0;
+    const required = Number(feeEvent?.amount ?? 0);
+    const feeStatus = !feeEvent ? "not_required" : paid >= required ? "paid" : paid > 0 ? "partial" : "pending";
+    return { ...registration, feeSchedule: undefined, feeStatus, fee: feeEvent ? { required, paid, remaining: Math.max(0, required - paid) } : null };
+  }) });
 }
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
