@@ -27,6 +27,8 @@ export async function GET() {
     include: {
       _count: { select: { parks: true } },
       cityHeads: {
+        where: { role: "city_head", isActive: true, user: { isActive: true } },
+        orderBy: { updatedAt: "desc" },
         select: {
           id: true,
           user: { select: { id: true, name: true, email: true } },

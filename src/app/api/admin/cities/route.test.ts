@@ -36,6 +36,20 @@ describe("Cities Read/Mutation Access Boundaries", () => {
   });
 
   describe("GET /api/admin/cities", () => {
+    it("lists only active staff assigned as City Heads", async () => {
+      mocks.cityFindMany.mockResolvedValue([]);
+
+      expect((await GET()).status).toBe(200);
+      expect(mocks.cityFindMany).toHaveBeenCalledWith(expect.objectContaining({
+        include: expect.objectContaining({
+          cityHeads: expect.objectContaining({
+            where: { role: "city_head", isActive: true, user: { isActive: true } },
+            orderBy: { updatedAt: "desc" },
+          }),
+        }),
+      }));
+    });
+
     it("denies organization access before listing cities", async () => {
       mocks.requireCapability.mockResolvedValue(
         NextResponse.json({ error: "Forbidden" }, { status: 403 })

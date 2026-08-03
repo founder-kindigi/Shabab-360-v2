@@ -63,6 +63,10 @@ interface City {
   cityHeads: { id: string; user: { id: string; name: string | null; email: string } }[];
 }
 
+function cityHeadLabel(city: City) {
+  return city.cityHeads.map((head) => head.user.name || head.user.email).join(", ");
+}
+
 export function CitiesPage() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
@@ -305,7 +309,7 @@ export function CitiesPage() {
                     <TableCell>
                       {city.cityHeads.length > 0 ? (
                         <span className="text-sm text-muted-foreground">
-                          {city.cityHeads[0].user.name || city.cityHeads[0].user.email}
+                          {cityHeadLabel(city)}
                         </span>
                       ) : (
                         <span className="text-xs text-muted-foreground italic">
@@ -409,7 +413,7 @@ export function CitiesPage() {
                     <Users className="size-3.5" />
                     <span>
                       {city.cityHeads.length > 0
-                        ? city.cityHeads[0].user.name || city.cityHeads[0].user.email
+                        ? cityHeadLabel(city)
                         : "No head"}
                     </span>
                   </div>
