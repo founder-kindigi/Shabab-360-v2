@@ -34,7 +34,7 @@ vi.mock("next/navigation", () => ({
   useParams: () => ({ id: "evt_test_123" }),
 }));
 
-import { EventsPage } from "./_client";
+import { EventsPage, toEventApiDate } from "./_client";
 import EventDetailPage from "./[id]/_client";
 
 function requireQueryCall(queryKey: string) {
@@ -59,6 +59,10 @@ describe("Events UI Component-Level React Query Contract Tests", () => {
       mutate: vi.fn(),
       isPending: false,
     });
+  });
+
+  it("converts native date-input values into the strict Event API datetime format", () => {
+    expect(toEventApiDate("2026-08-03")).toBe("2026-08-03T00:00:00.000Z");
   });
 
   afterEach(() => {
