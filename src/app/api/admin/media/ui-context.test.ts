@@ -50,6 +50,7 @@ describe("GET /api/admin/media/ui-context", () => {
     await expect(response.json()).resolves.toEqual({
       canView: false,
       canCreate: false,
+      canManage: false,
       isHq: true,
       cityId: null,
       cities: [{ id: "city_lhr", name: "Lahore" }],
@@ -82,6 +83,7 @@ describe("GET /api/admin/media/ui-context", () => {
     await expect(response.json()).resolves.toEqual({
       canView: true,
       canCreate: false,
+      canManage: true,
       isHq: true,
       cityId: "city_lhr",
       cities: [{ id: "city_lhr", name: "Selected city" }],
