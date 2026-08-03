@@ -38,8 +38,8 @@ describe("PROD-HANDOVER-001: Master Production Sign-Off", () => {
       for (const m of pg) expect(sqlite.has(m)).toBe(true);
     });
 
-    it("PostgreSQL migrations chain complete (16 migrations)", () => {
-      expect(allMigrationDirs(PG_MIGRATIONS)).toHaveLength(16);
+    it("PostgreSQL migrations chain complete (17 migrations)", () => {
+      expect(allMigrationDirs(PG_MIGRATIONS)).toHaveLength(17);
     });
 
     it("SQLite migrations chain complete (9 migrations)", () => {
@@ -49,7 +49,7 @@ describe("PROD-HANDOVER-001: Master Production Sign-Off", () => {
     it("keeps the forward-only Event registration migration at the chain head", () => {
       const pg = allMigrationDirs(PG_MIGRATIONS);
       const sql = allMigrationDirs(SQLITE_MIGRATIONS);
-      expect(pg[pg.length - 1]).toContain("add_event_fee_schedules");
+      expect(pg[pg.length - 1]).toContain("add_mashwara_notification_channels");
       expect(sql[sql.length - 1]).toContain("add_event_fee_schedules");
     });
   });

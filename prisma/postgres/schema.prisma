@@ -49,6 +49,8 @@ enum NotificationChannel {
   fee_reminder
   absence_alert
   admission_status
+  mashwara_task_assigned
+  mashwara_task_updated
 }
 
 enum NotificationStatus {
