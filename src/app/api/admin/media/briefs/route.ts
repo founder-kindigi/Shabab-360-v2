@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
   const access2 = await requireMediaAccess(auth.user, WRITE_CAP, effectiveCityId);
   if (!access2.authorized) return NextResponse.json({ error: access2.error }, { status: access2.status });
 
-  const team = await db.collaborationTeam.findFirst({ where: { id: teamId, cityId: effectiveCityId, isActive: true, code: "media" }, select: { id: true } });
+  const team = await db.collaborationTeam.findFirst({ where: { id: teamId, cityId: effectiveCityId, isActive: true, code: { in: ["MEDIA", "media"] } }, select: { id: true } });
   if (!team) return NextResponse.json({ error: "Media team not found in this city" }, { status: 404 });
 
   if ((title && /https?:\/\//i.test(title)) || (description && /https?:\/\//i.test(description))) {

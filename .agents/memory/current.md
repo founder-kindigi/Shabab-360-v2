@@ -115,6 +115,11 @@ Last consolidated: 2026-07-18. Verify changing facts against the checkout before
   plus a State Life School park override. The owner will map staff into the
   five collaboration teams in the portal; no workbook-based membership
   inference is allowed. No planner rows have been written to staging.
+- On 2026-08-03, the Lahore Preview Content Planner reconciliation created 68
+  city-wide template sessions, 25 State Life override sessions, and 91 blocks
+  with no conflicts. Its 51 workbook external URLs remain intentionally
+  unpublished until owner-configurable domain allowlisting and safe redirect
+  policy are implemented; no link may be auto-published from workbook content.
 - Calling-system policy is approved: Calling POC is a time-bounded Mashwara or
   event responsibility, not a permanent city post or login role. The POC assigns
   leads to approved Shabab callers. Rare cross-department help uses an
