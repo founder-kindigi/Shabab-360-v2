@@ -59,6 +59,14 @@ function roleLabel(role: string) {
 
 const HQ_ROLES = ["super_admin", "program_admin"];
 
+export function canLoadCollaborationTeams(
+  sessionResolved: boolean,
+  isHq: boolean,
+  cityId: string
+): boolean {
+  return sessionResolved && (!isHq || Boolean(cityId));
+}
+
 export function CollaborationTeamsPage() {
   const queryClient = useQueryClient();
   const [selectedTeamId, setSelectedTeamId] = useState("");
@@ -106,7 +114,10 @@ export function CollaborationTeamsPage() {
       return request(`/api/admin/teams${params}`);
     },
     staleTime: 30000,
-    enabled: Boolean(effectiveCityId) || !isHq,
+    // Do not issue an unscoped request during the brief period before the
+    // session identifies an HQ user. The API correctly rejects that request.
+    enabled: canLoadCollaborationTeams(sessionQuery.isSuccess, isHq, effectiveCityId),
+    retry: false,
   });
 
   const staff = useQuery<{ data: StaffOption[] }>({
