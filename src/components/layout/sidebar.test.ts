@@ -49,5 +49,13 @@ describe("sidebar navigation access boundaries", () => {
 
     expect(items.find((item) => item.id === "admin-events")?.label).toBe("Events");
     expect(items.find((item) => item.id === "admin-calling")?.label).toBe("Calling");
+    expect(items.find((item) => item.id === "admin-content-planner")?.label).toBe("Content Planner");
+  });
+
+  it("groups staff and collaboration teams under People", () => {
+    const items = getNavItems("super_admin", translate);
+
+    expect(items.find((item) => item.id === "admin-users")?.section).toBe("people");
+    expect(items.find((item) => item.id === "admin-collaboration-teams")?.section).toBe("people");
   });
 });
