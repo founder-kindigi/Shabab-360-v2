@@ -2,7 +2,7 @@ import type { SessionUser } from "@/lib/auth/scope";
 import { isHqRole } from "@/lib/auth/scope";
 import { db } from "@/lib/db";
 
-const MEDIA_TEAM_CODE = "media";
+const MEDIA_TEAM_CODES = ["MEDIA", "media"];
 
 export type MediaAuthResult =
   | { authorized: true; cityId: string }
@@ -55,7 +55,7 @@ export async function hasActiveMediaMembership(user: SessionUser, cityId: string
   const staffMeta = await db.staffMeta.findUnique({ where: { userId: user.id }, select: { id: true } });
   if (!staffMeta) return false;
   const team = await db.collaborationTeam.findFirst({
-    where: { cityId, code: MEDIA_TEAM_CODE, isActive: true, memberships: { some: { staffMetaId: staffMeta.id, isActive: true, endedAt: null } } },
+    where: { cityId, code: { in: MEDIA_TEAM_CODES }, isActive: true, memberships: { some: { staffMetaId: staffMeta.id, isActive: true, endedAt: null } } },
     select: { id: true },
   });
   return team !== null;
@@ -63,7 +63,7 @@ export async function hasActiveMediaMembership(user: SessionUser, cityId: string
 
 export async function hasActiveMediaMembershipByStaffMetaId(staffMetaId: string, cityId: string): Promise<boolean> {
   const team = await db.collaborationTeam.findFirst({
-    where: { cityId, code: MEDIA_TEAM_CODE, isActive: true, memberships: { some: { staffMetaId, isActive: true, endedAt: null } } },
+    where: { cityId, code: { in: MEDIA_TEAM_CODES }, isActive: true, memberships: { some: { staffMetaId, isActive: true, endedAt: null } } },
     select: { id: true },
   });
   return team !== null;
