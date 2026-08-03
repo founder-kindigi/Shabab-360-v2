@@ -10,4 +10,6 @@ export const db =
     log: [],
   })
 
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = db
+// Reuse one client per warm serverless instance. Creating a new Prisma client
+// for every production request adds connection latency across every module.
+globalForPrisma.prisma = db
