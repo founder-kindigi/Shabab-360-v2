@@ -23,12 +23,12 @@ function allMigrationDirs(base: string): string[] {
 describe("PROD-HANDOVER-001: Master Production Sign-Off", () => {
   /* ── 1. Dual Schema Validation ───────────────────────────────────── */
   describe("Dual schema validation", () => {
-    it("SQLite schema has 54 models", () => {
-      expect(modelNames(join(ROOT, "prisma/schema.prisma")).length).toBe(54);
+    it("SQLite schema has 55 models", () => {
+      expect(modelNames(join(ROOT, "prisma/schema.prisma")).length).toBe(55);
     });
 
-    it("PostgreSQL schema has 54 models", () => {
-      expect(modelNames(join(ROOT, "prisma/postgres/schema.prisma")).length).toBe(54);
+    it("PostgreSQL schema has 55 models", () => {
+      expect(modelNames(join(ROOT, "prisma/postgres/schema.prisma")).length).toBe(55);
     });
 
     it("all SQLite models match PostgreSQL models bidirectionally", () => {
@@ -38,19 +38,19 @@ describe("PROD-HANDOVER-001: Master Production Sign-Off", () => {
       for (const m of pg) expect(sqlite.has(m)).toBe(true);
     });
 
-    it("PostgreSQL migrations chain complete (15 migrations)", () => {
-      expect(allMigrationDirs(PG_MIGRATIONS)).toHaveLength(15);
+    it("PostgreSQL migrations chain complete (16 migrations)", () => {
+      expect(allMigrationDirs(PG_MIGRATIONS)).toHaveLength(16);
     });
 
-    it("SQLite migrations chain complete (8 migrations)", () => {
-      expect(allMigrationDirs(SQLITE_MIGRATIONS)).toHaveLength(8);
+    it("SQLite migrations chain complete (9 migrations)", () => {
+      expect(allMigrationDirs(SQLITE_MIGRATIONS)).toHaveLength(9);
     });
 
     it("keeps the forward-only Event registration migration at the chain head", () => {
       const pg = allMigrationDirs(PG_MIGRATIONS);
       const sql = allMigrationDirs(SQLITE_MIGRATIONS);
-      expect(pg[pg.length - 1]).toContain("add_event_registrations");
-      expect(sql[sql.length - 1]).toContain("add_event_registrations");
+      expect(pg[pg.length - 1]).toContain("add_event_fee_schedules");
+      expect(sql[sql.length - 1]).toContain("add_event_fee_schedules");
     });
   });
 

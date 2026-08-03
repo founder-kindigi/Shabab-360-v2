@@ -154,6 +154,7 @@ model Batch {
   groups       Group[]
   settings     BatchSettings?
   feeEvents    FeeEvent[]
+  eventFeeSchedules EventFeeSchedule[]
   contentPlans ContentPlan[]
 
   @@index([cityId, isActive])
@@ -655,6 +656,7 @@ model FeeEvent {
 
   batch    Batch     @relation(fields: [batchId], references: [id], onDelete: Cascade)
   payments Payment[]
+  eventFeeSchedule EventFeeSchedule?
 
   @@index([batchId, isActive, createdAt])
   @@index([isActive, createdAt])
@@ -823,6 +825,7 @@ model Event {
   responsibilities EventResponsibility[]
   plannerItems     EventPlannerItem[]
   registrations    EventRegistration[]
+  feeSchedules     EventFeeSchedule[]
 
   @@index([cityId, status])
   @@index([cityId, startDate])
@@ -840,6 +843,7 @@ model EventRegistration {
   consentStatus      String   @default("not_required")
   feeStatus          String   @default("not_required")
   attendanceRecordId String?  @unique
+  eventFeeScheduleId String?
   registeredAt       DateTime @default(now())
   cancelledAt        DateTime?
   createdAt          DateTime @default(now())
@@ -848,11 +852,31 @@ model EventRegistration {
   event            Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)
   participant      Participant       @relation(fields: [participantId], references: [id], onDelete: Cascade)
   attendanceRecord AttendanceRecord? @relation(fields: [attendanceRecordId], references: [id], onDelete: SetNull)
+  feeSchedule      EventFeeSchedule? @relation(fields: [eventFeeScheduleId], references: [id], onDelete: SetNull)
 
   @@unique([eventId, participantId])
   @@index([eventId, status])
   @@index([participantId, status])
+  @@index([eventFeeScheduleId])
   @@map("event_registrations")
+}
+
+model EventFeeSchedule {
+  id         String   @id @default(cuid())
+  eventId    String
+  batchId    String
+  feeEventId String   @unique
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  event         Event               @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  batch         Batch               @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  feeEvent      FeeEvent            @relation(fields: [feeEventId], references: [id], onDelete: Cascade)
+  registrations EventRegistration[]
+
+  @@unique([eventId, batchId])
+  @@index([batchId])
+  @@map("event_fee_schedules")
 }
 
 model TemporaryEventTeam {
