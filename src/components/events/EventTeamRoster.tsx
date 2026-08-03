@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -14,6 +13,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Users, Plus, X, Loader2 } from "lucide-react";
 
 type Member = {
@@ -24,6 +24,9 @@ type Member = {
   assignedUntil: string | null;
   staffMeta?: { user?: { name?: string } };
 };
+
+type EventTeam = { id: string; memberships: Member[] };
+type Assignee = { id: string; name: string; role: string };
 
 export function EventTeamRoster({
   teamId,
@@ -38,39 +41,60 @@ export function EventTeamRoster({
   const [showAdd, setShowAdd] = useState(false);
   const [staffMetaId, setStaffMetaId] = useState("");
 
-  const { data, isLoading } = useQuery<{ data: Member[] }>({
-    queryKey: ["event-team-members", teamId],
-    queryFn: () => fetch(`/api/admin/events/${eventId}/teams`).then((r) => r.json()),
+  const { data: teams, isLoading } = useQuery<EventTeam[]>({
+    queryKey: ["event-teams", eventId],
+    queryFn: async () => {
+      const res = await fetch(`/api/admin/events/${eventId}/teams`);
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || "Failed to load event teams");
+      return json;
+    },
+  });
+  const members = teams?.find((team) => team.id === teamId)?.memberships ?? [];
+
+  const { data: assignees, isLoading: assigneesLoading } = useQuery<{ data: Assignee[] }>({
+    queryKey: ["event-team-assignees", eventId],
+    enabled: showAdd && canManage,
+    queryFn: async () => {
+      const res = await fetch(`/api/admin/events/${eventId}/assignees`);
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || "Unable to load event staff");
+      return json;
+    },
   });
 
   const addMutation = useMutation({
     mutationFn: async () => {
-      const res = await fetch(`/api/admin/events/teams/${teamId}/members`, {
+      const res = await fetch(`/api/admin/events/teams/${teamId}/memberships`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ staffMetaId }),
       });
-      if (!res.ok) throw new Error("Failed to add member");
-      return res.json();
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || "Failed to add member");
+      return json;
     },
     onSuccess: () => {
       toast.success("Member added");
       setShowAdd(false);
       setStaffMetaId("");
-      queryClient.invalidateQueries({ queryKey: ["event-team-members", teamId] });
+      queryClient.invalidateQueries({ queryKey: ["event-teams", eventId] });
+      queryClient.invalidateQueries({ queryKey: ["event-detail", eventId] });
     },
     onError: (err: Error) => toast.error(err.message),
   });
 
   const removeMutation = useMutation({
     mutationFn: async (memberId: string) => {
-      const res = await fetch(`/api/admin/events/teams/${teamId}/members/${memberId}`, { method: "DELETE" });
-      if (!res.ok) throw new Error("Failed to remove member");
-      return res.json();
+      const res = await fetch(`/api/admin/events/teams/memberships/${memberId}`, { method: "DELETE" });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || "Failed to remove member");
+      return json;
     },
     onSuccess: () => {
       toast.success("Member removed");
-      queryClient.invalidateQueries({ queryKey: ["event-team-members", teamId] });
+      queryClient.invalidateQueries({ queryKey: ["event-teams", eventId] });
+      queryClient.invalidateQueries({ queryKey: ["event-detail", eventId] });
     },
     onError: (err: Error) => toast.error(err.message),
   });
@@ -89,8 +113,8 @@ export function EventTeamRoster({
       </CardHeader>
       <CardContent className="space-y-2">
         {isLoading && <p className="text-sm text-muted-foreground">Loading members...</p>}
-        {data?.data?.length === 0 && <p className="text-sm text-muted-foreground">No members assigned.</p>}
-        {data?.data?.map((m) => (
+        {members.length === 0 && <p className="text-sm text-muted-foreground">No members assigned.</p>}
+        {members.map((m) => (
           <div key={m.id} className="flex items-center justify-between p-2 rounded-lg border">
             <div>
               <p className="text-sm font-medium">{m.staffMeta?.user?.name || m.staffMetaId.slice(0, 12)}</p>
@@ -110,7 +134,19 @@ export function EventTeamRoster({
       <Dialog open={showAdd} onOpenChange={(v) => !v && setShowAdd(false)}>
         <DialogContent>
           <DialogHeader><DialogTitle>Add Team Member</DialogTitle></DialogHeader>
-          <Input placeholder="Staff Meta ID" value={staffMetaId} onChange={(e) => setStaffMetaId(e.target.value)} />
+          <Select value={staffMetaId} onValueChange={setStaffMetaId} disabled={assigneesLoading}>
+            <SelectTrigger><SelectValue placeholder={assigneesLoading ? "Loading staff..." : "Select staff member"} /></SelectTrigger>
+            <SelectContent>
+              {assignees?.data?.map((assignee) => (
+                <SelectItem key={assignee.id} value={assignee.id}>
+                  {assignee.name} ({assignee.role.replaceAll("_", " ")})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {!assigneesLoading && assignees?.data?.length === 0 && (
+            <p className="text-xs text-muted-foreground">No active staff are available in this event's city.</p>
+          )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowAdd(false)}>Cancel</Button>
             <Button onClick={() => addMutation.mutate()} disabled={!staffMetaId || addMutation.isPending}>
