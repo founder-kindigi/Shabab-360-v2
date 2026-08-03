@@ -503,6 +503,7 @@ model Participant {
   convertedFromApp  AdmissionApplication?      @relation("ConvertedFrom")
   extendedProfile   StudentExtendedProfile?
   rosterSnapshots   AttendanceRosterSnapshot[]
+  eventRegistrations EventRegistration[]
 
   @@index([groupId, state])
   @@map("participants")
@@ -587,6 +588,7 @@ model AttendanceRecord {
 
   event       AttendanceEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
   participant Participant     @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  eventRegistration EventRegistration?
 
   @@unique([eventId, participantId])
   @@index([eventId])
@@ -820,11 +822,37 @@ model Event {
   teams            TemporaryEventTeam[]
   responsibilities EventResponsibility[]
   plannerItems     EventPlannerItem[]
+  registrations    EventRegistration[]
 
   @@index([cityId, status])
   @@index([cityId, startDate])
   @@index([status, startDate])
   @@map("events")
+}
+
+// Event registration is separate from regular attendance. A completed check-in
+// may link to exactly one existing group attendance record, never create a duplicate.
+model EventRegistration {
+  id                 String   @id @default(cuid())
+  eventId            String
+  participantId      String
+  status             String   @default("registered")
+  consentStatus      String   @default("not_required")
+  feeStatus          String   @default("not_required")
+  attendanceRecordId String?  @unique
+  registeredAt       DateTime @default(now())
+  cancelledAt        DateTime?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  event            Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  participant      Participant       @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  attendanceRecord AttendanceRecord? @relation(fields: [attendanceRecordId], references: [id], onDelete: SetNull)
+
+  @@unique([eventId, participantId])
+  @@index([eventId, status])
+  @@index([participantId, status])
+  @@map("event_registrations")
 }
 
 model TemporaryEventTeam {
