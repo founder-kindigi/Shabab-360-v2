@@ -46,6 +46,7 @@ const MashwaraDetailPage = lazy(() => import("@/app/admin/mashwara/[id]/_client"
 const CallingPage = lazy(() => import("@/app/admin/calling/page").then(m => ({ default: m.default })));
 const EventsPage = lazy(() => import("@/app/admin/events/page").then(m => ({ default: m.default })));
 const ContentPlannerPage = lazy(() => import("@/components/modules/content-planner/content-planner-page").then(m => ({ default: m.ContentPlannerPage })));
+const MediaBriefsPage = lazy(() => import("@/components/modules/media/media-briefs-page").then(m => ({ default: m.MediaBriefsPage })));
 const FeesPage = lazy(() => import("@/components/modules/admin/fees-page").then(m => ({ default: m.FeesPage })));
 const NotificationsPage = lazy(() => import("@/components/modules/admin/notifications-page").then(m => ({ default: m.NotificationsPage })));
 const AdmissionsPage = lazy(() => import("@/components/modules/admin/admissions-page").then(m => ({ default: m.AdmissionsPage })));
@@ -124,6 +125,7 @@ const pageTitles: Record<PageId, string> = {
   "admin-settings": "Settings",
   "admin-users": "Users",
   "admin-content-planner": "Content Planner",
+  "admin-media": "Media Workspace",
   "admin-access": "Access Provisioning",
   "admin-access-management": "Access Management",
   "admin-collaboration-teams": "Collaboration Teams",
@@ -173,6 +175,7 @@ function isKnownPage(pageId: PageId): boolean {
     "admin-reports", "admin-audit-log", "admin-access", "admin-access-management", "admin-collaboration-teams", "notifications",
     "admin-mashwara",
     "admin-mashwara-detail",
+    "admin-media",
     "murabbi-dashboard", "murabbi-groups",
     "park-dashboard", "park-attendance", "park-attendance-roster",
     "park-roster", "park-participants", "park-guardians", "park-schedule",
@@ -275,6 +278,8 @@ function PageContentInner({ pageId }: { pageId: PageId }) {
       return <EventsPage />;
     case "admin-content-planner":
       return <ContentPlannerPage />;
+    case "admin-media":
+      return <MediaBriefsPage />;
     case "murabbi-dashboard":
       return <MurabbiDashboard />;
     case "murabbi-groups":
