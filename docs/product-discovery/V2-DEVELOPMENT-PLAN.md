@@ -183,3 +183,25 @@ V2 extends the Lahore release without weakening the current production baseline.
 `V2-001` -> `V2-002` -> `V2-101` / `V2-102` / `V2-103` -> `V2-301` -> `V2-304` -> `V2-201` / `V2-202` / `V2-203` -> `V2-302` / `V2-303` -> `V2-401` / `V2-402` / `V2-403` -> `V2-501` -> `V2-502`.
 
 Parallel work is acceptable only when branches have a common approved base and their schemas, routes, and UI files do not overlap. Integration remains controlled, reviewed, and verified after every batch.
+
+## Roadmap Boundary: V3 And V4
+
+### V3: Web Application Polish And Shabab Feedback
+
+V3 is the web-application refinement cycle after the V2 operational work is stable. Shabab team members use the application in real workflows and provide structured feedback. Work is limited to approved UX, UI, workflow clarity, accessibility, reporting, and reliability improvements identified through that feedback.
+
+- Maintain a feedback register with module, role, viewport, reproduction steps, severity, and acceptance evidence.
+- Prioritize mobile-first usability, clear module-specific filters, loading/error states, and complete CRUD flows.
+- Make no broad architectural rewrite during V3 unless a production defect requires it.
+- Release in small, reviewed batches with browser UAT evidence from Shabab users.
+
+### V4: Refactoring, Optimization, And Mobile-App Readiness
+
+V4 improves internal architecture after web workflows are proven. The goal is a maintainable platform that can support Android and iOS applications without duplicating authorization, business rules, or data contracts.
+
+- Separate reusable domain logic, validation, authorization, and API contracts from web-only presentation code.
+- Standardize paginated API envelopes, error contracts, audit behavior, and capability/scope resolution.
+- Reduce database/query inefficiencies, remove dead code, and strengthen automated regression coverage.
+- Define a mobile-consumable API contract and authentication/session strategy.
+- Introduce shared design tokens and component contracts suitable for web and native clients.
+- Do not begin Android or iOS feature development until the V4 architecture baseline, API contract tests, and mobile security review are approved.
