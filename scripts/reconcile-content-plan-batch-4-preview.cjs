@@ -69,7 +69,7 @@ async function validateTargets(client, options) {
     client.city.findFirst({ where: { id: options.cityId, isActive: true }, select: { id: true } }),
     client.batch.findFirst({ where: { id: options.batchId, isActive: true, park: { cityId: options.cityId } }, select: { id: true } }),
     client.park.findFirst({ where: { id: options.stateLifeParkId, isActive: true, cityId: options.cityId }, select: { id: true } }),
-    client.contentPlan.findFirst({ where: { id: options.templatePlanId, cityId: options.cityId, batchId: options.batchId, parkId: null }, select: { id: true } }),
+    client.contentPlan.findFirst({ where: { id: options.templatePlanId, cityId: options.cityId, batchId: null, parkId: null, kind: "template" }, select: { id: true } }),
     client.contentPlan.findFirst({ where: { id: options.overridePlanId, cityId: options.cityId, batchId: options.batchId, parkId: options.stateLifeParkId, basePlanId: options.templatePlanId }, select: { id: true } }),
     client.collaborationTeam.findMany({ where: { cityId: options.cityId, isActive: true, code: { in: ["SPORTS", "SKILLS", "TADREEB"] } }, select: { id: true, code: true } }),
   ]);
