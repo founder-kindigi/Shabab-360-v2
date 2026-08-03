@@ -99,6 +99,8 @@ export default function EventDetailPage() {
   const [plannerDue, setPlannerDue] = useState("");
   const [showRegistration, setShowRegistration] = useState(false);
   const [participantSearch, setParticipantSearch] = useState("");
+  const [showTeam, setShowTeam] = useState(false);
+  const [teamTitle, setTeamTitle] = useState("");
 
   // ── Server-resolved capabilities ──────────────────────────────────────
   const { data: ctx, isError: ctxError, error: ctxErr } = useQuery<UiContext>({
@@ -254,6 +256,26 @@ export default function EventDetailPage() {
     onError: (err: Error) => toast.error(err.message),
   });
 
+  const createTeamMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/admin/events/${eventId}/teams`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: teamTitle.trim() }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || "Failed to create team");
+      return json;
+    },
+    onSuccess: () => {
+      toast.success("Event team created");
+      setShowTeam(false);
+      setTeamTitle("");
+      queryClient.invalidateQueries({ queryKey: ["event-detail", eventId] });
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
   // Safe access state on context failure
   if (ctxError) {
     return (
@@ -374,6 +396,17 @@ export default function EventDetailPage() {
         </TabsContent>
 
         <TabsContent value="teams" className="space-y-4 pt-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h3 className="text-sm font-medium">Event Teams</h3>
+              <p className="text-xs text-muted-foreground">Create temporary teams for this event, then add active same-city staff.</p>
+            </div>
+            {canManage && (
+              <Button size="sm" variant="outline" onClick={() => setShowTeam(true)}>
+                <Plus className="size-3.5 mr-1" /> Create Team
+              </Button>
+            )}
+          </div>
           {data.teams?.length === 0 && <p className="text-sm text-muted-foreground text-center py-8">No teams created yet.</p>}
           {data.teams?.map((team) => (
             <div key={team.id}>
@@ -443,6 +476,33 @@ export default function EventDetailPage() {
           ))}
         </TabsContent>
       </Tabs>
+
+      <Dialog open={showTeam} onOpenChange={(open) => !open && setShowTeam(false)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create Event Team</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            <label className="text-sm font-medium" htmlFor="event-team-title">Team name</label>
+            <Input
+              id="event-team-title"
+              value={teamTitle}
+              onChange={(event) => setTeamTitle(event.target.value)}
+              placeholder="For example, Registration or Transport"
+              maxLength={100}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowTeam(false)}>Cancel</Button>
+            <Button
+              onClick={() => createTeamMutation.mutate()}
+              disabled={teamTitle.trim().length < 2 || createTeamMutation.isPending}
+            >
+              {createTeamMutation.isPending ? <Loader2 className="size-4 animate-spin" /> : "Create Team"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={showRegistration} onOpenChange={setShowRegistration}>
         <DialogContent className="max-w-md">

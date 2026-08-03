@@ -172,6 +172,36 @@ describe("Events UI Component-Level React Query Contract Tests", () => {
   });
 
   describe("3. Actual Component Planner Mutation Endpoints", () => {
+    it("actual Event detail team mutation calls POST /api/admin/events/[id]/teams", async () => {
+      mockUseQuery.mockImplementation(({ queryKey }: { queryKey: string[] }) => {
+        if (queryKey[0] === "events-ui-context") {
+          return { data: { isHq: false, canManage: true }, isLoading: false, isError: false };
+        }
+        if (queryKey[0] === "event-detail") {
+          return {
+            data: {
+              id: "evt_test_123", title: "Test Event", status: "in_progress", eventType: "sports_day",
+              startDate: "2026-08-01T00:00:00.000Z", teams: [], responsibilities: [], plannerItems: [],
+            }, isLoading: false, isError: false,
+          };
+        }
+        return { data: undefined };
+      });
+
+      EventDetailPage();
+      const createTeamMutationCall = mockUseMutation.mock.calls[6];
+      expect(createTeamMutationCall).toBeDefined();
+      mockFetch.mockResolvedValueOnce(new Response(JSON.stringify({ id: "team_new" }), { status: 201 }));
+
+      await createTeamMutationCall[0].mutationFn();
+
+      expect(mockFetch).toHaveBeenCalledWith("/api/admin/events/evt_test_123/teams", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: "" }),
+      });
+    });
+
     it("actual planner creation mutation calls POST /api/admin/events/[id]/planner-items", async () => {
       mockUseQuery.mockImplementation(({ queryKey }: { queryKey: string[] }) => {
         if (queryKey[0] === "events-ui-context") {
