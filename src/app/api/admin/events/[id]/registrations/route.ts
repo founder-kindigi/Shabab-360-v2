@@ -55,7 +55,14 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   }
 
   const registration = await db.$transaction(async (tx) => {
-    const created = await tx.eventRegistration.create({ data: { eventId: access.event.id, participantId: participant.id } });
+    const created = await tx.eventRegistration.create({
+      data: {
+        eventId: access.event.id,
+        participantId: participant.id,
+        consentStatus: access.event.requiresConsent ? "pending" : "not_required",
+        feeStatus: Number(access.event.cost ?? 0) > 0 ? "pending" : "not_required",
+      },
+    });
     await tx.auditLog.create({ data: createAuditLogData({ userId: access.auth.user.id, action: "event.registration.create", entityType: "event_registration", entityId: created.id, newValues: { eventId: access.event.id, participantId: participant.id } }) });
     return created;
   });
