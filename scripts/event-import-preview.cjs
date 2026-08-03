@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-require-imports -- Standalone zero-write workbook parser for Event import. */
-
 class EventImportError extends Error {}
 
 function text(value) {
