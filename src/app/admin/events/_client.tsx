@@ -93,6 +93,12 @@ export const STATUS_STYLES: Record<string, string> = {
   cancelled: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
 };
 
+// Native date inputs return a calendar date, while the API intentionally accepts
+// only explicit ISO datetimes. Keep the event on the selected calendar day.
+export function toEventApiDate(date: string): string {
+  return `${date}T00:00:00.000Z`;
+}
+
 // ─── EventForm ───────────────────────────────────────────────────────────
 
 export function EventForm({
@@ -153,7 +159,13 @@ export function EventForm({
     }
     const payload: Record<string, unknown> = { ...parsed.data };
     if (!payload.venue) delete payload.venue;
-    if (!payload.endDate) delete payload.endDate;
+    payload.startDate = toEventApiDate(parsed.data.startDate);
+    const endDate = parsed.data.endDate;
+    if (!endDate) {
+      delete payload.endDate;
+    } else {
+      payload.endDate = toEventApiDate(endDate);
+    }
     if (payload.capacity === "" || payload.capacity === undefined) {
       delete payload.capacity;
     } else {
