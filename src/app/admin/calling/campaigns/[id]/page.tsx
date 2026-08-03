@@ -2,12 +2,21 @@
 
 import { useState } from "react";
 import { useParams } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -61,6 +70,11 @@ type LeadListResponse = {
 
 type CallingUiContext = { canView: true; canManagePoc: boolean; canManageTemplates: boolean; isHq: boolean };
 
+type AssignmentOptions = {
+  callers: { id: string; label: string; role: string }[];
+  applications: { id: string; trackingCode: string; status: string }[];
+};
+
 const OUTCOME_ICONS: Record<string, typeof Phone> = {
   reached: CheckCircle2,
   no_answer: XCircle,
@@ -80,11 +94,15 @@ const OUTCOME_STYLES: Record<string, string> = {
 export default function CampaignDetailPage() {
   const params = useParams<{ id: string }>();
   const campaignId = params.id;
+  const queryClient = useQueryClient();
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [leadPage, setLeadPage] = useState(1);
   const [logModal, setLogModal] = useState<{ open: boolean; assignmentId: string }>({ open: false, assignmentId: "" });
+  const [assignOpen, setAssignOpen] = useState(false);
+  const [callerStaffMetaId, setCallerStaffMetaId] = useState("");
+  const [applicationIds, setApplicationIds] = useState<string[]>([]);
 
   const { data: ctx, isError: ctxError, error: ctxErr } = useQuery<CallingUiContext>({
     queryKey: ["calling-ui-context"],
@@ -113,6 +131,39 @@ export default function CampaignDetailPage() {
       return fetch(`/api/calling/campaigns/${campaignId}/leads${suffix}`).then((r) => r.json());
     },
     enabled: Boolean(campaignId) && Boolean(ctx) && !ctxError,
+  });
+
+  const { data: assignmentOptions, isLoading: assignmentOptionsLoading } = useQuery<AssignmentOptions>({
+    queryKey: ["calling-assignment-options", campaignId],
+    queryFn: async () => {
+      const response = await fetch(`/api/calling/campaigns/${campaignId}/assignment-options`);
+      if (!response.ok) throw new Error("Unable to load lead assignment options");
+      return response.json();
+    },
+    enabled: Boolean(campaignId) && Boolean(ctx?.canManagePoc) && assignOpen,
+  });
+
+  const assignMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch("/api/calling/assignments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ campaignId, applicationIds, callerStaffMetaId }),
+      });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.error || "Unable to assign leads");
+      return body;
+    },
+    onSuccess: () => {
+      toast.success("Leads assigned");
+      setAssignOpen(false);
+      setCallerStaffMetaId("");
+      setApplicationIds([]);
+      queryClient.invalidateQueries({ queryKey: ["campaign-leads", campaignId] });
+      queryClient.invalidateQueries({ queryKey: ["calling-assignment-options", campaignId] });
+      queryClient.invalidateQueries({ queryKey: ["calling-campaigns"] });
+    },
+    onError: (error: Error) => toast.error(error.message),
   });
 
   const filteredLeads = leads?.data.filter((l) => {
@@ -150,7 +201,10 @@ export default function CampaignDetailPage() {
       </div>
 
       <Card>
-        <CardHeader><CardTitle className="text-base flex items-center gap-2"><Users className="size-4" /> Leads</CardTitle></CardHeader>
+        <CardHeader className="flex-row items-center justify-between gap-3">
+          <CardTitle className="text-base flex items-center gap-2"><Users className="size-4" /> Leads</CardTitle>
+          {ctx.canManagePoc && <Button size="sm" onClick={() => setAssignOpen(true)}>Assign leads</Button>}
+        </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex gap-2">
             <div className="relative flex-1">
@@ -169,7 +223,7 @@ export default function CampaignDetailPage() {
           </div>
 
           {leadsLoading && <p className="text-sm text-muted-foreground">Loading leads...</p>}
-          {filteredLeads?.length === 0 && <p className="text-sm text-muted-foreground text-center py-8">No leads found.</p>}
+          {filteredLeads?.length === 0 && <p className="text-sm text-muted-foreground text-center py-8">No leads assigned to this campaign yet.</p>}
 
           {filteredLeads?.map((lead) => {
             const OutcomeIcon = lead.outcome ? OUTCOME_ICONS[lead.outcome] : null;
@@ -205,6 +259,44 @@ export default function CampaignDetailPage() {
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={assignOpen} onOpenChange={(open) => !assignMutation.isPending && setAssignOpen(open)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Assign leads</DialogTitle>
+            <DialogDescription>Choose an active caller and admission tracking codes. Applicant names and phone numbers remain hidden until the assigned caller opens their leads.</DialogDescription>
+          </DialogHeader>
+          {assignmentOptionsLoading ? <Skeleton className="h-40 w-full" /> : (
+            <div className="space-y-4">
+              <Select value={callerStaffMetaId} onValueChange={setCallerStaffMetaId}>
+                <SelectTrigger><SelectValue placeholder="Select caller" /></SelectTrigger>
+                <SelectContent>
+                  {assignmentOptions?.callers.map((caller) => <SelectItem key={caller.id} value={caller.id}>{caller.label} ({caller.role})</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <div className="max-h-56 space-y-2 overflow-y-auto rounded-md border p-3">
+                {assignmentOptions?.applications.length ? assignmentOptions.applications.map((application) => (
+                  <label key={application.id} className="flex cursor-pointer items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={applicationIds.includes(application.id)}
+                      onChange={(event) => setApplicationIds((current) => event.target.checked ? [...current, application.id] : current.filter((id) => id !== application.id))}
+                    />
+                    <span>{application.trackingCode}</span>
+                    <Badge variant="secondary">{application.status}</Badge>
+                  </label>
+                )) : <p className="text-sm text-muted-foreground">No unassigned admission records are available in this city.</p>}
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAssignOpen(false)} disabled={assignMutation.isPending}>Cancel</Button>
+            <Button onClick={() => assignMutation.mutate()} disabled={!callerStaffMetaId || !applicationIds.length || assignMutation.isPending}>
+              {assignMutation.isPending ? <Loader2 className="size-4 animate-spin" /> : "Assign selected"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {logModal.open && (
         <CallInteractionModal

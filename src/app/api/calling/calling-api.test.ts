@@ -22,7 +22,7 @@ const mockDb = vi.hoisted(() => ({
   callingAssignment: { findUnique: vi.fn(), findMany: vi.fn(), count: vi.fn(), updateMany: vi.fn(), create: vi.fn(), update: vi.fn() },
   callInteraction: { create: vi.fn() },
   externalSupportCaller: { findFirst: vi.fn(), findUnique: vi.fn(), findMany: vi.fn() },
-  staffMeta: { findFirst: vi.fn(), findUnique: vi.fn() },
+  staffMeta: { findFirst: vi.fn(), findUnique: vi.fn(), findMany: vi.fn() },
   admissionApplication: { findMany: vi.fn() },
   callingTemplateUse: { create: vi.fn() },
   callingPOCAssignment: { findFirst: vi.fn() },
@@ -647,5 +647,54 @@ describe("CALL-005: Campaign Leads Route", () => {
       expect(body.data[0]).not.toHaveProperty("callerExternalId");
       expect(body.data[0]).not.toHaveProperty("callerStaffMetaId");
     });
+  });
+});
+
+describe("CALL-010: Assignment Options Route", () => {
+  async function getOptions(campaignId = "cmp_1") {
+    const { GET } = await import("./campaigns/[id]/assignment-options/route");
+    return GET(new Request(`http://localhost/api/calling/campaigns/${campaignId}/assignment-options`), {
+      params: Promise.resolve({ id: campaignId }),
+    });
+  }
+
+  it("returns same-city callers and tracking codes without applicant PII", async () => {
+    mockDb.staffMeta.findMany.mockResolvedValue([
+      { id: "sm_1", role: "murabbi", user: { name: "Caller One" } },
+    ]);
+    mockDb.admissionApplication.findMany.mockResolvedValue([
+      { id: "app_1", trackingCode: "LHR-001", status: "submitted" },
+    ]);
+
+    const response = await getOptions();
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body).toEqual({
+      callers: [{ id: "sm_1", label: "Caller One", role: "murabbi" }],
+      applications: [{ id: "app_1", trackingCode: "LHR-001", status: "submitted" }],
+    });
+    expect(JSON.stringify(body)).not.toContain("applicantName");
+    expect(JSON.stringify(body)).not.toContain("guardianPhone");
+    expect(mockDb.admissionApplication.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ cityId: "city_lhr" }),
+    }));
+  });
+
+  it("propagates a campaign scope denial without reading assignment options", async () => {
+    vi.mocked(callingAuth.verifyCallingManagerOrPoc).mockResolvedValueOnce({
+      campaign: null,
+      isPoc: false,
+      isManager: false,
+      isExternalCaller: false,
+      error: "Campaign belongs to a different city",
+      status: 403,
+    } as any);
+
+    const response = await getOptions("cmp_foreign");
+
+    expect(response.status).toBe(403);
+    expect(mockDb.staffMeta.findMany).not.toHaveBeenCalled();
+    expect(mockDb.admissionApplication.findMany).not.toHaveBeenCalled();
   });
 });
