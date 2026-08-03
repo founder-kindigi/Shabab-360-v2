@@ -36,6 +36,7 @@ vi.mock("next/navigation", () => ({
 
 import { EventsPage, toEventApiDate } from "./_client";
 import EventDetailPage from "./[id]/_client";
+import { toResponsibilityEndOfDay } from "@/components/events/EventResponsibilityCard";
 
 function requireQueryCall(queryKey: string) {
   const call = mockUseQuery.mock.calls.find(
@@ -63,6 +64,10 @@ describe("Events UI Component-Level React Query Contract Tests", () => {
 
   it("converts native date-input values into the strict Event API datetime format", () => {
     expect(toEventApiDate("2026-08-03")).toBe("2026-08-03T00:00:00.000Z");
+  });
+
+  it("keeps a responsibility active through the selected end date", () => {
+    expect(toResponsibilityEndOfDay("2026-08-03")).toBe("2026-08-03T23:59:59.999Z");
   });
 
   afterEach(() => {
@@ -193,7 +198,7 @@ describe("Events UI Component-Level React Query Contract Tests", () => {
 
       EventDetailPage();
 
-      const createMutationCall = mockUseMutation.mock.calls[2];
+      const createMutationCall = mockUseMutation.mock.calls[4];
       expect(createMutationCall).toBeDefined();
 
       const mutationFn = createMutationCall[0].mutationFn;
@@ -237,7 +242,7 @@ describe("Events UI Component-Level React Query Contract Tests", () => {
 
       EventDetailPage();
 
-      const updateMutationCall = mockUseMutation.mock.calls[3];
+      const updateMutationCall = mockUseMutation.mock.calls[5];
       expect(updateMutationCall).toBeDefined();
 
       const mutationFn = updateMutationCall[0].mutationFn;

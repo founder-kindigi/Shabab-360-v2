@@ -32,7 +32,14 @@ type Responsibility = {
   endDate: string;
   isActive: boolean;
   revokedAt: string | null;
+  assignedToStaffMeta?: { user?: { name?: string | null } | null } | null;
 };
+
+type Assignee = { id: string; name: string; role: string };
+
+export function toResponsibilityEndOfDay(date: string): string {
+  return `${date}T23:59:59.999Z`;
+}
 
 export function EventResponsibilityCard({
   eventId,
@@ -54,14 +61,35 @@ export function EventResponsibilityCard({
     queryFn: () => fetch(`/api/admin/events/${eventId}/responsibilities`).then((r) => r.json()),
   });
 
+  const { data: assignees, isLoading: assigneesLoading } = useQuery<{ data: Assignee[] }>({
+    queryKey: ["event-responsibility-assignees", eventId],
+    enabled: showCreate && canManage,
+    queryFn: async () => {
+      const res = await fetch(`/api/admin/events/${eventId}/assignees`);
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({ error: "Unable to load event staff" }));
+        throw new Error(error.error || "Unable to load event staff");
+      }
+      return res.json();
+    },
+  });
+
   const createMutation = useMutation({
     mutationFn: async () => {
       const res = await fetch(`/api/admin/events/${eventId}/responsibilities`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, assignedToStaffMetaId: staffMetaId, startDate: new Date().toISOString(), endDate: new Date(endDate).toISOString() }),
+        body: JSON.stringify({
+          title,
+          assignedToStaffMetaId: staffMetaId,
+          startDate: new Date().toISOString(),
+          endDate: toResponsibilityEndOfDay(endDate),
+        }),
       });
-      if (!res.ok) throw new Error("Failed to create responsibility");
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({ error: "Failed to create responsibility" }));
+        throw new Error(error.error || "Failed to create responsibility");
+      }
       return res.json();
     },
     onSuccess: () => {
@@ -122,7 +150,7 @@ export function EventResponsibilityCard({
                   {isRevoked && <Badge variant="outline" className="text-[10px] text-red-500"><Ban className="size-3 mr-1" />Revoked</Badge>}
                 </div>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Until {format(new Date(r.endDate), "MMM d")} &middot; {r.assignedToStaffMetaId.slice(0, 12)}
+                  Until {format(new Date(r.endDate), "MMM d")} &middot; {r.assignedToStaffMeta?.user?.name || "Assigned staff"}
                 </p>
               </div>
               {canManage && isActive && (
@@ -148,7 +176,17 @@ export function EventResponsibilityCard({
                 <SelectItem value="Registration Lead">Registration Lead</SelectItem>
               </SelectContent>
             </Select>
-            <Input placeholder="Staff Meta ID" value={staffMetaId} onChange={(e) => setStaffMetaId(e.target.value)} />
+            <Select value={staffMetaId} onValueChange={setStaffMetaId} disabled={assigneesLoading}>
+              <SelectTrigger><SelectValue placeholder={assigneesLoading ? "Loading staff..." : "Select staff member"} /></SelectTrigger>
+              <SelectContent>
+                {assignees?.data?.map((assignee) => (
+                  <SelectItem key={assignee.id} value={assignee.id}>{assignee.name} ({assignee.role.replaceAll("_", " ")})</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {!assigneesLoading && assignees?.data?.length === 0 && (
+              <p className="text-xs text-muted-foreground">No active staff are available in this event's city.</p>
+            )}
             <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} placeholder="End date" />
           </div>
           <DialogFooter>
