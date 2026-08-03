@@ -70,6 +70,7 @@ type PlannerItem = {
 };
 
 type UiContext = { canManage: boolean; isHq: boolean };
+type Registration = { id: string; status: string; consentStatus: string; feeStatus: string; fee: { required: number; paid: number; remaining: number } | null };
 
 const STATUS_STYLES: Record<string, string> = {
   planned: "bg-muted text-muted-foreground",
@@ -110,6 +111,16 @@ export default function EventDetailPage() {
   });
 
   const canManage = ctx?.canManage ?? false;
+  const { data: registrations = [] } = useQuery<Registration[]>({
+    queryKey: ["event-registrations", eventId],
+    queryFn: async () => {
+      const response = await fetch(`/api/admin/events/${eventId}/registrations`);
+      const json = await response.json();
+      if (!response.ok) throw new Error(json.error || "Failed to load registrations");
+      return json.data as Registration[];
+    },
+    enabled: Boolean(eventId) && Boolean(ctx) && !ctxError,
+  });
 
   const { data, isLoading, error } = useQuery<EventDetail>({
     queryKey: ["event-detail", eventId],
@@ -307,6 +318,7 @@ export default function EventDetailPage() {
           <TabsTrigger value="teams">Teams ({data.teams?.length || 0})</TabsTrigger>
           <TabsTrigger value="responsibilities">Responsibilities ({data.responsibilities?.length || 0})</TabsTrigger>
           <TabsTrigger value="planner">Planner ({data.plannerItems?.length || 0})</TabsTrigger>
+          <TabsTrigger value="registrations">Registrations ({registrations.length})</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4 pt-4">
@@ -376,6 +388,19 @@ export default function EventDetailPage() {
                 )}
               </div>
             </div>
+          ))}
+        </TabsContent>
+
+        <TabsContent value="registrations" className="space-y-3 pt-4">
+          {registrations.length === 0 && <p className="py-8 text-center text-sm text-muted-foreground">No registrations yet.</p>}
+          {registrations.map((registration) => (
+            <Card key={registration.id} className="p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                <span className="font-medium">Registration</span>
+                <div className="flex gap-1"><Badge variant="outline">{registration.status}</Badge><Badge variant="outline">Consent: {registration.consentStatus}</Badge><Badge variant="outline">Fee: {registration.feeStatus}</Badge></div>
+              </div>
+              {registration.fee && <p className="mt-2 text-xs text-muted-foreground">Remaining fee: {registration.fee.remaining}</p>}
+            </Card>
           ))}
         </TabsContent>
       </Tabs>
