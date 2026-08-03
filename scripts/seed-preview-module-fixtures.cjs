@@ -96,6 +96,10 @@ async function ensurePreviewFixtures(client) {
 
     const mediaTeam = await ensureTeam(tx, city.id, "MEDIA", "Media");
     summary[mediaTeam.created ? "created" : "existing"].push("media team");
+    const sportsTeam = await ensureTeam(tx, city.id, "SPORTS", "Sports");
+    summary[sportsTeam.created ? "created" : "existing"].push("sports team");
+    const skillsTeam = await ensureTeam(tx, city.id, "SKILLS", "Skills");
+    summary[skillsTeam.created ? "created" : "existing"].push("skills team");
     const activityTeam = await ensureTeam(tx, city.id, "TADREEB", "Tadreeb");
     summary[activityTeam.created ? "created" : "existing"].push("activity team");
 
