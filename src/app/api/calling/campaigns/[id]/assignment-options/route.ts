@@ -48,9 +48,16 @@ export async function GET(_request: Request, { params }: RouteParams) {
     db.admissionApplication.findMany({
       where: {
         cityId,
-        callingAssignments: { none: { campaignId, isActive: true } },
       },
-      select: { id: true, trackingCode: true, status: true },
+      select: {
+        id: true,
+        trackingCode: true,
+        status: true,
+        callingAssignments: {
+          where: { campaignId, isActive: true },
+          select: { id: true },
+        },
+      },
       orderBy: { createdAt: "desc" },
       take: 100,
     }),
@@ -62,6 +69,11 @@ export async function GET(_request: Request, { params }: RouteParams) {
       label: caller.user.name || "Unnamed staff member",
       role: caller.role,
     })),
-    applications,
+    applications: applications.map((application) => ({
+      id: application.id,
+      trackingCode: application.trackingCode,
+      status: application.status,
+      assignedToCampaign: application.callingAssignments.length > 0,
+    })),
   });
 }

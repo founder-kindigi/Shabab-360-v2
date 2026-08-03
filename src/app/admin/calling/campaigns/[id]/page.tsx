@@ -72,7 +72,7 @@ type CallingUiContext = { canView: true; canManagePoc: boolean; canManageTemplat
 
 type AssignmentOptions = {
   callers: { id: string; label: string; role: string }[];
-  applications: { id: string; trackingCode: string; status: string }[];
+  applications: { id: string; trackingCode: string; status: string; assignedToCampaign: boolean }[];
 };
 
 const OUTCOME_ICONS: Record<string, typeof Phone> = {
@@ -284,8 +284,9 @@ export default function CampaignDetailPage() {
                     />
                     <span>{application.trackingCode}</span>
                     <Badge variant="secondary">{application.status}</Badge>
+                    {application.assignedToCampaign && <Badge variant="outline">Assigned</Badge>}
                   </label>
-                )) : <p className="text-sm text-muted-foreground">No unassigned admission records are available in this city.</p>}
+                )) : <p className="text-sm text-muted-foreground">No admission records are available in this city.</p>}
               </div>
             </div>
           )}

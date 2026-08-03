@@ -663,7 +663,7 @@ describe("CALL-010: Assignment Options Route", () => {
       { id: "sm_1", role: "murabbi", user: { name: "Caller One" } },
     ]);
     mockDb.admissionApplication.findMany.mockResolvedValue([
-      { id: "app_1", trackingCode: "LHR-001", status: "submitted" },
+      { id: "app_1", trackingCode: "LHR-001", status: "submitted", callingAssignments: [{ id: "assignment_1" }] },
     ]);
 
     const response = await getOptions();
@@ -672,7 +672,7 @@ describe("CALL-010: Assignment Options Route", () => {
     expect(response.status).toBe(200);
     expect(body).toEqual({
       callers: [{ id: "sm_1", label: "Caller One", role: "murabbi" }],
-      applications: [{ id: "app_1", trackingCode: "LHR-001", status: "submitted" }],
+      applications: [{ id: "app_1", trackingCode: "LHR-001", status: "submitted", assignedToCampaign: true }],
     });
     expect(JSON.stringify(body)).not.toContain("applicantName");
     expect(JSON.stringify(body)).not.toContain("guardianPhone");
