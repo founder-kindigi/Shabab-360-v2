@@ -42,7 +42,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   const participant = await db.participant.findFirst({
     where: { id: parsed.data.participantId, state: "active", group: { batch: { park: { cityId: access.event.cityId } } } },
-    select: { id: true },
+    select: { id: true, group: { select: { batchId: true } } },
   });
   if (!participant) return NextResponse.json({ error: "Active participant not found in this event city" }, { status: 404 });
 
@@ -55,12 +55,25 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   }
 
   const registration = await db.$transaction(async (tx) => {
+    let eventFeeScheduleId: string | undefined;
+    if (Number(access.event.cost ?? 0) > 0) {
+      const batchId = participant.group?.batchId;
+      if (!batchId) throw new Error("MISSING_PARTICIPANT_BATCH");
+      const existingSchedule = await tx.eventFeeSchedule.findUnique({ where: { eventId_batchId: { eventId: access.event.id, batchId } } });
+      if (existingSchedule) eventFeeScheduleId = existingSchedule.id;
+      else {
+        const feeEvent = await tx.feeEvent.create({ data: { batchId, title: `Event: ${access.event.title}`, feeType: "special", amount: access.event.cost!, dueDate: access.event.startDate } });
+        const schedule = await tx.eventFeeSchedule.create({ data: { eventId: access.event.id, batchId, feeEventId: feeEvent.id } });
+        eventFeeScheduleId = schedule.id;
+      }
+    }
     const created = await tx.eventRegistration.create({
       data: {
         eventId: access.event.id,
         participantId: participant.id,
         consentStatus: access.event.requiresConsent ? "pending" : "not_required",
         feeStatus: Number(access.event.cost ?? 0) > 0 ? "pending" : "not_required",
+        eventFeeScheduleId,
       },
     });
     await tx.auditLog.create({ data: createAuditLogData({ userId: access.auth.user.id, action: "event.registration.create", entityType: "event_registration", entityId: created.id, newValues: { eventId: access.event.id, participantId: participant.id } }) });
