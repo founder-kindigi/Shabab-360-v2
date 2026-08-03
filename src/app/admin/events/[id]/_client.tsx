@@ -198,6 +198,15 @@ export default function EventDetailPage() {
     onSuccess: () => { toast.success("Participant registered"); setShowRegistration(false); setParticipantSearch(""); queryClient.invalidateQueries({ queryKey: ["event-registrations", eventId] }); },
     onError: (err: Error) => toast.error(err.message),
   });
+  const registrationAction = useMutation({
+    mutationFn: async ({ registrationId, action }: { registrationId: string; action: "consent" | "cancel" | "checkin" }) => {
+      const url = action === "checkin" ? `/api/admin/events/${eventId}/registrations/${registrationId}/check-in` : `/api/admin/events/${eventId}/registrations/${registrationId}`;
+      const response = await fetch(url, { method: action === "checkin" ? "POST" : "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(action === "consent" ? { consentStatus: "provided" } : action === "cancel" ? { cancel: true } : { status: "present" }) });
+      const json = await response.json(); if (!response.ok) throw new Error(json.error || "Registration update failed"); return json;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["event-registrations", eventId] }),
+    onError: (error: Error) => toast.error(error.message),
+  });
 
   // POST /api/admin/events/[id]/planner-items
   const createPlannerMutation = useMutation({
@@ -425,6 +434,11 @@ export default function EventDetailPage() {
                 <div className="flex gap-1"><Badge variant="outline">{registration.status}</Badge><Badge variant="outline">Consent: {registration.consentStatus}</Badge><Badge variant="outline">Fee: {registration.feeStatus}</Badge></div>
               </div>
               {registration.fee && <p className="mt-2 text-xs text-muted-foreground">Remaining fee: {registration.fee.remaining}</p>}
+              {canManage && registration.status !== "cancelled" && <div className="mt-3 flex flex-wrap gap-2">
+                {registration.consentStatus === "pending" && <Button size="sm" variant="outline" onClick={() => registrationAction.mutate({ registrationId: registration.id, action: "consent" })}>Confirm consent</Button>}
+                <Button size="sm" variant="outline" onClick={() => registrationAction.mutate({ registrationId: registration.id, action: "checkin" })}>Check in</Button>
+                <Button size="sm" variant="ghost" className="text-red-600" onClick={() => registrationAction.mutate({ registrationId: registration.id, action: "cancel" })}>Cancel</Button>
+              </div>}
             </Card>
           ))}
         </TabsContent>
