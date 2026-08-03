@@ -71,6 +71,7 @@ type PlannerItem = {
 
 type UiContext = { canManage: boolean; isHq: boolean };
 type Registration = { id: string; status: string; consentStatus: string; feeStatus: string; fee: { required: number; paid: number; remaining: number } | null };
+type EligibleParticipant = { id: string; name: string; groupName: string };
 
 const STATUS_STYLES: Record<string, string> = {
   planned: "bg-muted text-muted-foreground",
@@ -96,6 +97,8 @@ export default function EventDetailPage() {
   const [plannerTitle, setPlannerTitle] = useState("");
   const [plannerPriority, setPlannerPriority] = useState("medium");
   const [plannerDue, setPlannerDue] = useState("");
+  const [showRegistration, setShowRegistration] = useState(false);
+  const [participantSearch, setParticipantSearch] = useState("");
 
   // ── Server-resolved capabilities ──────────────────────────────────────
   const { data: ctx, isError: ctxError, error: ctxErr } = useQuery<UiContext>({
@@ -111,6 +114,16 @@ export default function EventDetailPage() {
   });
 
   const canManage = ctx?.canManage ?? false;
+  const { data: eligibleParticipants = [] } = useQuery<EligibleParticipant[]>({
+    queryKey: ["event-eligible-participants", eventId, participantSearch],
+    queryFn: async () => {
+      const response = await fetch(`/api/admin/events/${eventId}/eligible-participants?q=${encodeURIComponent(participantSearch)}`);
+      const json = await response.json();
+      if (!response.ok) throw new Error(json.error || "Failed to search participants");
+      return json.data;
+    },
+    enabled: canManage && participantSearch.trim().length >= 2,
+  });
   const { data: registrations = [] } = useQuery<Registration[]>({
     queryKey: ["event-registrations", eventId],
     queryFn: async () => {
@@ -172,6 +185,17 @@ export default function EventDetailPage() {
       queryClient.invalidateQueries({ queryKey: ["event-detail", eventId] });
       queryClient.invalidateQueries({ queryKey: ["admin-events"] });
     },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const registerMutation = useMutation({
+    mutationFn: async (participantId: string) => {
+      const response = await fetch(`/api/admin/events/${eventId}/registrations`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ participantId }) });
+      const json = await response.json();
+      if (!response.ok) throw new Error(json.error || "Failed to register participant");
+      return json;
+    },
+    onSuccess: () => { toast.success("Participant registered"); setShowRegistration(false); setParticipantSearch(""); queryClient.invalidateQueries({ queryKey: ["event-registrations", eventId] }); },
     onError: (err: Error) => toast.error(err.message),
   });
 
@@ -392,6 +416,7 @@ export default function EventDetailPage() {
         </TabsContent>
 
         <TabsContent value="registrations" className="space-y-3 pt-4">
+          {canManage && <Button className="w-full sm:w-auto" size="sm" onClick={() => setShowRegistration(true)}><Plus className="mr-1 size-4" /> Register participant</Button>}
           {registrations.length === 0 && <p className="py-8 text-center text-sm text-muted-foreground">No registrations yet.</p>}
           {registrations.map((registration) => (
             <Card key={registration.id} className="p-3">
@@ -404,6 +429,17 @@ export default function EventDetailPage() {
           ))}
         </TabsContent>
       </Tabs>
+
+      <Dialog open={showRegistration} onOpenChange={setShowRegistration}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>Register participant</DialogTitle></DialogHeader>
+          <Input value={participantSearch} onChange={(event) => setParticipantSearch(event.target.value)} placeholder="Search student name" autoFocus />
+          <div className="max-h-72 space-y-2 overflow-y-auto">
+            {participantSearch.length >= 2 && eligibleParticipants.map((participant) => <Button key={participant.id} variant="outline" className="h-auto w-full justify-between p-3 text-left" disabled={registerMutation.isPending} onClick={() => registerMutation.mutate(participant.id)}><span>{participant.name}</span><span className="text-xs text-muted-foreground">{participant.groupName}</span></Button>)}
+            {participantSearch.length >= 2 && eligibleParticipants.length === 0 && <p className="py-4 text-center text-sm text-muted-foreground">No eligible participants found.</p>}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Create Planner Item Dialog */}
       <Dialog open={showPlanner} onOpenChange={(v) => !v && setShowPlanner(false)}>
