@@ -77,6 +77,9 @@ export async function requireMediaAccess(
   const { userHasCapability } = await import("@/lib/auth/capability-access");
   const hasCap = await userHasCapability(user, capability);
   if (!hasCap) return { authorized: false, error: "Forbidden: missing capability", status: 403 };
+  // HQ access remains city-bounded by resolveMediaCity, but does not depend on
+  // a personal collaboration membership to supervise the selected city.
+  if (isHqRole(user.role)) return { authorized: true, cityId: resolvedCityId };
   const isMember = await hasActiveMediaMembership(user, resolvedCityId);
   if (!isMember) return { authorized: false, error: "Forbidden: no active Media team membership", status: 403 };
   return { authorized: true, cityId: resolvedCityId };

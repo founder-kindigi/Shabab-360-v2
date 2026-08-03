@@ -57,6 +57,22 @@ describe("hasActiveMediaMembership", () => {
   });
 });
 
+describe("requireMediaAccess", () => {
+  it("allows an HQ user with capability without a personal Media membership", async () => {
+    mockDb.collaborationTeam.findFirst.mockResolvedValue(null);
+    const { requireMediaAccess } = await import("@/lib/media/media-auth");
+    await expect(requireMediaAccess({ id: "u1", role: "super_admin" }, "media.workspace.view", "city_lhr"))
+      .resolves.toMatchObject({ authorized: true, cityId: "city_lhr" });
+  });
+
+  it("still requires an active Media membership for scoped staff", async () => {
+    mockDb.collaborationTeam.findFirst.mockResolvedValue(null);
+    const { requireMediaAccess } = await import("@/lib/media/media-auth");
+    await expect(requireMediaAccess({ id: "u1", role: "city_head" }, "media.workspace.view", "city_lhr"))
+      .resolves.toMatchObject({ authorized: false, status: 403 });
+  });
+});
+
 // ── Schema tests ──────────────────────────────────────────────────────
 describe("sanitizeMediaAuditData", () => {
   it("removes rejectionReason", async () => {
@@ -114,6 +130,7 @@ describe("POST /api/admin/media/briefs", () => {
     expect((await post({ cityId: "city_lhr", teamId: "t1", title: "T" })).status).toBe(403);
   });
   it("403 no membership", async () => {
+    vi.mocked(auth.requireAuth).mockResolvedValue({ user: { id: "u1", role: "city_head" } } as any);
     mockDb.collaborationTeam.findFirst.mockResolvedValue(null);
     expect((await post({ cityId: "city_lhr", teamId: "t1", title: "T" })).status).toBe(403);
   });
