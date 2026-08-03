@@ -3,6 +3,7 @@ import { requireAuth } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
 import { createAuditLogData } from "@/lib/audit";
 import { userHasCapability } from "@/lib/auth/capability-access";
+import { isHqRole } from "@/lib/auth/scope";
 import { requireMediaAccess, resolveMediaCity, hasActiveMediaMembership, hasActiveMediaMembershipByStaffMetaId } from "@/lib/media/media-auth";
 import { updateBriefSchema, isValidBriefTransition, sanitizeMediaAuditData, assetMetadataHasExternalUrl } from "@/lib/media/media-schemas";
 
@@ -51,7 +52,9 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     userHasCapability(auth.user, "media.workspace.manage"),
     userHasCapability(auth.user, "media.workspace.view"),
   ]);
-  const isMember = await hasActiveMediaMembership(auth.user, existing.cityId);
+  // HQ is still bound to the brief's selected city above, but does not need a
+  // personal collaboration membership to supervise that city's workspace.
+  const isMember = isHqRole(auth.user.role) || await hasActiveMediaMembership(auth.user, existing.cityId);
   const canManage = hasWorkspaceManage && isMember;
   const canBriefsManage = hasBriefsManage && isMember;
   const canView = hasWorkspaceView && isMember;

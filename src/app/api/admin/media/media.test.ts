@@ -193,6 +193,10 @@ describe("PATCH [id]", () => {
     expect((await pat({ status: "open", version: 1 })).status).toBe(409);
   });
   it("409 invalid transition", async () => expect((await pat({ status: "approved", version: 1 })).status).toBe(409));
+  it("200 HQ transition without a personal Media membership", async () => {
+    mockDb.collaborationTeam.findFirst.mockResolvedValue(null);
+    expect((await pat({ status: "open", version: 1 })).status).toBe(200);
+  });
   it("200 draft->open", async () => expect((await pat({ status: "open", version: 1 })).status).toBe(200));
   it("400 rejects approvedAt", async () => expect((await pat({ status: "open", version: 1, approvedAt: "now" })).status).toBe(400));
   it("403 URL desc", async () => expect((await pat({ description: "https://e.com", version: 1 })).status).toBe(403));
