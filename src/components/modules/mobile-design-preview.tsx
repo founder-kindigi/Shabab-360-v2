@@ -31,82 +31,84 @@ import {
   CalendarCheck,
   BookOpen,
   UserPlus,
-  DollarSign
+  DollarSign,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+const SCREENS = [
+  { id: "splash",     label: "Splash",      icon: Sparkles },
+  { id: "login",      label: "Login",        icon: LogIn },
+  { id: "attendance", label: "Attendance",   icon: CheckSquare },
+  { id: "murabbi",    label: "Murabbi",      icon: Users },
+  { id: "park",       label: "Park Lead",    icon: TreePine },
+  { id: "city",       label: "City Head",    icon: Building2 },
+  { id: "admin",      label: "Admin HQ",     icon: ShieldCheck },
+  { id: "student",    label: "Student",      icon: GraduationCap },
+  { id: "guardian",   label: "Guardian",     icon: HeartHandshake },
+  { id: "calling",    label: "Calling Desk", icon: PhoneCall },
+  { id: "mashwara",   label: "Mashwara",     icon: Calendar },
+  { id: "events",     label: "Events",       icon: CalendarCheck },
+  { id: "planner",    label: "Planner",      icon: BookOpen },
+  { id: "admissions", label: "Admissions",   icon: UserPlus },
+  { id: "fees",       label: "Fees Desk",    icon: DollarSign },
+] as const;
+
+type ScreenId = (typeof SCREENS)[number]["id"];
+
 export function MobileDesignPreview() {
-  const [activeScreen, setActiveScreen] = useState<
-    "splash" | "login" | "attendance" | "murabbi" | "park" | "city" | "admin" | "student" | "guardian" | "calling" | "mashwara" | "events" | "planner" | "admissions" | "fees"
-  >("splash");
+  const [activeScreen, setActiveScreen] = useState<ScreenId>("splash");
   const [rolePrefill, setRolePrefill] = useState("");
 
   return (
-    <div className="flex flex-col min-h-screen bg-background text-foreground select-none">
-      {/* ─── Top Switcher Bar for Reviewers ───────────────────────────────── */}
-      <div className="sticky top-0 z-50 bg-slate-950 text-white border-b border-slate-800 px-4 py-2.5 flex flex-col md:flex-row items-center justify-between gap-2 shadow-xl">
-        <div className="flex items-center justify-between w-full md:w-auto gap-3 shrink-0">
-          <div className="flex items-center gap-2.5">
-            <div className="size-8 rounded-xl bg-gradient-to-br from-[#D90429] via-[#4B0A8F] to-[#1F0860] border border-white/20 p-0.5 flex items-center justify-center overflow-hidden">
-              <img src="/shabab-logo.png" alt="Shabab Logo" className="size-full object-contain" />
-            </div>
-            <div>
-              <h1 className="text-xs font-extrabold text-slate-100">Shabab 360 PWA App</h1>
-              <p className="text-[10px] text-purple-300 font-mono">Branch: design/shabab-brand-mobile-screens</p>
-            </div>
+    // Outer wrapper fills 100vw × 100vh on every device
+    <div className="flex flex-col min-h-screen w-full bg-background text-foreground">
+      {/* ─── Design Switcher Bar (reviewer-only, hidden on real PWA install) ─ */}
+      <div className="sticky top-0 z-50 w-full bg-slate-950 border-b border-slate-800 shadow-xl">
+        {/* Brand row */}
+        <div className="flex items-center gap-3 px-4 pt-3 pb-2">
+          <div className="size-8 rounded-xl overflow-hidden bg-gradient-to-br from-[#D90429] via-[#4B0A8F] to-[#1F0860] border border-white/20 p-0.5 shrink-0">
+            <img src="/shabab-logo.png" alt="Shabab 360" className="size-full object-contain" />
+          </div>
+          <div>
+            <p className="text-xs font-extrabold text-white leading-tight">Shabab 360 — PWA Preview</p>
+            <p className="text-[10px] font-mono text-purple-400">design/shabab-brand-mobile-screens</p>
           </div>
         </div>
 
-        {/* Screen Tabs Header */}
-        <div className="flex items-center gap-1 bg-slate-900 p-1 rounded-xl border border-slate-800 overflow-x-auto no-scrollbar w-full md:w-auto">
-          {[
-            { id: "splash", label: "1. Splash", icon: Sparkles },
-            { id: "login", label: "2. Login", icon: LogIn },
-            { id: "attendance", label: "3. Attendance", icon: CheckSquare },
-            { id: "murabbi", label: "4. Murabbi", icon: Users },
-            { id: "park", label: "5. Park Lead", icon: TreePine },
-            { id: "city", label: "6. City Head", icon: Building2 },
-            { id: "admin", label: "7. Admin HQ", icon: ShieldCheck },
-            { id: "student", label: "8. Student", icon: GraduationCap },
-            { id: "guardian", label: "9. Guardian", icon: HeartHandshake },
-            { id: "calling", label: "10. Calling Desk", icon: PhoneCall },
-            { id: "mashwara", label: "11. Mashwara", icon: Calendar },
-            { id: "events", label: "12. Events", icon: CalendarCheck },
-            { id: "planner", label: "13. Planner", icon: BookOpen },
-            { id: "admissions", label: "14. Admissions", icon: UserPlus },
-            { id: "fees", label: "15. Fees Desk", icon: DollarSign },
-          ].map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeScreen === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveScreen(tab.id as any)}
-                className={cn(
-                  "flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap",
-                  isActive ? "bg-[#4B0A8F] text-white shadow-md" : "text-slate-400 hover:text-white"
-                )}
-              >
-                <Icon className="size-3.5" />
-                <span>{tab.label}</span>
-              </button>
-            );
-          })}
+        {/* Scrollable screen tabs */}
+        <div className="overflow-x-auto no-scrollbar px-3 pb-2">
+          <div className="flex gap-1 min-w-max">
+            {SCREENS.map((tab) => {
+              const Icon = tab.icon;
+              const isActive = activeScreen === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveScreen(tab.id)}
+                  className={cn(
+                    "flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold whitespace-nowrap transition-all active:scale-95",
+                    isActive
+                      ? "bg-[#4B0A8F] text-white shadow-md"
+                      : "text-slate-400 hover:text-white hover:bg-slate-800"
+                  )}
+                >
+                  <Icon className="size-3.5 shrink-0" />
+                  {tab.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
 
-      {/* ─── Frameless Native PWA Adaptive Screen Container ──────────────── */}
-      <main className="flex-1 w-full max-w-md md:max-w-2xl lg:max-w-4xl xl:max-w-5xl mx-auto min-h-screen transition-all">
+      {/* ─── Full-screen App Area — same mobile layout, full device width ── */}
+      <main className="flex-1 w-full">
         {activeScreen === "splash" && (
           <MobileSplashPage
             onContinue={() => setActiveScreen("login")}
-            onSelectRole={(r) => {
-              setRolePrefill(r);
-              setActiveScreen("login");
-            }}
+            onSelectRole={(r) => { setRolePrefill(r); setActiveScreen("login"); }}
           />
         )}
-
         {activeScreen === "login" && (
           <MobileLoginPage
             initialRolePrefill={rolePrefill}
@@ -114,23 +116,21 @@ export function MobileDesignPreview() {
             onSuccess={() => setActiveScreen("attendance")}
           />
         )}
-
         {activeScreen === "attendance" && (
           <MobileAttendancePage onBack={() => setActiveScreen("login")} />
         )}
-
-        {activeScreen === "murabbi" && <MobileMurabbiDashboard />}
-        {activeScreen === "park" && <MobileParkDashboard />}
-        {activeScreen === "city" && <MobileCityHeadDashboard />}
-        {activeScreen === "admin" && <MobileAdminDashboard />}
-        {activeScreen === "student" && <MobileStudentDashboard />}
-        {activeScreen === "guardian" && <MobileGuardianDashboard />}
-        {activeScreen === "calling" && <MobileCallingPage />}
-        {activeScreen === "mashwara" && <MobileMashwaraPage />}
-        {activeScreen === "events" && <MobileEventsPage />}
-        {activeScreen === "planner" && <MobileContentPlannerPage />}
+        {activeScreen === "murabbi"    && <MobileMurabbiDashboard />}
+        {activeScreen === "park"       && <MobileParkDashboard />}
+        {activeScreen === "city"       && <MobileCityHeadDashboard />}
+        {activeScreen === "admin"      && <MobileAdminDashboard />}
+        {activeScreen === "student"    && <MobileStudentDashboard />}
+        {activeScreen === "guardian"   && <MobileGuardianDashboard />}
+        {activeScreen === "calling"    && <MobileCallingPage />}
+        {activeScreen === "mashwara"   && <MobileMashwaraPage />}
+        {activeScreen === "events"     && <MobileEventsPage />}
+        {activeScreen === "planner"    && <MobileContentPlannerPage />}
         {activeScreen === "admissions" && <MobileAdmissionsPage />}
-        {activeScreen === "fees" && <MobileFeesPage />}
+        {activeScreen === "fees"       && <MobileFeesPage />}
       </main>
     </div>
   );

@@ -122,7 +122,7 @@ export function MobileAttendancePage({ onBack }: MobileAttendancePageProps) {
   return (
     <div className="flex flex-col min-h-screen w-full bg-background text-foreground pb-28 select-none">
       {/* ─── Top Brand Header ────────────────────────────────────────────── */}
-      <div className="relative w-full bg-gradient-to-br from-[#D90429] via-[#4B0A8F] to-[#1F0860] text-white pt-6 pb-12 px-5 md:px-8 md:py-10 rounded-b-[2rem] md:rounded-b-[2.5rem] shadow-xl overflow-hidden">
+      <div className="relative w-full bg-gradient-to-br from-[#D90429] via-[#4B0A8F] to-[#1F0860] text-white pt-6 pb-12 px-5 rounded-b-[2rem] shadow-xl overflow-hidden">
         {/* Glow Rings */}
         <div className="absolute top-[-20%] right-[-10%] size-60 rounded-full bg-white/10 blur-2xl pointer-events-none" />
 
@@ -199,7 +199,7 @@ export function MobileAttendancePage({ onBack }: MobileAttendancePageProps) {
       </div>
 
       {/* ─── Roster Progress Bar Card ────────────────────────────────────── */}
-      <div className="-mt-5 px-4 md:px-6 z-20 space-y-4">
+      <div className="-mt-5 px-4 z-20 space-y-4">
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -220,7 +220,7 @@ export function MobileAttendancePage({ onBack }: MobileAttendancePageProps) {
         </motion.div>
 
         {/* ─── Student Roster Grid ────────────────────────────────────────── */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+        <div className="grid grid-cols-1 gap-3">
           {filteredRoster.map((student) => {
             const isPresent = student.status === "present";
             const isAbsent = student.status === "absent";
@@ -332,7 +332,7 @@ export function MobileAttendancePage({ onBack }: MobileAttendancePageProps) {
         </div>
 
         {/* ─── Floating Save & Sync Button ──────────────────────────────── */}
-        <div className="fixed bottom-4 left-4 right-4 z-40 max-w-md md:max-w-2xl lg:max-w-4xl xl:max-w-5xl mx-auto">
+        <div className="fixed bottom-4 left-4 right-4 z-40">
           <button
             onClick={handleSaveSync}
             disabled={syncAttendanceMutation.isPending}

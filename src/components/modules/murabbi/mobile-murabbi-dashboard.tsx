@@ -59,16 +59,16 @@ export function MobileMurabbiDashboard() {
   return (
     <div className="flex flex-col min-h-screen w-full bg-background text-foreground pb-24 select-none">
       {/* ─── Top Brand Header ────────────────────────────────────────────── */}
-      <div className="relative w-full bg-gradient-to-br from-[#1F0860] via-[#4B0A8F] to-[#380668] text-white pt-6 pb-12 px-5 md:px-8 md:py-10 rounded-b-[2rem] md:rounded-b-[2.5rem] shadow-xl">
+      <div className="relative w-full bg-gradient-to-br from-[#1F0860] via-[#4B0A8F] to-[#380668] text-white pt-6 pb-12 px-5 rounded-b-[2rem] shadow-xl">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <div className="size-9 md:size-10 rounded-xl bg-gradient-to-br from-[#D90429] via-[#4B0A8F] to-[#1F0860] border border-white/20 p-0.5 flex items-center justify-center overflow-hidden shrink-0 shadow-md">
+            <div className="size-9 rounded-xl bg-gradient-to-br from-[#D90429] via-[#4B0A8F] to-[#1F0860] border border-white/20 p-0.5 flex items-center justify-center overflow-hidden shrink-0 shadow-md">
               <img src="/shabab-logo.png" alt="Logo" className="size-full object-contain" />
             </div>
-            <span className="text-xs md:text-sm font-bold text-purple-200 tracking-wider uppercase">Murabbi Portal</span>
+            <span className="text-xs font-bold text-purple-200 tracking-wider uppercase">Murabbi Portal</span>
           </div>
 
-          <div className="flex items-center gap-1 text-[11px] md:text-xs font-semibold bg-white/10 px-3 py-1 rounded-full border border-white/15">
+          <div className="flex items-center gap-1 text-[11px] font-semibold bg-white/10 px-2.5 py-1 rounded-full border border-white/15">
             {isParkLoading ? (
               <RefreshCw className="size-3 text-purple-300 animate-spin" />
             ) : (
@@ -78,13 +78,13 @@ export function MobileMurabbiDashboard() {
           </div>
         </div>
 
-        <h1 className="text-xl md:text-2xl font-extrabold text-white">Assalam-o-Alaikum, {userName}</h1>
-        <p className="text-xs md:text-sm text-purple-200 mt-0.5">{parkName} • {cityName}</p>
+        <h1 className="text-xl font-extrabold text-white">Assalam-o-Alaikum, {userName}</h1>
+        <p className="text-xs text-purple-200 mt-0.5">{parkName} • {cityName}</p>
       </div>
 
       {/* ─── Metric Cards Grid ────────────────────────────────────────────── */}
-      <div className="-mt-6 px-4 md:px-6 z-10 space-y-4 md:space-y-6">
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
+      <div className="-mt-6 px-4 z-10 space-y-4">
+        <div className="grid grid-cols-2 gap-3">
           {/* Card 1: Total Group Students */}
           <motion.div
             initial={{ opacity: 0, y: 12 }}

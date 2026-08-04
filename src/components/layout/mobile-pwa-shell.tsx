@@ -36,7 +36,7 @@ export function MobilePwaShell({
   return (
     <div className="relative min-h-screen w-full bg-background text-foreground flex flex-col justify-between select-none font-sans antialiased overflow-x-hidden">
       {/* ─── Main Viewport Area ─────────────────────────────────────────── */}
-      <main className="flex-1 w-full pb-20 md:pb-6">
+      <main className="flex-1 w-full pb-20">
         <motion.div
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
@@ -49,7 +49,7 @@ export function MobilePwaShell({
 
       {/* ─── Floating PWA Bottom Navigation Bar (Mobile / PWA) ───────────── */}
       {showBottomNav && (
-        <nav className="fixed bottom-0 left-0 right-0 z-40 bg-card/85 backdrop-blur-xl border-t border-border/70 px-4 py-2 flex items-center justify-around shadow-2xl max-w-md md:max-w-2xl lg:max-w-4xl xl:max-w-5xl mx-auto">
+        <nav className="fixed bottom-0 left-0 right-0 z-40 bg-card/85 backdrop-blur-xl border-t border-border/70 px-4 py-2 flex items-center justify-around shadow-2xl w-full">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;
