@@ -10,11 +10,13 @@ import { MobileCityHeadDashboard } from "@/components/modules/city-head/mobile-c
 import { MobileAdminDashboard } from "@/components/modules/admin/mobile-admin-dashboard";
 import { MobileStudentDashboard } from "@/components/modules/student/mobile-student-dashboard";
 import { MobileGuardianDashboard } from "@/components/modules/guardian/mobile-guardian-dashboard";
-import { Sparkles, LogIn, CheckSquare, Users, TreePine, Building2, ShieldCheck, GraduationCap, HeartHandshake } from "lucide-react";
+import { MobileCallingPage } from "@/components/modules/admin/mobile-calling-page";
+import { MobileMashwaraPage } from "@/components/modules/admin/mobile-mashwara-page";
+import { Sparkles, LogIn, CheckSquare, Users, TreePine, Building2, ShieldCheck, GraduationCap, HeartHandshake, PhoneCall, Calendar } from "lucide-react";
 
 export function MobileDesignPreview() {
   const [activeScreen, setActiveScreen] = useState<
-    "splash" | "login" | "attendance" | "murabbi" | "park" | "city" | "admin" | "student" | "guardian"
+    "splash" | "login" | "attendance" | "murabbi" | "park" | "city" | "admin" | "student" | "guardian" | "calling" | "mashwara"
   >("splash");
   const [rolePrefill, setRolePrefill] = useState("");
 
@@ -44,6 +46,8 @@ export function MobileDesignPreview() {
             { id: "admin", label: "7. Admin HQ", icon: ShieldCheck },
             { id: "student", label: "8. Student", icon: GraduationCap },
             { id: "guardian", label: "9. Guardian", icon: HeartHandshake },
+            { id: "calling", label: "10. Calling Desk", icon: PhoneCall },
+            { id: "mashwara", label: "11. Mashwara", icon: Calendar },
           ].map((tab) => {
             const Icon = tab.icon;
             const isActive = activeScreen === tab.id;
@@ -101,6 +105,8 @@ export function MobileDesignPreview() {
             {activeScreen === "admin" && <MobileAdminDashboard />}
             {activeScreen === "student" && <MobileStudentDashboard />}
             {activeScreen === "guardian" && <MobileGuardianDashboard />}
+            {activeScreen === "calling" && <MobileCallingPage />}
+            {activeScreen === "mashwara" && <MobileMashwaraPage />}
           </div>
         </div>
       </div>
