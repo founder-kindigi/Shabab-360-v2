@@ -4,10 +4,12 @@ import { useState } from "react";
 import { MobileSplashPage } from "@/components/modules/auth/mobile-splash-page";
 import { MobileLoginPage } from "@/components/modules/auth/mobile-login-page";
 import { MobileAttendancePage } from "@/components/modules/park/mobile-attendance-page";
-import { Smartphone, Sparkles, LogIn, CheckSquare } from "lucide-react";
+import { MobileMurabbiDashboard } from "@/components/modules/murabbi/mobile-murabbi-dashboard";
+import { MobileParkDashboard } from "@/components/modules/park/mobile-park-dashboard";
+import { Sparkles, LogIn, CheckSquare, Users, TreePine } from "lucide-react";
 
 export function MobileDesignPreview() {
-  const [activeScreen, setActiveScreen] = useState<"splash" | "login" | "attendance">("splash");
+  const [activeScreen, setActiveScreen] = useState<"splash" | "login" | "attendance" | "murabbi" | "park">("splash");
   const [rolePrefill, setRolePrefill] = useState("");
 
   return (
@@ -25,10 +27,10 @@ export function MobileDesignPreview() {
         </div>
 
         {/* Screen Tabs */}
-        <div className="flex items-center gap-1.5 bg-slate-900 p-1 rounded-xl border border-slate-800">
+        <div className="flex items-center gap-1.5 bg-slate-900 p-1 rounded-xl border border-slate-800 overflow-x-auto no-scrollbar max-w-full">
           <button
             onClick={() => setActiveScreen("splash")}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
               activeScreen === "splash" ? "bg-[#4B0A8F] text-white shadow-md" : "text-slate-400 hover:text-white"
             }`}
           >
@@ -38,7 +40,7 @@ export function MobileDesignPreview() {
 
           <button
             onClick={() => setActiveScreen("login")}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
               activeScreen === "login" ? "bg-[#4B0A8F] text-white shadow-md" : "text-slate-400 hover:text-white"
             }`}
           >
@@ -48,12 +50,32 @@ export function MobileDesignPreview() {
 
           <button
             onClick={() => setActiveScreen("attendance")}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
               activeScreen === "attendance" ? "bg-[#4B0A8F] text-white shadow-md" : "text-slate-400 hover:text-white"
             }`}
           >
             <CheckSquare className="size-3.5" />
             <span>3. Attendance</span>
+          </button>
+
+          <button
+            onClick={() => setActiveScreen("murabbi")}
+            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
+              activeScreen === "murabbi" ? "bg-[#4B0A8F] text-white shadow-md" : "text-slate-400 hover:text-white"
+            }`}
+          >
+            <Users className="size-3.5" />
+            <span>4. Murabbi</span>
+          </button>
+
+          <button
+            onClick={() => setActiveScreen("park")}
+            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
+              activeScreen === "park" ? "bg-[#4B0A8F] text-white shadow-md" : "text-slate-400 hover:text-white"
+            }`}
+          >
+            <TreePine className="size-3.5" />
+            <span>5. Park Lead</span>
           </button>
         </div>
       </div>
@@ -88,6 +110,14 @@ export function MobileDesignPreview() {
 
             {activeScreen === "attendance" && (
               <MobileAttendancePage onBack={() => setActiveScreen("login")} />
+            )}
+
+            {activeScreen === "murabbi" && (
+              <MobileMurabbiDashboard />
+            )}
+
+            {activeScreen === "park" && (
+              <MobileParkDashboard />
             )}
           </div>
         </div>
