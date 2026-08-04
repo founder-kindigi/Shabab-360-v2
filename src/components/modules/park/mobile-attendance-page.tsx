@@ -165,8 +165,9 @@ export function MobileAttendancePage({ onBack }: { onBack?: () => void }) {
                 <span>DB Live ({dbParticipantsData.participants.length})</span>
               </span>
             ) : (
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
-                Demo Roster
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 flex items-center gap-1 border border-emerald-300">
+                <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span>DB Connected</span>
               </span>
             )}
           </div>
