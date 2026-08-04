@@ -295,8 +295,7 @@ export function FeesPage() {
 
   // Session for role check
   const { data: session } = useSession();
-  const userRole = (session?.user?.role || "").toLowerCase().trim();
-  const isAdmin = ["super_admin", "program_admin", "admin"].includes(userRole);
+  const isAdmin = session?.user?.role === "ADMIN" || session?.user?.role === "SUPER_ADMIN";
 
   // ---- Queries ----
 
@@ -1388,7 +1387,7 @@ export function FeesPage() {
             </div>
 
             {/* Pagination */}
-            {pagination && pagination.totalPages > 1 && (
+            {pagination.totalPages > 1 && (
               <div className="flex items-center justify-between px-4 py-3 border-t bg-[#F3ECF6]/30 dark:bg-[#1F086080]/30">
                 <p className="text-xs text-muted-foreground">
                   Page {pagination.page} of {pagination.totalPages} ({pagination.total} total)

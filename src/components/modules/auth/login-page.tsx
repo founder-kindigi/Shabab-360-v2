@@ -9,39 +9,6 @@ import { useAppStore } from "@/stores/useAppStore";
 import { Eye, EyeOff, Shield, Lock, Mail, XCircle, Loader2 } from "lucide-react";
 import { useTranslation } from "@/lib/i18n";
 
-const DEMO_ACCOUNTS = [
-  { email: "super_admin@shabab360.pk", role: "Super Admin", color: "#4B0A8F" },
-  { email: "program_admin@shabab360.pk", role: "Program Admin", color: "#A0006B" },
-  { email: "city_head@shabab360.pk", role: "City Head", color: "#6B20A0" },
-  { email: "park_admin@shabab360.pk", role: "Park Admin", color: "#8A40B0" },
-  { email: "park_lead@shabab360.pk", role: "Park Lead", color: "#2A0C8F" },
-  { email: "murabbi@shabab360.pk", role: "Murabbi", color: "#E0002A" },
-  { email: "guardian@shabab360.pk", role: "Guardian", color: "#6B5A7A" },
-  { email: "student@shabab360.pk", role: "Student", color: "#FF0015" },
-] as const;
-
-const DEMO_PASSWORD = "password123";
-
-function doQuickLogin(accountEmail: string, setLoading: (v: boolean) => void, setError: (v: string) => void, triggerShake: () => void) {
-  setLoading(true);
-  setError("");
-  signIn("credentials", {
-    email: accountEmail,
-    password: DEMO_PASSWORD,
-    redirect: false,
-  }).then((result) => {
-    if (result?.error) {
-      setError("Login failed. Please try again.");
-      triggerShake();
-    }
-  }).catch(() => {
-    setError("An unexpected error occurred.");
-    triggerShake();
-  }).finally(() => {
-    setLoading(false);
-  });
-}
-
 export function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -235,7 +202,6 @@ export function LoginPage() {
                     {t("auth.resetPassword")}
                   </button>
                 </div>
-
 
               </form>
             </CardContent>

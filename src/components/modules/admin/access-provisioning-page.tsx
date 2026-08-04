@@ -302,36 +302,18 @@ export function AccessProvisioningPage() {
     enabled: !!cityScopeId,
   });
 
-  // Fetch batches for park → group cascade
-  const { data: batches } = useQuery<
-    { id: string; name: string; parkId: string }[]
-  >({
-    queryKey: ["admin-batches-dropdown", formParkId],
-    queryFn: () =>
-      fetch(`/api/admin/batches?parkId=${formParkId}`)
-        .then((r) => r.json())
-        .then((data: any[]) =>
-          data.map((b) => ({ id: b.id, name: b.name, parkId: b.parkId }))
-        ),
-    staleTime: 30000,
-    enabled: !!formParkId,
-  });
-
-  const batchIds = useMemo(() => batches?.map((b) => b.id) || [], [batches]);
-
   const { data: groups } = useQuery<GroupOption[]>({
-    queryKey: ["admin-groups-dropdown", batchIds.join(",")],
+    queryKey: ["admin-groups-dropdown", formParkId],
     queryFn: () => {
-      const batchId = batchIds[0];
-      if (!batchId) return Promise.resolve([]);
-      return fetch(`/api/admin/groups?batchId=${batchId}`)
+      if (!formParkId) return Promise.resolve([]);
+      return fetch(`/api/admin/groups?parkId=${formParkId}`)
         .then((r) => r.json())
         .then((data: any[]) =>
           data.map((g) => ({ id: g.id, name: g.name, batchId: g.batchId }))
         );
     },
     staleTime: 30000,
-    enabled: batchIds.length > 0,
+    enabled: !!formParkId,
   });
 
   // Fetch recent invites (last 20 users for search/filter)

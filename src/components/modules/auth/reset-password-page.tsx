@@ -15,6 +15,7 @@ import {
 
 export function ResetPasswordPage() {
   const { data: session } = useSession();
+  const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showNew, setShowNew] = useState(false);
@@ -23,12 +24,16 @@ export function ResetPasswordPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [success, setSuccess] = useState(false);
 
-  const user = session?.user as { name?: string } | undefined;
+  const user = session?.user as { name?: string; mustResetPwd?: boolean } | undefined;
   const displayName = user?.name || "User";
+  const requiresCurrentPassword = !user?.mustResetPwd;
 
   function validate(): boolean {
     const newErrors: Record<string, string> = {};
 
+    if (requiresCurrentPassword && !currentPassword) {
+      newErrors.currentPassword = "Current password is required";
+    }
     const passwordError = getPasswordValidationError(newPassword);
     if (passwordError) {
       newErrors.newPassword = passwordError;
@@ -54,6 +59,7 @@ export function ResetPasswordPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          currentPassword: requiresCurrentPassword ? currentPassword : undefined,
           newPassword,
           confirmPassword,
         }),
@@ -123,6 +129,22 @@ export function ResetPasswordPage() {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
+              {requiresCurrentPassword && (
+                <div className="space-y-2">
+                  <Label htmlFor="current-password">Current Password</Label>
+                  <Input
+                    id="current-password"
+                    type="password"
+                    autoComplete="current-password"
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    disabled={loading}
+                  />
+                  {errors.currentPassword && (
+                    <p className="text-xs text-destructive">{errors.currentPassword}</p>
+                  )}
+                </div>
+              )}
               <div className="space-y-2">
                 <Label htmlFor="new-password">New Password</Label>
                 <div className="relative">

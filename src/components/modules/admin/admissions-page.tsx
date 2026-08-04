@@ -537,10 +537,10 @@ export function AdmissionsPage() {
   });
 
   const statCards = [
-    { label: "Total Applications", value: applicationsData?.pagination?.total ?? 0, icon: FileText, color: "text-[#4B0A8F] dark:text-[#8A40B0]", bg: "bg-[#F3ECF6] dark:bg-[#1F086080]" },
-    { label: "Submitted", value: submittedCount?.pagination?.total ?? 0, icon: ClipboardCheck, color: "text-slate-600 dark:text-slate-400", bg: "bg-slate-100 dark:bg-slate-800" },
-    { label: "In Pipeline", value: (screeningCount?.pagination?.total ?? 0), icon: Clock, color: "text-amber-600 dark:text-amber-400", bg: "bg-amber-50 dark:bg-amber-950/50" },
-    { label: "Accepted", value: acceptedCount?.pagination?.total ?? 0, icon: CheckCircle2, color: "text-green-600 dark:text-green-400", bg: "bg-green-50 dark:bg-green-950/50" },
+    { label: "Total Applications", value: applicationsData?.pagination.total ?? 0, icon: FileText, color: "text-[#4B0A8F] dark:text-[#8A40B0]", bg: "bg-[#F3ECF6] dark:bg-[#1F086080]" },
+    { label: "Submitted", value: submittedCount?.pagination.total ?? 0, icon: ClipboardCheck, color: "text-slate-600 dark:text-slate-400", bg: "bg-slate-100 dark:bg-slate-800" },
+    { label: "In Pipeline", value: (screeningCount?.pagination.total ?? 0), icon: Clock, color: "text-amber-600 dark:text-amber-400", bg: "bg-amber-50 dark:bg-amber-950/50" },
+    { label: "Accepted", value: acceptedCount?.pagination.total ?? 0, icon: CheckCircle2, color: "text-green-600 dark:text-green-400", bg: "bg-green-50 dark:bg-green-950/50" },
   ];
 
   // ─── Kanban grouping ─────────────────────────────────────────────────────

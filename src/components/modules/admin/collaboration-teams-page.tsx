@@ -12,6 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { TeamActivityPlanner } from "@/components/modules/admin/team-activity-planner";
 
 type Team = {
   id: string;
@@ -43,6 +44,8 @@ type StaffOption = {
   staffMeta: { id: string; role: string; isActive: boolean } | null;
 };
 
+type CityItem = { id: string; name: string };
+
 async function request(url: string, init?: RequestInit) {
   const response = await fetch(url, init);
   const data = await response.json();
@@ -54,37 +57,77 @@ function roleLabel(role: string) {
   return role.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
+const HQ_ROLES = ["super_admin", "program_admin"];
+
 export function CollaborationTeamsPage() {
   const queryClient = useQueryClient();
   const [selectedTeamId, setSelectedTeamId] = useState("");
   const [staffMetaId, setStaffMetaId] = useState("");
   const [title, setTitle] = useState("");
   const [membershipToEnd, setMembershipToEnd] = useState<Membership | null>(null);
+  const [cityId, setCityId] = useState("");
 
-  const teams = useQuery<Team[]>({
-    queryKey: ["collaboration-teams"],
-    queryFn: () => request("/api/admin/collaboration-teams"),
-    staleTime: 30000,
+  // ── Session info ──────────────────────────────────────────────────────────
+  const sessionQuery = useQuery<{ user: { role: string; assignedCityId?: string | null } }>({
+    queryKey: ["session-role"],
+    queryFn: () => request("/api/auth/session"),
+    staleTime: 60000,
   });
+  const role = sessionQuery.data?.user?.role ?? "";
+  const isHq = HQ_ROLES.includes(role);
+
+  // UI permission signal — resolved server-side through the full override chain
+  const canManageQuery = useQuery<{ canManage: boolean }>({
+    queryKey: ["can-manage-teams"],
+    queryFn: () => request("/api/admin/teams/can-manage"),
+    staleTime: 60000,
+  });
+  const canManage = canManageQuery.data?.canManage ?? false;
+
+  // Cities (HQ only: pick a city; scoped: derive automatically)
+  const cities = useQuery<CityItem[]>({
+    queryKey: ["collaboration-team-cities"],
+    queryFn: () => request("/api/admin/cities"),
+    staleTime: 60000,
+    enabled: isHq,
+  });
+
+  // Preselect the first city for HQ so the query key stabilises.
+  const effectiveCityId = isHq
+    ? (cityId || cities.data?.[0]?.id || "")
+    : "";
+
+  // ── Teams ─────────────────────────────────────────────────────────────────
+  const teamsQueryKey = ["collaboration-teams", effectiveCityId] as const;
+  const teams = useQuery<{ data: Team[]; total: number; page: number; pageSize: number }>({
+    queryKey: teamsQueryKey,
+    queryFn: () => {
+      const params = effectiveCityId ? `?cityId=${effectiveCityId}` : "";
+      return request(`/api/admin/teams${params}`);
+    },
+    staleTime: 30000,
+    enabled: Boolean(effectiveCityId) || !isHq,
+  });
+
   const staff = useQuery<{ data: StaffOption[] }>({
     queryKey: ["collaboration-team-staff"],
     queryFn: () => request("/api/admin/users?pageSize=100&status=active"),
     staleTime: 30000,
   });
 
-  const selectedTeam = teams.data?.find((team) => team.id === selectedTeamId)
-    ?? teams.data?.[0]
+  const selectedTeam = teams.data?.data?.find((team) => team.id === selectedTeamId)
+    ?? teams.data?.data?.[0]
     ?? null;
   const activeTeamId = selectedTeam?.id ?? "";
-  const memberships = useQuery<Membership[]>({
+  const memberships = useQuery<{ data: Membership[] }>({
     queryKey: ["collaboration-team-members", activeTeamId],
-    queryFn: () => request(`/api/admin/collaboration-teams/${activeTeamId}/members`),
+    queryFn: () => request(`/api/admin/teams/${activeTeamId}/members`),
     enabled: Boolean(activeTeamId),
     staleTime: 15000,
   });
 
   const addMember = useMutation({
-    mutationFn: () => request(`/api/admin/collaboration-teams/${activeTeamId}/members`, {
+    mutationFn: () => request(`/api/admin/teams/${activeTeamId}/members`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ staffMetaId, title: title.trim() || undefined }),
@@ -100,7 +143,7 @@ export function CollaborationTeamsPage() {
   });
   const endMembership = useMutation({
     mutationFn: (membership: Membership) => request(
-      `/api/admin/collaboration-teams/${activeTeamId}/members/${membership.id}`,
+      `/api/admin/teams/${activeTeamId}/members/${membership.id}`,
       { method: "DELETE" }
     ),
     onSuccess: () => {
@@ -113,7 +156,7 @@ export function CollaborationTeamsPage() {
   });
 
   const staffOptions = (staff.data?.data ?? []).filter((user) => user.isActive && user.staffMeta?.isActive);
-  const assignedStaffIds = new Set((memberships.data ?? []).map((membership) => membership.staffMeta.id));
+  const assignedStaffIds = new Set((memberships.data?.data ?? []).map((membership) => membership.staffMeta.id));
 
   return (
     <div className="space-y-6">
@@ -129,9 +172,25 @@ export function CollaborationTeamsPage() {
         </CardContent>
       </Card>
 
-      {teams.isLoading ? <p className="text-sm text-muted-foreground">Loading collaboration teams...</p> : teams.isError ? <p className="text-sm text-destructive">Unable to load collaboration teams.</p> : teams.data?.length === 0 ? <Card><CardContent className="py-10 text-center text-sm text-muted-foreground">No collaboration teams are available for this workspace.</CardContent></Card> : <>
+      {isHq && (
+        <div className="flex items-center gap-2">
+          <Label className="text-sm font-medium shrink-0">City</Label>
+          <Select value={effectiveCityId} onValueChange={(v) => { setCityId(v); setSelectedTeamId(""); }}>
+            <SelectTrigger className="w-64">
+              <SelectValue placeholder="Select a city" />
+            </SelectTrigger>
+            <SelectContent>
+              {(cities.data ?? []).map((city) => (
+                <SelectItem key={city.id} value={city.id}>{city.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
+      {teams.isLoading ? <p className="text-sm text-muted-foreground">Loading collaboration teams...</p> : teams.isError ? <p className="text-sm text-destructive">Unable to load collaboration teams.</p> : !teams.data?.data?.length ? <Card><CardContent className="py-10 text-center text-sm text-muted-foreground">No collaboration teams are available for this workspace.</CardContent></Card> : <>
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-          {teams.data?.map((team) => (
+          {teams.data?.data?.map((team) => (
             <button
               key={team.id}
               onClick={() => setSelectedTeamId(team.id)}
@@ -151,16 +210,16 @@ export function CollaborationTeamsPage() {
               <CardDescription>{selectedTeam.description || `Operational team for ${selectedTeam.city.name}.`}</CardDescription>
             </CardHeader>
             <CardContent>
-              {memberships.isLoading ? <p className="text-sm text-muted-foreground">Loading active members...</p> : memberships.isError ? <p className="text-sm text-destructive">Unable to load team members.</p> : memberships.data?.length === 0 ? <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">No active team members yet.</div> : <div className="space-y-3">
-                {memberships.data?.map((membership) => <div key={membership.id} className="flex items-center justify-between gap-3 rounded-xl border p-3">
+              {memberships.isLoading ? <p className="text-sm text-muted-foreground">Loading active members...</p> : memberships.isError ? <p className="text-sm text-destructive">Unable to load team members.</p> : !memberships.data?.data?.length ? <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">No active team members yet.</div> : <div className="space-y-3">
+                {memberships.data?.data?.map((membership) => <div key={membership.id} className="flex items-center justify-between gap-3 rounded-xl border p-3">
                   <div className="flex min-w-0 items-center gap-3"><div className="rounded-full bg-muted p-2"><CircleUserRound className="size-4" /></div><div className="min-w-0"><p className="truncate text-sm font-medium">{membership.staffMeta.user.name || membership.staffMeta.user.email}</p><p className="truncate text-xs text-muted-foreground">{roleLabel(membership.staffMeta.role)}{membership.title ? ` · ${membership.title}` : ""}</p></div></div>
-                  <Button size="sm" variant="outline" onClick={() => setMembershipToEnd(membership)}>End membership</Button>
+                  {canManage && <Button size="sm" variant="outline" onClick={() => setMembershipToEnd(membership)}>End membership</Button>}
                 </div>)}
               </div>}
             </CardContent>
           </Card>
 
-          <Card>
+          {canManage && <Card>
             <CardHeader>
               <CardTitle className="text-base">Add Team Member</CardTitle>
               <CardDescription>Only same-city active staff can be added.</CardDescription>
@@ -170,8 +229,19 @@ export function CollaborationTeamsPage() {
               <div><Label htmlFor="team-title">Responsibility title (optional)</Label><Input id="team-title" value={title} maxLength={120} placeholder="e.g. Sports POC" onChange={(event) => setTitle(event.target.value)} /></div>
               <Button className="w-full" disabled={!staffMetaId || addMember.isPending} onClick={() => addMember.mutate()}><Plus className="mr-2 size-4" />{addMember.isPending ? "Adding..." : "Add member"}</Button>
             </CardContent>
-          </Card>
+          </Card>}
         </div>}
+
+        {selectedTeam && (
+          <TeamActivityPlanner
+            teamId={activeTeamId}
+            members={(memberships.data?.data ?? []).map((membership) => ({
+              id: membership.id,
+              title: membership.title,
+              staffMeta: membership.staffMeta,
+            }))}
+          />
+        )}
       </>}
 
       <AlertDialog open={Boolean(membershipToEnd)} onOpenChange={(open) => !open && setMembershipToEnd(null)}>

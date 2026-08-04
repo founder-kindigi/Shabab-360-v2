@@ -341,8 +341,10 @@ export function BatchesPage() {
   );
 
   // Determine if user can create batches
-  const userRole = (user?.role || "").toLowerCase().trim();
-  const canCreate = ["super_admin", "program_admin", "city_head"].includes(userRole);
+  const canCreate =
+    user?.role === "super_admin" ||
+    user?.role === "program_admin" ||
+    user?.role === "city_head";
 
   // Column definitions for SortableDataTable
   const columns: Column<Batch>[] = [

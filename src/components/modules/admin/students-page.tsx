@@ -79,6 +79,7 @@ import {
   FolderInput,
   Download,
   Check,
+  KeyRound,
   Filter,
   ChevronDown,
   ChevronUp,
@@ -115,6 +116,7 @@ interface GuardianInfo {
 
 interface Student {
   id: string;
+  hasLogin: boolean;
   name: string;
   phone: string | null;
   gender: string | null;
@@ -173,6 +175,14 @@ function getRateBarColor(rate: number | null) {
   if (rate >= 80) return "bg-[#4B0A8F] dark:bg-[#8A40B0]";
   if (rate >= 50) return "bg-amber-500 dark:bg-amber-400";
   return "bg-red-500 dark:bg-red-400";
+}
+
+async function fetchArrayResponse<T>(url: string): Promise<T[]> {
+  const response = await fetch(url);
+  if (!response.ok) return [];
+
+  const data: unknown = await response.json();
+  return Array.isArray(data) ? data as T[] : [];
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -236,7 +246,10 @@ export function StudentsPage() {
   const [detailOpen, setDetailOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [moveGroupOpen, setMoveGroupOpen] = useState(false);
+  const [provisionAccountOpen, setProvisionAccountOpen] = useState(false);
   const [moveGroupId, setMoveGroupId] = useState("");
+  const [accountEmail, setAccountEmail] = useState("");
+  const [temporaryPassword, setTemporaryPassword] = useState("");
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [selectedDetailId, setSelectedDetailId] = useState<string | null>(null);
 
@@ -255,14 +268,13 @@ export function StudentsPage() {
 
   const { data: cities } = useQuery<CityOption[]>({
     queryKey: ["admin-cities-dropdown"],
-    queryFn: () => fetch("/api/admin/cities").then((r) => r.json()),
+    queryFn: () => fetchArrayResponse<CityOption>("/api/admin/cities"),
     staleTime: 60000,
   });
 
   const { data: parks } = useQuery<ParkOption[]>({
     queryKey: ["admin-parks-dropdown", cityId],
-    queryFn: () =>
-      fetch(`/api/admin/parks${cityId ? `?cityId=${cityId}` : ""}`).then((r) => r.json()),
+    queryFn: () => fetchArrayResponse<ParkOption>(`/api/admin/parks${cityId ? `?cityId=${cityId}` : ""}`),
     staleTime: 60000,
     enabled: !!cityId,
   });
@@ -270,18 +282,18 @@ export function StudentsPage() {
   // Fetch all groups for filter and dialogs
   const { data: allGroups } = useQuery<GroupOption[]>({
     queryKey: ["admin-groups-all-dropdown"],
-    queryFn: () => fetch("/api/admin/groups").then((r) => r.json()),
+    queryFn: () => fetchArrayResponse<GroupOption>("/api/admin/groups"),
     staleTime: 60000,
   });
 
   // Filtered groups for cascading selects
   const filteredGroups = useMemo(() => {
-    if (!allGroups) return [];
+    if (!Array.isArray(allGroups)) return [];
     return allGroups.filter((g) => {
       if (parkId) return g.batch.park.id === parkId;
       if (cityId) {
         // We don't have cityId on groups, but we have parkId from parks
-        const parkIds = parks?.map((p) => p.id) || [];
+        const parkIds = Array.isArray(parks) ? parks.map((p) => p.id) : [];
         return parkIds.includes(g.batch.park.id);
       }
       return true;
@@ -305,7 +317,7 @@ export function StudentsPage() {
     staleTime: 10000,
   });
 
-  const students = data?.data || [];
+  const students = Array.isArray(data?.data) ? data.data : [];
   const pagination = data?.pagination;
 
   // Selection helpers
@@ -432,6 +444,24 @@ export function StudentsPage() {
     },
   });
 
+  const provisionAccountMutation = useMutation({
+    mutationFn: ({ id, email }: { id: string; email: string }) =>
+      fetch(`/api/admin/students/${id}/account`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      }).then((response) => response.ok ? response.json() : response.json().then((error) => Promise.reject(error))),
+    onSuccess: (result) => {
+      setTemporaryPassword(result.temporaryPassword);
+      queryClient.invalidateQueries({ queryKey: ["admin-students"] });
+      toast.success("Student login created", { description: "The temporary password is shown once." });
+    },
+    onError: (error: { error?: string | Record<string, string[]> }) => {
+      const message = typeof error.error === "string" ? error.error : error.error?.email?.[0];
+      toast.error(message || "Failed to create student login");
+    },
+  });
+
   // ─── Dialog helpers ──────────────────────────────────────────────────────
 
   function openCreateDialog() {
@@ -490,6 +520,20 @@ export function StudentsPage() {
   function openDeleteDialog(student: Student) {
     setSelectedStudent(student);
     setDeleteOpen(true);
+  }
+
+  function openProvisionAccountDialog(student: Student) {
+    setSelectedStudent(student);
+    setAccountEmail("");
+    setTemporaryPassword("");
+    setProvisionAccountOpen(true);
+  }
+
+  function closeProvisionAccountDialog() {
+    setProvisionAccountOpen(false);
+    setAccountEmail("");
+    setTemporaryPassword("");
+    setSelectedStudent(null);
   }
 
   // ─── Submit handlers ─────────────────────────────────────────────────────
@@ -890,6 +934,15 @@ export function StudentsPage() {
                                 <Pencil className="size-4 mr-2" />
                                 {t("common.edit")}
                               </DropdownMenuItem>
+                              {!student.hasLogin && student.state === "active" && (
+                                <DropdownMenuItem
+                                  onClick={(e) => { e.stopPropagation(); openProvisionAccountDialog(student); }}
+                                  className="cursor-pointer"
+                                >
+                                  <KeyRound className="size-4 mr-2" />
+                                  Create login
+                                </DropdownMenuItem>
+                              )}
                               <DropdownMenuItem
                                 onClick={(e) => { e.stopPropagation(); openDeleteDialog(student); }}
                                 className="text-red-600 focus:text-red-600 cursor-pointer"
@@ -960,6 +1013,12 @@ export function StudentsPage() {
                                 <Pencil className="size-4 mr-2" />
                                 Edit
                               </DropdownMenuItem>
+                              {!student.hasLogin && student.state === "active" && (
+                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openProvisionAccountDialog(student); }} className="cursor-pointer">
+                                  <KeyRound className="size-4 mr-2" />
+                                  Create login
+                                </DropdownMenuItem>
+                              )}
                               <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openDeleteDialog(student); }} className="text-red-600 focus:text-red-600 cursor-pointer">
                                 <Trash2 className="size-4 mr-2" />
                                 Deactivate
@@ -1160,6 +1219,42 @@ export function StudentsPage() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={provisionAccountOpen} onOpenChange={(open) => { if (!open) closeProvisionAccountDialog(); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Create student login</DialogTitle>
+            <DialogDescription>
+              This links a login to the existing student record. The student must reset the temporary password on first sign-in.
+            </DialogDescription>
+          </DialogHeader>
+          {!temporaryPassword ? (
+            <form onSubmit={(event) => {
+              event.preventDefault();
+              if (selectedStudent) provisionAccountMutation.mutate({ id: selectedStudent.id, email: accountEmail.trim() });
+            }} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="student-account-email">Login email</Label>
+                <Input id="student-account-email" type="email" value={accountEmail} onChange={(event) => setAccountEmail(event.target.value)} required autoFocus />
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={closeProvisionAccountDialog} disabled={provisionAccountMutation.isPending}>Cancel</Button>
+                <Button type="submit" disabled={provisionAccountMutation.isPending || !accountEmail.trim()} className="bg-[#4B0A8F] hover:bg-[#4B0A8FE6] text-white">
+                  {provisionAccountMutation.isPending ? "Creating..." : "Create login"}
+                </Button>
+              </DialogFooter>
+            </form>
+          ) : (
+            <div className="space-y-4">
+              <div className="rounded-lg border-2 border-dashed border-[#4B0A8F]/30 bg-[#F3ECF6] p-4 text-center">
+                <p className="text-xs text-muted-foreground mb-1">Temporary password (show once)</p>
+                <p className="break-all font-mono font-bold text-[#4B0A8F]">{temporaryPassword}</p>
+              </div>
+              <DialogFooter><Button onClick={closeProvisionAccountDialog}>Close</Button></DialogFooter>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 

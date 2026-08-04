@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
@@ -211,43 +211,19 @@ export function UsersPage() {
     enabled: !!formCityId || !!selectedUser?.staffMeta?.assignedCityId,
   });
 
-  // Fetch groups for dropdowns (filtered by park — need batch first)
-  // For groups, we need batches belonging to the selected park
-  const { data: batches } = useQuery<
-    { id: string; name: string; parkId: string }[]
-  >({
-    queryKey: ["admin-batches-dropdown", formParkId || selectedUser?.staffMeta?.assignedParkId],
+  const { data: groups } = useQuery<GroupOption[]>({
+    queryKey: ["admin-groups-dropdown", formParkId || selectedUser?.staffMeta?.assignedParkId],
     queryFn: () => {
       const parkId = formParkId || selectedUser?.staffMeta?.assignedParkId;
-      return fetch(`/api/admin/batches?parkId=${parkId}`)
-        .then((r) => r.json())
-        .then((data: any[]) =>
-          data.map((b) => ({ id: b.id, name: b.name, parkId: b.parkId }))
-        );
-    },
-    staleTime: 30000,
-    enabled: !!formParkId || !!selectedUser?.staffMeta?.assignedParkId,
-  });
-
-  const batchIds = useMemo(
-    () => batches?.map((b) => b.id) || [],
-    [batches]
-  );
-
-  const { data: groups } = useQuery<GroupOption[]>({
-    queryKey: ["admin-groups-dropdown", batchIds.join(",")],
-    queryFn: () => {
-      // Use the first batch for simplicity (or fetch all)
-      const batchId = batchIds[0];
-      if (!batchId) return Promise.resolve([]);
-      return fetch(`/api/admin/groups?batchId=${batchId}`)
+      if (!parkId) return Promise.resolve([]);
+      return fetch(`/api/admin/groups?parkId=${parkId}`)
         .then((r) => r.json())
         .then((data: any[]) =>
           data.map((g) => ({ id: g.id, name: g.name, batchId: g.batchId }))
         );
     },
     staleTime: 30000,
-    enabled: batchIds.length > 0,
+    enabled: !!formParkId || !!selectedUser?.staffMeta?.assignedParkId,
   });
 
   // Create mutation
@@ -329,14 +305,15 @@ export function UsersPage() {
       fetch(`/api/admin/users/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mustResetPwd: true }),
+        body: JSON.stringify({ generateTemporaryPassword: true }),
       }).then((r) => {
         if (!r.ok) return r.json().then((e) => Promise.reject(e));
         return r.json();
       }),
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["admin-users"] });
-      toast.success("Password reset flag set. User will be prompted on next login.");
+      setTemporaryPassword(data.temporaryPassword);
+      toast.success("Temporary password generated. Share it securely now.");
       setResetPwdOpen(false);
       setSelectedUser(null);
     },
@@ -789,7 +766,7 @@ export function UsersPage() {
         actions={(user) => {
           const items: { label: string; icon?: React.ComponentType<{ className?: string }>; onClick: () => void; destructive?: boolean }[] = [
             { label: "Edit", icon: Pencil, onClick: () => openEditDialog(user) },
-            { label: "Reset Password", icon: KeyRound, onClick: () => openResetPwdDialog(user) },
+            { label: "Generate Temporary Password", icon: KeyRound, onClick: () => openResetPwdDialog(user) },
           ];
           if (user.isActive) {
             items.push({
@@ -1291,17 +1268,18 @@ export function UsersPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Reset Password Confirmation */}
+      {/* Generate Temporary Password Confirmation */}
       <AlertDialog open={resetPwdOpen} onOpenChange={setResetPwdOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              Reset password for &ldquo;{selectedUser?.name || selectedUser?.email}
+              Generate a temporary password for &ldquo;{selectedUser?.name || selectedUser?.email}
               &rdquo;?
             </AlertDialogTitle>
             <AlertDialogDescription>
-              This will require the user to set a new password on their next
-              login. They will be redirected to the password reset page.
+              This replaces the current password, invalidates active sessions,
+              and shows a one-time credential for you to share securely. The
+              user must set a new password at first login.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -1321,7 +1299,7 @@ export function UsersPage() {
               className="bg-amber-600 hover:bg-amber-700 text-white"
               disabled={resetPwdMutation.isPending}
             >
-              {resetPwdMutation.isPending ? "Setting..." : "Require Reset"}
+              {resetPwdMutation.isPending ? "Generating..." : "Generate Password"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -73,9 +73,8 @@ export function ParksPage() {
   const user = session?.user as
     | { id?: string; role?: string; assignedCityId?: string | null }
     | undefined;
-  const userRole = (user?.role || "").toLowerCase().trim();
-  const isCityHead = userRole === "city_head";
-  const canDelete = ["super_admin", "program_admin"].includes(userRole);
+  const isCityHead = user?.role === "city_head";
+  const canDelete = ["super_admin", "program_admin"].includes(user?.role || "");
 
   const [search, setSearch] = useState("");
   const [cityFilter, setCityFilter] = useState<string>("all");
