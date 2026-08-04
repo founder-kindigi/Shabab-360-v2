@@ -29,7 +29,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <SessionProvider>
+      <SessionProvider refetchInterval={0} refetchOnWindowFocus={false}>
         {children}
         <Toaster position="top-right" />
       </SessionProvider>

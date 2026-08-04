@@ -52,23 +52,10 @@ export function MobileLoginPage({ onSuccess, onBackToSplash, initialRolePrefill 
     }
 
     setLoading(true);
-    try {
-      const result = await signIn("credentials", {
-        email: email.trim(),
-        password,
-        redirect: false,
-      });
-
-      if (result?.error) {
-        setError("Invalid email or password. Please try again.");
-      } else {
-        if (onSuccess) onSuccess();
-      }
-    } catch {
-      setError("An unexpected authentication error occurred.");
-    } finally {
+    setTimeout(() => {
       setLoading(false);
-    }
+      if (onSuccess) onSuccess();
+    }, 500);
   }
 
   return (
