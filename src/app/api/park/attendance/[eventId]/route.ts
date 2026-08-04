@@ -208,7 +208,7 @@ export async function POST(
       );
     }
 
-    if (participant.state === "dropped_out") {
+    if (participant.state === "dropout") {
       return NextResponse.json(
         { error: "Cannot mark attendance for a dropped out student" },
         { status: 409 }
