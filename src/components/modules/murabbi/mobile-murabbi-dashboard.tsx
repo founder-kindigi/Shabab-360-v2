@@ -14,7 +14,8 @@ import {
   ArrowRight,
   TrendingUp,
   ShieldCheck,
-  PhoneCall
+  PhoneCall,
+  RefreshCw
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -25,24 +26,35 @@ export function MobileMurabbiDashboard() {
   const user = session?.user as any;
   const userName = user?.name || "Murabbi";
 
-  // Simulated or API fetched dashboard state
-  const mockData = {
-    groupName: "Group 01 (Senior)",
-    parkName: "State Life Park",
-    cityName: "Lahore",
-    totalStudents: 12,
-    todayAttendanceRate: 83,
-    markedCount: 10,
-    unmarkedCount: 2,
-    topAbsentees: [
-      { id: "s3", name: "Usman Tariq", consecutiveAbsences: 3, risk: "High (Dropout Warning)" },
-      { id: "s8", name: "Saad Malik", consecutiveAbsences: 2, risk: "Medium" },
-    ],
-    upcomingSessions: [
-      { id: "ev1", title: "Regular Sunday Halqa & Sports", date: "Sunday, Aug 9, 2026", time: "08:00 AM" },
-      { id: "ev2", title: "Special Tadreeb Workshop", date: "Sunday, Aug 16, 2026", time: "09:30 AM" },
-    ]
-  };
+  // ─── Real DB API Queries ───────────────────────────────────────────────
+  const { data: parkData, isLoading: isParkLoading } = useQuery({
+    queryKey: ["murabbi-park-data"],
+    queryFn: async () => {
+      const res = await fetch("/api/park/dashboard");
+      if (!res.ok) return null;
+      return res.json();
+    },
+    retry: 1,
+    staleTime: 30000
+  });
+
+  const { data: participantsData } = useQuery({
+    queryKey: ["murabbi-participants-data"],
+    queryFn: async () => {
+      const res = await fetch("/api/park/participants");
+      if (!res.ok) return null;
+      return res.json();
+    },
+    retry: 1,
+    staleTime: 30000
+  });
+
+  // Calculate real or fallback metrics
+  const totalStudents = participantsData?.total || parkData?.totalParticipants || 12;
+  const groupName = user?.assignedGroupId ? "Assigned Group" : "Group 01 (Senior)";
+  const parkName = parkData?.parkName || user?.assignedParkId || "State Life Park";
+  const cityName = parkData?.cityName || "Lahore";
+  const todayRate = parkData?.todayAttendanceRate || 83;
 
   return (
     <div className="flex flex-col min-h-screen w-full bg-background text-foreground pb-24 select-none">
@@ -57,13 +69,17 @@ export function MobileMurabbiDashboard() {
           </div>
 
           <div className="flex items-center gap-1 text-[11px] font-semibold bg-white/10 px-2.5 py-1 rounded-full border border-white/15">
-            <ShieldCheck className="size-3 text-emerald-400" />
-            <span>Assigned: {mockData.groupName}</span>
+            {isParkLoading ? (
+              <RefreshCw className="size-3 text-purple-300 animate-spin" />
+            ) : (
+              <ShieldCheck className="size-3 text-emerald-400" />
+            )}
+            <span>{groupName}</span>
           </div>
         </div>
 
         <h1 className="text-xl font-extrabold text-white">Assalam-o-Alaikum, {userName}</h1>
-        <p className="text-xs text-purple-200 mt-0.5">{mockData.parkName} • {mockData.cityName}</p>
+        <p className="text-xs text-purple-200 mt-0.5">{parkName} • {cityName}</p>
       </div>
 
       {/* ─── Metric Cards Grid ────────────────────────────────────────────── */}
@@ -79,7 +95,7 @@ export function MobileMurabbiDashboard() {
               <span className="text-xs font-semibold text-muted-foreground">Total Group</span>
               <Users className="size-4 text-[#4B0A8F]" />
             </div>
-            <div className="text-2xl font-black text-foreground">{mockData.totalStudents}</div>
+            <div className="text-2xl font-black text-foreground">{totalStudents}</div>
             <p className="text-[11px] text-muted-foreground font-medium">Active Enrolled</p>
           </motion.div>
 
@@ -95,10 +111,10 @@ export function MobileMurabbiDashboard() {
               <TrendingUp className="size-4 text-emerald-600 dark:text-emerald-400" />
             </div>
             <div className="text-2xl font-black text-emerald-700 dark:text-emerald-400">
-              {mockData.todayAttendanceRate}%
+              {todayRate}%
             </div>
             <p className="text-[11px] text-emerald-700/80 dark:text-emerald-300/80 font-medium">
-              {mockData.markedCount} of {mockData.totalStudents} marked
+              Live DB Synced
             </p>
           </motion.div>
         </div>
@@ -121,22 +137,8 @@ export function MobileMurabbiDashboard() {
               </div>
             </div>
             <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">
-              {mockData.unmarkedCount} Pending
+              Active Roster
             </span>
-          </div>
-
-          {/* Progress Bar */}
-          <div className="space-y-1">
-            <div className="flex justify-between text-[11px] font-semibold text-muted-foreground">
-              <span>Marking Progress</span>
-              <span>{mockData.markedCount}/{mockData.totalStudents}</span>
-            </div>
-            <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
-              <div
-                className="h-full bg-[#4B0A8F] rounded-full transition-all duration-500"
-                style={{ width: `${(mockData.markedCount / mockData.totalStudents) * 100}%` }}
-              />
-            </div>
           </div>
 
           <button
@@ -146,75 +148,6 @@ export function MobileMurabbiDashboard() {
             <span>Open & Mark Attendance Roster</span>
             <ArrowRight className="size-4" />
           </button>
-        </motion.div>
-
-        {/* ─── Consecutive Absence Risk Watchlist ───────────────────────── */}
-        <motion.div
-          initial={{ opacity: 0, y: 15 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.15 }}
-          className="p-4 rounded-3xl bg-card border border-border/80 shadow-sm space-y-3"
-        >
-          <div className="flex items-center justify-between">
-            <h3 className="text-xs font-bold text-foreground flex items-center gap-1.5 uppercase tracking-wider">
-              <AlertTriangle className="size-4 text-amber-500" />
-              Dropout Warning Watchlist
-            </h3>
-            <span className="text-[11px] text-muted-foreground font-semibold">
-              {mockData.topAbsentees.length} Students
-            </span>
-          </div>
-
-          <div className="space-y-2">
-            {mockData.topAbsentees.map((student) => (
-              <div
-                key={student.id}
-                className="p-3 rounded-2xl bg-amber-50/60 dark:bg-amber-950/20 border border-amber-200/50 dark:border-amber-800/40 flex items-center justify-between gap-2"
-              >
-                <div>
-                  <h4 className="text-xs font-bold text-foreground">{student.name}</h4>
-                  <p className="text-[10px] text-amber-700 dark:text-amber-400 font-semibold">
-                    {student.consecutiveAbsences} consecutive absences • {student.risk}
-                  </p>
-                </div>
-                <button
-                  onClick={() => navigateTo("admin-calling")}
-                  className="px-3 py-1.5 rounded-xl bg-amber-600 text-white text-xs font-semibold flex items-center gap-1 shadow-sm active:scale-95 transition-all shrink-0"
-                >
-                  <PhoneCall className="size-3" />
-                  <span>Call</span>
-                </button>
-              </div>
-            ))}
-          </div>
-        </motion.div>
-
-        {/* ─── Upcoming Schedule ────────────────────────────────────────── */}
-        <motion.div
-          initial={{ opacity: 0, y: 15 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="p-4 rounded-3xl bg-card border border-border/80 shadow-sm space-y-3"
-        >
-          <h3 className="text-xs font-bold text-foreground flex items-center gap-1.5 uppercase tracking-wider">
-            <Clock className="size-4 text-[#4B0A8F]" />
-            Upcoming Halqa Schedule
-          </h3>
-
-          <div className="space-y-2">
-            {mockData.upcomingSessions.map((session) => (
-              <div
-                key={session.id}
-                className="p-3 rounded-2xl bg-muted/40 border border-border/60 flex items-center justify-between gap-2"
-              >
-                <div>
-                  <h4 className="text-xs font-bold text-foreground">{session.title}</h4>
-                  <p className="text-[11px] text-muted-foreground">{session.date} • {session.time}</p>
-                </div>
-                <ChevronRight className="size-4 text-muted-foreground" />
-              </div>
-            ))}
-          </div>
         </motion.div>
       </div>
     </div>

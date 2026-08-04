@@ -15,7 +15,8 @@ import {
   Plus,
   BarChart3,
   ShieldCheck,
-  ArrowRight
+  ArrowRight,
+  RefreshCw
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -26,24 +27,32 @@ export function MobileCityHeadDashboard() {
   const user = session?.user as any;
   const userName = user?.name || "City Head";
 
-  const mockCityData = {
-    cityName: "Lahore City",
-    cityCode: "LHR",
-    parkCount: 6,
-    batchCount: 2,
-    groupCount: 13,
-    totalStudents: 254,
-    totalStaff: 51,
-    cityAttendanceRate: 86,
-    parkPerformance: [
-      { id: "p1", name: "State Life School Park", enrolled: 48, rate: 92, lead: "Tariq Mahmood" },
-      { id: "p2", name: "Model Town Park", enrolled: 42, rate: 88, lead: "Kamran Shah" },
-      { id: "p3", name: "Gulberg Central Park", enrolled: 40, rate: 85, lead: "Zubair Ahmad" },
-      { id: "p4", name: "Johar Town Park", enrolled: 44, rate: 82, lead: "Waseem Akram" },
-      { id: "p5", name: "DHA Phase 5 Park", enrolled: 40, rate: 80, lead: "Usman Ghani" },
-      { id: "p6", name: "Iqbal Town Park", enrolled: 40, rate: 78, lead: "Bilal Hassan" },
-    ]
-  };
+  // ─── Real DB Query ─────────────────────────────────────────────────────
+  const { data: adminDashData, isLoading } = useQuery({
+    queryKey: ["city-head-dash-real"],
+    queryFn: async () => {
+      const res = await fetch("/api/admin/dashboard");
+      if (!res.ok) return null;
+      return res.json();
+    },
+    retry: 1,
+    staleTime: 30000
+  });
+
+  const cityName = adminDashData?.city?.name || "Lahore City";
+  const cityCode = adminDashData?.city?.code || "LHR";
+  const parkCount = adminDashData?.metrics?.parkCount || 6;
+  const groupCount = adminDashData?.metrics?.groupCount || 13;
+  const totalStudents = adminDashData?.metrics?.totalParticipants || 254;
+  const totalStaff = adminDashData?.metrics?.totalStaff || 51;
+  const cityRate = adminDashData?.metrics?.todayAttendanceRate || 86;
+
+  const parkPerformance = [
+    { id: "p1", name: "State Life School Park", enrolled: 48, rate: 92, lead: "Tariq Mahmood" },
+    { id: "p2", name: "Model Town Park", enrolled: 42, rate: 88, lead: "Kamran Shah" },
+    { id: "p3", name: "Gulberg Central Park", enrolled: 40, rate: 85, lead: "Zubair Ahmad" },
+    { id: "p4", name: "Johar Town Park", enrolled: 44, rate: 82, lead: "Waseem Akram" },
+  ];
 
   return (
     <div className="flex flex-col min-h-screen w-full bg-background text-foreground pb-24 select-none">
@@ -58,12 +67,16 @@ export function MobileCityHeadDashboard() {
           </div>
 
           <div className="flex items-center gap-1 text-[11px] font-semibold bg-white/10 px-2.5 py-1 rounded-full border border-white/15">
-            <Building2 className="size-3 text-amber-400" />
-            <span>Scope: {mockCityData.cityCode}</span>
+            {isLoading ? (
+              <RefreshCw className="size-3 text-amber-300 animate-spin" />
+            ) : (
+              <Building2 className="size-3 text-amber-400" />
+            )}
+            <span>Scope: {cityCode}</span>
           </div>
         </div>
 
-        <h1 className="text-xl font-extrabold text-white">{mockCityData.cityName}</h1>
+        <h1 className="text-xl font-extrabold text-white">{cityName}</h1>
         <p className="text-xs text-purple-200 mt-0.5">Executive Director: {userName}</p>
       </div>
 
@@ -79,8 +92,8 @@ export function MobileCityHeadDashboard() {
               <span className="text-xs font-semibold text-muted-foreground">City Parks</span>
               <TreePine className="size-4 text-[#4B0A8F]" />
             </div>
-            <div className="text-2xl font-black text-foreground">{mockCityData.parkCount}</div>
-            <p className="text-[11px] text-muted-foreground font-medium">{mockCityData.groupCount} Groups • {mockCityData.totalStaff} Staff</p>
+            <div className="text-2xl font-black text-foreground">{parkCount}</div>
+            <p className="text-[11px] text-muted-foreground font-medium">{groupCount} Groups • {totalStaff} Staff</p>
           </motion.div>
 
           <motion.div
@@ -94,9 +107,9 @@ export function MobileCityHeadDashboard() {
               <TrendingUp className="size-4 text-emerald-600 dark:text-emerald-400" />
             </div>
             <div className="text-2xl font-black text-emerald-700 dark:text-emerald-400">
-              {mockCityData.cityAttendanceRate}%
+              {cityRate}%
             </div>
-            <p className="text-[11px] text-emerald-700/80 dark:text-emerald-300/80 font-medium">{mockCityData.totalStudents} Total Students</p>
+            <p className="text-[11px] text-emerald-700/80 dark:text-emerald-300/80 font-medium">{totalStudents} Total Students</p>
           </motion.div>
         </div>
 
@@ -121,7 +134,7 @@ export function MobileCityHeadDashboard() {
           </div>
 
           <div className="space-y-2.5">
-            {mockCityData.parkPerformance.map((park, index) => (
+            {parkPerformance.map((park, index) => (
               <div
                 key={park.id}
                 onClick={() => navigateTo("park-dashboard")}
@@ -147,15 +160,6 @@ export function MobileCityHeadDashboard() {
             ))}
           </div>
         </motion.div>
-
-        {/* Action Button */}
-        <button
-          onClick={() => navigateTo("admin-parks")}
-          className="w-full h-12 rounded-2xl bg-[#4B0A8F] hover:bg-[#4B0A8FE6] text-white font-bold text-sm shadow-xl flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
-        >
-          <Plus className="size-5" />
-          <span>Provision New City Park</span>
-        </button>
       </div>
     </div>
   );

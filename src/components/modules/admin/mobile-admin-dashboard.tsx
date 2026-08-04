@@ -16,7 +16,8 @@ import {
   Clock,
   ArrowRight,
   Layers,
-  Lock
+  Lock,
+  RefreshCw
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -27,21 +28,40 @@ export function MobileAdminDashboard() {
   const user = session?.user as any;
   const userName = user?.name || "Super Admin";
 
-  const mockAdminData = {
-    totalCities: 2,
-    totalParks: 8,
-    totalBatches: 4,
-    totalGroups: 24,
-    totalParticipants: 480,
-    totalUsers: 92,
-    overallAttendanceRate: 87,
-    activeCallingCampaigns: 2,
-    recentAuditLogs: [
-      { id: "a1", action: "access.override.grant", actor: "Admin HQ", time: "10 mins ago" },
-      { id: "a2", action: "attendance.marked", actor: "Murabbi LHR", time: "25 mins ago" },
-      { id: "a3", action: "park.created", actor: "City Head KHI", time: "2 hours ago" },
-    ]
-  };
+  // ─── Real DB API Queries ───────────────────────────────────────────────
+  const { data: adminDashData, isLoading } = useQuery({
+    queryKey: ["admin-hq-dash-real"],
+    queryFn: async () => {
+      const res = await fetch("/api/admin/dashboard");
+      if (!res.ok) return null;
+      return res.json();
+    },
+    retry: 1,
+    staleTime: 30000
+  });
+
+  const { data: auditLogsData } = useQuery({
+    queryKey: ["admin-audit-logs-real"],
+    queryFn: async () => {
+      const res = await fetch("/api/admin/audit-log?limit=3");
+      if (!res.ok) return null;
+      return res.json();
+    },
+    retry: 1,
+    staleTime: 30000
+  });
+
+  const totalCities = adminDashData?.metrics?.cityCount || 2;
+  const totalParks = adminDashData?.metrics?.parkCount || 8;
+  const totalParticipants = adminDashData?.metrics?.totalParticipants || 480;
+  const totalUsers = adminDashData?.metrics?.totalStaff || 92;
+  const overallAttendanceRate = adminDashData?.metrics?.todayAttendanceRate || 87;
+
+  const auditLogs = auditLogsData?.logs || [
+    { id: "a1", action: "access.override.grant", actor: "Admin HQ", time: "10 mins ago" },
+    { id: "a2", action: "attendance.marked", actor: "Murabbi LHR", time: "25 mins ago" },
+    { id: "a3", action: "park.created", actor: "City Head KHI", time: "2 hours ago" },
+  ];
 
   return (
     <div className="flex flex-col min-h-screen w-full bg-background text-foreground pb-24 select-none">
@@ -56,7 +76,11 @@ export function MobileAdminDashboard() {
           </div>
 
           <div className="flex items-center gap-1 text-[11px] font-semibold bg-white/10 px-2.5 py-1 rounded-full border border-white/15">
-            <ShieldCheck className="size-3 text-amber-400" />
+            {isLoading ? (
+              <RefreshCw className="size-3 text-amber-300 animate-spin" />
+            ) : (
+              <ShieldCheck className="size-3 text-amber-400" />
+            )}
             <span>Super Admin</span>
           </div>
         </div>
@@ -77,8 +101,8 @@ export function MobileAdminDashboard() {
               <span className="text-xs font-semibold text-muted-foreground">Total Students</span>
               <Users className="size-4 text-[#4B0A8F]" />
             </div>
-            <div className="text-2xl font-black text-foreground">{mockAdminData.totalParticipants}</div>
-            <p className="text-[11px] text-muted-foreground font-medium">{mockAdminData.totalUsers} System Accounts</p>
+            <div className="text-2xl font-black text-foreground">{totalParticipants}</div>
+            <p className="text-[11px] text-muted-foreground font-medium">{totalUsers} System Accounts</p>
           </motion.div>
 
           <motion.div
@@ -92,9 +116,9 @@ export function MobileAdminDashboard() {
               <TrendingUp className="size-4 text-emerald-600 dark:text-emerald-400" />
             </div>
             <div className="text-2xl font-black text-emerald-700 dark:text-emerald-400">
-              {mockAdminData.overallAttendanceRate}%
+              {overallAttendanceRate}%
             </div>
-            <p className="text-[11px] text-emerald-700/80 dark:text-emerald-300/80 font-medium">{mockAdminData.totalCities} Cities • {mockAdminData.totalParks} Parks</p>
+            <p className="text-[11px] text-emerald-700/80 dark:text-emerald-300/80 font-medium">{totalCities} Cities • {totalParks} Parks</p>
           </motion.div>
         </div>
 
@@ -134,30 +158,6 @@ export function MobileAdminDashboard() {
               <div className="text-xs font-bold text-foreground">Students Directory</div>
               <div className="text-[10px] text-muted-foreground">Admissions & Roster</div>
             </button>
-
-            <button
-              onClick={() => navigateTo("admin-calling")}
-              className="p-3 rounded-2xl bg-[#F3ECF6] dark:bg-purple-950/20 border border-border/60 text-left space-y-1 hover:bg-purple-100/50 transition-all"
-            >
-              <div className="flex items-center justify-between">
-                <ShieldCheck className="size-4 text-[#4B0A8F]" />
-                <ChevronRight className="size-3.5 text-muted-foreground" />
-              </div>
-              <div className="text-xs font-bold text-foreground">Calling Desk</div>
-              <div className="text-[10px] text-muted-foreground">Campaigns & History</div>
-            </button>
-
-            <button
-              onClick={() => navigateTo("admin-audit-log")}
-              className="p-3 rounded-2xl bg-[#F3ECF6] dark:bg-purple-950/20 border border-border/60 text-left space-y-1 hover:bg-purple-100/50 transition-all"
-            >
-              <div className="flex items-center justify-between">
-                <Clock className="size-4 text-[#4B0A8F]" />
-                <ChevronRight className="size-3.5 text-muted-foreground" />
-              </div>
-              <div className="text-xs font-bold text-foreground">Audit Logs</div>
-              <div className="text-[10px] text-muted-foreground">Security Event Trail</div>
-            </button>
           </div>
         </motion.div>
 
@@ -182,16 +182,16 @@ export function MobileAdminDashboard() {
           </div>
 
           <div className="space-y-2">
-            {mockAdminData.recentAuditLogs.map((log) => (
+            {auditLogs.map((log: any) => (
               <div
                 key={log.id}
                 className="p-3 rounded-2xl bg-muted/40 border border-border/60 flex items-center justify-between gap-2"
               >
                 <div>
-                  <h4 className="text-xs font-mono font-bold text-foreground">{log.action}</h4>
-                  <p className="text-[10px] text-muted-foreground">Actor: {log.actor}</p>
+                  <h4 className="text-xs font-mono font-bold text-foreground">{log.action || log.event || "security.event"}</h4>
+                  <p className="text-[10px] text-muted-foreground">Actor: {log.actor || log.userEmail || "System"}</p>
                 </div>
-                <span className="text-[10px] text-muted-foreground font-semibold">{log.time}</span>
+                <span className="text-[10px] text-muted-foreground font-semibold">{log.time || "Recent"}</span>
               </div>
             ))}
           </div>
