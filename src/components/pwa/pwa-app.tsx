@@ -47,38 +47,38 @@ type ScreenId =
 
 // ─── Bottom nav tabs per role group ───────────────────────────────────────────
 const ADMIN_TABS = [
-  { id: "home" as ScreenId,       label: "Dashboard",  icon: Home },
-  { id: "admissions" as ScreenId, label: "Admissions", icon: User },
+  { id: "home" as ScreenId,       label: "Home",       icon: Home },
+  { id: "admissions" as ScreenId, label: "Admits",     icon: User },
   { id: "fees" as ScreenId,       label: "Fees",       icon: DollarSign },
-  { id: "calling" as ScreenId,    label: "Calling",    icon: PhoneCall },
+  { id: "calling" as ScreenId,    label: "Calls",      icon: PhoneCall },
   { id: "events" as ScreenId,     label: "Events",     icon: CalendarCheck },
 ];
 
 const PARK_TABS = [
-  { id: "home" as ScreenId,       label: "Dashboard",  icon: Home },
-  { id: "attendance" as ScreenId, label: "Attendance", icon: CheckSquare },
+  { id: "home" as ScreenId,       label: "Home",       icon: Home },
+  { id: "attendance" as ScreenId, label: "Attend",     icon: CheckSquare },
   { id: "mashwara" as ScreenId,   label: "Mashwara",   icon: CalendarCheck },
   { id: "planner" as ScreenId,    label: "Planner",    icon: BookOpen },
-  { id: "calling" as ScreenId,    label: "Calling",    icon: PhoneCall },
+  { id: "calling" as ScreenId,    label: "Calls",      icon: PhoneCall },
 ];
 
 const MURABBI_TABS = [
-  { id: "home" as ScreenId,       label: "Dashboard",  icon: Home },
-  { id: "attendance" as ScreenId, label: "Attendance", icon: CheckSquare },
+  { id: "home" as ScreenId,       label: "Home",       icon: Home },
+  { id: "attendance" as ScreenId, label: "Attend",     icon: CheckSquare },
   { id: "mashwara" as ScreenId,   label: "Mashwara",   icon: CalendarCheck },
   { id: "events" as ScreenId,     label: "Events",     icon: CalendarCheck },
   { id: "planner" as ScreenId,    label: "Planner",    icon: BookOpen },
 ];
 
 const STUDENT_TABS = [
-  { id: "home" as ScreenId,       label: "Dashboard",  icon: Home },
-  { id: "attendance" as ScreenId, label: "Attendance", icon: CheckSquare },
+  { id: "home" as ScreenId,       label: "Home",       icon: Home },
+  { id: "attendance" as ScreenId, label: "Attend",     icon: CheckSquare },
   { id: "events" as ScreenId,     label: "Events",     icon: CalendarCheck },
 ];
 
 const GUARDIAN_TABS = [
-  { id: "home" as ScreenId,  label: "Dashboard", icon: Home },
-  { id: "events" as ScreenId, label: "Events",   icon: CalendarCheck },
+  { id: "home" as ScreenId,  label: "Home",   icon: Home },
+  { id: "events" as ScreenId, label: "Events", icon: CalendarCheck },
 ];
 
 // ─── Role → home dashboard mapping ────────────────────────────────────────────
@@ -223,24 +223,51 @@ export function PwaApp() {
 
               {/* PROFILE / LOGOUT */}
               {screen === "profile" && (
-                <div className="flex flex-col min-h-screen w-full bg-background items-center justify-center gap-6 px-6">
-                  <div className="size-20 rounded-3xl bg-gradient-to-br from-[#D90429] via-[#4B0A8F] to-[#1F0860] border border-white/20 p-1.5 shadow-2xl flex items-center justify-center">
-                    <img src="/shabab-logo.png" alt="Shabab 360" className="size-full object-contain" />
+                <div className="flex flex-col min-h-screen w-full bg-background select-none">
+                  {/* Header gradient */}
+                  <div className="w-full bg-gradient-to-br from-[#1F0860] via-[#4B0A8F] to-[#D90429] pt-16 pb-20 px-6 flex flex-col items-center gap-4">
+                    {/* Avatar initials circle */}
+                    <div className="size-24 rounded-full bg-white/15 border-4 border-white/30 flex items-center justify-center shadow-2xl backdrop-blur-sm">
+                      <span className="text-3xl font-black text-white">
+                        {(user?.name ?? "U").split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()}
+                      </span>
+                    </div>
+                    <div className="text-center">
+                      <h2 className="text-xl font-extrabold text-white">{user?.name ?? "—"}</h2>
+                      <p className="text-sm text-purple-200 font-medium mt-0.5">{user?.email ?? ""}</p>
+                    </div>
                   </div>
-                  <div className="text-center space-y-1">
-                    <h2 className="text-lg font-extrabold text-foreground">{user?.name ?? "User"}</h2>
-                    <p className="text-xs text-muted-foreground font-medium">{user?.email ?? ""}</p>
-                    <span className="inline-flex items-center gap-1.5 text-[11px] font-bold bg-[#4B0A8F]/10 text-[#4B0A8F] dark:text-purple-300 px-3 py-1 rounded-full border border-[#4B0A8F]/20 uppercase tracking-wider mt-2">
-                      {role.replace("_", " ")}
-                    </span>
+
+                  {/* Info card */}
+                  <div className="-mt-8 mx-4 bg-card border border-border/80 rounded-3xl shadow-xl p-5 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Role</span>
+                      <span className="text-xs font-black bg-[#4B0A8F]/10 text-[#4B0A8F] dark:text-purple-300 px-3 py-1 rounded-full border border-[#4B0A8F]/20 uppercase tracking-wider">
+                        {role.replace(/_/g, " ")}
+                      </span>
+                    </div>
+                    <hr className="border-border/60" />
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Email</span>
+                      <span className="text-xs font-semibold text-foreground">{user?.email ?? "—"}</span>
+                    </div>
+                    <hr className="border-border/60" />
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">App</span>
+                      <span className="text-xs font-semibold text-foreground">Shabab 360 PWA</span>
+                    </div>
                   </div>
-                  <button
-                    onClick={handleLogout}
-                    className="flex items-center gap-2 h-12 px-8 rounded-2xl bg-rose-600 text-white font-bold text-sm shadow-xl shadow-rose-600/25 hover:bg-rose-700 active:scale-95 transition-all"
-                  >
-                    <LogOut className="size-4" />
-                    Sign Out
-                  </button>
+
+                  {/* Sign Out */}
+                  <div className="mx-4 mt-4">
+                    <button
+                      onClick={handleLogout}
+                      className="w-full flex items-center justify-center gap-2 h-14 rounded-2xl bg-rose-600 text-white font-extrabold text-sm shadow-xl shadow-rose-600/25 hover:bg-rose-700 active:scale-[0.98] transition-all"
+                    >
+                      <LogOut className="size-5" />
+                      Sign Out
+                    </button>
+                  </div>
                 </div>
               )}
             </motion.div>
@@ -249,7 +276,7 @@ export function PwaApp() {
 
         {/* ─── Glassmorphic Bottom Navigation ────────────────────────────── */}
         <nav className="fixed bottom-0 left-0 right-0 z-50 bg-card/85 backdrop-blur-xl border-t border-border/70 w-full shadow-2xl">
-          <div className="flex items-center justify-around px-2 py-2 pb-safe">
+          <div className="flex items-center justify-around px-1 py-1.5">
             {navTabs.map((tab) => {
               const Icon = tab.icon;
               const isActive = screen === tab.id;
@@ -258,7 +285,7 @@ export function PwaApp() {
                   key={tab.id}
                   onClick={() => setScreen(tab.id)}
                   className={cn(
-                    "flex flex-col items-center gap-0.5 py-1.5 px-3 rounded-2xl transition-all duration-200 relative min-w-[48px]",
+                    "flex flex-col items-center gap-0.5 py-1.5 px-2 rounded-xl transition-all duration-200 relative min-w-0 flex-1",
                     isActive
                       ? "text-[#4B0A8F] dark:text-purple-300"
                       : "text-muted-foreground hover:text-foreground"
@@ -280,7 +307,7 @@ export function PwaApp() {
             <button
               onClick={() => setScreen("profile")}
               className={cn(
-                "flex flex-col items-center gap-0.5 py-1.5 px-3 rounded-2xl transition-all duration-200 relative min-w-[48px]",
+                "flex flex-col items-center gap-0.5 py-1.5 px-2 rounded-xl transition-all duration-200 relative min-w-0 flex-1",
                 screen === "profile"
                   ? "text-[#4B0A8F] dark:text-purple-300"
                   : "text-muted-foreground hover:text-foreground"
