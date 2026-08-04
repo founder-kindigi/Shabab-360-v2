@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ProtoSplash } from "./screens/auth/proto-splash";
 import { ProtoLogin } from "./screens/auth/proto-login";
@@ -22,7 +22,7 @@ import { ProtoCityAdmissions } from "./screens/city/proto-city-admissions";
 import { ProtoCityCallingDesk } from "./screens/city/proto-city-calling";
 import { ProtoCityMashwara } from "./screens/city/proto-city-mashwara";
 import { ProtoCityPeople } from "./screens/city/proto-city-people";
-import { ProtoCityEvents } from "./screens/city/proto-city-events";
+import { ProtoCityEvents as CityEvents } from "./screens/city/proto-city-events";
 import { ProtoCityFinance } from "./screens/city/proto-city-finance";
 
 import { ProtoParkDashboard } from "./screens/park/proto-park-dashboard";
@@ -68,6 +68,14 @@ import {
   Sparkles,
   Layers,
   Grid,
+  Smartphone,
+  Monitor,
+  Tablet,
+  Maximize2,
+  Wifi,
+  Battery,
+  Signal,
+  CheckCircle2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -79,6 +87,8 @@ export type ProtoRole =
   | "guardian"
   | "student"
   | "public";
+
+export type DeviceMode = "iphone" | "pixel" | "tablet" | "full";
 
 const ROLES: { id: ProtoRole; label: string; icon: any; defaultScreen: string }[] = [
   { id: "hq", label: "Program HQ", icon: ShieldCheck, defaultScreen: "hq-dashboard" },
@@ -156,6 +166,17 @@ export function PrototypeApp() {
   const [showRoleSelector, setShowRoleSelector] = useState<boolean>(false);
   const [showScreenDrawer, setShowScreenDrawer] = useState<boolean>(false);
   const [isLoggedOut, setIsLoggedOut] = useState<boolean>(true);
+  const [deviceMode, setDeviceMode] = useState<DeviceMode>("iphone");
+  const [isMobileDevice, setIsMobileDevice] = useState<boolean>(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobileDevice(window.innerWidth < 768);
+    };
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
   const handleRoleChange = (roleId: ProtoRole) => {
     setCurrentRole(roleId);
@@ -218,11 +239,12 @@ export function PrototypeApp() {
     // City Head Screens
     if (activeScreen === "city-dashboard") return <ProtoCityDashboard onNavigate={handleNavigate} />;
     if (activeScreen === "city-admissions") return <ProtoCityAdmissions onNavigate={handleNavigate} />;
+    if (activeScreen === "city-[#city-calling]") return <ProtoCityCallingDesk onNavigate={handleNavigate} />;
     if (activeScreen === "city-calling") return <ProtoCityCallingDesk onNavigate={handleNavigate} />;
     if (activeScreen === "calling-detail") return <ProtoCallingDetail onNavigate={handleNavigate} />;
     if (activeScreen === "city-mashwara") return <ProtoCityMashwara onNavigate={handleNavigate} />;
     if (activeScreen === "city-people") return <ProtoCityPeople onNavigate={handleNavigate} />;
-    if (activeScreen === "city-events") return <ProtoCityEvents onNavigate={handleNavigate} />;
+    if (activeScreen === "city-events") return <CityEvents onNavigate={handleNavigate} />;
     if (activeScreen === "city-finance") return <ProtoCityFinance onNavigate={handleNavigate} />;
 
     // Park & Inventory Screens
@@ -263,18 +285,81 @@ export function PrototypeApp() {
   const activeRoleObj = ROLES.find((r) => r.id === currentRole);
   const ActiveRoleIcon = activeRoleObj?.icon || ShieldCheck;
 
+  // Calculate container width based on device mode
+  const getDeviceWidthClass = () => {
+    if (isMobileDevice || deviceMode === "full") return "w-full";
+    if (deviceMode === "iphone") return "max-w-[430px] w-full";
+    if (deviceMode === "pixel") return "max-w-[412px] w-full";
+    if (deviceMode === "tablet") return "max-w-[768px] w-full";
+    return "max-w-[430px] w-full";
+  };
+
   return (
-    <div className="flex flex-col min-h-screen w-full bg-background text-foreground">
-      {/* ─── Prototype Control Header ─────────────────────────────────── */}
-      <header className="sticky top-0 z-50 bg-[#1F0860] border-b border-purple-800/60 text-white shadow-xl px-3 py-2 flex items-center justify-between">
+    <div className="flex flex-col min-h-screen w-full bg-[#0D0524] text-foreground font-sans select-none overflow-x-hidden">
+      {/* ─── Top Studio Bar (Desktop & Mobile) ─────────────────────────────────── */}
+      <header className="sticky top-0 z-50 bg-[#1F0860]/95 backdrop-blur-md border-b border-purple-800/60 text-white shadow-2xl px-3 py-2 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="flex items-center gap-1 bg-[#D90429] text-white text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">
-            <Sparkles className="size-3" /> PROTOTYPE
+          <span className="flex items-center gap-1 bg-[#D90429] text-white text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider shadow-sm">
+            <Sparkles className="size-3" /> PROTOTYPE STUDIO
           </span>
-          <span className="text-xs font-bold text-purple-200 hidden md:inline">
+          <span className="text-xs font-bold text-purple-200 hidden lg:inline">
             Shabab 360 Full System (39 Screens)
           </span>
         </div>
+
+        {/* Device Switcher Pills (Desktop only) */}
+        {!isMobileDevice && (
+          <div className="hidden md:flex items-center gap-1 bg-black/40 p-1 rounded-xl border border-white/10">
+            <button
+              onClick={() => setDeviceMode("iphone")}
+              className={cn(
+                "flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-lg transition-all",
+                deviceMode === "iphone"
+                  ? "bg-[#4B0A8F] text-white shadow-md"
+                  : "text-purple-300 hover:text-white"
+              )}
+              title="iPhone 15 Pro Frame (430px)"
+            >
+              <Smartphone className="size-3.5" /> iPhone
+            </button>
+            <button
+              onClick={() => setDeviceMode("pixel")}
+              className={cn(
+                "flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-lg transition-all",
+                deviceMode === "pixel"
+                  ? "bg-[#4B0A8F] text-white shadow-md"
+                  : "text-purple-300 hover:text-white"
+              )}
+              title="Android Pixel Frame (412px)"
+            >
+              <Smartphone className="size-3.5" /> Pixel
+            </button>
+            <button
+              onClick={() => setDeviceMode("tablet")}
+              className={cn(
+                "flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-lg transition-all",
+                deviceMode === "tablet"
+                  ? "bg-[#4B0A8F] text-white shadow-md"
+                  : "text-purple-300 hover:text-white"
+              )}
+              title="iPad / Tablet Frame (768px)"
+            >
+              <Tablet className="size-3.5" /> Tablet
+            </button>
+            <button
+              onClick={() => setDeviceMode("full")}
+              className={cn(
+                "flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-lg transition-all",
+                deviceMode === "full"
+                  ? "bg-[#4B0A8F] text-white shadow-md"
+                  : "text-purple-300 hover:text-white"
+              )}
+              title="Full Responsive Desktop View"
+            >
+              <Monitor className="size-3.5" /> Full Width
+            </button>
+          </div>
+        )}
 
         <div className="flex items-center gap-1.5">
           {/* All Screens Drawer Button */}
@@ -283,7 +368,7 @@ export function PrototypeApp() {
             className="flex items-center gap-1 bg-white/10 hover:bg-white/20 active:scale-95 transition-all text-xs font-bold px-2.5 py-1.5 rounded-xl border border-white/20 text-purple-200"
           >
             <Grid className="size-3.5" />
-            <span className="hidden sm:inline">All 39 Screens</span>
+            <span className="hidden sm:inline">39 Screens</span>
           </button>
 
           {/* Role Switcher Pill */}
@@ -386,20 +471,112 @@ export function PrototypeApp() {
         )}
       </AnimatePresence>
 
-      {/* Active Screen Container */}
-      <main className="flex-1 w-full relative">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={activeScreen}
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -6 }}
-            transition={{ duration: 0.15 }}
-            className="w-full min-h-full"
-          >
-            {renderActiveScreen()}
-          </motion.div>
-        </AnimatePresence>
+      {/* ─── Main Content Area with Desktop Phone Shell ───────────────────────── */}
+      <main className="flex-1 w-full relative flex items-center justify-center p-0 md:p-6 bg-gradient-to-br from-[#0F0428] via-[#1F0860] to-[#0A031B]">
+        
+        {/* Desktop Side Info Sidebar (visible on large screens when framed) */}
+        {!isMobileDevice && deviceMode !== "full" && (
+          <aside className="hidden xl:flex flex-col gap-4 w-72 p-4 text-white text-xs font-medium bg-white/5 border border-white/10 rounded-3xl backdrop-blur-xl shadow-2xl mr-6 shrink-0">
+            <div className="flex items-center gap-2 font-bold text-sm border-b border-white/10 pb-2 text-purple-200">
+              <ActiveRoleIcon className="size-5 text-[#D90429]" />
+              <span>{activeRoleObj?.label} Workspace</span>
+            </div>
+            <div className="space-y-2">
+              <p className="text-purple-300 font-semibold uppercase text-[10px] tracking-wider">Current Screen</p>
+              <p className="text-sm font-bold bg-white/10 px-3 py-1.5 rounded-xl border border-white/10">{activeScreen}</p>
+            </div>
+            <div className="space-y-2 pt-2 border-t border-white/10">
+              <p className="text-purple-300 font-semibold uppercase text-[10px] tracking-wider">Role Capabilities</p>
+              <ul className="space-y-1.5 text-[11px] text-purple-200">
+                <li className="flex items-center gap-1.5"><CheckCircle2 className="size-3 text-emerald-400" /> Full operational access</li>
+                <li className="flex items-center gap-1.5"><CheckCircle2 className="size-3 text-emerald-400" /> Mobile-first responsive UI</li>
+                <li className="flex items-center gap-1.5"><CheckCircle2 className="size-3 text-emerald-400" /> Touch target optimized</li>
+              </ul>
+            </div>
+            <div className="mt-auto pt-4 border-t border-white/10 text-[10px] text-purple-300/70 text-center">
+              Shabab 360 v2.0 • Lahore Batch 4
+            </div>
+          </aside>
+        )}
+
+        {/* Center Device Frame Container */}
+        <div
+          className={cn(
+            "transition-all duration-300 ease-in-out relative flex flex-col",
+            getDeviceWidthClass(),
+            !isMobileDevice && deviceMode !== "full"
+              ? "my-auto rounded-[42px] border-[10px] border-slate-900 bg-background shadow-[0_0_60px_rgba(75,10,143,0.5)] overflow-hidden min-h-[850px] max-h-[92vh]"
+              : "min-h-screen bg-background"
+          )}
+        >
+          {/* Virtual Phone Hardware Notch & Status Bar (Only in Framed Desktop Mode) */}
+          {!isMobileDevice && deviceMode !== "full" && (
+            <div className="w-full bg-[#1F0860] text-white px-6 pt-3 pb-1 flex items-center justify-between shrink-0 select-none z-30 border-b border-purple-900/50">
+              <span className="text-xs font-bold tracking-tight">09:41</span>
+              {/* iPhone Dynamic Island / Notch */}
+              <div className="w-24 h-4 bg-black rounded-full flex items-center justify-center gap-1.5 px-2">
+                <div className="size-2 rounded-full bg-slate-800" />
+                <div className="size-1.5 rounded-full bg-[#D90429]" />
+              </div>
+              <div className="flex items-center gap-1.5 text-white/80">
+                <Signal className="size-3" />
+                <Wifi className="size-3" />
+                <Battery className="size-3.5 fill-current" />
+              </div>
+            </div>
+          )}
+
+          {/* Active Prototype Screen Canvas */}
+          <div className="flex-1 w-full overflow-y-auto no-scrollbar relative flex flex-col">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={activeScreen}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.15 }}
+                className="w-full min-h-full flex-1 flex flex-col"
+              >
+                {renderActiveScreen()}
+              </motion.div>
+            </AnimatePresence>
+          </div>
+
+          {/* Phone Bottom Home Bar (Only in Framed Desktop Mode) */}
+          {!isMobileDevice && deviceMode !== "full" && (
+            <div className="w-full bg-background py-2 flex items-center justify-center shrink-0 border-t border-border/40 z-30">
+              <div className="w-32 h-1 bg-foreground/30 rounded-full" />
+            </div>
+          )}
+        </div>
+
+        {/* Right Desktop Quick Shortcuts Sidebar (visible on large screens when framed) */}
+        {!isMobileDevice && deviceMode !== "full" && (
+          <aside className="hidden xl:flex flex-col gap-3 w-64 p-4 text-white text-xs font-medium bg-white/5 border border-white/10 rounded-3xl backdrop-blur-xl shadow-2xl ml-6 shrink-0">
+            <p className="text-purple-300 font-bold uppercase text-[10px] tracking-wider border-b border-white/10 pb-2">
+              Quick Role Switch
+            </p>
+            {ROLES.map((r) => {
+              const Icon = r.icon;
+              const isCurrent = r.id === currentRole;
+              return (
+                <button
+                  key={r.id}
+                  onClick={() => handleRoleChange(r.id)}
+                  className={cn(
+                    "flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold transition-all text-left border",
+                    isCurrent
+                      ? "bg-[#4B0A8F] text-white border-purple-400/50 shadow-lg"
+                      : "bg-white/5 text-purple-200 border-white/5 hover:bg-white/10"
+                  )}
+                >
+                  <Icon className={cn("size-4", isCurrent ? "text-white" : "text-purple-300")} />
+                  <span className="flex-1">{r.label}</span>
+                </button>
+              );
+            })}
+          </aside>
+        )}
       </main>
     </div>
   );
