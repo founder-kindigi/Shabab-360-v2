@@ -6,17 +6,23 @@ import { MobileLoginPage } from "@/components/modules/auth/mobile-login-page";
 import { MobileAttendancePage } from "@/components/modules/park/mobile-attendance-page";
 import { MobileMurabbiDashboard } from "@/components/modules/murabbi/mobile-murabbi-dashboard";
 import { MobileParkDashboard } from "@/components/modules/park/mobile-park-dashboard";
-import { Sparkles, LogIn, CheckSquare, Users, TreePine } from "lucide-react";
+import { MobileCityHeadDashboard } from "@/components/modules/city-head/mobile-city-head-dashboard";
+import { MobileAdminDashboard } from "@/components/modules/admin/mobile-admin-dashboard";
+import { MobileStudentDashboard } from "@/components/modules/student/mobile-student-dashboard";
+import { MobileGuardianDashboard } from "@/components/modules/guardian/mobile-guardian-dashboard";
+import { Sparkles, LogIn, CheckSquare, Users, TreePine, Building2, ShieldCheck, GraduationCap, HeartHandshake } from "lucide-react";
 
 export function MobileDesignPreview() {
-  const [activeScreen, setActiveScreen] = useState<"splash" | "login" | "attendance" | "murabbi" | "park">("splash");
+  const [activeScreen, setActiveScreen] = useState<
+    "splash" | "login" | "attendance" | "murabbi" | "park" | "city" | "admin" | "student" | "guardian"
+  >("splash");
   const [rolePrefill, setRolePrefill] = useState("");
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-900 text-white">
       {/* ─── Top Switcher Bar for Reviewers ───────────────────────────────── */}
       <div className="sticky top-0 z-50 bg-slate-950/90 backdrop-blur-md border-b border-slate-800 px-4 py-2.5 flex items-center justify-between shadow-xl">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           <div className="size-8 rounded-xl bg-[#4B0A8F] flex items-center justify-center font-bold text-amber-300 text-xs">
             ۳۶۰
           </div>
@@ -27,56 +33,33 @@ export function MobileDesignPreview() {
         </div>
 
         {/* Screen Tabs */}
-        <div className="flex items-center gap-1.5 bg-slate-900 p-1 rounded-xl border border-slate-800 overflow-x-auto no-scrollbar max-w-full">
-          <button
-            onClick={() => setActiveScreen("splash")}
-            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
-              activeScreen === "splash" ? "bg-[#4B0A8F] text-white shadow-md" : "text-slate-400 hover:text-white"
-            }`}
-          >
-            <Sparkles className="size-3.5" />
-            <span>1. Splash</span>
-          </button>
-
-          <button
-            onClick={() => setActiveScreen("login")}
-            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
-              activeScreen === "login" ? "bg-[#4B0A8F] text-white shadow-md" : "text-slate-400 hover:text-white"
-            }`}
-          >
-            <LogIn className="size-3.5" />
-            <span>2. Login</span>
-          </button>
-
-          <button
-            onClick={() => setActiveScreen("attendance")}
-            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
-              activeScreen === "attendance" ? "bg-[#4B0A8F] text-white shadow-md" : "text-slate-400 hover:text-white"
-            }`}
-          >
-            <CheckSquare className="size-3.5" />
-            <span>3. Attendance</span>
-          </button>
-
-          <button
-            onClick={() => setActiveScreen("murabbi")}
-            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
-              activeScreen === "murabbi" ? "bg-[#4B0A8F] text-white shadow-md" : "text-slate-400 hover:text-white"
-            }`}
-          >
-            <Users className="size-3.5" />
-            <span>4. Murabbi</span>
-          </button>
-
-          <button
-            onClick={() => setActiveScreen("park")}
-            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
-              activeScreen === "park" ? "bg-[#4B0A8F] text-white shadow-md" : "text-slate-400 hover:text-white"
-            }`}
-          >
-            <TreePine className="size-3.5" />
-            <span>5. Park Lead</span>
-          </button>
+        <div className="flex items-center gap-1 bg-slate-900 p-1 rounded-xl border border-slate-800 overflow-x-auto no-scrollbar max-w-full">
+          {[
+            { id: "splash", label: "1. Splash", icon: Sparkles },
+            { id: "login", label: "2. Login", icon: LogIn },
+            { id: "attendance", label: "3. Attendance", icon: CheckSquare },
+            { id: "murabbi", label: "4. Murabbi", icon: Users },
+            { id: "park", label: "5. Park Lead", icon: TreePine },
+            { id: "city", label: "6. City Head", icon: Building2 },
+            { id: "admin", label: "7. Admin HQ", icon: ShieldCheck },
+            { id: "student", label: "8. Student", icon: GraduationCap },
+            { id: "guardian", label: "9. Guardian", icon: HeartHandshake },
+          ].map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeScreen === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveScreen(tab.id as any)}
+                className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
+                  isActive ? "bg-[#4B0A8F] text-white shadow-md" : "text-slate-400 hover:text-white"
+                }`}
+              >
+                <Icon className="size-3.5" />
+                <span>{tab.label}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -112,13 +95,12 @@ export function MobileDesignPreview() {
               <MobileAttendancePage onBack={() => setActiveScreen("login")} />
             )}
 
-            {activeScreen === "murabbi" && (
-              <MobileMurabbiDashboard />
-            )}
-
-            {activeScreen === "park" && (
-              <MobileParkDashboard />
-            )}
+            {activeScreen === "murabbi" && <MobileMurabbiDashboard />}
+            {activeScreen === "park" && <MobileParkDashboard />}
+            {activeScreen === "city" && <MobileCityHeadDashboard />}
+            {activeScreen === "admin" && <MobileAdminDashboard />}
+            {activeScreen === "student" && <MobileStudentDashboard />}
+            {activeScreen === "guardian" && <MobileGuardianDashboard />}
           </div>
         </div>
       </div>
