@@ -40,6 +40,7 @@ export interface ProtoShabab {
   grade: string;
   group: string;
   groupId: string;
+  park?: string;
   status: string;
   attendance: number;
   guardian: string;
@@ -206,16 +207,16 @@ export const PROTO_GROUPS: ProtoGroup[] = [
 ];
 
 export const PROTO_SHABAB: ProtoShabab[] = [
-  { id: "s001", name: "Muhammad Abdullah", firstName: "Muhammad", lastName: "Abdullah", age: 16, grade: "10th", group: "Group A", groupId: "grp-sl-a", status: "Present", attendance: 91, guardian: "Br. Ahmad Abdullah", guardianName: "Br. Ahmad Abdullah", phone: "0300-1234567", guardianPhone: "0300-1234567" },
-  { id: "s002", name: "Usman Tariq", firstName: "Usman", lastName: "Tariq", age: 15, grade: "9th", group: "Group A", groupId: "grp-sl-a", status: "Present", attendance: 88, guardian: "Br. Tariq Usman", guardianName: "Br. Tariq Usman", phone: "0301-2345678", guardianPhone: "0301-2345678" },
-  { id: "s003", name: "Hamza Ali", firstName: "Hamza", lastName: "Ali", age: 16, grade: "10th", group: "Group A", groupId: "grp-sl-a", status: "Absent", attendance: 74, guardian: "Br. Ali Hamza", guardianName: "Br. Ali Hamza", phone: "0302-3456789", guardianPhone: "0302-3456789" },
-  { id: "s004", name: "Ibrahim Hassan", firstName: "Ibrahim", lastName: "Hassan", age: 15, grade: "9th", group: "Group A", groupId: "grp-sl-a", status: "Present", attendance: 95, guardian: "Br. Hassan Ibrahim", guardianName: "Br. Hassan Ibrahim", phone: "0303-4567890", guardianPhone: "0303-4567890" },
-  { id: "s005", name: "Saad Mahmood", firstName: "Saad", lastName: "Mahmood", age: 17, grade: "11th", group: "Group A", groupId: "grp-sl-a", status: "Late", attendance: 82, guardian: "Br. Mahmood Saad", guardianName: "Br. Mahmood Saad", phone: "0304-5678901", guardianPhone: "0304-5678901" },
-  { id: "s006", name: "Yahya Qureshi", firstName: "Yahya", lastName: "Qureshi", age: 16, grade: "10th", group: "Group A", groupId: "grp-sl-a", status: "Present", attendance: 89, guardian: "Br. Qureshi Yahya", guardianName: "Br. Qureshi Yahya", phone: "0305-6789012", guardianPhone: "0305-6789012" },
-  { id: "s007", name: "Talha Awan", firstName: "Talha", lastName: "Awan", age: 15, grade: "9th", group: "Group B", groupId: "grp-sl-b", status: "Present", attendance: 79, guardian: "Br. Awan Talha", guardianName: "Br. Awan Talha", phone: "0306-7890123", guardianPhone: "0306-7890123" },
-  { id: "s008", name: "Bilal Chaudhry", firstName: "Bilal", lastName: "Chaudhry", age: 16, grade: "10th", group: "Group B", groupId: "grp-sl-b", status: "Excused", attendance: 85, guardian: "Br. Chaudhry Bilal", guardianName: "Br. Chaudhry Bilal", phone: "0307-8901234", guardianPhone: "0307-8901234" },
-  { id: "s009", name: "Zain Farooq", firstName: "Zain", lastName: "Farooq", age: 17, grade: "11th", group: "Group B", groupId: "grp-sl-b", status: "Present", attendance: 93, guardian: "Br. Farooq Zain", guardianName: "Br. Farooq Zain", phone: "0308-9012345", guardianPhone: "0308-9012345" },
-  { id: "s010", name: "Rayyan Malik", firstName: "Rayyan", lastName: "Malik", age: 15, grade: "9th", group: "Group B", groupId: "grp-sl-b", status: "Absent", attendance: 68, guardian: "Br. Malik Rayyan", guardianName: "Br. Malik Rayyan", phone: "0309-0123456", guardianPhone: "0309-0123456" },
+  { id: "s001", name: "Muhammad Abdullah", firstName: "Muhammad", lastName: "Abdullah", age: 16, grade: "10th", group: "Group A", groupId: "grp-sl-a", park: "State Life Park", status: "Present", attendance: 91, guardian: "Br. Ahmad Abdullah", guardianName: "Br. Ahmad Abdullah", phone: "0300-1234567", guardianPhone: "0300-1234567" },
+  { id: "s002", name: "Usman Tariq", firstName: "Usman", lastName: "Tariq", age: 15, grade: "9th", group: "Group A", groupId: "grp-sl-a", park: "State Life Park", status: "Present", attendance: 88, guardian: "Br. Tariq Usman", guardianName: "Br. Tariq Usman", phone: "0301-2345678", guardianPhone: "0301-2345678" },
+  { id: "s003", name: "Hamza Ali", firstName: "Hamza", lastName: "Ali", age: 16, grade: "10th", group: "Group A", groupId: "grp-sl-a", park: "State Life Park", status: "Absent", attendance: 74, guardian: "Br. Ali Hamza", guardianName: "Br. Ali Hamza", phone: "0302-3456789", guardianPhone: "0302-3456789" },
+  { id: "s004", name: "Ibrahim Hassan", firstName: "Ibrahim", lastName: "Hassan", age: 15, grade: "9th", group: "Group A", groupId: "grp-sl-a", park: "State Life Park", status: "Present", attendance: 95, guardian: "Br. Hassan Ibrahim", guardianName: "Br. Hassan Ibrahim", phone: "0303-4567890", guardianPhone: "0303-4567890" },
+  { id: "s005", name: "Saad Mahmood", firstName: "Saad", lastName: "Mahmood", age: 17, grade: "11th", group: "Group A", groupId: "grp-sl-a", park: "State Life Park", status: "Late", attendance: 82, guardian: "Br. Mahmood Saad", guardianName: "Br. Mahmood Saad", phone: "0304-5678901", guardianPhone: "0304-5678901" },
+  { id: "s006", name: "Yahya Qureshi", firstName: "Yahya", lastName: "Qureshi", age: 16, grade: "10th", group: "Group A", groupId: "grp-sl-a", park: "Gulberg Park", status: "Present", attendance: 89, guardian: "Br. Qureshi Yahya", guardianName: "Br. Qureshi Yahya", phone: "0305-6789012", guardianPhone: "0305-6789012" },
+  { id: "s007", name: "Talha Awan", firstName: "Talha", lastName: "Awan", age: 15, grade: "9th", group: "Group B", groupId: "grp-sl-b", park: "Gulberg Park", status: "Present", attendance: 79, guardian: "Br. Awan Talha", guardianName: "Br. Awan Talha", phone: "0306-7890123", guardianPhone: "0306-7890123" },
+  { id: "s008", name: "Bilal Chaudhry", firstName: "Bilal", lastName: "Chaudhry", age: 16, grade: "10th", group: "Group B", groupId: "grp-sl-b", park: "Johar Park", status: "Excused", attendance: 85, guardian: "Br. Chaudhry Bilal", guardianName: "Br. Chaudhry Bilal", phone: "0307-8901234", guardianPhone: "0307-8901234" },
+  { id: "s009", name: "Zain Farooq", firstName: "Zain", lastName: "Farooq", age: 17, grade: "11th", group: "Group B", groupId: "grp-sl-b", park: "Johar Park", status: "Present", attendance: 93, guardian: "Br. Farooq Zain", guardianName: "Br. Farooq Zain", phone: "0308-9012345", guardianPhone: "0308-9012345" },
+  { id: "s010", name: "Rayyan Malik", firstName: "Rayyan", lastName: "Malik", age: 15, grade: "9th", group: "Group B", groupId: "grp-sl-b", park: "State Life Park", status: "Absent", attendance: 68, guardian: "Br. Malik Rayyan", guardianName: "Br. Malik Rayyan", phone: "0309-0123456", guardianPhone: "0309-0123456" },
 ];
 
 export const PROTO_STAFF: ProtoStaff[] = [

@@ -143,7 +143,7 @@ export function ProtoHqDashboard({ onNavigate }: ProtoHqDashboardProps) {
         {/* Quick Actions */}
         <motion.div variants={itemVariants}>
           <h2 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3 px-1">
-            Management & Oversight
+            Management & Administration
           </h2>
           <div className="grid grid-cols-2 gap-3">
             <button 
@@ -153,7 +153,7 @@ export function ProtoHqDashboard({ onNavigate }: ProtoHqDashboardProps) {
               <div className="w-10 h-10 rounded-full bg-[#1F0860]/10 flex items-center justify-center text-[#1F0860] dark:text-[#1F0860]/80">
                 <Building2 className="w-5 h-5" />
               </div>
-              <span className="text-xs font-medium">Cities</span>
+              <span className="text-xs font-medium">Cities & Parks</span>
             </button>
             <button 
               onClick={() => onNavigate?.('hq-admissions')}
@@ -162,7 +162,43 @@ export function ProtoHqDashboard({ onNavigate }: ProtoHqDashboardProps) {
               <div className="w-10 h-10 rounded-full bg-[#D90429]/10 flex items-center justify-center text-[#D90429]">
                 <ClipboardList className="w-5 h-5" />
               </div>
-              <span className="text-xs font-medium text-center">Admissions<br/>Oversight</span>
+              <span className="text-xs font-medium text-center">Admissions</span>
+            </button>
+            <button 
+              onClick={() => onNavigate?.('hq-access-matrix')}
+              className="flex flex-col items-center justify-center p-4 bg-card border border-border/70 rounded-2xl gap-2 active:scale-95 transition-transform"
+            >
+              <div className="w-10 h-10 rounded-full bg-purple-500/10 flex items-center justify-center text-purple-600">
+                <ShieldCheck className="w-5 h-5" />
+              </div>
+              <span className="text-xs font-medium text-center">Access & Roles</span>
+            </button>
+            <button 
+              onClick={() => onNavigate?.('hq-audit-log')}
+              className="flex flex-col items-center justify-center p-4 bg-card border border-border/70 rounded-2xl gap-2 active:scale-95 transition-transform"
+            >
+              <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-600">
+                <Activity className="w-5 h-5" />
+              </div>
+              <span className="text-xs font-medium text-center">Audit Logs</span>
+            </button>
+            <button 
+              onClick={() => onNavigate?.('hq-teams')}
+              className="flex flex-col items-center justify-center p-4 bg-card border border-border/70 rounded-2xl gap-2 active:scale-95 transition-transform"
+            >
+              <div className="w-10 h-10 rounded-full bg-teal-500/10 flex items-center justify-center text-teal-600">
+                <Users className="w-5 h-5" />
+              </div>
+              <span className="text-xs font-medium text-center">Teams</span>
+            </button>
+            <button 
+              onClick={() => onNavigate?.('hq-students')}
+              className="flex flex-col items-center justify-center p-4 bg-card border border-border/70 rounded-2xl gap-2 active:scale-95 transition-transform"
+            >
+              <div className="w-10 h-10 rounded-full bg-indigo-500/10 flex items-center justify-center text-indigo-600">
+                <Users className="w-5 h-5" />
+              </div>
+              <span className="text-xs font-medium text-center">Shabab Directory</span>
             </button>
             <button 
               onClick={() => onNavigate?.('hq-reports')}
