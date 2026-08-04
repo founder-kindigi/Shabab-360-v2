@@ -325,6 +325,20 @@ function DesktopSidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
             </motion.div>
           )}
         </AnimatePresence>
+        <button
+          type="button"
+          onClick={onToggle}
+          className="ml-auto inline-flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#A0006B] focus-visible:ring-offset-1"
+          aria-label={t("app.collapse")}
+          title={t("app.collapse")}
+        >
+          <motion.div
+            animate={{ rotate: collapsed ? 180 : 0 }}
+            transition={{ duration: 0.2 }}
+          >
+            <ChevronLeft className="size-4" />
+          </motion.div>
+        </button>
       </div>
 
       {/* Navigation */}
@@ -360,62 +374,6 @@ function DesktopSidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
         </ScrollArea>
       </div>
 
-      {/* Footer: User info + Sign out + Collapse toggle */}
-      <div className="border-t p-2 shrink-0 space-y-1">
-        {/* User info */}
-        <AnimatePresence>
-          {!collapsed && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.15 }}
-              className="overflow-hidden"
-            >
-              <div className="rounded-lg bg-muted/50 px-3 py-2 mb-2">
-                <div className="flex items-center gap-1.5">
-                  <p className="text-xs font-medium truncate">{user?.name || "User"}</p>
-                </div>
-                <p className="text-[10px] text-muted-foreground truncate">{user?.email}</p>
-                <span className="inline-flex items-center gap-1 mt-1 rounded-full bg-[#F3ECF6] px-2 py-0.5 text-[10px] font-medium text-[#4B0A8F] dark:bg-[#1F086080] dark:text-[#8A40B0] capitalize">
-                  {getRoleLabel(user?.role)}
-                </span>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Collapse toggle */}
-        <button
-          onClick={onToggle}
-          className={cn(
-            "flex items-center gap-3 w-full rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-muted/80 hover:text-foreground transition-colors",
-            collapsed && "justify-center px-2"
-          )}
-        >
-          <motion.div
-            animate={{ rotate: collapsed ? 180 : 0 }}
-            transition={{ duration: 0.2 }}
-          >
-            <ChevronLeft className="size-4" />
-          </motion.div>
-          {!collapsed && <span>{t("app.collapse")}</span>}
-        </button>
-
-        {/* Sign out */}
-        <button
-          onClick={() => signOut({ callbackUrl: "/" })}
-          className={cn(
-            "flex items-center gap-3 w-full rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-            "text-muted-foreground hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/50 dark:hover:text-red-400",
-            collapsed && "justify-center px-2"
-          )}
-          title={collapsed ? t("auth.signOut") : undefined}
-        >
-          <LogOut className="size-4 shrink-0" />
-          {!collapsed && <span>{t("auth.signOut")}</span>}
-        </button>
-      </div>
     </motion.aside>
   );
 }
