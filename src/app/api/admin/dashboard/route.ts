@@ -16,30 +16,39 @@ async function buildAttendanceTrend(
   const todayStart = todayPKT();
   const startDate = new Date(todayStart.getTime() - (days - 1) * 24 * 60 * 60 * 1000);
 
-  // Single query: fetch all records for the date range, grouped via include
+  // Keep the first query to one short date range, then let PostgreSQL count
+  // statuses. Downloading every record made the dashboard slower as Lahore
+  // history grew.
   const events = await db.attendanceEvent.findMany({
     where: {
       ...whereClause,
       eventDate: { gte: startDate, lte: todayStart },
       isClosed: true,
     },
-    select: {
-      eventDate: true,
-      records: { select: { status: true } },
-    },
+    select: { id: true, eventDate: true },
     orderBy: { eventDate: "asc" },
   });
 
+  const eventIds = events.map((event) => event.id);
+  const statusCounts = eventIds.length
+    ? await db.attendanceRecord.groupBy({
+        by: ["eventId", "status"],
+        where: { eventId: { in: eventIds } },
+        _count: { status: true },
+      })
+    : [];
+  const eventDates = new Map(events.map((event) => [event.id, event.eventDate]));
+
   // Build a map: date string -> { present, late, absent }
   const grouped = new Map<string, { present: number; late: number; absent: number }>();
-  for (const ev of events) {
-    const dateStr = formatPKT(ev.eventDate, "yyyy-MM-dd");
+  for (const count of statusCounts) {
+    const eventDate = eventDates.get(count.eventId);
+    if (!eventDate) continue;
+    const dateStr = formatPKT(eventDate, "yyyy-MM-dd");
     const existing = grouped.get(dateStr) || { present: 0, late: 0, absent: 0 };
-    for (const rec of ev.records) {
-      if (rec.status === "present") existing.present++;
-      else if (rec.status === "late") existing.late++;
-      else if (rec.status === "absent") existing.absent++;
-    }
+    if (count.status === "present") existing.present += count._count.status;
+    else if (count.status === "late") existing.late += count._count.status;
+    else if (count.status === "absent") existing.absent += count._count.status;
     grouped.set(dateStr, existing);
   }
 
@@ -64,26 +73,22 @@ async function buildTodayAttendance(
   const todayStart = todayPKT();
   const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000 - 1);
 
-  const todayRecords = await db.attendanceRecord.findMany({
-    where: {
-      event: {
-        ...whereClause,
-        eventDate: { gte: todayStart, lte: todayEnd },
-      },
-    },
-    select: { status: true },
+  const todayEvents = await db.attendanceEvent.findMany({
+    where: { ...whereClause, eventDate: { gte: todayStart, lte: todayEnd } },
+    select: { id: true },
   });
+  if (todayEvents.length === 0) return { present: 0, late: 0, absent: 0, total: 0 };
 
-  let present = 0;
-  let late = 0;
-  let absent = 0;
-  for (const rec of todayRecords) {
-    if (rec.status === "present") present++;
-    else if (rec.status === "late") late++;
-    else if (rec.status === "absent") absent++;
-  }
-
-  return { present, late, absent, total: todayRecords.length };
+  const statusCounts = await db.attendanceRecord.groupBy({
+    by: ["status"],
+    where: { eventId: { in: todayEvents.map((event) => event.id) } },
+    _count: { status: true },
+  });
+  const countFor = (status: string) => statusCounts.find((count) => count.status === status)?._count.status || 0;
+  const present = countFor("present");
+  const late = countFor("late");
+  const absent = countFor("absent");
+  return { present, late, absent, total: statusCounts.reduce((total, count) => total + count._count.status, 0) };
 }
 
 export async function GET(request: NextRequest) {
@@ -141,14 +146,14 @@ export async function GET(request: NextRequest) {
       orderBy: { name: "asc" },
     });
 
-    // Count staff per city via park assignments
-    const allCityStaff = await db.staffMeta.findMany({
+    const staffCountsByCity = await db.staffMeta.groupBy({
+      by: ["assignedCityId"],
       where: { isActive: true, assignedCityId: { not: null } },
-      select: { assignedCityId: true, id: true },
+      _count: { assignedCityId: true },
     });
-    const staffByCity = allCityStaff.reduce<Record<string, number>>((acc, s) => {
-      if (s.assignedCityId) acc[s.assignedCityId] = (acc[s.assignedCityId] || 0) + 1;
-    return acc;
+    const staffByCity = staffCountsByCity.reduce<Record<string, number>>((acc, staff) => {
+      if (staff.assignedCityId) acc[staff.assignedCityId] = staff._count.assignedCityId;
+      return acc;
     }, {});
 
     const cityBreakdownWithStaff = cityBreakdown.map((city) => ({
