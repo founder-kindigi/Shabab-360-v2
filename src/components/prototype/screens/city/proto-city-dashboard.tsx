@@ -90,6 +90,22 @@ export function ProtoCityDashboard({ onNavigate }: Props) {
               <Phone size={18} className="text-[#D90429]" />
               Calling Desk
             </button>
+            <button onClick={() => onNavigate?.("city-mashwara")} className="h-12 bg-card border border-border/70 text-foreground rounded-xl flex items-center justify-center gap-2 font-medium shadow-sm active:scale-95 transition-transform">
+              <CheckCircle size={18} className="text-purple-600" />
+              Weekly Mashwara
+            </button>
+            <button onClick={() => onNavigate?.("city-people")} className="h-12 bg-card border border-border/70 text-foreground rounded-xl flex items-center justify-center gap-2 font-medium shadow-sm active:scale-95 transition-transform">
+              <Users size={18} className="text-teal-600" />
+              People & Staff
+            </button>
+            <button onClick={() => onNavigate?.("city-events")} className="h-12 bg-card border border-border/70 text-foreground rounded-xl flex items-center justify-center gap-2 font-medium shadow-sm active:scale-95 transition-transform">
+              <CheckCircle size={18} className="text-blue-600" />
+              City Events
+            </button>
+            <button onClick={() => onNavigate?.("city-finance")} className="h-12 bg-card border border-border/70 text-foreground rounded-xl flex items-center justify-center gap-2 font-medium shadow-sm active:scale-95 transition-transform">
+              <TrendingUp size={18} className="text-emerald-600" />
+              City Finance
+            </button>
           </div>
         </div>
 

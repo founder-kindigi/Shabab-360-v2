@@ -102,14 +102,17 @@ export function ProtoParkDashboard({ onNavigate }: ProtoParkDashboardProps) {
         <div>
           <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3">Quick Actions</h3>
           <div className="grid grid-cols-2 gap-3">
-            <button onClick={() => onNavigate?.("Park Roster")} className="h-12 bg-secondary text-secondary-foreground rounded-xl text-sm font-medium flex items-center justify-center gap-2 shadow-sm">
+            <button onClick={() => onNavigate?.("park-roster")} className="h-12 bg-secondary text-secondary-foreground rounded-xl text-sm font-medium flex items-center justify-center gap-2 shadow-sm active:scale-95 transition-transform">
               <Users className="w-4 h-4" /> View Roster
             </button>
-            <button onClick={() => onNavigate?.("Team Attendance")} className="h-12 bg-secondary text-secondary-foreground rounded-xl text-sm font-medium flex items-center justify-center gap-2 shadow-sm">
+            <button onClick={() => onNavigate?.("park-team-attendance")} className="h-12 bg-secondary text-secondary-foreground rounded-xl text-sm font-medium flex items-center justify-center gap-2 shadow-sm active:scale-95 transition-transform">
               <UserCheck className="w-4 h-4" /> Team Attendance
             </button>
-            <button onClick={() => onNavigate?.("Park Mashwara")} className="h-12 bg-secondary text-secondary-foreground rounded-xl text-sm font-medium flex items-center justify-center gap-2 shadow-sm">
+            <button onClick={() => onNavigate?.("park-mashwara")} className="h-12 bg-secondary text-secondary-foreground rounded-xl text-sm font-medium flex items-center justify-center gap-2 shadow-sm active:scale-95 transition-transform">
               <Calendar className="w-4 h-4" /> Park Mashwara
+            </button>
+            <button onClick={() => onNavigate?.("inventory-list")} className="h-12 bg-secondary text-secondary-foreground rounded-xl text-sm font-medium flex items-center justify-center gap-2 shadow-sm active:scale-95 transition-transform">
+              <Activity className="w-4 h-4" /> Equipment Catalog
             </button>
           </div>
         </div>
@@ -119,7 +122,7 @@ export function ProtoParkDashboard({ onNavigate }: ProtoParkDashboardProps) {
           <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3">Groups Overview</h3>
           <div className="flex flex-col gap-3">
             {groups.map((group) => (
-              <div key={group.id} className="bg-card border border-border/70 rounded-2xl p-4 shadow-sm flex items-center justify-between" onClick={() => onNavigate?.("Murabbi Dashboard")}>
+              <div key={group.id} className="bg-card border border-border/70 rounded-2xl p-4 shadow-sm flex items-center justify-between cursor-pointer active:scale-98 transition-transform" onClick={() => onNavigate?.("murabbi-dashboard")}>
                 <div className="flex items-center gap-3">
                   <div className={cn("w-10 h-10 rounded-full flex items-center justify-center text-white font-bold", 
                     group.name.includes("A") ? "bg-[#4B0A8F]" : group.name.includes("B") ? "bg-[#D90429]" : "bg-teal-600"
