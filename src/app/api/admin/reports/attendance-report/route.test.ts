@@ -26,4 +26,12 @@ describe("GET /api/admin/reports/attendance-report", () => {
 
     expect(response.status).toBe(403);
   });
+
+  it("rejects an invalid report page before querying attendance", async () => {
+    mocks.requireCapability.mockResolvedValue(null);
+
+    const response = await GET(new Request("http://localhost/api/admin/reports/attendance-report?page=0"));
+
+    expect(response.status).toBe(400);
+  });
 });

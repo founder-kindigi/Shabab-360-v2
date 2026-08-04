@@ -6,6 +6,7 @@ import { parseISO, subDays } from "date-fns";
 import {
   optionalDateOnly,
   optionalIdentifier,
+  paginatedQuerySchema,
   queryParamsToObject,
   queryValidationError,
 } from "@/lib/api/query-params";
@@ -19,6 +20,7 @@ const attendanceReportQuerySchema = z
     from: optionalDateOnly(),
     to: optionalDateOnly(),
   })
+  .merge(paginatedQuerySchema({ defaultPageSize: 50, maxPageSize: 100 }))
   .refine(
     ({ from, to }) => !from || !to || from <= to,
     { message: "from must be on or before to", path: ["to"] }
@@ -61,7 +63,7 @@ export async function GET(req: Request) {
     if (!query.success) {
       return NextResponse.json(queryValidationError(query.error), { status: 400 });
     }
-    const { cityId, parkId, groupId, from, to } = query.data;
+    const { cityId, parkId, groupId, from, to, page, pageSize } = query.data;
 
     /* ---- Scope filtering ---- */
     const parkWhere: Record<string, unknown> = {};
@@ -108,33 +110,43 @@ export async function GET(req: Request) {
       };
     }
 
-    /* ---- Fetch attendance records with full joins ---- */
-    const records = await db.attendanceRecord.findMany({
-      where: {
-        event: eventWhere,
-      },
-      include: {
-        event: {
-          include: {
-            group: {
-              include: {
-                batch: {
-                  include: {
-                    park: {
-                      include: {
-                        city: true,
-                      },
+    const recordWhere = { event: eventWhere };
+    /* ---- Fetch only one bounded report page with the display projection. ---- */
+    const [records, totalRecords, statusGroups, totalEvents] = await Promise.all([
+      db.attendanceRecord.findMany({
+        where: recordWhere,
+        select: {
+          eventId: true,
+          status: true,
+          markedBy: true,
+          markedAt: true,
+          event: {
+            select: {
+              eventDate: true,
+              title: true,
+              group: {
+                select: {
+                  name: true,
+                  batch: {
+                    select: {
+                      name: true,
+                      park: { select: { name: true, city: { select: { name: true } } } },
                     },
                   },
                 },
               },
             },
           },
+          participant: { select: { name: true } },
         },
-        participant: true,
-      },
-      orderBy: [{ event: { eventDate: "desc" } }, { participant: { name: "asc" } }],
-    });
+        orderBy: [{ event: { eventDate: "desc" } }, { participant: { name: "asc" } }],
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      db.attendanceRecord.count({ where: recordWhere }),
+      db.attendanceRecord.groupBy({ by: ["status"], where: recordWhere, _count: { status: true } }),
+      db.attendanceEvent.count({ where: eventWhere }),
+    ]);
 
     /* ---- Resolve marker names ---- */
     const markerIds = [
@@ -164,14 +176,10 @@ export async function GET(req: Request) {
     }));
 
     /* ---- Summary stats ---- */
-    const uniqueEventIds = new Set(records.map((r) => r.eventId));
-    const totalEvents = uniqueEventIds.size;
-    const totalRecords = records.length;
-
     const statusCounts = { present: 0, absent: 0, late: 0, excused: 0 };
-    for (const r of records) {
-      if (r.status in statusCounts) {
-        (statusCounts as Record<string, number>)[r.status]++;
+    for (const group of statusGroups) {
+      if (group.status in statusCounts) {
+        (statusCounts as Record<string, number>)[group.status] = group._count.status;
       }
     }
 
@@ -209,6 +217,12 @@ export async function GET(req: Request) {
 
     return NextResponse.json({
       data: rows,
+      pagination: {
+        page,
+        pageSize,
+        total: totalRecords,
+        totalPages: Math.ceil(totalRecords / pageSize),
+      },
       summary: {
         totalEvents,
         totalRecords,
