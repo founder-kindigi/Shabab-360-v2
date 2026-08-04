@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import { ATTENDANCE_ROLES, requireAuth, requireCapability, requireResourceScope } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
-import { todayPKT, fromPKT } from "@/lib/timezone";
+import { fromPKT } from "@/lib/timezone";
 import { logAudit } from "@/lib/audit";
 import { parseISO } from "date-fns";
-import { createAttendanceEventSchema } from "@/lib/attendance/schemas";
+import { materializeScheduledAttendanceSchema } from "@/lib/attendance/schemas";
 import { createRosterSnapshot } from "@/lib/attendance/summaries";
+import { isScheduledAttendanceSession } from "@/lib/attendance/scheduled-sessions";
 
 export async function POST(req: Request) {
   const auth = await requireAuth();
@@ -15,7 +16,7 @@ export async function POST(req: Request) {
   if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
   try {
-    const parsedBody = createAttendanceEventSchema.safeParse(
+    const parsedBody = materializeScheduledAttendanceSchema.safeParse(
       await req.json().catch(() => null)
     );
     if (!parsedBody.success) {
@@ -24,12 +25,19 @@ export async function POST(req: Request) {
         { status: 400 }
       );
     }
-    const { groupId, title, eventDate } = parsedBody.data;
+    const { groupId, eventDate } = parsedBody.data;
 
     // Scope check
     const group = await db.group.findUnique({
       where: { id: groupId },
-      include: { batch: { include: { park: true } } },
+      include: {
+        batch: {
+          include: {
+            park: true,
+            settings: { include: { offWeekdays: true, offDates: true } },
+          },
+        },
+      },
     });
 
     if (!group) {
@@ -43,10 +51,15 @@ export async function POST(req: Request) {
     );
     if (scopeError) return scopeError;
 
-    // Determine event date
-    const parsedDate = eventDate ? parseISO(eventDate) : null;
-    const date = parsedDate ? fromPKT(parsedDate) : todayPKT();
+    const date = fromPKT(parseISO(eventDate));
     const dayAfter = new Date(date.getTime() + 24 * 60 * 60 * 1000);
+
+    if (!isScheduledAttendanceSession(date, group.batch)) {
+      return NextResponse.json(
+        { error: "Attendance is available only for scheduled class days in this batch." },
+        { status: 400 },
+      );
+    }
 
     // Check for existing event
     const existing = await db.attendanceEvent.findFirst({
@@ -66,7 +79,7 @@ export async function POST(req: Request) {
     const event = await db.attendanceEvent.create({
       data: {
         groupId,
-        title: title.trim(),
+        title: `${group.name} attendance`,
         eventDate: date,
       },
     });
@@ -78,7 +91,7 @@ export async function POST(req: Request) {
       action: "event_create",
       entityType: "attendance_events",
       entityId: event.id,
-      newValues: { groupId, title: title.trim(), eventDate: date.toISOString() },
+      newValues: { groupId, eventDate: date.toISOString(), source: "scheduled_card" },
     });
 
     return NextResponse.json({ success: true, event }, { status: 201 });

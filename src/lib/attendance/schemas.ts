@@ -22,6 +22,11 @@ export const createAttendanceEventSchema = z.object({
   eventDate: isoDateTimeSchema.optional(),
 }).strict();
 
+export const materializeScheduledAttendanceSchema = z.object({
+  groupId: persistentIdSchema,
+  eventDate: isoDateTimeSchema,
+}).strict();
+
 export const markAttendanceSchema = z.object({
   participantId: persistentIdSchema,
   status: attendanceStatusSchema,

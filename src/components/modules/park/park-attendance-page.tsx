@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useSession } from "next-auth/react";
 import { useAppStore } from "@/stores/useAppStore";
 import { motion, AnimatePresence, type Variants } from "framer-motion";
 import { toast } from "sonner";
@@ -12,39 +11,22 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-  DialogDescription,
-} from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   CalendarCheck,
-  Plus,
   Circle,
   Lock,
   ChevronRight,
-  Loader2,
   CalendarDays,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type EventItem = {
-  id: string;
+  id: string | null;
   title: string;
   groupId: string;
   groupName: string;
+  batchName?: string;
+  isScheduled?: boolean;
   eventDate: string;
   isClosed: boolean;
   participantCount: number;
@@ -56,12 +38,6 @@ type EventItem = {
   progress: number;
   closedAt: string | null;
   closedByName: string | null;
-};
-
-type GroupOption = {
-  id: string;
-  name: string;
-  batch: { name: string };
 };
 
 type FilterStatus = "all" | "open" | "closed";
@@ -81,11 +57,8 @@ function progressColor(progress: number) {
   return "bg-red-500";
 }
 
-function getTodayPKTDateStr(): string {
-  const now = new Date();
-  const pktOffset = now.getTimezoneOffset() + 300; // PKT is UTC+5
-  const pkt = new Date(now.getTime() + pktOffset * 60 * 1000);
-  return pkt.toLocaleDateString("en-PK", {
+function getDateLabel(date: string): string {
+  return new Date(`${date}T12:00:00`).toLocaleDateString("en-PK", {
     weekday: "long",
     year: "numeric",
     month: "long",
@@ -94,14 +67,11 @@ function getTodayPKTDateStr(): string {
 }
 
 export function ParkAttendancePage() {
-  const { data: session } = useSession();
   const { navigateTo, setSelectedEventId } = useAppStore();
   const queryClient = useQueryClient();
 
   const [filter, setFilter] = useState<FilterStatus>("all");
-  const [createOpen, setCreateOpen] = useState(false);
-  const [createGroupId, setCreateGroupId] = useState("");
-  const [createTitle, setCreateTitle] = useState("");
+  const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().slice(0, 10));
 
   // Fetch today's events
   const { data, isLoading, error } = useQuery<{
@@ -109,10 +79,11 @@ export function ParkAttendancePage() {
     parkId: string;
     events: EventItem[];
   }>({
-    queryKey: ["park-attendance", filter],
+    queryKey: ["park-attendance", filter, selectedDate],
     queryFn: () => {
       const params = new URLSearchParams();
       if (filter !== "all") params.set("status", filter);
+      params.set("date", selectedDate);
       return fetch(`/api/park/attendance?${params}`).then((r) => {
         if (!r.ok) throw new Error("Failed to load events");
         return r.json();
@@ -122,17 +93,8 @@ export function ParkAttendancePage() {
     staleTime: 15000,
   });
 
-  // Fetch groups for event creation
-  const { data: groupsData } = useQuery<{ groups: GroupOption[] }>({
-    queryKey: ["park-attendance-groups"],
-    queryFn: () =>
-      fetch("/api/park/attendance/events").then((r) => r.json()),
-    enabled: createOpen,
-  });
-
-  // Create event mutation
-  const createMutation = useMutation({
-    mutationFn: (body: { groupId: string; title: string }) =>
+  const materializeMutation = useMutation({
+    mutationFn: (body: { groupId: string; eventDate: string }) =>
       fetch("/api/park/attendance/events", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -142,34 +104,38 @@ export function ParkAttendancePage() {
         return r.json();
       }),
     onSuccess: () => {
-      toast.success("Event created successfully");
-      setCreateOpen(false);
-      setCreateGroupId("");
-      setCreateTitle("");
+      toast.success("Attendance session is ready");
       queryClient.invalidateQueries({ queryKey: ["park-attendance"] });
       queryClient.invalidateQueries({ queryKey: ["park-dashboard"] });
     },
     onError: (err: Error) => {
       if (err.message.includes("already exists")) {
-        toast.error("An event already exists for this group and date");
+        toast.error("This attendance session is already being opened. Please try again.");
       } else {
-        toast.error(err.message || "Failed to create event");
+        toast.error(err.message || "Could not open attendance");
       }
     },
   });
 
-  const handleMarkAttendance = (eventId: string) => {
-    setSelectedEventId(eventId);
+  const handleMarkAttendance = (event: EventItem) => {
+    if (!event.id) {
+      materializeMutation.mutate(
+        { groupId: event.groupId, eventDate: event.eventDate },
+        {
+          onSuccess: (result) => {
+            setSelectedEventId(result.event.id);
+            navigateTo("park-attendance-roster");
+          },
+        },
+      );
+      return;
+    }
+    setSelectedEventId(event.id);
     navigateTo("park-attendance-roster");
   };
 
-  const handleCreate = () => {
-    if (!createGroupId || !createTitle.trim()) return;
-    createMutation.mutate({ groupId: createGroupId, title: createTitle.trim() });
-  };
-
   const events = data?.events || [];
-  const todayDateStr = data?.date || getTodayPKTDateStr();
+  const selectedDateLabel = getDateLabel(data?.date || selectedDate);
 
   const filters: { label: string; value: FilterStatus; count: number }[] = [
     { label: "All", value: "all", count: events.length },
@@ -191,12 +157,6 @@ export function ParkAttendancePage() {
         <PageHeader
           title="Attendance"
           description="Mark and manage daily attendance"
-          actions={
-            <Button disabled>
-              <Plus className="size-4 mr-2" />
-              New Event
-            </Button>
-          }
         />
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {Array.from({ length: 3 }).map((_, i) => (
@@ -231,21 +191,20 @@ export function ParkAttendancePage() {
       <PageHeader
         title="Attendance"
         description="Mark and manage daily attendance"
-        actions={
-          <Button
-            onClick={() => setCreateOpen(true)}
-            className="bg-[#4B0A8F] hover:bg-[#4B0A8FE6] text-white"
-          >
-            <Plus className="size-4 mr-2" />
-            New Event
-          </Button>
-        }
       />
 
       {/* Date header */}
-      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+      <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
         <CalendarDays className="size-4" />
-        <span className="font-medium">{todayDateStr}</span>
+        <label className="font-medium" htmlFor="attendance-date">Class date</label>
+        <input
+          id="attendance-date"
+          type="date"
+          value={selectedDate}
+          onChange={(event) => setSelectedDate(event.target.value)}
+          className="h-9 rounded-md border bg-background px-3 text-sm text-foreground"
+        />
+        <span className="text-xs">{selectedDateLabel}</span>
       </div>
 
       {/* Filter chips */}
@@ -282,7 +241,7 @@ export function ParkAttendancePage() {
           description={
             filter !== "all"
               ? `No ${filter} events found. Try a different filter.`
-              : "Create a new event to start marking attendance."
+              : "No class is scheduled for this date. Classes run on Saturdays and Sundays, excluding configured off days."
           }
         />
       ) : (
@@ -308,7 +267,7 @@ export function ParkAttendancePage() {
                   onClick={() =>
                     event.isClosed
                       ? null
-                      : handleMarkAttendance(event.id)
+                      : handleMarkAttendance(event)
                   }
                 >
                   <CardContent className="p-4 space-y-3">
@@ -325,7 +284,7 @@ export function ParkAttendancePage() {
                             {event.title}
                           </p>
                           <p className="text-xs text-muted-foreground truncate">
-                            {event.groupName}
+                            {event.groupName}{event.batchName ? ` · ${event.batchName}` : ""}
                           </p>
                         </div>
                       </div>
@@ -410,7 +369,7 @@ export function ParkAttendancePage() {
                       onClick={(e) => {
                         e.stopPropagation();
                         if (!event.isClosed) {
-                          handleMarkAttendance(event.id);
+                          handleMarkAttendance(event);
                         }
                       }}
                     >
@@ -434,75 +393,6 @@ export function ParkAttendancePage() {
         </div>
       )}
 
-      {/* Create Event Dialog */}
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Create New Event</DialogTitle>
-            <DialogDescription>
-              Start a new attendance session for a group.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-2">
-              <Label htmlFor="group-select">Group</Label>
-              <Select
-                value={createGroupId}
-                onValueChange={setCreateGroupId}
-              >
-                <SelectTrigger id="group-select">
-                  <SelectValue placeholder="Select a group" />
-                </SelectTrigger>
-                <SelectContent>
-                  {groupsData?.groups?.map((g) => (
-                    <SelectItem key={g.id} value={g.id}>
-                      {g.name}{" "}
-                      <span className="text-muted-foreground text-xs">
-                        ({g.batch?.name})
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="event-title">Event Title</Label>
-              <Input
-                id="event-title"
-                placeholder="e.g. Weekly Halaqa"
-                value={createTitle}
-                onChange={(e) => setCreateTitle(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") handleCreate();
-                }}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setCreateOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              onClick={handleCreate}
-              disabled={
-                !createGroupId ||
-                !createTitle.trim() ||
-                createMutation.isPending
-              }
-              className="bg-[#4B0A8F] hover:bg-[#4B0A8FE6] text-white"
-            >
-              {createMutation.isPending ? (
-                <>
-                  <Loader2 className="size-4 mr-2 animate-spin" />
-                  Creating...
-                </>
-              ) : (
-                "Create Event"
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

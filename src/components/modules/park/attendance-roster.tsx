@@ -1048,7 +1048,7 @@ export function AttendanceRoster() {
                   }}
                   onClick={(e) => handleRowClick(e, i, item.participantId)}
                   className={cn(
-                    "flex items-center justify-between gap-2 px-3 py-2 rounded-lg border transition-all duration-200 min-h-[52px] cursor-pointer group/row",
+                    "flex flex-wrap items-start justify-between gap-2 px-3 py-2 rounded-lg border transition-all duration-200 min-h-[52px] cursor-pointer group/row sm:flex-nowrap sm:items-center",
                     !isClosed && "hover:translate-y-[-1px] hover:shadow-md",
                     isClosed
                       ? "bg-muted/30 border-border/50"
@@ -1059,9 +1059,9 @@ export function AttendanceRoster() {
                   )}
                 >
                   {/* Name + phone */}
-                  <div className="min-w-0 flex-1">
+                  <div className="min-w-0 flex-1 basis-[calc(100%-3.5rem)] sm:basis-auto">
                     <div className="flex items-center gap-1.5">
-                      <p className="text-sm font-medium truncate">
+                      <p className="text-sm font-medium break-words sm:truncate">
                         {item.participantName}
                       </p>
                       {participantWarning && (
@@ -1089,7 +1089,7 @@ export function AttendanceRoster() {
 
                   {/* Quick status buttons (mobile: always visible, desktop: hover) */}
                   {!isClosed && (
-                    <div className="flex items-center gap-1.5 sm:gap-1 shrink-0 sm:opacity-0 sm:group-hover/row:opacity-100 transition-opacity duration-150">
+                    <div className="order-3 flex w-full items-center justify-end gap-1.5 border-t pt-2 sm:order-none sm:w-auto sm:border-0 sm:pt-0 sm:gap-1 sm:opacity-0 sm:group-hover/row:opacity-100 transition-opacity duration-150">
                       {QUICK_STATUSES.map((qs) => {
                         const isCurrentStatus = status === qs.status;
                         const Icon = qs.icon;

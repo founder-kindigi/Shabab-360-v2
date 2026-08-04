@@ -23,7 +23,7 @@ vi.mock("@/lib/db", () => ({
 vi.mock("@/lib/audit", () => ({ logAudit: vi.fn() }));
 
 import { POST } from "./route";
-import { createAttendanceEventSchema } from "@/lib/attendance/schemas";
+import { materializeScheduledAttendanceSchema } from "@/lib/attendance/schemas";
 
 describe("POST /api/park/attendance/events", () => {
   beforeEach(() => {
@@ -85,10 +85,10 @@ describe("POST /api/park/attendance/events", () => {
     expect(mocks.groupFindUnique).not.toHaveBeenCalled();
   });
 
-  it("accepts a reconciled Lahore UUID group identifier", () => {
-    const parsed = createAttendanceEventSchema.safeParse({
+  it("accepts a reconciled Lahore UUID group identifier for a scheduled card", () => {
+    const parsed = materializeScheduledAttendanceSchema.safeParse({
       groupId: "61ae6957-3990-42bf-a321-b2beea3b314a",
-      title: "Sunday class",
+      eventDate: "2026-08-02T08:00:00.000Z",
     });
 
     expect(parsed.success).toBe(true);

@@ -11,6 +11,7 @@ import {
   queryValidationError,
 } from "@/lib/api/query-params";
 import { z } from "zod";
+import { isScheduledAttendanceSession } from "@/lib/attendance/scheduled-sessions";
 import { createAttendanceEventSchema } from "@/lib/attendance/schemas";
 import { createRosterSnapshot } from "@/lib/attendance/summaries";
 
@@ -34,7 +35,17 @@ export async function GET(req: Request) {
     const dateParam = query.data.date;
     const statusFilter = query.data.status;
 
-    let groupIds: string[];
+    type ScheduledGroup = {
+      id: string;
+      name: string;
+      batch: {
+        name: string;
+        startDate: Date;
+        endDate: Date | null;
+        settings: { offWeekdays: { weekday: number }[]; offDates: { offDate: Date }[] } | null;
+      };
+    };
+    let groups: ScheduledGroup[];
     if (user.role === "murabbi") {
       const scopeError = requireResourceScope(
         user,
@@ -45,13 +56,25 @@ export async function GET(req: Request) {
 
       const group = await db.group.findUnique({
         where: { id: user.assignedGroupId! },
-        select: { batch: { select: { parkId: true } } },
+        select: {
+          id: true,
+          name: true,
+          batch: {
+            select: {
+              parkId: true,
+              name: true,
+              startDate: true,
+              endDate: true,
+              settings: { select: { offWeekdays: { select: { weekday: true } }, offDates: { select: { offDate: true } } } },
+            },
+          },
+        },
       });
       if (!group) {
         return NextResponse.json({ error: "Assigned group not found" }, { status: 403 });
       }
       parkId = group.batch.parkId;
-      groupIds = [user.assignedGroupId!];
+      groups = [group];
     } else {
       if (!parkId) return NextResponse.json({ error: "parkId required" }, { status: 400 });
       const scopeError = requireResourceScope(user, { parkId }, ATTENDANCE_ROLES);
@@ -61,12 +84,23 @@ export async function GET(req: Request) {
         where: { parkId, isActive: true },
         select: { id: true },
       });
-      const groups = await db.group.findMany({
+      groups = await db.group.findMany({
         where: { batchId: { in: batches.map((batch) => batch.id) }, isActive: true },
-        select: { id: true },
+        select: {
+          id: true,
+          name: true,
+          batch: {
+            select: {
+              name: true,
+              startDate: true,
+              endDate: true,
+              settings: { select: { offWeekdays: { select: { weekday: true } }, offDates: { select: { offDate: true } } } },
+            },
+          },
+        },
       });
-      groupIds = groups.map((group) => group.id);
     }
+    const groupIds = groups.map((group) => group.id);
 
     // Determine date range
     let startDate: Date;
@@ -129,7 +163,26 @@ export async function GET(req: Request) {
       closedByStaff.map((s) => [s.id, s.user.name])
     );
 
-    const eventList = events.map((e) => {
+    const persistedByGroupId = new Map(events.map((event) => [event.groupId, event]));
+    const eventList: Array<{
+      id: string | null;
+      title: string;
+      groupId: string;
+      groupName: string;
+      batchName?: string;
+      eventDate: string;
+      isClosed: boolean;
+      isScheduled?: boolean;
+      participantCount: number;
+      markedCount: number;
+      presentCount: number;
+      absentCount: number;
+      lateCount: number;
+      excusedCount: number;
+      progress: number;
+      closedAt: string | null;
+      closedByName: string | null;
+    }> = events.map((e) => {
       const pCount = pCountMap.get(e.groupId) || 0;
       const mCount = e.records.length;
       const presentCount = e.records.filter((r) => r.status === "present").length;
@@ -156,10 +209,39 @@ export async function GET(req: Request) {
       };
     });
 
+    // A scheduled card is visible before its first mark. The actual event and
+    // roster snapshot are created only when the user begins attendance.
+    if (statusFilter !== "closed") {
+      for (const group of groups) {
+        if (persistedByGroupId.has(group.id)) continue;
+        if (!isScheduledAttendanceSession(startDate, group.batch)) continue;
+        const participantCount = pCountMap.get(group.id) || 0;
+        eventList.push({
+          id: null,
+          title: `${group.name} attendance`,
+          groupId: group.id,
+          groupName: group.name,
+          batchName: group.batch.name,
+          eventDate: startDate.toISOString(),
+          isClosed: false,
+          isScheduled: true,
+          participantCount,
+          markedCount: 0,
+          presentCount: 0,
+          absentCount: 0,
+          lateCount: 0,
+          excusedCount: 0,
+          progress: 0,
+          closedAt: null,
+          closedByName: null,
+        });
+      }
+    }
+
     return NextResponse.json({
       date: formatPKT(startDate, "yyyy-MM-dd"),
       parkId,
-      events: eventList,
+      events: eventList.sort((left, right) => left.groupName.localeCompare(right.groupName)),
     });
   } catch (error) {
     console.error("Attendance list error:", error);
