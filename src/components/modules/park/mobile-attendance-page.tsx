@@ -226,7 +226,7 @@ export function MobileAttendancePage({ onBack }: { onBack?: () => void }) {
       </div>
 
       {/* ─── Student Roster Cards ─────────────────────────────────────── */}
-      <div className="p-4 space-y-3">
+      <div className="p-4 md:p-6 grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
         {filteredRoster.map((student) => {
           const isPresent = student.status === "present";
           const isAbsent = student.status === "absent";
