@@ -31,6 +31,12 @@ interface AttendanceReportRow {
 
 export interface AttendanceReportData {
   data: AttendanceReportRow[];
+  pagination?: {
+    page: number;
+    pageSize: number;
+    total: number;
+    totalPages: number;
+  };
   summary: {
     totalEvents: number;
     totalRecords: number;
@@ -71,7 +77,7 @@ const STATUS_COLORS: Record<string, string> = {
 /* ------------------------------------------------------------------ */
 
 export function AttendanceReportPrint({ report, onClose }: AttendanceReportPrintProps) {
-  const { data: rows, summary } = report;
+  const { data: rows, summary, pagination } = report;
 
   function handlePrint() {
     window.print();
@@ -109,6 +115,11 @@ export function AttendanceReportPrint({ report, onClose }: AttendanceReportPrint
               <> &mdash; {summary.dateRange.from} to {summary.dateRange.to}</>
             )}
           </p>
+          {pagination && pagination.totalPages > 1 && (
+            <p className="text-xs font-medium text-amber-700">
+              Showing records {(pagination.page - 1) * pagination.pageSize + 1}-{Math.min(pagination.page * pagination.pageSize, pagination.total)} of {pagination.total}. Narrow the filters before printing a complete report.
+            </p>
+          )}
         </div>
 
         {/* Summary cards */}
