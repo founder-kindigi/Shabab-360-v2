@@ -19,9 +19,9 @@ function stripSensitiveFields(profile: Record<string, unknown>): Record<string, 
 
 export async function GET(
   _req: Request,
-  { params }: { params: Promise<{ participantId: string }> }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const { participantId } = await params;
+  const { id: participantId } = await params;
 
   // LAYER 1: capability gate
   const auth = await requireCapability("students.profile.view");
@@ -70,9 +70,9 @@ export async function GET(
 
 export async function PUT(
   _req: Request,
-  { params }: { params: Promise<{ participantId: string }> }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const { participantId } = await params;
+  const { id: participantId } = await params;
 
   // LAYER 1: capability gate
   const auth = await requireCapability("students.profile.manage");

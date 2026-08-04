@@ -49,7 +49,7 @@ vi.mock("@/lib/db", () => ({
   },
 }));
 
-import { GET as adminGet, PUT as adminPut } from "../../../app/api/admin/students/[participantId]/profile/route";
+import { GET as adminGet, PUT as adminPut } from "../../../app/api/admin/students/[id]/profile/route";
 import { GET as guardianGet } from "../../../app/api/guardian/children/[participantId]/profile/route";
 import { GET as meGet } from "../../../app/api/me/profile/route";
 
@@ -106,13 +106,13 @@ describe("GET /api/admin/students/[participantId]/profile", () => {
 
   it("returns 401 for unauthenticated requests", async () => {
     mocks.requireCapability.mockResolvedValue(NextResponse.json({ error: "Unauthorized" }, { status: 401 }));
-    const res = await adminGet(adminUrl("pid-1"), { params: Promise.resolve({ participantId: "pid-1" }) });
+    const res = await adminGet(adminUrl("pid-1"), { params: Promise.resolve({ id: "pid-1" }) });
     expect(res.status).toBe(401);
   });
 
   it("returns 400 for HQ without cityId", async () => {
     mocks.resolveActorCity.mockResolvedValue(null);
-    const res = await adminGet(adminUrl("pid-1"), { params: Promise.resolve({ participantId: "pid-1" }) });
+    const res = await adminGet(adminUrl("pid-1"), { params: Promise.resolve({ id: "pid-1" }) });
     expect(res.status).toBe(400);
   });
 
@@ -120,18 +120,18 @@ describe("GET /api/admin/students/[participantId]/profile", () => {
     mocks.resolveActorCity.mockResolvedValue(null);
     mocks.getServerSession.mockResolvedValue({ user: CH_USER });
     mocks.requireCapability.mockResolvedValue({ user: CH_USER });
-    const res = await adminGet(adminUrl("pid-1"), { params: Promise.resolve({ participantId: "pid-1" }) });
+    const res = await adminGet(adminUrl("pid-1"), { params: Promise.resolve({ id: "pid-1" }) });
     expect(res.status).toBe(403);
   });
 
   it("returns 403 when canAccessParticipantProfile fails", async () => {
     mocks.canAccessParticipantProfile.mockResolvedValue(false);
-    const res = await adminGet(adminUrl("pid-1", "cityId=c-1"), { params: Promise.resolve({ participantId: "pid-1" }) });
+    const res = await adminGet(adminUrl("pid-1", "cityId=c-1"), { params: Promise.resolve({ id: "pid-1" }) });
     expect(res.status).toBe(403);
   });
 
   it("returns 200 with profile when authorized", async () => {
-    const res = await adminGet(adminUrl("pid-1", "cityId=c-1"), { params: Promise.resolve({ participantId: "pid-1" }) });
+    const res = await adminGet(adminUrl("pid-1", "cityId=c-1"), { params: Promise.resolve({ id: "pid-1" }) });
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.school).toBe("LGS");
@@ -143,14 +143,14 @@ describe("GET /api/admin/students/[participantId]/profile", () => {
       if (args?.where?.id) return { id: "pid-1" };
       return null;
     });
-    const res = await adminGet(adminUrl("pid-1", "cityId=c-1"), { params: Promise.resolve({ participantId: "pid-1" }) });
+    const res = await adminGet(adminUrl("pid-1", "cityId=c-1"), { params: Promise.resolve({ id: "pid-1" }) });
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body).toBeNull();
   });
 
   it("strips sensitive fields when includeSensitive is false", async () => {
-    const res = await adminGet(adminUrl("pid-1", "cityId=c-1"), { params: Promise.resolve({ participantId: "pid-1" }) });
+    const res = await adminGet(adminUrl("pid-1", "cityId=c-1"), { params: Promise.resolve({ id: "pid-1" }) });
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.school).toBe("LGS");
@@ -168,7 +168,7 @@ describe("GET /api/admin/students/[participantId]/profile", () => {
       .mockResolvedValueOnce({ user: CH_USER }) // first call: students.profile.view
       .mockResolvedValueOnce(NextResponse.json({ error: "Forbidden" }, { status: 403 })); // second call: sensitive.view
     mocks.getServerSession.mockResolvedValue({ user: CH_USER });
-    const res = await adminGet(adminUrl("pid-1", "cityId=c-1&includeSensitive=true"), { params: Promise.resolve({ participantId: "pid-1" }) });
+    const res = await adminGet(adminUrl("pid-1", "cityId=c-1&includeSensitive=true"), { params: Promise.resolve({ id: "pid-1" }) });
     expect(res.status).toBe(403);
   });
 
@@ -177,7 +177,7 @@ describe("GET /api/admin/students/[participantId]/profile", () => {
       .mockResolvedValueOnce({ user: CH_USER }) // profile.view
       .mockResolvedValueOnce({ user: CH_USER }); // sensitive.view
     mocks.getServerSession.mockResolvedValue({ user: CH_USER });
-    const res = await adminGet(adminUrl("pid-1", "cityId=c-1&includeSensitive=true"), { params: Promise.resolve({ participantId: "pid-1" }) });
+    const res = await adminGet(adminUrl("pid-1", "cityId=c-1&includeSensitive=true"), { params: Promise.resolve({ id: "pid-1" }) });
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.financialStatus).toBe("Middle class");
@@ -189,7 +189,7 @@ describe("GET /api/admin/students/[participantId]/profile", () => {
     mocks.requireCapability.mockResolvedValue({ user: { ...PL_USER, assignedParkId: "park-2" } });
     mocks.resolveActorCity.mockResolvedValue("city-1");
     mocks.canAccessParticipantProfile.mockResolvedValue(false);
-    const res = await adminGet(adminUrl("pid-1"), { params: Promise.resolve({ participantId: "pid-1" }) });
+    const res = await adminGet(adminUrl("pid-1"), { params: Promise.resolve({ id: "pid-1" }) });
     expect(res.status).toBe(403);
   });
 });
@@ -219,7 +219,7 @@ describe("PUT /api/admin/students/[participantId]/profile", () => {
 
   it("returns 401 for unauthenticated requests", async () => {
     mocks.requireCapability.mockResolvedValue(NextResponse.json({ error: "Unauthorized" }, { status: 401 }));
-    const res = await adminPut(putBody({ school: "New School" }), { params: Promise.resolve({ participantId: "pid-1" }) });
+    const res = await adminPut(putBody({ school: "New School" }), { params: Promise.resolve({ id: "pid-1" }) });
     expect(res.status).toBe(401);
   });
 
@@ -227,25 +227,25 @@ describe("PUT /api/admin/students/[participantId]/profile", () => {
     mocks.resolveActorCity.mockResolvedValue(null);
     mocks.requireCapability.mockResolvedValue({ user: HQ_USER });
     mocks.getServerSession.mockResolvedValue({ user: HQ_USER });
-    const res = await adminPut(putBody({ school: "New School" }), { params: Promise.resolve({ participantId: "pid-1" }) });
+    const res = await adminPut(putBody({ school: "New School" }), { params: Promise.resolve({ id: "pid-1" }) });
     expect(res.status).toBe(400);
   });
 
   it("returns 403 for foreign city scope", async () => {
     mocks.resolveActorCity.mockResolvedValue(null);
-    const res = await adminPut(putBody({ school: "New School" }), { params: Promise.resolve({ participantId: "pid-1" }) });
+    const res = await adminPut(putBody({ school: "New School" }), { params: Promise.resolve({ id: "pid-1" }) });
     expect(res.status).toBe(403);
   });
 
   it("returns 403 when canAccessParticipantProfile fails", async () => {
     mocks.canAccessParticipantProfile.mockResolvedValue(false);
-    const res = await adminPut(putBody({ school: "New School" }), { params: Promise.resolve({ participantId: "pid-1" }) });
+    const res = await adminPut(putBody({ school: "New School" }), { params: Promise.resolve({ id: "pid-1" }) });
     expect(res.status).toBe(403);
   });
 
   it("returns 404 for non-existent participant", async () => {
     mocks.findUnique.mockResolvedValue(null); // participant not found
-    const res = await adminPut(putBody({ school: "New School" }), { params: Promise.resolve({ participantId: "nonexistent" }) });
+    const res = await adminPut(putBody({ school: "New School" }), { params: Promise.resolve({ id: "nonexistent" }) });
     expect(res.status).toBe(404);
     const body = await res.json();
     expect(body.error).toBe("Participant not found");
@@ -260,7 +260,7 @@ describe("PUT /api/admin/students/[participantId]/profile", () => {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ school: "S", participantId: "injected" }),
       }),
-      { params: Promise.resolve({ participantId: "pid-1" }) }
+      { params: Promise.resolve({ id: "pid-1" }) }
     );
     expect(res.status).toBe(400);
   });
@@ -274,7 +274,7 @@ describe("PUT /api/admin/students/[participantId]/profile", () => {
     mocks.requireCapability
       .mockResolvedValueOnce({ user: CH_USER }) // profile.manage
       .mockResolvedValueOnce(NextResponse.json({ error: "Forbidden" }, { status: 403 })); // sensitive.view denied
-    const res = await adminPut(putBody({ school: "New School" }), { params: Promise.resolve({ participantId: "pid-1" }) });
+    const res = await adminPut(putBody({ school: "New School" }), { params: Promise.resolve({ id: "pid-1" }) });
     expect(res.status).toBe(201);
     expect(mocks.upsert).toHaveBeenCalled();
     expect(mocks.auditCreate).toHaveBeenCalled();
@@ -289,7 +289,7 @@ describe("PUT /api/admin/students/[participantId]/profile", () => {
     mocks.requireCapability
       .mockResolvedValueOnce({ user: CH_USER }) // profile.manage
       .mockResolvedValueOnce(NextResponse.json({ error: "Forbidden" }, { status: 403 })); // sensitive.view denied
-    const res = await adminPut(putBody({ school: "Updated School" }), { params: Promise.resolve({ participantId: "pid-1" }) });
+    const res = await adminPut(putBody({ school: "Updated School" }), { params: Promise.resolve({ id: "pid-1" }) });
     expect(res.status).toBe(200);
     expect(mocks.upsert).toHaveBeenCalled();
     expect(mocks.auditCreate).toHaveBeenCalled();
@@ -299,7 +299,7 @@ describe("PUT /api/admin/students/[participantId]/profile", () => {
     mocks.requireCapability
       .mockResolvedValueOnce({ user: CH_USER }) // profile.manage
       .mockResolvedValueOnce(NextResponse.json({ error: "Forbidden" }, { status: 403 })); // sensitive.view denied
-    const res = await adminPut(putBody({ school: "S" }), { params: Promise.resolve({ participantId: "pid-1" }) });
+    const res = await adminPut(putBody({ school: "S" }), { params: Promise.resolve({ id: "pid-1" }) });
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.financialStatus).toBeUndefined();
@@ -315,7 +315,7 @@ describe("PUT /api/admin/students/[participantId]/profile", () => {
       if (args?.where?.id) return { id: "pid-1" };
       return null;
     });
-    const res = await adminPut(putBody({ school: "S" }), { params: Promise.resolve({ participantId: "pid-1" }) });
+    const res = await adminPut(putBody({ school: "S" }), { params: Promise.resolve({ id: "pid-1" }) });
     expect(res.status).toBe(201);
     // sensitive.view was granted, so raw profile should be returned
     const body = await res.json();
@@ -338,7 +338,7 @@ describe("Guardian and Student route helpers (tested via mock patterns)", () => 
       if (args?.where?.id) return { id: "pid-1" };
       return null;
     });
-    const res = await adminGet(adminUrl("pid-1", "cityId=c-1"), { params: Promise.resolve({ participantId: "pid-1" }) });
+    const res = await adminGet(adminUrl("pid-1", "cityId=c-1"), { params: Promise.resolve({ id: "pid-1" }) });
     expect(res.status).toBe(200);
   });
 });
