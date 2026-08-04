@@ -35,7 +35,8 @@ export function MobileCityHeadDashboard() {
       if (!res.ok) return null;
       return res.json();
     },
-    retry: 1,
+    retry: false,
+    enabled: !!session?.user,
     staleTime: 30000
   });
 

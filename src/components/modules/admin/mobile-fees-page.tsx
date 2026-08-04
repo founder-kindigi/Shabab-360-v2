@@ -1,4 +1,5 @@
 "use client";
+import { useSession } from "next-auth/react";
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -21,6 +22,7 @@ interface MobileFeesPageProps {
 }
 
 export function MobileFeesPage({ onBack }: MobileFeesPageProps) {
+  const { data: session } = useSession();
   // ─── Real DB Query ─────────────────────────────────────────────────────
   const { data: feesData, isLoading } = useQuery({
     queryKey: ["fees-report-real"],
@@ -29,7 +31,8 @@ export function MobileFeesPage({ onBack }: MobileFeesPageProps) {
       if (!res.ok) return null;
       return res.json();
     },
-    retry: 1,
+    retry: false,
+    enabled: !!session?.user,
     staleTime: 30000
   });
 

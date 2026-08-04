@@ -1,4 +1,5 @@
 "use client";
+import { useSession } from "next-auth/react";
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -26,6 +27,7 @@ interface MobileCallingPageProps {
 }
 
 export function MobileCallingPage({ onBack }: MobileCallingPageProps) {
+  const { data: session } = useSession();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<"pending" | "promised" | "completed">("pending");
   const [selectedLead, setSelectedLead] = useState<any>(null);
@@ -39,7 +41,8 @@ export function MobileCallingPage({ onBack }: MobileCallingPageProps) {
       if (!res.ok) return null;
       return res.json();
     },
-    retry: 1,
+    retry: false,
+    enabled: !!session?.user,
     staleTime: 30000
   });
 

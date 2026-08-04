@@ -34,7 +34,8 @@ export function MobileMurabbiDashboard() {
       if (!res.ok) return null;
       return res.json();
     },
-    retry: 1,
+    enabled: !!session?.user,
+    retry: false,
     staleTime: 30000
   });
 
@@ -45,7 +46,8 @@ export function MobileMurabbiDashboard() {
       if (!res.ok) return null;
       return res.json();
     },
-    retry: 1,
+    enabled: !!session?.user,
+    retry: false,
     staleTime: 30000
   });
 

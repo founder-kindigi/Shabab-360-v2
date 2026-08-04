@@ -1,4 +1,5 @@
 "use client";
+import { useSession } from "next-auth/react";
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -21,6 +22,7 @@ interface MobileAdmissionsPageProps {
 }
 
 export function MobileAdmissionsPage({ onBack }: MobileAdmissionsPageProps) {
+  const { data: session } = useSession();
   const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "approved">("all");
 
   // ─── Real DB Query ─────────────────────────────────────────────────────
@@ -31,7 +33,8 @@ export function MobileAdmissionsPage({ onBack }: MobileAdmissionsPageProps) {
       if (!res.ok) return null;
       return res.json();
     },
-    retry: 1,
+    retry: false,
+    enabled: !!session?.user,
     staleTime: 30000
   });
 

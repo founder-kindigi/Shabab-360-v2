@@ -1,4 +1,5 @@
 "use client";
+import { useSession } from "next-auth/react";
 
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
@@ -20,6 +21,7 @@ interface MobileEventsPageProps {
 }
 
 export function MobileEventsPage({ onBack }: MobileEventsPageProps) {
+  const { data: session } = useSession();
   // ─── Real DB Query ─────────────────────────────────────────────────────
   const { data: eventsData, isLoading } = useQuery({
     queryKey: ["events-list-real"],
@@ -28,7 +30,8 @@ export function MobileEventsPage({ onBack }: MobileEventsPageProps) {
       if (!res.ok) return null;
       return res.json();
     },
-    retry: 1,
+    retry: false,
+    enabled: !!session?.user,
     staleTime: 30000
   });
 

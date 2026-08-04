@@ -1,4 +1,5 @@
 "use client";
+import { useSession } from "next-auth/react";
 
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
@@ -19,6 +20,7 @@ interface MobileContentPlannerPageProps {
 }
 
 export function MobileContentPlannerPage({ onBack }: MobileContentPlannerPageProps) {
+  const { data: session } = useSession();
   // ─── Real DB Query ─────────────────────────────────────────────────────
   const { data: plansData, isLoading } = useQuery({
     queryKey: ["content-plans-real"],
@@ -27,7 +29,8 @@ export function MobileContentPlannerPage({ onBack }: MobileContentPlannerPagePro
       if (!res.ok) return null;
       return res.json();
     },
-    retry: 1,
+    retry: false,
+    enabled: !!session?.user,
     staleTime: 30000
   });
 
