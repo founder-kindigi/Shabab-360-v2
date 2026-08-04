@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireRole, requireCapability } from "@/lib/auth/authorize";
+import { requireRole, requireCapability, requireRoleAndCapability } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
 import { moneyToNumber } from "@/lib/money";
@@ -31,9 +31,7 @@ const reportQuerySchema = z.object({
 });
 
 export async function GET(request: NextRequest) {
-  const authError = await requireRole(["super_admin", "program_admin"]);
-  if (authError) return authError;
-  const capabilityAuth = await requireCapability("reports.view");
+  const capabilityAuth = await requireRoleAndCapability(["super_admin", "program_admin"], "reports.view");
   if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
   const { searchParams } = new URL(request.url);
@@ -269,83 +267,122 @@ async function getAttendanceOverview(startDateUTC: Date, cityId?: string, parkId
 }
 
 async function getCityComparison(startDateUTC: Date) {
-  const cities = await db.city.findMany({
-    where: { isActive: true },
-    include: {
-      parks: {
-        where: { isActive: true },
-        include: {
-          batches: {
-            where: { isActive: true },
-            include: {
-              groups: {
-                where: { isActive: true },
-                include: {
-                  attendanceEvents: {
-                    where: { eventDate: { gte: startDateUTC } },
-                    include: { records: true },
-                  },
-                  _count: { select: { participants: { where: { state: "active" } } } },
-                },
-              },
-            },
-          },
-        },
+  // Run all aggregations in the DB — do NOT load individual attendance records
+  // into memory. Previously a 6-level deep include loaded every record for
+  // every group/park/city which could be tens of thousands of rows.
+  const [cities, participantsByGroup, eventsByGroup, recordsByEvent, parkNames] = await Promise.all([
+    db.city.findMany({
+      where: { isActive: true },
+      select: { id: true, name: true, _count: { select: { parks: { where: { isActive: true } } } } },
+      orderBy: { name: "asc" },
+    }),
+    db.participant.groupBy({
+      by: ["groupId"],
+      where: { state: "active", groupId: { not: null } },
+      _count: { id: true },
+    }),
+    db.attendanceEvent.groupBy({
+      by: ["groupId"],
+      where: { eventDate: { gte: startDateUTC } },
+      _count: { id: true },
+    }),
+    db.attendanceRecord.groupBy({
+      by: ["eventId"],
+      where: { event: { eventDate: { gte: startDateUTC } } },
+      _count: { id: true },
+    }),
+    // need group→park→city mapping
+    db.group.findMany({
+      where: { isActive: true },
+      select: {
+        id: true,
+        batch: { select: { park: { select: { id: true, name: true, cityId: true } } } },
       },
-    },
-    orderBy: { name: "asc" },
+    }),
+  ]);
+
+  // Build lookup maps
+  const groupToCityId = new Map<string, string>();
+  const groupToParkId = new Map<string, string>();
+  const parkIdToName = new Map<string, string>();
+  const parkIdToCityId = new Map<string, string>();
+  for (const g of parkNames) {
+    const park = g.batch?.park;
+    if (!park) continue;
+    groupToCityId.set(g.id, park.cityId);
+    groupToParkId.set(g.id, park.id);
+    parkIdToName.set(park.id, park.name);
+    parkIdToCityId.set(park.id, park.cityId);
+  }
+
+  const participantCountByGroup = new Map(participantsByGroup.map((r) => [r.groupId!, r._count.id]));
+  const eventCountByGroup = new Map(eventsByGroup.map((r) => [r.groupId, r._count.id]));
+
+  // Map event → count of records
+  const recordsByEventMap = new Map(recordsByEvent.map((r) => [r.eventId, r._count.id]));
+
+  // For each event we need the groupId to aggregate
+  const eventsWithGroup = await db.attendanceEvent.findMany({
+    where: { eventDate: { gte: startDateUTC } },
+    select: { id: true, groupId: true },
   });
 
+  // Aggregate records per group
+  const recordCountByGroup = new Map<string, number>();
+  for (const ev of eventsWithGroup) {
+    const recs = recordsByEventMap.get(ev.id) || 0;
+    recordCountByGroup.set(ev.groupId, (recordCountByGroup.get(ev.groupId) || 0) + recs);
+  }
+
+  // Aggregate per city
+  const cityAggMap = new Map<string, { totalParticipants: number; totalEvents: number; totalRecords: number; totalPossible: number; parkRates: Map<string, { records: number; possible: number }> }>();
+
+  for (const [groupId, cityId] of groupToCityId) {
+    if (!cityAggMap.has(cityId)) {
+      cityAggMap.set(cityId, { totalParticipants: 0, totalEvents: 0, totalRecords: 0, totalPossible: 0, parkRates: new Map() });
+    }
+    const agg = cityAggMap.get(cityId)!;
+    const participants = participantCountByGroup.get(groupId) || 0;
+    const events = eventCountByGroup.get(groupId) || 0;
+    const records = recordCountByGroup.get(groupId) || 0;
+    const possible = participants * events;
+    agg.totalParticipants += participants;
+    agg.totalEvents += events;
+    agg.totalRecords += records;
+    agg.totalPossible += possible;
+
+    const parkId = groupToParkId.get(groupId);
+    if (parkId) {
+      const pr = agg.parkRates.get(parkId) || { records: 0, possible: 0 };
+      pr.records += records;
+      pr.possible += possible;
+      agg.parkRates.set(parkId, pr);
+    }
+  }
+
   const cityStats = cities.map((city) => {
-    let totalParticipants = 0;
-    let totalEvents = 0;
-    let totalRecords = 0;
-    let totalPossible = 0;
+    const agg = cityAggMap.get(city.id) || { totalParticipants: 0, totalEvents: 0, totalRecords: 0, totalPossible: 0, parkRates: new Map() };
+    const avgRate = agg.totalPossible > 0 ? Math.round((agg.totalRecords / agg.totalPossible) * 100) : 0;
+
     let topParkRate = 0;
     let topParkName = "";
-
-    for (const park of city.parks) {
-      let parkParticipants = 0;
-      let parkRecords = 0;
-      let parkPossible = 0;
-      let parkEvents = 0;
-
-      for (const batch of park.batches) {
-        for (const group of batch.groups) {
-          parkParticipants += group._count.participants;
-          parkEvents += group.attendanceEvents.length;
-          parkPossible += group._count.participants * group.attendanceEvents.length;
-          parkRecords += group.attendanceEvents.reduce((sum, e) => sum + e.records.length, 0);
-        }
-      }
-
-      totalParticipants += parkParticipants;
-      totalEvents += parkEvents;
-      totalRecords += parkRecords;
-      totalPossible += parkPossible;
-
-      const parkRate = parkPossible > 0 ? (parkRecords / parkPossible) * 100 : 0;
-      if (parkRate > topParkRate && parkEvents > 0) {
-        topParkRate = parkRate;
-        topParkName = park.name;
-      }
+    for (const [parkId, pr] of agg.parkRates) {
+      const rate = pr.possible > 0 ? (pr.records / pr.possible) * 100 : 0;
+      if (rate > topParkRate) { topParkRate = rate; topParkName = parkIdToName.get(parkId) || ""; }
     }
-
-    const avgRate = totalPossible > 0 ? Math.round((totalRecords / totalPossible) * 100) : 0;
 
     return {
       cityId: city.id,
       name: city.name,
-      parksCount: city.parks.length,
-      totalParticipants,
-      totalEvents,
+      parksCount: city._count.parks,
+      totalParticipants: agg.totalParticipants,
+      totalEvents: agg.totalEvents,
       avgRate,
       topPark: topParkName,
     };
   });
 
   cityStats.sort((a, b) => b.avgRate - a.avgRate);
-
   return NextResponse.json(cityStats);
 }
 
@@ -354,59 +391,84 @@ async function getParkComparison(startDateUTC: Date, cityId?: string) {
     return NextResponse.json({ error: "cityId is required for park comparison" }, { status: 400 });
   }
 
-  const parks = await db.park.findMany({
-    where: { cityId, isActive: true },
-    include: {
-      batches: {
-        where: { isActive: true },
-        include: {
-          groups: {
-            where: { isActive: true },
-            include: {
-              attendanceEvents: {
-                where: { eventDate: { gte: startDateUTC } },
-                include: { records: true },
-              },
-              _count: { select: { participants: { where: { state: "active" } } } },
-            },
-          },
-        },
-      },
-    },
-    orderBy: { name: "asc" },
-  });
+  // Fetch parks and groups info, then aggregate in DB — no per-record loading
+  const [parks, groups, participantsByGroup, eventsByGroup, eventsInRange] = await Promise.all([
+    db.park.findMany({
+      where: { cityId, isActive: true },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    }),
+    db.group.findMany({
+      where: { isActive: true, batch: { park: { cityId } } },
+      select: { id: true, batch: { select: { park: { select: { id: true } } } } },
+    }),
+    db.participant.groupBy({
+      by: ["groupId"],
+      where: { state: "active", group: { batch: { park: { cityId } } } },
+      _count: { id: true },
+    }),
+    db.attendanceEvent.groupBy({
+      by: ["groupId"],
+      where: { eventDate: { gte: startDateUTC }, group: { batch: { park: { cityId } } } },
+      _count: { id: true },
+    }),
+    db.attendanceEvent.findMany({
+      where: { eventDate: { gte: startDateUTC }, group: { batch: { park: { cityId } } } },
+      select: { id: true, groupId: true },
+    }),
+  ]);
+
+  // Map eventId → record count via groupBy
+  const eventIds = eventsInRange.map((e) => e.id);
+  const recordsByEvent = eventIds.length > 0
+    ? await db.attendanceRecord.groupBy({
+        by: ["eventId"],
+        where: { eventId: { in: eventIds } },
+        _count: { id: true },
+      })
+    : [];
+  const recByEventMap = new Map(recordsByEvent.map((r) => [r.eventId, r._count.id]));
+
+  // records per group
+  const recByGroup = new Map<string, number>();
+  for (const ev of eventsInRange) {
+    recByGroup.set(ev.groupId, (recByGroup.get(ev.groupId) || 0) + (recByEventMap.get(ev.id) || 0));
+  }
+
+  const groupToParkId = new Map(groups.map((g) => [g.id, g.batch?.park?.id]));
+  const partByGroup = new Map(participantsByGroup.map((r) => [r.groupId!, r._count.id]));
+  const evByGroup = new Map(eventsByGroup.map((r) => [r.groupId, r._count.id]));
+
+  // Aggregate per park
+  const parkAgg = new Map<string, { participants: number; groups: number; events: number; records: number; possible: number }>();
+  for (const park of parks) parkAgg.set(park.id, { participants: 0, groups: 0, events: 0, records: 0, possible: 0 });
+
+  for (const [groupId, parkId] of groupToParkId) {
+    if (!parkId || !parkAgg.has(parkId)) continue;
+    const agg = parkAgg.get(parkId)!;
+    agg.groups++;
+    const pts = partByGroup.get(groupId) || 0;
+    const evs = evByGroup.get(groupId) || 0;
+    const recs = recByGroup.get(groupId) || 0;
+    agg.participants += pts;
+    agg.events += evs;
+    agg.records += recs;
+    agg.possible += pts * evs;
+  }
 
   const parkStats = parks.map((park) => {
-    let totalParticipants = 0;
-    let totalGroups = 0;
-    let totalEvents = 0;
-    let totalRecords = 0;
-    let totalPossible = 0;
-
-    for (const batch of park.batches) {
-      for (const group of batch.groups) {
-        totalGroups++;
-        totalParticipants += group._count.participants;
-        totalEvents += group.attendanceEvents.length;
-        totalPossible += group._count.participants * group.attendanceEvents.length;
-        totalRecords += group.attendanceEvents.reduce((sum, e) => sum + e.records.length, 0);
-      }
-    }
-
-    const avgRate = totalPossible > 0 ? Math.round((totalRecords / totalPossible) * 100) : 0;
-
+    const agg = parkAgg.get(park.id)!;
     return {
       parkId: park.id,
       name: park.name,
-      totalParticipants,
-      groups: totalGroups,
-      totalEvents,
-      avgRate,
+      totalParticipants: agg.participants,
+      groups: agg.groups,
+      totalEvents: agg.events,
+      avgRate: agg.possible > 0 ? Math.round((agg.records / agg.possible) * 100) : 0,
     };
   });
 
   parkStats.sort((a, b) => b.avgRate - a.avgRate);
-
   return NextResponse.json(parkStats);
 }
 

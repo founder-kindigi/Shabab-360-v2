@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireRole, requireAuth, requireCapability } from "@/lib/auth/authorize";
+import { requireRole, requireAuth, requireCapability, requireRoleAndCapability } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
 import type { UserRole } from "@/types";
 import { z } from "zod";
@@ -23,9 +23,7 @@ const peopleQuerySchema = paginatedQuerySchema().extend({
 });
 
 export async function GET(request: NextRequest) {
-  const authError = await requireRole(["super_admin", "program_admin"]);
-  if (authError) return authError;
-  const capabilityAuth = await requireCapability("people.view");
+  const capabilityAuth = await requireRoleAndCapability(["super_admin", "program_admin"], "people.view");
   if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
   const { searchParams } = new URL(request.url);

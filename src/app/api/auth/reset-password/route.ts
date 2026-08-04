@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { authOptions, invalidateTokenVersionCache } from "@/lib/auth";
 import { db } from "@/lib/db";
 import bcrypt from "bcryptjs";
 import { sendPasswordChangeConfirmation } from "@/lib/email-service";
@@ -79,6 +79,10 @@ export async function POST(request: Request) {
         tokenVersion: { increment: 1 },
       },
     });
+
+    // Immediately evict the cached token version so the new version is
+    // checked on the very next request rather than after the 30-second TTL.
+    invalidateTokenVersionCache(user.id);
 
     // Confirmation emails never include a password or a reusable reset link.
     sendPasswordChangeConfirmation({

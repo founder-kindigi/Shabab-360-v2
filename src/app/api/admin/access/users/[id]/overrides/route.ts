@@ -4,6 +4,7 @@ import { createAuditLogData, sanitizeAuditReason } from "@/lib/audit";
 import { requireCapability, requireRole } from "@/lib/auth/authorize";
 import { ROLE_DEFAULT_CAPABILITIES, USER_OVERRIDE_CAPABILITIES, isUserRole } from "@/lib/auth/capabilities";
 import { db } from "@/lib/db";
+import { invalidateCapabilityCache } from "@/lib/auth/capability-access";
 
 const overrideSchema = z.object({
   capability: z.enum(USER_OVERRIDE_CAPABILITIES),
@@ -129,8 +130,11 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     return saved;
   });
 
+  // Evict cache so the override takes effect on the next request
+  invalidateCapabilityCache(target.id);
   return NextResponse.json({ override });
 }
+
 
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   const auth = await requireSuperAdmin();
@@ -170,5 +174,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
   });
 
   if (!override) return NextResponse.json({ error: "Active override not found" }, { status: 404 });
+  // Evict cache so the revocation takes effect on the next request
+  invalidateCapabilityCache(id);
   return NextResponse.json({ override });
 }

@@ -4,6 +4,7 @@ import { createAuditLogData, sanitizeAuditReason } from "@/lib/audit";
 import { requireCapability, requireRole } from "@/lib/auth/authorize";
 import { ACCESS_CAPABILITIES, ROLE_DEFAULT_CAPABILITIES, type AccessCapability } from "@/lib/auth/capabilities";
 import { db } from "@/lib/db";
+import { invalidateRoleCapabilityCache } from "@/lib/auth/capability-access";
 
 const ROLES = ["super_admin", "program_admin", "city_head", "park_admin", "park_lead", "murabbi", "guardian", "student"] as const;
 const changeSchema = z.object({ role: z.enum(ROLES), capability: z.enum(ACCESS_CAPABILITIES), effect: z.enum(["allow", "deny"]), reason: z.string().trim().min(3).max(300) });
@@ -51,6 +52,8 @@ export async function PUT(request: NextRequest) {
     await tx.auditLog.create({ data: createAuditLogData({ userId: auth.user.id, action: "role_capability_updated", entityType: "role_capability_override", entityId: saved.id, oldValues: previous ?? undefined, newValues: { role: saved.role, capability: saved.capability, effect: saved.effect, sessionsInvalidated: true }, reason }) });
     return saved;
   });
+  // Evict cached capability results for all users of this role
+  invalidateRoleCapabilityCache(parsed.data.role);
   return NextResponse.json({ override });
 }
 
@@ -71,5 +74,7 @@ export async function DELETE(request: NextRequest) {
     return previous;
   });
   if (!override) return NextResponse.json({ error: "Role override not found" }, { status: 404 });
+  // Evict cached capability results for all users of this role
+  invalidateRoleCapabilityCache(parsed.data.role);
   return NextResponse.json({ success: true });
 }

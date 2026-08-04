@@ -8,6 +8,38 @@ const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 const MAX_LOGIN_ATTEMPTS = 5;
 const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
 
+// Short-lived tokenVersion cache to avoid a DB hit on every API request.
+// The JWT callback fires on every getServerSession() call, which happens on
+// every protected route. A 30-second TTL still catches password resets and
+// forced sign-outs while eliminating the per-request SELECT on users.
+const TOKEN_VERSION_CACHE = new Map<string, { version: number; cachedAt: number }>();
+const TOKEN_VERSION_TTL_MS = 30_000; // 30 seconds
+const TOKEN_VERSION_MAX_ENTRIES = 500; // bound memory in long-running servers
+
+function getCachedTokenVersion(userId: string): number | undefined {
+  const entry = TOKEN_VERSION_CACHE.get(userId);
+  if (!entry) return undefined;
+  if (Date.now() - entry.cachedAt > TOKEN_VERSION_TTL_MS) {
+    TOKEN_VERSION_CACHE.delete(userId);
+    return undefined;
+  }
+  return entry.version;
+}
+
+function setCachedTokenVersion(userId: string, version: number): void {
+  if (TOKEN_VERSION_CACHE.size >= TOKEN_VERSION_MAX_ENTRIES) {
+    // evict the oldest entry
+    const firstKey = TOKEN_VERSION_CACHE.keys().next().value;
+    if (firstKey) TOKEN_VERSION_CACHE.delete(firstKey);
+  }
+  TOKEN_VERSION_CACHE.set(userId, { version, cachedAt: Date.now() });
+}
+
+/** Call after a password reset or forced sign-out so the next request re-checks the DB. */
+export function invalidateTokenVersionCache(userId: string): void {
+  TOKEN_VERSION_CACHE.delete(userId);
+}
+
 function checkRateLimit(email: string): boolean {
   const now = Date.now();
   const entry = rateLimitMap.get(email);
@@ -167,14 +199,22 @@ export const authOptions: NextAuthOptions = {
         token.assignedGroupId = user.assignedGroupId;
       }
 
-      // Check if token version matches DB — invalidate if password was changed
+      // Check if token version matches DB — invalidate if password was changed.
+      // Uses a 30-second in-memory cache to avoid a DB hit on every API request.
       if (token.id) {
-        const dbUser = await db.user.findUnique({
-          where: { id: token.id },
-          select: { tokenVersion: true },
-        });
-        if (dbUser && token.tokenVersion !== dbUser.tokenVersion) {
-          return {};
+        const cachedVersion = getCachedTokenVersion(token.id);
+        if (cachedVersion !== undefined) {
+          // Cache hit — no DB query needed this request
+          if (token.tokenVersion !== cachedVersion) return {};
+        } else {
+          // Cache miss — fetch from DB and populate cache
+          const dbUser = await db.user.findUnique({
+            where: { id: token.id },
+            select: { tokenVersion: true },
+          });
+          if (!dbUser) return {};
+          setCachedTokenVersion(token.id, dbUser.tokenVersion);
+          if (token.tokenVersion !== dbUser.tokenVersion) return {};
         }
       }
 

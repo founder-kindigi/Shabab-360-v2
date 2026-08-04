@@ -98,6 +98,8 @@ model AuditLog {
 
   user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
 
+  @@index([entityType, entityId])  // Fast filtered dashboard activity lookups
+  @@index([createdAt])             // Fast ORDER BY createdAt DESC scans
   @@map("audit_log")
 }
 
@@ -550,6 +552,8 @@ model Participant {
   rosterSnapshots   AttendanceRosterSnapshot[]
 
   @@index([groupId, state])
+  @@index([joinedAt])    // Registration trend queries sort/filter on joinedAt
+  @@index([createdAt])   // Report queries filter on createdAt with 12-month window
   @@map("participants")
 }
 

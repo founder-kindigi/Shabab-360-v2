@@ -83,6 +83,39 @@ export async function requireCapability(
   return auth;
 }
 
+/**
+ * Combined role + capability check in a single getServerSession() call.
+ * Prefer this over calling requireRole() + requireCapability() separately —
+ * each of those calls getServerSession() independently which fires the JWT
+ * callback (and its tokenVersion DB lookup) twice per request.
+ */
+export async function requireRoleAndCapability(
+  roles: (UserRole | StaffRole)[],
+  capability: AccessCapability
+): Promise<{ user: SessionUser } | NextResponse> {
+  const session = await getServerSession(authOptions);
+  const user = session?.user as SessionUser | undefined;
+
+  if (!session || !user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  if (!user.role || !roles.includes(user.role as UserRole)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  if (user.mustResetPwd) {
+    return NextResponse.json({ error: "Password reset required" }, { status: 403 });
+  }
+
+  if (!(await userHasCapability(user, capability))) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  return { user };
+}
+
+
 export function requireResourceScope(
   user: SessionUser,
   scope: ResourceScope,
