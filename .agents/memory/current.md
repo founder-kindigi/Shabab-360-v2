@@ -58,6 +58,7 @@ Last consolidated: 2026-07-18. Verify changing facts against the checkout before
   effective reads exclude revoked/expired rows, and local cleanup confirmed zero
   active role or user exceptions. Lint, typecheck, and all 231 tests pass.
 - AM-005 is complete. Capability gates now cover admissions, attendance,
+- MOBILE-REDESIGN-001 is complete on branch `design/shabab-brand-mobile-screens`. A complete 15-screen mobile-first responsive redesign suite (Splash, Login, Attendance, Murabbi, Park Lead, City Head, Admin HQ, Student, Guardian, Calling Desk, Mashwara, Events, Planner, Admissions, Fees) with `#4B0A8F` brand tokens, 44px+ touch targets, and interactive preview route `/mobile-preview` was implemented, type-checked (0 errors), and verified with 151 passing test files (1342/1342 tests passing).
   certificates, finance and receipts, organization, dashboards, reports,
   announcements, notification-queue administration, audit, staff listing,
   scope changes and provisioning, access administration, students, guardians,
