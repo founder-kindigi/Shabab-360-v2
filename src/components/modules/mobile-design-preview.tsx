@@ -12,11 +12,13 @@ import { MobileStudentDashboard } from "@/components/modules/student/mobile-stud
 import { MobileGuardianDashboard } from "@/components/modules/guardian/mobile-guardian-dashboard";
 import { MobileCallingPage } from "@/components/modules/admin/mobile-calling-page";
 import { MobileMashwaraPage } from "@/components/modules/admin/mobile-mashwara-page";
-import { Sparkles, LogIn, CheckSquare, Users, TreePine, Building2, ShieldCheck, GraduationCap, HeartHandshake, PhoneCall, Calendar } from "lucide-react";
+import { MobileEventsPage } from "@/components/modules/admin/mobile-events-page";
+import { MobileContentPlannerPage } from "@/components/modules/content-planner/mobile-content-planner-page";
+import { Sparkles, LogIn, CheckSquare, Users, TreePine, Building2, ShieldCheck, GraduationCap, HeartHandshake, PhoneCall, Calendar, CalendarCheck, BookOpen } from "lucide-react";
 
 export function MobileDesignPreview() {
   const [activeScreen, setActiveScreen] = useState<
-    "splash" | "login" | "attendance" | "murabbi" | "park" | "city" | "admin" | "student" | "guardian" | "calling" | "mashwara"
+    "splash" | "login" | "attendance" | "murabbi" | "park" | "city" | "admin" | "student" | "guardian" | "calling" | "mashwara" | "events" | "planner"
   >("splash");
   const [rolePrefill, setRolePrefill] = useState("");
 
@@ -48,6 +50,8 @@ export function MobileDesignPreview() {
             { id: "guardian", label: "9. Guardian", icon: HeartHandshake },
             { id: "calling", label: "10. Calling Desk", icon: PhoneCall },
             { id: "mashwara", label: "11. Mashwara", icon: Calendar },
+            { id: "events", label: "12. Events", icon: CalendarCheck },
+            { id: "planner", label: "13. Planner", icon: BookOpen },
           ].map((tab) => {
             const Icon = tab.icon;
             const isActive = activeScreen === tab.id;
@@ -107,6 +111,8 @@ export function MobileDesignPreview() {
             {activeScreen === "guardian" && <MobileGuardianDashboard />}
             {activeScreen === "calling" && <MobileCallingPage />}
             {activeScreen === "mashwara" && <MobileMashwaraPage />}
+            {activeScreen === "events" && <MobileEventsPage />}
+            {activeScreen === "planner" && <MobileContentPlannerPage />}
           </div>
         </div>
       </div>
