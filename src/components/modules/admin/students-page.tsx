@@ -110,7 +110,6 @@ interface GroupOption {
 interface GuardianInfo {
   id: string;
   name: string;
-  phone: string;
   relation: string | null;
 }
 
@@ -138,7 +137,7 @@ interface Student {
         city: { id: string; name: string };
       };
     };
-  };
+  } | null;
   guardians: GuardianInfo[];
   attendanceRate: number | null;
   attendanceTotal: number;
@@ -495,7 +494,7 @@ export function StudentsPage() {
     setFormAge(student.age?.toString() || "");
     setFormGradeClass(student.gradeClass || "");
     setFormState(student.state);
-    setFormGroupId(student.group.id);
+    setFormGroupId(student.group?.id ?? "");
     setFormErrors({});
     setEditOpen(true);
   }
@@ -564,7 +563,7 @@ export function StudentsPage() {
     if ((formGender || null) !== (selectedStudent.gender || null))
       data.gender = formGender || "";
     if (formState !== selectedStudent.state) data.state = formState;
-    if (formGroupId !== selectedStudent.group.id) data.groupId = formGroupId;
+    if (formGroupId && formGroupId !== selectedStudent.group?.id) data.groupId = formGroupId;
     if (formDOB) {
       const current = selectedStudent.dateOfBirth
         ? new Date(selectedStudent.dateOfBirth).toISOString().split("T")[0]
@@ -867,13 +866,15 @@ export function StudentsPage() {
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-1 text-xs text-muted-foreground flex-wrap max-w-[200px]">
-                            <span className="font-medium text-foreground">{student.group.name}</span>
-                            <span>→</span>
-                            <span>{student.group.batch.name}</span>
-                            <span>→</span>
-                            <span>{student.group.batch.park.name}</span>
-                            <span>→</span>
-                            <span>{student.group.batch.park.city.name}</span>
+                            {student.group ? <>
+                              <span className="font-medium text-foreground">{student.group.name}</span>
+                              <span>→</span>
+                              <span>{student.group.batch.name}</span>
+                              <span>→</span>
+                              <span>{student.group.batch.park.name}</span>
+                              <span>→</span>
+                              <span>{student.group.batch.park.city.name}</span>
+                            </> : <span>Unassigned</span>}
                           </div>
                         </TableCell>
                         <TableCell>
@@ -1030,7 +1031,7 @@ export function StudentsPage() {
 
                       <div className="flex items-center gap-1.5 text-xs text-muted-foreground flex-wrap">
                         <MapPin className="size-3 shrink-0" />
-                        <span>{student.group.name} → {student.group.batch.name} → {student.group.batch.park.name}</span>
+                        <span>{student.group ? `${student.group.name} → ${student.group.batch.name} → ${student.group.batch.park.name}` : "Unassigned"}</span>
                       </div>
 
                       {student.guardians.length > 0 && (

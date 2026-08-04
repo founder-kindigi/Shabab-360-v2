@@ -83,13 +83,30 @@ export async function GET(request: NextRequest) {
   const [students, totalItems] = await Promise.all([
     db.participant.findMany({
       where,
-      include: {
+      select: {
+        id: true,
+        userId: true,
+        name: true,
+        phone: true,
+        gender: true,
+        dateOfBirth: true,
+        age: true,
+        gradeClass: true,
+        state: true,
+        joinedAt: true,
+        createdAt: true,
         group: {
-          include: {
+          select: {
+            id: true,
+            name: true,
             batch: {
-              include: {
+              select: {
+                id: true,
+                name: true,
                 park: {
-                  include: {
+                  select: {
+                    id: true,
+                    name: true,
                     city: { select: { id: true, name: true } },
                   },
                 },
@@ -98,17 +115,12 @@ export async function GET(request: NextRequest) {
           },
         },
         guardianLinks: {
-          include: {
+          select: {
+            relation: true,
             guardian: {
-              select: { id: true, name: true, phone: true },
+              select: { id: true, name: true },
             },
           },
-        },
-        attendanceRecords: {
-          where: {
-            event: { eventDate: { gte: thirtyDaysAgo } },
-          },
-          select: { id: true, status: true },
         },
       },
       orderBy,
@@ -118,11 +130,30 @@ export async function GET(request: NextRequest) {
     db.participant.count({ where }),
   ]);
 
+  const studentIds = students.map((student) => student.id);
+  const attendanceCounts = studentIds.length
+    ? await db.attendanceRecord.groupBy({
+        by: ["participantId", "status"],
+        where: {
+          participantId: { in: studentIds },
+          event: { eventDate: { gte: thirtyDaysAgo } },
+        },
+        _count: { _all: true },
+      })
+    : [];
+
+  const attendanceByStudent = new Map<string, { total: number; present: number }>();
+  for (const count of attendanceCounts) {
+    const current = attendanceByStudent.get(count.participantId) ?? { total: 0, present: 0 };
+    current.total += count._count._all;
+    if (count.status === "present") current.present += count._count._all;
+    attendanceByStudent.set(count.participantId, current);
+  }
+
   const data = students.map((s) => {
-    const totalEvents = s.attendanceRecords.length;
-    const presentCount = s.attendanceRecords.filter(
-      (r) => r.status === "present"
-    ).length;
+    const attendance = attendanceByStudent.get(s.id) ?? { total: 0, present: 0 };
+    const totalEvents = attendance.total;
+    const presentCount = attendance.present;
     const attendanceRate =
       totalEvents > 0 ? Math.round((presentCount / totalEvents) * 100) : null;
 
@@ -156,7 +187,6 @@ export async function GET(request: NextRequest) {
       guardians: s.guardianLinks.map((gl) => ({
         id: gl.guardian.id,
         name: gl.guardian.name,
-        phone: gl.guardian.phone,
         relation: gl.relation,
       })),
       attendanceRate,
