@@ -11,7 +11,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("next-auth", () => ({ getServerSession: mocks.getServerSession }));
-vi.mock("@/lib/auth", () => ({ authOptions: {} }));
+vi.mock("@/lib/auth", () => ({ authOptions: {}, invalidateTokenVersionCache: vi.fn() }));
 vi.mock("@/lib/security/origin", () => ({ isSameOriginRequest: mocks.isSameOriginRequest }));
 vi.mock("@/lib/db", () => ({
   db: {

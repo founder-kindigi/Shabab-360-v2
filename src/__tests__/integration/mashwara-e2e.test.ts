@@ -54,7 +54,8 @@ vi.mock("@/lib/db", () => ({
               { id: "team-sports", isActive: true, cityId: "city-lhr" },
             ]),
         },
-        staffMeta: { findMany: mocks.staffFindMany },
+        staffMeta: { findMany: mocks.staffFindMany, findUnique: mocks.staffFindUnique },
+        notification: { create: vi.fn().mockResolvedValue({ id: "notif-1" }) },
       });
     }),
     mashwaraMeeting: {
@@ -460,6 +461,15 @@ describe("MASHWARA-E2E-001: End-to-End Mashwara Integration", () => {
       mocks.meetingFindUnique.mockResolvedValue({
         id: "meeting-1",
         cityId: "city-lhr",
+      });
+      mocks.staffFindMany.mockResolvedValue([
+        { id: "staff-coach", isActive: true, assignedCityId: "city-lhr" },
+      ]);
+      mocks.staffFindUnique.mockResolvedValue({
+        id: "staff-coach",
+        userId: "user-coach",
+        isActive: true,
+        user: { name: "Coach", email: "coach@example.com" },
       });
     });
 

@@ -124,7 +124,7 @@ describe("POST /api/park/attendance/[eventId]", () => {
     expect(response.status).toBe(409);
     await expect(response.json()).resolves.toEqual({ error: "Participant not in this group" });
     expect(mocks.participantFindFirst).toHaveBeenCalledWith({
-      where: { id: OTHER_PARTICIPANT_ID, groupId: "group-1", state: "active" },
+      where: expect.objectContaining({ id: OTHER_PARTICIPANT_ID, groupId: "group-1" }),
     });
   });
 

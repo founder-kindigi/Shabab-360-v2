@@ -39,6 +39,10 @@ export function invalidateRoleCapabilityCache(role: string): void {
   }
 }
 
+export function clearCapabilityCache(): void {
+  CAP_CACHE.clear();
+}
+
 /**
  * Resolves current module access from fixed defaults plus active exceptions.
  * Any database failure denies access rather than falling back to a broader

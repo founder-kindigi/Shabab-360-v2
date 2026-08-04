@@ -12,11 +12,12 @@ vi.mock("@/lib/db", () => ({
   },
 }));
 
-import { userHasCapability } from "@/lib/auth/capability-access";
+import { userHasCapability, clearCapabilityCache } from "@/lib/auth/capability-access";
 
 describe("database-backed capability access", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    clearCapabilityCache();
     mocks.roleFindUnique.mockResolvedValue(null);
     mocks.userFindUnique.mockResolvedValue(null);
   });
