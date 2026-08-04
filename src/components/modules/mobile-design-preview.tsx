@@ -29,8 +29,8 @@ export function MobileDesignPreview() {
       {/* ─── Top Switcher Bar for Reviewers ───────────────────────────────── */}
       <div className="sticky top-0 z-50 bg-slate-950/90 backdrop-blur-md border-b border-slate-800 px-4 py-2.5 flex items-center justify-between shadow-xl">
         <div className="flex items-center gap-2 shrink-0">
-          <div className="size-8 rounded-xl bg-[#4B0A8F] flex items-center justify-center font-bold text-amber-300 text-xs">
-            ۳۶۰
+          <div className="size-8 rounded-xl bg-gradient-to-br from-[#D90429] via-[#4B0A8F] to-[#1F0860] border border-white/20 p-0.5 flex items-center justify-center overflow-hidden">
+            <img src="/shabab-logo.png" alt="Shabab Logo" className="size-full object-contain" />
           </div>
           <div>
             <h1 className="text-xs font-bold text-slate-100">Shabab 360 Mobile Review</h1>

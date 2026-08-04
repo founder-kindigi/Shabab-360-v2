@@ -75,10 +75,12 @@ export function MobileLoginPage({ onSuccess, onBackToSplash, initialRolePrefill 
         )}
 
         <div className="flex items-center gap-3 mb-2">
-          <div className="size-11 rounded-2xl bg-gradient-to-tr from-amber-400 to-purple-400 p-0.5 shadow-md">
-            <div className="size-full rounded-[14px] bg-[#4B0A8F] flex items-center justify-center font-black text-amber-300 text-lg">
-              ۳۶۰
-            </div>
+          <div className="size-12 rounded-2xl bg-gradient-to-br from-[#D90429] via-[#4B0A8F] to-[#1F0860] p-1 border border-white/20 shadow-md flex items-center justify-center overflow-hidden shrink-0">
+            <img
+              src="/shabab-logo.png"
+              alt="Shabab 360 Logo"
+              className="size-full object-contain"
+            />
           </div>
           <div>
             <h1 className="text-xl font-bold text-white tracking-tight">Shabab 360</h1>

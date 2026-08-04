@@ -47,13 +47,15 @@ export function MobileSplashPage({ onContinue, onSelectRole }: MobileSplashPageP
           className="relative mb-6"
         >
           {/* Outer glowing ring */}
-          <div className="absolute -inset-3 rounded-3xl bg-gradient-to-r from-amber-400/40 to-purple-400/40 blur-lg animate-pulse" />
+          <div className="absolute -inset-3 rounded-3xl bg-gradient-to-r from-red-500/50 via-purple-500/50 to-indigo-500/50 blur-lg animate-pulse" />
           
-          {/* Logo container */}
-          <div className="relative size-24 rounded-3xl bg-gradient-to-tr from-[#380668] to-[#6B15BE] border-2 border-white/20 shadow-2xl flex items-center justify-center">
-            <span className="text-4xl font-black text-amber-300 tracking-tighter drop-shadow-md">
-              ۳۶۰
-            </span>
+          {/* Official Logo Container */}
+          <div className="relative size-28 rounded-3xl bg-gradient-to-br from-[#D90429] via-[#4B0A8F] to-[#1F0860] border-2 border-white/30 shadow-2xl p-2 flex items-center justify-center overflow-hidden">
+            <img
+              src="/shabab-logo.png"
+              alt="Shabab 360 Logo"
+              className="size-full object-contain drop-shadow-md"
+            />
           </div>
         </motion.div>
 

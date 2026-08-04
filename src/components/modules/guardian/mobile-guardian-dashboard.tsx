@@ -55,8 +55,8 @@ export function MobileGuardianDashboard() {
       <div className="relative w-full bg-gradient-to-br from-[#1F0860] via-[#4B0A8F] to-[#380668] text-white pt-6 pb-12 px-5 rounded-b-[2rem] shadow-xl">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <div className="size-9 rounded-xl bg-white/10 backdrop-blur-sm border border-white/15 flex items-center justify-center font-black text-amber-300 text-sm">
-              ۳۶۰
+            <div className="size-9 rounded-xl bg-gradient-to-br from-[#D90429] via-[#4B0A8F] to-[#1F0860] border border-white/20 p-0.5 flex items-center justify-center overflow-hidden shrink-0 shadow-md">
+              <img src="/shabab-logo.png" alt="Logo" className="size-full object-contain" />
             </div>
             <span className="text-xs font-bold text-purple-200 tracking-wider uppercase">Guardian Portal</span>
           </div>
