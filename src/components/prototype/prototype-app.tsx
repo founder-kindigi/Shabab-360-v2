@@ -47,6 +47,15 @@ import { ProtoStudentSchedule } from "./screens/student/proto-student-schedule";
 import { ProtoStudentResources } from "./screens/student/proto-student-resources";
 import { ProtoStudentProfile } from "./screens/student/proto-student-profile";
 
+import { ProtoInventoryList } from "./screens/inventory/proto-inventory-list";
+import { ProtoInventoryRequests } from "./screens/inventory/proto-inventory-requests";
+import { ProtoPublicHome } from "./screens/public/proto-public-home";
+import { ProtoPublicApplication } from "./screens/public/proto-public-application";
+import { ProtoCallingDetail } from "./screens/calling/proto-calling-detail";
+import { ProtoCertificates } from "./screens/certificates/proto-certificates";
+import { ProtoResourcesLibrary } from "./screens/library/proto-resources-library";
+import { ProtoSafetyMedical } from "./screens/safety/proto-safety-medical";
+
 import {
   ShieldCheck,
   Building2,
@@ -58,11 +67,6 @@ import {
   ChevronDown,
   Sparkles,
   Layers,
-  KeyRound,
-  FileSpreadsheet,
-  Users2,
-  Users,
-  Contact,
   Grid,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -73,7 +77,8 @@ export type ProtoRole =
   | "park_lead"
   | "murabbi"
   | "guardian"
-  | "student";
+  | "student"
+  | "public";
 
 const ROLES: { id: ProtoRole; label: string; icon: any; defaultScreen: string }[] = [
   { id: "hq", label: "Program HQ", icon: ShieldCheck, defaultScreen: "hq-dashboard" },
@@ -82,9 +87,14 @@ const ROLES: { id: ProtoRole; label: string; icon: any; defaultScreen: string }[
   { id: "murabbi", label: "Murabbi", icon: UserCheck, defaultScreen: "murabbi-dashboard" },
   { id: "guardian", label: "Guardian", icon: HeartHandshake, defaultScreen: "guardian-dashboard" },
   { id: "student", label: "Shabab / Student", icon: GraduationCap, defaultScreen: "student-dashboard" },
+  { id: "public", label: "Public Website", icon: Sparkles, defaultScreen: "public-home" },
 ];
 
 const ALL_PROTOTYPE_SCREENS = [
+  { group: "Public Website & Admissions", items: [
+    { id: "public-home", label: "Shabab Alburhan Public Website" },
+    { id: "public-application", label: "Candidate Application Form" },
+  ]},
   { group: "HQ / Super Admin", items: [
     { id: "hq-dashboard", label: "National HQ Dashboard" },
     { id: "hq-cities", label: "Cities & City Heads" },
@@ -97,21 +107,24 @@ const ALL_PROTOTYPE_SCREENS = [
     { id: "hq-reports", label: "National Reports" },
     { id: "hq-announcements", label: "Announcements" },
   ]},
-  { group: "City Operations", items: [
+  { group: "City Operations & Calling Desk", items: [
     { id: "city-dashboard", label: "City Dashboard" },
     { id: "city-admissions", label: "Admissions Pipeline" },
     { id: "city-calling", label: "Calling Desk" },
+    { id: "calling-detail", label: "Calling Lead Interaction Detail" },
     { id: "city-mashwara", label: "Weekly Mashwara" },
     { id: "city-people", label: "People & Staff" },
     { id: "city-events", label: "Events & Calendar" },
     { id: "city-finance", label: "City Finance" },
   ]},
-  { group: "Park & Attendance", items: [
+  { group: "Park Operations & Inventory", items: [
     { id: "park-dashboard", label: "Park Dashboard" },
     { id: "park-attendance", label: "Mark Attendance (Offline Ready)" },
     { id: "park-roster", label: "Park Shabab & Families" },
     { id: "park-team-attendance", label: "Team Attendance" },
     { id: "park-mashwara", label: "Park Mashwara" },
+    { id: "inventory-list", label: "Equipment & Inventory Catalog" },
+    { id: "inventory-requests", label: "Procurement Requests" },
   ]},
   { group: "Murabbi Mentor", items: [
     { id: "murabbi-dashboard", label: "Murabbi Dashboard" },
@@ -119,17 +132,20 @@ const ALL_PROTOTYPE_SCREENS = [
     { id: "murabbi-session-plan", label: "Session Content Plan" },
     { id: "murabbi-training", label: "Murabbi Training Resources" },
   ]},
-  { group: "Guardian & Family", items: [
+  { group: "Guardian & Safety", items: [
     { id: "guardian-dashboard", label: "Guardian Dashboard" },
     { id: "guardian-attendance", label: "Child Attendance" },
     { id: "guardian-notices", label: "Notices & Consent" },
     { id: "guardian-fees", label: "Fee Receipts" },
+    { id: "safety-medical", label: "Safety & Emergency Profile" },
   ]},
-  { group: "Shabab Student", items: [
+  { group: "Shabab Student & Learning", items: [
     { id: "student-dashboard", label: "Student Dashboard" },
     { id: "student-attendance", label: "My Attendance" },
     { id: "student-schedule", label: "Schedule & Events" },
     { id: "student-resources", label: "Class Resources" },
+    { id: "resources-library", label: "Online Resource Library" },
+    { id: "certificates", label: "Graduation Certificates" },
     { id: "student-profile", label: "Student Profile" },
   ]},
 ];
@@ -183,6 +199,10 @@ export function PrototypeApp() {
       return <ProtoForgotPassword onBackToLogin={() => setActiveScreen("login")} />;
     }
 
+    // Public screens
+    if (activeScreen === "public-home") return <ProtoPublicHome onNavigate={handleNavigate} />;
+    if (activeScreen === "public-application") return <ProtoPublicApplication onNavigate={handleNavigate} />;
+
     // HQ Screens
     if (activeScreen === "hq-dashboard") return <ProtoHqDashboard onNavigate={handleNavigate} />;
     if (activeScreen === "hq-cities") return <ProtoHqCities onNavigate={handleNavigate} />;
@@ -199,17 +219,20 @@ export function PrototypeApp() {
     if (activeScreen === "city-dashboard") return <ProtoCityDashboard onNavigate={handleNavigate} />;
     if (activeScreen === "city-admissions") return <ProtoCityAdmissions onNavigate={handleNavigate} />;
     if (activeScreen === "city-calling") return <ProtoCityCallingDesk onNavigate={handleNavigate} />;
+    if (activeScreen === "calling-detail") return <ProtoCallingDetail onNavigate={handleNavigate} />;
     if (activeScreen === "city-mashwara") return <ProtoCityMashwara onNavigate={handleNavigate} />;
     if (activeScreen === "city-people") return <ProtoCityPeople onNavigate={handleNavigate} />;
     if (activeScreen === "city-events") return <ProtoCityEvents onNavigate={handleNavigate} />;
     if (activeScreen === "city-finance") return <ProtoCityFinance onNavigate={handleNavigate} />;
 
-    // Park Screens
+    // Park & Inventory Screens
     if (activeScreen === "park-dashboard") return <ProtoParkDashboard onNavigate={handleNavigate} />;
     if (activeScreen === "park-attendance") return <ProtoAttendanceSession onNavigate={handleNavigate} />;
     if (activeScreen === "park-roster") return <ProtoParkRoster onNavigate={handleNavigate} />;
     if (activeScreen === "park-team-attendance") return <ProtoTeamAttendance onNavigate={handleNavigate} />;
     if (activeScreen === "park-mashwara") return <ProtoParkMashwara onNavigate={handleNavigate} />;
+    if (activeScreen === "inventory-list") return <ProtoInventoryList onNavigate={handleNavigate} />;
+    if (activeScreen === "inventory-requests") return <ProtoInventoryRequests onNavigate={handleNavigate} />;
 
     // Murabbi Screens
     if (activeScreen === "murabbi-dashboard") return <ProtoMurabbiDashboard onNavigate={handleNavigate} />;
@@ -222,12 +245,15 @@ export function PrototypeApp() {
     if (activeScreen === "guardian-attendance") return <ProtoGuardianAttendance onNavigate={handleNavigate} />;
     if (activeScreen === "guardian-notices") return <ProtoGuardianNotices onNavigate={handleNavigate} />;
     if (activeScreen === "guardian-fees") return <ProtoGuardianFees onNavigate={handleNavigate} />;
+    if (activeScreen === "safety-medical") return <ProtoSafetyMedical onNavigate={handleNavigate} />;
 
-    // Student Screens
+    // Student & Learning Screens
     if (activeScreen === "student-dashboard") return <ProtoStudentDashboard onNavigate={handleNavigate} />;
     if (activeScreen === "student-attendance") return <ProtoStudentAttendance onNavigate={handleNavigate} />;
     if (activeScreen === "student-schedule") return <ProtoStudentSchedule onNavigate={handleNavigate} />;
     if (activeScreen === "student-resources") return <ProtoStudentResources onNavigate={handleNavigate} />;
+    if (activeScreen === "resources-library") return <ProtoResourcesLibrary onNavigate={handleNavigate} />;
+    if (activeScreen === "certificates") return <ProtoCertificates onNavigate={handleNavigate} />;
     if (activeScreen === "student-profile") return <ProtoStudentProfile onNavigate={handleNavigate} />;
 
     // Fallback
@@ -246,7 +272,7 @@ export function PrototypeApp() {
             <Sparkles className="size-3" /> PROTOTYPE
           </span>
           <span className="text-xs font-bold text-purple-200 hidden md:inline">
-            Shabab 360 Full System (31 Screens)
+            Shabab 360 Full System (39 Screens)
           </span>
         </div>
 
@@ -257,7 +283,7 @@ export function PrototypeApp() {
             className="flex items-center gap-1 bg-white/10 hover:bg-white/20 active:scale-95 transition-all text-xs font-bold px-2.5 py-1.5 rounded-xl border border-white/20 text-purple-200"
           >
             <Grid className="size-3.5" />
-            <span className="hidden sm:inline">All Screens</span>
+            <span className="hidden sm:inline">All 39 Screens</span>
           </button>
 
           {/* Role Switcher Pill */}
@@ -328,7 +354,7 @@ export function PrototypeApp() {
           >
             <div className="flex items-center justify-between border-b border-purple-800/60 pb-2">
               <span className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
-                <Layers className="size-4 text-purple-300" /> All 31 System Screens
+                <Layers className="size-4 text-purple-300" /> All 39 System Screens
               </span>
               <span className="text-[10px] font-extrabold bg-[#D90429] px-2 py-0.5 rounded-full text-white">
                 Live Prototype
