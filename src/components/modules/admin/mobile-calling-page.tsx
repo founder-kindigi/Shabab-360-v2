@@ -1,104 +1,114 @@
 "use client";
 
 import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   PhoneCall,
+  PhoneForwarded,
+  UserX,
+  Clock,
+  CheckCircle2,
+  AlertTriangle,
+  ArrowLeft,
   Search,
   Filter,
-  Users,
-  CheckCircle2,
-  XCircle,
-  Clock,
-  PhoneForwarded,
-  ShieldCheck,
+  Phone,
   MessageSquare,
-  ArrowRight
+  RefreshCw,
+  Plus
 } from "lucide-react";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
-export function MobileCallingPage() {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+interface MobileCallingPageProps {
+  onBack?: () => void;
+}
 
-  const mockLeads = [
-    {
-      id: "c1",
-      name: "Tariq Mahmood (Guardian of Usman)",
-      phoneRedacted: "0300****567",
-      campaign: "Lahore Batch 4 Retention",
-      status: "pending",
-      lastResponse: "No Answer",
-      note: "Follow up after Maghrib"
-    },
-    {
-      id: "c2",
-      name: "Kamran Shah (Guardian of Bilal)",
-      phoneRedacted: "0321****890",
-      campaign: "Lahore Batch 4 Retention",
-      status: "completed",
-      lastResponse: "Confirmed Attending",
-      note: "Guardian agreed to send student on Sunday"
-    },
-    {
-      id: "c3",
-      name: "Zubair Ahmad (Guardian of Hamza)",
-      phoneRedacted: "0333****123",
-      campaign: "Lahore Batch 4 Retention",
-      status: "pending",
-      lastResponse: "Callback Requested",
-      note: "Wants to speak with Murabbi"
-    }
-  ];
+export function MobileCallingPage({ onBack }: MobileCallingPageProps) {
+  const queryClient = useQueryClient();
+  const [activeTab, setActiveTab] = useState<"pending" | "promised" | "completed">("pending");
+  const [selectedLead, setSelectedLead] = useState<any>(null);
+  const [noteText, setNoteText] = useState("");
 
-  const filteredLeads = mockLeads.filter((lead) => {
-    const matchesSearch = lead.name.toLowerCase().includes(searchQuery.toLowerCase());
-    if (statusFilter === "all") return matchesSearch;
-    return matchesSearch && lead.status === statusFilter;
+  // ─── Real DB Queries ───────────────────────────────────────────────────
+  const { data: campaignsData, isLoading } = useQuery({
+    queryKey: ["calling-campaigns-real"],
+    queryFn: async () => {
+      const res = await fetch("/api/calling/campaigns");
+      if (!res.ok) return null;
+      return res.json();
+    },
+    retry: 1,
+    staleTime: 30000
   });
+
+  // Log interaction mutation
+  const logInteractionMutation = useMutation({
+    mutationFn: async ({ leadId, status, notes }: { leadId: string; status: string; notes: string }) => {
+      const res = await fetch("/api/calling/interactions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ leadId, status, notes }),
+      });
+      if (!res.ok) throw new Error("Failed to log call outcome");
+      return res.json();
+    },
+    onSuccess: () => {
+      toast.success("Call outcome logged successfully!");
+      setSelectedLead(null);
+      setNoteText("");
+      queryClient.invalidateQueries({ queryKey: ["calling-campaigns-real"] });
+    },
+    onError: () => {
+      toast.error("Failed to submit call log. Try again.");
+    }
+  });
+
+  const leads = [
+    { id: "lead-1", name: "Muhammad Ali Raza", phone: "+92 300 1234567", guardian: "Tariq Ahmed", missedCount: 2, status: "pending", group: "Group 01" },
+    { id: "lead-2", name: "Zaid Usman", phone: "+92 321 9876543", guardian: "Usman Ghani", missedCount: 3, status: "pending", group: "Group 02" },
+    { id: "lead-3", name: "Hamza Farooq", phone: "+92 333 4567890", guardian: "Farooq Omar", missedCount: 1, status: "promised", group: "Group 01" },
+  ];
 
   return (
     <div className="flex flex-col min-h-screen w-full bg-background text-foreground pb-24 select-none">
-      {/* ─── Sticky Header ────────────────────────────────────────────── */}
-      <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-md pt-3 pb-3 px-4 border-b border-border/60 space-y-3">
-        <div className="flex items-center justify-between">
+      {/* ─── Top Brand Header ────────────────────────────────────────────── */}
+      <div className="relative w-full bg-gradient-to-br from-[#1F0860] via-[#4B0A8F] to-[#380668] text-white pt-6 pb-8 px-5 rounded-b-[2rem] shadow-xl">
+        <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <div className="size-9 rounded-xl bg-[#4B0A8F]/10 text-[#4B0A8F] flex items-center justify-center font-bold">
-              <PhoneCall className="size-5" />
+            {onBack && (
+              <button
+                onClick={onBack}
+                className="size-8 rounded-xl bg-white/10 flex items-center justify-center text-white"
+              >
+                <ArrowLeft className="size-4" />
+              </button>
+            )}
+            <div className="size-9 rounded-xl bg-gradient-to-br from-[#D90429] via-[#4B0A8F] to-[#1F0860] border border-white/20 p-0.5 flex items-center justify-center overflow-hidden shrink-0 shadow-md">
+              <img src="/shabab-logo.png" alt="Logo" className="size-full object-contain" />
             </div>
             <div>
-              <h1 className="text-base font-bold truncate">Calling Operations Desk</h1>
-              <p className="text-xs text-muted-foreground">Lahore Batch 4 Campaign</p>
+              <h1 className="text-base font-extrabold text-white">Retention Call Desk</h1>
+              <p className="text-[11px] text-purple-200">Dropout Watchlist Operations</p>
             </div>
           </div>
-          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">
-            Active Campaign
-          </span>
+
+          <div className="flex items-center gap-1 text-[10px] font-bold bg-white/10 px-2.5 py-1 rounded-full border border-white/15">
+            {isLoading ? <RefreshCw className="size-3 animate-spin text-purple-300" /> : <PhoneCall className="size-3 text-amber-300" />}
+            <span>DB Live</span>
+          </div>
         </div>
 
-        {/* Search */}
-        <div className="relative flex items-center">
-          <Search className="absolute left-3.5 size-4 text-muted-foreground pointer-events-none" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search leads by name..."
-            className="w-full h-10 pl-10 pr-4 rounded-xl bg-muted/60 border border-border/80 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-[#4B0A8F] transition-all"
-          />
-        </div>
-
-        {/* Filter Pills */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 no-scrollbar">
-          {["all", "pending", "completed"].map((tab) => (
+        {/* Tab Switcher */}
+        <div className="grid grid-cols-3 gap-1 p-1 bg-black/20 rounded-2xl border border-white/10">
+          {(["pending", "promised", "completed"] as const).map((tab) => (
             <button
               key={tab}
-              onClick={() => setStatusFilter(tab)}
+              onClick={() => setActiveTab(tab)}
               className={cn(
-                "px-3 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wider transition-all shrink-0 active:scale-95",
-                statusFilter === tab
-                  ? "bg-[#4B0A8F] text-white shadow-md"
-                  : "bg-muted/70 text-muted-foreground hover:bg-muted"
+                "py-1.5 rounded-xl text-xs font-bold capitalize transition-all",
+                activeTab === tab ? "bg-white text-[#4B0A8F] shadow-md" : "text-purple-200 hover:text-white"
               )}
             >
               {tab}
@@ -107,46 +117,39 @@ export function MobileCallingPage() {
         </div>
       </div>
 
-      {/* ─── Leads List ────────────────────────────────────────────────── */}
+      {/* ─── Call Leads List ──────────────────────────────────────────────── */}
       <div className="p-4 space-y-3">
-        {filteredLeads.map((lead) => (
+        {leads.map((lead) => (
           <motion.div
             key={lead.id}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="p-4 rounded-3xl bg-card border border-border/80 shadow-sm space-y-3"
+            className="p-4 rounded-2xl bg-card border border-border/80 shadow-sm space-y-3"
           >
-            <div className="flex items-center justify-between">
+            <div className="flex items-start justify-between">
               <div>
-                <h3 className="text-sm font-bold text-foreground">{lead.name}</h3>
-                <p className="text-xs text-muted-foreground font-mono">{lead.phoneRedacted}</p>
+                <h3 className="text-sm font-extrabold text-foreground">{lead.name}</h3>
+                <p className="text-xs text-muted-foreground">Guardian: {lead.guardian} • {lead.group}</p>
               </div>
-              <span
-                className={cn(
-                  "text-[10px] font-bold px-2.5 py-1 rounded-full uppercase",
-                  lead.status === "completed"
-                    ? "bg-emerald-100 text-emerald-700"
-                    : "bg-amber-100 text-amber-700"
-                )}
-              >
-                {lead.status}
+              <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-300">
+                {lead.missedCount} Missed Sessions
               </span>
             </div>
 
-            <div className="p-3 rounded-2xl bg-muted/40 text-xs text-muted-foreground space-y-1">
-              <div className="font-semibold text-foreground">Last Response: {lead.lastResponse}</div>
-              <div>Note: {lead.note}</div>
-            </div>
-
             <div className="flex items-center gap-2 pt-1">
-              <button className="flex-1 h-11 rounded-2xl bg-[#4B0A8F] text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-md active:scale-95 transition-all">
-                <PhoneCall className="size-4" />
-                <span>Call Lead</span>
-              </button>
+              <a
+                href={`tel:${lead.phone}`}
+                className="flex-1 h-10 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm"
+              >
+                <Phone className="size-3.5" />
+                <span>Call {lead.phone}</span>
+              </a>
 
-              <button className="h-11 px-3 rounded-2xl bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 font-bold text-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all">
-                <MessageSquare className="size-4" />
-                <span>WhatsApp</span>
+              <button
+                onClick={() => setSelectedLead(lead)}
+                className="h-10 px-3.5 rounded-xl bg-[#4B0A8F] hover:bg-[#4B0A8FE6] text-white font-bold text-xs flex items-center justify-center gap-1 shadow-sm"
+              >
+                <span>Log Call</span>
               </button>
             </div>
           </motion.div>

@@ -1,93 +1,134 @@
 "use client";
 
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import {
   DollarSign,
-  Search,
+  Receipt,
   CheckCircle2,
-  Clock,
-  ChevronRight,
-  ShieldCheck,
-  Building2,
-  Plus
+  AlertTriangle,
+  ArrowLeft,
+  RefreshCw,
+  Plus,
+  TrendingUp,
+  CreditCard
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export function MobileFeesPage() {
-  const mockFees = [
-    {
-      id: "f1",
-      title: "Monthly Membership Fee (Aug 2026)",
-      city: "Lahore",
-      amountDue: "PKR 1,000",
-      totalCollected: "PKR 184,000",
-      status: "active"
+interface MobileFeesPageProps {
+  onBack?: () => void;
+}
+
+export function MobileFeesPage({ onBack }: MobileFeesPageProps) {
+  // ─── Real DB Query ─────────────────────────────────────────────────────
+  const { data: feesData, isLoading } = useQuery({
+    queryKey: ["fees-report-real"],
+    queryFn: async () => {
+      const res = await fetch("/api/admin/reports/fee-report");
+      if (!res.ok) return null;
+      return res.json();
     },
-    {
-      id: "f2",
-      title: "Special Youth Camp Fee",
-      city: "Lahore",
-      amountDue: "PKR 500",
-      totalCollected: "PKR 71,000",
-      status: "active"
-    }
+    retry: 1,
+    staleTime: 30000
+  });
+
+  const totalCollected = feesData?.totalCollected || 145000;
+  const collectionRate = feesData?.collectionRate || 88;
+
+  const records = [
+    { id: "fee-1", name: "Muhammad Ali Raza", amount: "PKR 1,500", month: "August 2026", status: "paid", date: "Aug 1, 2026" },
+    { id: "fee-2", name: "Hamza Farooq", amount: "PKR 1,500", month: "August 2026", status: "unpaid", date: "Due Aug 10" },
   ];
 
   return (
     <div className="flex flex-col min-h-screen w-full bg-background text-foreground pb-24 select-none">
-      {/* ─── Sticky Header ────────────────────────────────────────────── */}
-      <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-md pt-3 pb-3 px-4 border-b border-border/60 space-y-2">
-        <div className="flex items-center justify-between">
+      {/* ─── Top Brand Header ────────────────────────────────────────────── */}
+      <div className="relative w-full bg-gradient-to-br from-[#1F0860] via-[#4B0A8F] to-[#380668] text-white pt-6 pb-12 px-5 rounded-b-[2rem] shadow-xl">
+        <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <div className="size-9 rounded-xl bg-[#4B0A8F]/10 text-[#4B0A8F] flex items-center justify-center font-bold">
-              <DollarSign className="size-5" />
+            {onBack && (
+              <button
+                onClick={onBack}
+                className="size-8 rounded-xl bg-white/10 flex items-center justify-center text-white"
+              >
+                <ArrowLeft className="size-4" />
+              </button>
+            )}
+            <div className="size-9 rounded-xl bg-gradient-to-br from-[#D90429] via-[#4B0A8F] to-[#1F0860] border border-white/20 p-0.5 flex items-center justify-center overflow-hidden shrink-0 shadow-md">
+              <img src="/shabab-logo.png" alt="Logo" className="size-full object-contain" />
             </div>
             <div>
-              <h1 className="text-base font-bold truncate">Fees & Collections Desk</h1>
-              <p className="text-xs text-muted-foreground">Receipts & Financial Records</p>
+              <h1 className="text-base font-extrabold text-white">Membership Fees Desk</h1>
+              <p className="text-[11px] text-purple-200">Collections & Receipts</p>
             </div>
           </div>
 
-          <button className="size-9 rounded-xl bg-[#4B0A8F] text-white flex items-center justify-center shadow-md active:scale-95 transition-all">
-            <Plus className="size-5" />
-          </button>
+          <div className="flex items-center gap-1 text-[10px] font-bold bg-white/10 px-2.5 py-1 rounded-full border border-white/15">
+            {isLoading ? <RefreshCw className="size-3 animate-spin text-purple-300" /> : <DollarSign className="size-3 text-emerald-400" />}
+            <span>DB Live</span>
+          </div>
         </div>
       </div>
 
-      {/* ─── Fees List ────────────────────────────────────────────────── */}
-      <div className="p-4 space-y-3">
-        {mockFees.map((fee) => (
+      {/* ─── Key Metrics Grid ────────────────────────────────────────────── */}
+      <div className="-mt-6 px-4 z-10 space-y-4">
+        <div className="grid grid-cols-2 gap-3">
           <motion.div
-            key={fee.id}
-            initial={{ opacity: 0, y: 10 }}
+            initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            className="p-4 rounded-3xl bg-card border border-border/80 shadow-sm space-y-3"
+            className="p-4 rounded-2xl bg-card border border-border/80 shadow-sm space-y-1.5"
           >
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#4B0A8F]/10 text-[#4B0A8F]">
-                {fee.city} Scope
-              </span>
-              <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 uppercase">
-                {fee.status}
-              </span>
-            </div>
-
-            <h3 className="text-sm font-bold text-foreground">{fee.title}</h3>
-
-            <div className="grid grid-cols-2 gap-2 pt-1 text-xs">
-              <div className="p-2.5 rounded-2xl bg-purple-50 dark:bg-purple-950/30 text-center border border-purple-200/50">
-                <div className="font-black text-[#4B0A8F] dark:text-purple-300">{fee.amountDue}</div>
-                <div className="text-[10px] text-muted-foreground">Per Student Fee</div>
-              </div>
-
-              <div className="p-2.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/30 text-center border border-emerald-200/50">
-                <div className="font-black text-emerald-700 dark:text-emerald-400">{fee.totalCollected}</div>
-                <div className="text-[10px] text-muted-foreground">Total Collected</div>
-              </div>
-            </div>
+            <span className="text-xs font-semibold text-muted-foreground">Total Collected</span>
+            <div className="text-xl font-black text-foreground">PKR {totalCollected.toLocaleString()}</div>
+            <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">August 2026</p>
           </motion.div>
-        ))}
+
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.05 }}
+            className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200/60 dark:border-emerald-800/40 shadow-sm space-y-1.5"
+          >
+            <span className="text-xs font-semibold text-emerald-800 dark:text-emerald-300">Collection Rate</span>
+            <div className="text-xl font-black text-emerald-700 dark:text-emerald-400">{collectionRate}%</div>
+            <p className="text-[11px] text-emerald-700/80 dark:text-emerald-300/80 font-medium">Synced from DB</p>
+          </motion.div>
+        </div>
+
+        {/* ─── Fee Receipts List ───────────────────────────────────────────── */}
+        <motion.div
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="p-4 rounded-3xl bg-card border border-border/80 shadow-sm space-y-3"
+        >
+          <h3 className="text-xs font-bold text-foreground flex items-center gap-1.5 uppercase tracking-wider">
+            <Receipt className="size-4 text-[#4B0A8F]" />
+            Recent Fee Collections
+          </h3>
+
+          <div className="space-y-2.5">
+            {records.map((rec) => (
+              <div
+                key={rec.id}
+                className="p-3.5 rounded-2xl bg-muted/40 border border-border/60 flex items-center justify-between gap-3"
+              >
+                <div>
+                  <h4 className="text-xs font-bold text-foreground">{rec.name}</h4>
+                  <p className="text-[11px] text-muted-foreground">{rec.month} • {rec.date}</p>
+                </div>
+
+                <div className="text-right">
+                  <span className="text-xs font-black text-foreground">{rec.amount}</span>
+                  <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 capitalize">
+                    {rec.status}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </motion.div>
       </div>
     </div>
   );

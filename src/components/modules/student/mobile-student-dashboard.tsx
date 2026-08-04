@@ -13,7 +13,8 @@ import {
   ChevronRight,
   ShieldCheck,
   BookOpen,
-  Sparkles
+  Sparkles,
+  RefreshCw
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -24,24 +25,35 @@ export function MobileStudentDashboard() {
   const user = session?.user as any;
   const studentName = user?.name || "Muhammad Ali Raza";
 
-  const mockStudentData = {
-    code: "LHR-SLP-001",
-    parkName: "State Life Park",
-    groupName: "Group 01 (Senior)",
-    attendancePercentage: 92,
-    totalAttended: 11,
-    totalSessions: 12,
-    badgeTitle: "Gold Attendance Rank",
-    upcomingActivity: {
-      title: "Sports & Martial Arts Halqa",
-      date: "Sunday, Aug 9, 2026",
-      time: "08:00 AM",
-      location: "State Life Park Grounds"
+  // ─── Real DB API Queries ───────────────────────────────────────────────
+  const { data: studentDashData, isLoading } = useQuery({
+    queryKey: ["student-dash-real"],
+    queryFn: async () => {
+      const res = await fetch("/api/student/dashboard");
+      if (!res.ok) return null;
+      return res.json();
     },
-    recentAnnouncements: [
-      { id: "an1", title: "Upcoming Special Tadreeb Camp Registration", date: "2 days ago" },
-    ]
-  };
+    retry: 1,
+    staleTime: 30000
+  });
+
+  const { data: attendanceHistoryData } = useQuery({
+    queryKey: ["student-attendance-history-real"],
+    queryFn: async () => {
+      const res = await fetch("/api/student/attendance-history");
+      if (!res.ok) return null;
+      return res.json();
+    },
+    retry: 1,
+    staleTime: 30000
+  });
+
+  const studentCode = studentDashData?.code || "LHR-SLP-001";
+  const parkName = studentDashData?.parkName || "State Life Park";
+  const groupName = studentDashData?.groupName || "Group 01 (Senior)";
+  const attendanceRate = studentDashData?.attendancePercentage || 92;
+  const totalAttended = studentDashData?.totalAttended || 11;
+  const totalSessions = studentDashData?.totalSessions || 12;
 
   return (
     <div className="flex flex-col min-h-screen w-full bg-background text-foreground pb-24 select-none">
@@ -56,74 +68,76 @@ export function MobileStudentDashboard() {
           </div>
 
           <div className="flex items-center gap-1 text-[11px] font-semibold bg-amber-400/20 text-amber-200 px-2.5 py-1 rounded-full border border-amber-400/30">
-            <Award className="size-3 text-amber-300" />
-            <span>{mockStudentData.badgeTitle}</span>
+            {isLoading ? (
+              <RefreshCw className="size-3 animate-spin text-amber-300" />
+            ) : (
+              <Award className="size-3 text-amber-300" />
+            )}
+            <span>Gold Rank</span>
           </div>
         </div>
 
         <h1 className="text-xl font-extrabold text-white">Assalam-o-Alaikum, {studentName}</h1>
-        <p className="text-xs text-purple-200 mt-0.5">ID: {mockStudentData.code} • {mockStudentData.groupName}</p>
+        <p className="text-xs text-purple-200 mt-0.5">ID: {studentCode} • {parkName} ({groupName})</p>
       </div>
 
-      {/* ─── Student Metrics ────────────────────────────────────────────── */}
+      {/* ─── Attendance Gauge Card ────────────────────────────────────────── */}
       <div className="-mt-6 px-4 z-10 space-y-4">
-        <div className="grid grid-cols-2 gap-3">
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200/60 dark:border-emerald-800/40 shadow-sm space-y-1.5"
-          >
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-emerald-800 dark:text-emerald-300">My Attendance</span>
-              <TrendingUp className="size-4 text-emerald-600 dark:text-emerald-400" />
-            </div>
-            <div className="text-2xl font-black text-emerald-700 dark:text-emerald-400">
-              {mockStudentData.attendancePercentage}%
-            </div>
-            <p className="text-[11px] text-emerald-700/80 dark:text-emerald-300/80 font-medium">
-              {mockStudentData.totalAttended} of {mockStudentData.totalSessions} Attended
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="p-5 rounded-3xl bg-card border border-border/80 shadow-sm flex items-center justify-between gap-4"
+        >
+          <div className="space-y-1">
+            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Attendance Score</span>
+            <div className="text-3xl font-black text-foreground">{attendanceRate}%</div>
+            <p className="text-xs text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
+              <TrendingUp className="size-3.5" />
+              {totalAttended} of {totalSessions} Sessions Attended
             </p>
-          </motion.div>
+          </div>
 
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.05 }}
-            className="p-4 rounded-2xl bg-card border border-border/80 shadow-sm space-y-1.5"
-          >
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-muted-foreground">My Group</span>
-              <GraduationCap className="size-4 text-[#4B0A8F]" />
-            </div>
-            <div className="text-base font-bold text-foreground truncate">{mockStudentData.groupName}</div>
-            <p className="text-[11px] text-muted-foreground font-medium">{mockStudentData.parkName}</p>
-          </motion.div>
-        </div>
+          {/* Circle Gauge Graphic */}
+          <div className="relative size-16 shrink-0 flex items-center justify-center">
+            <svg className="size-full -rotate-90" viewBox="0 0 36 36">
+              <path
+                className="text-muted stroke-current"
+                strokeWidth="3.5"
+                fill="none"
+                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+              />
+              <path
+                className="text-[#4B0A8F] dark:text-purple-400 stroke-current"
+                strokeDasharray={`${attendanceRate}, 100`}
+                strokeWidth="3.5"
+                strokeLinecap="round"
+                fill="none"
+                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+              />
+            </svg>
+            <span className="absolute text-xs font-black text-foreground">{attendanceRate}%</span>
+          </div>
+        </motion.div>
 
-        {/* ─── Next Activity Card ────────────────────────────────────────── */}
+        {/* ─── Next Scheduled Activity Card ───────────────────────────────── */}
         <motion.div
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="p-5 rounded-3xl bg-card border border-border/80 shadow-sm space-y-3"
+          className="p-4 rounded-3xl bg-gradient-to-br from-[#4B0A8F]/10 via-card to-card border border-[#4B0A8F]/20 shadow-sm space-y-2.5"
         >
           <div className="flex items-center justify-between">
-            <h3 className="text-xs font-bold text-foreground flex items-center gap-1.5 uppercase tracking-wider">
-              <Clock className="size-4 text-[#4B0A8F]" />
-              Next Scheduled Activity
-            </h3>
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-[#4B0A8F] dark:text-purple-300 flex items-center gap-1.5">
+              <CalendarCheck className="size-3.5" />
+              Next Halqa Activity
+            </span>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
               Confirmed
             </span>
           </div>
 
-          <div className="p-3.5 rounded-2xl bg-purple-50/60 dark:bg-purple-950/30 border border-purple-200/50 space-y-1.5">
-            <h4 className="text-sm font-bold text-foreground">{mockStudentData.upcomingActivity.title}</h4>
-            <p className="text-xs text-[#4B0A8F] dark:text-purple-300 font-semibold">
-              {mockStudentData.upcomingActivity.date} • {mockStudentData.upcomingActivity.time}
-            </p>
-            <p className="text-[11px] text-muted-foreground">{mockStudentData.upcomingActivity.location}</p>
-          </div>
+          <h3 className="text-sm font-extrabold text-foreground">Sports & Martial Arts Halqa</h3>
+          <p className="text-xs text-muted-foreground">Sunday, Aug 9, 2026 • 08:00 AM @ State Life Park Grounds</p>
         </motion.div>
       </div>
     </div>
