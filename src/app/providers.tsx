@@ -29,7 +29,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <SessionProvider refetchInterval={0} refetchOnWindowFocus={false}>
+      <SessionProvider basePath="/api/auth" refetchInterval={0} refetchOnWindowFocus={false} refetchWhenOffline={false}>
         {children}
         <Toaster position="top-right" />
       </SessionProvider>
