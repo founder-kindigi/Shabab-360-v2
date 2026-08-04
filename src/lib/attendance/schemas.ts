@@ -8,20 +8,22 @@ export const attendanceStatusSchema = z.enum([
   "excused",
 ]);
 
-const cuidSchema = z.string().cuid();
+// Lahore reconciliation retains legacy UUID rows while newer Prisma rows use CUIDs.
+// Both are persisted identifiers; arbitrary client-provided strings stay invalid.
+const persistentIdSchema = z.union([z.string().cuid(), z.string().uuid()]);
 const isoDateTimeSchema = z
   .string()
   .trim()
   .refine((value) => isValid(parseISO(value)), { message: "Invalid datetime" });
 
 export const createAttendanceEventSchema = z.object({
-  groupId: cuidSchema,
+  groupId: persistentIdSchema,
   title: z.string().trim().min(1).max(200),
   eventDate: isoDateTimeSchema.optional(),
 }).strict();
 
 export const markAttendanceSchema = z.object({
-  participantId: cuidSchema,
+  participantId: persistentIdSchema,
   status: attendanceStatusSchema,
   mutationId: z.string().trim().max(100).optional(),
   editReason: z.string().trim().min(1).max(1000).optional(),
@@ -39,8 +41,8 @@ export const editAttendanceRecordSchema = z.object({
 
 export const syncMutationSchema = z.object({
   mutationId: z.string().trim().min(1).max(100),
-  eventId: cuidSchema,
-  participantId: cuidSchema,
+  eventId: persistentIdSchema,
+  participantId: persistentIdSchema,
   status: attendanceStatusSchema,
   markedAt: isoDateTimeSchema.optional(),
 }).strict();
@@ -50,6 +52,6 @@ export const syncAttendanceRequestSchema = z.object({
 }).strict();
 
 export const checkAttendanceAlertsSchema = z.object({
-  participantId: cuidSchema,
-  eventId: cuidSchema,
+  participantId: persistentIdSchema,
+  eventId: persistentIdSchema,
 }).strict();

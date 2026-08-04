@@ -23,6 +23,7 @@ vi.mock("@/lib/db", () => ({
 vi.mock("@/lib/audit", () => ({ logAudit: vi.fn() }));
 
 import { POST } from "./route";
+import { createAttendanceEventSchema } from "@/lib/attendance/schemas";
 
 describe("POST /api/park/attendance/events", () => {
   beforeEach(() => {
@@ -82,5 +83,14 @@ describe("POST /api/park/attendance/events", () => {
 
     expect(response.status).toBe(403);
     expect(mocks.groupFindUnique).not.toHaveBeenCalled();
+  });
+
+  it("accepts a reconciled Lahore UUID group identifier", () => {
+    const parsed = createAttendanceEventSchema.safeParse({
+      groupId: "61ae6957-3990-42bf-a321-b2beea3b314a",
+      title: "Sunday class",
+    });
+
+    expect(parsed.success).toBe(true);
   });
 });
