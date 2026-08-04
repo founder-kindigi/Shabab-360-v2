@@ -19,6 +19,11 @@ interface PageHeaderProps {
   title: string;
   description?: string;
   actions?: ReactNode;
+  /**
+   * Scope labels require four list endpoints. Most module pages already show
+   * their own context, so keep the expensive breadcrumb opt-in only.
+   */
+  showScopeBreadcrumb?: boolean;
 }
 
 // Types matching API responses
@@ -41,14 +46,14 @@ function GroupIcon() {
   return <Users className="size-3.5 shrink-0" />;
 }
 
-export function PageHeader({ title, description, actions }: PageHeaderProps) {
+export function PageHeader({ title, description, actions, showScopeBreadcrumb = false }: PageHeaderProps) {
   const selectedCityId = useAppStore((s) => s.selectedCityId);
   const selectedParkId = useAppStore((s) => s.selectedParkId);
   const selectedBatchId = useAppStore((s) => s.selectedBatchId);
   const selectedGroupId = useAppStore((s) => s.selectedGroupId);
 
   // Only show breadcrumb when at least a city is selected
-  const hasScope = !!selectedCityId;
+  const hasScope = showScopeBreadcrumb && !!selectedCityId;
 
   // Fetch names for breadcrumb
   const { data: cities = [] } = useQuery<CityItem[]>({
