@@ -17,7 +17,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Menu, LogOut, User, ChevronDown, Construction, Settings, Sun, Moon, Search } from "lucide-react";
-import { useTheme } from "next-themes";
+import { useTheme } from "@/components/providers/theme-provider";
 import { useNotificationPolling } from "@/hooks/use-realtime-notifications";
 
 // ── Lazy-loaded page components (code splitting) ──────────────────────
