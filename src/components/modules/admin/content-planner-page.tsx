@@ -239,7 +239,7 @@ export function ContentPlannerPage() {
 
     if (!result.success) {
       const errors: Record<string, string> = {};
-      result.error.errors.forEach((err) => {
+      result.error.issues.forEach((err) => {
         if (err.path[0]) {
           errors[err.path[0].toString()] = err.message;
         }
