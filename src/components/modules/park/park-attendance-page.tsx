@@ -1,19 +1,16 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
-import { useAppStore } from "@/stores/useAppStore";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { EmptyState } from "@/components/layout/empty-state";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+
 import {
   Dialog,
   DialogContent,
@@ -31,722 +28,800 @@ import {
 } from "@/components/ui/select";
 import {
   CalendarCheck,
-  Plus,
-  Loader2,
-  FileSpreadsheet,
-  Download,
   Users,
   CheckCircle2,
-  Clock,
-  XCircle,
   Phone,
   MessageSquare,
   Search,
-  MapPin,
-  Upload,
-  Check,
-  Building2,
   TrendingUp,
-  BarChart3,
   Calendar,
   Layers,
   GraduationCap,
   ShieldCheck,
-  Sliders,
   Lock,
   UserCheck,
   UserPlus,
+  AlertTriangle,
+  Activity,
+  MapPin,
+  ChevronLeft,
+  ChevronRight,
+  UserMinus
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-type StudentRosterItem = {
+// --- Types ---
+export type StudentRosterItem = {
   id: string;
+  serial: number;
   name: string;
   phone: string;
+  ownPhone: boolean;
+  age: number | null;
+  grade: string;
   parkName: string;
   groupName: string;
-  role: string;
-  grade: string;
-  age: number;
   status: "present" | "late" | "absent" | "leave" | "off" | "unmarked";
-  attendanceRate: string;
 };
 
-type MurabbiRosterItem = {
+export type MurabbiRosterItem = {
   id: string;
+  serial: number;
   name: string;
   phone: string;
   parkName: string;
-  role: string; // e.g. "Murabbi Lead", "Sports Lead", "Tadreeb Lead", "Media Lead"
-  status: "present" | "late" | "absent" | "leave" | "off";
-  mashawaraCount: string;
-  delegatedBy: string | null;
+  roles: string[];
+  status: "present" | "late" | "absent" | "leave" | "off" | "unmarked";
 };
 
-type DryRunReport = {
-  fileName: string;
-  totalStudentsProcessed: number;
-  presentCount: number;
-  absentCount: number;
-  lateCount: number;
-  leaveCount: number;
-  parkSummaries: Array<{ name: string; studentCount: number }>;
-  sampleStudents: Array<{
-    parkName: string;
-    name: string;
-    phone: string;
-    role: string;
-    rate: string;
-  }>;
-};
-
-const PARK_VENUES = [
-  "All Parks",
-  "Gulberg",
-  "Gulshan Iqbal",
-  "Griffin",
-  "Johar Town",
-  "Gulshan Ravi",
-  "State Life",
+// --- Mock Data ---
+const PARKS_MOCK = [
+  { name: "Gulberg", groups: ["Group 1 | Murabbi: Ikram", "Group 2 | Murabbi: Hanzala Tauseef", "Group 3 | Murabbi: Hasnain bhai"] },
+  { name: "Gulshan Iqbal", groups: ["Group 1", "Group 2", "Group 3"] },
+  { name: "Griffin", groups: ["Group 1", "Group 2"] },
+  { name: "Johar Town", groups: ["Group 1", "Group 2"] },
+  { name: "Gulshan Ravi", groups: ["Group 1", "Group 2"] },
+  { name: "State Life", groups: ["Group 1"] },
 ];
 
-const GROUP_OPTIONS = ["All Groups", "Group 1", "Group 2", "Group 3"];
+const INITIAL_MURABBI_DATA: MurabbiRosterItem[] = [
+  { id: "m1", serial: 1, name: "Umar Rohail", phone: "923051801847", parkName: "Gulberg", roles: ["Park Lead"], status: "unmarked" },
+  { id: "m2", serial: 2, name: "Hasnain Zafar", phone: "923060221997", parkName: "Gulberg", roles: ["Murabbi", "Tadreeb Muawin"], status: "unmarked" },
+  { id: "m3", serial: 3, name: "Hanzala Tauseef", phone: "923047178171", parkName: "Gulberg", roles: ["Murabbi", "Tadreeb Lead"], status: "unmarked" },
+  { id: "m4", serial: 4, name: "Ikram Meer", phone: "923364543324", parkName: "Gulberg", roles: ["Murabbi", "Skills Lead"], status: "unmarked" },
+  { id: "m5", serial: 5, name: "Imran Amin", phone: "923294368993", parkName: "Gulberg", roles: ["Sports Lead", "Muawin G12"], status: "unmarked" },
+  { id: "m6", serial: 6, name: "Hammad Raza", phone: "923220774124", parkName: "Gulberg", roles: ["Sports Muawin", "Muawin G13"], status: "unmarked" },
+  { id: "m7", serial: 7, name: "Basit Ahsan", phone: "923226720331", parkName: "Gulberg", roles: ["Park Admin", "Muawin G13"], status: "unmarked" },
+  { id: "m8", serial: 8, name: "Abdul Kabeer", phone: "923244190830", parkName: "Gulberg", roles: ["Media Lead", "Muawin G11"], status: "unmarked" },
+  { id: "m9", serial: 9, name: "Abdul Rehman Munir", phone: "923080114534", parkName: "Gulberg", roles: ["Skills Muawin"], status: "unmarked" },
+  { id: "m10", serial: 10, name: "Haseeb Ahmad", phone: "923114322095", parkName: "Gulberg", roles: ["Sports Officer"], status: "unmarked" },
+  { id: "m11", serial: 11, name: "Abu Hurairah", phone: "", parkName: "Gulberg", roles: ["Sports Officer"], status: "unmarked" },
+  { id: "m12", serial: 12, name: "Abdullah Saif", phone: "923104362545", parkName: "Gulberg", roles: ["Murabbi"], status: "unmarked" },
+  { id: "m13", serial: 13, name: "Ameer Hamza", phone: "923247197841", parkName: "Gulberg", roles: ["Sports Officer"], status: "unmarked" },
+];
+
+const INITIAL_STUDENT_DATA: StudentRosterItem[] = [
+  { id: "s1", serial: 1, name: "Muhammad Umair", phone: "923274088002", ownPhone: false, age: 13, grade: "8th", parkName: "Gulberg", groupName: "Group 1 | Murabbi: Ikram", status: "unmarked" },
+  { id: "s2", serial: 2, name: "Muhammad Ahmad", phone: "", ownPhone: false, age: 13, grade: "8th", parkName: "Gulberg", groupName: "Group 1 | Murabbi: Ikram", status: "unmarked" },
+  { id: "s3", serial: 3, name: "Muhammad Umar", phone: "", ownPhone: false, age: 13, grade: "8th", parkName: "Gulberg", groupName: "Group 1 | Murabbi: Ikram", status: "unmarked" },
+  { id: "s4", serial: 4, name: "Muhammad Shoaib", phone: "", ownPhone: false, age: 13, grade: "8th", parkName: "Gulberg", groupName: "Group 1 | Murabbi: Ikram", status: "unmarked" },
+  { id: "s5", serial: 5, name: "M Abdullah Qureshi", phone: "", ownPhone: false, age: 14, grade: "9th", parkName: "Gulberg", groupName: "Group 1 | Murabbi: Ikram", status: "unmarked" },
+  { id: "s6", serial: 6, name: "M.Moosa", phone: "", ownPhone: false, age: 14, grade: "10th", parkName: "Gulberg", groupName: "Group 1 | Murabbi: Ikram", status: "unmarked" },
+  { id: "s7", serial: 7, name: "Muhammad Abdullah Ahmad", phone: "", ownPhone: false, age: 14, grade: "9th", parkName: "Gulberg", groupName: "Group 1 | Murabbi: Ikram", status: "unmarked" },
+  { id: "s8", serial: 8, name: "Muhammad Yousuf", phone: "", ownPhone: false, age: 14, grade: "9th", parkName: "Gulberg", groupName: "Group 1 | Murabbi: Ikram", status: "unmarked" },
+  { id: "s9", serial: 9, name: "Muhammad Huzaifa Saif", phone: "923234977806", ownPhone: false, age: 14, grade: "9th", parkName: "Gulberg", groupName: "Group 1 | Murabbi: Ikram", status: "unmarked" },
+  { id: "s10", serial: 10, name: "Muhammad Yusha", phone: "923334649728", ownPhone: false, age: 14, grade: "10th", parkName: "Gulberg", groupName: "Group 1 | Murabbi: Ikram", status: "unmarked" },
+  { id: "s11", serial: 11, name: "Muaz Zakariya Majid", phone: "923334349783", ownPhone: false, age: 14, grade: "Hafiz", parkName: "Gulberg", groupName: "Group 1 | Murabbi: Ikram", status: "unmarked" },
+  { id: "s12", serial: 12, name: "Muhammad Shaheer Shamsi", phone: "923004188623", ownPhone: false, age: 14, grade: "9th", parkName: "Gulberg", groupName: "Group 1 | Murabbi: Ikram", status: "unmarked" },
+  { id: "s13", serial: 13, name: "Muhammad Umer Karamat", phone: "923214688055", ownPhone: true, age: 14, grade: "O Level", parkName: "Gulberg", groupName: "Group 1 | Murabbi: Ikram", status: "unmarked" },
+];
 
 const WHATSAPP_ABSENT_URDU = (name: string, date: string) =>
   `السلام علیکم ${name}! 👋\n\nامید ہے آپ خیریت سے ہوں گے۔ آج (${date}) کے اسپورٹس سیشن میں آپ کی غیر حاضری محسوس کی گئی۔\n\nصحت مند اور فریش ذہن کے لیے کھیل ہماری ترجیح ہے۔ اگلے سیشن میں اپنی شرکت یقینی بنائیں! 🏃‍♂️⚽\n*_ٹیم شباب 360_*`;
 
+// --- UI Components ---
 export function ParkAttendancePage() {
   const { data: session } = useSession();
   const userRole = (session?.user?.role || "super_admin").toLowerCase();
-  const queryClient = useQueryClient();
 
-  // Top-Level Flow Section Switcher (1. Murabbi Attendance | 2. Shabab Attendance)
-  const [attendanceFlowMode, setAttendanceFlowMode] = useState<"shabab" | "murabbi">("shabab");
-
-  // Filters & State for Shabab (Park -> Group -> Students)
-  const [selectedParkTab, setSelectedParkTab] = useState("Gulberg");
-  const [selectedGroupFilter, setSelectedGroupFilter] = useState("Group 1");
+  const [activeFlow, setActiveFlow] = useState<"shabab" | "murabbi">("shabab");
+  const [selectedPark, setSelectedPark] = useState("Gulberg");
+  const [selectedGroup, setSelectedGroup] = useState(PARKS_MOCK[0].groups[0]);
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().slice(0, 10));
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().slice(0, 10));
-
-  // Pagination (10 records per page)
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
-  // Modals state
-  const [showImportModal, setShowImportModal] = useState(false);
+  // Data States
+  const [studentRoster, setStudentRoster] = useState<StudentRosterItem[]>(INITIAL_STUDENT_DATA);
+  const [murabbiRoster, setMurabbiRoster] = useState<MurabbiRosterItem[]>(INITIAL_MURABBI_DATA);
+
+  // Modals
   const [showDelegateModal, setShowDelegateModal] = useState(false);
   const [delegateStaffName, setDelegateStaffName] = useState("");
 
-  // Import state
-  const [importFile, setImportFile] = useState<File | null>(null);
-  const [dryRunReport, setDryRunReport] = useState<DryRunReport | null>(null);
-
-  // Check if current user can mark Murabbi Attendance (Park Lead, City Head, Super Admin, or Delegated Staff)
   const isParkLeadOrHq = ["super_admin", "city_head", "park_lead"].includes(userRole);
-  const [hasDelegatedAccess, setHasDelegatedAccess] = useState(true); // Demo mode default true for testing
+  const [hasDelegatedAccess, setHasDelegatedAccess] = useState(true); // default true for demo
   const canMarkMurabbi = isParkLeadOrHq || hasDelegatedAccess;
 
-  // Reset page when filters change
+  // Reset page & filters when switching park/flow
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, statusFilter, selectedParkTab, selectedGroupFilter, selectedDate, attendanceFlowMode]);
+  }, [searchQuery, statusFilter, selectedPark, selectedGroup, activeFlow]);
 
-  // Mocked Shabab (Student) Attendance Roster
-  const [shababRoster, setShababRoster] = useState<StudentRosterItem[]>([
-    { id: "s1", name: "Hamza Shafiq", phone: "923001234567", parkName: "Gulberg", groupName: "Group 1", role: "Student", grade: "9th Class", age: 15, status: "present", attendanceRate: "85%" },
-    { id: "s2", name: "Bilal Ahmed", phone: "923219876543", parkName: "Gulberg", groupName: "Group 1", role: "Student", grade: "Hafiz", age: 17, status: "present", attendanceRate: "90%" },
-    { id: "s3", name: "Zubair Khan", phone: "923334567890", parkName: "Gulberg", groupName: "Group 1", role: "Student", grade: "10th Class", age: 16, status: "absent", attendanceRate: "75%" },
-    { id: "s4", name: "Tariq Mahmood", phone: "923129876543", parkName: "Gulberg", groupName: "Group 2", role: "Student", grade: "2nd Year", age: 18, status: "present", attendanceRate: "94%" },
-    { id: "s5", name: "Abdullah Riaz", phone: "923067891234", parkName: "Gulberg", groupName: "Group 2", role: "Student", grade: "9th Class", age: 15, status: "late", attendanceRate: "82%" },
-    { id: "s6", name: "Saad Ali", phone: "923145678901", parkName: "Gulberg", groupName: "Group 3", role: "Student", grade: "Hafiz", age: 16, status: "present", attendanceRate: "91%" },
-    { id: "s7", name: "Umer Farooq", phone: "923234567890", parkName: "Gulshan Iqbal", groupName: "Group 1", role: "Student", grade: "1st Year", age: 17, status: "present", attendanceRate: "88%" },
-    { id: "s8", name: "Mohsin Raza", phone: "923456789012", parkName: "Griffin", groupName: "Group 1", role: "Student", grade: "10th Class", age: 16, status: "absent", attendanceRate: "70%" },
-  ]);
+  // Handle Park Switch (also update default group)
+  const handleParkSelect = (parkName: string) => {
+    setSelectedPark(parkName);
+    const parkObj = PARKS_MOCK.find(p => p.name === parkName);
+    if (parkObj && parkObj.groups.length > 0) {
+      setSelectedGroup(parkObj.groups[0]);
+    }
+  };
 
-  // Mocked Murabbi & Staff Separate Roster
-  const [murabbiRoster, setMurabbiRoster] = useState<MurabbiRosterItem[]>([
-    { id: "m1", name: "Hasnain Zafar", phone: "923214486762", parkName: "Gulberg", role: "Murabbi Lead", status: "present", mashawaraCount: "28/30", delegatedBy: null },
-    { id: "m2", name: "Hanzala Tauseef", phone: "923047178171", parkName: "Gulberg", role: "Tadreeb Lead", status: "late", mashawaraCount: "26/30", delegatedBy: null },
-    { id: "m3", name: "Ikram Meer", phone: "923004455667", parkName: "Gulberg", role: "Sports Lead", status: "present", mashawaraCount: "29/30", delegatedBy: null },
-    { id: "m4", name: "Imran Amin", phone: "923112233445", parkName: "Gulberg", role: "Skills Muawin", status: "present", mashawaraCount: "27/30", delegatedBy: null },
-    { id: "m5", name: "Basit Ahsan", phone: "923223344556", parkName: "Gulberg", role: "Park Admin", status: "present", mashawaraCount: "30/30", delegatedBy: null },
-    { id: "m6", name: "Mohsin Iqbal", phone: "923150483023", parkName: "Griffin", role: "Media Lead", status: "present", mashawaraCount: "29/30", delegatedBy: null },
-    { id: "m7", name: "Arslan Akram", phone: "923244668878", parkName: "Gulshan Iqbal", role: "Park Lead", status: "present", mashawaraCount: "30/30", delegatedBy: null },
-  ]);
-
-  // ── Import Mutations ───────────────────────────────────────────────
-  const dryRunMutation = useMutation({
-    mutationFn: async (file: File) => {
-      const formData = new FormData();
-      formData.append("file", file);
-
-      const res = await fetch(`/api/admin/attendance/import?dryRun=true`, {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: "Dry-run validation failed" }));
-        throw new Error(err.error || "Dry-run validation failed");
-      }
-      return res.json();
-    },
-    onSuccess: (data) => {
-      setDryRunReport(data.report);
-      toast.success("Dry-run preview generated successfully!");
-    },
-    onError: (err: Error) => toast.error(err.message),
-  });
-
-  const importExecuteMutation = useMutation({
-    mutationFn: async (file: File) => {
-      const formData = new FormData();
-      formData.append("file", file);
-
-      const res = await fetch(`/api/admin/attendance/import?dryRun=false`, {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: "Import execution failed" }));
-        throw new Error(err.error || "Import execution failed");
-      }
-      return res.json();
-    },
-    onSuccess: (data) => {
-      toast.success(`Import complete! ${data.importedCount} attendance records reconciled.`);
-      setShowImportModal(false);
-      setImportFile(null);
-      setDryRunReport(null);
-      queryClient.invalidateQueries({ queryKey: ["attendance-events"] });
-    },
-    onError: (err: Error) => toast.error(err.message),
-  });
-
-  // Toggle Shabab Student Status
-  const updateShababStatus = (id: string, newStatus: StudentRosterItem["status"]) => {
-    setShababRoster((prev) =>
-      prev.map((s) => (s.id === id ? { ...s, status: newStatus } : s))
-    );
+  const updateStudentStatus = (id: string, newStatus: StudentRosterItem["status"]) => {
+    setStudentRoster(prev => prev.map(s => s.id === id ? { ...s, status: newStatus } : s));
     toast.success(`Marked student as ${newStatus.toUpperCase()}`);
   };
 
-  // Toggle Murabbi Status
   const updateMurabbiStatus = (id: string, newStatus: MurabbiRosterItem["status"]) => {
     if (!canMarkMurabbi) {
-      toast.error("Only Park Lead (or delegated staff) can mark Murabbi attendance!");
+      toast.error("Only Park Lead or Delegated Staff can mark Murabbi attendance!");
       return;
     }
-    setMurabbiRoster((prev) =>
-      prev.map((m) => (m.id === id ? { ...m, status: newStatus } : m))
-    );
-    toast.success(`Marked Murabbi as ${newStatus.toUpperCase()}`);
+    setMurabbiRoster(prev => prev.map(m => m.id === id ? { ...m, status: newStatus } : m));
+    toast.success(`Marked staff as ${newStatus.toUpperCase()}`);
   };
 
-  // Delegate Access Handler
   const handleGrantDelegation = () => {
     if (!delegateStaffName.trim()) return;
-    toast.success(`Granted Murabbi attendance marking access to ${delegateStaffName}`);
+    toast.success(`Granted Murabbi attendance access to ${delegateStaffName}`);
     setShowDelegateModal(false);
     setDelegateStaffName("");
   };
 
-  // Filtered Shabab Roster (Park -> Group -> Student)
-  const filteredShabab = useMemo(() => {
-    return shababRoster.filter((s) => {
-      const matchesSearch =
-        !searchQuery ||
-        s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        s.phone.includes(searchQuery);
+  const activeParkGroups = useMemo(() => {
+    return PARKS_MOCK.find(p => p.name === selectedPark)?.groups || [];
+  }, [selectedPark]);
 
-      const matchesPark =
-        selectedParkTab === "All Parks" || s.parkName.toLowerCase() === selectedParkTab.toLowerCase();
-
-      const matchesGroup =
-        selectedGroupFilter === "All Groups" || s.groupName.toLowerCase() === selectedGroupFilter.toLowerCase();
-
-      const matchesStatus =
-        statusFilter === "all" || s.status === statusFilter;
-
-      return matchesSearch && matchesPark && matchesGroup && matchesStatus;
+  // Filtering for Shabab
+  const filteredStudents = useMemo(() => {
+    return studentRoster.filter(s => {
+      const matchSearch = !searchQuery || s.name.toLowerCase().includes(searchQuery.toLowerCase()) || s.phone.includes(searchQuery);
+      const matchPark = s.parkName === selectedPark;
+      const matchGroup = s.groupName === selectedGroup;
+      const matchStatus = statusFilter === "all" || s.status === statusFilter;
+      return matchSearch && matchPark && matchGroup && matchStatus;
     });
-  }, [shababRoster, searchQuery, selectedParkTab, selectedGroupFilter, statusFilter]);
+  }, [studentRoster, searchQuery, selectedPark, selectedGroup, statusFilter]);
 
-  // Paginated Shabab
-  const totalPagesShabab = Math.ceil(filteredShabab.length / itemsPerPage) || 1;
-  const paginatedShabab = useMemo(() => {
+  const totalPagesShabab = Math.max(1, Math.ceil(filteredStudents.length / itemsPerPage));
+  const paginatedStudents = useMemo(() => {
     const start = (currentPage - 1) * itemsPerPage;
-    return filteredShabab.slice(start, start + itemsPerPage);
-  }, [filteredShabab, currentPage, itemsPerPage]);
+    return filteredStudents.slice(start, start + itemsPerPage);
+  }, [filteredStudents, currentPage, itemsPerPage]);
 
-  // Filtered Murabbi Roster (Park Filter)
+  // Filtering for Murabbi
   const filteredMurabbis = useMemo(() => {
-    return murabbiRoster.filter((m) => {
-      const matchesPark =
-        selectedParkTab === "All Parks" || m.parkName.toLowerCase() === selectedParkTab.toLowerCase();
-      const matchesSearch =
-        !searchQuery ||
-        m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        m.role.toLowerCase().includes(searchQuery.toLowerCase());
-      return matchesPark && matchesSearch;
+    return murabbiRoster.filter(m => {
+      const matchSearch = !searchQuery || m.name.toLowerCase().includes(searchQuery.toLowerCase()) || m.roles.some(r => r.toLowerCase().includes(searchQuery.toLowerCase()));
+      const matchPark = m.parkName === selectedPark;
+      return matchSearch && matchPark;
     });
-  }, [murabbiRoster, selectedParkTab, searchQuery]);
+  }, [murabbiRoster, searchQuery, selectedPark]);
+
+  const totalPagesMurabbi = Math.max(1, Math.ceil(filteredMurabbis.length / itemsPerPage));
+  const paginatedMurabbis = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredMurabbis.slice(start, start + itemsPerPage);
+  }, [filteredMurabbis, currentPage, itemsPerPage]);
 
   return (
-    <div className="space-y-6 pb-20">
-      {/* ── Header Action Bar ────────────────────────────────────────── */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-4">
+    <div className="space-y-6 pb-24 max-w-7xl mx-auto px-4 sm:px-6">
+      
+      {/* --- Top Action & Title Bar --- */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <h1 className="text-xl md:text-2xl font-bold text-slate-900 dark:text-slate-100">
+          <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-600 dark:from-slate-100 dark:to-slate-400">
             Attendance Operations Hub
           </h1>
-          <p className="text-xs md:text-sm text-muted-foreground mt-0.5">
-            Separate Murabbi Lead attendance & Park ➔ Group Shabab student attendance pipeline.
+          <p className="text-sm text-muted-foreground mt-1 font-medium">
+            Manage daily park sessions, staff presence, and Shabab engagement.
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <Input
-            type="date"
-            value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value)}
-            className="w-[140px] text-xs h-9 bg-background"
-          />
-
-          <Button
-            onClick={() => setShowImportModal(true)}
-            className="bg-gradient-to-r from-emerald-600 to-teal-700 text-white font-semibold text-xs h-9 shadow-xs gap-1.5"
-          >
-            <FileSpreadsheet className="size-4" /> Import Excel
-          </Button>
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative group">
+            <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground group-hover:text-primary transition-colors" />
+            <Input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="pl-9 h-10 w-[160px] rounded-xl border-slate-200 bg-white/50 backdrop-blur-sm dark:bg-slate-900/50 dark:border-slate-800 shadow-sm focus-visible:ring-primary font-medium"
+            />
+          </div>
         </div>
       </div>
 
-      {/* ── 2-Tier Attendance Flow Mode Switcher ────────────────────── */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <button
-          onClick={() => setAttendanceFlowMode("shabab")}
-          className={`p-4 rounded-2xl border text-left transition-all flex items-center justify-between ${
-            attendanceFlowMode === "shabab"
-              ? "border-purple-600 bg-purple-50/50 dark:bg-purple-950/20 shadow-sm"
-              : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-purple-300"
-          }`}
-        >
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <Users className="size-5 text-purple-600" />
-              <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100">
-                1. Shabab Student Attendance
-              </h3>
+      {/* --- 4 KPI Dashboard Cards --- */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card className="border-0 shadow-sm bg-gradient-to-br from-indigo-50/50 to-white dark:from-indigo-950/20 dark:to-slate-900 rounded-2xl overflow-hidden ring-1 ring-slate-100 dark:ring-slate-800">
+          <CardContent className="p-5 flex items-center gap-4">
+            <div className="p-3 bg-indigo-100 dark:bg-indigo-900/40 rounded-xl text-indigo-600 dark:text-indigo-400 shrink-0">
+              <CalendarCheck className="size-6" />
             </div>
-            <p className="text-xs text-muted-foreground">
-              Park ➔ Halqa Group student roster. Marked by Park Lead, Park Admin, or Murabbi.
-            </p>
-          </div>
-          {attendanceFlowMode === "shabab" && (
-            <Badge className="bg-purple-600 text-white text-[10px]">Active Flow</Badge>
-          )}
-        </button>
+            <div>
+              <p className="text-sm font-semibold text-muted-foreground">Today's Sessions</p>
+              <h3 className="text-2xl font-bold text-slate-900 dark:text-slate-100">14</h3>
+            </div>
+          </CardContent>
+        </Card>
 
-        <button
-          onClick={() => setAttendanceFlowMode("murabbi")}
-          className={`p-4 rounded-2xl border text-left transition-all flex items-center justify-between ${
-            attendanceFlowMode === "murabbi"
-              ? "border-amber-600 bg-amber-50/50 dark:bg-amber-950/20 shadow-sm"
-              : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-amber-300"
-          }`}
-        >
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <ShieldCheck className="size-5 text-amber-600" />
-              <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-                2. Separate Murabbi Attendance <Lock className="size-3.5 text-amber-600" />
-              </h3>
+        <Card className="border-0 shadow-sm bg-gradient-to-br from-emerald-50/50 to-white dark:from-emerald-950/20 dark:to-slate-900 rounded-2xl overflow-hidden ring-1 ring-slate-100 dark:ring-slate-800">
+          <CardContent className="p-5 flex items-center gap-4">
+            <div className="p-3 bg-emerald-100 dark:bg-emerald-900/40 rounded-xl text-emerald-600 dark:text-emerald-400 shrink-0">
+              <Activity className="size-6" />
             </div>
-            <p className="text-xs text-muted-foreground">
-              Murabbi & Staff attendance. Restricted access: Marked by Park Lead or Delegated Staff.
-            </p>
-          </div>
-          {attendanceFlowMode === "murabbi" && (
-            <Badge className="bg-amber-600 text-white text-[10px]">Active Flow</Badge>
-          )}
-        </button>
+            <div>
+              <p className="text-sm font-semibold text-muted-foreground">Overall Attendance</p>
+              <div className="flex items-center gap-2">
+                <h3 className="text-2xl font-bold text-slate-900 dark:text-slate-100">82%</h3>
+                <span className="flex items-center text-xs font-semibold text-emerald-600 bg-emerald-100 dark:bg-emerald-900/30 px-1.5 py-0.5 rounded-md">
+                  <TrendingUp className="size-3 mr-0.5" /> +4%
+                </span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-0 shadow-sm bg-gradient-to-br from-rose-50/50 to-white dark:from-rose-950/20 dark:to-slate-900 rounded-2xl overflow-hidden ring-1 ring-slate-100 dark:ring-slate-800">
+          <CardContent className="p-5 flex items-center gap-4">
+            <div className="p-3 bg-rose-100 dark:bg-rose-900/40 rounded-xl text-rose-600 dark:text-rose-400 shrink-0">
+              <UserMinus className="size-6" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-muted-foreground">Absence Alerts</p>
+              <h3 className="text-2xl font-bold text-slate-900 dark:text-slate-100">12 <span className="text-sm font-medium text-muted-foreground">students</span></h3>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-0 shadow-sm bg-gradient-to-br from-blue-50/50 to-white dark:from-blue-950/20 dark:to-slate-900 rounded-2xl overflow-hidden ring-1 ring-slate-100 dark:ring-slate-800">
+          <CardContent className="p-5 flex items-center gap-4">
+            <div className="p-3 bg-blue-100 dark:bg-blue-900/40 rounded-xl text-blue-600 dark:text-blue-400 shrink-0">
+              <MapPin className="size-6" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-muted-foreground">Active Parks</p>
+              <h3 className="text-2xl font-bold text-slate-900 dark:text-slate-100">6 <span className="text-sm font-medium text-muted-foreground">/ 6</span></h3>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* ── FLOW 1: SHABAB STUDENT ATTENDANCE (PARK -> GROUP -> STUDENTS) ── */}
-      {attendanceFlowMode === "shabab" && (
-        <div className="space-y-6">
-          {/* Step 1: Park & Group Hierarchy Selectors */}
-          <Card className="border border-purple-200 dark:border-purple-900/60 bg-purple-50/30 dark:bg-purple-950/10 p-4 space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xs font-bold text-purple-900 dark:text-purple-200 uppercase tracking-wider flex items-center gap-2">
-                <Layers className="size-4 text-purple-600" /> Shabab Pipeline Selector (Park ➔ Halqa Group)
-              </h3>
-              <Badge variant="outline" className="border-purple-300 text-purple-700 text-[10px]">
-                Markable by Park Lead, Park Admin & Murabbi
-              </Badge>
+      {/* --- 2-Tier Flow Switcher --- */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <motion.div whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}>
+          <button
+            onClick={() => setActiveFlow("shabab")}
+            className={cn(
+              "w-full p-5 rounded-2xl border-2 text-left transition-all duration-300 relative overflow-hidden group",
+              activeFlow === "shabab"
+                ? "border-purple-500 bg-purple-50 dark:bg-purple-950/30 shadow-md"
+                : "border-transparent bg-white dark:bg-slate-900 shadow-sm hover:shadow-md ring-1 ring-slate-200 dark:ring-slate-800"
+            )}
+          >
+            <div className={cn(
+              "absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity bg-gradient-to-r from-purple-500/5 to-transparent",
+              activeFlow === "shabab" && "opacity-100"
+            )} />
+            <div className="relative z-10 flex items-start justify-between">
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <div className={cn(
+                    "p-2 rounded-lg",
+                    activeFlow === "shabab" ? "bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300" : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400"
+                  )}>
+                    <Users className="size-5" />
+                  </div>
+                  <h3 className="font-bold text-base text-slate-900 dark:text-slate-100">Shabab Student Attendance</h3>
+                </div>
+                <p className="text-sm text-muted-foreground pl-11">
+                  Mark daily attendance for students mapped to Parks and Groups.
+                </p>
+              </div>
+              {activeFlow === "shabab" && (
+                <CheckCircle2 className="size-6 text-purple-600 shrink-0" />
+              )}
+            </div>
+          </button>
+        </motion.div>
+
+        <motion.div whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}>
+          <button
+            onClick={() => setActiveFlow("murabbi")}
+            className={cn(
+              "w-full p-5 rounded-2xl border-2 text-left transition-all duration-300 relative overflow-hidden group",
+              activeFlow === "murabbi"
+                ? "border-amber-500 bg-amber-50 dark:bg-amber-950/30 shadow-md"
+                : "border-transparent bg-white dark:bg-slate-900 shadow-sm hover:shadow-md ring-1 ring-slate-200 dark:ring-slate-800"
+            )}
+          >
+            <div className={cn(
+              "absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity bg-gradient-to-r from-amber-500/5 to-transparent",
+              activeFlow === "murabbi" && "opacity-100"
+            )} />
+            <div className="relative z-10 flex items-start justify-between">
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <div className={cn(
+                    "p-2 rounded-lg",
+                    activeFlow === "murabbi" ? "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300" : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400"
+                  )}>
+                    <ShieldCheck className="size-5" />
+                  </div>
+                  <h3 className="font-bold text-base text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                    Staff & Murabbi Attendance
+                    <Badge variant="secondary" className="bg-amber-100 text-amber-700 dark:bg-amber-900/40 border-amber-200">
+                      <Lock className="size-3 mr-1" /> Restricted
+                    </Badge>
+                  </h3>
+                </div>
+                <p className="text-sm text-muted-foreground pl-11">
+                  Exclusive roster for Park Leads and designated delegates.
+                </p>
+              </div>
+              {activeFlow === "murabbi" && (
+                <CheckCircle2 className="size-6 text-amber-600 shrink-0" />
+              )}
+            </div>
+          </button>
+        </motion.div>
+      </div>
+
+      <AnimatePresence mode="wait">
+        {/* =========================================================
+            FLOW 1: SHABAB ATTENDANCE
+            ========================================================= */}
+        {activeFlow === "shabab" && (
+          <motion.div
+            key="shabab"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="space-y-6"
+          >
+            {/* Context Header */}
+            <div className="bg-white/60 dark:bg-slate-900/60 backdrop-blur-md border border-purple-100 dark:border-purple-900/50 rounded-2xl p-5 shadow-sm">
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+                
+                {/* Park Selector */}
+                <div className="space-y-2 flex-1">
+                  <Label className="text-xs uppercase tracking-wider text-muted-foreground font-bold flex items-center gap-1.5">
+                    <MapPin className="size-3.5 text-purple-600" /> Select Park Venue
+                  </Label>
+                  <div className="flex flex-wrap gap-2">
+                    {PARKS_MOCK.map((park) => (
+                      <button
+                        key={park.name}
+                        onClick={() => handleParkSelect(park.name)}
+                        className={cn(
+                          "px-4 py-2 rounded-xl text-sm font-semibold transition-all border",
+                          selectedPark === park.name
+                            ? "bg-purple-600 text-white border-purple-600 shadow-md shadow-purple-600/20"
+                            : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-purple-300 hover:bg-purple-50 dark:hover:bg-purple-900/20"
+                        )}
+                      >
+                        {park.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Group Selector */}
+                {activeParkGroups.length > 0 && (
+                  <div className="space-y-2 flex-1 lg:max-w-md">
+                    <Label className="text-xs uppercase tracking-wider text-muted-foreground font-bold flex items-center gap-1.5">
+                      <Layers className="size-3.5 text-indigo-600" /> Select Halqa Group
+                    </Label>
+                    <div className="flex flex-wrap gap-2">
+                      {activeParkGroups.map((g) => (
+                        <button
+                          key={g}
+                          onClick={() => setSelectedGroup(g)}
+                          className={cn(
+                            "px-4 py-2 rounded-xl text-sm font-semibold transition-all border",
+                            selectedGroup === g
+                              ? "bg-indigo-600 text-white border-indigo-600 shadow-md shadow-indigo-600/20"
+                              : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-900/20"
+                          )}
+                        >
+                          {g}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
 
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              {/* Park Selector */}
-              <div className="space-y-1">
-                <label className="text-[11px] font-semibold text-muted-foreground">Step 1: Select Park Venue</label>
-                <div className="flex flex-wrap items-center gap-1.5">
-                  {PARK_VENUES.map((park) => (
-                    <button
-                      key={park}
-                      onClick={() => setSelectedParkTab(park)}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${
-                        selectedParkTab === park
-                          ? "bg-purple-600 text-white border-purple-600 shadow-xs"
-                          : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 hover:border-purple-300"
-                      }`}
-                    >
-                      {park}
-                    </button>
-                  ))}
+            {/* Main Grid */}
+            <Card className="border-0 shadow-md ring-1 ring-slate-200 dark:ring-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl overflow-hidden rounded-2xl">
+              <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-50/50 dark:bg-slate-900/50">
+                <div className="space-y-1">
+                  <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                    <Users className="size-5 text-purple-600" />
+                    Students in {selectedGroup}
+                  </h2>
+                  <p className="text-sm text-muted-foreground font-medium">
+                    {selectedPark} • Mark attendance for today's session
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+                    <Input
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Search students..."
+                      className="pl-9 w-full sm:w-[250px] bg-white dark:bg-slate-800 rounded-xl"
+                    />
+                  </div>
                 </div>
               </div>
 
-              {/* Group Selector */}
-              <div className="space-y-1 shrink-0">
-                <label className="text-[11px] font-semibold text-muted-foreground">Step 2: Select Halqa Group</label>
-                <div className="flex items-center gap-1.5">
-                  {GROUP_OPTIONS.map((g) => (
-                    <button
-                      key={g}
-                      onClick={() => setSelectedGroupFilter(g)}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${
-                        selectedGroupFilter === g
-                          ? "bg-indigo-600 text-white border-indigo-600 shadow-xs"
-                          : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 hover:border-indigo-300"
-                      }`}
-                    >
-                      {g}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </Card>
-
-          {/* Shabab Student Roster Table */}
-          <Card className="border border-slate-200 dark:border-slate-800 shadow-sm">
-            <CardHeader className="p-4 border-b">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                  <CardTitle className="text-base font-bold flex items-center gap-2">
-                    <CalendarCheck className="size-4 text-purple-600" /> Shabab Attendance Grid — {selectedParkTab} ({selectedGroupFilter})
-                  </CardTitle>
-                  <CardDescription className="text-xs">
-                    Step 3: Mark student attendance for sports session on {selectedDate}.
-                  </CardDescription>
-                </div>
-
-                <div className="relative w-full sm:w-64">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-                  <Input
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search student or phone..."
-                    className="pl-9 text-xs h-9 bg-background"
-                  />
-                </div>
-              </div>
-            </CardHeader>
-
-            <CardContent className="p-0">
-              {paginatedShabab.length > 0 ? (
-                <div className="divide-y divide-slate-100 dark:divide-slate-800">
-                  {paginatedShabab.map((student) => (
-                    <div
+              <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                {paginatedStudents.length > 0 ? (
+                  paginatedStudents.map((student) => (
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
                       key={student.id}
-                      className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-50/50 dark:hover:bg-slate-900/40 transition-colors"
+                      className="p-4 sm:p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-5 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group"
                     >
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-bold text-sm text-slate-900 dark:text-slate-100">
-                            {student.name}
-                          </span>
-                          <Badge variant="outline" className="text-[10px] border-purple-200 text-purple-700">
-                            {student.parkName}
-                          </Badge>
-                          <Badge variant="secondary" className="text-[10px]">
-                            {student.groupName}
-                          </Badge>
-                          <Badge variant="outline" className="text-[10px] border-indigo-200 text-indigo-700">
-                            <GraduationCap className="size-3 mr-1 inline" /> {student.grade} ({student.age}y)
-                          </Badge>
-                          <Badge className="text-[10px] bg-emerald-100 text-emerald-800">
-                            {student.attendanceRate} Attendance
-                          </Badge>
+                      {/* Left: Info */}
+                      <div className="flex items-start gap-4">
+                        <div className="h-10 w-10 rounded-full bg-purple-100 dark:bg-purple-900/50 flex items-center justify-center text-purple-700 dark:text-purple-300 font-bold shrink-0">
+                          {student.serial}
                         </div>
-
-                        <div className="flex items-center gap-4 text-xs text-muted-foreground font-mono">
-                          <span className="flex items-center gap-1">
-                            <Phone className="size-3 text-slate-400" />
-                            {student.phone}
-                          </span>
+                        <div className="space-y-1.5">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h4 className="font-bold text-base text-slate-900 dark:text-slate-100">
+                              {student.name}
+                            </h4>
+                            {student.age && (
+                              <Badge variant="secondary" className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[10px] uppercase font-bold">
+                                {student.age} yrs
+                              </Badge>
+                            )}
+                            {student.grade && (
+                              <Badge variant="outline" className="border-indigo-200 text-indigo-700 dark:border-indigo-800 dark:text-indigo-400 text-[10px] font-bold">
+                                <GraduationCap className="size-3 mr-1 inline" /> {student.grade}
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-3 text-sm text-muted-foreground font-medium">
+                            {student.phone ? (
+                              <span className="flex items-center gap-1.5">
+                                <Phone className="size-3.5 text-slate-400" />
+                                {student.phone}
+                                {student.ownPhone && (
+                                  <span className="text-[10px] bg-slate-200 dark:bg-slate-700 px-1.5 py-0.5 rounded text-slate-700 dark:text-slate-300 ml-1">Own</span>
+                                )}
+                              </span>
+                            ) : (
+                              <span className="text-slate-400 italic text-xs">No phone provided</span>
+                            )}
+                          </div>
                         </div>
                       </div>
 
-                      {/* Quick Attendance Marking Action Bar */}
-                      <div className="flex flex-wrap items-center gap-2 shrink-0">
-                        <div className="flex items-center gap-1 border-r pr-2 border-slate-200 dark:border-slate-800">
-                          <button
-                            onClick={() => updateShababStatus(student.id, "present")}
-                            className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
-                              student.status === "present"
-                                ? "bg-emerald-600 text-white shadow-xs"
-                                : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-                            }`}
-                          >
-                            Present
-                          </button>
-
-                          <button
-                            onClick={() => updateShababStatus(student.id, "late")}
-                            className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
-                              student.status === "late"
-                                ? "bg-amber-500 text-white shadow-xs"
-                                : "bg-amber-50 text-amber-700 hover:bg-amber-100"
-                            }`}
-                          >
-                            Late
-                          </button>
-
-                          <button
-                            onClick={() => updateShababStatus(student.id, "absent")}
-                            className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
-                              student.status === "absent"
-                                ? "bg-rose-600 text-white shadow-xs"
-                                : "bg-rose-50 text-rose-700 hover:bg-rose-100"
-                            }`}
-                          >
-                            Absent
-                          </button>
-
-                          <button
-                            onClick={() => updateShababStatus(student.id, "leave")}
-                            className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
-                              student.status === "leave"
-                                ? "bg-blue-600 text-white shadow-xs"
-                                : "bg-blue-50 text-blue-700 hover:bg-blue-100"
-                            }`}
-                          >
-                            Leave
-                          </button>
+                      {/* Right: Actions */}
+                      <div className="flex flex-wrap items-center gap-2 lg:justify-end pl-14 lg:pl-0">
+                        <div className="flex bg-slate-100/50 dark:bg-slate-900/50 p-1 rounded-xl border border-slate-200 dark:border-slate-800">
+                          {(["present", "late", "absent", "leave"] as const).map((status) => {
+                            const colors = {
+                              present: "hover:bg-emerald-100 hover:text-emerald-700 data-[state=active]:bg-emerald-600 data-[state=active]:text-white data-[state=active]:shadow-sm",
+                              late: "hover:bg-amber-100 hover:text-amber-700 data-[state=active]:bg-amber-500 data-[state=active]:text-white data-[state=active]:shadow-sm",
+                              absent: "hover:bg-rose-100 hover:text-rose-700 data-[state=active]:bg-rose-600 data-[state=active]:text-white data-[state=active]:shadow-sm",
+                              leave: "hover:bg-blue-100 hover:text-blue-700 data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-sm",
+                            };
+                            return (
+                              <button
+                                key={status}
+                                data-state={student.status === status ? "active" : "inactive"}
+                                onClick={() => updateStudentStatus(student.id, status)}
+                                className={cn(
+                                  "px-3 py-1.5 rounded-lg text-xs font-bold transition-all capitalize text-slate-500",
+                                  colors[status]
+                                )}
+                              >
+                                {status}
+                              </button>
+                            );
+                          })}
                         </div>
 
-                        {student.phone && (
-                          <a
+                        {student.status === "absent" && student.phone && (
+                          <motion.a
+                            initial={{ scale: 0.9, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
                             href={`https://wa.me/${student.phone}?text=${encodeURIComponent(
                               WHATSAPP_ABSENT_URDU(student.name, selectedDate)
                             )}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200"
+                            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-[#25D366]/10 text-[#075E54] hover:bg-[#25D366]/20 border border-[#25D366]/30 transition-colors"
                           >
-                            <MessageSquare className="size-3" /> WA Absent Msg
-                          </a>
+                            <MessageSquare className="size-4" /> Message
+                          </motion.a>
                         )}
                       </div>
-                    </div>
-                  ))}
+                    </motion.div>
+                  ))
+                ) : (
+                  <div className="py-16">
+                    <EmptyState
+                      icon={CalendarCheck}
+                      title="No Students Found"
+                      description={`No matching students in ${selectedGroup} for ${selectedPark}.`}
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Pagination */}
+              {filteredStudents.length > 0 && (
+                <div className="p-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-900/50 rounded-b-2xl">
+                  <p className="text-sm text-muted-foreground font-medium">
+                    Showing <span className="text-slate-900 dark:text-slate-100 font-bold">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="text-slate-900 dark:text-slate-100 font-bold">{Math.min(currentPage * itemsPerPage, filteredStudents.length)}</span> of <span className="text-slate-900 dark:text-slate-100 font-bold">{filteredStudents.length}</span> students
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                      className="h-8 w-8 rounded-lg"
+                    >
+                      <ChevronLeft className="size-4" />
+                    </Button>
+                    <div className="text-sm font-bold px-2">{currentPage} / {totalPagesShabab}</div>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => setCurrentPage(p => Math.min(totalPagesShabab, p + 1))}
+                      disabled={currentPage === totalPagesShabab}
+                      className="h-8 w-8 rounded-lg"
+                    >
+                      <ChevronRight className="size-4" />
+                    </Button>
+                  </div>
                 </div>
-              ) : (
-                <div className="p-8">
-                  <EmptyState
-                    icon={CalendarCheck}
-                    title="No Shabab students found"
-                    description={`No students enrolled under ${selectedParkTab} - ${selectedGroupFilter}.`}
+              )}
+            </Card>
+          </motion.div>
+        )}
+
+        {/* =========================================================
+            FLOW 2: MURABBI ATTENDANCE (RESTRICTED)
+            ========================================================= */}
+        {activeFlow === "murabbi" && (
+          <motion.div
+            key="murabbi"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="space-y-6"
+          >
+            {/* Context Header */}
+            <div className="bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/50 rounded-2xl p-5 shadow-sm">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                
+                <div className="space-y-3">
+                  <div>
+                    <Label className="text-xs uppercase tracking-wider text-muted-foreground font-bold flex items-center gap-1.5">
+                      <MapPin className="size-3.5 text-amber-600" /> Filter by Park Venue
+                    </Label>
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {PARKS_MOCK.map((park) => (
+                        <button
+                          key={park.name}
+                          onClick={() => setSelectedPark(park.name)}
+                          className={cn(
+                            "px-4 py-2 rounded-xl text-sm font-semibold transition-all border",
+                            selectedPark === park.name
+                              ? "bg-amber-600 text-white border-amber-600 shadow-md shadow-amber-600/20"
+                              : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-amber-300 hover:bg-amber-50 dark:hover:bg-amber-900/20"
+                          )}
+                        >
+                          {park.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {isParkLeadOrHq && (
+                  <div className="shrink-0 flex flex-col items-end gap-2">
+                    <Button
+                      onClick={() => setShowDelegateModal(true)}
+                      className="bg-slate-900 text-white hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 font-bold rounded-xl h-10 px-5 gap-2 shadow-sm"
+                    >
+                      <UserPlus className="size-4" /> Delegate Access
+                    </Button>
+                    <p className="text-[10px] text-muted-foreground font-medium flex items-center gap-1">
+                      <Lock className="size-3" /> Protected by Role Check
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Main Grid */}
+            <Card className="border-0 shadow-md ring-1 ring-slate-200 dark:ring-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl overflow-hidden rounded-2xl">
+              <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-50/50 dark:bg-slate-900/50">
+                <div className="space-y-1">
+                  <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                    <UserCheck className="size-5 text-amber-600" />
+                    Staff Roster
+                  </h2>
+                  <p className="text-sm text-muted-foreground font-medium">
+                    {selectedPark} • Mark attendance for Park Leads, Murabbis & Staff
+                  </p>
+                </div>
+
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+                  <Input
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search staff..."
+                    className="pl-9 w-full sm:w-[250px] bg-white dark:bg-slate-800 rounded-xl"
                   />
                 </div>
-              )}
+              </div>
 
-              {/* 10 Records Per Page Pagination */}
-              {filteredShabab.length > 0 && (
-                <div className="p-4 border-t flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs bg-slate-50/40">
-                  <div className="text-muted-foreground font-medium">
-                    Showing Page {currentPage} of {totalPagesShabab} ({filteredShabab.length} students)
-                  </div>
+              <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                {paginatedMurabbis.length > 0 ? (
+                  paginatedMurabbis.map((murabbi) => (
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      key={murabbi.id}
+                      className="p-4 sm:p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-5 hover:bg-amber-50/30 dark:hover:bg-amber-900/10 transition-colors group"
+                    >
+                      {/* Left: Info */}
+                      <div className="flex items-start gap-4">
+                        <div className="h-10 w-10 rounded-full bg-amber-100 dark:bg-amber-900/50 flex items-center justify-center text-amber-700 dark:text-amber-300 font-bold shrink-0">
+                          {murabbi.serial}
+                        </div>
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h4 className="font-bold text-base text-slate-900 dark:text-slate-100">
+                              {murabbi.name}
+                            </h4>
+                          </div>
+                          <div className="flex flex-wrap gap-1.5">
+                            {murabbi.roles.map((role, idx) => (
+                              <Badge key={idx} variant="secondary" className="bg-amber-100/50 text-amber-800 border border-amber-200/50 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-800 text-[10px] font-bold">
+                                {role}
+                              </Badge>
+                            ))}
+                          </div>
+                          {murabbi.phone && (
+                            <div className="flex items-center gap-3 text-sm text-muted-foreground font-medium">
+                              <span className="flex items-center gap-1.5">
+                                <Phone className="size-3.5 text-slate-400" />
+                                {murabbi.phone}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
 
-                  <div className="flex items-center gap-1.5">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={currentPage <= 1}
-                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                      className="h-8 text-xs px-3 bg-background"
-                    >
-                      Previous
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={currentPage >= totalPagesShabab}
-                      onClick={() => setCurrentPage((p) => Math.min(totalPagesShabab, p + 1))}
-                      className="h-8 text-xs px-3 bg-background"
-                    >
-                      Next
-                    </Button>
+                      {/* Right: Actions */}
+                      <div className="flex flex-wrap items-center gap-2 lg:justify-end pl-14 lg:pl-0">
+                        <div className="flex bg-slate-100/50 dark:bg-slate-900/50 p-1 rounded-xl border border-slate-200 dark:border-slate-800">
+                          {(["present", "late", "absent", "leave", "off"] as const).map((status) => {
+                            const colors = {
+                              present: "hover:bg-emerald-100 hover:text-emerald-700 data-[state=active]:bg-emerald-600 data-[state=active]:text-white data-[state=active]:shadow-sm",
+                              late: "hover:bg-amber-100 hover:text-amber-700 data-[state=active]:bg-amber-500 data-[state=active]:text-white data-[state=active]:shadow-sm",
+                              absent: "hover:bg-rose-100 hover:text-rose-700 data-[state=active]:bg-rose-600 data-[state=active]:text-white data-[state=active]:shadow-sm",
+                              leave: "hover:bg-blue-100 hover:text-blue-700 data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-sm",
+                              off: "hover:bg-slate-200 hover:text-slate-700 data-[state=active]:bg-slate-600 data-[state=active]:text-white data-[state=active]:shadow-sm",
+                            };
+                            return (
+                              <button
+                                key={status}
+                                disabled={!canMarkMurabbi}
+                                data-state={murabbi.status === status ? "active" : "inactive"}
+                                onClick={() => updateMurabbiStatus(murabbi.id, status)}
+                                className={cn(
+                                  "px-3 py-1.5 rounded-lg text-xs font-bold transition-all capitalize text-slate-500 disabled:opacity-50 disabled:cursor-not-allowed",
+                                  colors[status]
+                                )}
+                              >
+                                {status}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))
+                ) : (
+                  <div className="py-16">
+                    <EmptyState
+                      icon={ShieldCheck}
+                      title="No Staff Found"
+                      description={`No staff listed for ${selectedPark}.`}
+                    />
                   </div>
+                )}
+              </div>
+            </Card>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* --- Delegate Modal --- */}
+      <Dialog open={showDelegateModal} onOpenChange={setShowDelegateModal}>
+        <DialogContent className="max-w-md p-0 overflow-hidden border-0 rounded-2xl shadow-2xl">
+          <div className="p-6 bg-gradient-to-br from-amber-50 to-white dark:from-amber-950/30 dark:to-slate-900">
+            <DialogHeader className="mb-6">
+              <DialogTitle className="text-xl font-extrabold flex items-center gap-3 text-slate-900 dark:text-white">
+                <div className="p-2.5 bg-amber-100 dark:bg-amber-900/50 rounded-xl text-amber-600">
+                  <UserPlus className="size-5" />
                 </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      )}
+                Delegate Access
+              </DialogTitle>
+              <DialogDescription className="text-sm font-medium mt-2">
+                Temporarily authorize a staff member (e.g. Park Admin) to mark staff attendance for {selectedPark}.
+              </DialogDescription>
+            </DialogHeader>
 
-      {/* ── FLOW 2: SEPARATE MURABBI ATTENDANCE (RESTRICTED ACCESS) ───── */}
-      {attendanceFlowMode === "murabbi" && (
-        <div className="space-y-6">
-          <Card className="border border-amber-200 dark:border-amber-900/60 bg-amber-50/40 dark:bg-amber-950/10 p-4 space-y-3">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
-                <h3 className="text-sm font-bold text-amber-900 dark:text-amber-200 flex items-center gap-2">
-                  <ShieldCheck className="size-4 text-amber-600" /> Dedicated Murabbi & Staff Attendance Desk
-                </h3>
-                <p className="text-xs text-amber-700 dark:text-amber-300 mt-0.5">
-                  Restricted workflow: Marked exclusively by <strong>Park Lead</strong> or staff explicitly granted delegation access.
+            <div className="space-y-4 py-2">
+              <div className="space-y-2">
+                <Label className="text-xs uppercase font-bold text-muted-foreground">Select Staff Member</Label>
+                <Select value={delegateStaffName} onValueChange={setDelegateStaffName}>
+                  <SelectTrigger className="h-12 rounded-xl bg-white dark:bg-slate-800">
+                    <SelectValue placeholder="Choose a staff member" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {INITIAL_MURABBI_DATA.filter(m => m.parkName === selectedPark).map(staff => (
+                      <SelectItem key={staff.id} value={staff.name}>
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold">{staff.name}</span>
+                          <span className="text-xs text-muted-foreground">({staff.roles[0]})</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="p-4 bg-amber-50 dark:bg-amber-950/30 rounded-xl border border-amber-200/50 dark:border-amber-900/50 flex items-start gap-3">
+                <AlertTriangle className="size-4 text-amber-600 shrink-0 mt-0.5" />
+                <p className="text-xs font-medium text-amber-800 dark:text-amber-300 leading-relaxed">
+                  Delegation expires at midnight. The selected staff member will be able to mark Murabbi & Staff attendance for {selectedPark} today.
                 </p>
               </div>
-
-              {isParkLeadOrHq && (
-                <Button
-                  onClick={() => setShowDelegateModal(true)}
-                  variant="outline"
-                  className="border-amber-300 text-amber-800 hover:bg-amber-100 font-semibold text-xs h-8 gap-1.5"
-                >
-                  <UserPlus className="size-3.5" /> Delegate Access
-                </Button>
-              )}
             </div>
-          </Card>
 
-          {/* Murabbi Roster Grid */}
-          <Card className="border border-slate-200 dark:border-slate-800 shadow-sm">
-            <CardHeader className="p-4 border-b">
-              <CardTitle className="text-base font-bold flex items-center gap-2">
-                <UserCheck className="size-4 text-amber-600" /> Murabbi Leadership Attendance Roster — {selectedParkTab}
-              </CardTitle>
-              <CardDescription className="text-xs">
-                Track sports session presence & Mashawara attendance for Murabbis, Sports Leads, and Muawins.
-              </CardDescription>
-            </CardHeader>
-
-            <CardContent className="p-0">
-              <div className="divide-y divide-slate-100 dark:divide-slate-800">
-                {filteredMurabbis.map((murabbi) => (
-                  <div
-                    key={murabbi.id}
-                    className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-50/50 dark:hover:bg-slate-900/40 transition-colors"
-                  >
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-sm text-slate-900 dark:text-slate-100">
-                          {murabbi.name}
-                        </span>
-                        <Badge className="bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200 text-[10px]">
-                          {murabbi.role}
-                        </Badge>
-                        <Badge variant="outline" className="text-[10px]">
-                          {murabbi.parkName}
-                        </Badge>
-                        <Badge variant="secondary" className="text-[10px]">
-                          Mashawara: {murabbi.mashawaraCount}
-                        </Badge>
-                      </div>
-
-                      <div className="flex items-center gap-4 text-xs text-muted-foreground font-mono">
-                        <span className="flex items-center gap-1">
-                          <Phone className="size-3 text-slate-400" />
-                          {murabbi.phone}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Murabbi Attendance Marking Action Bar */}
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <button
-                        onClick={() => updateMurabbiStatus(murabbi.id, "present")}
-                        disabled={!canMarkMurabbi}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                          murabbi.status === "present"
-                            ? "bg-emerald-600 text-white shadow-xs"
-                            : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-                        }`}
-                      >
-                        Present
-                      </button>
-
-                      <button
-                        onClick={() => updateMurabbiStatus(murabbi.id, "late")}
-                        disabled={!canMarkMurabbi}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                          murabbi.status === "late"
-                            ? "bg-amber-500 text-white shadow-xs"
-                            : "bg-amber-50 text-amber-700 hover:bg-amber-100"
-                        }`}
-                      >
-                        Late
-                      </button>
-
-                      <button
-                        onClick={() => updateMurabbiStatus(murabbi.id, "absent")}
-                        disabled={!canMarkMurabbi}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                          murabbi.status === "absent"
-                            ? "bg-rose-600 text-white shadow-xs"
-                            : "bg-rose-50 text-rose-700 hover:bg-rose-100"
-                        }`}
-                      >
-                        Absent
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {/* ── Delegate Access Modal ─────────────────────────────────────── */}
-      <Dialog open={showDelegateModal} onOpenChange={setShowDelegateModal}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-base font-bold flex items-center gap-2">
-              <UserPlus className="size-5 text-amber-600" /> Delegate Murabbi Attendance Marking Access
-            </DialogTitle>
-            <DialogDescription className="text-xs">
-              Grant temporary permission to a staff member to mark Murabbi attendance for this park.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-3 py-2">
-            <Label className="text-xs font-bold">Staff Member Name / Phone</Label>
-            <Input
-              value={delegateStaffName}
-              onChange={(e) => setDelegateStaffName(e.target.value)}
-              placeholder="e.g. Usman Akhtar (Park Admin)"
-              className="text-xs h-9 bg-background"
-            />
+            <DialogFooter className="mt-8 border-t border-slate-100 dark:border-slate-800 pt-5 sm:justify-between">
+              <Button variant="ghost" onClick={() => setShowDelegateModal(false)} className="rounded-xl font-bold">
+                Cancel
+              </Button>
+              <Button onClick={handleGrantDelegation} className="bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-bold px-6 shadow-sm shadow-amber-600/20">
+                Grant Access
+              </Button>
+            </DialogFooter>
           </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowDelegateModal(false)} className="text-xs">
-              Cancel
-            </Button>
-            <Button onClick={handleGrantDelegation} className="bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold">
-              Grant Access
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
+
     </div>
   );
 }

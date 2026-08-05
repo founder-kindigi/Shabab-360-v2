@@ -144,6 +144,7 @@ model Park {
   transfersFrom         StockTransfer[]        @relation("StockTransferFrom")
   transfersTo           StockTransfer[]        @relation("StockTransferTo")
   stockAuditLogs        StockAuditLog[]
+  staffAttendanceEvents StaffAttendanceEvent[]
 
   @@map("parks")
 }
@@ -219,6 +220,7 @@ model StaffMeta {
   mashwaraShares            MashwaraMeetingShare[] @relation("MashwaraShareRecipient")
   mashwaraGrants            MashwaraMeetingShare[] @relation("MashwaraShareGranter")
   chatMessages              TeamChatMessage[]
+  staffAttendanceRecords    StaffAttendanceRecord[]
 
   @@map("staff_meta")
 }
@@ -565,6 +567,46 @@ model AttendanceRecord {
   @@index([eventId])
   @@index([participantId])
   @@map("attendance_records")
+}
+
+// Separate staff/Murabbi attendance tracking, scoped to Park (not Group).
+model StaffAttendanceEvent {
+  id        String    @id @default(cuid())
+  parkId    String
+  title     String
+  eventDate DateTime
+  isClosed  Boolean   @default(false)
+  closedAt  DateTime?
+  closedBy  String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  park    Park                     @relation(fields: [parkId], references: [id], onDelete: Cascade)
+  records StaffAttendanceRecord[]
+
+  @@index([parkId, eventDate])
+  @@index([eventDate])
+  @@map("staff_attendance_events")
+}
+
+model StaffAttendanceRecord {
+  id          String   @id @default(cuid())
+  eventId     String
+  staffMetaId String
+  status      String
+  markedBy    String?
+  markedAt    DateTime @default(now())
+  editReason  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  event     StaffAttendanceEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  staffMeta StaffMeta            @relation(fields: [staffMetaId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, staffMetaId])
+  @@index([eventId])
+  @@index([staffMetaId])
+  @@map("staff_attendance_records")
 }
 
 // ========== FEES ==========

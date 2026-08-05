@@ -77,12 +77,16 @@ export async function POST(req: Request) {
       parkName: string;
       name: string;
       phone: string;
+      age: number | null;
       role?: string;
       present: number;
       absent: number;
       leave: number;
       rate: string;
     }> = [];
+
+    // Section header markers to skip
+    const SECTION_MARKERS = ["PARK LEAD", "MURABBIS", "Group", "SUMMARY", "TOTAL"];
 
     for (const sheetName of parkSheets) {
       const sheet = workbook.getWorksheet(sheetName);
@@ -91,51 +95,64 @@ export async function POST(req: Request) {
       let sheetStudentCount = 0;
 
       sheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
-        // Data rows start around row 8 or 9
-        if (rowNumber < 8) return;
+        // Skip title/header rows (rows 1-4: title, column headers, dates)
+        if (rowNumber < 5) return;
 
-        const sr = row.getCell(2).value;
-        const name = String(row.getCell(3).value || "").trim();
-        const phoneRaw = String(row.getCell(4).value || "").trim();
+        // Verified column layout: C1=#, C2=Name, C3=Phone, C7=Age, C8=Grade/Role, C9+=attendance
+        const c1 = row.getCell(1).value;
+        const c1Str = String(c1 || "").trim();
+        const name = String(row.getCell(2).value || "").trim();
 
-        if (!name || name.includes("SUMMARY") || name.includes("TOTAL")) return;
+        // Skip section headers (Park Lead, Murabbis, Group headers, summaries)
+        if (SECTION_MARKERS.some(m => c1Str.includes(m) || name.includes(m))) return;
+        // Skip non-numeric serial rows and empty names
+        if (typeof c1 !== "number" || !name) return;
 
+        const phoneRaw = String(row.getCell(3).value || "").trim().replace(/^'/, "");
         const phone = normalizePakistanPhone(phoneRaw) || phoneRaw;
-        const roleText = String(row.getCell(9).value || "Student").trim();
+        const ageRaw = row.getCell(7).value;
+        const age = typeof ageRaw === "number" ? Math.round(ageRaw) : null;
+        const roleText = String(row.getCell(8).value || "").trim();
 
-        // Calculate attendance totals from cells
+        // Count attendance from C9 onwards (skip formula cells and OFF values)
         let p = 0;
         let a = 0;
         let l = 0;
+        let lv = 0;
 
-        row.eachCell({ includeEmpty: false }, (cell) => {
+        for (let col = 9; col <= row.cellCount; col++) {
+          const cell = row.getCell(col);
+          // Skip formula cells (OFF weekend formulas)
+          if (cell.type === 2 /* FormulaType */) continue;
           const val = String(cell.value || "").trim().toLowerCase();
           if (val === "present") { p++; presentCount++; }
           else if (val === "absent") { a++; absentCount++; }
           else if (val === "late") { l++; lateCount++; }
-          else if (val === "leave") { leaveCount++; }
-        });
+          else if (val === "leave") { lv++; leaveCount++; }
+          // OFF, Sat Off, blanks, Dropout, malformed values are intentionally skipped
+        }
 
         const totalMarked = p + l + a;
-        const ratePct = totalMarked > 0 ? `${Math.round(((p + l) / totalMarked) * 100)}%` : "100%";
+        const ratePct = totalMarked > 0 ? `${Math.round(((p + l) / totalMarked) * 100)}%` : "—";
 
         totalStudentsProcessed++;
         sheetStudentCount++;
 
         parsedStudents.push({
-          parkName: sheetName.replace("_", " "),
+          parkName: sheetName.replace(/_/g, " "),
           name,
           phone,
-          role: roleText,
+          age,
+          role: roleText || "Student",
           present: p + l,
           absent: a,
-          leave: 0,
+          leave: lv,
           rate: ratePct,
         });
       });
 
       parkSummaries.push({
-        name: sheetName.replace("_", " "),
+        name: sheetName.replace(/_/g, " "),
         studentCount: sheetStudentCount,
       });
     }
