@@ -302,18 +302,7 @@ export default function MashwaraDetailClient() {
     );
   }
 
-  if (error || !data) {
-    return (
-      <div className="p-4 md:p-6 text-center space-y-4">
-        <AlertTriangle className="size-12 mx-auto text-amber-500" />
-        <h2 className="text-lg font-semibold">Meeting Not Found</h2>
-        <p className="text-sm text-muted-foreground">
-          The requested Mashwara meeting could not be loaded or you do not have permission to view it.
-        </p>
-        <Button onClick={handleBack}>Return to Mashwara Dashboard</Button>
-      </div>
-    );
-  }
+
 
   const activeShares = data.shares?.filter((s) => !s.isRevoked) || [];
   const revokedShares = data.shares?.filter((s) => s.isRevoked) || [];
