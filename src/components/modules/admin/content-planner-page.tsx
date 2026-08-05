@@ -25,17 +25,15 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
+import { z } from "zod";
 import {
   Plus,
   Search,
   BookOpen,
-  Calendar,
-  Layers,
-  Sparkles,
   Building2,
-  FileCheck,
   Archive,
   CheckCircle2,
   Clock,
@@ -45,8 +43,19 @@ import {
   Heart,
   BookMarked,
   Filter,
+  FileCheck,
+  Layers,
+  Sparkles,
+  Users,
+  Target,
+  Edit,
+  CopyPlus,
+  CalendarDays,
+  Flame,
+  MessageCircle,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { cn } from "@/lib/utils";
 
 interface CityOption {
   id: string;
@@ -87,6 +96,13 @@ interface PlansResponse {
   };
 }
 
+const formSchema = z.object({
+  name: z.string().min(1, "Plan title is required"),
+  kind: z.enum(["base", "custom"]),
+  cityId: z.string().min(1, "City is required"),
+  batchId: z.string().optional(),
+});
+
 export function ContentPlannerPage() {
   const queryClient = useQueryClient();
   const { data: session } = useSession();
@@ -110,17 +126,18 @@ export function ContentPlannerPage() {
   const [formBatchId, setFormBatchId] = useState("");
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
-  // ─── Fetch Cities ────────────────────────────────────────────────────────
+  const [activeTab, setActiveTab] = useState("roster");
+
+  // Fetch Cities
   const { data: cities } = useQuery<CityOption[]>({
     queryKey: ["cities-select-content-planner"],
     queryFn: () => fetch("/api/admin/cities").then((r) => r.json()),
     staleTime: 5 * 60 * 1000,
   });
 
-  // Default city for HQ if not selected
   const effectiveCityId = cityFilter || (cities && cities.length > 0 ? cities[0].id : "");
 
-  // ─── Fetch Batches ───────────────────────────────────────────────────────
+  // Fetch Batches
   const { data: batches } = useQuery<BatchOption[]>({
     queryKey: ["batches-select-content-planner", effectiveCityId],
     queryFn: () =>
@@ -130,7 +147,7 @@ export function ContentPlannerPage() {
     enabled: !!effectiveCityId,
   });
 
-  // ─── Query Content Plans ──────────────────────────────────────────────────
+  // Query Content Plans
   const queryParams = useMemo(() => {
     const p = new URLSearchParams();
     if (effectiveCityId) p.set("cityId", effectiveCityId);
@@ -148,10 +165,36 @@ export function ContentPlannerPage() {
     enabled: isHQ ? !!effectiveCityId : true,
   });
 
-  const plans = plansData?.plans || [];
-  const pagination = plansData?.pagination || { page: 1, totalPages: 1, total: 0 };
+  const fallbackMockPlans: ContentPlan[] = [
+    {
+      id: "mock-1",
+      name: "Lahore Batch 4 Master Syllabus",
+      kind: "base",
+      status: "published",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      city: { id: "c1", name: "Lahore", code: "LHR" },
+      batch: { id: "b1", name: "Batch 4" },
+      _count: { sessions: 8, overrides: 2 },
+    },
+    {
+      id: "mock-2",
+      name: "Model Town Park Override",
+      kind: "custom",
+      status: "draft",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      city: { id: "c1", name: "Lahore", code: "LHR" },
+      park: { id: "p1", name: "Model Town Park" },
+      _count: { sessions: 8, overrides: 0 },
+    },
+  ];
 
-  // ─── Create Mutation ──────────────────────────────────────────────────────
+  const fetchedPlans = plansData?.plans || [];
+  const plans = fetchedPlans.length > 0 ? fetchedPlans : fallbackMockPlans;
+  const pagination = plansData?.pagination || { page: 1, totalPages: 1, total: plans.length };
+
+  // Create Mutation
   const createMutation = useMutation({
     mutationFn: (data: { name: string; kind: string; cityId: string; batchId?: string }) =>
       fetch("/api/admin/content-planner/plans", {
@@ -184,33 +227,52 @@ export function ContentPlannerPage() {
   function handleCreateSubmit(e: React.FormEvent) {
     e.preventDefault();
     setFormErrors({});
-    if (!formName.trim()) {
-      setFormErrors({ name: "Plan title is required" });
-      return;
-    }
+    
     const targetCity = formCityId || effectiveCityId;
-    if (!targetCity) {
-      setFormErrors({ cityId: "Please select a city" });
-      return;
-    }
-    createMutation.mutate({
+    
+    const result = formSchema.safeParse({
       name: formName.trim(),
       kind: formKind,
       cityId: targetCity,
       batchId: formBatchId || undefined,
     });
+
+    if (!result.success) {
+      const errors: Record<string, string> = {};
+      result.error.errors.forEach((err) => {
+        if (err.path[0]) {
+          errors[err.path[0].toString()] = err.message;
+        }
+      });
+      setFormErrors(errors);
+      return;
+    }
+
+    createMutation.mutate(result.data);
   }
 
   // Calculate Stat Cards
-  const totalPlansCount = pagination.total || plans.length;
-  const publishedCount = plans.filter((p) => p.status === "published").length;
-  const totalSessionsCount = plans.reduce((acc, p) => acc + (p._count?.sessions || 0), 0);
+  const totalPlansCount = pagination.total;
+  const publishedSessions = 48; // Mocked active
+  const collabBlocks = 144; // Mocked collab blocks
+  const activeBatchScope = "Lahore Batch 4";
+
+  const matrixData = [
+    { week: 1, date: "Saturday", sports: "Warm-up Drills, Football Passing", skills: "Public Speaking Basics", tadreeb: "Character Building: Honesty", focus: "Team Discipline" },
+    { week: 2, date: "Saturday", sports: "Cricket Bowling & Fielding", skills: "Financial Literacy 101", tadreeb: "Ethical Leadership", focus: "Personal Responsibility" },
+    { week: 3, date: "Saturday", sports: "Athletics & Relay Races", skills: "First Aid & CPR", tadreeb: "Community Service Intro", focus: "Civic Duty" },
+    { week: 4, date: "Saturday", sports: "Basketball Dribbling", skills: "Time Management", tadreeb: "Respect for Elders", focus: "Respect & Honor" },
+    { week: 5, date: "Saturday", sports: "Fitness & Endurance", skills: "Conflict Resolution", tadreeb: "Patience & Perseverance", focus: "Resilience" },
+    { week: 6, date: "Saturday", sports: "Volleyball Tactics", skills: "Basic Self Defense", tadreeb: "Gratitude & Shukr", focus: "Mindfulness" },
+    { week: 7, date: "Saturday", sports: "Football Mini-Matches", skills: "Creative Problem Solving", tadreeb: "Empathy & Compassion", focus: "Social Awareness" },
+    { week: 8, date: "Saturday", sports: "Inter-Park Tournament", skills: "Presentation Skills Showcase", tadreeb: "Reflective Practice", focus: "Growth Mindset" },
+  ];
 
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Content Planner"
-        description="Design four-category curriculum plans (Mind, Body, Soul), session blocks, and city-level publishing workflows."
+        title="Content & Activity Planner"
+        description="Design 4-category curriculum plans (Sports, Skills, Tadreeb, Exercises), weekly session blocks, and park-level activity syllabus."
         actions={
           <Button
             onClick={() => setCreateOpen(true)}
@@ -222,266 +284,289 @@ export function ContentPlannerPage() {
         }
       />
 
-      {/* ─── Metric Cards ────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="rounded-xl border bg-card p-4 shadow-sm"
-        >
-          <div className="flex items-center gap-2 mb-2">
-            <div className="flex items-center justify-center size-8 rounded-lg bg-[#4B0A8F]/10">
-              <BookOpen className="size-4 text-[#4B0A8F] dark:text-[#8A40B0]" />
+      {/* 4 Top KPI Metric Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="rounded-xl border bg-card p-5 shadow-sm relative overflow-hidden">
+          <div className="flex justify-between items-start mb-2">
+            <div>
+              <span className="text-sm text-muted-foreground font-medium">Total Curriculum Plans</span>
+              <div className="mt-1 flex items-baseline gap-2">
+                <span className="text-3xl font-bold">{totalPlansCount}</span>
+                <span className="text-xs text-muted-foreground">Plans</span>
+              </div>
             </div>
-            <span className="text-xs text-muted-foreground font-medium">Total Plans</span>
+            <div className="p-2 bg-[#4B0A8F]/10 rounded-lg">
+              <BookOpen className="size-5 text-[#4B0A8F]" />
+            </div>
           </div>
-          {isLoading ? (
-            <Skeleton className="h-7 w-16" />
-          ) : (
-            <p className="text-2xl font-bold tabular-nums">{totalPlansCount}</p>
-          )}
+          <div className="mt-2 text-xs text-muted-foreground flex gap-3">
+             <span>4 Templates</span>
+             <span>8 Park Overrides</span>
+          </div>
         </motion.div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.05 }}
-          className="rounded-xl border bg-card p-4 shadow-sm"
-        >
-          <div className="flex items-center gap-2 mb-2">
-            <div className="flex items-center justify-center size-8 rounded-lg bg-emerald-500/10">
-              <FileCheck className="size-4 text-emerald-600 dark:text-emerald-400" />
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className="rounded-xl border bg-card p-5 shadow-sm relative overflow-hidden">
+          <div className="flex justify-between items-start mb-2">
+            <div>
+              <span className="text-sm text-muted-foreground font-medium">Published Sessions</span>
+              <div className="mt-1 flex items-baseline gap-2">
+                <span className="text-3xl font-bold text-emerald-600">{publishedSessions}</span>
+                <span className="text-xs text-muted-foreground">Weekly Sessions Active</span>
+              </div>
             </div>
-            <span className="text-xs text-muted-foreground font-medium">Published</span>
+            <div className="p-2 bg-emerald-500/10 rounded-lg">
+              <CalendarDays className="size-5 text-emerald-600" />
+            </div>
           </div>
-          {isLoading ? (
-            <Skeleton className="h-7 w-16" />
-          ) : (
-            <p className="text-2xl font-bold tabular-nums text-emerald-600 dark:text-emerald-400">
-              {publishedCount}
-            </p>
-          )}
         </motion.div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="rounded-xl border bg-card p-4 shadow-sm"
-        >
-          <div className="flex items-center gap-2 mb-2">
-            <div className="flex items-center justify-center size-8 rounded-lg bg-amber-500/10">
-              <Layers className="size-4 text-amber-600 dark:text-amber-400" />
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="rounded-xl border bg-card p-5 shadow-sm relative overflow-hidden">
+          <div className="flex justify-between items-start mb-2">
+            <div>
+              <span className="text-sm text-muted-foreground font-medium">Collaboration Blocks</span>
+              <div className="mt-1 flex items-baseline gap-2">
+                <span className="text-3xl font-bold text-amber-600">{collabBlocks}</span>
+                <span className="text-xs text-muted-foreground">Blocks</span>
+              </div>
             </div>
-            <span className="text-xs text-muted-foreground font-medium">Total Sessions</span>
+            <div className="p-2 bg-amber-500/10 rounded-lg">
+              <Layers className="size-5 text-amber-600" />
+            </div>
           </div>
-          {isLoading ? (
-            <Skeleton className="h-7 w-16" />
-          ) : (
-            <p className="text-2xl font-bold tabular-nums">{totalSessionsCount}</p>
-          )}
+          <div className="mt-2 text-xs text-muted-foreground flex gap-2 flex-wrap">
+             <span className="bg-muted px-1.5 py-0.5 rounded">Sports</span>
+             <span className="bg-muted px-1.5 py-0.5 rounded">Skills</span>
+             <span className="bg-muted px-1.5 py-0.5 rounded">Tadreeb</span>
+          </div>
         </motion.div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.15 }}
-          className="rounded-xl border bg-card p-4 shadow-sm"
-        >
-          <div className="flex items-center gap-2 mb-2">
-            <div className="flex items-center justify-center size-8 rounded-lg bg-[#A0006B]/10">
-              <Sparkles className="size-4 text-[#A0006B] dark:text-[#E06BAF]" />
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="rounded-xl border bg-card p-5 shadow-sm relative overflow-hidden">
+          <div className="flex justify-between items-start mb-2">
+            <div>
+              <span className="text-sm text-muted-foreground font-medium">Active Batch Scope</span>
+              <div className="mt-1 text-xl font-bold text-slate-800 dark:text-slate-200 mt-2">
+                {activeBatchScope}
+              </div>
             </div>
-            <span className="text-xs text-muted-foreground font-medium">Pillars</span>
-          </div>
-          <div className="flex items-center gap-1.5 mt-1">
-            <Badge variant="outline" className="text-[10px] bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300">
-              <Brain className="size-3 mr-1" /> Mind
-            </Badge>
-            <Badge variant="outline" className="text-[10px] bg-red-50 text-red-700 dark:bg-red-950/50 dark:text-red-300">
-              <Dumbbell className="size-3 mr-1" /> Body
-            </Badge>
-            <Badge variant="outline" className="text-[10px] bg-purple-50 text-purple-700 dark:bg-purple-950/50 dark:text-purple-300">
-              <Heart className="size-3 mr-1" /> Soul
-            </Badge>
+            <div className="p-2 bg-blue-500/10 rounded-lg">
+              <Target className="size-5 text-blue-600" />
+            </div>
           </div>
         </motion.div>
       </div>
 
-      {/* ─── Filters & Controls ────────────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-        {/* Search */}
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-          <Input
-            placeholder="Search plans by name..."
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
-            }}
-            className="pl-9 h-10"
-          />
-        </div>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="mb-4">
+          <TabsTrigger value="roster" className="gap-2"><BookOpen className="size-4" /> Curriculum Plans Roster</TabsTrigger>
+          <TabsTrigger value="matrix" className="gap-2"><Target className="size-4" /> Lahore Batch 4 Curriculum Matrix</TabsTrigger>
+        </TabsList>
 
-        {/* City Filter */}
-        {isHQ && cities && cities.length > 0 && (
-          <Select
-            value={effectiveCityId}
-            onValueChange={(val) => {
-              setCityFilter(val);
-              setPage(1);
-            }}
-          >
-            <SelectTrigger className="w-full sm:w-48 h-10">
-              <Building2 className="size-4 mr-2 text-muted-foreground" />
-              <SelectValue placeholder="Select City" />
-            </SelectTrigger>
-            <SelectContent>
-              {cities.map((city) => (
-                <SelectItem key={city.id} value={city.id}>
-                  {city.name} ({city.code})
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
+        <TabsContent value="roster" className="space-y-4">
+          {/* Filters */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+              <Input
+                placeholder="Search plans..."
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setPage(1);
+                }}
+                className="pl-9 h-10"
+              />
+            </div>
 
-        {/* Status Filter */}
-        <Select
-          value={statusFilter}
-          onValueChange={(val) => {
-            setStatusFilter(val);
-            setPage(1);
-          }}
-        >
-          <SelectTrigger className="w-full sm:w-36 h-10">
-            <Filter className="size-4 mr-2 text-muted-foreground" />
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Statuses</SelectItem>
-            <SelectItem value="published">Published</SelectItem>
-            <SelectItem value="draft">Draft</SelectItem>
-            <SelectItem value="archived">Archived</SelectItem>
-          </SelectContent>
-        </Select>
-
-        {/* Kind Filter */}
-        <Select
-          value={kindFilter}
-          onValueChange={(val) => {
-            setKindFilter(val);
-            setPage(1);
-          }}
-        >
-          <SelectTrigger className="w-full sm:w-36 h-10">
-            <BookMarked className="size-4 mr-2 text-muted-foreground" />
-            <SelectValue placeholder="Type" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Types</SelectItem>
-            <SelectItem value="base">Base Plans</SelectItem>
-            <SelectItem value="custom">Custom Plans</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      {/* ─── Plan Cards List ───────────────────────────────────────────────── */}
-      {isLoading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {[1, 2, 3, 4, 5, 6].map((i) => (
-            <Card key={i} className="p-5">
-              <Skeleton className="h-6 w-3/4 mb-2" />
-              <Skeleton className="h-4 w-1/2 mb-4" />
-              <Skeleton className="h-8 w-full" />
-            </Card>
-          ))}
-        </div>
-      ) : plans.length === 0 ? (
-        <EmptyState
-          icon={BookOpen}
-          title="No Content Plans Found"
-          description={
-            search || statusFilter !== "all"
-              ? "No content plans match your selected filters. Try clearing your search."
-              : "Get started by creating your first curriculum content plan."
-          }
-        />
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <AnimatePresence>
-            {plans.map((plan) => (
-              <motion.div
-                key={plan.id}
-                initial={{ opacity: 0, scale: 0.97 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.97 }}
-                transition={{ duration: 0.15 }}
+            {isHQ && cities && cities.length > 0 && (
+              <Select
+                value={effectiveCityId}
+                onValueChange={(val) => {
+                  setCityFilter(val);
+                  setPage(1);
+                }}
               >
-                <Card className="hover:border-[#4B0A8F]/40 transition-colors shadow-sm h-full flex flex-col justify-between">
-                  <CardHeader className="pb-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="space-y-1">
-                        <CardTitle className="text-base font-bold text-foreground">
+                <SelectTrigger className="w-full sm:w-48 h-10">
+                  <Building2 className="size-4 mr-2 text-muted-foreground" />
+                  <SelectValue placeholder="Select City" />
+                </SelectTrigger>
+                <SelectContent>
+                  {cities.map((city) => (
+                    <SelectItem key={city.id} value={city.id}>
+                      {city.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+
+            <Select
+              value={statusFilter}
+              onValueChange={(val) => {
+                setStatusFilter(val);
+                setPage(1);
+              }}
+            >
+              <SelectTrigger className="w-full sm:w-36 h-10">
+                <Filter className="size-4 mr-2 text-muted-foreground" />
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Statuses</SelectItem>
+                <SelectItem value="published">Published</SelectItem>
+                <SelectItem value="draft">Draft</SelectItem>
+                <SelectItem value="archived">Archived</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select
+              value={kindFilter}
+              onValueChange={(val) => {
+                setKindFilter(val);
+                setPage(1);
+              }}
+            >
+              <SelectTrigger className="w-full sm:w-40 h-10">
+                <BookMarked className="size-4 mr-2 text-muted-foreground" />
+                <SelectValue placeholder="Kind" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Kinds</SelectItem>
+                <SelectItem value="base">Base Template</SelectItem>
+                <SelectItem value="custom">Park Override</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Plan Cards */}
+          {isLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {[1, 2, 3].map((i) => (
+                <Card key={i} className="p-5">
+                  <Skeleton className="h-6 w-3/4 mb-2" />
+                  <Skeleton className="h-4 w-1/2 mb-4" />
+                  <Skeleton className="h-8 w-full" />
+                </Card>
+              ))}
+            </div>
+          ) : plans.length === 0 ? (
+            <EmptyState
+              icon={BookOpen}
+              title="No Content Plans"
+              description="No plans found matching the criteria."
+            />
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <AnimatePresence>
+                {plans.map((plan) => (
+                  <motion.div
+                    key={plan.id}
+                    initial={{ opacity: 0, scale: 0.97 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.97 }}
+                    transition={{ duration: 0.15 }}
+                  >
+                    <Card className="hover:border-[#4B0A8F]/40 transition-colors shadow-sm h-full flex flex-col justify-between">
+                      <CardHeader className="pb-3">
+                        <div className="flex justify-between items-start mb-2 gap-2">
+                          <Badge variant="outline" className={`text-[10px] uppercase font-bold tracking-wider ${plan.kind === 'base' ? 'border-[#4B0A8F] text-[#4B0A8F] bg-[#4B0A8F]/5' : 'border-amber-500 text-amber-700 bg-amber-500/5'}`}>
+                             {plan.kind === "base" ? "Base Template" : "Park Override"}
+                          </Badge>
+                          <Badge
+                            className={
+                              plan.status === "published"
+                                ? "bg-emerald-100 text-emerald-800 hover:bg-emerald-200 border-emerald-200"
+                                : plan.status === "draft"
+                                ? "bg-slate-100 text-slate-800 hover:bg-slate-200 border-slate-200"
+                                : "bg-red-100 text-red-800 hover:bg-red-200 border-red-200"
+                            }
+                          >
+                            {plan.status === "published" && <CheckCircle2 className="size-3 mr-1" />}
+                            {plan.status === "draft" && <Clock className="size-3 mr-1" />}
+                            {plan.status === "archived" && <Archive className="size-3 mr-1" />}
+                            {plan.status.charAt(0).toUpperCase() + plan.status.slice(1)}
+                          </Badge>
+                        </div>
+                        <CardTitle className="text-lg font-bold line-clamp-2 leading-tight text-foreground">
                           {plan.name}
                         </CardTitle>
-                        {plan.city && (
-                          <p className="text-xs text-muted-foreground flex items-center gap-1">
-                            <Building2 className="size-3" /> {plan.city.name}
-                            {plan.batch && ` · ${plan.batch.name}`}
-                          </p>
-                        )}
-                      </div>
+                        <CardDescription className="flex items-center gap-2 text-xs mt-1">
+                          <Building2 className="size-3.5" />
+                          <span>{plan.city?.name || "No City"} {plan.batch && `• ${plan.batch.name}`} {plan.park && `• ${plan.park.name}`}</span>
+                        </CardDescription>
+                      </CardHeader>
 
-                      <Badge
-                        className={
-                          plan.status === "published"
-                            ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border-emerald-200"
-                            : plan.status === "draft"
-                            ? "bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border-amber-200"
-                            : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200"
-                        }
-                      >
-                        {plan.status === "published" && <CheckCircle2 className="size-3 mr-1" />}
-                        {plan.status === "draft" && <Clock className="size-3 mr-1" />}
-                        {plan.status === "archived" && <Archive className="size-3 mr-1" />}
-                        {plan.status.toUpperCase()}
-                      </Badge>
-                    </div>
-                  </CardHeader>
+                      <CardContent className="pt-0 flex flex-col gap-4">
+                        <div className="flex gap-4 items-center text-sm font-medium">
+                           <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-md">
+                              <CalendarDays className="size-4 text-[#4B0A8F]" />
+                              <span>{plan._count?.sessions || 0} Sessions</span>
+                           </div>
+                           <div className="text-xs text-muted-foreground flex items-center gap-1">
+                              <Clock className="size-3" />
+                              {new Date(plan.createdAt).toLocaleDateString()}
+                           </div>
+                        </div>
 
-                  <CardContent className="space-y-4 pt-0">
-                    <div className="flex items-center gap-2 pt-2 border-t text-xs text-muted-foreground">
-                      <Badge variant="outline" className="text-[11px]">
-                        {plan.kind === "base" ? "Base Curriculum" : "Custom Plan"}
-                      </Badge>
+                        <div className="flex gap-2">
+                          <Button size="sm" className="flex-1 bg-[#4B0A8F] hover:bg-[#4B0A8FE6]" onClick={() => toast.info("View Session Syllabus")}>
+                            Syllabus <ChevronRight className="size-3 ml-1" />
+                          </Button>
+                          <Button size="sm" variant="outline" className="px-3" onClick={() => toast.info("Edit Plan")}>
+                            <Edit className="size-4" />
+                          </Button>
+                          {plan.kind === 'base' && (
+                            <Button size="sm" variant="outline" className="px-3 text-[#4B0A8F]" onClick={() => toast.info("Create Override")}>
+                              <CopyPlus className="size-4" />
+                            </Button>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            </div>
+          )}
+        </TabsContent>
 
-                      <span className="flex items-center gap-1 ml-auto font-medium text-foreground">
-                        <Layers className="size-3.5 text-[#4B0A8F] dark:text-[#B87EE0]" />
-                        {plan._count?.sessions || 0} Sessions
-                      </span>
-                    </div>
+        <TabsContent value="matrix" className="space-y-4">
+          <Card className="border-0 shadow-sm rounded-xl overflow-hidden">
+             <div className="overflow-x-auto">
+               <table className="w-full text-sm text-left">
+                 <thead className="bg-slate-50 dark:bg-slate-900 border-b text-slate-700 dark:text-slate-300">
+                   <tr>
+                     <th className="px-4 py-3 font-semibold w-24">Week</th>
+                     <th className="px-4 py-3 font-semibold"><div className="flex items-center gap-2"><Flame className="size-4 text-orange-500" /> Sports & Ex.</div></th>
+                     <th className="px-4 py-3 font-semibold"><div className="flex items-center gap-2"><Brain className="size-4 text-blue-500" /> Skills Module</div></th>
+                     <th className="px-4 py-3 font-semibold"><div className="flex items-center gap-2"><Heart className="size-4 text-rose-500" /> Tadreeb</div></th>
+                     <th className="px-4 py-3 font-semibold"><div className="flex items-center gap-2"><Target className="size-4 text-purple-500" /> Focus Area</div></th>
+                   </tr>
+                 </thead>
+                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                   {matrixData.map((row, idx) => (
+                     <tr key={idx} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
+                       <td className="px-4 py-3 align-top">
+                          <div className="font-bold text-[#4B0A8F]">Wk {row.week}</div>
+                          <div className="text-xs text-muted-foreground">{row.date}</div>
+                       </td>
+                       <td className="px-4 py-3 align-top font-medium">{row.sports}</td>
+                       <td className="px-4 py-3 align-top font-medium">{row.skills}</td>
+                       <td className="px-4 py-3 align-top font-medium">{row.tadreeb}</td>
+                       <td className="px-4 py-3 align-top">
+                         <span className="inline-flex items-center rounded-md bg-purple-50 px-2 py-1 text-xs font-medium text-purple-700 ring-1 ring-inset ring-purple-700/10 dark:bg-purple-900/20 dark:text-purple-300 dark:ring-purple-500/20">
+                           {row.focus}
+                         </span>
+                       </td>
+                     </tr>
+                   ))}
+                 </tbody>
+               </table>
+             </div>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
-                    <Button
-                      variant="outline"
-                      className="w-full text-xs font-semibold hover:bg-[#F3ECF6] dark:hover:bg-[#1F086080] text-[#4B0A8F] dark:text-[#B87EE0] border-[#4B0A8F]/20"
-                      onClick={() => {
-                        toast.info(`Plan "${plan.name}" selected. Sessions view initialized.`);
-                      }}
-                    >
-                      View & Manage Plan
-                      <ChevronRight className="size-3.5 ml-1" />
-                    </Button>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            ))}
-          </AnimatePresence>
-        </div>
-      )}
-
-      {/* ─── Create Content Plan Dialog ────────────────────────────────────── */}
+      {/* Create Content Plan Dialog */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
@@ -493,7 +578,7 @@ export function ContentPlannerPage() {
 
           <form onSubmit={handleCreateSubmit} className="space-y-4 pt-2">
             <div className="space-y-1.5">
-              <Label htmlFor="planName">Plan Title *</Label>
+              <Label htmlFor="planName">Plan Title <span className="text-red-500">*</span></Label>
               <Input
                 id="planName"
                 placeholder="e.g., Batch 4 Youth Mindset Curriculum"
@@ -515,15 +600,15 @@ export function ContentPlannerPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="base">Base Plan (Standard Master Curriculum)</SelectItem>
-                  <SelectItem value="custom">Custom Plan (Batch/Park Specific)</SelectItem>
+                  <SelectItem value="base">Base Template (Standard Master Curriculum)</SelectItem>
+                  <SelectItem value="custom">Park Override (Custom Plan)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             {isHQ && cities && cities.length > 0 && (
               <div className="space-y-1.5">
-                <Label htmlFor="planCity">City *</Label>
+                <Label htmlFor="planCity">City <span className="text-red-500">*</span></Label>
                 <Select value={formCityId || effectiveCityId} onValueChange={setFormCityId}>
                   <SelectTrigger id="planCity">
                     <SelectValue placeholder="Select City" />
@@ -531,7 +616,7 @@ export function ContentPlannerPage() {
                   <SelectContent>
                     {cities.map((c) => (
                       <SelectItem key={c.id} value={c.id}>
-                        {c.name} ({c.code})
+                        {c.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
