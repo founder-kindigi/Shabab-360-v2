@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { PwaApp } from "@/components/pwa/pwa-app";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Shabab 360 — PWA",
   description: "Shabab 360 mobile-first progressive web application",

@@ -34,11 +34,7 @@ export function MobileContentPlannerPage({ onBack }: MobileContentPlannerPagePro
     staleTime: 30000
   });
 
-  const modules = [
-    { id: "mod-1", category: "Sports & Fitness", title: "Physical Conditioning & Martial Arts", sessions: 8, icon: Dumbbell, color: "text-amber-500 bg-amber-50 dark:bg-amber-950/30" },
-    { id: "mod-2", category: "Life Skills", title: "Communication, Leadership & Time Management", sessions: 6, icon: Target, color: "text-sky-500 bg-sky-50 dark:bg-sky-950/30" },
-    { id: "mod-3", category: "Tadreeb & Tarbiyah", title: "Islamic Character Development & Ethics", sessions: 12, icon: BookOpen, color: "text-purple-500 bg-purple-50 dark:bg-purple-950/30" },
-  ];
+  const plansList: any[] = plansData?.data ?? plansData?.plans ?? [];
 
   return (
     <div className="flex flex-col min-h-screen w-full bg-background text-foreground pb-24 select-none">
@@ -72,30 +68,45 @@ export function MobileContentPlannerPage({ onBack }: MobileContentPlannerPagePro
 
       {/* ─── Curriculum Modules Grid ──────────────────────────────────────── */}
       <div className="p-4 space-y-3">
-        {modules.map((mod) => {
-          const IconComp = mod.icon;
-          return (
-            <motion.div
-              key={mod.id}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="p-4 rounded-3xl bg-card border border-border/80 shadow-sm flex items-center justify-between gap-3"
-            >
-              <div className="flex items-center gap-3">
-                <div className={cn("size-11 rounded-2xl flex items-center justify-center shrink-0", mod.color)}>
-                  <IconComp className="size-5" />
+        {isLoading ? (
+          <div className="text-center py-12 text-xs text-muted-foreground">
+            <RefreshCw className="size-5 animate-spin mx-auto mb-2 text-[#4B0A8F]" />
+            Loading curriculum modules…
+          </div>
+        ) : plansList.length === 0 ? (
+          <div className="text-center py-12 text-xs text-muted-foreground bg-card rounded-3xl border border-border/80 p-6">
+            <BookOpen className="size-8 mx-auto mb-2 text-muted-foreground/50" />
+            <p className="font-semibold text-foreground">No curriculum plans found</p>
+            <p className="mt-1 text-[11px]">There are currently no active content plans or activity modules recorded.</p>
+          </div>
+        ) : (
+          plansList.map((plan: any) => {
+            const blockCount = plan._count?.blocks ?? plan.blocks?.length ?? 0;
+            return (
+              <motion.div
+                key={plan.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="p-4 rounded-3xl bg-card border border-border/80 shadow-sm flex items-center justify-between gap-3"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="size-11 rounded-2xl flex items-center justify-center shrink-0 text-purple-500 bg-purple-50 dark:bg-purple-950/30">
+                    <BookOpen className="size-5" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                      {plan.category || plan.type || "Curriculum Module"}
+                    </span>
+                    <h3 className="text-xs font-bold text-foreground">{plan.title || plan.name}</h3>
+                    <p className="text-[11px] text-muted-foreground">{blockCount} Planned Blocks / Sessions</p>
+                  </div>
                 </div>
-                <div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{mod.category}</span>
-                  <h3 className="text-xs font-bold text-foreground">{mod.title}</h3>
-                  <p className="text-[11px] text-muted-foreground">{mod.sessions} Planned Sessions</p>
-                </div>
-              </div>
 
-              <ChevronRight className="size-4 text-muted-foreground shrink-0" />
-            </motion.div>
-          );
-        })}
+                <ChevronRight className="size-4 text-muted-foreground shrink-0" />
+              </motion.div>
+            );
+          })
+        )}
       </div>
     </div>
   );

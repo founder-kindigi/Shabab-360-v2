@@ -145,3 +145,42 @@ export async function getQueueCounts(): Promise<{
 export async function clearSyncedItems(): Promise<void> {
   await offlineDB.queue.where("state").equals("synced").delete();
 }
+
+/**
+ * Get detailed queue statistics including oldest queued item timestamp.
+ */
+export async function getOfflineQueueStats(): Promise<{
+  pending: number;
+  syncing: number;
+  synced: number;
+  failed: number;
+  oldestQueuedAt: string | null;
+}> {
+  const [counts, oldestItem] = await Promise.all([
+    getQueueCounts(),
+    offlineDB.queue.orderBy("queuedAt").first(),
+  ]);
+
+  return {
+    ...counts,
+    oldestQueuedAt: oldestItem ? oldestItem.queuedAt : null,
+  };
+}
+
+/**
+ * Prune synced items older than maxAgeMs.
+ */
+export async function pruneStaleSyncedItems(maxAgeMs = 24 * 60 * 60 * 1000): Promise<number> {
+  const cutoff = new Date(Date.now() - maxAgeMs).toISOString();
+  const staleItems = await offlineDB.queue
+    .where("state")
+    .equals("synced")
+    .filter((item) => Boolean(item.syncedAt && item.syncedAt < cutoff))
+    .toArray();
+
+  if (staleItems.length === 0) return 0;
+
+  const ids = staleItems.map((i) => i.mutationId);
+  await offlineDB.queue.bulkDelete(ids);
+  return ids.length;
+}

@@ -36,13 +36,14 @@ export function MobileFeesPage({ onBack }: MobileFeesPageProps) {
     staleTime: 30000
   });
 
-  const totalCollected = feesData?.totalCollected || 145000;
-  const collectionRate = feesData?.collectionRate || 88;
+  const summary = feesData?.summary;
+  const totalCollected = summary?.totalCollected ?? 0;
+  const totalPending = summary?.totalPending ?? 0;
+  const totalOverdue = summary?.totalOverdue ?? 0;
+  const totalExpected = totalCollected + totalPending + totalOverdue;
+  const collectionRate = totalExpected > 0 ? Math.round((totalCollected / totalExpected) * 100) : 0;
 
-  const records = [
-    { id: "fee-1", name: "Muhammad Ali Raza", amount: "PKR 1,500", month: "August 2026", status: "paid", date: "Aug 1, 2026" },
-    { id: "fee-2", name: "Hamza Farooq", amount: "PKR 1,500", month: "August 2026", status: "unpaid", date: "Due Aug 10" },
-  ];
+  const monthBreakdown: any[] = feesData?.data ?? [];
 
   return (
     <div className="flex flex-col min-h-screen w-full bg-background text-foreground pb-24 select-none">
@@ -63,7 +64,7 @@ export function MobileFeesPage({ onBack }: MobileFeesPageProps) {
             </div>
             <div>
               <h1 className="text-base font-extrabold text-white">Membership Fees Desk</h1>
-              <p className="text-[11px] text-purple-200">Collections & Receipts</p>
+              <p className="text-[11px] text-purple-200">Collections & Financial Summary</p>
             </div>
           </div>
 
@@ -84,7 +85,7 @@ export function MobileFeesPage({ onBack }: MobileFeesPageProps) {
           >
             <span className="text-xs font-semibold text-muted-foreground">Total Collected</span>
             <div className="text-xl font-black text-foreground">PKR {totalCollected.toLocaleString()}</div>
-            <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">August 2026</p>
+            <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">Synced from DB</p>
           </motion.div>
 
           <motion.div
@@ -95,11 +96,13 @@ export function MobileFeesPage({ onBack }: MobileFeesPageProps) {
           >
             <span className="text-xs font-semibold text-emerald-800 dark:text-emerald-300">Collection Rate</span>
             <div className="text-xl font-black text-emerald-700 dark:text-emerald-400">{collectionRate}%</div>
-            <p className="text-[11px] text-emerald-700/80 dark:text-emerald-300/80 font-medium">Synced from DB</p>
+            <p className="text-[11px] text-emerald-700/80 dark:text-emerald-300/80 font-medium">
+              PKR {totalPending.toLocaleString()} Pending
+            </p>
           </motion.div>
         </div>
 
-        {/* ─── Fee Receipts List ───────────────────────────────────────────── */}
+        {/* ─── Fee Collections Breakdown ───────────────────────────────────── */}
         <motion.div
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
@@ -108,28 +111,34 @@ export function MobileFeesPage({ onBack }: MobileFeesPageProps) {
         >
           <h3 className="text-xs font-bold text-foreground flex items-center gap-1.5 uppercase tracking-wider">
             <Receipt className="size-4 text-[#4B0A8F]" />
-            Recent Fee Collections
+            Monthly Collection Breakdown
           </h3>
 
           <div className="space-y-2.5">
-            {records.map((rec) => (
-              <div
-                key={rec.id}
-                className="p-3.5 rounded-2xl bg-muted/40 border border-border/60 flex items-center justify-between gap-3"
-              >
-                <div>
-                  <h4 className="text-xs font-bold text-foreground">{rec.name}</h4>
-                  <p className="text-[11px] text-muted-foreground">{rec.month} • {rec.date}</p>
-                </div>
+            {monthBreakdown.length === 0 ? (
+              <p className="text-xs text-muted-foreground text-center py-4">
+                {isLoading ? "Loading fee report…" : "No fee collection records found"}
+              </p>
+            ) : (
+              monthBreakdown.map((item: any, idx: number) => (
+                <div
+                  key={idx}
+                  className="p-3.5 rounded-2xl bg-muted/40 border border-border/60 flex items-center justify-between gap-3"
+                >
+                  <div>
+                    <h4 className="text-xs font-bold text-foreground">{item.label}</h4>
+                    <p className="text-[11px] text-muted-foreground">{item.count ?? 0} Transactions</p>
+                  </div>
 
-                <div className="text-right">
-                  <span className="text-xs font-black text-foreground">{rec.amount}</span>
-                  <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 capitalize">
-                    {rec.status}
+                  <div className="text-right">
+                    <span className="text-xs font-black text-foreground">PKR {Number(item.value).toLocaleString()}</span>
+                    <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+                      Completed
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </motion.div>
       </div>

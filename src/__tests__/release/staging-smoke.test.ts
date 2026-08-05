@@ -107,12 +107,12 @@ describe("STAGING-DEPLOY-001: Staging Smoke Tests", () => {
 
   /* ── 3. Schema alignment ──────────────────────────────────────────── */
   describe("Schema alignment", () => {
-    it("SQLITE has 48 models", () => {
-      expect(modelNames(SQLITE_SCHEMA).length).toBe(48);
+    it("SQLITE has 63 models", () => {
+      expect(modelNames(SQLITE_SCHEMA).length).toBe(63);
     });
 
-    it("POSTGRES has 48 models", () => {
-      expect(modelNames(PG_SCHEMA).length).toBe(48);
+    it("POSTGRES has 63 models", () => {
+      expect(modelNames(PG_SCHEMA).length).toBe(63);
     });
 
     it("all SQLITE models have matching POSTGRES models", () => {

@@ -53,17 +53,17 @@ export function MobileAdminDashboard() {
     staleTime: 30000
   });
 
-  const totalCities = adminDashData?.metrics?.cityCount || 2;
-  const totalParks = adminDashData?.metrics?.parkCount || 8;
-  const totalParticipants = adminDashData?.metrics?.totalParticipants || 480;
-  const totalUsers = adminDashData?.metrics?.totalStaff || 92;
-  const overallAttendanceRate = adminDashData?.metrics?.todayAttendanceRate || 87;
+  const totalCities    = adminDashData?.cities      ?? 0;
+  const totalParks     = adminDashData?.parks        ?? 0;
+  const totalParticipants = adminDashData?.participants ?? 0;
+  const totalUsers     = adminDashData?.staff         ?? 0;
+  const todayAtt       = adminDashData?.todayAttendance;
+  const overallAttendanceRate = (todayAtt?.total ?? 0) > 0
+    ? Math.round(((todayAtt.present + todayAtt.late) / todayAtt.total) * 100)
+    : 0;
 
-  const auditLogs = auditLogsData?.logs || [
-    { id: "a1", action: "access.override.grant", actor: "Admin HQ", time: "10 mins ago" },
-    { id: "a2", action: "attendance.marked", actor: "Murabbi LHR", time: "25 mins ago" },
-    { id: "a3", action: "park.created", actor: "City Head KHI", time: "2 hours ago" },
-  ];
+  // Audit log API returns { data: [...] } where each item has action, user.name, createdAt
+  const auditLogs: any[] = auditLogsData?.data ?? [];
 
   return (
     <div className="flex flex-col min-h-screen w-full bg-background text-foreground pb-24 select-none">
@@ -184,18 +184,24 @@ export function MobileAdminDashboard() {
           </div>
 
           <div className="space-y-2">
-            {auditLogs.map((log: any) => (
-              <div
-                key={log.id}
-                className="p-3 rounded-2xl bg-muted/40 border border-border/60 flex items-center justify-between gap-2"
-              >
-                <div>
-                  <h4 className="text-xs font-mono font-bold text-foreground">{log.action || log.event || "security.event"}</h4>
-                  <p className="text-[10px] text-muted-foreground">Actor: {log.actor || log.userEmail || "System"}</p>
+            {auditLogs.length === 0 ? (
+              <p className="text-xs text-muted-foreground text-center py-3">No recent activity</p>
+            ) : (
+              auditLogs.map((log: any, i: number) => (
+                <div
+                  key={log.id ?? i}
+                  className="p-3 rounded-2xl bg-muted/40 border border-border/60 flex items-center justify-between gap-2"
+                >
+                  <div>
+                    <h4 className="text-xs font-mono font-bold text-foreground">{log.action ?? "security.event"}</h4>
+                    <p className="text-[10px] text-muted-foreground">Actor: {log.user?.name ?? "System"}</p>
+                  </div>
+                  <span className="text-[10px] text-muted-foreground font-semibold shrink-0">
+                    {log.createdAt ? new Date(log.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "Recent"}
+                  </span>
                 </div>
-                <span className="text-[10px] text-muted-foreground font-semibold">{log.time || "Recent"}</span>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </motion.div>
       </div>

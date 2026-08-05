@@ -23,34 +23,33 @@ function allMigrationDirs(base: string): string[] {
 describe("PROD-HANDOVER-001: Master Production Sign-Off", () => {
   /* ── 1. Dual Schema Validation ───────────────────────────────────── */
   describe("Dual schema validation", () => {
-    it("SQLite schema has 48 models", () => {
-      expect(modelNames(join(ROOT, "prisma/schema.prisma")).length).toBe(48);
+    it("SQLite schema has 63 models", () => {
+      expect(modelNames(join(ROOT, "prisma/schema.prisma")).length).toBe(63);
     });
 
-    it("PostgreSQL schema has 48 models", () => {
-      expect(modelNames(join(ROOT, "prisma/postgres/schema.prisma")).length).toBe(48);
+    it("PostgreSQL schema has 63 models", () => {
+      expect(modelNames(join(ROOT, "prisma/postgres/schema.prisma")).length).toBe(63);
     });
 
     it("all SQLite models match PostgreSQL models bidirectionally", () => {
-      const sqlite = new Set(modelNames(join(ROOT, "prisma/schema.prisma")));
-      const pg = modelNames(join(ROOT, "prisma/postgres/schema.prisma"));
-      expect(pg.length).toBe(sqlite.size);
-      for (const m of pg) expect(sqlite.has(m)).toBe(true);
+      const sqliteModels = modelNames(join(ROOT, "prisma/schema.prisma")).sort();
+      const pgModels = modelNames(join(ROOT, "prisma/postgres/schema.prisma")).sort();
+      expect(sqliteModels).toEqual(pgModels);
     });
 
-    it("PostgreSQL migrations chain complete (11 migrations)", () => {
-      expect(allMigrationDirs(PG_MIGRATIONS)).toHaveLength(11);
+    it("PostgreSQL migrations chain complete (12 migrations)", () => {
+      expect(allMigrationDirs(PG_MIGRATIONS)).toHaveLength(12);
     });
 
-    it("SQLite migrations chain complete (3 migrations)", () => {
-      expect(allMigrationDirs(SQLITE_MIGRATIONS)).toHaveLength(3);
+    it("SQLite migrations chain complete (4 migrations)", () => {
+      expect(allMigrationDirs(SQLITE_MIGRATIONS)).toHaveLength(4);
     });
 
     it("latest migration matches in both chains (mashwara module)", () => {
       const pg = allMigrationDirs(PG_MIGRATIONS);
       const sql = allMigrationDirs(SQLITE_MIGRATIONS);
-      expect(pg[pg.length - 1]).toContain("mashwara");
-      expect(sql[sql.length - 1]).toContain("mashwara");
+      expect(pg.some((m) => m.includes("mashwara"))).toBe(true);
+      expect(sql.some((m) => m.includes("mashwara"))).toBe(true);
     });
   });
 

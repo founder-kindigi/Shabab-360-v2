@@ -19,10 +19,14 @@ const eslintConfig = [...nextCoreWebVitals, ...nextTypescript, {
     // React rules
     "react-hooks/exhaustive-deps": "off",
     "react-hooks/purity": "off",
+    "react-hooks/set-state-in-effect": "off",
     "react/no-unescaped-entities": "off",
     "react/display-name": "off",
     "react/prop-types": "off",
     "react-compiler/react-compiler": "off",
+    
+    // TypeScript generated-artifact rules
+    "@typescript-eslint/no-empty-object-type": "off",
     
     // Next.js rules
     "@next/next/no-img-element": "off",

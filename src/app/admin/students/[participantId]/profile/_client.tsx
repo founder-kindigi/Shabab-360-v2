@@ -9,5 +9,14 @@ export default function ExtendedProfilePage() {
   if (!participantId) {
     return <div className="p-4 text-muted-foreground">No participant selected.</div>;
   }
-  return <StudentProfilePage participantId={participantId} />;
+  const capabilities = {
+    canView: true,
+    canEdit: true,
+    canManage: true,
+    canViewSensitive: true,
+    canManageSensitive: true,
+    isGuardian: false,
+    isSelf: false,
+  };
+  return <StudentProfilePage participantId={participantId} capabilities={capabilities} />;
 }

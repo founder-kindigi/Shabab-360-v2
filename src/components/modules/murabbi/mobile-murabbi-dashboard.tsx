@@ -39,24 +39,15 @@ export function MobileMurabbiDashboard() {
     staleTime: 30000
   });
 
-  const { data: participantsData } = useQuery({
-    queryKey: ["murabbi-participants-data"],
-    queryFn: async () => {
-      const res = await fetch("/api/park/participants");
-      if (!res.ok) return null;
-      return res.json();
-    },
-    enabled: !!session?.user,
-    retry: false,
-    staleTime: 30000
-  });
-
-  // Calculate real or fallback metrics
-  const totalStudents = participantsData?.total || parkData?.totalParticipants || 12;
-  const groupName = user?.assignedGroupId ? "Assigned Group" : "Group 01 (Senior)";
-  const parkName = parkData?.parkName || user?.assignedParkId || "State Life Park";
-  const cityName = parkData?.cityName || "Lahore";
-  const todayRate = parkData?.todayAttendanceRate || 83;
+  // park/dashboard is the canonical source for murabbi scoped data
+  // Calculate real metrics from /api/park/dashboard response
+  // (park/dashboard is scoped to the murabbi's assigned group when role=murabbi)
+  const totalStudents  = parkData?.recentSummary?.totalParticipants        ?? 0;
+  const firstGroup     = parkData?.groupBreakdown?.[0];
+  const groupName      = firstGroup?.name ?? "My Group";
+  const parkName       = parkData?.park?.name    ?? "Loading…";
+  const cityName       = parkData?.park?.cityName ?? "";
+  const todayRate      = parkData?.recentSummary?.last7DaysAttendanceRate  ?? 0;
 
   return (
     <div className="flex flex-col min-h-screen w-full bg-background text-foreground pb-24 select-none">

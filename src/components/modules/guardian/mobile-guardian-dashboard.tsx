@@ -39,22 +39,10 @@ export function MobileGuardianDashboard() {
     staleTime: 30000
   });
 
-  const { data: childrenData } = useQuery({
-    queryKey: ["guardian-children-real"],
-    queryFn: async () => {
-      const res = await fetch("/api/guardian/children");
-      if (!res.ok) return null;
-      return res.json();
-    },
-    retry: false,
-    enabled: !!session?.user,
-    staleTime: 30000
-  });
+  // /api/guardian/dashboard already returns children with full attendance + fee data
+  // Real child fields: { id, name, groupName, parkName, cityName, todayStatus, attendance: { rate30 }, fees: { outstanding } }
+  const childrenList: any[] = guardianDashData?.children ?? [];
 
-  const childrenList = childrenData?.children || guardianDashData?.children || [
-    { id: "c1", name: "Muhammad Ali Raza", code: "LHR-SLP-001", park: "State Life Park", group: "Group 01 (Senior)", rate: 92, status: "Present", feePaid: true },
-    { id: "c2", name: "Hassan Raza", code: "LHR-SLP-042", park: "State Life Park", group: "Group 02 (Junior)", rate: 85, status: "Present", feePaid: true },
-  ];
 
   return (
     <div className="flex flex-col min-h-screen w-full bg-background text-foreground pb-24 select-none">
@@ -97,30 +85,49 @@ export function MobileGuardianDashboard() {
           </div>
 
           <div className="space-y-3">
-            {childrenList.map((child: any) => (
-              <div
-                key={child.id}
-                className="p-4 rounded-2xl bg-muted/40 border border-border/60 space-y-2.5"
-              >
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h4 className="text-sm font-extrabold text-foreground">{child.name}</h4>
-                    <p className="text-xs text-muted-foreground">{child.park || "State Life Park"} • {child.group || "Group 01"}</p>
-                  </div>
-                  <span className="text-xs font-black text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-1 rounded-full border border-emerald-200 dark:border-emerald-800">
-                    {child.rate || 90}% Attendance
-                  </span>
-                </div>
+            {childrenList.length === 0 ? (
+              <p className="text-xs text-muted-foreground text-center py-3">
+                {isLoading ? "Loading linked children…" : "No enrolled children linked to this guardian account"}
+              </p>
+            ) : (
+              childrenList.map((child: any) => {
+                const rate = child.attendance?.rate30 ?? child.rate ?? 0;
+                const outstanding = child.fees?.outstanding ?? 0;
+                return (
+                  <div
+                    key={child.id}
+                    className="p-4 rounded-2xl bg-muted/40 border border-border/60 space-y-2.5"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <h4 className="text-sm font-extrabold text-foreground">{child.name}</h4>
+                        <p className="text-xs text-muted-foreground">
+                          {child.parkName || child.park || "Park"} • {child.groupName || child.group || "Group"}
+                        </p>
+                      </div>
+                      <span className="text-xs font-black text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-1 rounded-full border border-emerald-200 dark:border-emerald-800">
+                        {rate}% Attendance
+                      </span>
+                    </div>
 
-                <div className="flex items-center justify-between pt-1 text-xs">
-                  <span className="font-semibold text-muted-foreground">ID: {child.code || "LHR-SLP-001"}</span>
-                  <span className="font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                    <CheckCircle2 className="size-3.5" />
-                    Fees Paid
-                  </span>
-                </div>
-              </div>
-            ))}
+                    <div className="flex items-center justify-between pt-1 text-xs">
+                      <span className="font-semibold text-muted-foreground">{child.cityName || "Lahore"}</span>
+                      {outstanding > 0 ? (
+                        <span className="font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                          <AlertTriangle className="size-3.5" />
+                          Rs. {outstanding} Pending
+                        </span>
+                      ) : (
+                        <span className="font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                          <CheckCircle2 className="size-3.5" />
+                          Fees Paid
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
         </motion.div>
       </div>

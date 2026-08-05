@@ -10,4 +10,13 @@ describe("orderSyncItems", () => {
 
     expect(items.map((item) => item.mutationId)).toEqual(["earlier", "later"]);
   });
+
+  it("handles identical timestamp ordering safely", () => {
+    const ts = "2026-08-05T09:00:00.000Z";
+    const items = orderSyncItems([
+      { mutationId: "m1", queuedAt: ts },
+      { mutationId: "m2", queuedAt: ts },
+    ]);
+    expect(items.length).toBe(2);
+  });
 });

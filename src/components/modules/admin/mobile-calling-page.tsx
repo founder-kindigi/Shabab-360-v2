@@ -68,11 +68,9 @@ export function MobileCallingPage({ onBack }: MobileCallingPageProps) {
     }
   });
 
-  const leads = [
-    { id: "lead-1", name: "Muhammad Ali Raza", phone: "+92 300 1234567", guardian: "Tariq Ahmed", missedCount: 2, status: "pending", group: "Group 01" },
-    { id: "lead-2", name: "Zaid Usman", phone: "+92 321 9876543", guardian: "Usman Ghani", missedCount: 3, status: "pending", group: "Group 02" },
-    { id: "lead-3", name: "Hamza Farooq", phone: "+92 333 4567890", guardian: "Farooq Omar", missedCount: 1, status: "promised", group: "Group 01" },
-  ];
+  const campaignsList: any[] = Array.isArray(campaignsData)
+    ? campaignsData
+    : (campaignsData?.data ?? []);
 
   return (
     <div className="flex flex-col min-h-screen w-full bg-background text-foreground pb-24 select-none">
@@ -122,41 +120,44 @@ export function MobileCallingPage({ onBack }: MobileCallingPageProps) {
 
       {/* ─── Call Leads List ──────────────────────────────────────────────── */}
       <div className="p-4 space-y-3">
-        {leads.map((lead) => (
-          <motion.div
-            key={lead.id}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="p-4 rounded-2xl bg-card border border-border/80 shadow-sm space-y-3"
-          >
-            <div className="flex items-start justify-between">
-              <div>
-                <h3 className="text-sm font-extrabold text-foreground">{lead.name}</h3>
-                <p className="text-xs text-muted-foreground">Guardian: {lead.guardian} • {lead.group}</p>
+        {isLoading ? (
+          <div className="text-center py-12 text-xs text-muted-foreground">
+            <RefreshCw className="size-5 animate-spin mx-auto mb-2 text-[#4B0A8F]" />
+            Loading retention workload…
+          </div>
+        ) : campaignsList.length === 0 ? (
+          <div className="text-center py-12 text-xs text-muted-foreground bg-card rounded-3xl border border-border/80 p-6">
+            <PhoneCall className="size-8 mx-auto mb-2 text-muted-foreground/50" />
+            <p className="font-semibold text-foreground">No active calling campaigns</p>
+            <p className="mt-1 text-[11px]">There are currently no retention campaigns or pending call workloads assigned.</p>
+          </div>
+        ) : (
+          campaignsList.map((campaign: any) => (
+            <motion.div
+              key={campaign.id}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="p-4 rounded-2xl bg-card border border-border/80 shadow-sm space-y-3"
+            >
+              <div className="flex items-start justify-between">
+                <div>
+                  <h3 className="text-sm font-extrabold text-foreground">{campaign.name}</h3>
+                  <p className="text-xs text-muted-foreground">City: {campaign.city?.name || "Lahore"}</p>
+                </div>
+                <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-300 capitalize">
+                  {campaign.status || "Active"}
+                </span>
               </div>
-              <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-300">
-                {lead.missedCount} Missed Sessions
-              </span>
-            </div>
 
-            <div className="flex items-center gap-2 pt-1">
-              <a
-                href={`tel:${lead.phone}`}
-                className="flex-1 h-10 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm"
-              >
-                <Phone className="size-3.5" />
-                <span>Call {lead.phone}</span>
-              </a>
-
-              <button
-                onClick={() => setSelectedLead(lead)}
-                className="h-10 px-3.5 rounded-xl bg-[#4B0A8F] hover:bg-[#4B0A8FE6] text-white font-bold text-xs flex items-center justify-center gap-1 shadow-sm"
-              >
-                <span>Log Call</span>
-              </button>
-            </div>
-          </motion.div>
-        ))}
+              <div className="flex items-center justify-between text-xs text-muted-foreground pt-1 border-t border-border/60">
+                <span>{campaign._count?.assignments ?? 0} Leads Assigned</span>
+                <span className="font-semibold text-[#4B0A8F] dark:text-purple-300">
+                  {campaign._count?.templates ?? 0} Templates
+                </span>
+              </div>
+            </motion.div>
+          ))
+        )}
       </div>
     </div>
   );

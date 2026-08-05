@@ -23,7 +23,6 @@ export function MobileStudentDashboard() {
   const { navigateTo } = useAppStore();
 
   const user = session?.user as any;
-  const studentName = user?.name || "Muhammad Ali Raza";
 
   // ─── Real DB API Queries ───────────────────────────────────────────────
   const { data: studentDashData, isLoading } = useQuery({
@@ -50,12 +49,16 @@ export function MobileStudentDashboard() {
     staleTime: 30000
   });
 
-  const studentCode = studentDashData?.code || "LHR-SLP-001";
-  const parkName = studentDashData?.parkName || "State Life Park";
-  const groupName = studentDashData?.groupName || "Group 01 (Senior)";
-  const attendanceRate = studentDashData?.attendancePercentage || 92;
-  const totalAttended = studentDashData?.totalAttended || 11;
-  const totalSessions = studentDashData?.totalSessions || 12;
+  const p = studentDashData?.participant;
+  const metrics = studentDashData?.metrics;
+  const upcoming = studentDashData?.upcomingEvent;
+
+  const parkName = p?.park ?? "—";
+  const groupName = p?.group ?? "—";
+  const attendanceRate = metrics?.rate30 ?? 0;
+  const totalAttended = (metrics?.present30 ?? 0) + (metrics?.late30 ?? 0);
+  const totalSessions = metrics?.totalEvents30 ?? 0;
+  const studentName = p?.name || user?.name || "Student";
 
   return (
     <div className="flex flex-col min-h-screen w-full bg-background text-foreground pb-24 select-none">
@@ -75,12 +78,12 @@ export function MobileStudentDashboard() {
             ) : (
               <Award className="size-3 text-amber-300" />
             )}
-            <span>Gold Rank</span>
+            <span>Active Student</span>
           </div>
         </div>
 
         <h1 className="text-xl font-extrabold text-white">Assalam-o-Alaikum, {studentName}</h1>
-        <p className="text-xs text-purple-200 mt-0.5">ID: {studentCode} • {parkName} ({groupName})</p>
+        <p className="text-xs text-purple-200 mt-0.5">{parkName} • {groupName}</p>
       </div>
 
       {/* ─── Attendance Gauge Card ────────────────────────────────────────── */}
@@ -91,7 +94,7 @@ export function MobileStudentDashboard() {
           className="p-5 rounded-3xl bg-card border border-border/80 shadow-sm flex items-center justify-between gap-4"
         >
           <div className="space-y-1">
-            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Attendance Score</span>
+            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">30-Day Attendance Score</span>
             <div className="text-3xl font-black text-foreground">{attendanceRate}%</div>
             <p className="text-xs text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
               <TrendingUp className="size-3.5" />
@@ -131,15 +134,17 @@ export function MobileStudentDashboard() {
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold uppercase tracking-wider text-[#4B0A8F] dark:text-purple-300 flex items-center gap-1.5">
               <CalendarCheck className="size-3.5" />
-              Next Halqa Activity
+              Next Scheduled Halqa
             </span>
             <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
-              Confirmed
+              {upcoming ? "Scheduled" : "No Event Scheduled"}
             </span>
           </div>
 
-          <h3 className="text-sm font-extrabold text-foreground">Sports & Martial Arts Halqa</h3>
-          <p className="text-xs text-muted-foreground">Sunday, Aug 9, 2026 • 08:00 AM @ State Life Park Grounds</p>
+          <h3 className="text-sm font-extrabold text-foreground">{upcoming?.title || "Regular Halqa Session"}</h3>
+          <p className="text-xs text-muted-foreground">
+            {upcoming?.eventDateFormatted || "Check back soon for upcoming schedule"}
+          </p>
         </motion.div>
       </div>
     </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -62,6 +62,26 @@ export function MobileAttendancePage({ onBack }: MobileAttendancePageProps) {
     retry: 1,
     staleTime: 30000,
   });
+
+  // Sync DB participants to state when loaded
+  const parkName = dbParticipantsData?.park?.name ?? "State Life Park";
+  const cityName = dbParticipantsData?.park?.city ?? "Lahore";
+
+  useEffect(() => {
+    if (dbParticipantsData?.data && Array.isArray(dbParticipantsData.data)) {
+      if (dbParticipantsData.data.length > 0) {
+        setRosterState(
+          dbParticipantsData.data.map((p: any) => ({
+            id: p.id,
+            name: p.name,
+            code: p.id.slice(-6).toUpperCase(),
+            group: p.groupName || "Assigned Group",
+            status: "unmarked",
+          }))
+        );
+      }
+    }
+  }, [dbParticipantsData]);
 
   // ─── Real DB Mutation ──────────────────────────────────────────────────
   const syncAttendanceMutation = useMutation({
@@ -141,7 +161,7 @@ export function MobileAttendancePage({ onBack }: MobileAttendancePageProps) {
             </div>
             <div>
               <h1 className="text-base md:text-lg font-extrabold text-white tracking-tight">Attendance Roster</h1>
-              <p className="text-xs text-purple-200 font-medium">State Life Park • Sunday Halqa</p>
+              <p className="text-xs text-purple-200 font-medium">{parkName} • {cityName}</p>
             </div>
           </div>
 

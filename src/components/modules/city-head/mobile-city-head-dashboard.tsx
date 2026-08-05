@@ -40,20 +40,19 @@ export function MobileCityHeadDashboard() {
     staleTime: 30000
   });
 
-  const cityName = adminDashData?.city?.name || "Lahore City";
-  const cityCode = adminDashData?.city?.code || "LHR";
-  const parkCount = adminDashData?.metrics?.parkCount || 6;
-  const groupCount = adminDashData?.metrics?.groupCount || 13;
-  const totalStudents = adminDashData?.metrics?.totalParticipants || 254;
-  const totalStaff = adminDashData?.metrics?.totalStaff || 51;
-  const cityRate = adminDashData?.metrics?.todayAttendanceRate || 86;
+  const cityName     = adminDashData?.city?.name ?? "—";
+  const cityCode     = adminDashData?.city?.code ?? "—";
+  const parkCount    = adminDashData?.parks        ?? 0;
+  const groupCount   = adminDashData?.groups       ?? 0;
+  const totalStudents = adminDashData?.participants ?? 0;
+  const totalStaff   = adminDashData?.staff         ?? 0;
+  const todayAtt     = adminDashData?.todayAttendance;
+  const cityRate     = (todayAtt?.total ?? 0) > 0
+    ? Math.round(((todayAtt.present + todayAtt.late) / todayAtt.total) * 100)
+    : 0;
 
-  const parkPerformance = [
-    { id: "p1", name: "State Life School Park", enrolled: 48, rate: 92, lead: "Tariq Mahmood" },
-    { id: "p2", name: "Model Town Park", enrolled: 42, rate: 88, lead: "Kamran Shah" },
-    { id: "p3", name: "Gulberg Central Park", enrolled: 40, rate: 85, lead: "Zubair Ahmad" },
-    { id: "p4", name: "Johar Town Park", enrolled: 44, rate: 82, lead: "Waseem Akram" },
-  ];
+  // Real parks from API — no hardcoded fallback
+  const parksList: any[] = adminDashData?.cityParks ?? [];
 
   return (
     <div className="flex flex-col min-h-screen w-full bg-background text-foreground pb-24 select-none">
@@ -135,30 +134,37 @@ export function MobileCityHeadDashboard() {
           </div>
 
           <div className="space-y-2.5">
-            {parkPerformance.map((park, index) => (
-              <div
-                key={park.id}
-                onClick={() => navigateTo("park-dashboard")}
-                className="p-3.5 rounded-2xl bg-muted/40 border border-border/60 hover:bg-muted/70 transition-all cursor-pointer flex items-center justify-between gap-3"
-              >
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="size-8 rounded-full bg-[#4B0A8F]/10 text-[#4B0A8F] flex items-center justify-center font-bold text-xs shrink-0">
-                    #{index + 1}
+            {parksList.length === 0 ? (
+              <p className="text-xs text-muted-foreground text-center py-3">
+                {isLoading ? "Loading parks…" : "No parks found for this city"}
+              </p>
+            ) : (
+              parksList.map((park: any, index: number) => (
+                <div
+                  key={park.id}
+                  onClick={() => navigateTo("park-dashboard")}
+                  className="p-3.5 rounded-2xl bg-muted/40 border border-border/60 hover:bg-muted/70 transition-all cursor-pointer flex items-center justify-between gap-3"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="size-8 rounded-full bg-[#4B0A8F]/10 text-[#4B0A8F] flex items-center justify-center font-bold text-xs shrink-0">
+                      #{index + 1}
+                    </div>
+                    <div className="min-w-0">
+                      <h4 className="text-xs font-bold text-foreground truncate">{park.name}</h4>
+                      <p className="text-[11px] text-muted-foreground truncate">
+                        {park._count?.batches ?? 0} Batch{park._count?.batches !== 1 ? "es" : ""}
+                      </p>
+                    </div>
                   </div>
-                  <div className="min-w-0">
-                    <h4 className="text-xs font-bold text-foreground truncate">{park.name}</h4>
-                    <p className="text-[11px] text-muted-foreground truncate">Lead: {park.lead} • {park.enrolled} Students</p>
-                  </div>
-                </div>
 
-                <div className="text-right shrink-0">
-                  <span className="text-xs font-black text-emerald-600 dark:text-emerald-400">
-                    {park.rate}%
-                  </span>
-                  <p className="text-[10px] text-muted-foreground">Attendance</p>
+                  <div className="text-right shrink-0">
+                    <span className="text-xs font-bold text-[#4B0A8F] dark:text-purple-300">
+                      View →
+                    </span>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </motion.div>
       </div>

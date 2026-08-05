@@ -96,17 +96,24 @@ function getHomeDashboard(role: string): ScreenId {
   }
 }
 
+const CITY_HEAD_TABS = [
+  { id: "home" as ScreenId,       label: "Home",       icon: Home },
+  { id: "admissions" as ScreenId, label: "Admits",     icon: User },
+  { id: "calling" as ScreenId,    label: "Calls",      icon: PhoneCall },
+  { id: "events" as ScreenId,     label: "Events",     icon: CalendarCheck },
+];
+
 function getTabsForRole(role: string) {
   switch (role) {
     case "super_admin":
-    case "program_admin":
-    case "city_head":   return ADMIN_TABS;
+    case "program_admin": return ADMIN_TABS;
+    case "city_head":     return CITY_HEAD_TABS;
     case "park_lead":
-    case "park_admin":  return PARK_TABS;
-    case "murabbi":     return MURABBI_TABS;
-    case "student":     return STUDENT_TABS;
-    case "guardian":    return GUARDIAN_TABS;
-    default:            return ADMIN_TABS;
+    case "park_admin":    return PARK_TABS;
+    case "murabbi":       return MURABBI_TABS;
+    case "student":       return STUDENT_TABS;
+    case "guardian":      return GUARDIAN_TABS;
+    default:              return ADMIN_TABS;
   }
 }
 
@@ -125,7 +132,8 @@ function PwaLoadingScreen() {
 
 // ─── Main PWA App component ────────────────────────────────────────────────────
 export function PwaApp() {
-  const { data: session, status } = useSession();
+  const sessionResult = useSession() || { data: null, status: "unauthenticated" };
+  const { data: session, status } = sessionResult;
   const user = session?.user as any;
   const role: string = user?.role ?? "";
 
@@ -157,7 +165,7 @@ export function PwaApp() {
         setScreen("home");
       }
     }
-  }, [role]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [role]);
 
   const handleLogout = useCallback(async () => {
     await signOut({ redirect: false });

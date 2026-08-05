@@ -40,19 +40,7 @@ export function MobileMashwaraPage({ onBack }: MobileMashwaraPageProps) {
     staleTime: 30000
   });
 
-  const meetings = mashwaraData?.meetings || [
-    {
-      id: "m1",
-      title: "Lahore City Weekly Operational Mashwara",
-      date: "Sunday, Aug 9, 2026",
-      status: "scheduled",
-      decisionsCount: 4,
-      actionItems: [
-        { id: "ai-1", task: "Confirm Tadreeb camp venue in Gulberg", assignee: "Tariq Mahmood", done: false },
-        { id: "ai-2", task: "Review dropout watchlist for State Life Park", assignee: "Kamran Shah", done: true },
-      ]
-    }
-  ];
+  const meetingsList: any[] = mashwaraData?.data ?? mashwaraData?.meetings ?? [];
 
   return (
     <div className="flex flex-col min-h-screen w-full bg-background text-foreground pb-24 select-none">
@@ -86,34 +74,49 @@ export function MobileMashwaraPage({ onBack }: MobileMashwaraPageProps) {
 
       {/* ─── Meetings List ────────────────────────────────────────────────── */}
       <div className="p-4 space-y-4">
-        {meetings.map((meeting: any) => (
-          <motion.div
-            key={meeting.id}
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="p-4 rounded-3xl bg-card border border-border/80 shadow-sm space-y-3"
-          >
-            <div className="flex items-start justify-between">
-              <div>
-                <h3 className="text-sm font-extrabold text-foreground">{meeting.title}</h3>
-                <p className="text-xs text-muted-foreground">{meeting.date}</p>
-              </div>
-              <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-purple-100 text-[#4B0A8F] dark:bg-purple-950/40 dark:text-purple-300">
-                {meeting.decisionsCount || 3} Decisions
-              </span>
-            </div>
-
-            <div className="space-y-2 pt-1 border-t border-border/60">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Action Items:</span>
-              {(meeting.actionItems || []).map((item: any) => (
-                <div key={item.id} className="flex items-center justify-between text-xs p-2 rounded-xl bg-muted/40">
-                  <span className="font-medium text-foreground">{item.task}</span>
-                  <span className="text-[10px] font-bold text-purple-700 dark:text-purple-300">{item.assignee}</span>
+        {isLoading ? (
+          <div className="text-center py-12 text-xs text-muted-foreground">
+            <RefreshCw className="size-5 animate-spin mx-auto mb-2 text-[#4B0A8F]" />
+            Loading Mashwara roster…
+          </div>
+        ) : meetingsList.length === 0 ? (
+          <div className="text-center py-12 text-xs text-muted-foreground bg-card rounded-3xl border border-border/80 p-6">
+            <CalendarCheck className="size-8 mx-auto mb-2 text-muted-foreground/50" />
+            <p className="font-semibold text-foreground">No Mashwara meetings recorded</p>
+            <p className="mt-1 text-[11px]">There are currently no scheduled or past executive consultations.</p>
+          </div>
+        ) : (
+          meetingsList.map((meeting: any) => {
+            const decisionsCount = meeting._count?.decisions ?? meeting.decisionsCount ?? 0;
+            const actionItemsCount = meeting._count?.actionItems ?? meeting.actionItems?.length ?? 0;
+            const dateStr = meeting.scheduledAt
+              ? new Date(meeting.scheduledAt).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" })
+              : meeting.date ?? "Scheduled";
+            return (
+              <motion.div
+                key={meeting.id}
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="p-4 rounded-3xl bg-card border border-border/80 shadow-sm space-y-3"
+              >
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h3 className="text-sm font-extrabold text-foreground">{meeting.title}</h3>
+                    <p className="text-xs text-muted-foreground">{dateStr} {meeting.location ? `• ${meeting.location}` : ""}</p>
+                  </div>
+                  <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-purple-100 text-[#4B0A8F] dark:bg-purple-950/40 dark:text-purple-300">
+                    {decisionsCount} Decisions
+                  </span>
                 </div>
-              ))}
-            </div>
-          </motion.div>
-        ))}
+
+                <div className="flex items-center justify-between text-xs pt-1 border-t border-border/60 text-muted-foreground">
+                  <span>Status: <strong className="capitalize text-foreground">{meeting.status}</strong></span>
+                  <span>{actionItemsCount} Action Items</span>
+                </div>
+              </motion.div>
+            );
+          })
+        )}
       </div>
     </div>
   );

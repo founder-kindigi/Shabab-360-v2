@@ -117,3 +117,16 @@ export function requireParkScope(user: SessionUser, parkId: string): boolean {
 export function requireGroupScope(user: SessionUser, groupId: string): boolean {
   return canAccessResourceScope(user, { groupId });
 }
+
+/**
+ * Helper to resolve city scope for the current authenticated user.
+ * Returns null if HQ role (super_admin / program_admin), or user's cityId.
+ */
+export async function resolveActorCity(): Promise<string | null> {
+  const auth = await requireAuth();
+  if (auth instanceof NextResponse) return null;
+  const { user } = auth;
+  if (isHqRole(user.role)) return null;
+  return user.assignedCityId || null;
+}
+

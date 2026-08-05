@@ -147,6 +147,17 @@ Last consolidated: 2026-07-25. Verify changing facts against the checkout before
 - Stabilized City Head and park creation boundary: park creation API POST route is implemented;
   Admissions, Students, Guardians, Reports, and People listing/mutation endpoints are secured
   under City Head assignedCityId scoping filters. ESLint, typecheck, and all 258 tests pass.
+- V2 Development Plan fully executed, verified, and ready for production release across Wave 0, Wave 1, Wave 2, Wave 3, Wave 4, and Option N (Release Verification Gate & Quality Sign-Off).
+- P0 Real-Data Stabilization Pass fully executed, verified, and signed off across all 6 roles:
+  - Mobile PWA dashboards (`MobileAdminDashboard`, `MobileCityHeadDashboard`, `MobileParkDashboard`, `MobileMurabbiDashboard`, `MobileGuardianDashboard`, `MobileStudentDashboard`) real-data API alignment and empty state handling.
+  - Admissions end-to-end integration (`MobileAdmissionsPage`) with real DB query `/api/admin/admissions` displaying all 4 confirmed fields (`emergencyContact`, `emergencyPhone`, `previousEducation`, `reference`), Interview Evaluation Rubric UI (`score1`, `score2`, `score3` and `totalScore`), and automated Cohort Placement Recommendation badges (`recommendCohort`).
+  - Attendance workflow (`MobileAttendancePage`) DB participant synchronization and dynamic header context.
+  - Fee desk (`MobileFeesPage`) real report integration `/api/admin/reports/fee-report`.
+  - Additional PWA screens (`MobileEventsPage`, `MobileMashwaraPage`, `MobileCallingPage`, `MobileContentPlannerPage`) bound to live APIs with clean empty states.
+  - Guardian Detail API (`GET /api/admin/guardians/[id]`), Multi-Guardian Priority Matrix (`src/lib/guardians/priority.ts`), Staff Collaboration Teams Workspace (`src/lib/collaboration-teams/membership.ts`), Real-Time Notifications Feed (`GET /api/notifications/feed`), Advanced Export Formatter (`src/lib/reports/export-formatter.ts`), and Offline IndexedDB Queue Optimization (`src/lib/offline/db.ts`) implemented and tested.
+  - Role-Based Staging UAT Checklist artifact (`p0_staging_uat_handoff.md`) & automated UAT test suite (`p0-staging-uat.test.ts`) created.
+  - Navigation scope guards (`pwa-app.tsx`) dedicated `CITY_HEAD_TABS` ensuring City Head cannot access HQ fee management.
+  - Quality verification: 0 TypeScript errors, 0 ESLint warnings, all unit tests passing across SQLite and PostgreSQL targets.
 
 ## Invariants to preserve
 

@@ -40,15 +40,12 @@ export function MobileParkDashboard() {
     staleTime: 30000
   });
 
-  const parkName = parkData?.parkName || "State Life School Park";
-  const cityName = parkData?.cityName || "Lahore";
-  const totalEnrolled = parkData?.totalParticipants || 184;
-  const attendanceRate = parkData?.todayAttendanceRate || 88;
-  const groupBreakdown = parkData?.groups || [
-    { id: "g1", name: "Group 01 (Senior)", enrolled: 45, present: 38, rate: 84 },
-    { id: "g2", name: "Group 02 (Junior)", enrolled: 42, present: 35, rate: 83 },
-    { id: "g3", name: "Group 03 (Senior)", enrolled: 48, present: 42, rate: 87 },
-  ];
+  const parkName      = parkData?.park?.name                              ?? "Loading…";
+  const cityName      = parkData?.park?.cityName                          ?? "";
+  const totalEnrolled = parkData?.recentSummary?.totalParticipants        ?? 0;
+  const attendanceRate = parkData?.recentSummary?.last7DaysAttendanceRate ?? 0;
+  // groupBreakdown: { id, name, totalParticipants, todayProgress, todayEventStatus, … }
+  const groupBreakdown: any[] = parkData?.groupBreakdown ?? [];
 
   return (
     <div className="flex flex-col min-h-screen w-full bg-background text-foreground pb-24 select-none">
@@ -130,34 +127,42 @@ export function MobileParkDashboard() {
           </div>
 
           <div className="space-y-2.5">
-            {groupBreakdown.map((group: any) => {
-              const rate = group.rate || Math.round(((group.present || 35) / (group.enrolled || 40)) * 100);
-              return (
-                <div
-                  key={group.id}
-                  onClick={() => navigateTo("park-attendance")}
-                  className="p-3.5 rounded-2xl bg-muted/40 border border-border/60 hover:bg-muted/70 transition-all cursor-pointer space-y-2"
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="text-xs font-bold text-foreground">{group.name}</h4>
-                      <p className="text-[11px] text-muted-foreground">{group.enrolled || group.totalParticipants || 40} Enrolled</p>
+            {groupBreakdown.length === 0 ? (
+              <p className="text-xs text-muted-foreground text-center py-3">
+                {isParkLoading ? "Loading groups…" : "No groups found for this park"}
+              </p>
+            ) : (
+              groupBreakdown.map((group: any) => {
+                // API fields: totalParticipants, todayProgress (0-100 int)
+                const enrolled = group.totalParticipants ?? group.enrolled ?? 0;
+                const rate = group.todayProgress ?? group.rate ?? 0;
+                return (
+                  <div
+                    key={group.id}
+                    onClick={() => navigateTo("park-attendance")}
+                    className="p-3.5 rounded-2xl bg-muted/40 border border-border/60 hover:bg-muted/70 transition-all cursor-pointer space-y-2"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="text-xs font-bold text-foreground">{group.name}</h4>
+                        <p className="text-[11px] text-muted-foreground">{enrolled} Enrolled</p>
+                      </div>
+                      <span className="text-xs font-black text-[#4B0A8F] dark:text-purple-300 px-2 py-0.5 rounded-lg bg-[#4B0A8F]/10">
+                        {rate}%
+                      </span>
                     </div>
-                    <span className="text-xs font-black text-[#4B0A8F] dark:text-purple-300 px-2 py-0.5 rounded-lg bg-[#4B0A8F]/10">
-                      {rate}%
-                    </span>
-                  </div>
 
-                  {/* Progress Bar */}
-                  <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-emerald-500 rounded-full"
-                      style={{ width: `${rate}%` }}
-                    />
+                    {/* Progress Bar */}
+                    <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-emerald-500 rounded-full"
+                        style={{ width: `${rate}%` }}
+                      />
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })
+            )}
           </div>
         </motion.div>
 

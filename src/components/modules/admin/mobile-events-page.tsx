@@ -35,10 +35,7 @@ export function MobileEventsPage({ onBack }: MobileEventsPageProps) {
     staleTime: 30000
   });
 
-  const events = eventsData?.events || [
-    { id: "e1", title: "Lahore Youth Sports Championship 2026", type: "Tournament", date: "Aug 15-16, 2026", location: "State Life Park Grounds", registered: 142 },
-    { id: "e2", title: "Annual Tadreeb & Leadership Retreat", type: "Leadership Camp", date: "Sep 5, 2026", location: "Model Town Complex", registered: 85 },
-  ];
+  const eventsList: any[] = eventsData?.data ?? eventsData?.events ?? [];
 
   return (
     <div className="flex flex-col min-h-screen w-full bg-background text-foreground pb-24 select-none">
@@ -72,37 +69,56 @@ export function MobileEventsPage({ onBack }: MobileEventsPageProps) {
 
       {/* ─── Events List ──────────────────────────────────────────────────── */}
       <div className="p-4 space-y-3">
-        {events.map((event: any) => (
-          <motion.div
-            key={event.id}
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="p-4 rounded-3xl bg-card border border-border/80 shadow-sm space-y-2.5"
-          >
-            <div className="flex items-start justify-between">
-              <div>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-[#4B0A8F] dark:text-purple-300">
-                  {event.type}
-                </span>
-                <h3 className="text-sm font-extrabold text-foreground">{event.title}</h3>
-              </div>
-              <span className="text-xs font-black text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-1 rounded-full">
-                {event.registered} Registered
-              </span>
-            </div>
+        {isLoading ? (
+          <div className="text-center py-12 text-xs text-muted-foreground">
+            <RefreshCw className="size-5 animate-spin mx-auto mb-2 text-[#4B0A8F]" />
+            Loading events roster…
+          </div>
+        ) : eventsList.length === 0 ? (
+          <div className="text-center py-12 text-xs text-muted-foreground bg-card rounded-3xl border border-border/80 p-6">
+            <Calendar className="size-8 mx-auto mb-2 text-muted-foreground/50" />
+            <p className="font-semibold text-foreground">No events scheduled</p>
+            <p className="mt-1 text-[11px]">There are currently no upcoming youth events or camps scheduled.</p>
+          </div>
+        ) : (
+          eventsList.map((event: any) => {
+            const regCount = event._count?.registrations ?? event.registered ?? 0;
+            const dateStr = event.eventDate
+              ? new Date(event.eventDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+              : event.date ?? "TBD";
+            return (
+              <motion.div
+                key={event.id}
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="p-4 rounded-3xl bg-card border border-border/80 shadow-sm space-y-2.5"
+              >
+                <div className="flex items-start justify-between">
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-[#4B0A8F] dark:text-purple-300">
+                      {event.eventType || event.type || "Event"}
+                    </span>
+                    <h3 className="text-sm font-extrabold text-foreground">{event.title}</h3>
+                  </div>
+                  <span className="text-xs font-black text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-1 rounded-full border border-emerald-200 dark:border-emerald-800">
+                    {regCount} Registered
+                  </span>
+                </div>
 
-            <div className="flex items-center gap-3 text-xs text-muted-foreground pt-1 border-t border-border/60">
-              <span className="flex items-center gap-1">
-                <Calendar className="size-3.5" />
-                {event.date}
-              </span>
-              <span className="flex items-center gap-1">
-                <MapPin className="size-3.5" />
-                {event.location}
-              </span>
-            </div>
-          </motion.div>
-        ))}
+                <div className="flex items-center gap-3 text-xs text-muted-foreground pt-1 border-t border-border/60">
+                  <span className="flex items-center gap-1">
+                    <Calendar className="size-3.5" />
+                    {dateStr}
+                  </span>
+                  <span className="flex items-center gap-1 truncate">
+                    <MapPin className="size-3.5 shrink-0" />
+                    {event.location || "Grounds"}
+                  </span>
+                </div>
+              </motion.div>
+            );
+          })
+        )}
       </div>
     </div>
   );

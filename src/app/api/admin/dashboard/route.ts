@@ -292,8 +292,12 @@ export async function GET(request: NextRequest) {
 
   // City-scoped
   if (user.role === "city_head" && user.assignedCityId) {
-    const [parks, batches, groups, participants, attendanceEvents] =
+    const [city, parks, batches, groups, participants, attendanceEvents, staff] =
       await Promise.all([
+        db.city.findUnique({
+          where: { id: user.assignedCityId },
+          select: { id: true, name: true, code: true },
+        }),
         db.park.count({
           where: { cityId: user.assignedCityId, isActive: true },
         }),
@@ -315,6 +319,9 @@ export async function GET(request: NextRequest) {
           where: {
             group: { batch: { park: { cityId: user.assignedCityId } } },
           },
+        }),
+        db.staffMeta.count({
+          where: { assignedCityId: user.assignedCityId, isActive: true },
         }),
       ]);
 
@@ -366,10 +373,12 @@ export async function GET(request: NextRequest) {
     ]);
 
     return NextResponse.json({
+      city: city ? { name: city.name, code: city.code } : null,
       parks,
       batches,
       groups,
       participants,
+      staff,
       attendanceEvents,
       recentActivity,
       cityParks: await db.park.findMany({
