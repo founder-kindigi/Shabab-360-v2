@@ -86,9 +86,17 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
+  const url = new URL(request.url);
+  const limitParam = parseInt(url.searchParams.get("limit") || "100", 10);
+  const pageParam = parseInt(url.searchParams.get("page") || "1", 10);
+  const take = Math.min(isNaN(limitParam) || limitParam <= 0 ? 100 : limitParam, 100);
+  const skip = Math.max(0, (isNaN(pageParam) || pageParam <= 0 ? 1 : pageParam) - 1) * take;
+
   const batches = await db.batch.findMany({
     where: { isActive: true, ...scopeWhere },
     orderBy: { createdAt: "desc" },
+    take,
+    skip,
     include: {
       park: {
         select: {

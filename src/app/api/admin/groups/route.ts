@@ -98,9 +98,17 @@ export async function GET(request: NextRequest) {
     where.name = { contains: search, mode: "insensitive" };
   }
 
+  const url = new URL(request.url);
+  const limitParam = parseInt(url.searchParams.get("limit") || "100", 10);
+  const pageParam = parseInt(url.searchParams.get("page") || "1", 10);
+  const take = Math.min(isNaN(limitParam) || limitParam <= 0 ? 100 : limitParam, 100);
+  const skip = Math.max(0, (isNaN(pageParam) || pageParam <= 0 ? 1 : pageParam) - 1) * take;
+
   const groups = await db.group.findMany({
     where,
     orderBy: { createdAt: "desc" },
+    take,
+    skip,
     include: {
       batch: {
         select: {

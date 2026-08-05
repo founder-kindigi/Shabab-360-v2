@@ -24,6 +24,7 @@ export async function GET() {
   const cities = await db.city.findMany({
     where: { isActive: true },
     orderBy: { name: "asc" },
+    take: 100,
     include: {
       _count: { select: { parks: true } },
       cityHeads: {

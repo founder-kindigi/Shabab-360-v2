@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
+import { Prisma } from "@prisma/client";
 
 export async function GET(request: NextRequest) {
   const auth = await requireAuth();
@@ -10,7 +11,7 @@ export async function GET(request: NextRequest) {
   const query = url.searchParams.get("q")?.trim();
   const categoryFilter = url.searchParams.get("category");
 
-  const where: any = { isPublished: true };
+  const where: Prisma.KnowledgeArticleWhereInput = { isPublished: true };
   if (categoryFilter) where.category = categoryFilter;
 
   if (query) {

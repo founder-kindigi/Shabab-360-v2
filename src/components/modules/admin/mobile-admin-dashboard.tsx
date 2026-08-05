@@ -29,11 +29,11 @@ export function MobileAdminDashboard() {
   const userName = user?.name || "Super Admin";
 
   // ─── Real DB API Queries ───────────────────────────────────────────────
-  const { data: adminDashData, isLoading } = useQuery({
+  const { data: adminDashData, isLoading, isError, refetch } = useQuery({
     queryKey: ["admin-hq-dash-real"],
     queryFn: async () => {
       const res = await fetch("/api/admin/dashboard");
-      if (!res.ok) return null;
+      if (!res.ok) throw new Error("Failed to load dashboard data");
       return res.json();
     },
     retry: false,
@@ -93,6 +93,18 @@ export function MobileAdminDashboard() {
 
       {/* ─── Master Metric Cards Grid ───────────────────────────────────── */}
       <div className="-mt-6 px-4 z-10 space-y-4">
+        {isError && (
+          <div className="p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs flex items-center justify-between font-bold">
+            <span>Failed to load system dashboard data</span>
+            <button
+              onClick={() => refetch()}
+              className="px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-[11px] font-extrabold transition-all"
+            >
+              Retry
+            </button>
+          </div>
+        )}
+
         <div className="grid grid-cols-2 gap-3">
           <motion.div
             initial={{ opacity: 0, y: 12 }}
@@ -103,7 +115,11 @@ export function MobileAdminDashboard() {
               <span className="text-xs font-semibold text-muted-foreground">Total Students</span>
               <Users className="size-4 text-[#4B0A8F]" />
             </div>
-            <div className="text-2xl font-black text-foreground">{totalParticipants}</div>
+            {isLoading ? (
+              <div className="h-8 w-20 bg-muted animate-pulse rounded-lg my-1" />
+            ) : (
+              <div className="text-2xl font-black text-foreground">{totalParticipants}</div>
+            )}
             <p className="text-[11px] text-muted-foreground font-medium">{totalUsers} System Accounts</p>
           </motion.div>
 
@@ -117,9 +133,13 @@ export function MobileAdminDashboard() {
               <span className="text-xs font-semibold text-emerald-800 dark:text-emerald-300">National Rate</span>
               <TrendingUp className="size-4 text-emerald-600 dark:text-emerald-400" />
             </div>
-            <div className="text-2xl font-black text-emerald-700 dark:text-emerald-400">
-              {overallAttendanceRate}%
-            </div>
+            {isLoading ? (
+              <div className="h-8 w-20 bg-emerald-200/50 dark:bg-emerald-800/50 animate-pulse rounded-lg my-1" />
+            ) : (
+              <div className="text-2xl font-black text-emerald-700 dark:text-emerald-400">
+                {overallAttendanceRate}%
+              </div>
+            )}
             <p className="text-[11px] text-emerald-700/80 dark:text-emerald-300/80 font-medium">{totalCities} Cities • {totalParks} Parks</p>
           </motion.div>
         </div>

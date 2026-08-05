@@ -17,7 +17,8 @@ import {
   Users,
   Filter,
   Save,
-  ChevronRight
+  ChevronRight,
+  UserCheck
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -132,11 +133,15 @@ export function MobileAttendancePage({ onBack }: MobileAttendancePageProps) {
   const progressPercent = Math.round((markedCount / totalStudents) * 100);
 
   const handleSaveSync = () => {
-    const payload = rosterState.map((s) => ({
-      participantId: s.id,
-      status: s.status,
-    }));
-    syncAttendanceMutation.mutate(payload);
+    const payload = rosterState
+      .filter((s) => s.status !== "unmarked")
+      .map((s) => ({
+        participantId: s.id,
+        status: s.status,
+      }));
+    if (payload.length > 0) {
+      syncAttendanceMutation.mutate(payload);
+    }
   };
 
   return (
@@ -204,7 +209,7 @@ export function MobileAttendancePage({ onBack }: MobileAttendancePageProps) {
                   key={tab.id}
                   onClick={() => setFilterStatus(tab.id as any)}
                   className={cn(
-                    "px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all active:scale-95",
+                    "px-3 min-h-[44px] rounded-xl text-xs font-bold whitespace-nowrap transition-all active:scale-95 flex items-center justify-center",
                     isActive
                       ? "bg-amber-400 text-slate-950 shadow-md font-extrabold"
                       : "bg-white/10 text-purple-100 hover:bg-white/20 backdrop-blur-sm"
@@ -241,114 +246,113 @@ export function MobileAttendancePage({ onBack }: MobileAttendancePageProps) {
 
         {/* ─── Student Roster Grid ────────────────────────────────────────── */}
         <div className="grid grid-cols-1 gap-3">
-          {filteredRoster.map((student) => {
-            const isPresent = student.status === "present";
-            const isAbsent = student.status === "absent";
-            const isLate = student.status === "late";
-            const isExcused = student.status === "excused";
+          {filteredRoster.length === 0 ? (
+            <div className="p-8 text-center bg-card rounded-3xl border border-border/80 space-y-2">
+              <UserCheck className="size-10 text-muted-foreground mx-auto opacity-40" />
+              <p className="text-sm font-bold text-muted-foreground">No students match the selected filter</p>
+            </div>
+          ) : (
+            filteredRoster.map((student) => {
+              const isPresent = student.status === "present";
+              const isAbsent = student.status === "absent";
+              const isLate = student.status === "late";
+              const isExcused = student.status === "excused";
 
-            return (
-              <motion.div
-                key={student.id}
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                className={cn(
-                  "p-4 rounded-3xl bg-card border transition-all shadow-sm space-y-3",
-                  isPresent && "border-emerald-500/40 bg-emerald-50/30 dark:bg-emerald-950/20",
-                  isAbsent && "border-rose-500/40 bg-rose-50/30 dark:bg-rose-950/20",
-                  isLate && "border-amber-500/40 bg-amber-50/30 dark:bg-amber-950/20",
-                  isExcused && "border-sky-500/40 bg-sky-50/30 dark:bg-sky-950/20",
-                  student.status === "unmarked" && "border-border/80"
-                )}
-              >
-                {/* Student Info Header */}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="size-10 rounded-2xl bg-[#4B0A8F]/10 text-[#4B0A8F] dark:text-purple-300 font-extrabold text-xs flex items-center justify-center border border-[#4B0A8F]/20 shrink-0">
-                      {student.name.split(" ").map((n) => n[0]).join("")}
+              return (
+                <motion.div
+                  key={student.id}
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className={cn(
+                    "p-4 rounded-3xl bg-card border transition-all shadow-sm space-y-3",
+                    isPresent && "border-emerald-500/40 bg-emerald-50/30 dark:bg-emerald-950/20",
+                    isAbsent && "border-rose-500/40 bg-rose-50/30 dark:bg-rose-950/20",
+                    isLate && "border-amber-500/40 bg-amber-50/30 dark:bg-amber-950/20",
+                    isExcused && "border-sky-500/40 bg-sky-50/30 dark:bg-sky-950/20",
+                    student.status === "unmarked" && "border-border/80"
+                  )}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="size-10 rounded-2xl bg-[#4B0A8F]/10 text-[#4B0A8F] dark:text-purple-300 font-extrabold text-xs flex items-center justify-center border border-[#4B0A8F]/20 shrink-0">
+                        {student.name.split(" ").map((n) => n[0]).join("")}
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-extrabold text-foreground leading-tight">{student.name}</h3>
+                        <p className="text-[11px] text-muted-foreground font-medium">{student.code}</p>
+                      </div>
                     </div>
-                    <div>
-                      <h4 className="text-sm font-extrabold text-foreground">{student.name}</h4>
-                      <p className="text-xs text-muted-foreground font-medium">{student.code} • {student.group}</p>
-                    </div>
+                    <span
+                      className={cn(
+                        "px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border",
+                        isPresent && "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30",
+                        isAbsent && "bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30",
+                        isLate && "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30",
+                        isExcused && "bg-sky-500/15 text-sky-600 dark:text-sky-400 border-sky-500/30",
+                        student.status === "unmarked" && "bg-muted/50 text-muted-foreground border-border/60"
+                      )}
+                    >
+                      {student.status}
+                    </span>
                   </div>
 
-                  {/* Active Status Badge */}
-                  <span
-                    className={cn(
-                      "text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full border",
-                      isPresent && "bg-emerald-500 text-white border-emerald-600 shadow-sm shadow-emerald-500/30",
-                      isAbsent && "bg-rose-500 text-white border-rose-600 shadow-sm shadow-rose-500/30",
-                      isLate && "bg-amber-500 text-white border-amber-600 shadow-sm shadow-amber-500/30",
-                      isExcused && "bg-sky-500 text-white border-sky-600 shadow-sm shadow-sky-500/30",
-                      student.status === "unmarked" && "bg-muted text-muted-foreground border-border"
-                    )}
-                  >
-                    {student.status}
-                  </span>
-                </div>
+                  <div className="grid grid-cols-4 gap-1.5 pt-1">
+                    <button
+                      onClick={() => handleMarkStatus(student.id, "present")}
+                      className={cn(
+                        "h-11 rounded-2xl font-black text-xs flex items-center justify-center gap-1 transition-all active:scale-95 border",
+                        isPresent
+                          ? "bg-emerald-600 text-white border-emerald-500 shadow-md shadow-emerald-500/30 ring-2 ring-emerald-400/50"
+                          : "bg-muted/60 text-muted-foreground hover:bg-emerald-500/10 hover:text-emerald-600 border-border/60"
+                      )}
+                    >
+                      <CheckCircle2 className="size-4" />
+                      <span>P</span>
+                    </button>
 
-                {/* ─── 44px Touch Action Mark Buttons ────────────────────────── */}
-                <div className="grid grid-cols-4 gap-2 pt-1">
-                  {/* Present (P) */}
-                  <button
-                    onClick={() => handleMarkStatus(student.id, "present")}
-                    className={cn(
-                      "h-11 rounded-2xl font-black text-xs flex items-center justify-center gap-1 transition-all active:scale-95 border",
-                      isPresent
-                        ? "bg-emerald-600 text-white border-emerald-500 shadow-md shadow-emerald-500/30 ring-2 ring-emerald-400/50"
-                        : "bg-muted/60 text-muted-foreground hover:bg-emerald-500/10 hover:text-emerald-600 border-border/60"
-                    )}
-                  >
-                    <CheckCircle2 className="size-4" />
-                    <span>P</span>
-                  </button>
+                    <button
+                      onClick={() => handleMarkStatus(student.id, "absent")}
+                      className={cn(
+                        "h-11 rounded-2xl font-black text-xs flex items-center justify-center gap-1 transition-all active:scale-95 border",
+                        isAbsent
+                          ? "bg-rose-600 text-white border-rose-500 shadow-md shadow-rose-500/30 ring-2 ring-rose-400/50"
+                          : "bg-muted/60 text-muted-foreground hover:bg-rose-500/10 hover:text-rose-600 border-border/60"
+                      )}
+                    >
+                      <XCircle className="size-4" />
+                      <span>A</span>
+                    </button>
 
-                  {/* Absent (A) */}
-                  <button
-                    onClick={() => handleMarkStatus(student.id, "absent")}
-                    className={cn(
-                      "h-11 rounded-2xl font-black text-xs flex items-center justify-center gap-1 transition-all active:scale-95 border",
-                      isAbsent
-                        ? "bg-rose-600 text-white border-rose-500 shadow-md shadow-rose-500/30 ring-2 ring-rose-400/50"
-                        : "bg-muted/60 text-muted-foreground hover:bg-rose-500/10 hover:text-rose-600 border-border/60"
-                    )}
-                  >
-                    <XCircle className="size-4" />
-                    <span>A</span>
-                  </button>
+                    <button
+                      onClick={() => handleMarkStatus(student.id, "late")}
+                      className={cn(
+                        "h-11 rounded-2xl font-black text-xs flex items-center justify-center gap-1 transition-all active:scale-95 border",
+                        isLate
+                          ? "bg-amber-500 text-slate-950 border-amber-400 shadow-md shadow-amber-500/30 ring-2 ring-amber-400/50"
+                          : "bg-muted/60 text-muted-foreground hover:bg-amber-500/10 hover:text-amber-600 border-border/60"
+                      )}
+                    >
+                      <Clock className="size-4" />
+                      <span>L</span>
+                    </button>
 
-                  {/* Late (L) */}
-                  <button
-                    onClick={() => handleMarkStatus(student.id, "late")}
-                    className={cn(
-                      "h-11 rounded-2xl font-black text-xs flex items-center justify-center gap-1 transition-all active:scale-95 border",
-                      isLate
-                        ? "bg-amber-500 text-white border-amber-400 shadow-md shadow-amber-500/30 ring-2 ring-amber-400/50"
-                        : "bg-muted/60 text-muted-foreground hover:bg-amber-500/10 hover:text-amber-600 border-border/60"
-                    )}
-                  >
-                    <Clock className="size-4" />
-                    <span>L</span>
-                  </button>
-
-                  {/* Excused (E) */}
-                  <button
-                    onClick={() => handleMarkStatus(student.id, "excused")}
-                    className={cn(
-                      "h-11 rounded-2xl font-black text-xs flex items-center justify-center gap-1 transition-all active:scale-95 border",
-                      isExcused
-                        ? "bg-sky-600 text-white border-sky-500 shadow-md shadow-sky-500/30 ring-2 ring-sky-400/50"
-                        : "bg-muted/60 text-muted-foreground hover:bg-sky-500/10 hover:text-sky-600 border-border/60"
-                    )}
-                  >
-                    <HelpCircle className="size-4" />
-                    <span>E</span>
-                  </button>
-                </div>
-              </motion.div>
-            );
-          })}
+                    <button
+                      onClick={() => handleMarkStatus(student.id, "excused")}
+                      className={cn(
+                        "h-11 rounded-2xl font-black text-xs flex items-center justify-center gap-1 transition-all active:scale-95 border",
+                        isExcused
+                          ? "bg-sky-600 text-white border-sky-500 shadow-md shadow-sky-500/30 ring-2 ring-sky-400/50"
+                          : "bg-muted/60 text-muted-foreground hover:bg-sky-500/10 hover:text-sky-600 border-border/60"
+                      )}
+                    >
+                      <HelpCircle className="size-4" />
+                      <span>E</span>
+                    </button>
+                  </div>
+                </motion.div>
+              );
+            })
+          )}
         </div>
 
         {/* ─── Floating Save & Sync Button ──────────────────────────────── */}

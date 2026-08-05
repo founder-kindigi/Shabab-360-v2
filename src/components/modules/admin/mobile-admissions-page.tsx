@@ -145,8 +145,16 @@ export function MobileAdmissionsPage({ onBack }: MobileAdmissionsPageProps) {
                 className="rounded-3xl bg-card border border-border/80 shadow-sm overflow-hidden"
               >
                 <div
+                  role="button"
+                  tabIndex={0}
                   onClick={() => toggleExpand(app.id)}
-                  className="p-4 cursor-pointer hover:bg-muted/30 transition-all space-y-2"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      toggleExpand(app.id);
+                    }
+                  }}
+                  className="p-4 cursor-pointer hover:bg-muted/30 transition-all space-y-2 focus:outline-none focus:ring-2 focus:ring-[#4B0A8F]"
                 >
                   <div className="flex items-start justify-between">
                     <div>

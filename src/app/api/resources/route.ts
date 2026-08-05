@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, resolveActorCity } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
+import { Prisma } from "@prisma/client";
 
 export async function GET(request: NextRequest) {
   const auth = await requireAuth();
@@ -11,7 +12,7 @@ export async function GET(request: NextRequest) {
   const url = new URL(request.url);
   const categoryFilter = url.searchParams.get("category");
 
-  const where: any = {};
+  const where: Prisma.DigitalResourceWhereInput = {};
   if (categoryFilter) where.category = categoryFilter;
 
   if (actorCity) {

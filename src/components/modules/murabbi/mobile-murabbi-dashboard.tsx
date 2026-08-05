@@ -44,8 +44,8 @@ export function MobileMurabbiDashboard() {
   // (park/dashboard is scoped to the murabbi's assigned group when role=murabbi)
   const totalStudents  = parkData?.recentSummary?.totalParticipants        ?? 0;
   const firstGroup     = parkData?.groupBreakdown?.[0];
-  const groupName      = firstGroup?.name ?? "My Group";
-  const parkName       = parkData?.park?.name    ?? "Loading…";
+  const groupName      = firstGroup?.name ?? (isParkLoading ? "Loading…" : "My Group");
+  const parkName       = parkData?.park?.name    ?? (isParkLoading ? "Loading…" : "Unassigned Park");
   const cityName       = parkData?.park?.cityName ?? "";
   const todayRate      = parkData?.recentSummary?.last7DaysAttendanceRate  ?? 0;
 

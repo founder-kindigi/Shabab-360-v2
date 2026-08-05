@@ -3,6 +3,7 @@ import { requireAuth, requireCapability, resolveActorCity } from "@/lib/auth/aut
 import { db } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
 import { z } from "zod";
+import { Prisma } from "@prisma/client";
 
 const createRequestSchema = z.object({
   parkId: z.string().min(1, "Park ID is required"),
@@ -24,7 +25,7 @@ export async function GET(request: NextRequest) {
   const parkIdFilter = url.searchParams.get("parkId");
   const statusFilter = url.searchParams.get("status");
 
-  const where: any = {};
+  const where: Prisma.StockRequestWhereInput = {};
   if (statusFilter) where.status = statusFilter;
 
   if (parkIdFilter) {

@@ -142,8 +142,16 @@ export function MobileCityHeadDashboard() {
               parksList.map((park: any, index: number) => (
                 <div
                   key={park.id}
+                  role="button"
+                  tabIndex={0}
                   onClick={() => navigateTo("park-dashboard")}
-                  className="p-3.5 rounded-2xl bg-muted/40 border border-border/60 hover:bg-muted/70 transition-all cursor-pointer flex items-center justify-between gap-3"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      navigateTo("park-dashboard");
+                    }
+                  }}
+                  className="p-3.5 rounded-2xl bg-muted/40 border border-border/60 hover:bg-muted/70 transition-all cursor-pointer flex items-center justify-between gap-3 focus:outline-none focus:ring-2 focus:ring-[#4B0A8F]"
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="size-8 rounded-full bg-[#4B0A8F]/10 text-[#4B0A8F] flex items-center justify-center font-bold text-xs shrink-0">

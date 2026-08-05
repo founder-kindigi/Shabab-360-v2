@@ -63,6 +63,7 @@ export async function getPendingSyncItems(): Promise<OfflineQueueItem[]> {
     .where("state")
     .anyOf(["pending", "failed"])
     .filter((item) => item.retryCount < MAX_RETRIES)
+    .limit(200)
     .toArray();
   return orderSyncItems(items);
 }

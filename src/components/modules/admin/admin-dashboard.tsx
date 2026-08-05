@@ -204,7 +204,7 @@ function GreetingCard({ name, activeBatches }: { name: string; activeBatches?: n
       variants={itemVariants}
       className="relative overflow-hidden rounded-2xl px-6 py-6 md:px-8 md:py-8 banner-gradient"
     >
-      <style dangerouslySetInnerHTML={{ __html: gradientStyle }} />
+      <style>{gradientStyle}</style>
 
       {/* Floating particle dots */}
       {bannerParticles.map((p) => (

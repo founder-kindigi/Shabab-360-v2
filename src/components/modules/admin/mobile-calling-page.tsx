@@ -102,13 +102,13 @@ export function MobileCallingPage({ onBack }: MobileCallingPageProps) {
         </div>
 
         {/* Tab Switcher */}
-        <div className="grid grid-cols-3 gap-1 p-1 bg-black/20 rounded-2xl border border-white/10">
+        <div className="flex items-center overflow-x-auto no-scrollbar gap-1 p-1 bg-black/20 rounded-2xl border border-white/10">
           {(["pending", "promised", "completed"] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
               className={cn(
-                "py-1.5 rounded-xl text-xs font-bold capitalize transition-all",
+                "flex-1 min-w-[90px] py-2 min-h-[44px] rounded-xl text-xs font-bold capitalize transition-all flex items-center justify-center",
                 activeTab === tab ? "bg-white text-[#4B0A8F] shadow-md" : "text-purple-200 hover:text-white"
               )}
             >
