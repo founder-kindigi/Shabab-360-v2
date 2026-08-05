@@ -170,19 +170,20 @@ export function FeesPage() {
       <PageHeader 
         title="Fees & Financial Management Desk" 
         description="Manage monthly fee collections, digital receipt generation, donor contributions, and park-level financial summaries."
-      >
-        <div className="flex flex-wrap gap-2 mt-4 sm:mt-0">
-          <Button variant="outline" className="border-indigo-200 text-indigo-700 bg-indigo-50" onClick={() => setIsEventModalOpen(true)}>
-            <Plus className="w-4 h-4 mr-2" /> Create Fee Event
-          </Button>
-          <Button variant="outline" className="border-rose-200 text-rose-700 bg-rose-50" onClick={() => setIsDonationModalOpen(true)}>
-            <Heart className="w-4 h-4 mr-2" /> Record Donation
-          </Button>
-          <Button className="bg-indigo-600 hover:bg-indigo-700" onClick={() => setIsPaymentModalOpen(true)}>
-            <Receipt className="w-4 h-4 mr-2" /> Record Student Payment
-          </Button>
-        </div>
-      </PageHeader>
+        actions={
+          <div className="flex flex-wrap gap-2 mt-4 sm:mt-0">
+            <Button variant="outline" className="border-indigo-200 text-indigo-700 bg-indigo-50" onClick={() => setIsEventModalOpen(true)}>
+              <Plus className="w-4 h-4 mr-2" /> Create Fee Event
+            </Button>
+            <Button variant="outline" className="border-rose-200 text-rose-700 bg-rose-50" onClick={() => setIsDonationModalOpen(true)}>
+              <Heart className="w-4 h-4 mr-2" /> Record Donation
+            </Button>
+            <Button className="bg-indigo-600 hover:bg-indigo-700" onClick={() => setIsPaymentModalOpen(true)}>
+              <Receipt className="w-4 h-4 mr-2" /> Record Student Payment
+            </Button>
+          </div>
+        }
+      />
 
       {/* KPIs */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
