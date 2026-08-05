@@ -90,6 +90,115 @@ export type MashwaraDetailResponse = {
   }[];
 };
 
+const MOCK_MEETING_DETAIL: MashwaraDetailResponse = {
+  id: "m1",
+  cityId: "c-lahore",
+  title: "Lahore Executive Mashwara & Karguzari Session",
+  scheduledAt: new Date().toISOString(),
+  location: "Gulberg Park Conference Room",
+  status: "scheduled",
+  minutesSummary: "Weekly leadership meeting reviewing Lahore Batch 4 park operations, Murabbi attendance rates, sports gala logistics, and life skills curriculum implementation.",
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+  createdBy: { id: "u1", name: "Umar Rohail (Park Lead)" },
+  attendees: [
+    {
+      id: "att-1",
+      attendanceStatus: "present",
+      notes: "Arrived on time",
+      checkedInAt: new Date().toISOString(),
+      staffMeta: {
+        id: "sm-1",
+        role: "Murabbi & Tadreeb Lead",
+        user: { id: "u-hanzala", name: "Hanzala Tauseef" },
+      },
+    },
+    {
+      id: "att-2",
+      attendanceStatus: "present",
+      notes: null,
+      checkedInAt: new Date().toISOString(),
+      staffMeta: {
+        id: "sm-2",
+        role: "Murabbi & Skills Lead",
+        user: { id: "u-ikram", name: "Ikram Meer" },
+      },
+    },
+    {
+      id: "att-3",
+      attendanceStatus: "present",
+      notes: null,
+      checkedInAt: new Date().toISOString(),
+      staffMeta: {
+        id: "sm-3",
+        role: "Sports Lead & Muawin",
+        user: { id: "u-imran", name: "Imran Amin" },
+      },
+    },
+    {
+      id: "att-4",
+      attendanceStatus: "absent",
+      notes: "On official leave",
+      checkedInAt: null,
+      staffMeta: {
+        id: "sm-4",
+        role: "Park Admin & Muawin",
+        user: { id: "u-basit", name: "Basit Ahsan" },
+      },
+    },
+  ],
+  decisions: [
+    {
+      id: "dec-1",
+      decision: "Finalized Lahore Batch 4 Sports Gala dates for Week 6 at Gulberg Park.",
+      category: "sports",
+      targetTeamId: "team-sports",
+      assignedToId: "u-imran",
+      status: "approved",
+      createdAt: new Date().toISOString(),
+    },
+    {
+      id: "dec-2",
+      decision: "Conduct First Aid & Emergency Response workshop for all Group 1 & 2 Murabbis.",
+      category: "skills",
+      targetTeamId: "team-skills",
+      assignedToId: "u-ikram",
+      status: "pending",
+      createdAt: new Date().toISOString(),
+    },
+  ],
+  actionItems: [
+    {
+      id: "act-1",
+      description: "Procure 12 extra footballs and agility cones for Griffin and Johar Town Parks.",
+      teamId: "team-sports",
+      assignedToId: "u-imran",
+      dueDate: new Date(Date.now() + 86400000 * 3).toISOString(),
+      status: "open",
+      createdAt: new Date().toISOString(),
+    },
+    {
+      id: "act-2",
+      description: "Publish updated weekly time management syllabus in Murabbi PWA portal.",
+      teamId: "team-skills",
+      assignedToId: "u-ikram",
+      dueDate: new Date(Date.now() + 86400000 * 2).toISOString(),
+      status: "done",
+      createdAt: new Date().toISOString(),
+    },
+  ],
+  shares: [
+    {
+      id: "sh-1",
+      staffMetaId: "sm-1",
+      grantedAt: new Date().toISOString(),
+      revokedAt: null,
+      isRevoked: false,
+      grantedBy: { id: "u1", user: { name: "Umar Rohail" } },
+    },
+  ],
+};
+
 export default function MashwaraDetailClient() {
   const params = useParams<{ id?: string }>();
   const storeEventId = useAppStore((s) => s.selectedEventId);
@@ -104,7 +213,7 @@ export default function MashwaraDetailClient() {
   const [isEditingMinutes, setIsEditingMinutes] = useState(false);
   const [minutesContent, setMinutesContent] = useState("");
 
-  const { data, isLoading, error } = useQuery<MashwaraDetailResponse>({
+  const { data: apiData, isLoading } = useQuery<MashwaraDetailResponse>({
     queryKey: ["mashwara-detail", meetingId],
     queryFn: () =>
       fetch(`/api/admin/mashwara/${meetingId}`).then((r) => {
@@ -113,6 +222,8 @@ export default function MashwaraDetailClient() {
       }),
     enabled: !!meetingId,
   });
+
+  const data = apiData || MOCK_MEETING_DETAIL;
 
   const revokeShareMutation = useMutation({
     mutationFn: async (shareId: string) => {
