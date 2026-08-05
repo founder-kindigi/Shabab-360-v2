@@ -23,12 +23,12 @@ function allMigrationDirs(base: string): string[] {
 describe("PROD-HANDOVER-001: Master Production Sign-Off", () => {
   /* ── 1. Dual Schema Validation ───────────────────────────────────── */
   describe("Dual schema validation", () => {
-    it("SQLite schema has 63 models", () => {
-      expect(modelNames(join(ROOT, "prisma/schema.prisma")).length).toBe(63);
+    it("SQLite schema has 65 models", () => {
+      expect(modelNames(join(ROOT, "prisma/schema.prisma")).length).toBe(65);
     });
 
-    it("PostgreSQL schema has 63 models", () => {
-      expect(modelNames(join(ROOT, "prisma/postgres/schema.prisma")).length).toBe(63);
+    it("PostgreSQL schema has 65 models", () => {
+      expect(modelNames(join(ROOT, "prisma/postgres/schema.prisma")).length).toBe(65);
     });
 
     it("all SQLite models match PostgreSQL models bidirectionally", () => {

@@ -32,12 +32,12 @@ function allMigrations(base: string): string[] {
 describe("PILOT-PROD-001: Pilot Production Health", () => {
   /* ── 1. Schema health ────────────────────────────────────────────── */
   describe("Schema health", () => {
-    it("SQLITE schema has 63 models", () => {
-      expect(modelNames(SQLITE_SCHEMA).length).toBe(63);
+    it("SQLITE schema has 65 models", () => {
+      expect(modelNames(SQLITE_SCHEMA).length).toBe(65);
     });
 
-    it("POSTGRES schema has 63 models", () => {
-      expect(modelNames(PG_SCHEMA).length).toBe(63);
+    it("POSTGRES schema has 65 models", () => {
+      expect(modelNames(PG_SCHEMA).length).toBe(65);
     });
 
     it("all models present in both schemas", () => {
