@@ -422,7 +422,7 @@ export function ParkAttendancePage() {
                 {activeParkGroups.length > 0 && (
                   <div className="space-y-2 flex-1 lg:max-w-md">
                     <Label className="text-xs uppercase tracking-wider text-muted-foreground font-bold flex items-center gap-1.5">
-                      <Layers className="size-3.5 text-indigo-600" /> Select Halqa Group
+                      <Layers className="size-3.5 text-indigo-600" /> Select Group
                     </Label>
                     <div className="flex flex-wrap gap-2">
                       {activeParkGroups.map((g) => (

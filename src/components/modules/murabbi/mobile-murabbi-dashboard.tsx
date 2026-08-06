@@ -125,7 +125,7 @@ export function MobileMurabbiDashboard() {
                 <CalendarCheck className="size-5" />
               </div>
               <div>
-                <h3 className="text-sm font-bold text-foreground">Sunday Halqa Session</h3>
+                <h3 className="text-sm font-bold text-foreground">Sunday Group Session</h3>
                 <p className="text-xs text-muted-foreground font-medium">Today's Roster</p>
               </div>
             </div>

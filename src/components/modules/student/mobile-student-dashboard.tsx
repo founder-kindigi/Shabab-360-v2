@@ -134,14 +134,14 @@ export function MobileStudentDashboard() {
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold uppercase tracking-wider text-[#4B0A8F] dark:text-purple-300 flex items-center gap-1.5">
               <CalendarCheck className="size-3.5" />
-              Next Scheduled Halqa
+              Next Scheduled Session
             </span>
             <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
               {upcoming ? "Scheduled" : "No Event Scheduled"}
             </span>
           </div>
 
-          <h3 className="text-sm font-extrabold text-foreground">{upcoming?.title || "Regular Halqa Session"}</h3>
+          <h3 className="text-sm font-extrabold text-foreground">{upcoming?.title || "Regular Group Session"}</h3>
           <p className="text-xs text-muted-foreground">
             {upcoming?.eventDateFormatted || "Check back soon for upcoming schedule"}
           </p>

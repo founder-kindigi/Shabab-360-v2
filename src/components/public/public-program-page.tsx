@@ -35,7 +35,7 @@ import { cn } from "@/lib/utils";
 const LAHORE_PARKS = [
   {
     name: "Gulberg Park",
-    groups: "3 Halqa Groups",
+    groups: "3 Groups",
     students: "60+ Students",
     staff: "13 Murabbis & Staff",
     lead: "Umar Rohail (Park Lead)",
@@ -43,7 +43,7 @@ const LAHORE_PARKS = [
   },
   {
     name: "Gulshan Iqbal Park",
-    groups: "3 Halqa Groups",
+    groups: "3 Groups",
     students: "50+ Students",
     staff: "11 Murabbis & Staff",
     lead: "Park Lead Gulshan",
@@ -51,7 +51,7 @@ const LAHORE_PARKS = [
   },
   {
     name: "Griffin Park",
-    groups: "2 Halqa Groups",
+    groups: "2 Groups",
     students: "30+ Students",
     staff: "6 Murabbis & Staff",
     lead: "Park Lead Griffin",
@@ -59,7 +59,7 @@ const LAHORE_PARKS = [
   },
   {
     name: "Johar Town Park",
-    groups: "2 Halqa Groups",
+    groups: "2 Groups",
     students: "35+ Students",
     staff: "10 Murabbis & Staff",
     lead: "Park Lead Johar",
@@ -67,7 +67,7 @@ const LAHORE_PARKS = [
   },
   {
     name: "Gulshan Ravi Park",
-    groups: "2 Halqa Groups",
+    groups: "2 Groups",
     students: "30+ Students",
     staff: "11 Murabbis & Staff",
     lead: "Park Lead Ravi",
@@ -75,7 +75,7 @@ const LAHORE_PARKS = [
   },
   {
     name: "State Life Park",
-    groups: "1 Halqa Group",
+    groups: "1 Group",
     students: "20+ Students",
     staff: "6 Murabbis & Staff",
     lead: "Park Lead State Life",
@@ -248,8 +248,8 @@ export function PublicProgramPage() {
           </Card>
 
           <Card className="bg-slate-900/60 border-white/10 backdrop-blur-xl p-5 rounded-2xl space-y-1">
-            <div className="text-2xl sm:text-3xl font-black text-purple-400">13 Halqas</div>
-            <p className="text-xs text-slate-400 font-bold">Small Group Circles</p>
+            <div className="text-2xl sm:text-3xl font-black text-purple-400">13 Groups</div>
+            <p className="text-xs text-slate-400 font-bold">Small Student Groups</p>
           </Card>
 
           <Card className="bg-slate-900/60 border-white/10 backdrop-blur-xl p-5 rounded-2xl space-y-1">
