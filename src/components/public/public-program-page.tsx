@@ -23,7 +23,8 @@ import {
   Star,
   ExternalLink,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  ChevronRight
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
