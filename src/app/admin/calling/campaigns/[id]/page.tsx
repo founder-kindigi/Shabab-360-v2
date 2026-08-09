@@ -77,8 +77,18 @@ const OUTCOME_STYLES: Record<string, string> = {
   no_answer: "text-red-500",
   busy: "text-amber-500",
   wrong_number: "text-muted-foreground",
-  callback_requested: "text-blue-500",
 };
+
+const STAFF_CALLER_OPTIONS = [
+  { id: "c1", name: "Ikram Meer (Gulberg Lead)" },
+  { id: "c2", name: "Hanzala Tauseef (Gulberg Murabbi)" },
+  { id: "c3", name: "Hasnain Zafar (Tadreeb Lead)" },
+  { id: "c4", name: "Imran Amin (Johar Town Lead)" },
+  { id: "c5", name: "Basit Ahsan (Gulshan Ravi Lead)" },
+  { id: "c6", name: "Abdul Kabeer (State Life Lead)" },
+  { id: "c7", name: "Hammad Raza (Sports Lead)" },
+  { id: "c8", name: "Haseeb Ahmad (Sports Officer)" },
+];
 
 export default function CampaignDetailPage() {
   const params = useParams<{ id: string }>();
@@ -213,12 +223,38 @@ export default function CampaignDetailPage() {
       )}
 
       <Dialog open={assignModal.open} onOpenChange={(v) => !v && setAssignModal({ open: false, leadId: "" })}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Assign Lead</DialogTitle></DialogHeader>
-          <Input placeholder="Caller Staff Meta ID" value={callerId} onChange={(e) => setCallerId(e.target.value)} />
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setAssignModal({ open: false, leadId: "" })}>Cancel</Button>
-            <Button onClick={() => assignMutation.mutate(assignModal.leadId)} disabled={!callerId}>Assign</Button>
+        <DialogContent className="rounded-2xl max-w-md p-6">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-black">Assign Lead to Staff Caller</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-3 py-2">
+            <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Select Murabbi / Caller</label>
+            <Select value={callerId} onValueChange={setCallerId}>
+              <SelectTrigger className="w-full h-11 rounded-xl bg-white dark:bg-slate-900 text-xs font-bold">
+                <SelectValue placeholder="Choose a Murabbi or Staff Caller..." />
+              </SelectTrigger>
+              <SelectContent>
+                {STAFF_CALLER_OPTIONS.map((c) => (
+                  <SelectItem key={c.id} value={c.id} className="text-xs font-medium">
+                    {c.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <DialogFooter className="pt-3 flex gap-2 justify-end">
+            <Button variant="outline" onClick={() => setAssignModal({ open: false, leadId: "" })} className="rounded-xl font-bold">
+              Cancel
+            </Button>
+            <Button
+              onClick={() => assignMutation.mutate(assignModal.leadId)}
+              disabled={!callerId || assignMutation.isPending}
+              className="bg-[#4B0A8F] hover:bg-[#380668] text-white rounded-xl font-bold px-5 shadow-sm"
+            >
+              {assignMutation.isPending ? <Loader2 className="size-4 animate-spin" /> : "Assign Lead"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
