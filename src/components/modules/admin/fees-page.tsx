@@ -78,16 +78,19 @@ const mockKPIs = {
   donationsRecorded: 150000,
 };
 
-const mockStudents = Array.from({ length: 35 }).map((_, i) => ({
-  id: `stu-${i}`,
-  name: `Student Name ${i + 1}`,
-  phone: `+92 300 12345${i.toString().padStart(2, '0')}`,
-  park: "Iqbal Park",
+import rawDatasetJson from "@/lib/import-framework/portal-raw-dataset.json";
+
+const mockStudents = rawDatasetJson.map((r, i) => ({
+  id: `stu-${r.sr}`,
+  name: r.name,
+  phone: r.mobile,
+  park: r.park || "Gulberg Park",
   batch: "Lahore Batch 4",
-  feeTitle: "Monthly Fee - Aug 2026",
-  amount: 1500,
-  status: i % 5 === 0 ? "overdue" : i % 4 === 0 ? "pending" : i % 7 === 0 ? "waived" : "paid",
-  dueDate: "2026-08-10",
+  feeTitle: "Registration Fee",
+  amount: r.paymentAmount > 0 ? r.paymentAmount : 1000,
+  status: r.paymentAmount > 0 ? "paid" : (i % 5 === 0 ? "waived" : r.status === "Approved" ? "paid" : "pending"),
+  dueDate: r.registeredDate ? r.registeredDate.split(" ")[0] : "2026-08-10",
+  receiptNo: `REC-2026-${String(r.sr).padStart(4, "0")}`
 }));
 
 const mockEvents = [

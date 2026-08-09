@@ -100,21 +100,20 @@ const INITIAL_MURABBI_DATA: MurabbiRosterItem[] = [
   { id: "m13", serial: 13, name: "Ameer Hamza", phone: "923247197841", parkName: "Gulberg", roles: ["Sports Officer"], status: "unmarked" },
 ];
 
-const INITIAL_STUDENT_DATA: StudentRosterItem[] = [
-  { id: "s1", serial: 1, name: "Muhammad Umair", phone: "923274088002", ownPhone: false, age: 13, grade: "8th", parkName: "Gulberg", groupName: "Group 1 | Murabbi: Ikram", status: "unmarked" },
-  { id: "s2", serial: 2, name: "Muhammad Ahmad", phone: "", ownPhone: false, age: 13, grade: "8th", parkName: "Gulberg", groupName: "Group 1 | Murabbi: Ikram", status: "unmarked" },
-  { id: "s3", serial: 3, name: "Muhammad Umar", phone: "", ownPhone: false, age: 13, grade: "8th", parkName: "Gulberg", groupName: "Group 1 | Murabbi: Ikram", status: "unmarked" },
-  { id: "s4", serial: 4, name: "Muhammad Shoaib", phone: "", ownPhone: false, age: 13, grade: "8th", parkName: "Gulberg", groupName: "Group 1 | Murabbi: Ikram", status: "unmarked" },
-  { id: "s5", serial: 5, name: "M Abdullah Qureshi", phone: "", ownPhone: false, age: 14, grade: "9th", parkName: "Gulberg", groupName: "Group 1 | Murabbi: Ikram", status: "unmarked" },
-  { id: "s6", serial: 6, name: "M.Moosa", phone: "", ownPhone: false, age: 14, grade: "10th", parkName: "Gulberg", groupName: "Group 1 | Murabbi: Ikram", status: "unmarked" },
-  { id: "s7", serial: 7, name: "Muhammad Abdullah Ahmad", phone: "", ownPhone: false, age: 14, grade: "9th", parkName: "Gulberg", groupName: "Group 1 | Murabbi: Ikram", status: "unmarked" },
-  { id: "s8", serial: 8, name: "Muhammad Yousuf", phone: "", ownPhone: false, age: 14, grade: "9th", parkName: "Gulberg", groupName: "Group 1 | Murabbi: Ikram", status: "unmarked" },
-  { id: "s9", serial: 9, name: "Muhammad Huzaifa Saif", phone: "923234977806", ownPhone: false, age: 14, grade: "9th", parkName: "Gulberg", groupName: "Group 1 | Murabbi: Ikram", status: "unmarked" },
-  { id: "s10", serial: 10, name: "Muhammad Yusha", phone: "923334649728", ownPhone: false, age: 14, grade: "10th", parkName: "Gulberg", groupName: "Group 1 | Murabbi: Ikram", status: "unmarked" },
-  { id: "s11", serial: 11, name: "Muaz Zakariya Majid", phone: "923334349783", ownPhone: false, age: 14, grade: "Hafiz", parkName: "Gulberg", groupName: "Group 1 | Murabbi: Ikram", status: "unmarked" },
-  { id: "s12", serial: 12, name: "Muhammad Shaheer Shamsi", phone: "923004188623", ownPhone: false, age: 14, grade: "9th", parkName: "Gulberg", groupName: "Group 1 | Murabbi: Ikram", status: "unmarked" },
-  { id: "s13", serial: 13, name: "Muhammad Umer Karamat", phone: "923214688055", ownPhone: true, age: 14, grade: "O Level", parkName: "Gulberg", groupName: "Group 1 | Murabbi: Ikram", status: "unmarked" },
-];
+import rawDatasetJson from "@/lib/import-framework/portal-raw-dataset.json";
+
+const INITIAL_STUDENT_DATA: StudentRosterItem[] = rawDatasetJson.map((r, i) => ({
+  id: `s-${r.sr}`,
+  serial: parseInt(r.sr, 10) || (i + 1),
+  name: r.name,
+  phone: r.mobile,
+  ownPhone: false,
+  age: parseInt(r.age, 10) || 14,
+  grade: r.grade || "9th",
+  parkName: r.park ? r.park.replace(" Park", "") : "Gulberg",
+  groupName: "Group 1 | Murabbi: Ikram",
+  status: "unmarked",
+}));
 
 const WHATSAPP_ABSENT_URDU = (name: string, date: string) =>
   `السلام علیکم ${name}! 👋\n\nامید ہے آپ خیریت سے ہوں گے۔ آج (${date}) کے اسپورٹس سیشن میں آپ کی غیر حاضری محسوس کی گئی۔\n\nصحت مند اور فریش ذہن کے لیے کھیل ہماری ترجیح ہے۔ اگلے سیشن میں اپنی شرکت یقینی بنائیں! 🏃‍♂️⚽\n*_ٹیم شباب 360_*`;
