@@ -46,6 +46,13 @@ const FeesPage = lazy(() => import("@/components/modules/admin/fees-page").then(
 const NotificationsPage = lazy(() => import("@/components/modules/admin/notifications-page").then(m => ({ default: m.NotificationsPage })));
 const AdmissionsPage = lazy(() => import("@/components/modules/admin/admissions-page").then(m => ({ default: m.AdmissionsPage })));
 const ContentPlannerPage = lazy(() => import("@/components/modules/admin/content-planner-page").then(m => ({ default: m.ContentPlannerPage })));
+const ProcurementPage = lazy(() => import("@/components/modules/admin/procurement-page").then(m => ({ default: m.ProcurementPage })));
+const GamificationPage = lazy(() => import("@/components/modules/admin/gamification-page").then(m => ({ default: m.GamificationPage })));
+const KnowledgeBasePage = lazy(() => import("@/components/modules/admin/knowledge-base-page").then(m => ({ default: m.KnowledgeBasePage })));
+const SecurityAccessPage = lazy(() => import("@/components/modules/admin/security-access-page").then(m => ({ default: m.SecurityAccessPage })));
+const CertificatesPage = lazy(() => import("@/components/modules/admin/certificates-page").then(m => ({ default: m.CertificatesPage })));
+const PortalImportPage = lazy(() => import("@/components/modules/admin/portal-import-page").then(m => ({ default: m.PortalImportPage })));
+const PublicProgramPage = lazy(() => import("@/components/public/public-program-page").then(m => ({ default: m.PublicProgramPage })));
 const MurabbiDashboard = lazy(() => import("@/components/modules/murabbi/murabbi-dashboard").then(m => ({ default: m.MurabbiDashboard })));
 const MurabbiGroupsPage = lazy(() => import("@/components/modules/murabbi/murabbi-groups-page").then(m => ({ default: m.MurabbiGroupsPage })));
 const ParkDashboard = lazy(() => import("@/components/modules/park/park-dashboard").then(m => ({ default: m.ParkDashboard })));
@@ -129,6 +136,13 @@ const pageTitles: Record<PageId, string> = {
   "admin-admissions": "Admissions",
   "admin-fees": "Fees",
   "admin-content-planner": "Content Planner",
+  "admin-procurement": "Procurement & Stock",
+  "admin-gamification": "Gamification & Leaderboard",
+  "admin-knowledge-base": "Knowledge Base & SOPs",
+  "admin-security-access": "Security & Access",
+  "admin-certificates": "Certificates & Graduation",
+  "admin-portal-import": "Portal Raw Import",
+  "public-program": "Program Showcase",
   "admin-announcements": "Announcements",
   "admin-reports": "Reports",
   "admin-audit-log": "Audit Log",
@@ -271,6 +285,20 @@ function PageContentInner({ pageId }: { pageId: PageId }) {
       return <FeesPage />;
     case "admin-content-planner":
       return <ContentPlannerPage />;
+    case "admin-procurement":
+      return <ProcurementPage />;
+    case "admin-gamification":
+      return <GamificationPage />;
+    case "admin-knowledge-base":
+      return <KnowledgeBasePage />;
+    case "admin-security-access":
+      return <SecurityAccessPage />;
+    case "admin-certificates":
+      return <CertificatesPage />;
+    case "admin-portal-import":
+      return <PortalImportPage />;
+    case "public-program":
+      return <PublicProgramPage />;
     case "admin-events":
       return <EventsPage />;
     case "murabbi-dashboard":
