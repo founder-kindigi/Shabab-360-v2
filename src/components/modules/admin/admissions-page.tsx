@@ -494,23 +494,44 @@ export function AdmissionsPage() {
     },
   });
 
-  const { data: cities } = useQuery<CityOption[]>({
+  const { data: rawCities } = useQuery<any>({
     queryKey: ["cities-select"],
     queryFn: () => fetch("/api/admin/cities").then((r) => r.json()),
     staleTime: 5 * 60 * 1000,
   });
 
-  const { data: parks } = useQuery<ParkOption[]>({
+  const { data: rawParks } = useQuery<any>({
     queryKey: ["parks-select"],
     queryFn: () => fetch("/api/admin/parks").then((r) => r.json()),
     staleTime: 5 * 60 * 1000,
   });
 
-  const { data: groups } = useQuery<GroupOption[]>({
+  const { data: rawGroups } = useQuery<any>({
     queryKey: ["groups-select-all"],
-    queryFn: () => fetch("/api/admin/groups?pageSize=200").then((r) => r.json()).then((d: any) => d.data || d),
+    queryFn: () => fetch("/api/admin/groups?pageSize=200").then((r) => r.json()),
     staleTime: 5 * 60 * 1000,
   });
+
+  const cities: CityOption[] = useMemo(() => {
+    if (Array.isArray(rawCities)) return rawCities;
+    if (Array.isArray(rawCities?.data)) return rawCities.data;
+    if (Array.isArray(rawCities?.cities)) return rawCities.cities;
+    return [];
+  }, [rawCities]);
+
+  const parks: ParkOption[] = useMemo(() => {
+    if (Array.isArray(rawParks)) return rawParks;
+    if (Array.isArray(rawParks?.data)) return rawParks.data;
+    if (Array.isArray(rawParks?.parks)) return rawParks.parks;
+    return [];
+  }, [rawParks]);
+
+  const groups: GroupOption[] = useMemo(() => {
+    if (Array.isArray(rawGroups)) return rawGroups;
+    if (Array.isArray(rawGroups?.data)) return rawGroups.data;
+    if (Array.isArray(rawGroups?.groups)) return rawGroups.groups;
+    return [];
+  }, [rawGroups]);
 
   const { data: selectedDetail, isLoading: detailLoading } = useQuery<Application>({
     queryKey: ["admission-detail", selectedApp?.id],
