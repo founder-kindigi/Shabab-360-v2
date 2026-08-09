@@ -855,7 +855,7 @@ export function AdmissionsPage() {
                   <s.icon className={`size-5 ${s.color}`} />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-2xl font-bold tracking-tight">{isLoading ? <Skeleton className="h-7 w-8" /> : s.value}</p>
+                  <div className="text-2xl font-bold tracking-tight">{isLoading ? <Skeleton className="h-7 w-8" /> : s.value}</div>
                   <p className="text-xs text-muted-foreground truncate">{s.label}</p>
                 </div>
               </CardContent>
