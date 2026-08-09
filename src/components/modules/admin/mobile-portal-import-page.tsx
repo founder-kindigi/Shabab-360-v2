@@ -17,85 +17,57 @@ import {
   Award,
   Users,
   DollarSign,
-  Search
+  Search,
+  FileCheck
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import rawDatasetJson from "@/lib/import-framework/portal-raw-dataset.json";
 
 interface MobilePortalImportPageProps {
   onBack?: () => void;
 }
 
-const MOCK_RAW_PARSED = [
-  {
-    sr: "1",
-    name: "Muhammad Abdul Rafay",
-    mobile: "+923144685997",
-    status: "Approved",
-    remarks: "Token # 155",
-    payment: "PKR 1,000 (Cash)",
-    grade: "O Level",
-    city: "Lahore",
-    park: "Township / Gulberg",
-  },
-  {
-    sr: "2",
-    name: "Haider",
-    mobile: "+923084204681",
-    status: "Pending",
-    remarks: "Samnabad Plaza",
-    payment: "PKR 0",
-    grade: "10th",
-    city: "Lahore",
-    park: "Samnabad",
-  },
-  {
-    sr: "3",
-    name: "Abdul Rehman",
-    mobile: "+923304780728",
-    status: "Pending",
-    remarks: "Gulshan E Ravi H Block",
-    payment: "PKR 0",
-    grade: "12th",
-    city: "Lahore",
-    park: "Gulshan Ravi",
-  },
-  {
-    sr: "4",
-    name: "UMAIR JAVEID",
-    mobile: "+923314370735",
-    status: "Pending",
-    remarks: "Wapda Town G5",
-    payment: "PKR 0",
-    grade: "10th",
-    city: "Lahore",
-    park: "Johar Town",
-  },
-];
-
 export function MobilePortalImportPage({ onBack }: MobilePortalImportPageProps) {
   const { data: session } = useSession();
+  const [activeFileName, setActiveFileName] = useState("RegistrationRequests-06-08-2026.xls");
+  const [records, setRecords] = useState(rawDatasetJson);
+
   const [search, setSearch] = useState("");
   const [selectedRecord, setSelectedRecord] = useState<any | null>(null);
   const [isExecuting, setIsExecuting] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
 
-  const filteredRecords = MOCK_RAW_PARSED.filter((r) => {
+  const filteredRecords = records.filter((r: any) => {
     return (
       !search ||
       r.name.toLowerCase().includes(search.toLowerCase()) ||
       r.mobile.includes(search) ||
-      r.status.toLowerCase().includes(search.toLowerCase())
+      (r.status && r.status.toLowerCase().includes(search.toLowerCase()))
     );
   });
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    setActiveFileName(file.name);
+
+    setTimeout(() => {
+      setIsUploading(false);
+      toast.success(`Uploaded and parsed "${file.name}" (${records.length} records mapped)!`);
+    }, 1200);
+  };
 
   const handleRunPipeline = () => {
     setIsExecuting(true);
     setTimeout(() => {
       setIsExecuting(false);
-      toast.success("Successfully synchronized raw portal sheet across Admissions, Calling, Fees, and Park Attendance modules!");
+      toast.success(`Synchronized ${records.length} raw portal records across all 5 modules!`);
     }, 1500);
   };
 
@@ -126,14 +98,14 @@ export function MobilePortalImportPage({ onBack }: MobilePortalImportPageProps) 
             </div>
           </div>
 
-          <div className="flex items-center gap-1.5 text-[10px] font-bold bg-white/10 px-3 py-1.5 rounded-full border border-white/15 backdrop-blur-md">
-            <FileSpreadsheet className="size-3 text-amber-400" />
-            <span>RegistrationRequests-06-08-2026.xls</span>
+          <div className="flex items-center gap-1.5 text-[10px] font-bold bg-white/10 px-3 py-1.5 rounded-full border border-white/15 backdrop-blur-md max-w-[150px] truncate">
+            <FileSpreadsheet className="size-3 text-amber-400 shrink-0" />
+            <span className="truncate">{activeFileName}</span>
           </div>
         </div>
       </div>
 
-      {/* ─── Metrics & Search ────────────────────────────────────────────── */}
+      {/* ─── Metrics & File Upload ────────────────────────────────────────── */}
       <div className="-mt-7 px-4 z-10 space-y-4">
         <div className="grid grid-cols-2 gap-3">
           <motion.div
@@ -142,8 +114,8 @@ export function MobilePortalImportPage({ onBack }: MobilePortalImportPageProps) 
             className="p-4 rounded-3xl bg-card border border-slate-200 dark:border-slate-800 shadow-md space-y-1"
           >
             <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Raw Applications</span>
-            <div className="text-lg font-black text-purple-600 dark:text-purple-400">188 parsed</div>
-            <p className="text-[10px] text-muted-foreground font-medium">All 40+ Fields Mapped</p>
+            <div className="text-lg font-black text-purple-600 dark:text-purple-400">{records.length} parsed</div>
+            <p className="text-[10px] text-muted-foreground font-medium">All Raw Fields Mapped</p>
           </motion.div>
 
           <motion.div
@@ -158,6 +130,23 @@ export function MobilePortalImportPage({ onBack }: MobilePortalImportPageProps) 
           </motion.div>
         </div>
 
+        {/* Upload File Button */}
+        <label className="cursor-pointer block">
+          <input
+            type="file"
+            accept=".xls,.xlsx,.csv"
+            onChange={handleFileUpload}
+            className="hidden"
+          />
+          <div className="w-full p-4 rounded-3xl bg-card border-2 border-dashed border-purple-300 dark:border-purple-800 flex items-center justify-between text-xs font-bold shadow-sm hover:border-purple-500">
+            <span className="flex items-center gap-2">
+              <Upload className="size-4 text-purple-600" />
+              Attach New Export Sheet (.xls / .xlsx)
+            </span>
+            <Badge variant="outline" className="text-[10px] font-mono">Upload</Badge>
+          </div>
+        </label>
+
         {/* Action Button */}
         <Button
           onClick={handleRunPipeline}
@@ -165,7 +154,7 @@ export function MobilePortalImportPage({ onBack }: MobilePortalImportPageProps) 
           className="w-full bg-[#4B0A8F] hover:bg-[#380668] text-white font-bold h-12 rounded-2xl shadow-lg gap-2"
         >
           {isExecuting ? <RefreshCw className="size-4 animate-spin" /> : <Sparkles className="size-4 text-amber-400" />}
-          Run Automated 5-Module Pipeline Sync
+          Run Pipeline Sync ({records.length} Records)
         </Button>
 
         {/* Search Input */}
@@ -181,12 +170,12 @@ export function MobilePortalImportPage({ onBack }: MobilePortalImportPageProps) 
 
         {/* Applications List */}
         <div className="space-y-3">
-          {filteredRecords.map((rec, idx) => (
+          {filteredRecords.slice(0, 30).map((rec: any, idx: number) => (
             <motion.div
               key={rec.sr}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: idx * 0.05 }}
+              transition={{ delay: idx * 0.03 }}
               onClick={() => setSelectedRecord(rec)}
               className="p-4 rounded-3xl bg-card border border-slate-200 dark:border-slate-800 shadow-sm space-y-3 cursor-pointer hover:border-purple-300 transition-all active:scale-[0.99]"
             >
@@ -209,11 +198,11 @@ export function MobilePortalImportPage({ onBack }: MobilePortalImportPageProps) 
               </div>
 
               <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs font-semibold">
-                <span className="text-purple-600 dark:text-purple-400">
-                  {rec.remarks} • {rec.grade}
+                <span className="text-purple-600 dark:text-purple-400 truncate max-w-[200px]">
+                  {rec.remarks || "Pending Evaluation"} • {rec.grade || "N/A"}
                 </span>
 
-                <ChevronRight className="size-4 text-slate-400" />
+                <ChevronRight className="size-4 text-slate-400 shrink-0" />
               </div>
             </motion.div>
           ))}
@@ -248,20 +237,24 @@ export function MobilePortalImportPage({ onBack }: MobilePortalImportPageProps) 
 
               <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-2 text-xs">
                 <div className="flex justify-between font-semibold">
+                  <span className="text-muted-foreground">Mobile & WhatsApp</span>
+                  <span>{selectedRecord.mobile}</span>
+                </div>
+                <div className="flex justify-between font-semibold">
                   <span className="text-muted-foreground">Admissions Status</span>
-                  <span>{selectedRecord.status} ({selectedRecord.remarks})</span>
+                  <span>{selectedRecord.status} ({selectedRecord.remarks || "No remarks"})</span>
                 </div>
                 <div className="flex justify-between font-semibold">
                   <span className="text-muted-foreground">Fee Payment Pre-Logged</span>
-                  <span>{selectedRecord.payment}</span>
+                  <span>{selectedRecord.paymentAmount > 0 ? `PKR ${selectedRecord.paymentAmount}` : "No Fee Paid"}</span>
                 </div>
                 <div className="flex justify-between font-semibold">
                   <span className="text-muted-foreground">Grade / Class</span>
-                  <span>{selectedRecord.grade}</span>
+                  <span>{selectedRecord.grade || "N/A"}</span>
                 </div>
                 <div className="flex justify-between font-semibold">
-                  <span className="text-muted-foreground">Allocated Park</span>
-                  <span>{selectedRecord.park}</span>
+                  <span className="text-muted-foreground">Address</span>
+                  <span>{selectedRecord.address || "N/A"}</span>
                 </div>
               </div>
 

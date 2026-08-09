@@ -5,6 +5,23 @@ import { z } from "zod";
 import { logAudit } from "@/lib/audit";
 import { analyzePortalRawPipeline, PortalRawRegistrationRow } from "@/lib/import-framework/modules/portal-raw-import";
 import { ProcessedRowResult } from "@/lib/import-framework/types";
+import rawDataset from "@/lib/import-framework/portal-raw-dataset.json";
+
+export async function GET(req: NextRequest) {
+  try {
+    const roleResponse = await requireRole(["super_admin", "program_admin", "city_head"]);
+    if (roleResponse) return roleResponse;
+
+    return NextResponse.json({
+      success: true,
+      totalCount: rawDataset.length,
+      fileName: "RegistrationRequests-06-08-2026.xls",
+      records: rawDataset,
+    });
+  } catch (error) {
+    return NextResponse.json({ error: "Failed to load portal raw dataset" }, { status: 500 });
+  }
+}
 
 const pipelineExecuteSchema = z.object({
   dryRun: z.boolean().default(true),
