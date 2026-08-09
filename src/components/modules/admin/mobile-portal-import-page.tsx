@@ -198,8 +198,8 @@ export function MobilePortalImportPage({ onBack }: MobilePortalImportPageProps) 
               </div>
 
               <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs font-semibold">
-                <span className="text-purple-600 dark:text-purple-400 truncate max-w-[200px]">
-                  {rec.remarks || "Pending Evaluation"} • {rec.grade || "N/A"}
+                <span className="text-purple-600 dark:text-purple-400 truncate max-w-[220px]">
+                  Grade: {rec.grade || "N/A"} • Age: {rec.age ? `${rec.age} yrs` : "N/A"}
                 </span>
 
                 <ChevronRight className="size-4 text-slate-400 shrink-0" />

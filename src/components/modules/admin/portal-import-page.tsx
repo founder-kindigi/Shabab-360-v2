@@ -282,7 +282,8 @@ export function PortalImportPage() {
               <tr>
                 <th className="p-4">Sr. & Date</th>
                 <th className="p-4">Full Name & Mobile</th>
-                <th className="p-4">Grade & Age</th>
+                <th className="p-4">Grade / Class</th>
+                <th className="p-4">Age</th>
                 <th className="p-4">Initial Fee Payment</th>
                 <th className="p-4">Status & Remarks</th>
                 <th className="p-4 text-right">Actions</th>
@@ -300,7 +301,10 @@ export function PortalImportPage() {
                     <span className="text-xs text-purple-600 dark:text-purple-400 font-mono font-medium">{item.mobile}</span>
                   </td>
                   <td className="p-4 text-xs font-semibold text-slate-700 dark:text-slate-300">
-                    {item.grade || "N/A"} {item.age ? `(Age ${item.age})` : ""}
+                    {item.grade || "N/A"}
+                  </td>
+                  <td className="p-4 text-xs font-bold text-slate-900 dark:text-slate-100">
+                    {item.age ? `${item.age} yrs` : "N/A"}
                   </td>
                   <td className="p-4 text-xs font-semibold">
                     {item.paymentAmount > 0 ? (
