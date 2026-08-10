@@ -558,9 +558,9 @@ async function main() {
 
   await db.contentPlan.create({
     data: {
-      cityId: karachi.id,
+      cityId: lahore.id,
       batchId: batch1.id,
-      name: "Master Character Building & Tarbiyah Curriculum 2024-2025",
+      name: "Lahore Batch 4 Shabab Content & Activity Syllabus 2026",
       kind: "template",
       status: "published",
       sessions: {
