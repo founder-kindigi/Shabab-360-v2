@@ -199,7 +199,7 @@ export function FeesPage() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-1 pb-6 space-y-6">
       <PageHeader 
         title="Fees & Financial Management Desk" 
         description="Manage monthly fee collections, digital receipt generation, donor contributions, and park-level financial summaries."

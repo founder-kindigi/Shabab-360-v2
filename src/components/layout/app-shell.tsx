@@ -543,10 +543,9 @@ export function AppShell() {
 
         {/* Page content */}
         <main className="flex-1 overflow-y-auto pb-24 lg:pb-0">
-          <div className="p-4 md:p-6 space-y-4">
+          <div className="px-4 sm:px-6 lg:px-8 py-2 space-y-4">
             {showScopeSelector && <ScopeSelector />}
             {showPageHeader && <PageHeader title={pageTitle} />}
-            {!showPageHeader && !showScopeSelector && <div className="mb-6" />}
             <AnimatePresence mode="wait">
               <motion.div
                 key={currentPage}
