@@ -56,6 +56,7 @@ import {
   Loader2,
   LayoutGrid,
   Table as TableIcon,
+  Activity,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -102,8 +103,11 @@ function cleanString(val: any): string {
   if (typeof val === "object") {
     if (val.result !== undefined && val.result !== null) return cleanString(val.result);
     if (Array.isArray(val.richText)) return val.richText.map((t: any) => t.text || "").join("");
-    if (val.text) return String(val.text);
-    if (val.hyperlink) return String(val.text || val.hyperlink);
+    if (val.text) {
+      if (typeof val.text === "string") return val.text.trim();
+      if (Array.isArray(val.text.richText)) return val.text.richText.map((t: any) => t.text || "").join("");
+    }
+    if (val.hyperlink) return String(val.text || val.hyperlink).trim();
   }
   return "";
 }
@@ -157,7 +161,7 @@ export function ContentPlannerPage() {
   });
 
   // Fetch Content Plans
-  const { data: plansData, isLoading } = useQuery({
+  const { data: plansData } = useQuery({
     queryKey: [
       "admin-content-plans",
       effectiveCityId,
@@ -192,7 +196,7 @@ export function ContentPlannerPage() {
       createdAt: new Date().toISOString(),
       city: { name: "Lahore" },
       batch: { name: "Lahore Batch 4" },
-      _count: { sessions: 93, overrides: 0 },
+      _count: { sessions: 68, overrides: 0 },
     },
     {
       id: "plan-b4-skills",
@@ -329,32 +333,35 @@ export function ContentPlannerPage() {
     return realSyllabus.map((s, idx) => {
       let rawWeek = cleanString(s.week);
       let rawDay = cleanString(s.day);
+      let rawDate = cleanString(s.date);
 
       if (!rawWeek || rawWeek.includes("GMT") || rawWeek.includes("Standard Time")) {
-        rawWeek = `Session ${idx + 1}`;
+        rawWeek = `Week ${Math.ceil((idx + 1) / 2)}`;
       }
       if (!rawDay || rawDay.includes("GMT") || rawDay.includes("Standard Time")) {
-        rawDay = "Saturday";
+        rawDay = `Day ${idx + 1}`;
       }
 
       return {
-        id: `syl-${idx}`,
+        id: s.id || `syl-${idx}`,
         week: rawWeek,
-        date: rawDay,
-        sports: cleanString(s.sports) || "Sports Drills & Physical Warm-up",
-        skills: cleanString(s.skills) || "Youth Competency Module",
-        tadreeb: cleanString(s.tadreeb) || "Tarbiyah & Spiritual Growth",
-        focus: cleanString(s.focus) || "Personal Discipline & Character",
+        day: rawDay,
+        date: rawDate,
+        exercises: cleanString(s.exercises),
+        sports: cleanString(s.sports),
+        skills: cleanString(s.skills),
+        tadreeb: cleanString(s.tadreeb),
+        focus: cleanString(s.focus) || "Youth Development",
       };
     });
   }, [realSyllabus]);
 
   // Team filtered matrix items
   const filteredMatrix = useMemo(() => {
+    if (teamFilter === "exercises") return matrixData.filter((m) => m.exercises && m.exercises.length > 2);
     if (teamFilter === "sports") return matrixData.filter((m) => m.sports && m.sports.length > 2);
     if (teamFilter === "skills") return matrixData.filter((m) => m.skills && m.skills.length > 2);
     if (teamFilter === "tadreeb") return matrixData.filter((m) => m.tadreeb && m.tadreeb.length > 2);
-    if (teamFilter === "focus") return matrixData.filter((m) => m.focus && m.focus.length > 2);
     return matrixData;
   }, [matrixData, teamFilter]);
 
@@ -397,7 +404,7 @@ export function ContentPlannerPage() {
             <div>
               <p className="text-xs font-bold text-muted-foreground">Published Syllabus</p>
               <p className="text-2xl font-black text-slate-900 dark:text-slate-100">{matrixData.length} Items</p>
-              <p className="text-[11px] text-emerald-600 font-bold mt-0.5">8 Weekly Sessions Active</p>
+              <p className="text-[11px] text-emerald-600 font-bold mt-0.5">Extracted directly from B4 Plan</p>
             </div>
             <div className="size-11 rounded-2xl bg-emerald-600/10 flex items-center justify-center text-emerald-600">
               <CalendarDays className="size-6" />
@@ -410,7 +417,7 @@ export function ContentPlannerPage() {
             <div>
               <p className="text-xs font-bold text-muted-foreground">Collaboration Teams</p>
               <p className="text-2xl font-black text-slate-900 dark:text-slate-100">4 Teams</p>
-              <p className="text-[11px] text-blue-600 font-bold mt-0.5">Sports, Skills, Tadreeb, Media</p>
+              <p className="text-[11px] text-blue-600 font-bold mt-0.5">Exercises, Sports, Skills, Tadreeb</p>
             </div>
             <div className="size-11 rounded-2xl bg-blue-600/10 flex items-center justify-center text-blue-600">
               <Layers className="size-6" />
@@ -489,14 +496,14 @@ export function ContentPlannerPage() {
 
                   <div className="flex items-center justify-between text-xs bg-slate-50 dark:bg-slate-900/50 p-3 rounded-xl">
                     <span className="text-muted-foreground font-medium">Session Modules:</span>
-                    <span className="font-bold text-slate-900 dark:text-slate-100">8 Weeks (93 Items)</span>
+                    <span className="font-bold text-slate-900 dark:text-slate-100">68 Extracted Excel Sessions</span>
                   </div>
 
                   <div className="flex items-center gap-2 pt-1">
                     <Button
                       onClick={() => {
                         setActiveTab("matrix");
-                        toast.success("Switched to 8-Week Lahore Batch 4 Syllabus Matrix!");
+                        toast.success("Switched to Lahore Batch 4 Syllabus Matrix!");
                       }}
                       className="flex-1 bg-[#4B0A8F] hover:bg-[#380668] text-white font-bold rounded-xl h-9 text-xs"
                     >
@@ -529,13 +536,13 @@ export function ContentPlannerPage() {
           {/* Team Filter Pills & View Switcher */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-card p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
             <div className="flex items-center gap-2 overflow-x-auto w-full sm:w-auto pb-1 sm:pb-0">
-              <span className="text-xs font-bold text-slate-500 shrink-0 mr-1">Filter Team:</span>
+              <span className="text-xs font-bold text-slate-500 shrink-0 mr-1">View Team Syllabus:</span>
               {[
-                { id: "all", label: "All Teams", icon: Sparkles },
-                { id: "sports", label: "Sports & Fitness", icon: Flame },
-                { id: "skills", label: "Skills Module", icon: Brain },
-                { id: "tadreeb", label: "Tadreeb & Tarbiyah", icon: Heart },
-                { id: "focus", label: "Theme Focus Area", icon: Target },
+                { id: "all", label: "All Categories", icon: Sparkles },
+                { id: "exercises", label: "Exercises & Martial Arts", icon: Activity },
+                { id: "sports", label: "Sports Game", icon: Flame },
+                { id: "skills", label: "Skills Module & Activity", icon: Brain },
+                { id: "tadreeb", label: "Tadreeb & Seerah Topic", icon: Heart },
               ].map((t) => {
                 const IconComponent = t.icon;
                 return (
@@ -591,39 +598,50 @@ export function ContentPlannerPage() {
                     <Card className="rounded-2xl border-0 ring-1 ring-slate-200 dark:ring-slate-800 shadow-sm hover:shadow-md transition-all overflow-hidden h-full flex flex-col justify-between bg-card">
                       <CardHeader className="p-4 pb-2 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex flex-row items-center justify-between">
                         <div>
-                          <span className="text-xs font-black text-[#4B0A8F] tracking-wide">{item.week}</span>
-                          <span className="text-[10px] text-muted-foreground block font-semibold">{item.date}</span>
+                          <span className="text-xs font-black text-[#4B0A8F] tracking-wide">{item.week} • {item.day}</span>
+                          {item.date && <span className="text-[10px] text-muted-foreground block font-semibold">{item.date}</span>}
                         </div>
-                        <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200 text-[10px] font-bold">
-                          {item.focus}
-                        </Badge>
+                        {item.focus && (
+                          <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200 text-[10px] font-bold">
+                            {item.focus}
+                          </Badge>
+                        )}
                       </CardHeader>
 
-                      <CardContent className="p-4 space-y-3.5 text-xs flex-1">
-                        {(teamFilter === "all" || teamFilter === "sports") && (
+                      <CardContent className="p-4 space-y-3 text-xs flex-1">
+                        {(teamFilter === "all" || teamFilter === "exercises") && item.exercises && (
+                          <div className="space-y-1 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200/60 dark:border-slate-800">
+                            <div className="flex items-center gap-1.5 font-bold text-slate-700 dark:text-slate-300">
+                              <Activity className="size-3.5 text-slate-500" /> Exercises & Martial Arts
+                            </div>
+                            <p className="text-slate-800 dark:text-slate-200 font-medium whitespace-pre-line leading-relaxed">{item.exercises}</p>
+                          </div>
+                        )}
+
+                        {(teamFilter === "all" || teamFilter === "sports") && item.sports && (
                           <div className="space-y-1 p-2.5 rounded-xl bg-orange-50/50 dark:bg-orange-950/20 border border-orange-200/50 dark:border-orange-900/30">
                             <div className="flex items-center gap-1.5 font-bold text-orange-700 dark:text-orange-400">
-                              <Flame className="size-3.5 text-orange-500" /> Sports & Fitness
+                              <Flame className="size-3.5 text-orange-500" /> Sports Game
                             </div>
-                            <p className="text-slate-800 dark:text-slate-200 font-medium pl-5 leading-relaxed">{item.sports}</p>
+                            <p className="text-slate-800 dark:text-slate-200 font-bold text-sm leading-relaxed">{item.sports}</p>
                           </div>
                         )}
 
-                        {(teamFilter === "all" || teamFilter === "skills") && (
+                        {(teamFilter === "all" || teamFilter === "skills") && item.skills && (
                           <div className="space-y-1 p-2.5 rounded-xl bg-blue-50/50 dark:bg-blue-950/20 border border-blue-200/50 dark:border-blue-900/30">
                             <div className="flex items-center gap-1.5 font-bold text-blue-700 dark:text-blue-400">
-                              <Brain className="size-3.5 text-blue-500" /> Skills Module
+                              <Brain className="size-3.5 text-blue-500" /> Skills Module & Activity
                             </div>
-                            <p className="text-slate-800 dark:text-slate-200 font-medium pl-5 leading-relaxed">{item.skills}</p>
+                            <p className="text-slate-800 dark:text-slate-200 font-medium whitespace-pre-line leading-relaxed">{item.skills}</p>
                           </div>
                         )}
 
-                        {(teamFilter === "all" || teamFilter === "tadreeb") && (
+                        {(teamFilter === "all" || teamFilter === "tadreeb") && item.tadreeb && (
                           <div className="space-y-1 p-2.5 rounded-xl bg-rose-50/50 dark:bg-rose-950/20 border border-rose-200/50 dark:border-rose-900/30">
                             <div className="flex items-center gap-1.5 font-bold text-rose-700 dark:text-rose-400">
-                              <Heart className="size-3.5 text-rose-500" /> Tadreeb & Tarbiyah
+                              <Heart className="size-3.5 text-rose-500" /> Tadreeb & Seerah Topic
                             </div>
-                            <p className="text-slate-800 dark:text-slate-200 font-medium pl-5 leading-relaxed">{item.tadreeb}</p>
+                            <p className="text-slate-800 dark:text-slate-200 font-medium whitespace-pre-line leading-relaxed">{item.tadreeb}</p>
                           </div>
                         )}
                       </CardContent>
@@ -646,28 +664,24 @@ export function ContentPlannerPage() {
                 <table className="w-full text-left text-sm">
                   <thead className="bg-slate-100/70 dark:bg-slate-800/70 text-slate-700 dark:text-slate-300 text-xs uppercase font-extrabold tracking-wider border-b border-slate-200 dark:border-slate-800">
                     <tr>
-                      <th className="p-3.5 w-28">Week</th>
-                      <th className="p-3.5"><div className="flex items-center gap-1.5"><Flame className="size-4 text-orange-500" /> Sports & Fitness</div></th>
+                      <th className="p-3.5 w-32">Week / Day</th>
+                      <th className="p-3.5"><div className="flex items-center gap-1.5"><Activity className="size-4 text-slate-500" /> Exercises</div></th>
+                      <th className="p-3.5"><div className="flex items-center gap-1.5"><Flame className="size-4 text-orange-500" /> Sports Game</div></th>
                       <th className="p-3.5"><div className="flex items-center gap-1.5"><Brain className="size-4 text-blue-500" /> Skills Module</div></th>
-                      <th className="p-3.5"><div className="flex items-center gap-1.5"><Heart className="size-4 text-rose-500" /> Tadreeb & Tarbiyah</div></th>
-                      <th className="p-3.5"><div className="flex items-center gap-1.5"><Target className="size-4 text-purple-500" /> Theme Focus</div></th>
+                      <th className="p-3.5"><div className="flex items-center gap-1.5"><Heart className="size-4 text-rose-500" /> Tadreeb & Seerah</div></th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-xs font-medium">
                     {filteredMatrix.map((row) => (
-                      <tr key={row.id} className="hover:bg-purple-50/20 dark:hover:bg-purple-950/10 transition-colors">
+                      <tr key={row.id} className="hover:bg-purple-50/20 dark:hover:bg-purple-950/10 transition-colors align-top">
                         <td className="p-3.5 font-bold text-[#4B0A8F]">
-                          <div>{row.week}</div>
-                          <span className="text-[10px] text-muted-foreground font-normal">{row.date}</span>
+                          <div>{row.week} • {row.day}</div>
+                          {row.date && <span className="text-[10px] text-muted-foreground font-normal block">{row.date}</span>}
                         </td>
-                        <td className="p-3.5 font-semibold text-slate-900 dark:text-slate-100">{row.sports}</td>
-                        <td className="p-3.5 font-semibold text-blue-700 dark:text-blue-400">{row.skills}</td>
-                        <td className="p-3.5 font-semibold text-emerald-700 dark:text-emerald-400">{row.tadreeb}</td>
-                        <td className="p-3.5">
-                          <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200 text-[10px] font-bold">
-                            {row.focus}
-                          </Badge>
-                        </td>
+                        <td className="p-3.5 font-medium text-slate-700 dark:text-slate-300 whitespace-pre-line max-w-xs">{row.exercises || "—"}</td>
+                        <td className="p-3.5 font-bold text-orange-700 dark:text-orange-400">{row.sports || "—"}</td>
+                        <td className="p-3.5 font-medium text-blue-700 dark:text-blue-400 whitespace-pre-line max-w-sm">{row.skills || "—"}</td>
+                        <td className="p-3.5 font-medium text-emerald-700 dark:text-emerald-400 whitespace-pre-line max-w-sm">{row.tadreeb || "—"}</td>
                       </tr>
                     ))}
                   </tbody>

@@ -1,8 +1,11 @@
 import runningBatchDataset from "./running-batch-dataset.json";
 
 export interface RunningSyllabusItem {
+  id?: string;
   week: string;
   day: string;
+  date?: string;
+  exercises?: string;
   sports: string;
   skills: string;
   tadreeb: string;

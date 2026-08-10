@@ -1,748 +1,752 @@
 {
   "contentMatrix": [
     {
+      "id": "item-2",
       "week": "Week 1",
       "day": "Day 1",
-      "sports": "Sat May 23 2026 05:00:00 GMT+0500 (Pakistan Standard Time)",
-      "skills": "[object Object]",
-      "tadreeb": "Frisbee",
-      "focus": "[object Object]"
+      "date": "23 May 2026",
+      "exercises": "Warmup:\n1. Light Jumps\n2. Step Jumps\n3. Cross Jumps\n4. Side jumps\n5. Command Jumps\n6. Side leg raises\n7. Butterfly\n8. Push-ups\n\nJoints:\n1. Wrist joints\n2. Foot joints\n\nVideo Link\n\nTime: 40 minutes (5:30 to 6:10 AM)",
+      "sports": "Frisbee",
+      "skills": "\nTopics:\n\n1) Introduce Yourself\n2) How to Introduce Yourself activity for Shabab\n5) Motivation for Next week\n\nProfiling format: https://drive.google.com/file/d/15_v_gb-ibLduy9lbrLfQbOIh_2VeGqNP/view?usp=sharing\n\nDocument with details: https://drive.google.com/file/d/1HYsBrVZiDeq4Kmq0LXUJ6sTDrHSOXJd6/view?usp=sharing\n\nTime: 40 minutes (7:10AM to 7:50AM)",
+      "tadreeb": "Qasas Ul Anbiya # 1:\nHazrat Adam A.S\n\nSummary: \nhttps://drive.google.com/file/d/1-XP6cQ9lYpdJ9qttX1j0pDKkHIWCIEQ1/view?usp=sharing\n\nDetailed Description: https://drive.google.com/file/d/10peK2xZ2kQP__E7bSCR4T9nMCNNqQRca/view?usp=sharing\n\n\nHazrat Nuh A.S\n\nSummary: https://drive.google.com/file/d/10SpNMxwwxyUFkXrAirhJQ-GcfvrsBapR/view\n\nDetailed Description: https://drive.google.com/file/d/109yyaJbRP6-INcHWp3neRSWiuoDdfYhW/view?usp=sharing\nTime: 40 minutes (7:50 to 8:30)",
+      "focus": "Youth Development"
     },
     {
+      "id": "item-3",
       "week": "Week 1",
       "day": "Day 2",
-      "sports": "Sun May 24 2026 05:00:00 GMT+0500 (Pakistan Standard Time)",
-      "skills": "[object Object]",
-      "tadreeb": "Football",
-      "focus": "[object Object]"
+      "date": "24 May 2026",
+      "exercises": "Warmup Complete\n\nJoints:\n- Wrist joints\n- Foot joints\n- knee joints\n- Back joint\n\nVideo Link\n\nTime: 40 minutes (5:30 to 6:10 AM)",
+      "sports": "Football",
+      "skills": "1) Why skills are important?\n2) Relate Skills with Anbiya\n3) Motivation for next week\n4) Ask Shabab to tell each other's names\nActivity: HUMAN KNOT Activity\nVideo link: https://www.youtube.com/watch?v=uvYYqNGemJs\n\nTime: 40 minutes (7:10AM to 7:50AM)",
+      "tadreeb": "Qasas Ul Anbiya # 2:\nHazrat Hud A.S & Hazrat Saleh A.S\n\nSummary: Summary\n\nDetailed Description: Details\n\nTime: 40 minutes (7:50 to 8:30)",
+      "focus": "Youth Development"
     },
     {
+      "id": "item-4",
       "week": "Week 2",
       "day": "Day 3",
-      "sports": "Sat May 30 2026 05:00:00 GMT+0500 (Pakistan Standard Time)",
+      "date": "30 May 2026",
+      "exercises": "OFF DAY (EID)",
+      "sports": "OFF DAY (EID)",
       "skills": "OFF DAY (EID)",
       "tadreeb": "OFF DAY (EID)",
-      "focus": "OFF DAY (EID)"
+      "focus": "Youth Development"
     },
     {
+      "id": "item-5",
       "week": "Week 2",
       "day": "Day 4",
-      "sports": "Sun May 31 2026 05:00:00 GMT+0500 (Pakistan Standard Time)",
-      "skills": "Warmup Complete\n\nJoints:\n- Wrist joints\n- Foot joints\n- knee joints\n- Back joint\n- ELBOW BEND SHOULDER\n- OPEN HAND SHOULDER\n\nTime: 40 minutes (5:30 to 6:10 AM)",
-      "tadreeb": "Football",
-      "focus": "[object Object]"
+      "date": "31 May 2026",
+      "exercises": "Warmup Complete\n\nJoints:\n- Wrist joints\n- Foot joints\n- knee joints\n- Back joint\n- ELBOW BEND SHOULDER\n- OPEN HAND SHOULDER\n\nTime: 40 minutes (5:30 to 6:10 AM)",
+      "sports": "Football",
+      "skills": "Activity: Extempore / Impromptu Speaking Exercise\n\nEssential Skills:\n1) Self Confidence\n2) Speaking & Dawah Capability\n3) Creativity\n4) Observational & descriptive ability\n5) Body Language\n\nMaterial Required:\n1) Paper & Pen to make slips / parchis\n2) Timer\n\nLink for Preparation:\nhttps://drive.google.com/file/d/1zC59H5C3x5iHk6TebxABmOE9Q1XvmG8Y/view?usp=drive_link\n\nTime: 40 minutes (7:10Am to 7:50AM)",
+      "tadreeb": "Revision",
+      "focus": "Youth Development"
     },
     {
+      "id": "item-6",
       "week": "Week 3",
       "day": "Day 5",
-      "sports": "Sat Jun 06 2026 05:00:00 GMT+0500 (Pakistan Standard Time)",
-      "skills": "Warmup Complete\nJoints Complete\n\nCaution / Discipline (Practice):\n- Wistle\n- GET UP\n- Pushup position\n- Sit down style\n- Get up style\n- Lineup\n- Line check\n- Half line check\n- Easy position\n\nMartial Arts:\nSingle hand with single hand\n\nTime: 50 minutes (5:30 to 6:20 AM)",
-      "tadreeb": "Races (Rally / Three leg / Snail)",
-      "focus": "[object Object]"
+      "date": "6 Jun 2026",
+      "exercises": "Warmup Complete\nJoints Complete\n\nCaution / Discipline (Practice):\n- Wistle\n- GET UP\n- Pushup position\n- Sit down style\n- Get up style\n- Lineup\n- Line check\n- Half line check\n- Easy position\n\nMartial Arts:\nSingle hand with single hand\n\nTime: 50 minutes (5:30 to 6:20 AM)",
+      "sports": "Races (Rally / Three leg / Snail)",
+      "skills": "Activity: Agready\nSkill: Focus on Active Listening\n\nhttps://drive.google.com/file/d/10XkeeQb7i6-u-OonWL3782ISGsX7hYZY/view?usp=sharing\n\nhttps://www.youtube.com/watch?v=YG1Z-vINXdo\n\nYoutube Link for this activity\n\nSimon Says ki jaga AgReady kahein\n\nis trah ki kayi saari statements soch kr k rakhein\n\nIsko competitive aese bana sktay hein k, har Shabab apna count maintain karay k kitni ghaltiaan kee usnay, elimination na ho ghalti pe\n\nJiski sab se kam ghaltiaan, wo jeet gaya aur end pe saray groups k top 2 ya top 3 ka competition hojaye\n\nMake it competitive\n\nNeed of Skills\nhttps://drive.google.com/file/d/1RTykjFCunf0eWe9mONEGyNUjPnTR2X9c/view?usp=drivesdk",
+      "tadreeb": "Qasas Ul Anbiya # 3:\nHazrat Ibrahim A.S\n\nSummary: Summary\n\nDetailed Description: Details\n\n\nHazrat Ibrahim A.S & Hazrat Ismail A.S\n\nSummary: Summary\n\nDetailed Description: Details\n\nTime: 40 minutes (7:50 to 8:30)",
+      "focus": "Youth Development"
     },
     {
+      "id": "item-7",
       "week": "Week 3",
       "day": "Day 6",
-      "sports": "Sun Jun 07 2026 05:00:00 GMT+0500 (Pakistan Standard Time)",
-      "skills": "Warmup Complete\nJoints Complete\n\nCaution / Discipline (Practice):\n- Wistle\n- GET UP\n- Pushup position\n- Sit down style\n- Get up style\n- Lineup\n- Line check\n- Half line check\n- Easy position\n\nMartial Arts:\n- Single hand with single hand\n- Single hand with double hand\n\nTime: 50 minutes (5:30 to 6:20 AM)",
-      "tadreeb": "Dodge the ball",
-      "focus": "[object Object]"
+      "date": "7 Jun 2026",
+      "exercises": "Warmup Complete\nJoints Complete\n\nCaution / Discipline (Practice):\n- Wistle\n- GET UP\n- Pushup position\n- Sit down style\n- Get up style\n- Lineup\n- Line check\n- Half line check\n- Easy position\n\nMartial Arts:\n- Single hand with single hand\n- Single hand with double hand\n\nTime: 50 minutes (5:30 to 6:20 AM)",
+      "sports": "Dodge the ball",
+      "skills": "\nTopics:\n\n1) Tips for Murabbi to develop Communication Skill in\nshabab\n2) Activity : Broken Telephone (Chinese Whispers)\n\nDetailed Document: \nhttps://drive.google.com/file/d/1jK74QZazXtjn1VLAWVBUrtqLDqiWGE5B/view?usp=sharing\n\nTime: 40 minutes (6:10Am to 6:50AM)",
+      "tadreeb": "Qasas Ul Anbiya # 4:\nHazrat Lut A.S\n\nSummary: Summary\n\nDetailed Description: Details\n\nHazrat Yusuf A.S\n\nSummary: Summary\n\nDetailed Description: Details\n\nTime: 40 minutes (7:50 to 8:30)",
+      "focus": "Youth Development"
     },
     {
+      "id": "item-8",
       "week": "Week 4",
       "day": "Day 7",
-      "sports": "Sat Jun 13 2026 05:00:00 GMT+0500 (Pakistan Standard Time)",
-      "skills": "- Warmup: (Complete)\n\n- Joints: (Complete)\n\n- Stretching:\n1) Sideways body stretch (1 hand on head and 1 on side waist)\n2) Sideways body stretch (1 hand on head and 1 on back)\n\nTime: 45 minutes (5:30 to 6:15 AM)",
-      "tadreeb": "Martial Arts:\n- Single hand with single hand\n- Single hand with double hand\n- Front neck lock (1st variation)\n\nTime: 45 minutes\n(06:15 to 07:00 AM)",
-      "focus": "[object Object]"
+      "date": "13 Jun 2026",
+      "exercises": "- Warmup: (Complete)\n\n- Joints: (Complete)\n\n- Stretching:\n1) Sideways body stretch (1 hand on head and 1 on side waist)\n2) Sideways body stretch (1 hand on head and 1 on back)\n\nTime: 45 minutes (5:30 to 6:15 AM)",
+      "sports": "Martial Arts:\n- Single hand with single hand\n- Single hand with double hand\n- Front neck lock (1st variation)\n\nTime: 45 minutes\n(06:15 to 07:00 AM)",
+      "skills": "Activity: Mushawarat / Meeting Process & Mushawarat on Tallest Building\nTallaest Building Activity on Next Day (Sunday)\n\nEssential Skills:\n1) Mushawarat / Meeting\n2) Creativity\n3) Consultation\n4) Speaking\n\nMaterial Required:\nList in Sunday's Document (or Park Team can plan themselves)\nKindly use something else instead of marshmallows (No food items to be used for playing activities)\n\nLink for Preparation:\nhttps://drive.google.com/file/d/14CaOTDmbMsEJPuf1QYdsCM2dpEmC-x_n/view?usp=drive_link\n\nTime: 40 minutes (7:10Am to 7:50AM)",
+      "tadreeb": "Qasas Ul Anbiya # 5:\nHazrat Musa A.S - Part 1\n\nSummary: Summary\n\nDetailed Description: Details\n\nHazrat Musa A.S - Part 2\n\nSummary: Summary\n\nDetailed Description: Details\n\nTime: 40 minutes (7:50 to 8:30)",
+      "focus": "Youth Development"
     },
     {
+      "id": "item-9",
       "week": "Week 4",
       "day": "Day 8",
-      "sports": "Sun Jun 14 2026 05:00:00 GMT+0500 (Pakistan Standard Time)",
-      "skills": "- Warmup: (Complete)\n\n- Joints: (Complete)\n\n- Stretching:\n1) Sideways body stretch (1 hand on head and 1 on side waist)\n2) Sideways body stretch (1 hand on head and 1 on back)\n3) Sideways body stretch (1 hand on head and 1 free)\n4) Up / Down [Touch the toe]\n\nTime: 20 minutes (05:30 to 05:50 AM)\n\nMartial Arts:\n- Fighting Stance\n- Front roll\n- Blind sound tracking drill (activity)\n\nTime: 40 minutes\n(05:50 to 06:30 AM)",
-      "tadreeb": "Football\n\nTime: 30 minutes\n(06:30 to 07:00 AM)",
-      "focus": "[object Object]"
+      "date": "14 Jun 2026",
+      "exercises": "- Warmup: (Complete)\n\n- Joints: (Complete)\n\n- Stretching:\n1) Sideways body stretch (1 hand on head and 1 on side waist)\n2) Sideways body stretch (1 hand on head and 1 on back)\n3) Sideways body stretch (1 hand on head and 1 free)\n4) Up / Down [Touch the toe]\n\nTime: 20 minutes (05:30 to 05:50 AM)\n\nMartial Arts:\n- Fighting Stance\n- Front roll\n- Blind sound tracking drill (activity)\n\nTime: 40 minutes\n(05:50 to 06:30 AM)",
+      "sports": "Football\n\nTime: 30 minutes\n(06:30 to 07:00 AM)",
+      "skills": "Activity: Tallest Building\n\nEssential Skills:\n1) Problem Solving & Team work\n2) Collaboration, brainstorming & strategy\n3) Ameer Ki Itaat\n\nMaterial Required:\nList in the document\n\nLink for Preparation:\nhttps://drive.google.com/file/d/1uWIG9EyFDZDQKu_LZIboUVNDLsvkhul2/view?usp=drive_link\n\nTime: 40 minutes (7:10Am to 7:50AM)",
+      "tadreeb": "Qasas Ul Anbiya # 6:\nHazrat Dawud A.S & Hazrat Sulaiman A.S\n\nSummary: Summary\n\nDetailed Description: Details\n\nHazrat ISA  A.S\n\nSummary: Summary\n\nDetailed Description: Details\n\n\nTime: 40 minutes (7:50 to 8:30)",
+      "focus": "Youth Development"
     },
     {
+      "id": "item-10",
       "week": "Week 5",
       "day": "Day 9",
-      "sports": "Sat Jun 20 2026 05:00:00 GMT+0500 (Pakistan Standard Time)",
-      "skills": "- Warmup: (Complete)\n\n- Joints: (Complete)\n\n- Stretching:\n1) Sideways body stretch (1 hand on head and 1 on side waist)\n2) Sideways body stretch (1 hand on head and 1 on back)\n3) Sideways body stretch (1 hand on head and 1 free)\n4) Up / Down [Touch the toe]\n5) Up / Down and bend\n\nTime: 30 minutes (05:30 to 06:00 AM)\n\nMartial Arts:\n- Fighting Stance (Practice)\n- Front roll (5-10)\n\nTime: 30 minutes\n(06:00 to 06:30 AM)",
-      "tadreeb": "Frisbee",
-      "focus": "[object Object]"
+      "date": "20 Jun 2026",
+      "exercises": "- Warmup: (Complete)\n\n- Joints: (Complete)\n\n- Stretching:\n1) Sideways body stretch (1 hand on head and 1 on side waist)\n2) Sideways body stretch (1 hand on head and 1 on back)\n3) Sideways body stretch (1 hand on head and 1 free)\n4) Up / Down [Touch the toe]\n5) Up / Down and bend\n\nTime: 30 minutes (05:30 to 06:00 AM)\n\nMartial Arts:\n- Fighting Stance (Practice)\n- Front roll (5-10)\n\nTime: 30 minutes\n(06:00 to 06:30 AM)",
+      "sports": "Frisbee",
+      "skills": "Activity: Gratitude (Shukr) & Mindfulness & self Reflection - Level 1\n\nEssential Skills:\n1) Gratitude & Shukr\n2) Mindfulness & Focus\n3) Self Reflection\n4) Writing Level 1\n\nMaterial Required:\n1) Notebook or Paper\n2) Pen or pencil\n\nLink for Preparation:\nhttps://drive.google.com/file/d/1p_NYKgLhTyZg-VBEaoW7X5wiGl0tDcGp/view?usp=drive_link\n\nTime: 40 minutes (7:10AM to 7:50AM)",
+      "tadreeb": "Topic: Ashab-e-Kahaf\n\nReading Material: Document \n\nAnnounce Quiz of Module # 1",
+      "focus": "Youth Development"
     },
     {
+      "id": "item-11",
       "week": "Week 5",
       "day": "Day 10",
-      "sports": "Sun Jun 21 2026 05:00:00 GMT+0500 (Pakistan Standard Time)",
-      "skills": "- Warmup: (Complete)\n\n- Joints: (Complete)\n\n- Stretching:\n1) Sideways body stretch (1 hand on head and 1 on side waist)\n2) Sideways body stretch (1 hand on head and 1 on back)\n3) Sideways body stretch (1 hand on head and 1 free)\n4) Up / Down [Touch the toe]\n5) Up / Down and bend\n6) Up / Down and bridge [Hands on back]\n\nTime: 30 minutes (05:30 to 06:00 AM)\n\nMartial Arts:\n- Fighting Stance (Practice)\n- Front roll (5-10)\n\nTime: 30 minutes\n(06:00 to 06:30 AM)",
-      "tadreeb": "Kabaddi",
-      "focus": "[object Object]"
+      "date": "21 Jun 2026",
+      "exercises": "- Warmup: (Complete)\n\n- Joints: (Complete)\n\n- Stretching:\n1) Sideways body stretch (1 hand on head and 1 on side waist)\n2) Sideways body stretch (1 hand on head and 1 on back)\n3) Sideways body stretch (1 hand on head and 1 free)\n4) Up / Down [Touch the toe]\n5) Up / Down and bend\n6) Up / Down and bridge [Hands on back]\n\nTime: 30 minutes (05:30 to 06:00 AM)\n\nMartial Arts:\n- Fighting Stance (Practice)\n- Front roll (5-10)\n\nTime: 30 minutes\n(06:00 to 06:30 AM)",
+      "sports": "Kabaddi",
+      "skills": "Activity: Role Playing Activity : Survival Challenge Scenario\n\nEssential Skills:\n1) Teamwork & Mashawrat\n2) Strategy & Decision Making\n3) Problem Solving Level 1\n\nMaterial Required:\nNone\n\nLink for Preparation:\nhttps://drive.google.com/file/d/17HsKBJ8kw30dJlt4A3LLYC4FulpFCuMn/view?usp=drive_link\n\nTime: 40 minutes (7:10Am to 7:50AM)",
+      "tadreeb": "Quiz",
+      "focus": "Youth Development"
     },
     {
+      "id": "item-12",
       "week": "Week 6",
       "day": "Day 11",
-      "sports": "Sat Jun 27 2026 05:00:00 GMT+0500 (Pakistan Standard Time)",
-      "skills": "- Warmup: (Complete)\n\n- Joints: (Complete)\n\n- Stretching:\n1) Sideways body stretch (1 hand on head and 1 on side waist)\n2) Sideways body stretch (1 hand on head and 1 on back)\n3) Sideways body stretch (1 hand on head and 1 free)\n4) Up / Down [Touch the toe]\n5) Up / Down and bend\n6) Up / Down and bridge [Hands on back]\n7) Side stretch [One hand on knee and One hand on side waist]\n\nTime: 30 minutes (05:30 to 06:00 AM)\n\nMartial Arts:\n- Boxing Stance\n- Dive roll\n\nTime: 30 minutes\n(06:00 to 06:30 AM)",
-      "tadreeb": "Dodge the ball",
-      "focus": "[object Object]"
+      "date": "27 Jun 2026",
+      "exercises": "- Warmup: (Complete)\n\n- Joints: (Complete)\n\n- Stretching:\n1) Sideways body stretch (1 hand on head and 1 on side waist)\n2) Sideways body stretch (1 hand on head and 1 on back)\n3) Sideways body stretch (1 hand on head and 1 free)\n4) Up / Down [Touch the toe]\n5) Up / Down and bend\n6) Up / Down and bridge [Hands on back]\n7) Side stretch [One hand on knee and One hand on side waist]\n\nTime: 30 minutes (05:30 to 06:00 AM)\n\nMartial Arts:\n- Boxing Stance\n- Dive roll\n\nTime: 30 minutes\n(06:00 to 06:30 AM)",
+      "sports": "Dodge the ball",
+      "skills": "Activity: Active Listening Level 2 + Speed Networking Activity\n\nEssential Skills:\n1) Active Listening\n2) Communication Skill\n\nIslamic traits/skills:\n1) Respect (Ihtiram)\n2) Patience (Sabr)\n3) Good Manners (Husn al-Khulq)\n\nMaterial Required:\nNone\n\nLink for Preparation: Skills_Lesson_11 - Active Listening + Speed Networking.pdf\n\nTime: 25 minutes",
+      "tadreeb": "",
+      "focus": "Youth Development"
     },
     {
+      "id": "item-13",
       "week": "Week 6",
       "day": "Day 12",
-      "sports": "Sun Jun 28 2026 05:00:00 GMT+0500 (Pakistan Standard Time)",
+      "date": "28 Jun 2026",
+      "exercises": "SWIMMING + NASHTA EVENT",
+      "sports": "SWIMMING + NASHTA EVENT",
       "skills": "SWIMMING + NASHTA EVENT",
       "tadreeb": "SWIMMING + NASHTA EVENT",
-      "focus": "SWIMMING + NASHTA EVENT"
+      "focus": "Youth Development"
     },
     {
+      "id": "item-14",
       "week": "Week 7",
       "day": "Day 13",
-      "sports": "Sat Jul 04 2026 05:00:00 GMT+0500 (Pakistan Standard Time)",
-      "skills": "- Warmup: (Complete)\n\n- Joints: (Complete)\n\n- Stretching:\n1) Sideways body stretch (1 hand on head and 1 on side waist)\n2) Sideways body stretch (1 hand on head and 1 on back)\n3) Sideways body stretch (1 hand on head and 1 free)\n4) Up / Down [Touch the toe]\n5) Up / Down and bend\n6) Up / Down and bridge [Hands on back]\n7) Side stretch [One hand on knee and One hand on side waist]\n8) Side stretch [Both hands on knee]\n\nTime: 30 minutes (05:30 to 06:00 AM)\n\nMartial Arts:\n- Boxing Stance (Practice)\n- Dive roll (5-10)\n\nTime: 30 minutes\n(06:00 to 06:30 AM)",
-      "tadreeb": "Races (Rally / Three leg / Snail / Carry Partner / Wheelbarrow)",
-      "focus": "[object Object]"
+      "date": "4 Jul 2026",
+      "exercises": "- Warmup: (Complete)\n\n- Joints: (Complete)\n\n- Stretching:\n1) Sideways body stretch (1 hand on head and 1 on side waist)\n2) Sideways body stretch (1 hand on head and 1 on back)\n3) Sideways body stretch (1 hand on head and 1 free)\n4) Up / Down [Touch the toe]\n5) Up / Down and bend\n6) Up / Down and bridge [Hands on back]\n7) Side stretch [One hand on knee and One hand on side waist]\n8) Side stretch [Both hands on knee]\n\nTime: 30 minutes (05:30 to 06:00 AM)\n\nMartial Arts:\n- Boxing Stance (Practice)\n- Dive roll (5-10)\n\nTime: 30 minutes\n(06:00 to 06:30 AM)",
+      "sports": "Races (Rally / Three leg / Snail / Carry Partner / Wheelbarrow)",
+      "skills": "Activity: Purpose Of Life\n\nEssential Skills:\nCritical Thinking\nSelf Awareness\n\nLink For Preparation:\nhttps://drive.google.com/file/d/1sQtYtkPgmADTEm9nLYOpvbmLfq9CTBoW/view?usp=drivesdk",
+      "tadreeb": "Revision",
+      "focus": "Youth Development"
     },
     {
+      "id": "item-15",
       "week": "Week 7",
       "day": "Day 14",
-      "sports": "Sun Jul 05 2026 05:00:00 GMT+0500 (Pakistan Standard Time)",
-      "skills": "- Warmup: (Complete)\n\n- Joints: (Complete)\n\n- Stretching:\n1) Sideways body stretch (1 hand on head and 1 on side waist)\n2) Sideways body stretch (1 hand on head and 1 on back)\n3) Sideways body stretch (1 hand on head and 1 free)\n4) Up / Down [Touch the toe]\n5) Up / Down and bend\n6) Up / Down and bridge [Hands on back]\n7) Side stretch [One hand on knee and One hand on side waist]\n8) Side stretch [Both hands on knee]\n9) Touch one foot with opposite hand at a time\n\nTime: 30 minutes (05:30 to 06:00 AM)\n\nMartial Arts:\n- Fighting Stance (Practice)\n- Boxing Stance (Practice)\n- Front roll (5-10)\n- Dive roll (5-10)\n\nTime: 30 minutes\n(06:00 to 06:30 AM)",
-      "tadreeb": "Football",
-      "focus": "[object Object]"
+      "date": "5 Jul 2026",
+      "exercises": "- Warmup: (Complete)\n\n- Joints: (Complete)\n\n- Stretching:\n1) Sideways body stretch (1 hand on head and 1 on side waist)\n2) Sideways body stretch (1 hand on head and 1 on back)\n3) Sideways body stretch (1 hand on head and 1 free)\n4) Up / Down [Touch the toe]\n5) Up / Down and bend\n6) Up / Down and bridge [Hands on back]\n7) Side stretch [One hand on knee and One hand on side waist]\n8) Side stretch [Both hands on knee]\n9) Touch one foot with opposite hand at a time\n\nTime: 30 minutes (05:30 to 06:00 AM)\n\nMartial Arts:\n- Fighting Stance (Practice)\n- Boxing Stance (Practice)\n- Front roll (5-10)\n- Dive roll (5-10)\n\nTime: 30 minutes\n(06:00 to 06:30 AM)",
+      "sports": "Football",
+      "skills": "Activity:\nThe Landmark Quest: Collaborative Scavenger Hunt in the Park\n\nEssential Skills:\n1) Strategic Thinking\n2) Positive Behaviour & Sportsmanship\n\nIslamic traits/skills:\n1) Cooperation and Brotherhood (Ukhuwwah)\n2) Problem-Solving and Reflection (Tafakkur)\n3) Leadership (Imamah)\n\nMaterial Required:\nNone\n\nLink for Preparation:\nhttps://drive.google.com/file/d/1JLnzh93r8Zu4MrfS-8xJxmNwl6nmEhFH/view?usp=sharing\n\nTime: 40 minutes",
+      "tadreeb": "QUIZ",
+      "focus": "Youth Development"
     },
     {
+      "id": "item-16",
       "week": "Week 8",
       "day": "Day 15",
-      "sports": "Sat Jul 11 2026 05:00:00 GMT+0500 (Pakistan Standard Time)",
+      "date": "11 Jul 2026",
+      "exercises": "OFF DAY",
+      "sports": "OFF DAY",
       "skills": "OFF DAY",
       "tadreeb": "OFF DAY",
-      "focus": "OFF DAY"
+      "focus": "Youth Development"
     },
     {
+      "id": "item-17",
       "week": "Week 8",
       "day": "Day 16",
-      "sports": "Sun Jul 12 2026 05:00:00 GMT+0500 (Pakistan Standard Time)",
-      "skills": "- Warmup: (Complete)\n\n- Joints: (Complete)\n\n- Stretching:\n1) Sideways body stretch (1 hand on head and 1 on side waist)\n2) Sideways body stretch (1 hand on head and 1 on back)\n3) Sideways body stretch (1 hand on head and 1 free)\n4) Up / Down [Touch the toe]\n5) Up / Down and bend\n6) Up / Down and bridge [Hands on back]\n7) Side stretch [One hand on knee and One hand on side waist]\n8) Side stretch [Both hands on knee]\n9) Touch one foot with opposite hand at a time\n\nTime: 30 minutes (05:30 to 06:00 AM)\n\nMartial Arts:\n- Boxing Stance (Practice)\n- Front roll / Dive roll (Practice)\n- Jab, cross\n\nTime: 30 minutes\n(06:00 to 06:30 AM)",
+      "date": "12 Jul 2026",
+      "exercises": "- Warmup: (Complete)\n\n- Joints: (Complete)\n\n- Stretching:\n1) Sideways body stretch (1 hand on head and 1 on side waist)\n2) Sideways body stretch (1 hand on head and 1 on back)\n3) Sideways body stretch (1 hand on head and 1 free)\n4) Up / Down [Touch the toe]\n5) Up / Down and bend\n6) Up / Down and bridge [Hands on back]\n7) Side stretch [One hand on knee and One hand on side waist]\n8) Side stretch [Both hands on knee]\n9) Touch one foot with opposite hand at a time\n\nTime: 30 minutes (05:30 to 06:00 AM)\n\nMartial Arts:\n- Boxing Stance (Practice)\n- Front roll / Dive roll (Practice)\n- Jab, cross\n\nTime: 30 minutes\n(06:00 to 06:30 AM)",
+      "sports": "Can play any sports according to park level interest (Dodgeball / Football / Cricket / Races) /\nManage breakfast at park level /\nCover tadreeb if any topic remaining else focus on bonding with shabab",
+      "skills": "Can play any sports according to park level interest (Dodgeball / Football / Cricket / Races) /\nManage breakfast at park level /\nCover tadreeb if any topic remaining else focus on bonding with shabab",
       "tadreeb": "Can play any sports according to park level interest (Dodgeball / Football / Cricket / Races) /\nManage breakfast at park level /\nCover tadreeb if any topic remaining else focus on bonding with shabab",
-      "focus": "Can play any sports according to park level interest (Dodgeball / Football / Cricket / Races) /\nManage breakfast at park level /\nCover tadreeb if any topic remaining else focus on bonding with shabab"
+      "focus": "Youth Development"
     },
     {
+      "id": "item-18",
       "week": "Week 9",
       "day": "Day 17",
-      "sports": "Sat Jul 18 2026 05:00:00 GMT+0500 (Pakistan Standard Time)",
-      "skills": "- Warmup: (Complete)\n\n- Joints: (Complete)\n\n- Stretching:\n1) Sideways body stretch (1 hand on head and 1 on side waist)\n2) Sideways body stretch (1 hand on head and 1 on back)\n3) Sideways body stretch (1 hand on head and 1 free)\n4) Up / Down [Touch the toe]\n5) Up / Down and bend\n6) Up / Down and bridge [Hands on back]\n7) Side stretch [One hand on knee and One hand on side waist]\n8) Side stretch [Both hands on knee]\n9) Touch one foot with opposite hand at a time\n10) Stretching kick\n\nTime: 30 minutes (05:30 to 06:00 AM)\n\nMartial Arts:\n- Boxing Stance (Practice)\n- Front roll / Dive roll (Practice)\n- Jab, cross\n\nTime: 30 minutes\n(06:00 to 06:30 AM)",
-      "tadreeb": "Frisbee",
-      "focus": "[object Object]"
+      "date": "18 Jul 2026",
+      "exercises": "- Warmup: (Complete)\n\n- Joints: (Complete)\n\n- Stretching:\n1) Sideways body stretch (1 hand on head and 1 on side waist)\n2) Sideways body stretch (1 hand on head and 1 on back)\n3) Sideways body stretch (1 hand on head and 1 free)\n4) Up / Down [Touch the toe]\n5) Up / Down and bend\n6) Up / Down and bridge [Hands on back]\n7) Side stretch [One hand on knee and One hand on side waist]\n8) Side stretch [Both hands on knee]\n9) Touch one foot with opposite hand at a time\n10) Stretching kick\n\nTime: 30 minutes (05:30 to 06:00 AM)\n\nMartial Arts:\n- Boxing Stance (Practice)\n- Front roll / Dive roll (Practice)\n- Jab, cross\n\nTime: 30 minutes\n(06:00 to 06:30 AM)",
+      "sports": "Frisbee",
+      "skills": "Activity:\n7 stones also known as Pithu gol garam\n\nLink for Preparation:\nhttps://drive.google.com/file/d/1DYVCkPyz8n_vtyb4ZxDSFTdj-cIxs1wR/view?usp=sharing",
+      "tadreeb": "",
+      "focus": "Youth Development"
     },
     {
+      "id": "item-19",
       "week": "Week 9",
       "day": "Day 18",
-      "sports": "Sun Jul 19 2026 05:00:00 GMT+0500 (Pakistan Standard Time)",
-      "skills": "- Warmup: (Complete)\n\n- Joints: (Complete)\n\n- Stretching:\n1) Sideways body stretch (1 hand on head and 1 on side waist)\n2) Sideways body stretch (1 hand on head and 1 on back)\n3) Sideways body stretch (1 hand on head and 1 free)\n4) Up / Down [Touch the toe]\n5) Up / Down and bend\n6) Up / Down and bridge [Hands on back]\n7) Side stretch [One hand on knee and One hand on side waist]\n8) Side stretch [Both hands on knee]\n9) Touch one foot with opposite hand at a time\n10) Stretching kick\n11) Balance on heels\n\nTime: 30 minutes (05:30 to 06:00 AM)\n\nMartial Arts:\n- Boxing Stance (Practice)\n- Front roll / Dive roll (Practice)\n- Jab, cross\n\nTime: 30 minutes\n(06:00 to 06:30 AM)",
-      "tadreeb": "Kabaddi",
-      "focus": "Activity: \nChinese wisper with actions\n\nSkill: \nFocus on importance of observation and its required\n\nResource: \nDownload Guess Up App and disable internet during activity to avoid unwanted ads\nYou can pick challenge from different Decks i.e \"Act It Out\", \"Objects\" etc "
+      "date": "19 Jul 2026",
+      "exercises": "- Warmup: (Complete)\n\n- Joints: (Complete)\n\n- Stretching:\n1) Sideways body stretch (1 hand on head and 1 on side waist)\n2) Sideways body stretch (1 hand on head and 1 on back)\n3) Sideways body stretch (1 hand on head and 1 free)\n4) Up / Down [Touch the toe]\n5) Up / Down and bend\n6) Up / Down and bridge [Hands on back]\n7) Side stretch [One hand on knee and One hand on side waist]\n8) Side stretch [Both hands on knee]\n9) Touch one foot with opposite hand at a time\n10) Stretching kick\n11) Balance on heels\n\nTime: 30 minutes (05:30 to 06:00 AM)\n\nMartial Arts:\n- Boxing Stance (Practice)\n- Front roll / Dive roll (Practice)\n- Jab, cross\n\nTime: 30 minutes\n(06:00 to 06:30 AM)",
+      "sports": "Kabaddi",
+      "skills": "Activity: \nChinese wisper with actions\n\nSkill: \nFocus on importance of observation and its required\n\nResource: \nDownload Guess Up App and disable internet during activity to avoid unwanted ads\nYou can pick challenge from different Decks i.e \"Act It Out\", \"Objects\" etc ",
+      "tadreeb": "",
+      "focus": "Youth Development"
     },
     {
+      "id": "item-20",
       "week": "Week 10",
       "day": "Day 19",
-      "sports": "Sat Jul 25 2026 05:00:00 GMT+0500 (Pakistan Standard Time)",
-      "skills": "- Warmup: (Complete)\n\n- Joints: (Complete)\n\n- Stretching: (Complete)\n\nTime: 30 minutes (05:30 to 06:00 AM)\n\nMartial Arts: (Phase 01)\n- Jab, cross (Practice)\n- Front Kick\n\nMartial Arts: (Phase 02)\n- Fighting Stance\n\nTime: 30 minutes\n(06:00 to 06:30 AM)",
-      "tadreeb": "Football",
-      "focus": "[object Object]"
+      "date": "25 Jul 2026",
+      "exercises": "- Warmup: (Complete)\n\n- Joints: (Complete)\n\n- Stretching: (Complete)\n\nTime: 30 minutes (05:30 to 06:00 AM)\n\nMartial Arts: (Phase 01)\n- Jab, cross (Practice)\n- Front Kick\n\nMartial Arts: (Phase 02)\n- Fighting Stance\n\nTime: 30 minutes\n(06:00 to 06:30 AM)",
+      "sports": "Football",
+      "skills": "Activity:\nIntroduce Yourself : Communication / Speaking Activity : LEVEL 2\n\nSkills:\n- Communication - Speaking\n- Stage Confidence\n- Self Introduction\n- Preparation for University\n- Dawah Skills, Daeee Osaaf\n\nLink for Preparation:\nhttps://drive.google.com/file/d/1vJDzxXiKySBbWPf05QiHf9F3kmQaTs6x/view?usp=sharing\n\nTime: 40 minutes",
+      "tadreeb": "Importance of Seerat\nSeerat Un Nabi Ki Zaroorat o Ahmiyat",
+      "focus": "Youth Development"
     },
     {
+      "id": "item-21",
       "week": "Week 10",
       "day": "Day 20",
-      "sports": "Sun Jul 26 2026 05:00:00 GMT+0500 (Pakistan Standard Time)",
-      "skills": "- Warmup: (Complete)\n\n- Joints: (Complete)\n\n- Stretching: (Complete)\n\nTime: 30 minutes (05:30 to 06:00 AM)\n\nMartial Arts: (Phase 01)\n- Jab, cross (Practice)\n- Front Kick (Practice)\n- Side Roll\n\nMartial Arts: (Phase 02)\n- Fighting Stance (Practice)\n- Front roll\n\nTime: 30 minutes\n(06:00 to 06:30 AM)",
-      "tadreeb": "Dodge the ball",
-      "focus": "[object Object]"
+      "date": "26 Jul 2026",
+      "exercises": "- Warmup: (Complete)\n\n- Joints: (Complete)\n\n- Stretching: (Complete)\n\nTime: 30 minutes (05:30 to 06:00 AM)\n\nMartial Arts: (Phase 01)\n- Jab, cross (Practice)\n- Front Kick (Practice)\n- Side Roll\n\nMartial Arts: (Phase 02)\n- Fighting Stance (Practice)\n- Front roll\n\nTime: 30 minutes\n(06:00 to 06:30 AM)",
+      "sports": "Dodge the ball",
+      "skills": "Activity: \nBlind-Fold Trust Building Activity \n\nMaterials Needed:\n- Obstacles / cones\n- Items to pick: e.g: Ball(s)\n\n\nEssential Skills:\n- Interpersonal Skill(s):\n    - Active Listening\n    - Empathy\n    - Clarity and Conciseness\n    - Nonverbal Communication\n    - Constructive Feedback\n\n\nIslamic traits/skills:\n1) Sabr\n2) Trust (tawakkul)\n3) Consultation ( Mashwara)\n\nLink for Preparation: \nhttps://docs.google.com/document/d/1NW5Es7yqZ4QowSdkdIi1JZ76RjhRcFjiV4-SK5vzK1A/edit?usp=sharing\n\nTime: 40 minutes",
+      "tadreeb": "Revision Topics: \nWhy we need to study seerat?\nWhat should we add in our daily routine?\n\nhttps://drive.google.com/file/d/13hXsYMgOZjarct1UVZK0xSuxI2uMmeiz/view?usp=sharing\n\nCurrent class Topic(s): زمانہ جاہلیت\nSummary\n\nReading Material: https://drive.google.com/file/d/15XYv1b7yWyy7AWgls-auhvEib8mveOIy/view?usp=sharing",
+      "focus": "Youth Development"
     },
     {
+      "id": "item-22",
       "week": "Week 11",
       "day": "Day 21",
-      "sports": "Sat Aug 01 2026 05:00:00 GMT+0500 (Pakistan Standard Time)",
-      "skills": "- Warmup: (Complete)\n\n- Joints: (Complete)\n\n- Stretching: (Complete)\n\nTime: 30 minutes (05:30 to 06:00 AM)\n\nMartial Arts: (Phase 01)\n- Front Kick (100 each side 50 kicks)\n- Side Roll (Practice)\n\nMartial Arts: (Phase 02)\n- Fighting Stance (Practice)\n- Front roll (Practice)\n\nTime: 30 minutes\n(06:00 to 06:30 AM)",
-      "tadreeb": "Kabaddi",
-      "focus": "Activity: \nWrite a letter to Prophet Muhammad (Sallalahu Alihi Wasallam). \nWrite anything you want to talk Him about, express your feelings in this letter.\n\nMaterial Required:\n- Pen and notebook. \n\nInstructions:\nTell Shabab to keep this letter to themselves.\nShabab can show this letter to Murabbi if he wants, but Murabbi should not share it with others unless Shabab agrees.\n"
+      "date": "1 Aug 2026",
+      "exercises": "- Warmup: (Complete)\n\n- Joints: (Complete)\n\n- Stretching: (Complete)\n\nTime: 30 minutes (05:30 to 06:00 AM)\n\nMartial Arts: (Phase 01)\n- Front Kick (100 each side 50 kicks)\n- Side Roll (Practice)\n\nMartial Arts: (Phase 02)\n- Fighting Stance (Practice)\n- Front roll (Practice)\n\nTime: 30 minutes\n(06:00 to 06:30 AM)",
+      "sports": "Kabaddi",
+      "skills": "Activity: \nWrite a letter to Prophet Muhammad (Sallalahu Alihi Wasallam). \nWrite anything you want to talk Him about, express your feelings in this letter.\n\nMaterial Required:\n- Pen and notebook. \n\nInstructions:\nTell Shabab to keep this letter to themselves.\nShabab can show this letter to Murabbi if he wants, but Murabbi should not share it with others unless Shabab agrees.\n",
+      "tadreeb": "current class Topic(s): \nQuom-e-Arab (قومِ عرب)\nBefore birth (ما قُبلِ ولادت)\n\nUstad g Lecture 1: Seerah Lecture 1\nUstad g Lecture 2: Seerah Lecture 2\n\nSummary: \nQuom-e-Arab: https://drive.google.com/file/d/13kE4judyjQ72iKDeEpbmNHtKsoam5NAR/view?usp=sharing\n\nBefore Birth: https://drive.google.com/file/d/14OP_Gvcg8OF7-1mfL5GZpy3m4Zqx3Ysq/view?usp=sharing\n\nReading Material: \nQuom-e-Arab: https://drive.google.com/file/d/15WKnbfESBpc2SfUc4yfnZMU7u4Ymrd7y/view?usp=sharing\n\nBefore Birth: https://drive.google.com/file/d/15WKfS6_pNq0iv3jlRTujmq7MfwyTocNx/view?usp=sharing\n",
+      "focus": "Youth Development"
     },
     {
+      "id": "item-23",
       "week": "Week 11",
       "day": "Day 22",
-      "sports": "Sun Aug 02 2026 05:00:00 GMT+0500 (Pakistan Standard Time)",
-      "skills": "- Warmup: (Complete)\n\n- Joints: (Complete)\n\n- Stretching: (Complete)\n\nTime: 30 minutes (05:30 to 06:00 AM)\n\nMartial Arts: (Phase 01)\n- Front Kick (100 each side 50 kicks)\n- Side Roll (Practice)\n- Side Fall off (25 each side)\n\nMartial Arts: (Phase 02)\n- Fighting Stance (Practice)\n- Front roll (Practice)\n- Boxing Stance\n\nTime: 30 minutes\n(06:00 to 06:30 AM)",
-      "tadreeb": "Football",
-      "focus": "Activity: \nBalance Balloons on Foot"
+      "date": "2 Aug 2026",
+      "exercises": "- Warmup: (Complete)\n\n- Joints: (Complete)\n\n- Stretching: (Complete)\n\nTime: 30 minutes (05:30 to 06:00 AM)\n\nMartial Arts: (Phase 01)\n- Front Kick (100 each side 50 kicks)\n- Side Roll (Practice)\n- Side Fall off (25 each side)\n\nMartial Arts: (Phase 02)\n- Fighting Stance (Practice)\n- Front roll (Practice)\n- Boxing Stance\n\nTime: 30 minutes\n(06:00 to 06:30 AM)",
+      "sports": "Football",
+      "skills": "Activity: \nBalance Balloons on Foot",
+      "tadreeb": "1. Wiladat o Razaat\n2. Shaq-e-Sadar + Bachpan\n\nUstad g Lecture 3: Seerat Lecture video\nUstad g Lecture 4: Seerat Lecture video\n\nSummary:\nWiladat o Razaat\nShaq-e-Sadar + Bachpan\n\nReading Material:\nWiladat o Razaat\nShaq-e-Sadar + Bachpan",
+      "focus": "Youth Development"
     },
     {
+      "id": "item-24",
       "week": "Week 12",
       "day": "Day 23",
-      "sports": "Sat Aug 08 2026 05:00:00 GMT+0500 (Pakistan Standard Time)",
+      "date": "8 Aug 2026",
+      "exercises": "",
+      "sports": "",
       "skills": "",
       "tadreeb": "",
-      "focus": ""
+      "focus": "Youth Development"
     },
     {
+      "id": "item-25",
       "week": "Week 12",
       "day": "Day 24",
-      "sports": "Sun Aug 09 2026 05:00:00 GMT+0500 (Pakistan Standard Time)",
+      "date": "9 Aug 2026",
+      "exercises": "",
+      "sports": "",
       "skills": "",
       "tadreeb": "",
-      "focus": ""
+      "focus": "Youth Development"
     },
     {
+      "id": "item-26",
       "week": "Week 13",
       "day": "Day 25",
-      "sports": "Sat Aug 15 2026 05:00:00 GMT+0500 (Pakistan Standard Time)",
+      "date": "15 Aug 2026",
+      "exercises": "",
+      "sports": "",
       "skills": "",
       "tadreeb": "",
-      "focus": ""
+      "focus": "Youth Development"
     },
     {
+      "id": "item-27",
       "week": "Week 13",
       "day": "Day 26",
-      "sports": "Sun Aug 16 2026 05:00:00 GMT+0500 (Pakistan Standard Time)",
+      "date": "16 Aug 2026",
+      "exercises": "",
+      "sports": "",
       "skills": "",
       "tadreeb": "",
-      "focus": ""
+      "focus": "Youth Development"
     },
     {
+      "id": "item-28",
       "week": "Week 14",
       "day": "Day 27",
-      "sports": "Sat Aug 22 2026 05:00:00 GMT+0500 (Pakistan Standard Time)",
+      "date": "22 Aug 2026",
+      "exercises": "",
+      "sports": "",
       "skills": "",
       "tadreeb": "",
-      "focus": ""
+      "focus": "Youth Development"
     },
     {
+      "id": "item-29",
       "week": "Week 14",
       "day": "Day 28",
-      "sports": "Sun Aug 23 2026 05:00:00 GMT+0500 (Pakistan Standard Time)",
+      "date": "23 Aug 2026",
+      "exercises": "",
+      "sports": "",
       "skills": "",
       "tadreeb": "",
-      "focus": ""
+      "focus": "Youth Development"
     },
     {
+      "id": "item-30",
       "week": "Week 15",
       "day": "Day 29",
-      "sports": "Sat Aug 29 2026 05:00:00 GMT+0500 (Pakistan Standard Time)",
+      "date": "29 Aug 2026",
+      "exercises": "",
+      "sports": "",
       "skills": "",
       "tadreeb": "",
-      "focus": ""
+      "focus": "Youth Development"
     },
     {
+      "id": "item-31",
       "week": "Week 15",
       "day": "Day 30",
-      "sports": "Sun Aug 30 2026 05:00:00 GMT+0500 (Pakistan Standard Time)",
+      "date": "30 Aug 2026",
+      "exercises": "",
+      "sports": "",
       "skills": "",
       "tadreeb": "",
-      "focus": ""
+      "focus": "Youth Development"
     },
     {
+      "id": "item-32",
       "week": "Week 16",
       "day": "Day 31",
-      "sports": "Sat Sep 05 2026 05:00:00 GMT+0500 (Pakistan Standard Time)",
+      "date": "5 Sept 2026",
+      "exercises": "",
+      "sports": "",
       "skills": "",
       "tadreeb": "",
-      "focus": ""
+      "focus": "Youth Development"
     },
     {
+      "id": "item-33",
       "week": "Week 16",
       "day": "Day 32",
-      "sports": "Sun Sep 06 2026 05:00:00 GMT+0500 (Pakistan Standard Time)",
+      "date": "6 Sept 2026",
+      "exercises": "",
+      "sports": "",
       "skills": "",
       "tadreeb": "",
-      "focus": ""
+      "focus": "Youth Development"
     },
     {
+      "id": "item-34",
       "week": "Week 17",
       "day": "Day 33",
-      "sports": "Sat Sep 12 2026 05:00:00 GMT+0500 (Pakistan Standard Time)",
+      "date": "12 Sept 2026",
+      "exercises": "",
+      "sports": "",
       "skills": "",
       "tadreeb": "",
-      "focus": ""
+      "focus": "Youth Development"
     },
     {
+      "id": "item-35",
       "week": "Week 17",
       "day": "Day 34",
-      "sports": "Sun Sep 13 2026 05:00:00 GMT+0500 (Pakistan Standard Time)",
+      "date": "13 Sept 2026",
+      "exercises": "",
+      "sports": "",
       "skills": "",
       "tadreeb": "",
-      "focus": ""
+      "focus": "Youth Development"
     },
     {
+      "id": "item-36",
       "week": "Week 18",
       "day": "Day 35",
-      "sports": "Sat Sep 19 2026 05:00:00 GMT+0500 (Pakistan Standard Time)",
+      "date": "19 Sept 2026",
+      "exercises": "",
+      "sports": "",
       "skills": "",
       "tadreeb": "",
-      "focus": ""
+      "focus": "Youth Development"
     },
     {
+      "id": "item-37",
       "week": "Week 18",
       "day": "Day 36",
-      "sports": "Sun Sep 20 2026 05:00:00 GMT+0500 (Pakistan Standard Time)",
+      "date": "20 Sept 2026",
+      "exercises": "",
+      "sports": "",
       "skills": "",
       "tadreeb": "",
-      "focus": ""
+      "focus": "Youth Development"
     },
     {
+      "id": "item-38",
       "week": "Week 19",
       "day": "Day 37",
-      "sports": "Sat Sep 26 2026 05:00:00 GMT+0500 (Pakistan Standard Time)",
+      "date": "26 Sept 2026",
+      "exercises": "",
+      "sports": "",
       "skills": "",
       "tadreeb": "",
-      "focus": ""
+      "focus": "Youth Development"
     },
     {
+      "id": "item-39",
       "week": "Week 19",
       "day": "Day 38",
-      "sports": "Sun Sep 27 2026 05:00:00 GMT+0500 (Pakistan Standard Time)",
+      "date": "27 Sept 2026",
+      "exercises": "",
+      "sports": "",
       "skills": "",
       "tadreeb": "",
-      "focus": ""
+      "focus": "Youth Development"
     },
     {
+      "id": "item-40",
       "week": "Week 20",
       "day": "Day 39",
-      "sports": "Sat Oct 03 2026 05:00:00 GMT+0500 (Pakistan Standard Time)",
+      "date": "3 Oct 2026",
+      "exercises": "",
+      "sports": "",
       "skills": "",
       "tadreeb": "",
-      "focus": ""
+      "focus": "Youth Development"
     },
     {
+      "id": "item-41",
       "week": "Week 20",
       "day": "Day 40",
-      "sports": "Sun Oct 04 2026 05:00:00 GMT+0500 (Pakistan Standard Time)",
+      "date": "4 Oct 2026",
+      "exercises": "",
+      "sports": "",
       "skills": "",
       "tadreeb": "",
-      "focus": ""
+      "focus": "Youth Development"
     },
     {
+      "id": "item-42",
       "week": "Week 21",
       "day": "Day 41",
-      "sports": "Sat Oct 10 2026 05:00:00 GMT+0500 (Pakistan Standard Time)",
+      "date": "10 Oct 2026",
+      "exercises": "",
+      "sports": "",
       "skills": "",
       "tadreeb": "",
-      "focus": ""
+      "focus": "Youth Development"
     },
     {
+      "id": "item-43",
       "week": "Week 21",
       "day": "Day 42",
-      "sports": "Sun Oct 11 2026 05:00:00 GMT+0500 (Pakistan Standard Time)",
+      "date": "11 Oct 2026",
+      "exercises": "",
+      "sports": "",
       "skills": "",
       "tadreeb": "",
-      "focus": ""
+      "focus": "Youth Development"
     },
     {
+      "id": "item-44",
       "week": "Week 22",
       "day": "Day 43",
-      "sports": "Sat Oct 17 2026 05:00:00 GMT+0500 (Pakistan Standard Time)",
+      "date": "17 Oct 2026",
+      "exercises": "",
+      "sports": "",
       "skills": "",
       "tadreeb": "",
-      "focus": ""
+      "focus": "Youth Development"
     },
     {
+      "id": "item-45",
       "week": "Week 22",
       "day": "Day 44",
-      "sports": "Sun Oct 18 2026 05:00:00 GMT+0500 (Pakistan Standard Time)",
+      "date": "18 Oct 2026",
+      "exercises": "",
+      "sports": "",
       "skills": "",
       "tadreeb": "",
-      "focus": ""
+      "focus": "Youth Development"
     },
     {
+      "id": "item-46",
       "week": "Week 23",
       "day": "Day 45",
-      "sports": "Sat Oct 24 2026 05:00:00 GMT+0500 (Pakistan Standard Time)",
+      "date": "24 Oct 2026",
+      "exercises": "",
+      "sports": "",
       "skills": "",
       "tadreeb": "",
-      "focus": ""
+      "focus": "Youth Development"
     },
     {
+      "id": "item-47",
       "week": "Week 23",
       "day": "Day 46",
-      "sports": "Sun Oct 25 2026 05:00:00 GMT+0500 (Pakistan Standard Time)",
+      "date": "25 Oct 2026",
+      "exercises": "",
+      "sports": "",
       "skills": "",
       "tadreeb": "",
-      "focus": ""
+      "focus": "Youth Development"
     },
     {
+      "id": "item-48",
       "week": "Week 24",
       "day": "Day 47",
-      "sports": "Sat Oct 31 2026 05:00:00 GMT+0500 (Pakistan Standard Time)",
+      "date": "31 Oct 2026",
+      "exercises": "",
+      "sports": "",
       "skills": "",
       "tadreeb": "",
-      "focus": ""
+      "focus": "Youth Development"
     },
     {
+      "id": "item-49",
       "week": "Week 24",
       "day": "Day 48",
-      "sports": "Sun Nov 01 2026 05:00:00 GMT+0500 (Pakistan Standard Time)",
+      "date": "1 Nov 2026",
+      "exercises": "",
+      "sports": "",
       "skills": "",
       "tadreeb": "",
-      "focus": ""
+      "focus": "Youth Development"
     },
     {
+      "id": "item-50",
       "week": "Week 25",
       "day": "Day 49",
-      "sports": "Sat Nov 07 2026 05:00:00 GMT+0500 (Pakistan Standard Time)",
+      "date": "7 Nov 2026",
+      "exercises": "",
+      "sports": "",
       "skills": "",
       "tadreeb": "",
-      "focus": ""
+      "focus": "Youth Development"
     },
     {
+      "id": "item-51",
       "week": "Week 25",
       "day": "Day 50",
-      "sports": "Sun Nov 08 2026 05:00:00 GMT+0500 (Pakistan Standard Time)",
+      "date": "8 Nov 2026",
+      "exercises": "",
+      "sports": "",
       "skills": "",
       "tadreeb": "",
-      "focus": ""
+      "focus": "Youth Development"
     },
     {
+      "id": "item-52",
       "week": "Week 26",
       "day": "Day 51",
-      "sports": "Sat Nov 14 2026 05:00:00 GMT+0500 (Pakistan Standard Time)",
+      "date": "14 Nov 2026",
+      "exercises": "",
+      "sports": "",
       "skills": "",
       "tadreeb": "",
-      "focus": ""
+      "focus": "Youth Development"
     },
     {
+      "id": "item-53",
       "week": "Week 26",
       "day": "Day 52",
-      "sports": "Sun Nov 15 2026 05:00:00 GMT+0500 (Pakistan Standard Time)",
+      "date": "15 Nov 2026",
+      "exercises": "",
+      "sports": "",
       "skills": "",
       "tadreeb": "",
-      "focus": ""
+      "focus": "Youth Development"
     },
     {
+      "id": "item-54",
       "week": "Week 27",
       "day": "Day 53",
-      "sports": "Sat Nov 21 2026 05:00:00 GMT+0500 (Pakistan Standard Time)",
+      "date": "21 Nov 2026",
+      "exercises": "",
+      "sports": "",
       "skills": "",
       "tadreeb": "",
-      "focus": ""
+      "focus": "Youth Development"
     },
     {
+      "id": "item-55",
       "week": "Week 27",
       "day": "Day 54",
-      "sports": "Sun Nov 22 2026 05:00:00 GMT+0500 (Pakistan Standard Time)",
+      "date": "22 Nov 2026",
+      "exercises": "",
+      "sports": "",
       "skills": "",
       "tadreeb": "",
-      "focus": ""
+      "focus": "Youth Development"
     },
     {
+      "id": "item-56",
       "week": "Week 28",
       "day": "Day 55",
-      "sports": "Sat Nov 28 2026 05:00:00 GMT+0500 (Pakistan Standard Time)",
+      "date": "28 Nov 2026",
+      "exercises": "",
+      "sports": "",
       "skills": "",
       "tadreeb": "",
-      "focus": ""
+      "focus": "Youth Development"
     },
     {
+      "id": "item-57",
       "week": "Week 28",
       "day": "Day 56",
-      "sports": "Sun Nov 29 2026 05:00:00 GMT+0500 (Pakistan Standard Time)",
+      "date": "29 Nov 2026",
+      "exercises": "",
+      "sports": "",
       "skills": "",
       "tadreeb": "",
-      "focus": ""
+      "focus": "Youth Development"
     },
     {
+      "id": "item-58",
       "week": "Week 29",
       "day": "Day 57",
-      "sports": "Sat Dec 05 2026 05:00:00 GMT+0500 (Pakistan Standard Time)",
+      "date": "5 Dec 2026",
+      "exercises": "",
+      "sports": "",
       "skills": "",
       "tadreeb": "",
-      "focus": ""
+      "focus": "Youth Development"
     },
     {
+      "id": "item-59",
       "week": "Week 29",
       "day": "Day 58",
-      "sports": "Sun Dec 06 2026 05:00:00 GMT+0500 (Pakistan Standard Time)",
+      "date": "6 Dec 2026",
+      "exercises": "",
+      "sports": "",
       "skills": "",
       "tadreeb": "",
-      "focus": ""
+      "focus": "Youth Development"
     },
     {
+      "id": "item-60",
       "week": "Week 30",
       "day": "Day 59",
-      "sports": "Sat Dec 12 2026 05:00:00 GMT+0500 (Pakistan Standard Time)",
+      "date": "12 Dec 2026",
+      "exercises": "",
+      "sports": "",
       "skills": "",
       "tadreeb": "",
-      "focus": ""
+      "focus": "Youth Development"
     },
     {
+      "id": "item-61",
       "week": "Week 30",
       "day": "Day 60",
-      "sports": "Sun Dec 13 2026 05:00:00 GMT+0500 (Pakistan Standard Time)",
+      "date": "13 Dec 2026",
+      "exercises": "",
+      "sports": "",
       "skills": "",
       "tadreeb": "",
-      "focus": ""
+      "focus": "Youth Development"
     },
     {
+      "id": "item-62",
       "week": "Week 31",
       "day": "Day 61",
-      "sports": "Sat Dec 19 2026 05:00:00 GMT+0500 (Pakistan Standard Time)",
+      "date": "19 Dec 2026",
+      "exercises": "",
+      "sports": "",
       "skills": "",
       "tadreeb": "",
-      "focus": ""
+      "focus": "Youth Development"
     },
     {
+      "id": "item-63",
       "week": "Week 31",
       "day": "Day 62",
-      "sports": "Sun Dec 20 2026 05:00:00 GMT+0500 (Pakistan Standard Time)",
+      "date": "20 Dec 2026",
+      "exercises": "",
+      "sports": "",
       "skills": "",
       "tadreeb": "",
-      "focus": ""
+      "focus": "Youth Development"
     },
     {
+      "id": "item-64",
       "week": "Week 32",
       "day": "Day 63",
-      "sports": "Sat Dec 26 2026 05:00:00 GMT+0500 (Pakistan Standard Time)",
+      "date": "26 Dec 2026",
+      "exercises": "",
+      "sports": "",
       "skills": "",
       "tadreeb": "",
-      "focus": ""
+      "focus": "Youth Development"
     },
     {
+      "id": "item-65",
       "week": "Week 32",
       "day": "Day 64",
-      "sports": "Sun Dec 27 2026 05:00:00 GMT+0500 (Pakistan Standard Time)",
+      "date": "27 Dec 2026",
+      "exercises": "",
+      "sports": "",
       "skills": "",
       "tadreeb": "",
-      "focus": ""
+      "focus": "Youth Development"
     },
     {
+      "id": "item-66",
       "week": "Week 33",
       "day": "Day 65",
-      "sports": "Sat Jan 02 2027 05:00:00 GMT+0500 (Pakistan Standard Time)",
+      "date": "2 Jan 2027",
+      "exercises": "",
+      "sports": "",
       "skills": "",
       "tadreeb": "",
-      "focus": ""
+      "focus": "Youth Development"
     },
     {
+      "id": "item-67",
       "week": "Week 33",
       "day": "Day 66",
-      "sports": "Sun Jan 03 2027 05:00:00 GMT+0500 (Pakistan Standard Time)",
+      "date": "3 Jan 2027",
+      "exercises": "",
+      "sports": "",
       "skills": "",
       "tadreeb": "",
-      "focus": ""
+      "focus": "Youth Development"
     },
     {
+      "id": "item-68",
       "week": "Week 34",
       "day": "Day 67",
-      "sports": "Sat Jan 09 2027 05:00:00 GMT+0500 (Pakistan Standard Time)",
+      "date": "9 Jan 2027",
+      "exercises": "",
+      "sports": "",
       "skills": "",
       "tadreeb": "",
-      "focus": ""
+      "focus": "Youth Development"
     },
     {
+      "id": "item-69",
       "week": "Week 34",
       "day": "Day 68",
-      "sports": "Sun Jan 10 2027 05:00:00 GMT+0500 (Pakistan Standard Time)",
+      "date": "10 Jan 2027",
+      "exercises": "",
+      "sports": "",
       "skills": "",
       "tadreeb": "",
-      "focus": ""
-    },
-    {
-      "week": "Week 1",
-      "day": "Day 1",
-      "sports": "Sun Jun 28 2026 05:00:00 GMT+0500 (Pakistan Standard Time)",
-      "skills": "Warmup:\n1. Light Jumps\n2. Step Jumps\n3. Cross Jumps\n4. Side jumps\n5. Command Jumps\n6. Side leg raises\n7. Butterfly\n8. Push-ups\n\nJoints:\n1. Wrist joints\n2. Foot joints\n3. knee joints\n4. Back joint\n\nTime: 30 minutes (05:30 to 06:00 AM)\n\nCaution / Discipline:\n- GET UP\n- Sit down style\n- Get up style\n- Line check\n- Easy position\n\nMartial Arts:\n- Front roll (5-10)\n\nTime: 30 minutes (06:00 to 06:30 AM)",
-      "tadreeb": "Frisbee",
-      "focus": "[object Object]"
-    },
-    {
-      "week": "Week 2",
-      "day": "Day 2",
-      "sports": "Sun Jul 05 2026 05:00:00 GMT+0500 (Pakistan Standard Time)",
-      "skills": "Warmup:\n1. Light Jumps\n2. Step Jumps\n3. Cross Jumps\n4. Side jumps\n5. Command Jumps\n6. Side leg raises\n7. Butterfly\n8. Push-ups\n\nJoints:\n1. Wrist joints\n2. Foot joints\n3. knee joints\n4. Back joint\n5. Shoulder joint\n6. Neck joint\n\nTime: 30 minutes (05:30 to 06:00 AM)\n\nCaution / Discipline:\n- GET UP\n- Sit down style\n- Get up style\n- Line check\n- Easy position\n\n- Wistle\n- Pushup position\n- Lineup\n- Half line check\n\nMartial Arts:\n- Front roll (5-10)\n\nTime: 30 minutes (06:00 to 06:30 AM)",
-      "tadreeb": "Football",
-      "focus": "[object Object]"
-    },
-    {
-      "week": "Week 3",
-      "day": "Day 3",
-      "sports": "Sun Jul 12 2026 05:00:00 GMT+0500 (Pakistan Standard Time)",
-      "skills": "",
-      "tadreeb": "",
-      "focus": "[object Object]"
-    },
-    {
-      "week": "Week 4",
-      "day": "Day 4",
-      "sports": "Sun Jul 19 2026 05:00:00 GMT+0500 (Pakistan Standard Time)",
-      "skills": "",
-      "tadreeb": "",
-      "focus": "[object Object]"
-    },
-    {
-      "week": "Week 5",
-      "day": "Day 5",
-      "sports": "Sun Jul 26 2026 05:00:00 GMT+0500 (Pakistan Standard Time)",
-      "skills": "",
-      "tadreeb": "",
-      "focus": "[object Object]"
-    },
-    {
-      "week": "Week 6",
-      "day": "Day 6",
-      "sports": "Sun Aug 02 2026 05:00:00 GMT+0500 (Pakistan Standard Time)",
-      "skills": "",
-      "tadreeb": "",
-      "focus": ""
-    },
-    {
-      "week": "Week 7",
-      "day": "Day 7",
-      "sports": "Sun Aug 09 2026 05:00:00 GMT+0500 (Pakistan Standard Time)",
-      "skills": "",
-      "tadreeb": "",
-      "focus": ""
-    },
-    {
-      "week": "Week 8",
-      "day": "Day 8",
-      "sports": "Sun Aug 16 2026 05:00:00 GMT+0500 (Pakistan Standard Time)",
-      "skills": "",
-      "tadreeb": "",
-      "focus": ""
-    },
-    {
-      "week": "Week 9",
-      "day": "Day 9",
-      "sports": "Sun Aug 23 2026 05:00:00 GMT+0500 (Pakistan Standard Time)",
-      "skills": "",
-      "tadreeb": "",
-      "focus": ""
-    },
-    {
-      "week": "Week 10",
-      "day": "Day 10",
-      "sports": "Sun Aug 30 2026 05:00:00 GMT+0500 (Pakistan Standard Time)",
-      "skills": "",
-      "tadreeb": "",
-      "focus": ""
-    },
-    {
-      "week": "Week 11",
-      "day": "Day 11",
-      "sports": "Sun Sep 06 2026 05:00:00 GMT+0500 (Pakistan Standard Time)",
-      "skills": "",
-      "tadreeb": "",
-      "focus": ""
-    },
-    {
-      "week": "Week 12",
-      "day": "Day 12",
-      "sports": "Sun Sep 13 2026 05:00:00 GMT+0500 (Pakistan Standard Time)",
-      "skills": "",
-      "tadreeb": "",
-      "focus": ""
-    },
-    {
-      "week": "Week 13",
-      "day": "Day 13",
-      "sports": "Sun Sep 20 2026 05:00:00 GMT+0500 (Pakistan Standard Time)",
-      "skills": "",
-      "tadreeb": "",
-      "focus": ""
-    },
-    {
-      "week": "Week 14",
-      "day": "Day 14",
-      "sports": "Sun Sep 27 2026 05:00:00 GMT+0500 (Pakistan Standard Time)",
-      "skills": "",
-      "tadreeb": "",
-      "focus": ""
-    },
-    {
-      "week": "Week 15",
-      "day": "Day 15",
-      "sports": "Sun Oct 04 2026 05:00:00 GMT+0500 (Pakistan Standard Time)",
-      "skills": "",
-      "tadreeb": "",
-      "focus": ""
-    },
-    {
-      "week": "Week 16",
-      "day": "Day 16",
-      "sports": "Sun Oct 11 2026 05:00:00 GMT+0500 (Pakistan Standard Time)",
-      "skills": "",
-      "tadreeb": "",
-      "focus": ""
-    },
-    {
-      "week": "Week 17",
-      "day": "Day 17",
-      "sports": "Sun Oct 18 2026 05:00:00 GMT+0500 (Pakistan Standard Time)",
-      "skills": "",
-      "tadreeb": "",
-      "focus": ""
-    },
-    {
-      "week": "Week 18",
-      "day": "Day 18",
-      "sports": "Sun Oct 25 2026 05:00:00 GMT+0500 (Pakistan Standard Time)",
-      "skills": "",
-      "tadreeb": "",
-      "focus": ""
-    },
-    {
-      "week": "Week 19",
-      "day": "Day 19",
-      "sports": "Sun Nov 01 2026 05:00:00 GMT+0500 (Pakistan Standard Time)",
-      "skills": "",
-      "tadreeb": "",
-      "focus": ""
-    },
-    {
-      "week": "Week 20",
-      "day": "Day 20",
-      "sports": "Sun Nov 08 2026 05:00:00 GMT+0500 (Pakistan Standard Time)",
-      "skills": "",
-      "tadreeb": "",
-      "focus": ""
-    },
-    {
-      "week": "Week 21",
-      "day": "Day 21",
-      "sports": "Sun Nov 15 2026 05:00:00 GMT+0500 (Pakistan Standard Time)",
-      "skills": "",
-      "tadreeb": "",
-      "focus": ""
-    },
-    {
-      "week": "Week 22",
-      "day": "Day 22",
-      "sports": "Sun Nov 22 2026 05:00:00 GMT+0500 (Pakistan Standard Time)",
-      "skills": "",
-      "tadreeb": "",
-      "focus": ""
-    },
-    {
-      "week": "Week 23",
-      "day": "Day 23",
-      "sports": "Sun Nov 29 2026 05:00:00 GMT+0500 (Pakistan Standard Time)",
-      "skills": "",
-      "tadreeb": "",
-      "focus": ""
-    },
-    {
-      "week": "Week 24",
-      "day": "Day 24",
-      "sports": "Sun Dec 06 2026 05:00:00 GMT+0500 (Pakistan Standard Time)",
-      "skills": "",
-      "tadreeb": "",
-      "focus": ""
-    },
-    {
-      "week": "Week 25",
-      "day": "Day 25",
-      "sports": "Sun Dec 13 2026 05:00:00 GMT+0500 (Pakistan Standard Time)",
-      "skills": "",
-      "tadreeb": "",
-      "focus": ""
+      "focus": "Youth Development"
     }
   ],
   "attendanceGroups": [
@@ -10844,5 +10848,5 @@
       }
     ]
   },
-  "updatedAt": "2026-08-10T06:49:10.874Z"
+  "updatedAt": "2026-08-10T07:21:41.281Z"
 }
