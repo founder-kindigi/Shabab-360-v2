@@ -373,6 +373,36 @@ export default function CampaignDetailPage() {
             </Card>
           )}
 
+          {/* Quick Sheet Tabs for Callers */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+            <span className="text-xs font-bold text-slate-500 mr-1 shrink-0">Worksheet Tabs:</span>
+            {[
+              { id: "all", name: "All Leads" },
+              { id: "unassigned", name: "Unassigned" },
+              { id: "anas", name: "Anas Ibrahim" },
+              { id: "haris", name: "Haris Yousaf" },
+              { id: "umar", name: "Umar Rohail" },
+              { id: "faizan", name: "Faizan Ali" },
+              { id: "hassan", name: "Hassan Basil" },
+            ].map((sheetTab) => (
+              <button
+                key={sheetTab.id}
+                onClick={() => {
+                  setSelectedCallerFilter(sheetTab.id);
+                  setPage(1);
+                }}
+                className={cn(
+                  "px-3 py-1.5 rounded-xl text-xs font-bold shrink-0 transition-all border",
+                  selectedCallerFilter === sheetTab.id
+                    ? "bg-purple-600 text-white border-purple-600 shadow-sm"
+                    : "bg-white dark:bg-slate-900 text-slate-600 border-slate-200 dark:border-slate-800 hover:bg-slate-50"
+                )}
+              >
+                {sheetTab.name}
+              </button>
+            ))}
+          </div>
+
           {/* Leads Main Roster */}
           <Card className="border-0 shadow-md ring-1 ring-slate-200 dark:ring-slate-800 rounded-2xl overflow-hidden">
             <CardHeader className="p-4 border-b border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
