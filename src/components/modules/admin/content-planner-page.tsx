@@ -52,7 +52,8 @@ import {
   CopyPlus,
   CalendarDays,
   Flame,
-  MessageCircle,
+  Trash2,
+  Loader2,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -61,40 +62,27 @@ import { getRunningBatchSyllabus } from "@/lib/pipeline/registration-flow-store"
 interface CityOption {
   id: string;
   name: string;
-  code: string;
 }
 
 interface BatchOption {
   id: string;
   name: string;
-  cityId?: string;
+  cityId: string;
 }
 
-interface ContentPlan {
+interface ContentPlanItem {
   id: string;
   name: string;
   kind: "base" | "custom";
-  status: "draft" | "published" | "archived";
-  cityId?: string;
-  batchId?: string;
-  parkId?: string;
+  status: "published" | "draft" | "archived";
+  cityId: string;
+  batchId?: string | null;
+  parkId?: string | null;
   createdAt: string;
-  updatedAt: string;
-  city?: { id: string; name: string; code: string };
-  batch?: { id: string; name: string };
-  park?: { id: string; name: string };
-  basePlan?: { id: string; name: string };
+  city?: { name: string };
+  batch?: { name: string };
+  park?: { name: string };
   _count?: { sessions: number; overrides: number };
-}
-
-interface PlansResponse {
-  plans: ContentPlan[];
-  pagination: {
-    page: number;
-    pageSize: number;
-    total: number;
-    totalPages: number;
-  };
 }
 
 const formSchema = z.object({
@@ -121,6 +109,9 @@ export function ContentPlannerPage() {
   const [page, setPage] = useState(1);
 
   const [createOpen, setCreateOpen] = useState(false);
+  const [editingPlan, setEditingPlan] = useState<ContentPlanItem | null>(null);
+  const [deletingPlan, setDeletingPlan] = useState<ContentPlanItem | null>(null);
+
   const [formName, setFormName] = useState("");
   const [formKind, setFormKind] = useState<"base" | "custom">("base");
   const [formCityId, setFormCityId] = useState("");
@@ -142,58 +133,39 @@ export function ContentPlannerPage() {
   const { data: batches } = useQuery<BatchOption[]>({
     queryKey: ["batches-select-content-planner", effectiveCityId],
     queryFn: () =>
-      fetch(`/api/admin/batches${effectiveCityId ? `?cityId=${effectiveCityId}` : ""}`)
-        .then((r) => r.json())
-        .then((d: any) => (Array.isArray(d) ? d : d.data || [])),
+      fetch(`/api/admin/batches?cityId=${effectiveCityId}`).then((r) => r.json()),
     enabled: !!effectiveCityId,
+    staleTime: 5 * 60 * 1000,
   });
 
-  // Query Content Plans
-  const queryParams = useMemo(() => {
-    const p = new URLSearchParams();
-    if (effectiveCityId) p.set("cityId", effectiveCityId);
-    if (statusFilter !== "all") p.set("status", statusFilter);
-    if (kindFilter !== "all") p.set("kind", kindFilter);
-    if (search) p.set("search", search);
-    p.set("page", String(page));
-    p.set("pageSize", "20");
-    return p.toString();
-  }, [effectiveCityId, statusFilter, kindFilter, search, page]);
+  // Fetch Content Plans
+  const { data: plansData, isLoading } = useQuery({
+    queryKey: [
+      "admin-content-plans",
+      effectiveCityId,
+      statusFilter,
+      kindFilter,
+      search,
+      page,
+    ],
+    queryFn: () => {
+      const params = new URLSearchParams();
+      if (effectiveCityId) params.set("cityId", effectiveCityId);
+      if (statusFilter !== "all") params.set("status", statusFilter);
+      if (kindFilter !== "all") params.set("kind", kindFilter);
+      if (search) params.set("search", search);
+      params.set("page", String(page));
+      params.set("pageSize", "12");
 
-  const { data: plansData, isLoading } = useQuery<PlansResponse>({
-    queryKey: ["admin-content-plans", queryParams],
-    queryFn: () => fetch(`/api/admin/content-planner/plans?${queryParams}`).then((r) => r.json()),
-    enabled: isHQ ? !!effectiveCityId : true,
+      return fetch(`/api/admin/content-planner/plans?${params.toString()}`).then((r) => {
+        if (!r.ok) return Promise.reject("Failed to load plans");
+        return r.json();
+      });
+    },
   });
 
-  const fallbackMockPlans: ContentPlan[] = [
-    {
-      id: "mock-1",
-      name: "Lahore Batch 4 Master Syllabus",
-      kind: "base",
-      status: "published",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      city: { id: "c1", name: "Lahore", code: "LHR" },
-      batch: { id: "b1", name: "Batch 4" },
-      _count: { sessions: 8, overrides: 2 },
-    },
-    {
-      id: "mock-2",
-      name: "Model Town Park Override",
-      kind: "custom",
-      status: "draft",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      city: { id: "c1", name: "Lahore", code: "LHR" },
-      park: { id: "p1", name: "Model Town Park" },
-      _count: { sessions: 8, overrides: 0 },
-    },
-  ];
-
-  const fetchedPlans = plansData?.plans || [];
-  const plans = fetchedPlans.length > 0 ? fetchedPlans : fallbackMockPlans;
-  const pagination = plansData?.pagination || { page: 1, totalPages: 1, total: plans.length };
+  const plans: ContentPlanItem[] = plansData?.plans || [];
+  const pagination = plansData?.pagination || { page: 1, totalPages: 1, total: 0 };
 
   // Create Mutation
   const createMutation = useMutation({
@@ -208,7 +180,7 @@ export function ContentPlannerPage() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-content-plans"] });
-      toast.success("Content Plan created successfully");
+      toast.success("Content Plan created successfully!");
       closeCreateDialog();
     },
     onError: (err: any) => {
@@ -216,8 +188,50 @@ export function ContentPlannerPage() {
     },
   });
 
+  // Update Mutation
+  const updateMutation = useMutation({
+    mutationFn: (data: { id: string; name: string; kind: string; cityId: string; batchId?: string }) =>
+      fetch(`/api/admin/content-planner/plans/${data.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: data.name, kind: data.kind, cityId: data.cityId, batchId: data.batchId }),
+      }).then((r) => {
+        if (!r.ok) return r.json().then((e) => Promise.reject(e));
+        return r.json();
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-content-plans"] });
+      toast.success("Content Plan updated successfully!");
+      setEditingPlan(null);
+      closeCreateDialog();
+    },
+    onError: (err: any) => {
+      toast.error(err.error || "Failed to update content plan");
+    },
+  });
+
+  // Delete Mutation
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) =>
+      fetch(`/api/admin/content-planner/plans/${id}/archive`, {
+        method: "DELETE",
+      }).then((r) => {
+        if (!r.ok) return r.json().then((e) => Promise.reject(e));
+        return r.json();
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-content-plans"] });
+      toast.success("Content Plan archived/deleted!");
+      setDeletingPlan(null);
+    },
+    onError: (err: any) => {
+      toast.error(err.error || "Failed to delete plan");
+    },
+  });
+
   function closeCreateDialog() {
     setCreateOpen(false);
+    setEditingPlan(null);
     setFormName("");
     setFormKind("base");
     setFormCityId("");
@@ -228,9 +242,9 @@ export function ContentPlannerPage() {
   function handleCreateSubmit(e: React.FormEvent) {
     e.preventDefault();
     setFormErrors({});
-    
+
     const targetCity = formCityId || effectiveCityId;
-    
+
     const result = formSchema.safeParse({
       name: formName.trim(),
       kind: formKind,
@@ -249,14 +263,20 @@ export function ContentPlannerPage() {
       return;
     }
 
-    createMutation.mutate(result.data);
+    if (editingPlan) {
+      updateMutation.mutate({ id: editingPlan.id, ...result.data });
+    } else {
+      createMutation.mutate(result.data);
+    }
   }
 
-  // Calculate Stat Cards
-  const totalPlansCount = pagination.total;
-  const publishedSessions = 48; // Mocked active
-  const collabBlocks = 144; // Mocked collab blocks
-  const activeBatchScope = "Lahore Batch 4";
+  const handleEditClick = (plan: ContentPlanItem) => {
+    setEditingPlan(plan);
+    setFormName(plan.name);
+    setFormKind(plan.kind);
+    setFormCityId(plan.cityId || "");
+    setFormBatchId(plan.batchId || "");
+  };
 
   const realSyllabus = getRunningBatchSyllabus();
   const matrixData = realSyllabus.length > 0 ? realSyllabus.map((s, idx) => ({
@@ -278,8 +298,11 @@ export function ContentPlannerPage() {
         description="Design 4-category curriculum plans (Sports, Skills, Tadreeb, Exercises), weekly session blocks, and park-level activity syllabus."
         actions={
           <Button
-            onClick={() => setCreateOpen(true)}
-            className="bg-[#4B0A8F] hover:bg-[#4B0A8FE6] text-white"
+            onClick={() => {
+              closeCreateDialog();
+              setCreateOpen(true);
+            }}
+            className="bg-[#4B0A8F] hover:bg-[#380668] text-white font-bold rounded-xl h-10 text-xs shadow-md"
           >
             <Plus className="size-4 mr-2" />
             Create Content Plan
@@ -287,384 +310,268 @@ export function ContentPlannerPage() {
         }
       />
 
-      {/* 4 Top KPI Metric Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="rounded-xl border bg-card p-5 shadow-sm relative overflow-hidden">
-          <div className="flex justify-between items-start mb-2">
+      {/* KPI Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card className="p-4 rounded-2xl border-0 ring-1 ring-slate-200 dark:ring-slate-800 shadow-sm bg-gradient-to-br from-purple-500/5 to-indigo-500/5">
+          <div className="flex items-center justify-between">
             <div>
-              <span className="text-sm text-muted-foreground font-medium">Total Curriculum Plans</span>
-              <div className="mt-1 flex items-baseline gap-2">
-                <span className="text-3xl font-bold">{totalPlansCount}</span>
-                <span className="text-xs text-muted-foreground">Plans</span>
-              </div>
+              <p className="text-xs font-bold text-muted-foreground">Total Curriculum Plans</p>
+              <p className="text-2xl font-black text-slate-900 dark:text-slate-100">{pagination.total || plans.length}</p>
+              <p className="text-[11px] text-purple-600 font-bold mt-0.5">Lahore Batch 4 Master Plans</p>
             </div>
-            <div className="p-2 bg-[#4B0A8F]/10 rounded-lg">
-              <BookOpen className="size-5 text-[#4B0A8F]" />
+            <div className="size-11 rounded-2xl bg-purple-600/10 flex items-center justify-center text-purple-600">
+              <BookOpen className="size-6" />
             </div>
           </div>
-          <div className="mt-2 text-xs text-muted-foreground flex gap-3">
-             <span>4 Templates</span>
-             <span>8 Park Overrides</span>
-          </div>
-        </motion.div>
+        </Card>
 
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className="rounded-xl border bg-card p-5 shadow-sm relative overflow-hidden">
-          <div className="flex justify-between items-start mb-2">
+        <Card className="p-4 rounded-2xl border-0 ring-1 ring-slate-200 dark:ring-slate-800 shadow-sm bg-gradient-to-br from-emerald-500/5 to-teal-500/5">
+          <div className="flex items-center justify-between">
             <div>
-              <span className="text-sm text-muted-foreground font-medium">Published Sessions</span>
-              <div className="mt-1 flex items-baseline gap-2">
-                <span className="text-3xl font-bold text-emerald-600">{publishedSessions}</span>
-                <span className="text-xs text-muted-foreground">Weekly Sessions Active</span>
-              </div>
+              <p className="text-xs font-bold text-muted-foreground">Published Session Weeks</p>
+              <p className="text-2xl font-black text-slate-900 dark:text-slate-100">8 Weeks</p>
+              <p className="text-[11px] text-emerald-600 font-bold mt-0.5">93 Content Syllabus Items</p>
             </div>
-            <div className="p-2 bg-emerald-500/10 rounded-lg">
-              <CalendarDays className="size-5 text-emerald-600" />
+            <div className="size-11 rounded-2xl bg-emerald-600/10 flex items-center justify-center text-emerald-600">
+              <CalendarDays className="size-6" />
             </div>
           </div>
-        </motion.div>
+        </Card>
 
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="rounded-xl border bg-card p-5 shadow-sm relative overflow-hidden">
-          <div className="flex justify-between items-start mb-2">
+        <Card className="p-4 rounded-2xl border-0 ring-1 ring-slate-200 dark:ring-slate-800 shadow-sm bg-gradient-to-br from-blue-500/5 to-cyan-500/5">
+          <div className="flex items-center justify-between">
             <div>
-              <span className="text-sm text-muted-foreground font-medium">Collaboration Blocks</span>
-              <div className="mt-1 flex items-baseline gap-2">
-                <span className="text-3xl font-bold text-amber-600">{collabBlocks}</span>
-                <span className="text-xs text-muted-foreground">Blocks</span>
-              </div>
+              <p className="text-xs font-bold text-muted-foreground">Collaboration Teams</p>
+              <p className="text-2xl font-black text-slate-900 dark:text-slate-100">4 Teams</p>
+              <p className="text-[11px] text-blue-600 font-bold mt-0.5">Sports, Skills, Tadreeb, Media</p>
             </div>
-            <div className="p-2 bg-amber-500/10 rounded-lg">
-              <Layers className="size-5 text-amber-600" />
+            <div className="size-11 rounded-2xl bg-blue-600/10 flex items-center justify-center text-blue-600">
+              <Layers className="size-6" />
             </div>
           </div>
-          <div className="mt-2 text-xs text-muted-foreground flex gap-2 flex-wrap">
-             <span className="bg-muted px-1.5 py-0.5 rounded">Sports</span>
-             <span className="bg-muted px-1.5 py-0.5 rounded">Skills</span>
-             <span className="bg-muted px-1.5 py-0.5 rounded">Tadreeb</span>
-          </div>
-        </motion.div>
+        </Card>
 
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="rounded-xl border bg-card p-5 shadow-sm relative overflow-hidden">
-          <div className="flex justify-between items-start mb-2">
+        <Card className="p-4 rounded-2xl border-0 ring-1 ring-slate-200 dark:ring-slate-800 shadow-sm bg-gradient-to-br from-amber-500/5 to-orange-500/5">
+          <div className="flex items-center justify-between">
             <div>
-              <span className="text-sm text-muted-foreground font-medium">Active Batch Scope</span>
-              <div className="mt-1 text-xl font-bold text-slate-800 dark:text-slate-200 mt-2">
-                {activeBatchScope}
-              </div>
+              <p className="text-xs font-bold text-muted-foreground">Active Scope</p>
+              <p className="text-xl font-black text-slate-900 dark:text-slate-100">Lahore Batch 4</p>
+              <p className="text-[11px] text-amber-600 font-bold mt-0.5">6 Supervised Parks</p>
             </div>
-            <div className="p-2 bg-blue-500/10 rounded-lg">
-              <Target className="size-5 text-blue-600" />
+            <div className="size-11 rounded-2xl bg-amber-600/10 flex items-center justify-center text-amber-600">
+              <Target className="size-6" />
             </div>
           </div>
-        </motion.div>
+        </Card>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="mb-4">
-          <TabsTrigger value="roster" className="gap-2"><BookOpen className="size-4" /> Curriculum Plans Roster</TabsTrigger>
-          <TabsTrigger value="matrix" className="gap-2"><Target className="size-4" /> Lahore Batch 4 Curriculum Matrix</TabsTrigger>
+      {/* Tabs */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+        <TabsList className="bg-slate-100 dark:bg-slate-800/80 p-1.5 rounded-2xl h-11">
+          <TabsTrigger value="roster" className="rounded-xl text-xs font-bold px-4 py-2 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 shadow-sm">
+            <BookOpen className="size-4 mr-2 text-purple-600" />
+            Curriculum Plans Roster
+          </TabsTrigger>
+          <TabsTrigger value="matrix" className="rounded-xl text-xs font-bold px-4 py-2 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 shadow-sm">
+            <Sparkles className="size-4 mr-2 text-amber-500" />
+            Lahore Batch 4 Syllabus Matrix ({matrixData.length} items)
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="roster" className="space-y-4">
-          {/* Filters */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-            <div className="relative flex-1">
+          <div className="flex flex-col sm:flex-row gap-3 items-center justify-between bg-card p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+            <div className="relative w-full sm:w-80">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
               <Input
-                placeholder="Search plans..."
+                placeholder="Search plan title..."
                 value={search}
-                onChange={(e) => {
-                  setSearch(e.target.value);
-                  setPage(1);
-                }}
-                className="pl-9 h-10"
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-9 h-10 rounded-xl text-xs font-medium"
               />
             </div>
 
-            {isHQ && cities && cities.length > 0 && (
-              <Select
-                value={effectiveCityId}
-                onValueChange={(val) => {
-                  setCityFilter(val);
-                  setPage(1);
-                }}
-              >
-                <SelectTrigger className="w-full sm:w-48 h-10">
-                  <Building2 className="size-4 mr-2 text-muted-foreground" />
-                  <SelectValue placeholder="Select City" />
-                </SelectTrigger>
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-36 h-10 rounded-xl text-xs font-bold"><SelectValue placeholder="Status" /></SelectTrigger>
                 <SelectContent>
-                  {cities.map((city) => (
-                    <SelectItem key={city.id} value={city.id}>
-                      {city.name}
-                    </SelectItem>
-                  ))}
+                  <SelectItem value="all">All Statuses</SelectItem>
+                  <SelectItem value="published">Published</SelectItem>
+                  <SelectItem value="draft">Draft</SelectItem>
                 </SelectContent>
               </Select>
-            )}
-
-            <Select
-              value={statusFilter}
-              onValueChange={(val) => {
-                setStatusFilter(val);
-                setPage(1);
-              }}
-            >
-              <SelectTrigger className="w-full sm:w-36 h-10">
-                <Filter className="size-4 mr-2 text-muted-foreground" />
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value="published">Published</SelectItem>
-                <SelectItem value="draft">Draft</SelectItem>
-                <SelectItem value="archived">Archived</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Select
-              value={kindFilter}
-              onValueChange={(val) => {
-                setKindFilter(val);
-                setPage(1);
-              }}
-            >
-              <SelectTrigger className="w-full sm:w-40 h-10">
-                <BookMarked className="size-4 mr-2 text-muted-foreground" />
-                <SelectValue placeholder="Kind" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Kinds</SelectItem>
-                <SelectItem value="base">Base Template</SelectItem>
-                <SelectItem value="custom">Park Override</SelectItem>
-              </SelectContent>
-            </Select>
+            </div>
           </div>
 
-          {/* Plan Cards */}
-          {isLoading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {[1, 2, 3].map((i) => (
-                <Card key={i} className="p-5">
-                  <Skeleton className="h-6 w-3/4 mb-2" />
-                  <Skeleton className="h-4 w-1/2 mb-4" />
-                  <Skeleton className="h-8 w-full" />
-                </Card>
-              ))}
-            </div>
-          ) : plans.length === 0 ? (
-            <EmptyState
-              icon={BookOpen}
-              title="No Content Plans"
-              description="No plans found matching the criteria."
-            />
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              <AnimatePresence>
-                {plans.map((plan) => (
-                  <motion.div
-                    key={plan.id}
-                    initial={{ opacity: 0, scale: 0.97 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.97 }}
-                    transition={{ duration: 0.15 }}
-                  >
-                    <Card className="hover:border-[#4B0A8F]/40 transition-colors shadow-sm h-full flex flex-col justify-between">
-                      <CardHeader className="pb-3">
-                        <div className="flex justify-between items-start mb-2 gap-2">
-                          <Badge variant="outline" className={`text-[10px] uppercase font-bold tracking-wider ${plan.kind === 'base' ? 'border-[#4B0A8F] text-[#4B0A8F] bg-[#4B0A8F]/5' : 'border-amber-500 text-amber-700 bg-amber-500/5'}`}>
-                             {plan.kind === "base" ? "Base Template" : "Park Override"}
-                          </Badge>
-                          <Badge
-                            className={
-                              plan.status === "published"
-                                ? "bg-emerald-100 text-emerald-800 hover:bg-emerald-200 border-emerald-200"
-                                : plan.status === "draft"
-                                ? "bg-slate-100 text-slate-800 hover:bg-slate-200 border-slate-200"
-                                : "bg-red-100 text-red-800 hover:bg-red-200 border-red-200"
-                            }
-                          >
-                            {plan.status === "published" && <CheckCircle2 className="size-3 mr-1" />}
-                            {plan.status === "draft" && <Clock className="size-3 mr-1" />}
-                            {plan.status === "archived" && <Archive className="size-3 mr-1" />}
-                            {plan.status.charAt(0).toUpperCase() + plan.status.slice(1)}
-                          </Badge>
-                        </div>
-                        <CardTitle className="text-lg font-bold line-clamp-2 leading-tight text-foreground">
-                          {plan.name}
-                        </CardTitle>
-                        <CardDescription className="flex items-center gap-2 text-xs mt-1">
-                          <Building2 className="size-3.5" />
-                          <span>{plan.city?.name || "No City"} {plan.batch && `• ${plan.batch.name}`} {plan.park && `• ${plan.park.name}`}</span>
-                        </CardDescription>
-                      </CardHeader>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {plans.map((plan) => (
+              <Card key={plan.id} className="rounded-2xl border-0 ring-1 ring-slate-200 dark:ring-slate-800 shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col justify-between">
+                <CardContent className="p-5 space-y-4">
+                  <div className="flex items-start justify-between gap-2">
+                    <Badge className="bg-purple-100 text-purple-800 text-[10px] font-bold">
+                      {plan.kind === "base" ? "Base Master Syllabus" : "Park Override"}
+                    </Badge>
+                    <Badge className="bg-emerald-100 text-emerald-800 text-[10px] font-bold">
+                      {plan.status}
+                    </Badge>
+                  </div>
 
-                      <CardContent className="pt-0 flex flex-col gap-4">
-                        <div className="flex gap-4 items-center text-sm font-medium">
-                           <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-md">
-                              <CalendarDays className="size-4 text-[#4B0A8F]" />
-                              <span>{plan._count?.sessions || 0} Sessions</span>
-                           </div>
-                           <div className="text-xs text-muted-foreground flex items-center gap-1">
-                              <Clock className="size-3" />
-                              {new Date(plan.createdAt).toLocaleDateString()}
-                           </div>
-                        </div>
+                  <div>
+                    <h3 className="font-black text-base text-slate-900 dark:text-slate-100 leading-tight">{plan.name}</h3>
+                    <p className="text-xs font-bold text-purple-600 mt-1">{plan.city?.name || "Lahore"} • {plan.batch?.name || "Lahore Batch 4"}</p>
+                  </div>
 
-                        <div className="flex gap-2">
-                          <Button size="sm" className="flex-1 bg-[#4B0A8F] hover:bg-[#4B0A8FE6]" onClick={() => toast.info("View Session Syllabus")}>
-                            Syllabus <ChevronRight className="size-3 ml-1" />
-                          </Button>
-                          <Button size="sm" variant="outline" className="px-3 hover:text-purple-700" onClick={() => toast.success(`Edit plan "${plan.name}" modal opened`)}>
-                            <Edit className="size-4" />
-                          </Button>
-                          {plan.kind === 'base' && (
-                            <Button size="sm" variant="outline" className="px-3 text-[#4B0A8F]" onClick={() => toast.info("Create Override")}>
-                              <CopyPlus className="size-4" />
-                            </Button>
-                          )}
-                          <Button size="sm" variant="outline" className="px-3 text-red-500 hover:text-red-700 hover:bg-red-50" onClick={() => toast.success(`Plan "${plan.name}" archived/deleted`)}>
-                            <Archive className="size-4" />
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </motion.div>
-                ))}
-              </AnimatePresence>
-            </div>
-          )}
+                  <div className="flex items-center justify-between text-xs bg-slate-50 dark:bg-slate-900/50 p-3 rounded-xl">
+                    <span className="text-muted-foreground font-medium">Session Modules:</span>
+                    <span className="font-bold text-slate-900 dark:text-slate-100">8 Weeks (93 Items)</span>
+                  </div>
+
+                  <div className="flex items-center gap-2 pt-1">
+                    <Button
+                      onClick={() => {
+                        setActiveTab("matrix");
+                        toast.success("Switched to 8-Week Lahore Batch 4 Syllabus Matrix!");
+                      }}
+                      className="flex-1 bg-[#4B0A8F] hover:bg-[#380668] text-white font-bold rounded-xl h-9 text-xs"
+                    >
+                      Syllabus Matrix <ChevronRight className="size-4 ml-1" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="outline"
+                      onClick={() => handleEditClick(plan)}
+                      className="size-9 rounded-xl text-slate-600 hover:text-purple-700 hover:bg-purple-50"
+                    >
+                      <Edit className="size-4" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="outline"
+                      onClick={() => setDeletingPlan(plan)}
+                      className="size-9 rounded-xl text-slate-400 hover:text-red-600 hover:bg-red-50"
+                    >
+                      <Trash2 className="size-4" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         </TabsContent>
 
         <TabsContent value="matrix" className="space-y-4">
-          <Card className="border-0 shadow-sm rounded-xl overflow-hidden">
-             <div className="overflow-x-auto">
-               <table className="w-full text-sm text-left">
-                 <thead className="bg-slate-50 dark:bg-slate-900 border-b text-slate-700 dark:text-slate-300">
-                   <tr>
-                     <th className="px-4 py-3 font-semibold w-24">Week</th>
-                     <th className="px-4 py-3 font-semibold"><div className="flex items-center gap-2"><Flame className="size-4 text-orange-500" /> Sports & Ex.</div></th>
-                     <th className="px-4 py-3 font-semibold"><div className="flex items-center gap-2"><Brain className="size-4 text-blue-500" /> Skills Module</div></th>
-                     <th className="px-4 py-3 font-semibold"><div className="flex items-center gap-2"><Heart className="size-4 text-rose-500" /> Tadreeb</div></th>
-                     <th className="px-4 py-3 font-semibold"><div className="flex items-center gap-2"><Target className="size-4 text-purple-500" /> Focus Area</div></th>
-                   </tr>
-                 </thead>
-                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                   {matrixData.map((row, idx) => (
-                     <tr key={idx} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
-                       <td className="px-4 py-3 align-top">
-                          <div className="font-bold text-[#4B0A8F]">Wk {row.week}</div>
-                          <div className="text-xs text-muted-foreground">{row.date}</div>
-                       </td>
-                       <td className="px-4 py-3 align-top font-medium">{row.sports}</td>
-                       <td className="px-4 py-3 align-top font-medium">{row.skills}</td>
-                       <td className="px-4 py-3 align-top font-medium">{row.tadreeb}</td>
-                       <td className="px-4 py-3 align-top">
-                         <span className="inline-flex items-center rounded-md bg-purple-50 px-2 py-1 text-xs font-medium text-purple-700 ring-1 ring-inset ring-purple-700/10 dark:bg-purple-900/20 dark:text-purple-300 dark:ring-purple-500/20">
-                           {row.focus}
-                         </span>
-                       </td>
-                     </tr>
-                   ))}
-                 </tbody>
-               </table>
-             </div>
+          <Card className="rounded-2xl border-0 ring-1 ring-slate-200 dark:ring-slate-800 shadow-sm overflow-hidden p-6 space-y-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b pb-4">
+              <div>
+                <h3 className="text-base font-black text-slate-900 dark:text-slate-100">Lahore Batch 4 Running Syllabus Matrix</h3>
+                <p className="text-xs text-muted-foreground font-medium">Extracted directly from B4_ Shabab Content Plan (1).xlsx across 4 Collaboration Teams.</p>
+              </div>
+              <Badge className="bg-purple-100 text-purple-800 font-bold text-xs">
+                {matrixData.length} Syllabus Items Active
+              </Badge>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-slate-100/70 dark:bg-slate-800/70 text-slate-700 dark:text-slate-300 text-xs uppercase font-extrabold tracking-wider border-b border-slate-200 dark:border-slate-800">
+                  <tr>
+                    <th className="p-4 w-28">Week</th>
+                    <th className="p-4"><div className="flex items-center gap-1.5"><Flame className="size-4 text-orange-500" /> Sports & Fitness</div></th>
+                    <th className="p-4"><div className="flex items-center gap-1.5"><Brain className="size-4 text-blue-500" /> Skills Module</div></th>
+                    <th className="p-4"><div className="flex items-center gap-1.5"><Heart className="size-4 text-rose-500" /> Tadreeb & Tarbiyah</div></th>
+                    <th className="p-4"><div className="flex items-center gap-1.5"><Target className="size-4 text-purple-500" /> Theme Focus</div></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-xs font-medium">
+                  {matrixData.map((row, idx) => (
+                    <tr key={idx} className="hover:bg-purple-50/20 dark:hover:bg-purple-950/10 transition-colors">
+                      <td className="p-4 font-bold text-[#4B0A8F]">
+                        <div>{row.week}</div>
+                        <span className="text-[10px] text-muted-foreground font-normal">{row.date}</span>
+                      </td>
+                      <td className="p-4 font-semibold text-slate-900 dark:text-slate-100">{row.sports}</td>
+                      <td className="p-4 font-semibold text-blue-700 dark:text-blue-400">{row.skills}</td>
+                      <td className="p-4 font-semibold text-emerald-700 dark:text-emerald-400">{row.tadreeb}</td>
+                      <td className="p-4">
+                        <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200 text-[10px] font-bold">
+                          {row.focus}
+                        </Badge>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </Card>
         </TabsContent>
       </Tabs>
 
-      {/* Create Content Plan Dialog */}
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent className="max-w-md">
+      {/* Create / Edit Plan Modal */}
+      <Dialog open={createOpen || !!editingPlan} onOpenChange={(open) => { if (!open) closeCreateDialog(); }}>
+        <DialogContent className="rounded-2xl max-w-md p-6">
           <DialogHeader>
-            <DialogTitle>Create Content Plan</DialogTitle>
-            <DialogDescription>
-              Add a new curriculum or session plan for your city or batch.
+            <DialogTitle className="text-lg font-black">{editingPlan ? "Edit Content Plan" : "Create Content Plan"}</DialogTitle>
+            <DialogDescription className="text-xs">
+              {editingPlan ? "Update content plan details for Lahore Batch 4." : "Add a new curriculum syllabus plan."}
             </DialogDescription>
           </DialogHeader>
 
-          <form onSubmit={handleCreateSubmit} className="space-y-4 pt-2">
-            <div className="space-y-1.5">
-              <Label htmlFor="planName">Plan Title <span className="text-red-500">*</span></Label>
+          <form onSubmit={handleCreateSubmit} className="space-y-3 py-2">
+            <div>
+              <Label className="text-[11px] font-bold text-muted-foreground">Plan Title *</Label>
               <Input
-                id="planName"
-                placeholder="e.g., Batch 4 Youth Mindset Curriculum"
                 value={formName}
                 onChange={(e) => setFormName(e.target.value)}
+                placeholder="e.g. Lahore Batch 4 Shabab Content & Activity Syllabus 2026"
+                className="rounded-xl text-xs font-medium mt-1"
               />
-              {formErrors.name && (
-                <p className="text-xs text-red-500 font-medium">{formErrors.name}</p>
-              )}
             </div>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="planKind">Plan Type</Label>
-              <Select
-                value={formKind}
-                onValueChange={(val: "base" | "custom") => setFormKind(val)}
-              >
-                <SelectTrigger id="planKind">
-                  <SelectValue />
-                </SelectTrigger>
+            <div>
+              <Label className="text-[11px] font-bold text-muted-foreground">Plan Kind</Label>
+              <Select value={formKind} onValueChange={(val: "base" | "custom") => setFormKind(val)}>
+                <SelectTrigger className="w-full h-10 rounded-xl text-xs font-bold mt-1"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="base">Base Template (Standard Master Curriculum)</SelectItem>
+                  <SelectItem value="base">Base Master Syllabus (Standard)</SelectItem>
                   <SelectItem value="custom">Park Override (Custom Plan)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
-            {isHQ && cities && cities.length > 0 && (
-              <div className="space-y-1.5">
-                <Label htmlFor="planCity">City <span className="text-red-500">*</span></Label>
-                <Select value={formCityId || effectiveCityId} onValueChange={setFormCityId}>
-                  <SelectTrigger id="planCity">
-                    <SelectValue placeholder="Select City" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {cities.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>
-                        {c.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {formErrors.cityId && (
-                  <p className="text-xs text-red-500 font-medium">{formErrors.cityId}</p>
-                )}
-              </div>
-            )}
-
-            {batches && batches.length > 0 && (
-              <div className="space-y-1.5">
-                <Label htmlFor="planBatch">Batch (Optional)</Label>
-                <Select value={formBatchId} onValueChange={setFormBatchId}>
-                  <SelectTrigger id="planBatch">
-                    <SelectValue placeholder="All Batches / General" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">All Batches / General</SelectItem>
-                    {batches.map((b) => (
-                      <SelectItem key={b.id} value={b.id}>
-                        {b.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-
-            <DialogFooter className="pt-2">
-              <Button type="button" variant="outline" onClick={closeCreateDialog}>
-                Cancel
-              </Button>
+            <DialogFooter className="pt-3">
+              <Button type="button" variant="outline" onClick={closeCreateDialog} className="rounded-xl font-bold">Cancel</Button>
               <Button
                 type="submit"
-                disabled={createMutation.isPending}
-                className="bg-[#4B0A8F] hover:bg-[#4B0A8FE6] text-white"
+                disabled={!formName || createMutation.isPending || updateMutation.isPending}
+                className="bg-[#4B0A8F] hover:bg-[#380668] text-white font-bold rounded-xl px-5"
               >
-                {createMutation.isPending ? "Creating..." : "Create Plan"}
+                {createMutation.isPending || updateMutation.isPending ? <Loader2 className="size-4 animate-spin" /> : editingPlan ? "Save Changes" : "Create Content Plan"}
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Plan Confirmation Dialog */}
+      <Dialog open={!!deletingPlan} onOpenChange={(open) => !open && setDeletingPlan(null)}>
+        <DialogContent className="rounded-2xl max-w-sm p-6 space-y-3">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-black text-red-600 flex items-center gap-2">
+              <Trash2 className="size-5" /> Delete Content Plan
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Are you sure you want to delete <span className="font-bold text-slate-900">{deletingPlan?.name}</span>?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="pt-2">
+            <Button variant="outline" onClick={() => setDeletingPlan(null)} className="rounded-xl font-bold">Cancel</Button>
+            <Button
+              onClick={() => deletingPlan && deleteMutation.mutate(deletingPlan.id)}
+              disabled={deleteMutation.isPending}
+              className="bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl px-4"
+            >
+              {deleteMutation.isPending ? <Loader2 className="size-4 animate-spin" /> : "Confirm Delete"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
