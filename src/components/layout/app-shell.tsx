@@ -52,6 +52,7 @@ const KnowledgeBasePage = lazy(() => import("@/components/modules/admin/knowledg
 const SecurityAccessPage = lazy(() => import("@/components/modules/admin/security-access-page").then(m => ({ default: m.SecurityAccessPage })));
 const CertificatesPage = lazy(() => import("@/components/modules/admin/certificates-page").then(m => ({ default: m.CertificatesPage })));
 const PortalImportPage = lazy(() => import("@/components/modules/admin/portal-import-page").then(m => ({ default: m.PortalImportPage })));
+const AlumniPage = lazy(() => import("@/components/modules/admin/alumni-page").then(m => ({ default: m.AlumniPage })));
 const PublicProgramPage = lazy(() => import("@/components/public/public-program-page").then(m => ({ default: m.PublicProgramPage })));
 const MurabbiDashboard = lazy(() => import("@/components/modules/murabbi/murabbi-dashboard").then(m => ({ default: m.MurabbiDashboard })));
 const MurabbiGroupsPage = lazy(() => import("@/components/modules/murabbi/murabbi-groups-page").then(m => ({ default: m.MurabbiGroupsPage })));
@@ -142,6 +143,7 @@ const pageTitles: Record<PageId, string> = {
   "admin-security-access": "Security & Access",
   "admin-certificates": "Certificates & Graduation",
   "admin-portal-import": "Portal Raw Import",
+  "admin-alumni": "Alumni Network & Mentorship",
   "public-program": "Program Showcase",
   "admin-announcements": "Announcements",
   "admin-reports": "Reports",
@@ -297,6 +299,8 @@ function PageContentInner({ pageId }: { pageId: PageId }) {
       return <CertificatesPage />;
     case "admin-portal-import":
       return <PortalImportPage />;
+    case "admin-alumni":
+      return <AlumniPage />;
     case "public-program":
       return <PublicProgramPage />;
     case "admin-events":
