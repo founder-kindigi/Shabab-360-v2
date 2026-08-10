@@ -188,7 +188,7 @@ export function KnowledgeBasePage() {
   };
 
   return (
-    <div className="space-y-6 pb-24 max-w-7xl mx-auto px-4 sm:px-6">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-1 pb-6 space-y-6">
       <PageHeader
         title="Digital Library & Operational Knowledge Base"
         description="Access curriculum guides, Tarbiyah policies, sports manuals, operational SOPs, and embedded Google Drive sheets."
@@ -196,9 +196,9 @@ export function KnowledgeBasePage() {
           <div className="flex items-center gap-2 flex-wrap">
             <Button
               onClick={() => setResourceModalOpen(true)}
-              className="bg-[#4B0A8F] hover:bg-[#4B0A8FE6] text-white font-bold rounded-xl h-11 px-5 shadow-md gap-2"
+              className="bg-[#4B0A8F] hover:bg-[#3b0873] text-white shadow-md rounded-lg h-10 px-4 text-xs font-semibold gap-2"
             >
-              <Plus className="size-5" />
+              <Plus className="size-4" />
               Upload Digital Resource
             </Button>
           </div>
@@ -207,66 +207,66 @@ export function KnowledgeBasePage() {
 
       {/* ─── 4 Top KPI Metric Cards ────────────────────────────────────────── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="border-0 shadow-sm bg-gradient-to-br from-indigo-50/60 to-white dark:from-indigo-950/20 dark:to-slate-900 rounded-2xl overflow-hidden ring-1 ring-slate-200 dark:ring-slate-800">
+        <Card className="border border-slate-200 dark:border-slate-800 shadow-sm bg-gradient-to-br from-indigo-50/40 to-white dark:from-indigo-950/20 dark:to-slate-900 rounded-xl overflow-hidden">
           <CardContent className="p-5 flex items-center gap-4">
             <div className="p-3 bg-indigo-100 dark:bg-indigo-900/50 rounded-xl text-indigo-600 dark:text-indigo-300 shrink-0">
               <FileText className="size-6" />
             </div>
             <div>
-              <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Digital Resources</p>
-              <h3 className="text-2xl font-black text-slate-900 dark:text-slate-100">{resources.length} files</h3>
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Digital Resources</p>
+              <h3 className="text-2xl font-bold text-slate-900 dark:text-slate-100">{resources.length} files</h3>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-0 shadow-sm bg-gradient-to-br from-purple-50/60 to-white dark:from-purple-950/20 dark:to-slate-900 rounded-2xl overflow-hidden ring-1 ring-slate-200 dark:ring-slate-800">
+        <Card className="border border-slate-200 dark:border-slate-800 shadow-sm bg-gradient-to-br from-purple-50/40 to-white dark:from-purple-950/20 dark:to-slate-900 rounded-xl overflow-hidden">
           <CardContent className="p-5 flex items-center gap-4">
             <div className="p-3 bg-purple-100 dark:bg-purple-900/50 rounded-xl text-purple-600 dark:text-purple-300 shrink-0">
               <BookOpen className="size-6" />
             </div>
             <div>
-              <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">SOP Articles & FAQs</p>
-              <h3 className="text-2xl font-black text-slate-900 dark:text-slate-100">{MOCK_ARTICLES.length} articles</h3>
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">SOP Articles & FAQs</p>
+              <h3 className="text-2xl font-bold text-slate-900 dark:text-slate-100">{MOCK_ARTICLES.length} articles</h3>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-0 shadow-sm bg-gradient-to-br from-emerald-50/60 to-white dark:from-emerald-950/20 dark:to-slate-900 rounded-2xl overflow-hidden ring-1 ring-slate-200 dark:ring-slate-800">
+        <Card className="border border-slate-200 dark:border-slate-800 shadow-sm bg-gradient-to-br from-emerald-50/40 to-white dark:from-emerald-950/20 dark:to-slate-900 rounded-xl overflow-hidden">
           <CardContent className="p-5 flex items-center gap-4">
             <div className="p-3 bg-emerald-100 dark:bg-emerald-900/50 rounded-xl text-emerald-600 dark:text-emerald-300 shrink-0">
               <Globe className="size-6" />
             </div>
             <div>
-              <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Google Drive Sync</p>
-              <h3 className="text-2xl font-black text-slate-900 dark:text-slate-100">Live Sheets</h3>
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Google Drive Sync</p>
+              <h3 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Live Sheets</h3>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-0 shadow-sm bg-gradient-to-br from-amber-50/60 to-white dark:from-amber-950/20 dark:to-slate-900 rounded-2xl overflow-hidden ring-1 ring-slate-200 dark:ring-slate-800">
+        <Card className="border border-slate-200 dark:border-slate-800 shadow-sm bg-gradient-to-br from-amber-50/40 to-white dark:from-amber-950/20 dark:to-slate-900 rounded-xl overflow-hidden">
           <CardContent className="p-5 flex items-center gap-4">
             <div className="p-3 bg-amber-100 dark:bg-amber-900/50 rounded-xl text-amber-600 dark:text-amber-300 shrink-0">
               <Sparkles className="size-6" />
             </div>
             <div>
-              <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Built-in Reader</p>
-              <h3 className="text-xl font-black text-slate-900 dark:text-slate-100">PDF Reader</h3>
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Built-in Reader</p>
+              <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100">PDF Reader</h3>
             </div>
           </CardContent>
         </Card>
       </div>
 
       {/* ─── Main Tabs Switcher ────────────────────────────────────────── */}
-      <Tabs defaultValue="resources" value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="space-y-6">
+      <Tabs defaultValue="resources" value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="space-y-4">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-4">
-          <TabsList className="bg-slate-100 dark:bg-slate-800/60 p-1 rounded-xl">
-            <TabsTrigger value="resources" className="rounded-lg font-bold text-xs sm:text-sm px-4">
+          <TabsList className="bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
+            <TabsTrigger value="resources" className="rounded-lg font-medium text-xs sm:text-sm px-4">
               <FileText className="size-4 mr-2" /> Digital Resources (PDFs)
             </TabsTrigger>
-            <TabsTrigger value="google_drive" className="rounded-lg font-bold text-xs sm:text-sm px-4">
+            <TabsTrigger value="google_drive" className="rounded-lg font-medium text-xs sm:text-sm px-4">
               <Globe className="size-4 mr-2" /> Live Google Docs & Sheets
             </TabsTrigger>
-            <TabsTrigger value="articles" className="rounded-lg font-bold text-xs sm:text-sm px-4">
+            <TabsTrigger value="articles" className="rounded-lg font-medium text-xs sm:text-sm px-4">
               <BookOpen className="size-4 mr-2" /> SOP Articles & Guides
             </TabsTrigger>
           </TabsList>
@@ -309,7 +309,7 @@ export function KnowledgeBasePage() {
 
         {/* ─── Tab 1: Digital Resources Roster with Built-in PDF Reader ───── */}
         <TabsContent value="resources" className="space-y-4 m-0">
-          <Card className="border-0 shadow-md ring-1 ring-slate-200 dark:ring-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl overflow-hidden rounded-2xl">
+          <Card className="border border-slate-200 dark:border-slate-800 shadow-sm rounded-xl overflow-hidden bg-white dark:bg-slate-900">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead className="bg-slate-100/70 dark:bg-slate-800/70 text-slate-700 dark:text-slate-300 text-xs uppercase font-extrabold tracking-wider border-b border-slate-200 dark:border-slate-800">
