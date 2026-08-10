@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth/options";
+import { requireAuth } from "@/lib/auth/authorize";
 import { z } from "zod";
 
 const createPostSchema = z.object({
@@ -10,12 +9,9 @@ const createPostSchema = z.object({
 });
 
 export async function GET() {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const auth = await requireAuth();
+  if (!auth || auth instanceof NextResponse) return auth as NextResponse;
 
-  // Success response with community posts
   return NextResponse.json({
     success: true,
     data: [
@@ -36,16 +32,14 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const auth = await requireAuth();
+  if (!auth || auth instanceof NextResponse) return auth as NextResponse;
 
   try {
     const body = await req.json();
     const parsed = createPostSchema.parse(body);
 
-    const user = session.user as { name?: string; role?: string };
+    const user = auth.user as { name?: string; role?: string };
 
     const newPost = {
       id: `post-${Date.now()}`,

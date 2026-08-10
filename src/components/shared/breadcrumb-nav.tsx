@@ -107,6 +107,7 @@ const pageTitles: Record<PageId, string> = {
   "admin-admissions": "Admissions",
   "admin-fees": "Fees",
   "admin-content-planner": "Content Planner",
+  "admin-community": "Community & Quizzes",
   "admin-procurement": "Procurement & Stock",
   "admin-gamification": "Gamification & Leaderboard",
   "admin-knowledge-base": "Knowledge Base & SOPs",

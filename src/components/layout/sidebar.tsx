@@ -32,6 +32,7 @@ import {
   Calendar,
   Phone,
   BookOpen,
+  MessageSquare,
   type LucideIcon,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
