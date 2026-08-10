@@ -42,6 +42,7 @@ const AccessManagementPage = lazy(() => import("@/components/modules/admin/acces
 const CollaborationTeamsPage = lazy(() => import("@/components/modules/admin/collaboration-teams-page").then(m => ({ default: m.CollaborationTeamsPage })));
 const MashwaraPage = lazy(() => import("@/app/admin/mashwara/page").then(m => ({ default: m.default })));
 const MashwaraDetailPage = lazy(() => import("@/app/admin/mashwara/[id]/page").then(m => ({ default: m.default })));
+const IslahMamulatPage = lazy(() => import("@/components/modules/admin/islah-mamulat-page").then(m => ({ default: m.IslahMamulatPage })));
 const CallingPage = lazy(() => import("@/app/admin/calling/page").then(m => ({ default: m.default })));
 const EventsPage = lazy(() => import("@/app/admin/events/page").then(m => ({ default: m.default })));
 const FeesPage = lazy(() => import("@/components/modules/admin/fees-page").then(m => ({ default: m.FeesPage })));
@@ -138,6 +139,7 @@ const pageTitles: Record<PageId, string> = {
   "admin-collaboration-teams": "Collaboration Teams",
   "admin-mashwara": "Weekly Mashwara",
   "admin-mashwara-detail": "Mashwara Detail",
+  "admin-islah-mamulat": "Islah-i-Mamulat",
   "admin-admissions": "Admissions",
   "admin-fees": "Fees",
   "admin-content-planner": "Content Planner",
@@ -195,6 +197,7 @@ function isKnownPage(pageId: PageId): boolean {
     "admin-reports", "admin-reports-builder", "admin-audit-log", "admin-sync-conflicts", "admin-access", "admin-access-management", "admin-collaboration-teams", "notifications",
     "admin-mashwara",
     "admin-mashwara-detail",
+    "admin-islah-mamulat",
     "murabbi-dashboard", "murabbi-groups",
     "park-dashboard", "park-attendance", "park-attendance-roster",
     "park-roster", "park-participants", "park-guardians", "park-schedule",
@@ -269,6 +272,8 @@ function PageContentInner({ pageId }: { pageId: PageId }) {
       return <MashwaraPage />;
     case "admin-mashwara-detail":
       return <MashwaraDetailPage />;
+    case "admin-islah-mamulat":
+      return <IslahMamulatPage />;
     case "admin-calling":
       return <CallingPage />;
     case "admin-audit-log":

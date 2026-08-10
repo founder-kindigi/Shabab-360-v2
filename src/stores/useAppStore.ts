@@ -37,6 +37,7 @@ export type PageId =
   | "admin-collaboration-teams"
   | "admin-mashwara"
   | "admin-mashwara-detail"
+  | "admin-islah-mamulat"
   | "admin-content-planner"
   | "admin-community"
   | "admin-procurement"

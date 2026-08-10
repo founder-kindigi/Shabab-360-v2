@@ -77,6 +77,7 @@ const navConfig: Record<string, { tKey: string; section: string }> = {
   "admin-events": { tKey: "nav.events", section: "operations" },
   "admin-calling": { tKey: "nav.calling", section: "operations" },
   "admin-mashwara": { tKey: "nav.mashwara", section: "operations" },
+  "admin-islah-mamulat": { tKey: "nav.islahMamulat", section: "operations" },
   "admin-portal-import": { tKey: "nav.portalImport", section: "system" },
   "admin-alumni": { tKey: "nav.alumni", section: "people" },
   "admin-content-planner": { tKey: "nav.contentPlanner", section: "operations" },
@@ -144,6 +145,7 @@ const iconMap: Record<string, LucideIcon> = {
   "admin-events": Calendar,
   "admin-calling": Phone,
   "admin-mashwara": ClipboardList,
+  "admin-islah-mamulat": BookOpen,
   "admin-content-planner": BookOpen,
   "admin-community": MessageSquare,
   "admin-users": UserCog,
@@ -182,12 +184,12 @@ const iconMap: Record<string, LucideIcon> = {
 };
 
 const roleNavPages: Record<string, PageId[]> = {
-  super_admin: ["admin-dashboard","admin-cities","admin-parks","admin-batches","admin-groups","admin-people","admin-students","admin-guardians","admin-attendance-events","admin-events","admin-calling","admin-mashwara","admin-content-planner","admin-community","admin-users","admin-access","admin-admissions","admin-fees","admin-announcements","admin-reports","admin-reports-builder","notifications","admin-audit-log","admin-sync-conflicts","admin-access-management","admin-collaboration-teams","admin-settings"],
-  program_admin: ["admin-dashboard","admin-cities","admin-parks","admin-batches","admin-groups","admin-people","admin-students","admin-guardians","admin-attendance-events","admin-events","admin-calling","admin-mashwara","admin-content-planner","admin-community","admin-users","admin-access","admin-admissions","admin-fees","admin-announcements","admin-reports","admin-reports-builder","notifications","admin-audit-log","admin-sync-conflicts","admin-settings"],
-  city_head: ["city-head-dashboard","admin-parks","admin-batches","admin-groups","admin-people","admin-students","admin-attendance-events","admin-events","admin-calling","admin-mashwara","admin-content-planner","admin-community","admin-access","admin-admissions","admin-fees","admin-announcements","admin-reports","admin-reports-builder","notifications","admin-sync-conflicts"],
-  park_admin: ["park-dashboard","park-attendance","park-roster","park-participants","park-guardians","park-schedule","admin-community","notifications"],
-  park_lead: ["park-dashboard","admin-groups","park-attendance","park-roster","park-participants","park-guardians","park-schedule","admin-community","notifications"],
-  murabbi: ["murabbi-dashboard","murabbi-groups","park-attendance","park-schedule","admin-community","notifications"],
+  super_admin: ["admin-dashboard","admin-cities","admin-parks","admin-batches","admin-groups","admin-people","admin-students","admin-guardians","admin-attendance-events","admin-events","admin-calling","admin-mashwara","admin-islah-mamulat","admin-content-planner","admin-community","admin-users","admin-access","admin-admissions","admin-fees","admin-announcements","admin-reports","admin-reports-builder","notifications","admin-audit-log","admin-sync-conflicts","admin-access-management","admin-collaboration-teams","admin-settings"],
+  program_admin: ["admin-dashboard","admin-cities","admin-parks","admin-batches","admin-groups","admin-people","admin-students","admin-guardians","admin-attendance-events","admin-events","admin-calling","admin-mashwara","admin-islah-mamulat","admin-content-planner","admin-community","admin-users","admin-access","admin-admissions","admin-fees","admin-announcements","admin-reports","admin-reports-builder","notifications","admin-audit-log","admin-sync-conflicts","admin-settings"],
+  city_head: ["city-head-dashboard","admin-parks","admin-batches","admin-groups","admin-people","admin-students","admin-attendance-events","admin-events","admin-calling","admin-mashwara","admin-islah-mamulat","admin-content-planner","admin-community","admin-access","admin-admissions","admin-fees","admin-announcements","admin-reports","admin-reports-builder","notifications","admin-sync-conflicts"],
+  park_admin: ["park-dashboard","park-attendance","park-roster","park-participants","park-guardians","park-schedule","admin-islah-mamulat","admin-community","notifications"],
+  park_lead: ["park-dashboard","admin-groups","park-attendance","park-roster","park-participants","park-guardians","park-schedule","admin-islah-mamulat","admin-community","notifications"],
+  murabbi: ["murabbi-dashboard","murabbi-groups","park-attendance","park-schedule","admin-islah-mamulat","admin-community","notifications"],
   guardian: ["guardian-dashboard","guardian-history","guardian-schedule","guardian-fees","admin-community","guardian-announcements"],
   student: ["student-dashboard","student-history","student-schedule","student-fees","admin-community","student-announcements","student-profile"],
 };
