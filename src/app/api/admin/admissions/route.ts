@@ -69,7 +69,7 @@ const portalDatasetApplications = rawDataset.map((r, idx) => ({
 }));
 
 export async function GET(request: NextRequest) {
-  const authError = await requireRole(["super_admin", "program_admin", "city_head", "park_lead", "murabbi", "staff"]);
+  const authError = await requireRole(["super_admin", "program_admin", "city_head", "park_admin", "park_lead", "murabbi"]);
   if (authError) return authError;
 
   const { searchParams } = new URL(request.url);

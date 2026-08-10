@@ -20,7 +20,7 @@ const defaultCities = [
 ];
 
 export async function GET() {
-  const authError = await requireRole(["super_admin", "program_admin", "city_head", "park_lead", "murabbi", "staff"]);
+  const authError = await requireRole(["super_admin", "program_admin", "city_head", "park_admin", "park_lead", "murabbi"]);
   if (authError) return authError;
 
   try {
