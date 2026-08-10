@@ -122,14 +122,14 @@ function FormattedContentWithLinks({ content }: { content: string }) {
   const lines = content.split("\n");
 
   return (
-    <div className="space-y-1 text-xs text-slate-800 dark:text-slate-200">
+    <div className="space-y-1 text-xs text-slate-800 dark:text-slate-200 break-words max-w-full overflow-hidden">
       {lines.map((line, lIdx) => {
         if (!line.trim()) return <div key={lIdx} className="h-0.5" />;
 
         const parts = line.split(urlRegex);
 
         return (
-          <div key={lIdx} className="leading-relaxed">
+          <div key={lIdx} className="leading-relaxed break-words max-w-full">
             {parts.map((part, pIdx) => {
               if (part.match(urlRegex)) {
                 const cleanUrl = part.trim();
@@ -141,19 +141,19 @@ function FormattedContentWithLinks({ content }: { content: string }) {
                 if (isYouTube) label = "Watch Video Tutorial";
 
                 return (
-                  <span key={pIdx} className="inline-block my-0.5 mr-1">
+                  <span key={pIdx} className="inline-block my-0.5 mr-1 max-w-full">
                     <a
                       href={cleanUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-bold text-purple-700 bg-purple-100/90 hover:bg-purple-200 dark:bg-purple-900/50 dark:text-purple-300 dark:hover:bg-purple-900/80 rounded-lg transition-colors border border-purple-200 dark:border-purple-800 shadow-2xs"
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-bold text-purple-700 bg-purple-100/90 hover:bg-purple-200 dark:bg-purple-900/50 dark:text-purple-300 dark:hover:bg-purple-900/80 rounded-lg transition-colors border border-purple-200 dark:border-purple-800 shadow-2xs max-w-full"
                     >
                       {isYouTube ? (
                         <Video className="size-3.5 text-red-600 shrink-0" />
                       ) : (
                         <ExternalLink className="size-3.5 text-purple-600 shrink-0" />
                       )}
-                      <span>{label}</span>
+                      <span className="truncate max-w-[160px] sm:max-w-[200px]">{label}</span>
                     </a>
                   </span>
                 );
@@ -455,7 +455,7 @@ export function ContentPlannerPage() {
     });
   }, [realSyllabus]);
 
-  // Determine active week name based on date range (defaults to Week 1)
+  // Determine active week name based on date range (exact match, defaults to Week 1)
   const activeWeekName = useMemo(() => {
     const matched = matrixData.find((item) => {
       if (!item.date) return false;
@@ -465,10 +465,12 @@ export function ContentPlannerPage() {
     return matched ? matched.week : "Week 1";
   }, [matrixData, currentWeekDateRange]);
 
+  // Fix: EXACT string match so "Week 10" is not falsely flagged as "Week 1"!
   const matrixDataWithActive = useMemo(() => {
+    const activeNorm = activeWeekName.toLowerCase().trim();
     return matrixData.map((item) => ({
       ...item,
-      isCurrentWeek: item.week.toLowerCase().trim() === activeWeekName.toLowerCase().trim() || item.week.includes("Week 1"),
+      isCurrentWeek: item.week.toLowerCase().trim() === activeNorm,
     }));
   }, [matrixData, activeWeekName]);
 
@@ -492,7 +494,7 @@ export function ContentPlannerPage() {
   }, [matrixDataWithActive, selectedWeekFilter, activeWeekName, teamFilter]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 w-full max-w-full overflow-x-hidden">
       <PageHeader
         title="Content & Activity Planner"
         description="Design 4-category curriculum plans (Sports, Skills, Tadreeb, Exercises), weekly session blocks, and park-level activity syllabus."
@@ -566,7 +568,7 @@ export function ContentPlannerPage() {
       </div>
 
       {/* Main Content Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4 w-full">
         <TabsList className="bg-slate-100 dark:bg-slate-800/80 p-1.5 rounded-2xl h-11">
           <TabsTrigger value="roster" className="rounded-xl text-xs font-bold px-4 py-2 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 shadow-sm">
             <BookOpen className="size-4 mr-2 text-purple-600" />
@@ -658,9 +660,9 @@ export function ContentPlannerPage() {
           </div>
         </TabsContent>
 
-        <TabsContent value="matrix" className="space-y-4">
+        <TabsContent value="matrix" className="space-y-4 w-full">
           {/* Active Week Range Selector Bar */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar w-full">
             <span className="text-xs font-bold text-slate-500 mr-1 shrink-0 flex items-center gap-1">
               <Pin className="size-3.5 text-purple-600" /> Current Active Week Focus:
             </span>
@@ -692,7 +694,7 @@ export function ContentPlannerPage() {
           </div>
 
           {/* Team Filter Pills & View Switcher */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-card p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-card p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm w-full">
             <div className="flex items-center gap-2 overflow-x-auto w-full sm:w-auto pb-1 sm:pb-0">
               <span className="text-xs font-bold text-slate-500 shrink-0 mr-1">View Team Syllabus:</span>
               {[
@@ -743,7 +745,7 @@ export function ContentPlannerPage() {
 
           {/* Render Mode 1: Modern Web Cards Grid (1 Active Week Plan) */}
           {viewMode === "cards" ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 w-full">
               <AnimatePresence mode="popLayout">
                 {filteredMatrix.map((item) => (
                   <motion.div
@@ -752,10 +754,11 @@ export function ContentPlannerPage() {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.95 }}
                     transition={{ duration: 0.15 }}
+                    className="w-full"
                   >
                     <Card
                       className={cn(
-                        "rounded-2xl border-0 ring-1 shadow-sm hover:shadow-md transition-all overflow-hidden h-full flex flex-col justify-between bg-card relative",
+                        "rounded-2xl border-0 ring-1 shadow-sm hover:shadow-md transition-all overflow-hidden h-full flex flex-col justify-between bg-card relative w-full",
                         item.isCurrentWeek
                           ? "ring-2 ring-purple-600 dark:ring-purple-500 shadow-purple-500/10"
                           : "ring-slate-200 dark:ring-slate-800"
@@ -763,10 +766,10 @@ export function ContentPlannerPage() {
                     >
                       {item.isCurrentWeek && (
                         <div className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-[11px] font-black py-1 px-3 flex items-center justify-between">
-                          <span className="flex items-center gap-1">
-                            <Pin className="size-3 text-amber-300 fill-amber-300" /> PINNED ACTIVE WEEK ({currentWeekDateRange.label})
+                          <span className="flex items-center gap-1 truncate max-w-[240px] sm:max-w-[280px]">
+                            <Pin className="size-3 text-amber-300 fill-amber-300 shrink-0" /> PINNED ACTIVE WEEK ({currentWeekDateRange.label})
                           </span>
-                          <Badge className="bg-amber-400 text-slate-900 font-bold text-[9px] px-1.5 py-0">ACTIVE NOW</Badge>
+                          <Badge className="bg-amber-400 text-slate-900 font-bold text-[9px] px-1.5 py-0 shrink-0">ACTIVE NOW</Badge>
                         </div>
                       )}
 
@@ -782,38 +785,38 @@ export function ContentPlannerPage() {
                         )}
                       </CardHeader>
 
-                      <CardContent className="p-4 space-y-3 text-xs flex-1">
+                      <CardContent className="p-4 space-y-3 text-xs flex-1 w-full max-w-full overflow-hidden">
                         {(teamFilter === "all" || teamFilter === "exercises") && item.exercises && (
-                          <div className="space-y-1 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200/60 dark:border-slate-800">
+                          <div className="space-y-1 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200/60 dark:border-slate-800 w-full overflow-hidden">
                             <div className="flex items-center gap-1.5 font-bold text-slate-700 dark:text-slate-300">
-                              <Activity className="size-3.5 text-slate-500" /> Exercises & Martial Arts
+                              <Activity className="size-3.5 text-slate-500 shrink-0" /> Exercises & Martial Arts
                             </div>
                             <FormattedContentWithLinks content={item.exercises} />
                           </div>
                         )}
 
                         {(teamFilter === "all" || teamFilter === "sports") && item.sports && (
-                          <div className="space-y-1 p-2.5 rounded-xl bg-orange-50/50 dark:bg-orange-950/20 border border-orange-200/50 dark:border-orange-900/30">
+                          <div className="space-y-1 p-2.5 rounded-xl bg-orange-50/50 dark:bg-orange-950/20 border border-orange-200/50 dark:border-orange-900/30 w-full overflow-hidden">
                             <div className="flex items-center gap-1.5 font-bold text-orange-700 dark:text-orange-400">
-                              <Flame className="size-3.5 text-orange-500" /> Sports Game
+                              <Flame className="size-3.5 text-orange-500 shrink-0" /> Sports Game
                             </div>
-                            <p className="text-slate-800 dark:text-slate-200 font-bold text-sm leading-relaxed">{item.sports}</p>
+                            <p className="text-slate-800 dark:text-slate-200 font-bold text-sm leading-relaxed break-words">{item.sports}</p>
                           </div>
                         )}
 
                         {(teamFilter === "all" || teamFilter === "skills") && item.skills && (
-                          <div className="space-y-1 p-2.5 rounded-xl bg-blue-50/50 dark:bg-blue-950/20 border border-blue-200/50 dark:border-blue-900/30">
+                          <div className="space-y-1 p-2.5 rounded-xl bg-blue-50/50 dark:bg-blue-950/20 border border-blue-200/50 dark:border-blue-900/30 w-full overflow-hidden">
                             <div className="flex items-center gap-1.5 font-bold text-blue-700 dark:text-blue-400">
-                              <Brain className="size-3.5 text-blue-500" /> Skills Module & Activity
+                              <Brain className="size-3.5 text-blue-500 shrink-0" /> Skills Module & Activity
                             </div>
                             <FormattedContentWithLinks content={item.skills} />
                           </div>
                         )}
 
                         {(teamFilter === "all" || teamFilter === "tadreeb") && item.tadreeb && (
-                          <div className="space-y-1 p-2.5 rounded-xl bg-rose-50/50 dark:bg-rose-950/20 border border-rose-200/50 dark:border-rose-900/30">
+                          <div className="space-y-1 p-2.5 rounded-xl bg-rose-50/50 dark:bg-rose-950/20 border border-rose-200/50 dark:border-rose-900/30 w-full overflow-hidden">
                             <div className="flex items-center gap-1.5 font-bold text-rose-700 dark:text-rose-400">
-                              <Heart className="size-3.5 text-rose-500" /> Tadreeb & Seerah Topic
+                              <Heart className="size-3.5 text-rose-500 shrink-0" /> Tadreeb & Seerah Topic
                             </div>
                             <FormattedContentWithLinks content={item.tadreeb} />
                           </div>
@@ -826,7 +829,7 @@ export function ContentPlannerPage() {
             </div>
           ) : (
             /* Render Mode 2: Formatted Table View */
-            <Card className="rounded-2xl border-0 ring-1 ring-slate-200 dark:ring-slate-800 shadow-sm overflow-hidden p-6 space-y-4 bg-card">
+            <Card className="rounded-2xl border-0 ring-1 ring-slate-200 dark:ring-slate-800 shadow-sm overflow-hidden p-6 space-y-4 bg-card w-full">
               <div className="flex items-center justify-between border-b pb-3">
                 <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
                   <CalendarDays className="size-4 text-purple-600" /> Active Week Plan Table ({selectedWeekFilter === "active" ? activeWeekName : selectedWeekFilter})
@@ -836,8 +839,8 @@ export function ContentPlannerPage() {
                 </Badge>
               </div>
 
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm">
+              <div className="overflow-x-auto w-full">
+                <table className="w-full text-left text-sm min-w-[700px]">
                   <thead className="bg-slate-100/70 dark:bg-slate-800/70 text-slate-700 dark:text-slate-300 text-xs uppercase font-extrabold tracking-wider border-b border-slate-200 dark:border-slate-800">
                     <tr>
                       <th className="p-3.5 w-36">Week / Day</th>
