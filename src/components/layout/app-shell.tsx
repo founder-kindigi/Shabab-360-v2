@@ -414,10 +414,26 @@ export function AppShell() {
     return () => document.removeEventListener("shortcut:escape", handleEscape);
   }, []);
   const pageTitle = pageTitles[currentPage] || "Dashboard";
-  const showPageHeader = !["admin-dashboard", "city-head-dashboard", "murabbi-dashboard", "park-dashboard", "park-attendance-roster", "park-roster", "park-participants", "park-guardians", "park-schedule", "guardian-dashboard", "guardian-history", "guardian-announcements", "guardian-schedule", "guardian-fees", "student-dashboard", "student-history", "student-announcements", "student-schedule", "student-fees", "student-profile", "admin-cities", "admin-parks", "admin-batches", "admin-groups", "admin-users", "admin-access", "admin-audit-log", "admin-settings", "admin-attendance-events", "admin-people", "admin-announcements", "admin-reports", "admin-students", "admin-guardians", "admin-fees", "admin-admissions", "notifications"].includes(currentPage);
+  const showPageHeader = ![
+    "admin-dashboard", "city-head-dashboard", "murabbi-dashboard", "park-dashboard",
+    "park-attendance-roster", "park-roster", "park-participants", "park-guardians",
+    "park-schedule", "guardian-dashboard", "guardian-history", "guardian-announcements",
+    "guardian-schedule", "guardian-fees", "student-dashboard", "student-history",
+    "student-announcements", "student-schedule", "student-fees", "student-profile",
+    "admin-cities", "admin-parks", "admin-batches", "admin-groups", "admin-users",
+    "admin-access", "admin-audit-log", "admin-settings", "admin-attendance-events",
+    "admin-people", "admin-announcements", "admin-reports", "admin-students",
+    "admin-guardians", "admin-fees", "admin-admissions", "admin-content-planner",
+    "admin-collaboration-teams", "admin-mashwara", "park-attendance", "notifications"
+  ].includes(currentPage);
 
-  // Show scope selector on admin pages (not dashboard, settings, or audit-log)
-  const showScopeSelector = currentPage.startsWith("admin-") && !(["admin-dashboard", "admin-settings", "admin-audit-log", "admin-people", "admin-announcements", "admin-access", "admin-students", "admin-guardians", "admin-fees", "admin-admissions"] as const).includes(currentPage as any);
+  // Show scope selector on admin pages (not dashboard, settings, or modules with built-in headers)
+  const showScopeSelector = currentPage.startsWith("admin-") && !(
+    ["admin-dashboard", "admin-settings", "admin-audit-log", "admin-people",
+     "admin-announcements", "admin-access", "admin-students", "admin-guardians",
+     "admin-fees", "admin-admissions", "admin-content-planner",
+     "admin-collaboration-teams", "admin-mashwara"] as const
+  ).includes(currentPage as any);
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
