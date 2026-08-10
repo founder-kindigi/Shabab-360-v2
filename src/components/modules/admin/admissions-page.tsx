@@ -87,6 +87,7 @@ import {
   Star,
   UserCheck,
   UserX,
+  Trash2,
   FolderInput,
   CalendarPlus,
   Copy,
@@ -628,6 +629,18 @@ export function AdmissionsPage() {
       }
     },
     onError: () => toast.error("Failed to update application"),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => fetch(`/api/admin/admissions/${id}`, { method: "DELETE" }).then((r) => r.json()),
+    onSuccess: () => {
+      toast.success("Applicant record deleted successfully");
+      setSheetOpen(false);
+      setSelectedApp(null);
+      queryClient.invalidateQueries({ queryKey: ["admissions"] });
+      queryClient.invalidateQueries({ queryKey: ["admissions-count"] });
+    },
+    onError: () => toast.error("Failed to delete application"),
   });
 
   const enrollMutation = useMutation({
