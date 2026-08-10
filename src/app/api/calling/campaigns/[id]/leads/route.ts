@@ -1,51 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireCapability } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
-import rawDataset from "@/lib/import-framework/portal-raw-dataset.json";
+import { getPortalCallingLeads } from "@/lib/calling/portal-store";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
 }
-
-const CALLERS_LIST = [
-  { id: "c1", name: "Ikram Meer (Gulberg Lead)" },
-  { id: "c2", name: "Hanzala Tauseef (Gulberg Murabbi)" },
-  { id: "c3", name: "Hasnain Zafar (Tadreeb Lead)" },
-  { id: "c4", name: "Imran Amin (Johar Town Lead)" },
-  { id: "c5", name: "Basit Ahsan (Gulshan Ravi Lead)" },
-  { id: "c6", name: "Abdul Kabeer (State Life Lead)" },
-];
-
-const portalLeads = rawDataset.map((r, idx) => {
-  const caller = CALLERS_LIST[idx % CALLERS_LIST.length];
-  const isApproved = r.status === "Approved";
-  const isPending = r.status === "Pending";
-  const outcome = isApproved ? "reached" : isPending ? (idx % 3 === 0 ? "callback_requested" : "no_answer") : "busy";
-  const status = isApproved ? "interested" : isPending ? "contacted" : "pending";
-
-  const remarksText = r.remarks
-    ? `Token & Remarks: ${r.remarks} | Verified by ${caller.name}`
-    : isApproved
-    ? `Spoke with guardian (${r.fatherName || "Father"}). Confirmed attendance for ${r.park || "Gulberg"} Park sports session.`
-    : `Attempted call to ${r.mobile}. Requested callback after 5:00 PM.`;
-
-  return {
-    id: `lead-portal-${r.sr}`,
-    applicationId: `portal-app-${r.sr}`,
-    callerStaffMetaId: caller.id,
-    callerName: caller.name,
-    callerExternalId: null,
-    status,
-    outcome,
-    notes: remarksText,
-    calledAt: new Date(Date.now() - (idx % 7) * 86400000).toISOString(),
-    application: {
-      applicantName: r.name,
-      guardianPhone: r.mobile,
-      status: isApproved ? "approved" : "submitted",
-    },
-  };
-});
 
 export async function GET(request: NextRequest, { params }: RouteParams) {
   const auth = await requireCapability("calling.view");
@@ -93,16 +53,28 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json(formatted);
     }
   } catch (err) {
-    console.warn("Calling leads DB query error, returning portal export leads with remarks:", err);
+    console.warn("Calling leads DB query error, returning live portal store leads:", err);
   }
 
-  let filtered = [...portalLeads];
+  let leads = getPortalCallingLeads();
+
   if (statusParam && statusParam !== "all") {
-    filtered = filtered.filter((l) => l.status === statusParam);
-  }
-  if (callerParam && callerParam !== "all") {
-    filtered = filtered.filter((l) => l.callerStaffMetaId === callerParam);
+    if (statusParam === "unassigned") {
+      leads = leads.filter((l) => !l.callerStaffMetaId);
+    } else if (statusParam === "assigned") {
+      leads = leads.filter((l) => l.callerStaffMetaId && l.status === "pending");
+    } else {
+      leads = leads.filter((l) => l.status === statusParam);
+    }
   }
 
-  return NextResponse.json(filtered);
+  if (callerParam && callerParam !== "all") {
+    if (callerParam === "unassigned") {
+      leads = leads.filter((l) => !l.callerStaffMetaId);
+    } else {
+      leads = leads.filter((l) => l.callerStaffMetaId === callerParam);
+    }
+  }
+
+  return NextResponse.json(leads);
 }

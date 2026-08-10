@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth/authorize";
 import { verifyCallingManagerOrPoc } from "@/lib/calling/poc-auth";
 import { db } from "@/lib/db";
-import rawDataset from "@/lib/import-framework/portal-raw-dataset.json";
+import { getPortalCallingLeads, CALLERS_LIST } from "@/lib/calling/portal-store";
 
 export async function GET(request: NextRequest) {
   const auth = await requireAuth();
@@ -64,18 +64,37 @@ export async function GET(request: NextRequest) {
       }
     }
   } catch (err) {
-    console.warn("Calling workloads DB error, returning portal export workloads:", err);
+    console.warn("Calling workloads DB error, returning live portal store workloads:", err);
   }
 
-  // Mapped workloads from all 759 raw portal export records across Lahore Murabbis
-  const portalWorkloads = [
-    { callerId: "c1", callerName: "Ikram Meer (Gulberg Lead)", callerType: "staff", totalAssigned: 150, pending: 40, contacted: 60, interested: 40, callbackRequested: 10 },
-    { callerId: "c2", callerName: "Hanzala Tauseef (Gulberg Murabbi)", callerType: "staff", totalAssigned: 140, pending: 30, contacted: 70, interested: 35, callbackRequested: 5 },
-    { callerId: "c3", callerName: "Hasnain Zafar (Tadreeb Lead)", callerType: "staff", totalAssigned: 130, pending: 20, contacted: 80, interested: 25, callbackRequested: 5 },
-    { callerId: "c4", callerName: "Imran Amin (Johar Town Lead)", callerType: "staff", totalAssigned: 120, pending: 25, contacted: 65, interested: 25, callbackRequested: 5 },
-    { callerId: "c5", callerName: "Basit Ahsan (Gulshan Ravi Lead)", callerType: "staff", totalAssigned: 119, pending: 19, contacted: 70, interested: 25, callbackRequested: 5 },
-    { callerId: "c6", callerName: "Abdul Kabeer (State Life Lead)", callerType: "staff", totalAssigned: 100, pending: 20, contacted: 50, interested: 25, callbackRequested: 5 },
-  ];
+  // Calculate live workloads from in-memory portal store
+  const leads = getPortalCallingLeads();
+  const callerMap = new Map<string, any>();
+
+  for (const cid of Object.keys(CALLERS_LIST)) {
+    callerMap.set(cid, {
+      callerId: cid,
+      callerName: CALLERS_LIST[cid],
+      callerType: "staff",
+      totalAssigned: 0,
+      pending: 0,
+      contacted: 0,
+      interested: 0,
+      callbackRequested: 0,
+    });
+  }
+
+  for (const lead of leads) {
+    if (lead.callerStaffMetaId && callerMap.has(lead.callerStaffMetaId)) {
+      const item = callerMap.get(lead.callerStaffMetaId)!;
+      item.totalAssigned++;
+      if (lead.status === "pending") item.pending++;
+      else if (lead.status === "contacted") item.contacted++;
+      else if (lead.status === "interested") item.interested++;
+
+      if (lead.outcome === "callback_requested") item.callbackRequested++;
+    }
+  }
 
   return NextResponse.json({
     campaign: {
@@ -83,6 +102,6 @@ export async function GET(request: NextRequest) {
       name: "Lahore Batch 4 Portal Registration Outreach Drive",
       cityId: "city-lahore-01",
     },
-    workloads: portalWorkloads,
+    workloads: Array.from(callerMap.values()),
   });
 }

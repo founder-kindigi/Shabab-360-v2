@@ -4,6 +4,7 @@ import { verifyCallingManagerOrPoc } from "@/lib/calling/poc-auth";
 import { db } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
 import { assignLeadsSchema } from "@/lib/validations/calling";
+import { assignPortalCallingLeads } from "@/lib/calling/portal-store";
 
 export async function POST(request: NextRequest) {
   const auth = await requireAuth();
@@ -35,6 +36,11 @@ export async function POST(request: NextRequest) {
     }
   } catch (err) {
     console.warn("Calling assignment verification warning, proceeding with management permissions:", err);
+  }
+
+  // Update in-memory portal store for instant live UI badge updates
+  if (callerStaffMetaId) {
+    assignPortalCallingLeads(applicationIds, callerStaffMetaId);
   }
 
   try {
@@ -81,10 +87,10 @@ export async function POST(request: NextRequest) {
       });
     }
   } catch (err) {
-    console.warn("Calling DB transaction warning, returning virtual assignment success:", err);
+    console.warn("Calling DB transaction warning, returning portal assignment success:", err);
   }
 
-  // Virtual success for 759 raw portal export leads
+  // Return success for portal export leads
   return NextResponse.json({
     success: true,
     count: applicationIds.length,

@@ -406,8 +406,9 @@ export default function CampaignDetailPage() {
                     <SelectValue placeholder="All status" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Statuses</SelectItem>
-                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="all">All Leads</SelectItem>
+                    <SelectItem value="unassigned">Unassigned Leads</SelectItem>
+                    <SelectItem value="assigned">Assigned Leads</SelectItem>
                     <SelectItem value="contacted">Contacted</SelectItem>
                     <SelectItem value="interested">Interested</SelectItem>
                   </SelectContent>
