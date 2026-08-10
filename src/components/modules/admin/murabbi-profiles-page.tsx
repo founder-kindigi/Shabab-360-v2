@@ -3,12 +3,12 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
+import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/layout/page-header";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -37,25 +37,14 @@ import {
 import {
   UserCheck,
   Users,
-  Award,
   Search,
   Plus,
-  Phone,
-  Mail,
-  Calendar,
   Building,
-  CheckCircle2,
   Sparkles,
-  BookOpen,
   MessageSquare,
-  MapPin,
   Loader2,
-  ShieldCheck,
   TrendingUp,
-  FileText,
-  Clock,
   Eye,
-  CheckSquare,
   Activity,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -165,7 +154,7 @@ export function MurabbiProfilesPage() {
                   resetForm();
                   setIsRegisterOpen(true);
                 }}
-                className="bg-[#4B0A8F] hover:bg-[#380668] text-white font-bold rounded-xl h-10 px-4 text-xs shadow-md"
+                className="bg-[#4B0A8F] hover:bg-[#380668] text-white font-bold rounded-xl h-10 px-4 text-xs shadow-md transition-transform hover:scale-[1.02]"
               >
                 <Plus className="size-4 mr-1.5" /> Add Murabbi Leader
               </Button>
@@ -176,53 +165,61 @@ export function MurabbiProfilesPage() {
 
       {/* KPI Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="rounded-2xl border-0 ring-1 ring-slate-200 dark:ring-slate-800 shadow-sm p-4 bg-gradient-to-br from-purple-500/5 to-indigo-500/5">
-          <div className="flex items-center gap-3">
-            <div className="size-11 rounded-2xl bg-purple-600/10 flex items-center justify-center text-purple-600">
-              <UserCheck className="size-6" />
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>
+          <Card className="rounded-2xl border-0 ring-1 ring-slate-200 dark:ring-slate-800 shadow-sm p-4 bg-gradient-to-br from-purple-500/5 to-indigo-500/5 hover:shadow-md transition-shadow">
+            <div className="flex items-center gap-3">
+              <div className="size-11 rounded-2xl bg-purple-600/10 flex items-center justify-center text-purple-600">
+                <UserCheck className="size-6" />
+              </div>
+              <div>
+                <p className="text-2xl font-black text-slate-900 dark:text-slate-100">{summary.totalActiveMurabbis}</p>
+                <p className="text-xs font-bold text-muted-foreground">Active Murabbi Leaders</p>
+              </div>
             </div>
-            <div>
-              <p className="text-2xl font-black text-slate-900 dark:text-slate-100">{summary.totalActiveMurabbis}</p>
-              <p className="text-xs font-bold text-muted-foreground">Active Murabbi Leaders</p>
-            </div>
-          </div>
-        </Card>
+          </Card>
+        </motion.div>
 
-        <Card className="rounded-2xl border-0 ring-1 ring-slate-200 dark:ring-slate-800 shadow-sm p-4 bg-gradient-to-br from-emerald-500/5 to-teal-500/5">
-          <div className="flex items-center gap-3">
-            <div className="size-11 rounded-2xl bg-emerald-600/10 flex items-center justify-center text-emerald-600">
-              <Building className="size-6" />
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2, delay: 0.05 }}>
+          <Card className="rounded-2xl border-0 ring-1 ring-slate-200 dark:ring-slate-800 shadow-sm p-4 bg-gradient-to-br from-emerald-500/5 to-teal-500/5 hover:shadow-md transition-shadow">
+            <div className="flex items-center gap-3">
+              <div className="size-11 rounded-2xl bg-emerald-600/10 flex items-center justify-center text-emerald-600">
+                <Building className="size-6" />
+              </div>
+              <div>
+                <p className="text-2xl font-black text-slate-900 dark:text-slate-100">{summary.parksCovered} Parks</p>
+                <p className="text-xs font-bold text-muted-foreground">Lahore Parks Supervised</p>
+              </div>
             </div>
-            <div>
-              <p className="text-2xl font-black text-slate-900 dark:text-slate-100">{summary.parksCovered} Parks</p>
-              <p className="text-xs font-bold text-muted-foreground">Lahore Parks Supervised</p>
-            </div>
-          </div>
-        </Card>
+          </Card>
+        </motion.div>
 
-        <Card className="rounded-2xl border-0 ring-1 ring-slate-200 dark:ring-slate-800 shadow-sm p-4 bg-gradient-to-br from-blue-500/5 to-cyan-500/5">
-          <div className="flex items-center gap-3">
-            <div className="size-11 rounded-2xl bg-blue-600/10 flex items-center justify-center text-blue-600">
-              <Users className="size-6" />
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2, delay: 0.1 }}>
+          <Card className="rounded-2xl border-0 ring-1 ring-slate-200 dark:ring-slate-800 shadow-sm p-4 bg-gradient-to-br from-blue-500/5 to-cyan-500/5 hover:shadow-md transition-shadow">
+            <div className="flex items-center gap-3">
+              <div className="size-11 rounded-2xl bg-blue-600/10 flex items-center justify-center text-blue-600">
+                <Users className="size-6" />
+              </div>
+              <div>
+                <p className="text-2xl font-black text-slate-900 dark:text-slate-100">{summary.totalStudentsAssigned}</p>
+                <p className="text-xs font-bold text-muted-foreground">Shabab Students Managed</p>
+              </div>
             </div>
-            <div>
-              <p className="text-2xl font-black text-slate-900 dark:text-slate-100">{summary.totalStudentsAssigned}</p>
-              <p className="text-xs font-bold text-muted-foreground">Shabab Students Managed</p>
-            </div>
-          </div>
-        </Card>
+          </Card>
+        </motion.div>
 
-        <Card className="rounded-2xl border-0 ring-1 ring-slate-200 dark:ring-slate-800 shadow-sm p-4 bg-gradient-to-br from-amber-500/5 to-orange-500/5">
-          <div className="flex items-center gap-3">
-            <div className="size-11 rounded-2xl bg-amber-600/10 flex items-center justify-center text-amber-600">
-              <TrendingUp className="size-6" />
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2, delay: 0.15 }}>
+          <Card className="rounded-2xl border-0 ring-1 ring-slate-200 dark:ring-slate-800 shadow-sm p-4 bg-gradient-to-br from-amber-500/5 to-orange-500/5 hover:shadow-md transition-shadow">
+            <div className="flex items-center gap-3">
+              <div className="size-11 rounded-2xl bg-amber-600/10 flex items-center justify-center text-amber-600">
+                <TrendingUp className="size-6" />
+              </div>
+              <div>
+                <p className="text-2xl font-black text-slate-900 dark:text-slate-100">{summary.averageMashwaraAttendance}%</p>
+                <p className="text-xs font-bold text-muted-foreground">Avg Mashwara Rate</p>
+              </div>
             </div>
-            <div>
-              <p className="text-2xl font-black text-slate-900 dark:text-slate-100">{summary.averageMashwaraAttendance}%</p>
-              <p className="text-xs font-bold text-muted-foreground">Avg Mashwara Rate</p>
-            </div>
-          </div>
-        </Card>
+          </Card>
+        </motion.div>
       </div>
 
       {/* Main Tabs */}
@@ -238,7 +235,7 @@ export function MurabbiProfilesPage() {
 
         {/* Tab 1: Directory */}
         <TabsContent value="directory" className="mt-6 space-y-4">
-          <div className="flex flex-col sm:flex-row gap-3 items-center justify-between bg-card p-4 rounded-2xl border border-slate-200 dark:border-slate-800">
+          <div className="flex flex-col sm:flex-row gap-3 items-center justify-between bg-card p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
             <div className="relative w-full sm:w-80">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
               <Input
@@ -264,63 +261,70 @@ export function MurabbiProfilesPage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {murabbisList.map((murabbi) => (
-              <Card
-                key={murabbi.id}
-                className="rounded-2xl border-0 ring-1 ring-slate-200 dark:ring-slate-800 shadow-sm hover:shadow-md transition-all overflow-hidden"
-              >
-                <CardContent className="p-5 space-y-4">
-                  <div className="flex items-start gap-3">
-                    <img
-                      src={murabbi.avatar || "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80"}
-                      alt={murabbi.name}
-                      className="size-12 rounded-2xl object-cover ring-2 ring-purple-600/20"
-                    />
-                    <div className="min-w-0 flex-1">
-                      <h3 className="font-extrabold text-base text-slate-900 dark:text-slate-100 truncate">{murabbi.name}</h3>
-                      <p className="text-xs font-bold text-purple-600">{murabbi.primaryRole}</p>
-                      <p className="text-[11px] text-muted-foreground font-medium truncate">{murabbi.park}</p>
-                    </div>
-                  </div>
+            <AnimatePresence mode="popLayout">
+              {murabbisList.map((murabbi, idx) => (
+                <motion.div
+                  key={murabbi.id}
+                  initial={{ opacity: 0, scale: 0.96 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.96 }}
+                  transition={{ duration: 0.2, delay: idx * 0.03 }}
+                >
+                  <Card className="rounded-2xl border-0 ring-1 ring-slate-200 dark:ring-slate-800 shadow-sm hover:shadow-md transition-all overflow-hidden h-full flex flex-col justify-between">
+                    <CardContent className="p-5 space-y-4">
+                      <div className="flex items-start gap-3">
+                        <img
+                          src={murabbi.avatar || "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80"}
+                          alt={murabbi.name}
+                          className="size-12 rounded-2xl object-cover ring-2 ring-purple-600/20 shrink-0"
+                        />
+                        <div className="min-w-0 flex-1">
+                          <h3 className="font-extrabold text-base text-slate-900 dark:text-slate-100 truncate">{murabbi.name}</h3>
+                          <p className="text-xs font-bold text-purple-600">{murabbi.primaryRole}</p>
+                          <p className="text-[11px] text-muted-foreground font-medium truncate">{murabbi.park}</p>
+                        </div>
+                      </div>
 
-                  <div className="space-y-2 text-xs bg-slate-50 dark:bg-slate-900/50 p-3 rounded-xl">
-                    <div className="flex items-center justify-between">
-                      <span className="text-muted-foreground">Assigned Youth Group:</span>
-                      <span className="font-bold text-slate-900 dark:text-slate-100 truncate max-w-[150px]">{murabbi.assignedGroup}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-muted-foreground">Shabab Students:</span>
-                      <Badge className="bg-purple-100 text-purple-800 font-bold text-[10px]">
-                        {murabbi.assignedStudentsCount} Students
-                      </Badge>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-muted-foreground">Mashwara Attendance:</span>
-                      <span className="font-bold text-emerald-600">{murabbi.mashwaraAttendanceRate}%</span>
-                    </div>
-                  </div>
+                      <div className="space-y-2 text-xs bg-slate-50 dark:bg-slate-900/50 p-3 rounded-xl">
+                        <div className="flex items-center justify-between">
+                          <span className="text-muted-foreground">Assigned Youth Group:</span>
+                          <span className="font-bold text-slate-900 dark:text-slate-100 truncate max-w-[150px]">{murabbi.assignedGroup}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-muted-foreground">Shabab Students:</span>
+                          <Badge className="bg-purple-100 text-purple-800 font-bold text-[10px]">
+                            {murabbi.assignedStudentsCount} Students
+                          </Badge>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-muted-foreground">Mashwara Attendance:</span>
+                          <span className="font-bold text-emerald-600">{murabbi.mashwaraAttendanceRate}%</span>
+                        </div>
+                      </div>
 
-                  <div className="flex items-center justify-between pt-1 gap-2">
-                    <a
-                      href={`https://wa.me/${murabbi.phone.replace(/[^0-9]/g, "")}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="h-8 px-3 rounded-xl bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-colors flex items-center gap-1.5 text-xs font-bold"
-                    >
-                      <MessageSquare className="size-3.5" /> WhatsApp
-                    </a>
+                      <div className="flex items-center justify-between pt-1 gap-2">
+                        <a
+                          href={`https://wa.me/${murabbi.phone.replace(/[^0-9]/g, "")}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="h-8 px-3 rounded-xl bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-colors flex items-center gap-1.5 text-xs font-bold"
+                        >
+                          <MessageSquare className="size-3.5" /> WhatsApp
+                        </a>
 
-                    <Button
-                      size="sm"
-                      onClick={() => setSelectedMurabbi(murabbi)}
-                      className="bg-[#4B0A8F] hover:bg-[#380668] text-white font-bold text-xs h-8 px-3 rounded-xl"
-                    >
-                      <Eye className="size-3.5 mr-1" /> View Profile
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                        <Button
+                          size="sm"
+                          onClick={() => setSelectedMurabbi(murabbi)}
+                          className="bg-[#4B0A8F] hover:bg-[#380668] text-white font-bold text-xs h-8 px-3 rounded-xl transition-transform hover:scale-[1.02]"
+                        >
+                          <Eye className="size-3.5 mr-1" /> View Profile
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              ))}
+            </AnimatePresence>
           </div>
         </TabsContent>
 

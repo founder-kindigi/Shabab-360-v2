@@ -3,9 +3,10 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
+import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/layout/page-header";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -29,27 +30,21 @@ import {
 import {
   GraduationCap,
   Users,
-  Briefcase,
   Award,
   Search,
   Plus,
-  Phone,
-  Mail,
   Linkedin,
   Calendar,
   Building,
-  CheckCircle2,
   Sparkles,
   BookOpen,
   UserCheck,
   MessageSquare,
-  ExternalLink,
   MapPin,
   Loader2,
-  ShieldCheck,
-  Share2,
+  Heart,
+  Briefcase,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
 
 interface AlumniRecord {
   id: string;
@@ -82,7 +77,6 @@ export function AlumniPage() {
   const [batchFilter, setBatchFilter] = useState("all");
   const [parkFilter, setParkFilter] = useState("all");
 
-  const [selectedAlumni, setSelectedAlumni] = useState<AlumniRecord | null>(null);
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
   const [isMentorshipModalOpen, setIsMentorshipModalOpen] = useState(false);
   const [targetMentor, setTargetMentor] = useState<AlumniRecord | null>(null);
@@ -174,7 +168,7 @@ export function AlumniPage() {
                   resetForm();
                   setIsRegisterOpen(true);
                 }}
-                className="bg-[#4B0A8F] hover:bg-[#380668] text-white font-bold rounded-xl h-10 px-4 text-xs shadow-md"
+                className="bg-[#4B0A8F] hover:bg-[#380668] text-white font-bold rounded-xl h-10 px-4 text-xs shadow-md transition-transform hover:scale-[1.02]"
               >
                 <Plus className="size-4 mr-1.5" /> Register Alumnus
               </Button>
@@ -185,53 +179,61 @@ export function AlumniPage() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="rounded-2xl border-0 ring-1 ring-slate-200 dark:ring-slate-800 shadow-sm p-4 bg-gradient-to-br from-purple-500/5 to-indigo-500/5">
-          <div className="flex items-center gap-3">
-            <div className="size-11 rounded-2xl bg-purple-600/10 flex items-center justify-center text-purple-600">
-              <GraduationCap className="size-6" />
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>
+          <Card className="rounded-2xl border-0 ring-1 ring-slate-200 dark:ring-slate-800 shadow-sm p-4 bg-gradient-to-br from-purple-500/5 to-indigo-500/5 hover:shadow-md transition-shadow">
+            <div className="flex items-center gap-3">
+              <div className="size-11 rounded-2xl bg-purple-600/10 flex items-center justify-center text-purple-600">
+                <GraduationCap className="size-6" />
+              </div>
+              <div>
+                <p className="text-2xl font-black text-slate-900 dark:text-slate-100">{stats.totalGraduated}</p>
+                <p className="text-xs font-bold text-muted-foreground">Total Graduated Alumni</p>
+              </div>
             </div>
-            <div>
-              <p className="text-2xl font-black text-slate-900 dark:text-slate-100">{stats.totalGraduated}</p>
-              <p className="text-xs font-bold text-muted-foreground">Total Graduated Alumni</p>
-            </div>
-          </div>
-        </Card>
+          </Card>
+        </motion.div>
 
-        <Card className="rounded-2xl border-0 ring-1 ring-slate-200 dark:ring-slate-800 shadow-sm p-4 bg-gradient-to-br from-emerald-500/5 to-teal-500/5">
-          <div className="flex items-center gap-3">
-            <div className="size-11 rounded-2xl bg-emerald-600/10 flex items-center justify-center text-emerald-600">
-              <UserCheck className="size-6" />
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2, delay: 0.05 }}>
+          <Card className="rounded-2xl border-0 ring-1 ring-slate-200 dark:ring-slate-800 shadow-sm p-4 bg-gradient-to-br from-emerald-500/5 to-teal-500/5 hover:shadow-md transition-shadow">
+            <div className="flex items-center gap-3">
+              <div className="size-11 rounded-2xl bg-emerald-600/10 flex items-center justify-center text-emerald-600">
+                <UserCheck className="size-6" />
+              </div>
+              <div>
+                <p className="text-2xl font-black text-slate-900 dark:text-slate-100">{stats.activeMentors}</p>
+                <p className="text-xs font-bold text-muted-foreground">Active Alumni Mentors</p>
+              </div>
             </div>
-            <div>
-              <p className="text-2xl font-black text-slate-900 dark:text-slate-100">{stats.activeMentors}</p>
-              <p className="text-xs font-bold text-muted-foreground">Active Alumni Mentors</p>
-            </div>
-          </div>
-        </Card>
+          </Card>
+        </motion.div>
 
-        <Card className="rounded-2xl border-0 ring-1 ring-slate-200 dark:ring-slate-800 shadow-sm p-4 bg-gradient-to-br from-blue-500/5 to-cyan-500/5">
-          <div className="flex items-center gap-3">
-            <div className="size-11 rounded-2xl bg-blue-600/10 flex items-center justify-center text-blue-600">
-              <Building className="size-6" />
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2, delay: 0.1 }}>
+          <Card className="rounded-2xl border-0 ring-1 ring-slate-200 dark:ring-slate-800 shadow-sm p-4 bg-gradient-to-br from-blue-500/5 to-cyan-500/5 hover:shadow-md transition-shadow">
+            <div className="flex items-center gap-3">
+              <div className="size-11 rounded-2xl bg-blue-600/10 flex items-center justify-center text-blue-600">
+                <Building className="size-6" />
+              </div>
+              <div>
+                <p className="text-2xl font-black text-slate-900 dark:text-slate-100">{stats.universitiesRepresented}</p>
+                <p className="text-xs font-bold text-muted-foreground">Universities & Companies</p>
+              </div>
             </div>
-            <div>
-              <p className="text-2xl font-black text-slate-900 dark:text-slate-100">{stats.universitiesRepresented}</p>
-              <p className="text-xs font-bold text-muted-foreground">Universities & Companies</p>
-            </div>
-          </div>
-        </Card>
+          </Card>
+        </motion.div>
 
-        <Card className="rounded-2xl border-0 ring-1 ring-slate-200 dark:ring-slate-800 shadow-sm p-4 bg-gradient-to-br from-amber-500/5 to-orange-500/5">
-          <div className="flex items-center gap-3">
-            <div className="size-11 rounded-2xl bg-amber-600/10 flex items-center justify-center text-amber-600">
-              <Award className="size-6" />
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2, delay: 0.15 }}>
+          <Card className="rounded-2xl border-0 ring-1 ring-slate-200 dark:ring-slate-800 shadow-sm p-4 bg-gradient-to-br from-amber-500/5 to-orange-500/5 hover:shadow-md transition-shadow">
+            <div className="flex items-center gap-3">
+              <div className="size-11 rounded-2xl bg-amber-600/10 flex items-center justify-center text-amber-600">
+                <Award className="size-6" />
+              </div>
+              <div>
+                <p className="text-2xl font-black text-slate-900 dark:text-slate-100">{stats.reunionsOrganized}</p>
+                <p className="text-xs font-bold text-muted-foreground">Reunions & Gatherings</p>
+              </div>
             </div>
-            <div>
-              <p className="text-2xl font-black text-slate-900 dark:text-slate-100">{stats.reunionsOrganized}</p>
-              <p className="text-xs font-bold text-muted-foreground">Reunions & Gatherings</p>
-            </div>
-          </div>
-        </Card>
+          </Card>
+        </motion.div>
       </div>
 
       {/* Main Tabs */}
@@ -250,7 +252,7 @@ export function AlumniPage() {
 
         {/* Tab 1: Alumni Directory */}
         <TabsContent value="directory" className="mt-6 space-y-4">
-          <div className="flex flex-col sm:flex-row gap-3 items-center justify-between bg-card p-4 rounded-2xl border border-slate-200 dark:border-slate-800">
+          <div className="flex flex-col sm:flex-row gap-3 items-center justify-between bg-card p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
             <div className="relative w-full sm:w-80">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
               <Input
@@ -288,88 +290,95 @@ export function AlumniPage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {alumniList.map((alumnus) => (
-              <Card
-                key={alumnus.id}
-                className="rounded-2xl border-0 ring-1 ring-slate-200 dark:ring-slate-800 shadow-sm hover:shadow-md transition-all overflow-hidden"
-              >
-                <CardContent className="p-5 space-y-4">
-                  <div className="flex items-start gap-3">
-                    <img
-                      src={alumnus.avatar || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80"}
-                      alt={alumnus.fullName}
-                      className="size-12 rounded-2xl object-cover ring-2 ring-purple-600/20"
-                    />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center justify-between gap-1">
-                        <h3 className="font-extrabold text-base text-slate-900 dark:text-slate-100 truncate">{alumnus.fullName}</h3>
-                        {alumnus.isMentorAvailable && (
-                          <Badge className="bg-emerald-100 text-emerald-800 text-[10px] font-bold shrink-0">
-                            Mentor
-                          </Badge>
+            <AnimatePresence mode="popLayout">
+              {alumniList.map((alumnus, idx) => (
+                <motion.div
+                  key={alumnus.id}
+                  initial={{ opacity: 0, scale: 0.96 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.96 }}
+                  transition={{ duration: 0.2, delay: idx * 0.03 }}
+                >
+                  <Card className="rounded-2xl border-0 ring-1 ring-slate-200 dark:ring-slate-800 shadow-sm hover:shadow-md transition-all overflow-hidden h-full flex flex-col justify-between">
+                    <CardContent className="p-5 space-y-4">
+                      <div className="flex items-start gap-3">
+                        <img
+                          src={alumnus.avatar || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80"}
+                          alt={alumnus.fullName}
+                          className="size-12 rounded-2xl object-cover ring-2 ring-purple-600/20 shrink-0"
+                        />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center justify-between gap-1">
+                            <h3 className="font-extrabold text-base text-slate-900 dark:text-slate-100 truncate">{alumnus.fullName}</h3>
+                            {alumnus.isMentorAvailable && (
+                              <Badge className="bg-emerald-100 text-emerald-800 text-[10px] font-bold shrink-0">
+                                Mentor
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-xs font-bold text-purple-600">{alumnus.currentProfession}</p>
+                          <p className="text-[11px] text-muted-foreground font-medium truncate">{alumnus.organization || alumnus.higherEducation}</p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-1.5 text-xs text-slate-600 dark:text-slate-300 font-medium bg-slate-50 dark:bg-slate-900/50 p-3 rounded-xl">
+                        {alumnus.shababRole && (
+                          <div className="flex items-center justify-between">
+                            <span className="text-muted-foreground text-[11px]">Shabab Role:</span>
+                            <span className="font-extrabold text-purple-700 dark:text-purple-400">{alumnus.shababRole}</span>
+                          </div>
+                        )}
+                        <div className="flex items-center justify-between">
+                          <span className="text-muted-foreground text-[11px]">Graduation:</span>
+                          <span className="font-bold">{alumnus.graduationBatch} ({alumnus.graduationYear})</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-muted-foreground text-[11px]">Park:</span>
+                          <span className="font-bold">{alumnus.park}</span>
+                        </div>
+                        {alumnus.higherEducation && (
+                          <div className="flex items-center justify-between">
+                            <span className="text-muted-foreground text-[11px]">Education:</span>
+                            <span className="font-semibold text-slate-800 dark:text-slate-200 truncate max-w-[170px]">{alumnus.higherEducation}</span>
+                          </div>
                         )}
                       </div>
-                      <p className="text-xs font-bold text-purple-600">{alumnus.currentProfession}</p>
-                      <p className="text-[11px] text-muted-foreground font-medium truncate">{alumnus.organization || alumnus.higherEducation}</p>
-                    </div>
-                  </div>
 
-                  <div className="space-y-1.5 text-xs text-slate-600 dark:text-slate-300 font-medium bg-slate-50 dark:bg-slate-900/50 p-3 rounded-xl">
-                    {alumnus.shababRole && (
-                      <div className="flex items-center justify-between">
-                        <span className="text-muted-foreground text-[11px]">Shabab Role:</span>
-                        <span className="font-extrabold text-purple-700 dark:text-purple-400">{alumnus.shababRole}</span>
-                      </div>
-                    )}
-                    <div className="flex items-center justify-between">
-                      <span className="text-muted-foreground text-[11px]">Graduation:</span>
-                      <span className="font-bold">{alumnus.graduationBatch} ({alumnus.graduationYear})</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-muted-foreground text-[11px]">Park:</span>
-                      <span className="font-bold">{alumnus.park}</span>
-                    </div>
-                    {alumnus.higherEducation && (
-                      <div className="flex items-center justify-between">
-                        <span className="text-muted-foreground text-[11px]">Education:</span>
-                        <span className="font-semibold text-slate-800 dark:text-slate-200 truncate max-w-[170px]">{alumnus.higherEducation}</span>
-                      </div>
-                    )}
-                  </div>
+                      <div className="flex items-center justify-between pt-1 gap-2">
+                        <div className="flex items-center gap-1.5">
+                          <a
+                            href={`https://wa.me/${alumnus.mobile.replace(/[^0-9]/g, "")}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="size-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center hover:bg-emerald-100 transition-colors"
+                          >
+                            <MessageSquare className="size-4" />
+                          </a>
+                          {alumnus.linkedinUrl && (
+                            <a
+                              href={alumnus.linkedinUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="size-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center hover:bg-blue-100 transition-colors"
+                            >
+                              <Linkedin className="size-4" />
+                            </a>
+                          )}
+                        </div>
 
-                  <div className="flex items-center justify-between pt-1 gap-2">
-                    <div className="flex items-center gap-1.5">
-                      <a
-                        href={`https://wa.me/${alumnus.mobile.replace(/[^0-9]/g, "")}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="size-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center hover:bg-emerald-100 transition-colors"
-                      >
-                        <MessageSquare className="size-4" />
-                      </a>
-                      {alumnus.linkedinUrl && (
-                        <a
-                          href={alumnus.linkedinUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="size-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center hover:bg-blue-100 transition-colors"
+                        <Button
+                          size="sm"
+                          onClick={() => handleRequestMentorship(alumnus)}
+                          className="bg-[#4B0A8F] hover:bg-[#380668] text-white font-bold text-xs h-8 px-3 rounded-xl transition-transform hover:scale-[1.02]"
                         >
-                          <Linkedin className="size-4" />
-                        </a>
-                      )}
-                    </div>
-
-                    <Button
-                      size="sm"
-                      onClick={() => handleRequestMentorship(alumnus)}
-                      className="bg-[#4B0A8F] hover:bg-[#380668] text-white font-bold text-xs h-8 px-3 rounded-xl"
-                    >
-                      Book Guidance
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                          Book Guidance
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              ))}
+            </AnimatePresence>
           </div>
         </TabsContent>
 
@@ -410,7 +419,7 @@ export function AlumniPage() {
 
                 <Button
                   onClick={() => handleRequestMentorship(mentor)}
-                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl h-10 text-xs shadow-sm mt-2"
+                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl h-10 text-xs shadow-sm mt-2 transition-transform hover:scale-[1.01]"
                 >
                   <UserCheck className="size-4 mr-1.5" /> Request Mentorship Session
                 </Button>
@@ -435,7 +444,7 @@ export function AlumniPage() {
                 <div className="flex items-center gap-2"><MapPin className="size-4 text-purple-600" /> Executive Hall, Al-Burhan Campus Lahore</div>
                 <div className="flex items-center gap-2"><Users className="size-4 text-emerald-600" /> Expected Attendees: 450+ Alumni</div>
               </div>
-              <Button onClick={() => toast.success("RSVP Submitted for Alumni Summit!")} className="w-full bg-[#4B0A8F] hover:bg-[#380668] text-white font-bold rounded-xl h-10 text-xs">
+              <Button onClick={() => toast.success("RSVP Submitted for Alumni Summit!")} className="w-full bg-[#4B0A8F] hover:bg-[#380668] text-white font-bold rounded-xl h-10 text-xs transition-transform hover:scale-[1.01]">
                 Confirm RSVP Attendance
               </Button>
             </Card>
@@ -453,7 +462,7 @@ export function AlumniPage() {
                 <div className="flex items-center gap-2"><MapPin className="size-4 text-purple-600" /> Gulberg Park Sports Complex Auditorium</div>
                 <div className="flex items-center gap-2"><Users className="size-4 text-emerald-600" /> Speaker Panel: 6 Alumni Leaders</div>
               </div>
-              <Button onClick={() => toast.success("RSVP Submitted for Career Panel!")} className="w-full bg-[#4B0A8F] hover:bg-[#380668] text-white font-bold rounded-xl h-10 text-xs">
+              <Button onClick={() => toast.success("RSVP Submitted for Career Panel!")} className="w-full bg-[#4B0A8F] hover:bg-[#380668] text-white font-bold rounded-xl h-10 text-xs transition-transform hover:scale-[1.01]">
                 Confirm RSVP Attendance
               </Button>
             </Card>
