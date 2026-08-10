@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardContent } from "@/components/ui/card";
@@ -32,20 +32,17 @@ import {
   Download,
   Plus,
   Search,
-  CheckCircle2,
   Sparkles,
   ChevronLeft,
   ChevronRight,
   Eye,
-  Tag,
+  Globe,
+  FileCheck,
+  Printer,
   ShieldCheck,
-  Bookmark,
-  TrendingUp,
-  FileCode,
-  FileCheck
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
-import { cn } from "@/lib/utils";
+import { PdfReaderDialog } from "@/components/shared/pdf-reader-dialog";
+import { GoogleDocsSheetsViewer } from "@/components/shared/google-docs-sheets-viewer";
 
 interface DigitalResourceRecord {
   id: string;
@@ -77,7 +74,7 @@ const MOCK_RESOURCES: DigitalResourceRecord[] = [
     title: "Lahore Batch 4 Complete Curriculum Guide",
     description: "Detailed 8-week syllabus covering Sports, Life Skills, and Tarbiyah Ethics.",
     category: "curriculum",
-    fileUrl: "/docs/lahore-batch-4-curriculum.pdf",
+    fileUrl: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
     allowedRoles: "all",
     fileSize: "2.4 MB",
     fileType: "PDF",
@@ -88,7 +85,7 @@ const MOCK_RESOURCES: DigitalResourceRecord[] = [
     title: "Murabbi Field Operations & Attendance SOP",
     description: "Standard operating procedures for marking group attendance and logging absence alerts.",
     category: "policy",
-    fileUrl: "/docs/murabbi-sop.pdf",
+    fileUrl: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
     allowedRoles: "murabbi,park_lead",
     fileSize: "1.1 MB",
     fileType: "PDF",
@@ -99,7 +96,7 @@ const MOCK_RESOURCES: DigitalResourceRecord[] = [
     title: "Sports Agility & Physical Fitness Manual",
     description: "Drills, warm-up exercises, and safety protocols for sports leads.",
     category: "activity_guide",
-    fileUrl: "/docs/sports-manual.pdf",
+    fileUrl: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
     allowedRoles: "all",
     fileSize: "3.8 MB",
     fileType: "PDF",
@@ -110,7 +107,7 @@ const MOCK_RESOURCES: DigitalResourceRecord[] = [
     title: "Parent & Guardian WhatsApp Outreach Guidelines",
     description: "Urdu and English message templates for attendance and fee notifications.",
     category: "policy",
-    fileUrl: "/docs/parent-outreach.pdf",
+    fileUrl: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
     allowedRoles: "murabbi,park_lead,program_admin",
     fileSize: "850 KB",
     fileType: "PDF",
@@ -144,10 +141,9 @@ const MOCK_ARTICLES: KnowledgeArticleRecord[] = [
 ];
 
 export function KnowledgeBasePage() {
-  const queryClient = useQueryClient();
   const { data: session } = useSession();
 
-  const [activeTab, setActiveTab] = useState<"resources" | "articles">("resources");
+  const [activeTab, setActiveTab] = useState<"resources" | "articles" | "google_drive">("resources");
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [page, setPage] = useState(1);
@@ -156,16 +152,15 @@ export function KnowledgeBasePage() {
   const [resourceModalOpen, setResourceModalOpen] = useState(false);
   const [selectedArticle, setSelectedArticle] = useState<KnowledgeArticleRecord | null>(null);
 
+  // PDF Reader State
+  const [pdfReaderOpen, setPdfReaderOpen] = useState(false);
+  const [selectedPdfUrl, setSelectedPdfUrl] = useState("");
+  const [selectedPdfTitle, setSelectedPdfTitle] = useState("");
+
   // Form State
   const [formTitle, setFormTitle] = useState("");
   const [formCategory, setFormCategory] = useState("curriculum");
   const [formRoles, setFormRoles] = useState("all");
-  const [formFileUrl, setFormFileUrl] = useState("");
-
-  const { data: apiResources, isLoading } = useQuery({
-    queryKey: ["admin-digital-resources"],
-    queryFn: () => fetch("/api/resources").then((r) => r.json()),
-  });
 
   const resources = MOCK_RESOURCES;
 
@@ -186,11 +181,17 @@ export function KnowledgeBasePage() {
     return filteredResources.slice(start, start + pageSize);
   }, [filteredResources, page]);
 
+  const handleOpenPdfReader = (title: string, url: string) => {
+    setSelectedPdfTitle(title);
+    setSelectedPdfUrl(url);
+    setPdfReaderOpen(true);
+  };
+
   return (
     <div className="space-y-6 pb-24 max-w-7xl mx-auto px-4 sm:px-6">
       <PageHeader
         title="Digital Library & Operational Knowledge Base"
-        description="Access curriculum guides, Tarbiyah policies, sports manuals, operational SOPs, and training articles."
+        description="Access curriculum guides, Tarbiyah policies, sports manuals, operational SOPs, and embedded Google Drive sheets."
         actions={
           <div className="flex items-center gap-2 flex-wrap">
             <Button
@@ -233,11 +234,11 @@ export function KnowledgeBasePage() {
         <Card className="border-0 shadow-sm bg-gradient-to-br from-emerald-50/60 to-white dark:from-emerald-950/20 dark:to-slate-900 rounded-2xl overflow-hidden ring-1 ring-slate-200 dark:ring-slate-800">
           <CardContent className="p-5 flex items-center gap-4">
             <div className="p-3 bg-emerald-100 dark:bg-emerald-900/50 rounded-xl text-emerald-600 dark:text-emerald-300 shrink-0">
-              <Download className="size-6" />
+              <Globe className="size-6" />
             </div>
             <div>
-              <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Total Downloads</p>
-              <h3 className="text-2xl font-black text-slate-900 dark:text-slate-100">340 downloads</h3>
+              <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Google Drive Sync</p>
+              <h3 className="text-2xl font-black text-slate-900 dark:text-slate-100">Live Sheets</h3>
             </div>
           </CardContent>
         </Card>
@@ -248,8 +249,8 @@ export function KnowledgeBasePage() {
               <Sparkles className="size-6" />
             </div>
             <div>
-              <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Top Category</p>
-              <h3 className="text-xl font-black text-slate-900 dark:text-slate-100">Curriculum</h3>
+              <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Built-in Reader</p>
+              <h3 className="text-xl font-black text-slate-900 dark:text-slate-100">PDF Reader</h3>
             </div>
           </CardContent>
         </Card>
@@ -260,7 +261,10 @@ export function KnowledgeBasePage() {
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-4">
           <TabsList className="bg-slate-100 dark:bg-slate-800/60 p-1 rounded-xl">
             <TabsTrigger value="resources" className="rounded-lg font-bold text-xs sm:text-sm px-4">
-              <FileText className="size-4 mr-2" /> Digital Resource Library
+              <FileText className="size-4 mr-2" /> Digital Resources (PDFs)
+            </TabsTrigger>
+            <TabsTrigger value="google_drive" className="rounded-lg font-bold text-xs sm:text-sm px-4">
+              <Globe className="size-4 mr-2" /> Live Google Docs & Sheets
             </TabsTrigger>
             <TabsTrigger value="articles" className="rounded-lg font-bold text-xs sm:text-sm px-4">
               <BookOpen className="size-4 mr-2" /> SOP Articles & Guides
@@ -303,7 +307,7 @@ export function KnowledgeBasePage() {
           )}
         </div>
 
-        {/* ─── Tab 1: Digital Resources Roster ────────────────────────────── */}
+        {/* ─── Tab 1: Digital Resources Roster with Built-in PDF Reader ───── */}
         <TabsContent value="resources" className="space-y-4 m-0">
           <Card className="border-0 shadow-md ring-1 ring-slate-200 dark:ring-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl overflow-hidden rounded-2xl">
             <div className="overflow-x-auto">
@@ -338,13 +342,23 @@ export function KnowledgeBasePage() {
                         {item.fileType} • {item.fileSize}
                       </td>
                       <td className="p-4 text-right">
-                        <Button
-                          size="sm"
-                          onClick={() => toast.success(`Downloading ${item.title}...`)}
-                          className="h-8 px-3 text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl gap-1.5"
-                        >
-                          <Download className="size-3.5" /> Download
-                        </Button>
+                        <div className="flex items-center justify-end gap-2">
+                          <Button
+                            size="sm"
+                            onClick={() => handleOpenPdfReader(item.title, item.fileUrl)}
+                            className="h-8 px-3 text-xs bg-[#4B0A8F] hover:bg-[#3b0873] text-white font-bold rounded-xl gap-1.5"
+                          >
+                            <Eye className="size-3.5" /> Read PDF
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => toast.success(`Downloading ${item.title}...`)}
+                            className="h-8 px-3 text-xs border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 font-bold rounded-xl gap-1.5"
+                          >
+                            <Download className="size-3.5" /> Download
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -382,7 +396,12 @@ export function KnowledgeBasePage() {
           </Card>
         </TabsContent>
 
-        {/* ─── Tab 2: SOP Articles & Guides ──────────────────────────────── */}
+        {/* ─── Tab 2: Live Embedded Google Docs & Sheets Viewer ──────────── */}
+        <TabsContent value="google_drive" className="space-y-4 m-0">
+          <GoogleDocsSheetsViewer />
+        </TabsContent>
+
+        {/* ─── Tab 3: SOP Articles & Guides ──────────────────────────────── */}
         <TabsContent value="articles" className="space-y-4 m-0">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {MOCK_ARTICLES.map((art) => (
@@ -419,6 +438,14 @@ export function KnowledgeBasePage() {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* ─── Built-in PDF Reader Dialog ─────────────────────────────────── */}
+      <PdfReaderDialog
+        open={pdfReaderOpen}
+        onOpenChange={setPdfReaderOpen}
+        title={selectedPdfTitle}
+        pdfUrl={selectedPdfUrl}
+      />
 
       {/* ─── Upload Resource Modal ──────────────────────────────────────── */}
       <Dialog open={resourceModalOpen} onOpenChange={setResourceModalOpen}>
