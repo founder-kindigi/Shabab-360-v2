@@ -59,6 +59,7 @@ import {
   Activity,
   ExternalLink,
   Video,
+  Pin,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -202,6 +203,7 @@ export function ContentPlannerPage() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [kindFilter, setKindFilter] = useState<string>("all");
   const [teamFilter, setTeamFilter] = useState<string>("all");
+  const [pinnedWeekFilter, setPinnedWeekFilter] = useState<string>("active");
   const [viewMode, setViewMode] = useState<"cards" | "table">("cards");
   const [page, setPage] = useState(1);
 
@@ -290,7 +292,6 @@ export function ContentPlannerPage() {
     plansData?.plans && plansData.plans.length > 0
       ? plansData.plans
       : defaultMasterPlans;
-  const pagination = plansData?.pagination || { page: 1, totalPages: 1, total: plans.length };
 
   // Create Mutation
   const createMutation = useMutation({
@@ -404,6 +405,8 @@ export function ContentPlannerPage() {
   };
 
   const realSyllabus = getRunningBatchSyllabus();
+
+  // Matrix items with active week calculation
   const matrixData = useMemo(() => {
     return realSyllabus.map((s, idx) => {
       let rawWeek = cleanString(s.week);
@@ -417,6 +420,9 @@ export function ContentPlannerPage() {
         rawDay = `Day ${idx + 1}`;
       }
 
+      // Identify Current / Active Week (Week 1 or active date window)
+      const isCurrentWeek = rawWeek.includes("Week 1") || idx < 2;
+
       return {
         id: s.id || `syl-${idx}`,
         week: rawWeek,
@@ -427,18 +433,26 @@ export function ContentPlannerPage() {
         skills: cleanString(s.skills),
         tadreeb: cleanString(s.tadreeb),
         focus: cleanString(s.focus) || "Youth Development",
+        isCurrentWeek,
       };
     });
   }, [realSyllabus]);
 
-  // Team filtered matrix items
+  // Team & Pinned Week Filtered Matrix (Current Week pinned to top)
   const filteredMatrix = useMemo(() => {
-    if (teamFilter === "exercises") return matrixData.filter((m) => m.exercises && m.exercises.length > 2);
-    if (teamFilter === "sports") return matrixData.filter((m) => m.sports && m.sports.length > 2);
-    if (teamFilter === "skills") return matrixData.filter((m) => m.skills && m.skills.length > 2);
-    if (teamFilter === "tadreeb") return matrixData.filter((m) => m.tadreeb && m.tadreeb.length > 2);
-    return matrixData;
-  }, [matrixData, teamFilter]);
+    let list = matrixData;
+    if (teamFilter === "exercises") list = list.filter((m) => m.exercises && m.exercises.length > 2);
+    if (teamFilter === "sports") list = list.filter((m) => m.sports && m.sports.length > 2);
+    if (teamFilter === "skills") list = list.filter((m) => m.skills && m.skills.length > 2);
+    if (teamFilter === "tadreeb") list = list.filter((m) => m.tadreeb && m.tadreeb.length > 2);
+
+    if (pinnedWeekFilter !== "active") {
+      list = list.filter((m) => m.week.toLowerCase().includes(pinnedWeekFilter.toLowerCase()));
+    }
+
+    // Always sort Pinned Current Active Week items to the top!
+    return [...list].sort((a, b) => (b.isCurrentWeek ? 1 : 0) - (a.isCurrentWeek ? 1 : 0));
+  }, [matrixData, teamFilter, pinnedWeekFilter]);
 
   return (
     <div className="space-y-6">
@@ -608,6 +622,37 @@ export function ContentPlannerPage() {
         </TabsContent>
 
         <TabsContent value="matrix" className="space-y-4">
+          {/* Week Selection & Pinned Filter Bar */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+            <span className="text-xs font-bold text-slate-500 mr-1 shrink-0 flex items-center gap-1">
+              <Pin className="size-3.5 text-purple-600" /> Active Week Focus:
+            </span>
+            {[
+              { id: "active", label: "📌 Current Week (Pinned to Top)" },
+              { id: "week 1", label: "Week 1" },
+              { id: "week 2", label: "Week 2" },
+              { id: "week 3", label: "Week 3" },
+              { id: "week 4", label: "Week 4" },
+              { id: "week 5", label: "Week 5" },
+              { id: "week 6", label: "Week 6" },
+              { id: "week 7", label: "Week 7" },
+              { id: "week 8", label: "Week 8" },
+            ].map((wTab) => (
+              <button
+                key={wTab.id}
+                onClick={() => setPinnedWeekFilter(wTab.id)}
+                className={cn(
+                  "px-3 py-1.5 rounded-xl text-xs font-bold shrink-0 transition-all border",
+                  pinnedWeekFilter === wTab.id
+                    ? "bg-purple-600 text-white border-purple-600 shadow-sm"
+                    : "bg-white dark:bg-slate-900 text-slate-600 border-slate-200 dark:border-slate-800 hover:bg-slate-50"
+                )}
+              >
+                {wTab.label}
+              </button>
+            ))}
+          </div>
+
           {/* Team Filter Pills & View Switcher */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-card p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
             <div className="flex items-center gap-2 overflow-x-auto w-full sm:w-auto pb-1 sm:pb-0">
@@ -670,7 +715,23 @@ export function ContentPlannerPage() {
                     exit={{ opacity: 0, scale: 0.95 }}
                     transition={{ duration: 0.15 }}
                   >
-                    <Card className="rounded-2xl border-0 ring-1 ring-slate-200 dark:ring-slate-800 shadow-sm hover:shadow-md transition-all overflow-hidden h-full flex flex-col justify-between bg-card">
+                    <Card
+                      className={cn(
+                        "rounded-2xl border-0 ring-1 shadow-sm hover:shadow-md transition-all overflow-hidden h-full flex flex-col justify-between bg-card relative",
+                        item.isCurrentWeek
+                          ? "ring-2 ring-purple-600 dark:ring-purple-500 shadow-purple-500/10"
+                          : "ring-slate-200 dark:ring-slate-800"
+                      )}
+                    >
+                      {item.isCurrentWeek && (
+                        <div className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-[11px] font-black py-1 px-3 flex items-center justify-between">
+                          <span className="flex items-center gap-1">
+                            <Pin className="size-3 text-amber-300 fill-amber-300" /> PINNED — Current Active Week (Mon - Sun)
+                          </span>
+                          <Badge className="bg-amber-400 text-slate-900 font-bold text-[9px] px-1.5 py-0">ACTIVE NOW</Badge>
+                        </div>
+                      )}
+
                       <CardHeader className="p-4 pb-2 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex flex-row items-center justify-between">
                         <div>
                           <span className="text-xs font-black text-[#4B0A8F] tracking-wide">{item.week} • {item.day}</span>
@@ -729,7 +790,9 @@ export function ContentPlannerPage() {
             /* Render Mode 2: Formatted Table View */
             <Card className="rounded-2xl border-0 ring-1 ring-slate-200 dark:ring-slate-800 shadow-sm overflow-hidden p-6 space-y-4 bg-card">
               <div className="flex items-center justify-between border-b pb-3">
-                <h3 className="text-sm font-black text-slate-900 dark:text-slate-100">Lahore Batch 4 Syllabus Spreadsheet Table</h3>
+                <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                  <Pin className="size-4 text-purple-600" /> Lahore Batch 4 Syllabus Spreadsheet Table (Active Week Pinned Top)
+                </h3>
                 <Badge className="bg-purple-100 text-purple-800 font-bold text-xs">
                   {filteredMatrix.length} Items
                 </Badge>
@@ -739,7 +802,7 @@ export function ContentPlannerPage() {
                 <table className="w-full text-left text-sm">
                   <thead className="bg-slate-100/70 dark:bg-slate-800/70 text-slate-700 dark:text-slate-300 text-xs uppercase font-extrabold tracking-wider border-b border-slate-200 dark:border-slate-800">
                     <tr>
-                      <th className="p-3.5 w-32">Week / Day</th>
+                      <th className="p-3.5 w-36">Week / Day</th>
                       <th className="p-3.5"><div className="flex items-center gap-1.5"><Activity className="size-4 text-slate-500" /> Exercises</div></th>
                       <th className="p-3.5"><div className="flex items-center gap-1.5"><Flame className="size-4 text-orange-500" /> Sports Game</div></th>
                       <th className="p-3.5"><div className="flex items-center gap-1.5"><Brain className="size-4 text-blue-500" /> Skills Module</div></th>
@@ -748,8 +811,21 @@ export function ContentPlannerPage() {
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-xs font-medium">
                     {filteredMatrix.map((row) => (
-                      <tr key={row.id} className="hover:bg-purple-50/20 dark:hover:bg-purple-950/10 transition-colors align-top">
+                      <tr
+                        key={row.id}
+                        className={cn(
+                          "transition-colors align-top",
+                          row.isCurrentWeek
+                            ? "bg-purple-50/70 dark:bg-purple-950/30 border-l-4 border-l-purple-600"
+                            : "hover:bg-purple-50/20 dark:hover:bg-purple-950/10"
+                        )}
+                      >
                         <td className="p-3.5 font-bold text-[#4B0A8F]">
+                          {row.isCurrentWeek && (
+                            <Badge className="bg-purple-600 text-white text-[9px] font-bold mb-1 block w-fit">
+                              📌 Pinned Active Week
+                            </Badge>
+                          )}
                           <div>{row.week} • {row.day}</div>
                           {row.date && <span className="text-[10px] text-muted-foreground font-normal block">{row.date}</span>}
                         </td>
