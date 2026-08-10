@@ -159,7 +159,7 @@ export function CollaborationTeamsPage() {
   const assignedStaffIds = new Set((memberships.data?.data ?? []).map((membership) => membership.staffMeta.id));
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
       <PageHeader
         title="Collaboration Teams"
         description="Manage operational team memberships. Teams never change login roles or city, park, and group scope."
