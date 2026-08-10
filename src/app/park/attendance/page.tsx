@@ -1,5 +1,15 @@
-import { ParkAttendancePage } from "@/components/modules/park/park-attendance-page";
+"use client";
+
+import { useEffect } from "react";
+import { useAppStore } from "@/stores/useAppStore";
+import { AppShell } from "@/components/layout/app-shell";
 
 export default function ParkAttendanceAppPage() {
-  return <ParkAttendancePage />;
+  const setCurrentPage = useAppStore((s) => s.setCurrentPage);
+
+  useEffect(() => {
+    setCurrentPage("park-attendance");
+  }, [setCurrentPage]);
+
+  return <AppShell />;
 }

@@ -1,9 +1,15 @@
-export const dynamic = "force-dynamic";
+"use client";
 
-import nextDynamic from "next/dynamic";
+import { useEffect } from "react";
+import { useAppStore } from "@/stores/useAppStore";
+import { AppShell } from "@/components/layout/app-shell";
 
-const MashwaraDashboardClient = nextDynamic(() => import("./_client"));
+export default function AdminMashwaraAppPage() {
+  const setCurrentPage = useAppStore((s) => s.setCurrentPage);
 
-export default function MashwaraPage() {
-  return <MashwaraDashboardClient />;
+  useEffect(() => {
+    setCurrentPage("admin-mashwara");
+  }, [setCurrentPage]);
+
+  return <AppShell />;
 }

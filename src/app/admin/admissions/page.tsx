@@ -1,5 +1,15 @@
-import { AdmissionsPage } from "@/components/modules/admin/admissions-page";
+"use client";
+
+import { useEffect } from "react";
+import { useAppStore } from "@/stores/useAppStore";
+import { AppShell } from "@/components/layout/app-shell";
 
 export default function AdminAdmissionsAppPage() {
-  return <AdmissionsPage />;
+  const setCurrentPage = useAppStore((s) => s.setCurrentPage);
+
+  useEffect(() => {
+    setCurrentPage("admin-admissions");
+  }, [setCurrentPage]);
+
+  return <AppShell />;
 }

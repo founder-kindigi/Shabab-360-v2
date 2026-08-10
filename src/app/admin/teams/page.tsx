@@ -1,9 +1,15 @@
-export const dynamic = "force-dynamic";
+"use client";
 
-import nextDynamic from "next/dynamic";
+import { useEffect } from "react";
+import { useAppStore } from "@/stores/useAppStore";
+import { AppShell } from "@/components/layout/app-shell";
 
-const TeamsContent = nextDynamic(() => import("@/components/modules/admin/collaboration-teams-page").then(m => ({ default: m.CollaborationTeamsPage })));
+export default function AdminTeamsAppPage() {
+  const setCurrentPage = useAppStore((s) => s.setCurrentPage);
 
-export default function TeamsPage() {
-  return <TeamsContent />;
+  useEffect(() => {
+    setCurrentPage("admin-collaboration-teams");
+  }, [setCurrentPage]);
+
+  return <AppShell />;
 }
