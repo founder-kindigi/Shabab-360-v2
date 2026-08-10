@@ -326,7 +326,7 @@ function DesktopSidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
       </div>
 
       {/* Navigation */}
-      <ScrollArea className="flex-1 py-3 px-2">
+      <div className="flex-1 overflow-y-auto min-h-0 py-3 px-2 space-y-1">
         <nav className="flex flex-col gap-0.5">
           {getNavSections(navItems).map((group, gIdx) => (
             <div key={group.section || `s-${gIdx}`}>
@@ -354,7 +354,7 @@ function DesktopSidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
             </div>
           ))}
         </nav>
-      </ScrollArea>
+      </div>
 
       {/* Footer: User info + Sign out + Collapse toggle */}
       <div className="border-t p-2 shrink-0 space-y-1">
@@ -471,7 +471,7 @@ function MobileSidebar({
         </div>
 
         {/* Nav */}
-        <ScrollArea className="flex-1 py-3 px-2" style={{ height: "calc(100vh - 140px)" }}>
+        <div className="flex-1 overflow-y-auto min-h-0 py-3 px-2">
           <nav className="flex flex-col gap-0.5">
             {getNavSections(navItems).map((group, gIdx) => (
               <div key={group.section || `ms-${gIdx}`}>
@@ -514,7 +514,7 @@ function MobileSidebar({
               </div>
             ))}
           </nav>
-        </ScrollArea>
+        </div>
 
         {/* Footer: Sign out */}
         <div className="border-t p-2">
