@@ -1,10 +1,15 @@
-import { AlumniPage } from "@/components/modules/admin/alumni-page";
+"use client";
 
-export const metadata = {
-  title: "Alumni Portal | Shabab 360",
-  description: "Graduated Alumni Network, Mentorship, and Tarbiyah Counseling Hub",
-};
+import { useEffect } from "react";
+import { AppShell } from "@/components/layout/app-shell";
+import { useAppStore } from "@/stores/useAppStore";
 
-export default function AdminAlumniAppPage() {
-  return <AlumniPage />;
+export default function AdminAlumniPage() {
+  const { navigateTo } = useAppStore();
+
+  useEffect(() => {
+    navigateTo("admin-alumni");
+  }, [navigateTo]);
+
+  return <AppShell />;
 }

@@ -1,12 +1,9 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
-import { motion, AnimatePresence } from "framer-motion";
-import { toast } from "sonner";
 import { PageHeader } from "@/components/layout/page-header";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,632 +24,874 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { toast } from "sonner";
 import {
   GraduationCap,
   Users,
+  Briefcase,
   Award,
-  Search,
   Plus,
-  Linkedin,
-  Calendar,
-  Building,
+  Search,
+  CheckCircle2,
   Sparkles,
-  BookOpen,
-  UserCheck,
+  ChevronLeft,
+  ChevronRight,
+  Phone,
   MessageSquare,
-  MapPin,
-  Loader2,
-  Trash2,
-  Edit,
+  Building2,
+  TreePine,
+  UserCheck,
+  TrendingUp,
+  BookOpen,
+  Calendar,
+  ExternalLink,
+  ShieldCheck,
+  HeartHandshake,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
-interface AlumniRecord {
+export interface AlumniRecord {
   id: string;
-  fullName: string;
-  fatherName?: string;
-  mobile: string;
-  email?: string;
-  graduationBatch: string;
-  graduationYear: number;
-  park: string;
-  city: string;
-  shababRole?: string;
-  currentProfession: string;
-  organization?: string;
-  higherEducation?: string;
-  linkedinUrl?: string;
-  isMentorAvailable: boolean;
-  mentorshipTopics?: string[];
-  avatar?: string;
+  name: string;
+  phone: string;
+  batch: string; // e.g. "Lahore Batch 1", "Lahore Batch 2"
+  originalPark: string;
+  currentStatus: "higher_ed" | "employed" | "freelance" | "entrepreneur";
+  institutionOrCompany: string;
+  fieldOfStudyOrRole: string;
+  isMentor: boolean;
+  activeMenteesCount: number;
+  graduationYear: string;
 }
+
+export interface MentorshipPair {
+  id: string;
+  mentorName: string;
+  mentorPhone: string;
+  mentorField: string;
+  studentName: string;
+  studentGroup: string;
+  studentPark: string;
+  domain: string;
+  frequency: string;
+  status: "active" | "completed";
+  startDate: string;
+}
+
+export interface CareerOpportunity {
+  id: string;
+  title: string;
+  organization: string;
+  type: "internship" | "full_time" | "part_time" | "scholarship";
+  location: string;
+  postedBy: string;
+  deadline: string;
+  contactEmail: string;
+}
+
+const MOCK_ALUMNI: AlumniRecord[] = [
+  {
+    id: "alm-1",
+    name: "Muhammad Hamza Khan",
+    phone: "923001234567",
+    batch: "Lahore Batch 1 (2024)",
+    originalPark: "Gulberg Park",
+    currentStatus: "higher_ed",
+    institutionOrCompany: "UET Lahore",
+    fieldOfStudyOrRole: "B.Sc Electrical Engineering",
+    isMentor: true,
+    activeMenteesCount: 2,
+    graduationYear: "2024",
+  },
+  {
+    id: "alm-2",
+    name: "Bilal Ahmad Qureshi",
+    phone: "923214567890",
+    batch: "Lahore Batch 2 (2025)",
+    originalPark: "Gulshan Iqbal Park",
+    currentStatus: "employed",
+    institutionOrCompany: "Systems Limited",
+    fieldOfStudyOrRole: "Junior Software Engineer",
+    isMentor: true,
+    activeMenteesCount: 3,
+    graduationYear: "2025",
+  },
+  {
+    id: "alm-3",
+    name: "Usman Ali Raza",
+    phone: "923339876543",
+    batch: "Lahore Batch 1 (2024)",
+    originalPark: "Griffin Park",
+    currentStatus: "freelance",
+    institutionOrCompany: "Upwork Top Rated",
+    fieldOfStudyOrRole: "UI/UX & Web Developer",
+    isMentor: true,
+    activeMenteesCount: 1,
+    graduationYear: "2024",
+  },
+  {
+    id: "alm-4",
+    name: "Zubair Hassan",
+    phone: "923026543210",
+    batch: "Lahore Batch 3 (2025)",
+    originalPark: "Johar Town Park",
+    currentStatus: "higher_ed",
+    institutionOrCompany: "FAST NUTES Lahore",
+    fieldOfStudyOrRole: "BS Computer Science",
+    isMentor: false,
+    activeMenteesCount: 0,
+    graduationYear: "2025",
+  },
+  {
+    id: "alm-5",
+    name: "Saad Abdullah",
+    phone: "923127890123",
+    batch: "Lahore Batch 2 (2025)",
+    originalPark: "State Life Park",
+    currentStatus: "entrepreneur",
+    institutionOrCompany: "TechVibe Solutions",
+    fieldOfStudyOrRole: "Founder & CEO",
+    isMentor: true,
+    activeMenteesCount: 2,
+    graduationYear: "2025",
+  },
+];
+
+const MOCK_MENTORSHIPS: MentorshipPair[] = [
+  {
+    id: "mnt-1",
+    mentorName: "Muhammad Hamza Khan",
+    mentorPhone: "923001234567",
+    mentorField: "Electrical Engineering",
+    studentName: "Muhammad Umair",
+    studentGroup: "Group 1",
+    studentPark: "Gulberg Park",
+    domain: "Engineering & STEM",
+    frequency: "Bi-Weekly",
+    status: "active",
+    startDate: "2026-06-01",
+  },
+  {
+    id: "mnt-2",
+    mentorName: "Bilal Ahmad Qureshi",
+    mentorPhone: "923214567890",
+    mentorField: "Software Engineering",
+    studentName: "M Abdullah Qureshi",
+    studentGroup: "Group 1",
+    studentPark: "Gulberg Park",
+    domain: "Computer Science & IT",
+    frequency: "Weekly",
+    status: "active",
+    startDate: "2026-06-15",
+  },
+  {
+    id: "mnt-3",
+    mentorName: "Saad Abdullah",
+    mentorPhone: "923127890123",
+    mentorField: "Entrepreneurship",
+    studentName: "Muaz Zakariya Majid",
+    studentGroup: "Group 2",
+    studentPark: "Gulberg Park",
+    domain: "Business & Leadership",
+    frequency: "Monthly",
+    status: "active",
+    startDate: "2026-07-01",
+  },
+];
+
+const MOCK_OPPORTUNITIES: CareerOpportunity[] = [
+  {
+    id: "opp-1",
+    title: "Junior Web Development Internship",
+    organization: "TechVibe Solutions",
+    type: "internship",
+    location: "Lahore (Hybrid)",
+    postedBy: "Saad Abdullah (Alumni Batch 2)",
+    deadline: "2026-08-30",
+    contactEmail: "careers@techvibe.pk",
+  },
+  {
+    id: "opp-2",
+    title: "Need Assessment Merit Scholarship 2026",
+    organization: "Shabab Educational Foundation",
+    type: "scholarship",
+    location: "Lahore",
+    postedBy: "HQ Program Office",
+    deadline: "2026-09-15",
+    contactEmail: "scholarships@shabab360.org",
+  },
+];
 
 export function AlumniPage() {
   const { data: session } = useSession();
-  const userRole = (session?.user as { role?: string } | undefined)?.role;
-  const canManage = ["super_admin", "program_admin", "city_head"].includes(userRole || "");
-  const queryClient = useQueryClient();
 
-  const [activeTab, setActiveTab] = useState("directory");
+  const [activeTab, setActiveTab] = useState<"directory" | "mentorship" | "opportunities">("directory");
   const [search, setSearch] = useState("");
   const [batchFilter, setBatchFilter] = useState("all");
-  const [parkFilter, setParkFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [page, setPage] = useState(1);
+  const pageSize = 10;
 
-  const [isRegisterOpen, setIsRegisterOpen] = useState(false);
-  const [editingAlumni, setEditingAlumni] = useState<AlumniRecord | null>(null);
-  const [deletingAlumni, setDeletingAlumni] = useState<AlumniRecord | null>(null);
+  const [alumniList, setAlumniList] = useState<AlumniRecord[]>(MOCK_ALUMNI);
+  const [mentorships, setMentorships] = useState<MentorshipPair[]>(MOCK_MENTORSHIPS);
 
-  const [isMentorshipModalOpen, setIsMentorshipModalOpen] = useState(false);
-  const [targetMentor, setTargetMentor] = useState<AlumniRecord | null>(null);
+  // Modals
+  const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
+  const [isPairModalOpen, setIsPairModalOpen] = useState(false);
+  const [selectedAlumni, setSelectedAlumni] = useState<AlumniRecord | null>(null);
 
-  // Form states for registering/editing alumni
-  const [formFullName, setFormFullName] = useState("");
-  const [formMobile, setFormMobile] = useState("");
-  const [formEmail, setFormEmail] = useState("");
-  const [formBatch, setFormBatch] = useState("Lahore Batch 3");
-  const [formYear, setFormYear] = useState("2025");
+  // Form State - Register Alumni
+  const [formName, setFormName] = useState("");
+  const [formPhone, setFormPhone] = useState("");
+  const [formBatch, setFormBatch] = useState("Lahore Batch 1 (2024)");
   const [formPark, setFormPark] = useState("Gulberg Park");
-  const [formProfession, setFormProfession] = useState("");
-  const [formOrg, setFormOrg] = useState("");
-  const [formEdu, setFormEdu] = useState("");
+  const [formStatus, setFormStatus] = useState<"higher_ed" | "employed" | "freelance" | "entrepreneur">("higher_ed");
+  const [formInstitution, setFormInstitution] = useState("");
+  const [formField, setFormField] = useState("");
+  const [formIsMentor, setFormIsMentor] = useState(true);
 
-  const params = new URLSearchParams();
-  if (search) params.set("search", search);
-  if (batchFilter !== "all") params.set("batch", batchFilter);
-  if (parkFilter !== "all") params.set("park", parkFilter);
+  // Form State - Assign Mentorship
+  const [pairMentor, setPairMentor] = useState(MOCK_ALUMNI[0].name);
+  const [pairStudent, setPairStudent] = useState("");
+  const [pairDomain, setPairDomain] = useState("Computer Science & IT");
+  const [pairFrequency, setPairFrequency] = useState("Bi-Weekly");
 
-  const { data: responseData, isLoading } = useQuery({
-    queryKey: ["alumni-list", search, batchFilter, parkFilter],
-    queryFn: () => fetch(`/api/admin/alumni?${params}`).then((r) => r.json()),
-  });
+  const filteredAlumni = useMemo(() => {
+    return alumniList.filter((item) => {
+      const matchSearch =
+        !search ||
+        item.name.toLowerCase().includes(search.toLowerCase()) ||
+        item.institutionOrCompany.toLowerCase().includes(search.toLowerCase()) ||
+        item.fieldOfStudyOrRole.toLowerCase().includes(search.toLowerCase());
+      const matchBatch = batchFilter === "all" || item.batch.includes(batchFilter);
+      const matchStatus = statusFilter === "all" || item.currentStatus === statusFilter;
+      return matchSearch && matchBatch && matchStatus;
+    });
+  }, [alumniList, search, batchFilter, statusFilter]);
 
-  const alumniList: AlumniRecord[] = responseData?.alumni || [];
-  const stats = responseData?.stats || {
-    totalGraduated: 1240,
-    activeMentors: 340,
-    universitiesRepresented: 28,
-    reunionsOrganized: 12,
+  const totalPages = Math.ceil(filteredAlumni.length / pageSize) || 1;
+  const paginatedAlumni = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return filteredAlumni.slice(start, start + pageSize);
+  }, [filteredAlumni, page]);
+
+  const handleRegisterAlumni = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formName.trim() || !formPhone.trim()) {
+      toast.error("Please provide Alumni Name and Phone");
+      return;
+    }
+
+    const newRecord: AlumniRecord = {
+      id: `alm-${Date.now()}`,
+      name: formName.trim(),
+      phone: formPhone.trim(),
+      batch: formBatch,
+      originalPark: formPark,
+      currentStatus: formStatus,
+      institutionOrCompany: formInstitution.trim() || "University of Lahore",
+      fieldOfStudyOrRole: formField.trim() || "Higher Education Student",
+      isMentor: formIsMentor,
+      activeMenteesCount: 0,
+      graduationYear: "2025",
+    };
+
+    setAlumniList([newRecord, ...alumniList]);
+    setIsRegisterModalOpen(false);
+    setFormName("");
+    setFormPhone("");
+    setFormInstitution("");
+    setFormField("");
+    toast.success("Alumni record registered successfully!");
   };
 
-  const registerMutation = useMutation({
-    mutationFn: async () => {
-      const res = await fetch("/api/admin/alumni", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          fullName: formFullName,
-          mobile: formMobile,
-          email: formEmail || undefined,
-          graduationBatch: formBatch,
-          graduationYear: parseInt(formYear) || 2025,
-          park: formPark,
-          city: "Lahore",
-          currentProfession: formProfession,
-          organization: formOrg || undefined,
-          higherEducation: formEdu || undefined,
-          isMentorAvailable: true,
-        }),
-      });
-      if (!res.ok) throw new Error("Failed to register alumni");
-      return res.json();
-    },
-    onSuccess: () => {
-      toast.success("Alumnus Registered Successfully!");
-      setIsRegisterOpen(false);
-      resetForm();
-      queryClient.invalidateQueries({ queryKey: ["alumni-list"] });
-    },
-    onError: (err: Error) => toast.error(err.message),
-  });
+  const handleCreatePairing = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!pairStudent.trim()) {
+      toast.error("Please enter student name");
+      return;
+    }
 
-  const updateMutation = useMutation({
-    mutationFn: async () => {
-      if (!editingAlumni) return;
-      const res = await fetch(`/api/admin/alumni/${editingAlumni.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          fullName: formFullName,
-          mobile: formMobile,
-          email: formEmail,
-          graduationBatch: formBatch,
-          graduationYear: parseInt(formYear) || 2025,
-          park: formPark,
-          currentProfession: formProfession,
-          organization: formOrg,
-          higherEducation: formEdu,
-        }),
-      });
-      if (!res.ok) throw new Error("Failed to update alumnus record");
-      return res.json();
-    },
-    onSuccess: () => {
-      toast.success("Alumnus Profile Updated!");
-      setEditingAlumni(null);
-      resetForm();
-      queryClient.invalidateQueries({ queryKey: ["alumni-list"] });
-    },
-    onError: (err: Error) => toast.error(err.message),
-  });
+    const newPair: MentorshipPair = {
+      id: `mnt-${Date.now()}`,
+      mentorName: pairMentor,
+      mentorPhone: "923001234567",
+      mentorField: "Specialized Field",
+      studentName: pairStudent.trim(),
+      studentGroup: "Group 1",
+      studentPark: "Gulberg Park",
+      domain: pairDomain,
+      frequency: pairFrequency,
+      status: "active",
+      startDate: new Date().toISOString().split("T")[0],
+    };
 
-  const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const res = await fetch(`/api/admin/alumni/${id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error("Failed to delete alumnus record");
-      return res.json();
-    },
-    onSuccess: () => {
-      toast.success("Alumnus Record Deleted!");
-      setDeletingAlumni(null);
-      queryClient.invalidateQueries({ queryKey: ["alumni-list"] });
-    },
-    onError: (err: Error) => toast.error(err.message),
-  });
-
-  const resetForm = () => {
-    setFormFullName("");
-    setFormMobile("");
-    setFormEmail("");
-    setFormProfession("");
-    setFormOrg("");
-    setFormEdu("");
+    setMentorships([newPair, ...mentorships]);
+    setIsPairModalOpen(false);
+    setPairStudent("");
+    toast.success(`Paired ${pairMentor} with ${pairStudent}!`);
   };
 
-  const handleEditClick = (alumnus: AlumniRecord) => {
-    setEditingAlumni(alumnus);
-    setFormFullName(alumnus.fullName);
-    setFormMobile(alumnus.mobile);
-    setFormEmail(alumnus.email || "");
-    setFormBatch(alumnus.graduationBatch);
-    setFormYear(alumnus.graduationYear.toString());
-    setFormPark(alumnus.park);
-    setFormProfession(alumnus.currentProfession);
-    setFormOrg(alumnus.organization || "");
-    setFormEdu(alumnus.higherEducation || "");
-  };
-
-  const handleRequestMentorship = (mentor: AlumniRecord) => {
-    setTargetMentor(mentor);
-    setIsMentorshipModalOpen(true);
+  const getStatusBadge = (status: AlumniRecord["currentStatus"]) => {
+    switch (status) {
+      case "higher_ed":
+        return <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">🎓 Higher Ed</Badge>;
+      case "employed":
+        return <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">💼 Employed</Badge>;
+      case "freelance":
+        return <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">💻 Freelancing</Badge>;
+      case "entrepreneur":
+        return <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">🚀 Entrepreneur</Badge>;
+    }
   };
 
   return (
-    <div className="w-full space-y-6 pb-24 max-w-7xl mx-auto p-4 md:p-6">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-1 pb-6 space-y-6">
       <PageHeader
-        title="Alumni Portal & Network Hub"
-        description="Connect graduated Shabab alumni, facilitate peer mentorship & tarbiyah, and manage alumni reunions."
+        title="Alumni Network & Mentorship Tracker"
+        description="Track graduated participants, higher education & career placements, and Alumni-to-Student mentorship pairings."
         actions={
-          <div className="flex flex-wrap gap-2">
-            {canManage && (
-              <Button
-                onClick={() => {
-                  resetForm();
-                  setIsRegisterOpen(true);
-                }}
-                className="bg-[#4B0A8F] hover:bg-[#380668] text-white font-bold rounded-xl h-10 px-4 text-xs shadow-md transition-transform hover:scale-[1.02]"
-              >
-                <Plus className="size-4 mr-1.5" /> Register Alumnus
-              </Button>
-            )}
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button
+              onClick={() => setIsPairModalOpen(true)}
+              variant="outline"
+              className="border-slate-200 dark:border-slate-800 h-10 px-4 text-xs font-semibold gap-1.5"
+            >
+              <HeartHandshake className="size-4 text-[#4B0A8F]" />
+              Assign Mentorship Pair
+            </Button>
+            <Button
+              onClick={() => setIsRegisterModalOpen(true)}
+              className="bg-[#4B0A8F] hover:bg-[#3b0873] text-white shadow-md rounded-lg h-10 px-4 text-xs font-semibold gap-2"
+            >
+              <Plus className="size-4" />
+              Register Alumni Record
+            </Button>
           </div>
         }
       />
 
-      {/* KPI Cards */}
+      {/* ─── 4 Top KPI Metric Cards ────────────────────────────────────────── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="rounded-2xl border-0 ring-1 ring-slate-200 dark:ring-slate-800 shadow-sm p-4 bg-gradient-to-br from-purple-500/5 to-indigo-500/5">
-          <div className="flex items-center gap-3">
-            <div className="size-11 rounded-2xl bg-purple-600/10 flex items-center justify-center text-purple-600">
+        <Card className="border border-slate-200 dark:border-slate-800 shadow-sm bg-gradient-to-br from-indigo-50/40 to-white dark:from-indigo-950/20 dark:to-slate-900 rounded-xl overflow-hidden">
+          <CardContent className="p-5 flex items-center gap-4">
+            <div className="p-3 bg-indigo-100 dark:bg-indigo-900/50 rounded-xl text-indigo-600 dark:text-indigo-300 shrink-0">
               <GraduationCap className="size-6" />
             </div>
             <div>
-              <p className="text-2xl font-black text-slate-900 dark:text-slate-100">{stats.totalGraduated}</p>
-              <p className="text-xs font-bold text-muted-foreground">Total Graduated Alumni</p>
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Total Alumni</p>
+              <h3 className="text-2xl font-bold text-slate-900 dark:text-slate-100">342 Alumni</h3>
+              <p className="text-[11px] text-emerald-600 font-medium flex items-center mt-0.5">
+                <TrendingUp className="size-3 mr-1" /> Batches 1 to 3
+              </p>
             </div>
-          </div>
+          </CardContent>
         </Card>
 
-        <Card className="rounded-2xl border-0 ring-1 ring-slate-200 dark:ring-slate-800 shadow-sm p-4 bg-gradient-to-br from-emerald-500/5 to-teal-500/5">
-          <div className="flex items-center gap-3">
-            <div className="size-11 rounded-2xl bg-emerald-600/10 flex items-center justify-center text-emerald-600">
-              <UserCheck className="size-6" />
+        <Card className="border border-slate-200 dark:border-slate-800 shadow-sm bg-gradient-to-br from-purple-50/40 to-white dark:from-purple-950/20 dark:to-slate-900 rounded-xl overflow-hidden">
+          <CardContent className="p-5 flex items-center gap-4">
+            <div className="p-3 bg-purple-100 dark:bg-purple-900/50 rounded-xl text-purple-600 dark:text-purple-300 shrink-0">
+              <BookOpen className="size-6" />
             </div>
             <div>
-              <p className="text-2xl font-black text-slate-900 dark:text-slate-100">{stats.activeMentors}</p>
-              <p className="text-xs font-bold text-muted-foreground">Active Alumni Mentors</p>
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Higher Education Rate</p>
+              <h3 className="text-2xl font-bold text-slate-900 dark:text-slate-100">88%</h3>
+              <p className="text-[11px] text-purple-600 font-medium mt-0.5">Universities & Colleges</p>
             </div>
-          </div>
+          </CardContent>
         </Card>
 
-        <Card className="rounded-2xl border-0 ring-1 ring-slate-200 dark:ring-slate-800 shadow-sm p-4 bg-gradient-to-br from-blue-500/5 to-cyan-500/5">
-          <div className="flex items-center gap-3">
-            <div className="size-11 rounded-2xl bg-blue-600/10 flex items-center justify-center text-blue-600">
-              <Building className="size-6" />
+        <Card className="border border-slate-200 dark:border-slate-800 shadow-sm bg-gradient-to-br from-emerald-50/40 to-white dark:from-emerald-950/20 dark:to-slate-900 rounded-xl overflow-hidden">
+          <CardContent className="p-5 flex items-center gap-4">
+            <div className="p-3 bg-emerald-100 dark:bg-emerald-900/50 rounded-xl text-emerald-600 dark:text-emerald-300 shrink-0">
+              <HeartHandshake className="size-6" />
             </div>
             <div>
-              <p className="text-2xl font-black text-slate-900 dark:text-slate-100">{stats.universitiesRepresented}</p>
-              <p className="text-xs font-bold text-muted-foreground">Universities & Companies</p>
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Active Mentors</p>
+              <h3 className="text-2xl font-bold text-slate-900 dark:text-slate-100">45 Mentors</h3>
+              <p className="text-[11px] text-emerald-600 font-medium mt-0.5">Guiding Batch 4 Shabab</p>
             </div>
-          </div>
+          </CardContent>
         </Card>
 
-        <Card className="rounded-2xl border-0 ring-1 ring-slate-200 dark:ring-slate-800 shadow-sm p-4 bg-gradient-to-br from-amber-500/5 to-orange-500/5">
-          <div className="flex items-center gap-3">
-            <div className="size-11 rounded-2xl bg-amber-600/10 flex items-center justify-center text-amber-600">
-              <Award className="size-6" />
+        <Card className="border border-slate-200 dark:border-slate-800 shadow-sm bg-gradient-to-br from-amber-50/40 to-white dark:from-amber-950/20 dark:to-slate-900 rounded-xl overflow-hidden">
+          <CardContent className="p-5 flex items-center gap-4">
+            <div className="p-3 bg-amber-100 dark:bg-amber-900/50 rounded-xl text-amber-600 dark:text-amber-300 shrink-0">
+              <Briefcase className="size-6" />
             </div>
             <div>
-              <p className="text-2xl font-black text-slate-900 dark:text-slate-100">{stats.reunionsOrganized}</p>
-              <p className="text-xs font-bold text-muted-foreground">Reunions & Gatherings</p>
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Career Placements</p>
+              <h3 className="text-2xl font-bold text-slate-900 dark:text-slate-100">128 Professionals</h3>
+              <p className="text-[11px] text-amber-600 font-medium mt-0.5">Employed & Freelancers</p>
             </div>
-          </div>
+          </CardContent>
         </Card>
       </div>
 
-      {/* Main Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="bg-slate-100 dark:bg-slate-800/60 p-1.5 rounded-2xl flex flex-wrap gap-1">
-          <TabsTrigger value="directory" className="rounded-xl text-xs font-bold px-4 py-2.5 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:shadow-sm">
-            <Users className="size-4 mr-1.5 text-purple-600" /> Alumni Directory ({alumniList.length})
-          </TabsTrigger>
-          <TabsTrigger value="mentorship" className="rounded-xl text-xs font-bold px-4 py-2.5 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:shadow-sm">
-            <BookOpen className="size-4 mr-1.5 text-emerald-600" /> Mentorship & Counseling Hub
-          </TabsTrigger>
-          <TabsTrigger value="reunions" className="rounded-xl text-xs font-bold px-4 py-2.5 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:shadow-sm">
-            <Calendar className="size-4 mr-1.5 text-blue-600" /> Reunions & Events
-          </TabsTrigger>
-        </TabsList>
+      {/* ─── Main Tabs Switcher ────────────────────────────────────────── */}
+      <Tabs defaultValue="directory" value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="space-y-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-4">
+          <TabsList className="bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
+            <TabsTrigger value="directory" className="rounded-lg font-medium text-xs sm:text-sm px-4">
+              <GraduationCap className="size-4 mr-2" /> Alumni Directory ({alumniList.length})
+            </TabsTrigger>
+            <TabsTrigger value="mentorship" className="rounded-lg font-medium text-xs sm:text-sm px-4">
+              <HeartHandshake className="size-4 mr-2" /> Mentorship Pairings ({mentorships.length})
+            </TabsTrigger>
+            <TabsTrigger value="opportunities" className="rounded-lg font-medium text-xs sm:text-sm px-4">
+              <Briefcase className="size-4 mr-2" /> Job & Opportunity Board
+            </TabsTrigger>
+          </TabsList>
 
-        {/* Tab 1: Alumni Directory */}
-        <TabsContent value="directory" className="mt-6 space-y-4">
-          <div className="flex flex-col sm:flex-row gap-3 items-center justify-between bg-card p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-            <div className="relative w-full sm:w-80">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-              <Input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search alumni name, company, or profession..."
-                className="pl-9 h-10 rounded-xl text-xs font-medium"
-              />
-            </div>
+          {activeTab === "directory" && (
+            <div className="flex items-center gap-3 w-full sm:w-auto flex-wrap">
+              <div className="relative flex-1 sm:w-64">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+                <Input
+                  value={search}
+                  onChange={(e) => {
+                    setSearch(e.target.value);
+                    setPage(1);
+                  }}
+                  placeholder="Search alumni by name, university..."
+                  className="pl-9 h-10 rounded-xl bg-white dark:bg-slate-900 text-xs font-medium"
+                />
+              </div>
 
-            <div className="flex items-center gap-2 w-full sm:w-auto">
-              <Select value={batchFilter} onValueChange={setBatchFilter}>
-                <SelectTrigger className="w-36 h-10 rounded-xl text-xs font-bold"><SelectValue placeholder="Batch" /></SelectTrigger>
+              <Select
+                value={statusFilter}
+                onValueChange={(v) => {
+                  setStatusFilter(v);
+                  setPage(1);
+                }}
+              >
+                <SelectTrigger className="w-[140px] h-10 rounded-xl bg-white dark:bg-slate-900 text-xs font-bold">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Batches</SelectItem>
-                  <SelectItem value="Batch 1">Batch 1 (2023)</SelectItem>
-                  <SelectItem value="Batch 2">Batch 2 (2024)</SelectItem>
-                  <SelectItem value="Batch 3">Batch 3 (2025)</SelectItem>
-                </SelectContent>
-              </Select>
-
-              <Select value={parkFilter} onValueChange={setParkFilter}>
-                <SelectTrigger className="w-40 h-10 rounded-xl text-xs font-bold"><SelectValue placeholder="Park" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Parks</SelectItem>
-                  <SelectItem value="Gulberg">Gulberg Park</SelectItem>
-                  <SelectItem value="Gulshan Iqbal">Gulshan Iqbal</SelectItem>
-                  <SelectItem value="Griffin">Griffin Park</SelectItem>
-                  <SelectItem value="Johar Town">Johar Town</SelectItem>
-                  <SelectItem value="Gulshan Ravi">Gulshan Ravi</SelectItem>
-                  <SelectItem value="State Life">State Life</SelectItem>
+                  <SelectItem value="all">All Statuses</SelectItem>
+                  <SelectItem value="higher_ed">Higher Ed</SelectItem>
+                  <SelectItem value="employed">Employed</SelectItem>
+                  <SelectItem value="freelance">Freelancing</SelectItem>
+                  <SelectItem value="entrepreneur">Entrepreneur</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-          </div>
+          )}
+        </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <AnimatePresence mode="popLayout">
-              {alumniList.map((alumnus, idx) => (
-                <motion.div
-                  key={alumnus.id}
-                  initial={{ opacity: 0, scale: 0.96 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.96 }}
-                  transition={{ duration: 0.2, delay: idx * 0.03 }}
-                >
-                  <Card className="rounded-2xl border-0 ring-1 ring-slate-200 dark:ring-slate-800 shadow-sm hover:shadow-md transition-all overflow-hidden h-full flex flex-col justify-between">
-                    <CardContent className="p-5 space-y-4">
-                      <div className="flex items-start gap-3">
-                        <img
-                          src={alumnus.avatar || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80"}
-                          alt={alumnus.fullName}
-                          className="size-12 rounded-2xl object-cover ring-2 ring-purple-600/20 shrink-0"
-                        />
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center justify-between gap-1">
-                            <h3 className="font-extrabold text-base text-slate-900 dark:text-slate-100 truncate">{alumnus.fullName}</h3>
-                            <div className="flex items-center gap-1">
-                              {canManage && (
-                                <>
-                                  <button onClick={() => handleEditClick(alumnus)} className="p-1 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-purple-700">
-                                    <Edit className="size-3.5" />
-                                  </button>
-                                  <button onClick={() => setDeletingAlumni(alumnus)} className="p-1 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-600">
-                                    <Trash2 className="size-3.5" />
-                                  </button>
-                                </>
-                              )}
-                              {alumnus.isMentorAvailable && (
-                                <Badge className="bg-emerald-100 text-emerald-800 text-[10px] font-bold shrink-0">
-                                  Mentor
-                                </Badge>
-                              )}
-                            </div>
+        {/* ─── Tab 1: Alumni Network Directory ────────────────────────────── */}
+        <TabsContent value="directory" className="space-y-4 m-0">
+          <Card className="border border-slate-200 dark:border-slate-800 shadow-sm rounded-xl overflow-hidden bg-white dark:bg-slate-900">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-slate-100/70 dark:bg-slate-800/70 text-slate-700 dark:text-slate-300 text-xs uppercase font-extrabold tracking-wider border-b border-slate-200 dark:border-slate-800">
+                  <tr>
+                    <th className="p-4">Alumni Name & Phone</th>
+                    <th className="p-4">Graduation Batch</th>
+                    <th className="p-4">Original Park</th>
+                    <th className="p-4">Status & Institution</th>
+                    <th className="p-4">Mentorship Role</th>
+                    <th className="p-4 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {paginatedAlumni.map((item) => (
+                    <tr key={item.id} className="hover:bg-purple-50/30 dark:hover:bg-purple-950/10 transition-colors">
+                      <td className="p-4 font-bold text-slate-900 dark:text-slate-100">
+                        <div>{item.name}</div>
+                        <span className="text-xs text-muted-foreground font-mono flex items-center mt-0.5">
+                          <Phone className="size-3 mr-1 text-emerald-600" /> {item.phone}
+                        </span>
+                      </td>
+                      <td className="p-4">
+                        <Badge variant="secondary" className="text-[10px] font-bold">
+                          {item.batch}
+                        </Badge>
+                      </td>
+                      <td className="p-4 text-xs font-semibold text-slate-700 dark:text-slate-300">
+                        <span className="flex items-center gap-1">
+                          <TreePine className="size-3.5 text-emerald-600" /> {item.originalPark}
+                        </span>
+                      </td>
+                      <td className="p-4">
+                        <div className="space-y-1">
+                          {getStatusBadge(item.currentStatus)}
+                          <div className="text-xs font-semibold text-slate-800 dark:text-slate-200">
+                            {item.institutionOrCompany}
                           </div>
-                          <p className="text-xs font-bold text-purple-600">{alumnus.currentProfession}</p>
-                          <p className="text-[11px] text-muted-foreground font-medium truncate">{alumnus.organization || alumnus.higherEducation}</p>
+                          <div className="text-[11px] text-muted-foreground font-medium">
+                            {item.fieldOfStudyOrRole}
+                          </div>
                         </div>
-                      </div>
-
-                      <div className="space-y-1.5 text-xs text-slate-600 dark:text-slate-300 font-medium bg-slate-50 dark:bg-slate-900/50 p-3 rounded-xl">
-                        {alumnus.shababRole && (
-                          <div className="flex items-center justify-between">
-                            <span className="text-muted-foreground text-[11px]">Shabab Role:</span>
-                            <span className="font-extrabold text-purple-700 dark:text-purple-400">{alumnus.shababRole}</span>
-                          </div>
+                      </td>
+                      <td className="p-4">
+                        {item.isMentor ? (
+                          <Badge className="bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300 text-[10px] font-bold border-0">
+                            🛡️ Mentor ({item.activeMenteesCount} Mentees)
+                          </Badge>
+                        ) : (
+                          <span className="text-xs text-slate-400 font-medium">Member</span>
                         )}
-                        <div className="flex items-center justify-between">
-                          <span className="text-muted-foreground text-[11px]">Graduation:</span>
-                          <span className="font-bold">{alumnus.graduationBatch} ({alumnus.graduationYear})</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-muted-foreground text-[11px]">Park:</span>
-                          <span className="font-bold">{alumnus.park}</span>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center justify-between pt-1 gap-2">
-                        <div className="flex items-center gap-1.5">
+                      </td>
+                      <td className="p-4 text-right">
+                        <div className="flex items-center justify-end gap-2">
                           <a
-                            href={`https://wa.me/${alumnus.mobile.replace(/[^0-9]/g, "")}`}
+                            href={`https://wa.me/${item.phone}`}
                             target="_blank"
-                            rel="noreferrer"
-                            className="size-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center hover:bg-emerald-100 transition-colors"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center justify-center h-8 px-2.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg gap-1"
                           >
-                            <MessageSquare className="size-4" />
+                            <MessageSquare className="size-3.5" /> WA
                           </a>
-                          {alumnus.linkedinUrl && (
-                            <a
-                              href={alumnus.linkedinUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="size-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center hover:bg-blue-100 transition-colors"
-                            >
-                              <Linkedin className="size-4" />
-                            </a>
-                          )}
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setSelectedAlumni(item)}
+                            className="h-8 px-3 text-xs border-slate-200 dark:border-slate-800 font-bold rounded-lg"
+                          >
+                            View Details
+                          </Button>
                         </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
 
-                        <Button
-                          size="sm"
-                          onClick={() => handleRequestMentorship(alumnus)}
-                          className="bg-[#4B0A8F] hover:bg-[#380668] text-white font-bold text-xs h-8 px-3 rounded-xl"
-                        >
-                          Book Guidance
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              ))}
-            </AnimatePresence>
-          </div>
+            {/* Pagination Controls */}
+            <div className="p-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+              <span className="text-xs text-muted-foreground font-medium">
+                Page {page} of {totalPages} ({filteredAlumni.length} total records)
+              </span>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={page === 1}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  className="h-8 text-xs font-bold rounded-lg"
+                >
+                  <ChevronLeft className="size-4 mr-1" /> Previous
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={page >= totalPages}
+                  onClick={() => setPage((p) => p + 1)}
+                  className="h-8 text-xs font-bold rounded-lg"
+                >
+                  Next <ChevronRight className="size-4 ml-1" />
+                </Button>
+              </div>
+            </div>
+          </Card>
         </TabsContent>
 
-        {/* Tab 2: Mentorship Hub */}
-        <TabsContent value="mentorship" className="mt-6 space-y-4">
-          <div className="p-6 rounded-2xl bg-gradient-to-r from-purple-900 to-indigo-900 text-white space-y-2 shadow-lg">
-            <div className="flex items-center gap-2">
-              <Sparkles className="size-5 text-amber-400 fill-amber-400" />
-              <h2 className="text-lg font-black">Shabab Alumni Mentorship Network</h2>
-            </div>
-            <p className="text-xs text-purple-100 max-w-2xl font-medium">
-              Active Batch 4 Shabab participants can connect directly with experienced Alumni Mentors for academic guidance, career prep, and personal Tarbiyah counseling.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {alumniList.filter((a) => a.isMentorAvailable).map((mentor) => (
-              <Card key={mentor.id} className="rounded-2xl border-0 ring-1 ring-slate-200 dark:ring-slate-800 p-5 space-y-3">
-                <div className="flex items-start gap-3">
-                  <img src={mentor.avatar} alt={mentor.fullName} className="size-12 rounded-2xl object-cover ring-2 ring-emerald-500/20" />
-                  <div>
-                    <h3 className="font-extrabold text-base text-slate-900 dark:text-slate-100">{mentor.fullName}</h3>
-                    <p className="text-xs font-bold text-emerald-600">{mentor.currentProfession} · {mentor.organization}</p>
-                    <p className="text-[11px] text-muted-foreground">{mentor.graduationBatch} ({mentor.park})</p>
-                  </div>
+        {/* ─── Tab 2: Mentorship Matching & Assignments ──────────────────── */}
+        <TabsContent value="mentorship" className="space-y-4 m-0">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {mentorships.map((pair) => (
+              <Card key={pair.id} className="border border-slate-200 dark:border-slate-800 shadow-sm rounded-xl p-5 space-y-3 bg-white dark:bg-slate-900">
+                <div className="flex items-center justify-between">
+                  <Badge className="bg-purple-100 text-purple-700 font-bold text-[10px] uppercase">
+                    {pair.domain}
+                  </Badge>
+                  <Badge variant="outline" className="text-[10px] font-bold">
+                    {pair.frequency}
+                  </Badge>
                 </div>
 
-                <div className="space-y-1.5">
-                  <p className="text-xs font-bold text-slate-700 dark:text-slate-300">Mentorship Focus Areas:</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {(mentor.mentorshipTopics || ["Career Counseling", "Tarbiyah", "Leadership"]).map((topic, i) => (
-                      <Badge key={i} variant="outline" className="text-[10px] font-semibold bg-purple-50 dark:bg-purple-950/40 text-purple-700 border-purple-200">
-                        {topic}
-                      </Badge>
-                    ))}
-                  </div>
+                <div className="p-3 bg-purple-50/50 dark:bg-purple-950/20 rounded-lg border border-purple-100 dark:border-purple-900 space-y-2">
+                  <div className="text-xs font-semibold text-slate-500">ALUMNI MENTOR</div>
+                  <div className="font-bold text-slate-900 dark:text-slate-100 text-sm">{pair.mentorName}</div>
+                  <div className="text-xs text-purple-700 dark:text-purple-300 font-medium">{pair.mentorField}</div>
                 </div>
 
-                <Button
-                  onClick={() => handleRequestMentorship(mentor)}
-                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl h-10 text-xs shadow-sm mt-2"
-                >
-                  <UserCheck className="size-4 mr-1.5" /> Request Mentorship Session
-                </Button>
+                <div className="flex items-center justify-center text-xs font-bold text-slate-400">
+                  ⬇️ Mentoring Current Participant
+                </div>
+
+                <div className="p-3 bg-indigo-50/50 dark:bg-indigo-950/20 rounded-lg border border-indigo-100 dark:border-indigo-900 space-y-1">
+                  <div className="text-xs font-semibold text-slate-500">BATCH 4 STUDENT</div>
+                  <div className="font-bold text-slate-900 dark:text-slate-100 text-sm">{pair.studentName}</div>
+                  <div className="text-xs text-indigo-700 dark:text-indigo-300 font-medium">{pair.studentPark} • {pair.studentGroup}</div>
+                </div>
+
+                <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center text-xs text-slate-500 font-medium">
+                  <span>Since {pair.startDate}</span>
+                  <span className="text-emerald-600 font-bold flex items-center">
+                    <CheckCircle2 className="size-3.5 mr-1" /> Active Pair
+                  </span>
+                </div>
               </Card>
             ))}
           </div>
         </TabsContent>
 
-        {/* Tab 3: Alumni Events */}
-        <TabsContent value="reunions" className="mt-6 space-y-4">
+        {/* ─── Tab 3: Career & Job Opportunities Board ────────────────────── */}
+        <TabsContent value="opportunities" className="space-y-4 m-0">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Card className="rounded-2xl border-0 ring-1 ring-slate-200 dark:ring-slate-800 p-6 space-y-4">
-              <div className="flex items-center justify-between">
-                <Badge className="bg-purple-100 text-purple-800 font-bold text-xs">Upcoming Reunion</Badge>
-                <span className="text-xs text-muted-foreground font-mono font-bold">25th August 2026</span>
-              </div>
-              <div>
-                <h3 className="text-lg font-black text-slate-900 dark:text-slate-100">Shabab Annual Alumni Summit & Tarbiyah Dinner</h3>
-                <p className="text-xs text-muted-foreground mt-1 font-medium">Grand reunion for Batches 1, 2, and 3 alumni across all 6 Lahore parks with guest lectures and awards.</p>
-              </div>
-              <Button onClick={() => toast.success("RSVP Submitted for Alumni Summit!")} className="w-full bg-[#4B0A8F] hover:bg-[#380668] text-white font-bold rounded-xl h-10 text-xs">
-                Confirm RSVP Attendance
-              </Button>
-            </Card>
+            {MOCK_OPPORTUNITIES.map((opp) => (
+              <Card key={opp.id} className="border border-slate-200 dark:border-slate-800 shadow-sm rounded-xl p-5 space-y-3 bg-white dark:bg-slate-900">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <Badge className="bg-emerald-100 text-emerald-800 font-bold text-[10px] uppercase">
+                      {opp.type.replace(/_/g, " ")}
+                    </Badge>
+                    <h3 className="text-base font-extrabold text-slate-900 dark:text-slate-100 mt-1">
+                      {opp.title}
+                    </h3>
+                    <p className="text-xs font-bold text-slate-700 dark:text-slate-300">{opp.organization}</p>
+                  </div>
+                  <span className="text-xs text-slate-500 font-semibold">{opp.location}</span>
+                </div>
 
-            <Card className="rounded-2xl border-0 ring-1 ring-slate-200 dark:ring-slate-800 p-6 space-y-4">
-              <div className="flex items-center justify-between">
-                <Badge className="bg-emerald-100 text-emerald-800 font-bold text-xs">Career Workshop</Badge>
-                <span className="text-xs text-muted-foreground font-mono font-bold">12th September 2026</span>
-              </div>
-              <div>
-                <h3 className="text-lg font-black text-slate-900 dark:text-slate-100">Alumni Career Guidance & Tech Leadership Panel</h3>
-                <p className="text-xs text-muted-foreground mt-1 font-medium">Panel session hosted by senior alumni working at Systems Ltd, KEMU, and PwC for graduating students.</p>
-              </div>
-              <Button onClick={() => toast.success("RSVP Submitted for Career Panel!")} className="w-full bg-[#4B0A8F] hover:bg-[#380668] text-white font-bold rounded-xl h-10 text-xs">
-                Confirm RSVP Attendance
-              </Button>
-            </Card>
+                <div className="text-xs text-muted-foreground font-medium">
+                  Posted by: <strong className="text-slate-800 dark:text-slate-200">{opp.postedBy}</strong>
+                </div>
+
+                <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center">
+                  <span className="text-[11px] font-medium text-slate-500">Deadline: {opp.deadline}</span>
+                  <a
+                    href={`mailto:${opp.contactEmail}`}
+                    className="inline-flex items-center justify-center h-8 px-3 text-xs bg-[#4B0A8F] hover:bg-[#3b0873] text-white font-bold rounded-lg gap-1"
+                  >
+                    Apply Now <ExternalLink className="size-3 ml-1" />
+                  </a>
+                </div>
+              </Card>
+            ))}
           </div>
         </TabsContent>
       </Tabs>
 
-      {/* Register / Edit Alumnus Modal */}
-      <Dialog open={isRegisterOpen || !!editingAlumni} onOpenChange={(open) => { if (!open) { setIsRegisterOpen(false); setEditingAlumni(null); } }}>
-        <DialogContent className="rounded-2xl max-w-md p-6">
+      {/* ─── Register Alumni Modal ──────────────────────────────────────── */}
+      <Dialog open={isRegisterModalOpen} onOpenChange={setIsRegisterModalOpen}>
+        <DialogContent className="max-w-md p-6 rounded-2xl space-y-4">
           <DialogHeader>
-            <DialogTitle className="text-lg font-black">{editingAlumni ? "Edit Alumnus Profile" : "Register Graduated Alumnus"}</DialogTitle>
+            <DialogTitle className="text-xl font-bold flex items-center gap-2">
+              <GraduationCap className="size-5 text-[#4B0A8F]" /> Register Alumni Record
+            </DialogTitle>
             <DialogDescription className="text-xs">
-              {editingAlumni ? "Update information for this graduated alumnus record." : "Add a new graduated student to the Alumni Directory."}
+              Add a graduated Shabab participant to the central Alumni Network registry.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-3 py-2">
-            <div>
-              <label className="text-[11px] font-bold text-muted-foreground">Full Name *</label>
-              <Input value={formFullName} onChange={(e) => setFormFullName(e.target.value)} placeholder="e.g. Hassan Raza" className="rounded-xl text-xs font-medium mt-1" />
+
+          <form onSubmit={handleRegisterAlumni} className="space-y-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Alumni Full Name *</Label>
+              <Input
+                value={formName}
+                onChange={(e) => setFormName(e.target.value)}
+                placeholder="e.g. Muhammad Hamza Khan"
+                className="h-10 text-xs rounded-lg"
+              />
             </div>
-            <div>
-              <label className="text-[11px] font-bold text-muted-foreground">Mobile Number *</label>
-              <Input value={formMobile} onChange={(e) => setFormMobile(e.target.value)} placeholder="e.g. +923001234567" className="rounded-xl text-xs font-medium mt-1" />
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="text-[11px] font-bold text-muted-foreground">Batch *</label>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold">Phone Number *</Label>
+                <Input
+                  value={formPhone}
+                  onChange={(e) => setFormPhone(e.target.value)}
+                  placeholder="e.g. 923001234567"
+                  className="h-10 text-xs rounded-lg"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold">Graduation Batch</Label>
                 <Select value={formBatch} onValueChange={setFormBatch}>
-                  <SelectTrigger className="w-full h-10 rounded-xl text-xs font-bold mt-1"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="h-10 text-xs font-semibold rounded-lg">
+                    <SelectValue placeholder="Batch" />
+                  </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Lahore Batch 1">Lahore Batch 1</SelectItem>
-                    <SelectItem value="Lahore Batch 2">Lahore Batch 2</SelectItem>
-                    <SelectItem value="Lahore Batch 3">Lahore Batch 3</SelectItem>
+                    <SelectItem value="Lahore Batch 1 (2024)">Lahore Batch 1 (2024)</SelectItem>
+                    <SelectItem value="Lahore Batch 2 (2025)">Lahore Batch 2 (2025)</SelectItem>
+                    <SelectItem value="Lahore Batch 3 (2025)">Lahore Batch 3 (2025)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-              <div>
-                <label className="text-[11px] font-bold text-muted-foreground">Park *</label>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold">Original Park</Label>
                 <Select value={formPark} onValueChange={setFormPark}>
-                  <SelectTrigger className="w-full h-10 rounded-xl text-xs font-bold mt-1"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="h-10 text-xs font-semibold rounded-lg">
+                    <SelectValue placeholder="Park" />
+                  </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="Gulberg Park">Gulberg Park</SelectItem>
-                    <SelectItem value="Gulshan Iqbal Park">Gulshan Iqbal</SelectItem>
+                    <SelectItem value="Gulshan Iqbal Park">Gulshan Iqbal Park</SelectItem>
                     <SelectItem value="Griffin Park">Griffin Park</SelectItem>
-                    <SelectItem value="Johar Town Park">Johar Town</SelectItem>
-                    <SelectItem value="Gulshan Ravi Park">Gulshan Ravi</SelectItem>
-                    <SelectItem value="State Life Park">State Life</SelectItem>
+                    <SelectItem value="Johar Town Park">Johar Town Park</SelectItem>
+                    <SelectItem value="State Life Park">State Life Park</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold">Current Status</Label>
+                <Select value={formStatus} onValueChange={(v) => setFormStatus(v as any)}>
+                  <SelectTrigger className="h-10 text-xs font-semibold rounded-lg">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="higher_ed">Higher Education</SelectItem>
+                    <SelectItem value="employed">Employed</SelectItem>
+                    <SelectItem value="freelance">Freelancing</SelectItem>
+                    <SelectItem value="entrepreneur">Entrepreneur</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
-            <div>
-              <label className="text-[11px] font-bold text-muted-foreground">Current Profession *</label>
-              <Input value={formProfession} onChange={(e) => setFormProfession(e.target.value)} placeholder="e.g. Software Engineer / Doctor" className="rounded-xl text-xs font-medium mt-1" />
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Institution / University / Company Name</Label>
+              <Input
+                value={formInstitution}
+                onChange={(e) => setFormInstitution(e.target.value)}
+                placeholder="e.g. UET Lahore / Systems Ltd"
+                className="h-10 text-xs rounded-lg"
+              />
             </div>
-            <div>
-              <label className="text-[11px] font-bold text-muted-foreground">Company / Organization</label>
-              <Input value={formOrg} onChange={(e) => setFormOrg(e.target.value)} placeholder="e.g. Systems Ltd / KEMU" className="rounded-xl text-xs font-medium mt-1" />
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Degree / Field of Study / Job Title</Label>
+              <Input
+                value={formField}
+                onChange={(e) => setFormField(e.target.value)}
+                placeholder="e.g. B.Sc Electrical Engineering"
+                className="h-10 text-xs rounded-lg"
+              />
             </div>
-            <div>
-              <label className="text-[11px] font-bold text-muted-foreground">Higher Education Degree</label>
-              <Input value={formEdu} onChange={(e) => setFormEdu(e.target.value)} placeholder="e.g. BS Computer Science (FAST)" className="rounded-xl text-xs font-medium mt-1" />
-            </div>
-          </div>
-          <DialogFooter className="pt-3">
-            <Button variant="outline" onClick={() => { setIsRegisterOpen(false); setEditingAlumni(null); }} className="rounded-xl font-bold">Cancel</Button>
-            <Button
-              onClick={() => editingAlumni ? updateMutation.mutate() : registerMutation.mutate()}
-              disabled={!formFullName || !formMobile || !formProfession || registerMutation.isPending || updateMutation.isPending}
-              className="bg-[#4B0A8F] hover:bg-[#380668] text-white font-bold rounded-xl px-5"
-            >
-              {registerMutation.isPending || updateMutation.isPending ? <Loader2 className="size-4 animate-spin" /> : editingAlumni ? "Save Changes" : "Register Alumnus"}
-            </Button>
-          </DialogFooter>
+
+            <DialogFooter className="pt-2">
+              <Button type="button" variant="outline" size="sm" onClick={() => setIsRegisterModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" size="sm" className="bg-[#4B0A8F] hover:bg-[#3b0873] text-white">
+                Register Alumni Record
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Dialog */}
-      <Dialog open={!!deletingAlumni} onOpenChange={(open) => !open && setDeletingAlumni(null)}>
-        <DialogContent className="rounded-2xl max-w-sm p-6 space-y-3">
+      {/* ─── Assign Mentorship Pair Modal ───────────────────────────────── */}
+      <Dialog open={isPairModalOpen} onOpenChange={setIsPairModalOpen}>
+        <DialogContent className="max-w-md p-6 rounded-2xl space-y-4">
           <DialogHeader>
-            <DialogTitle className="text-lg font-black text-red-600 flex items-center gap-2">
-              <Trash2 className="size-5" /> Delete Alumnus Record
+            <DialogTitle className="text-xl font-bold flex items-center gap-2">
+              <HeartHandshake className="size-5 text-[#4B0A8F]" /> Create Mentorship Pairing
             </DialogTitle>
             <DialogDescription className="text-xs">
-              Are you sure you want to delete <span className="font-bold text-slate-900">{deletingAlumni?.fullName}</span>? This action cannot be undone.
+              Pair an Alumni Mentor with a current Batch 4 participant for guidance.
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="pt-2">
-            <Button variant="outline" onClick={() => setDeletingAlumni(null)} className="rounded-xl font-bold">Cancel</Button>
-            <Button
-              onClick={() => deletingAlumni && deleteMutation.mutate(deletingAlumni.id)}
-              disabled={deleteMutation.isPending}
-              className="bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl px-4"
-            >
-              {deleteMutation.isPending ? <Loader2 className="size-4 animate-spin" /> : "Confirm Delete"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
-      {/* Book Mentorship Modal */}
-      <Dialog open={isMentorshipModalOpen} onOpenChange={setIsMentorshipModalOpen}>
-        <DialogContent className="rounded-2xl max-w-sm p-6 space-y-4">
-          <DialogHeader>
-            <DialogTitle className="text-lg font-black flex items-center gap-2 text-purple-700">
-              <UserCheck className="size-5" /> Book Guidance Session
-            </DialogTitle>
-            <DialogDescription className="text-xs">
-              Request a 1-on-1 mentorship session with {targetMentor?.fullName} ({targetMentor?.currentProfession}).
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3 text-xs">
-            <div>
-              <label className="font-bold text-muted-foreground">Select Discussion Topic</label>
-              <Select defaultValue="career">
-                <SelectTrigger className="w-full h-10 rounded-xl font-bold text-xs mt-1"><SelectValue /></SelectTrigger>
+          <form onSubmit={handleCreatePairing} className="space-y-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Select Alumni Mentor *</Label>
+              <Select value={pairMentor} onValueChange={setPairMentor}>
+                <SelectTrigger className="h-10 text-xs font-semibold rounded-lg">
+                  <SelectValue placeholder="Select Mentor" />
+                </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="career">Career & Job Prep</SelectItem>
-                  <SelectItem value="admission">University Admissions</SelectItem>
-                  <SelectItem value="tarbiyah">Tarbiyah & Personal Growth</SelectItem>
-                  <SelectItem value="leadership">Sports & Public Speaking</SelectItem>
+                  {alumniList.map((alm) => (
+                    <SelectItem key={alm.id} value={alm.name}>
+                      {alm.name} ({alm.institutionOrCompany})
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
-            <div>
-              <label className="font-bold text-muted-foreground">Preferred Date & Time</label>
-              <Input type="datetime-local" className="rounded-xl font-medium mt-1" />
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Batch 4 Student Name *</Label>
+              <Input
+                value={pairStudent}
+                onChange={(e) => setPairStudent(e.target.value)}
+                placeholder="e.g. Muhammad Umair (Gulberg Group 1)"
+                className="h-10 text-xs rounded-lg"
+              />
             </div>
-          </div>
-          <DialogFooter className="pt-2">
-            <Button
-              onClick={() => {
-                toast.success(`Mentorship Request Sent to ${targetMentor?.fullName}!`);
-                setIsMentorshipModalOpen(false);
-              }}
-              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl h-11"
-            >
-              Submit Mentorship Request
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold">Mentorship Domain</Label>
+                <Select value={pairDomain} onValueChange={setPairDomain}>
+                  <SelectTrigger className="h-10 text-xs font-semibold rounded-lg">
+                    <SelectValue placeholder="Domain" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Computer Science & IT">Computer Science & IT</SelectItem>
+                    <SelectItem value="Engineering & STEM">Engineering & STEM</SelectItem>
+                    <SelectItem value="Business & Leadership">Business & Leadership</SelectItem>
+                    <SelectItem value="Vocational & Skills">Vocational & Skills</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold">Meeting Frequency</Label>
+                <Select value={pairFrequency} onValueChange={setPairFrequency}>
+                  <SelectTrigger className="h-10 text-xs font-semibold rounded-lg">
+                    <SelectValue placeholder="Frequency" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Weekly">Weekly</SelectItem>
+                    <SelectItem value="Bi-Weekly">Bi-Weekly</SelectItem>
+                    <SelectItem value="Monthly">Monthly</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <DialogFooter className="pt-2">
+              <Button type="button" variant="outline" size="sm" onClick={() => setIsPairModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" size="sm" className="bg-[#4B0A8F] hover:bg-[#3b0873] text-white">
+                Create Mentorship Pair
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── Alumni Detail Drawer ───────────────────────────────────────── */}
+      <Dialog open={!!selectedAlumni} onOpenChange={(open) => !open && setSelectedAlumni(null)}>
+        <DialogContent className="max-w-md p-6 rounded-2xl space-y-4">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold">{selectedAlumni?.name}</DialogTitle>
+            <DialogDescription className="text-xs font-mono">{selectedAlumni?.batch} • {selectedAlumni?.originalPark}</DialogDescription>
+          </DialogHeader>
+
+          {selectedAlumni && (
+            <div className="space-y-3 text-xs">
+              <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-lg space-y-1.5">
+                <div className="font-semibold text-slate-500">INSTITUTION / COMPANY</div>
+                <div className="font-bold text-slate-900 dark:text-slate-100 text-sm">{selectedAlumni.institutionOrCompany}</div>
+                <div className="text-purple-700 dark:text-purple-300 font-medium">{selectedAlumni.fieldOfStudyOrRole}</div>
+              </div>
+
+              <div className="flex items-center justify-between p-3 border border-slate-200 dark:border-slate-800 rounded-lg">
+                <span className="font-medium">Active Mentorships</span>
+                <Badge className="bg-purple-100 text-purple-700 font-bold">
+                  {selectedAlumni.activeMenteesCount} Mentees Paired
+                </Badge>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSelectedAlumni(null)} className="w-full rounded-lg font-bold">
+              Close Profile
             </Button>
           </DialogFooter>
         </DialogContent>
