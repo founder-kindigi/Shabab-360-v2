@@ -35,6 +35,7 @@ const AdminAttendanceEvents = lazy(() => import("@/components/modules/admin/admi
 const AnnouncementsPage = lazy(() => import("@/components/modules/admin/announcements-page").then(m => ({ default: m.AnnouncementsPage })));
 const SettingsPage = lazy(() => import("@/components/modules/admin/settings-page").then(m => ({ default: m.SettingsPage })));
 const ReportsPage = lazy(() => import("@/components/modules/admin/reports-page").then(m => ({ default: m.ReportsPage })));
+const CustomReportBuilderPage = lazy(() => import("@/components/modules/admin/custom-report-builder-page").then(m => ({ default: m.CustomReportBuilderPage })));
 const AccessProvisioningPage = lazy(() => import("@/components/modules/admin/access-provisioning-page").then(m => ({ default: m.AccessProvisioningPage })));
 const AccessManagementPage = lazy(() => import("@/components/modules/admin/access-management-page").then(m => ({ default: m.AccessManagementPage })));
 const CollaborationTeamsPage = lazy(() => import("@/components/modules/admin/collaboration-teams-page").then(m => ({ default: m.CollaborationTeamsPage })));
@@ -151,6 +152,7 @@ const pageTitles: Record<PageId, string> = {
   "public-program": "Program Showcase",
   "admin-announcements": "Announcements",
   "admin-reports": "Reports",
+  "admin-reports-builder": "Custom Report Builder",
   "admin-audit-log": "Audit Log",
   "notifications": "Notifications",
   "murabbi-dashboard": "Dashboard",
@@ -188,7 +190,7 @@ function isKnownPage(pageId: PageId): boolean {
     "admin-attendance-events", "admin-settings", "admin-users",
     "admin-admissions", "admin-fees", "admin-content-planner", "admin-announcements",
     "admin-events", "admin-events-detail",
-    "admin-reports", "admin-audit-log", "admin-access", "admin-access-management", "admin-collaboration-teams", "notifications",
+    "admin-reports", "admin-reports-builder", "admin-audit-log", "admin-access", "admin-access-management", "admin-collaboration-teams", "notifications",
     "admin-mashwara",
     "admin-mashwara-detail",
     "murabbi-dashboard", "murabbi-groups",
@@ -281,6 +283,8 @@ function PageContentInner({ pageId }: { pageId: PageId }) {
       return <AnnouncementsPage />;
     case "admin-reports":
       return <ReportsPage />;
+    case "admin-reports-builder":
+      return <CustomReportBuilderPage />;
     case "admin-students":
       return <StudentsPage />;
     case "admin-guardians":

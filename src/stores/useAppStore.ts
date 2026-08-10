@@ -29,6 +29,7 @@ export type PageId =
   | "admin-fees"
   | "admin-announcements"
   | "admin-reports"
+  | "admin-reports-builder"
   | "admin-audit-log"
   | "admin-access"
   | "admin-access-management"

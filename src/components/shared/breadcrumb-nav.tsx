@@ -42,6 +42,7 @@ const pageSectionMap: Partial<Record<PageId, BreadcrumbSection>> = {
   // Admin – Communication
   "admin-announcements": { section: "Communication", sectionPage: null },
   "admin-reports": { section: "Communication", sectionPage: null },
+  "admin-reports-builder": { section: "Communication", sectionPage: null },
 
   // Admin – System
   "admin-audit-log": { section: "System", sectionPage: null },
@@ -119,6 +120,7 @@ const pageTitles: Record<PageId, string> = {
   "public-program": "Program Showcase",
   "admin-announcements": "Announcements",
   "admin-reports": "Reports",
+  "admin-reports-builder": "Custom Report Builder",
   "admin-audit-log": "Audit Log",
   notifications: "Notifications",
   "murabbi-dashboard": "Dashboard",
