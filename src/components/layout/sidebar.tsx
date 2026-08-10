@@ -329,7 +329,7 @@ function DesktopSidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
       <div className="flex-1 overflow-y-auto min-h-0 py-3 px-2 space-y-1">
         <nav className="flex flex-col gap-0.5">
           {getNavSections(navItems).map((group, gIdx) => (
-            <div key={group.section || `s-${gIdx}`}>
+            <div key={`${group.section || "sec"}-${gIdx}`}>
               {group.section && !collapsed && (
                 <div className="flex items-center gap-2 px-3 pt-4 pb-1.5">
                   <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-medium">
@@ -474,7 +474,7 @@ function MobileSidebar({
         <div className="flex-1 overflow-y-auto min-h-0 py-3 px-2">
           <nav className="flex flex-col gap-0.5">
             {getNavSections(navItems).map((group, gIdx) => (
-              <div key={group.section || `ms-${gIdx}`}>
+              <div key={`${group.section || "msec"}-${gIdx}`}>
                 {group.section && (
                   <div className="flex items-center gap-2 px-3 pt-4 pb-1.5">
                     <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-medium">
