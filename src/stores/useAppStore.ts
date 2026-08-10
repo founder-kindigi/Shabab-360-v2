@@ -36,6 +36,7 @@ export type PageId =
   | "admin-mashwara"
   | "admin-mashwara-detail"
   | "admin-content-planner"
+  | "admin-community"
   | "admin-procurement"
   | "admin-gamification"
   | "admin-knowledge-base"

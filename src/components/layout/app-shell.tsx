@@ -46,6 +46,7 @@ const FeesPage = lazy(() => import("@/components/modules/admin/fees-page").then(
 const NotificationsPage = lazy(() => import("@/components/modules/admin/notifications-page").then(m => ({ default: m.NotificationsPage })));
 const AdmissionsPage = lazy(() => import("@/components/modules/admin/admissions-page").then(m => ({ default: m.AdmissionsPage })));
 const ContentPlannerPage = lazy(() => import("@/components/modules/admin/content-planner-page").then(m => ({ default: m.ContentPlannerPage })));
+const CommunityPage = lazy(() => import("@/components/modules/admin/community-page").then(m => ({ default: m.CommunityPage })));
 const ProcurementPage = lazy(() => import("@/components/modules/admin/procurement-page").then(m => ({ default: m.ProcurementPage })));
 const GamificationPage = lazy(() => import("@/components/modules/admin/gamification-page").then(m => ({ default: m.GamificationPage })));
 const KnowledgeBasePage = lazy(() => import("@/components/modules/admin/knowledge-base-page").then(m => ({ default: m.KnowledgeBasePage })));
@@ -138,6 +139,7 @@ const pageTitles: Record<PageId, string> = {
   "admin-admissions": "Admissions",
   "admin-fees": "Fees",
   "admin-content-planner": "Content Planner",
+  "admin-community": "Community & Quizzes",
   "admin-procurement": "Procurement & Stock",
   "admin-gamification": "Gamification & Leaderboard",
   "admin-knowledge-base": "Knowledge Base & SOPs",
@@ -289,6 +291,8 @@ function PageContentInner({ pageId }: { pageId: PageId }) {
       return <FeesPage />;
     case "admin-content-planner":
       return <ContentPlannerPage />;
+    case "admin-community":
+      return <CommunityPage />;
     case "admin-procurement":
       return <ProcurementPage />;
     case "admin-gamification":
@@ -423,7 +427,7 @@ export function AppShell() {
     "admin-cities", "admin-parks", "admin-batches", "admin-groups", "admin-users",
     "admin-access", "admin-audit-log", "admin-settings", "admin-attendance-events",
     "admin-people", "admin-announcements", "admin-reports", "admin-students",
-    "admin-guardians", "admin-fees", "admin-admissions", "admin-content-planner",
+    "admin-guardians", "admin-fees", "admin-admissions", "admin-content-planner", "admin-community",
     "admin-collaboration-teams", "admin-mashwara", "park-attendance", "notifications"
   ].includes(currentPage);
 
@@ -431,7 +435,7 @@ export function AppShell() {
   const showScopeSelector = currentPage.startsWith("admin-") && !(
     ["admin-dashboard", "admin-settings", "admin-audit-log", "admin-people",
      "admin-announcements", "admin-access", "admin-students", "admin-guardians",
-     "admin-fees", "admin-admissions", "admin-content-planner",
+     "admin-fees", "admin-admissions", "admin-content-planner", "admin-community",
      "admin-collaboration-teams", "admin-mashwara"] as const
   ).includes(currentPage as any);
 
