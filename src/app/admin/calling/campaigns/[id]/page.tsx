@@ -22,6 +22,7 @@ import {
 import {
   ArrowLeft,
   Phone,
+  PhoneCall,
   Users,
   Loader2,
   Search,
@@ -32,6 +33,7 @@ import {
   Calendar,
   Sparkles,
   UserCheck,
+  UserX,
   ChevronLeft,
   ChevronRight,
   Layers,
@@ -448,19 +450,40 @@ export default function CampaignDetailPage() {
                           className="rounded-md shrink-0"
                         />
 
-                        <div className="min-w-0">
-                          <p className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                            {lead.application?.applicantName || "Applicant Lead"}
-                          </p>
-                          <p className="text-xs text-muted-foreground font-mono font-medium">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="text-sm font-extrabold text-slate-900 dark:text-slate-100">
+                              {lead.application?.applicantName || "Applicant Lead"}
+                            </p>
+                            {!lead.callerStaffMetaId && !lead.callerExternalId && (
+                              <Badge variant="outline" className="text-[10px] font-bold text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 border-slate-300">
+                                <UserX className="size-3 mr-1" /> Unassigned
+                              </Badge>
+                            )}
+                            {(lead.callerStaffMetaId || lead.callerExternalId) && lead.status === "pending" && (
+                              <Badge variant="outline" className="text-[10px] font-bold text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/60 border-purple-200">
+                                <UserCheck className="size-3 mr-1" /> Assigned to {lead.callerName || "Murabbi"}
+                              </Badge>
+                            )}
+                            {(lead.callerStaffMetaId || lead.callerExternalId) && lead.status !== "pending" && (
+                              <Badge variant="outline" className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 border-emerald-200">
+                                <PhoneCall className="size-3 mr-1" /> Called by {lead.callerName || "Murabbi"}
+                              </Badge>
+                            )}
+                          </div>
+
+                          <p className="text-xs text-muted-foreground font-mono font-medium mt-0.5">
                             {lead.application?.guardianPhone || "—"} &middot; <span className="capitalize">{lead.status}</span>
-                            {lead.callerName && <span className="font-bold text-purple-700 dark:text-purple-400 ml-2">• Caller: {lead.callerName}</span>}
                           </p>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-3 shrink-0">
-                        {lead.outcome && OutcomeIcon && <OutcomeIcon className={cn("size-4", OUTCOME_STYLES[lead.outcome])} />}
+                      <div className="flex items-center gap-2 shrink-0">
+                        {lead.outcome && OutcomeIcon && (
+                          <Badge variant="outline" className={cn("text-[11px] font-bold capitalize flex items-center gap-1", OUTCOME_STYLES[lead.outcome])}>
+                            <OutcomeIcon className="size-3" /> {lead.outcome.replace(/_/g, " ")}
+                          </Badge>
+                        )}
 
                         {canManage && !lead.callerStaffMetaId && !lead.callerExternalId && (
                           <Button
