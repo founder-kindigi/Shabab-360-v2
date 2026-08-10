@@ -455,14 +455,14 @@ export function ContentPlannerPage() {
     });
   }, [realSyllabus]);
 
-  // Determine active week name based on date range (exact match, defaults to Week 1)
+  // Determine active week name based on date range (exact match, defaults to Week 13 for current running date window)
   const activeWeekName = useMemo(() => {
     const matched = matrixData.find((item) => {
       if (!item.date) return false;
       const d = new Date(item.date);
       return !isNaN(d.getTime()) && d >= currentWeekDateRange.monday && d <= currentWeekDateRange.sunday;
     });
-    return matched ? matched.week : "Week 1";
+    return matched ? matched.week : "Week 13";
   }, [matrixData, currentWeekDateRange]);
 
   // Fix: EXACT string match so "Week 10" is not falsely flagged as "Week 1"!
@@ -494,7 +494,7 @@ export function ContentPlannerPage() {
   }, [matrixDataWithActive, selectedWeekFilter, activeWeekName, teamFilter]);
 
   return (
-    <div className="space-y-6 w-full max-w-full overflow-x-hidden">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
       <PageHeader
         title="Content & Activity Planner"
         description="Design 4-category curriculum plans (Sports, Skills, Tadreeb, Exercises), weekly session blocks, and park-level activity syllabus."
@@ -662,7 +662,7 @@ export function ContentPlannerPage() {
 
         <TabsContent value="matrix" className="space-y-4 w-full">
           {/* Active Week Range Selector Bar */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar w-full">
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar w-full bg-slate-50 dark:bg-slate-900/60 p-2.5 rounded-2xl border border-slate-200/80 dark:border-slate-800">
             <span className="text-xs font-bold text-slate-500 mr-1 shrink-0 flex items-center gap-1">
               <Pin className="size-3.5 text-purple-600" /> Current Active Week Focus:
             </span>
@@ -745,7 +745,7 @@ export function ContentPlannerPage() {
 
           {/* Render Mode 1: Modern Web Cards Grid (1 Active Week Plan) */}
           {viewMode === "cards" ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 w-full">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full">
               <AnimatePresence mode="popLayout">
                 {filteredMatrix.map((item) => (
                   <motion.div
@@ -765,11 +765,14 @@ export function ContentPlannerPage() {
                       )}
                     >
                       {item.isCurrentWeek && (
-                        <div className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-[11px] font-black py-1 px-3 flex items-center justify-between">
-                          <span className="flex items-center gap-1 truncate max-w-[240px] sm:max-w-[280px]">
-                            <Pin className="size-3 text-amber-300 fill-amber-300 shrink-0" /> PINNED ACTIVE WEEK ({currentWeekDateRange.label})
+                        <div className="bg-gradient-to-r from-purple-700 via-purple-600 to-indigo-700 text-white text-[11px] font-black py-1.5 px-3.5 flex items-center justify-between shadow-xs">
+                          <span className="flex items-center gap-1.5 font-bold tracking-wide">
+                            <Pin className="size-3.5 text-amber-300 fill-amber-300 shrink-0" />
+                            <span>PINNED ACTIVE WEEK • {currentWeekDateRange.label}</span>
                           </span>
-                          <Badge className="bg-amber-400 text-slate-900 font-bold text-[9px] px-1.5 py-0 shrink-0">ACTIVE NOW</Badge>
+                          <Badge className="bg-amber-400 text-slate-950 font-black text-[9px] px-2 py-0.5 shadow-2xs shrink-0">
+                            ACTIVE NOW
+                          </Badge>
                         </div>
                       )}
 
