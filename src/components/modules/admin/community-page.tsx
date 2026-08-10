@@ -14,6 +14,13 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -62,6 +69,7 @@ export interface Post {
   authorRole: string;
   authorPhone?: string;
   category: "karguzari" | "inspiration" | "question" | "announcement";
+  audience?: "everyone" | "city" | "park" | "group" | "staff";
   content: string;
   likes: number;
   isLiked?: boolean;
@@ -209,6 +217,7 @@ export function CommunityPage() {
   // New post form
   const [newPostContent, setNewPostContent] = useState("");
   const [newPostCategory, setNewPostCategory] = useState<"karguzari" | "inspiration" | "question" | "announcement">("karguzari");
+  const [newPostAudience, setNewPostAudience] = useState<"everyone" | "city" | "park" | "group" | "staff">("everyone");
   const [newPostTags, setNewPostTags] = useState("");
 
   // New poll form
@@ -271,6 +280,7 @@ export function CommunityPage() {
       authorName: user?.name || "Shabab Member",
       authorRole: user?.role?.replace(/_/g, " ") || "Member",
       category: newPostCategory,
+      audience: newPostAudience,
       content: newPostContent.trim(),
       likes: 0,
       isLiked: false,
@@ -555,16 +565,27 @@ export function CommunityPage() {
                           </div>
                         </div>
 
-                        {/* Category Badge */}
-                        <Badge variant="outline" className={cn(
-                          "capitalize text-xs font-semibold px-2.5 py-0.5 rounded-full border",
-                          post.category === "announcement" && "bg-purple-50 text-purple-700 border-purple-200",
-                          post.category === "karguzari" && "bg-emerald-50 text-emerald-700 border-emerald-200",
-                          post.category === "inspiration" && "bg-amber-50 text-amber-700 border-amber-200",
-                          post.category === "question" && "bg-blue-50 text-blue-700 border-blue-200"
-                        )}>
-                          {post.category}
-                        </Badge>
+                        {/* Category & Audience Badges */}
+                        <div className="flex items-center gap-1.5">
+                          {post.audience && (
+                            <Badge variant="outline" className="text-[10px] font-semibold px-2 py-0.5 rounded-full border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-900">
+                              {post.audience === "everyone" && "🌐 Public"}
+                              {post.audience === "city" && "🏙️ City Only"}
+                              {post.audience === "park" && "🌳 Park Only"}
+                              {post.audience === "group" && "👥 Group Only"}
+                              {post.audience === "staff" && "🛡️ Staff Only"}
+                            </Badge>
+                          )}
+                          <Badge variant="outline" className={cn(
+                            "capitalize text-xs font-semibold px-2.5 py-0.5 rounded-full border",
+                            post.category === "announcement" && "bg-purple-50 text-purple-700 border-purple-200",
+                            post.category === "karguzari" && "bg-emerald-50 text-emerald-700 border-emerald-200",
+                            post.category === "inspiration" && "bg-amber-50 text-amber-700 border-amber-200",
+                            post.category === "question" && "bg-blue-50 text-blue-700 border-blue-200"
+                          )}>
+                            {post.category}
+                          </Badge>
+                        </div>
                       </div>
 
                       {/* Post Content */}
@@ -762,6 +783,22 @@ export function CommunityPage() {
                   </Button>
                 ))}
               </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Target Audience *</Label>
+              <Select value={newPostAudience} onValueChange={(v) => setNewPostAudience(v as any)}>
+                <SelectTrigger className="h-9 text-xs font-semibold rounded-lg bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
+                  <SelectValue placeholder="Select Target Audience" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="everyone">🌐 Public / Everyone (All Members)</SelectItem>
+                  <SelectItem value="city">🏙️ My City Only (Lahore / City Scope)</SelectItem>
+                  <SelectItem value="park">🌳 My Park Only (Assigned Park Scope)</SelectItem>
+                  <SelectItem value="group">👥 My Group Only (Youth Group Scope)</SelectItem>
+                  <SelectItem value="staff">🛡️ Staff & Leadership Only (Murabbis & Admins)</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-1.5">
