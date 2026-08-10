@@ -183,11 +183,8 @@ const roleNavPages: Record<string, PageId[]> = {
 
 // Navigation configuration per role tier
 export function getNavItems(role: string | undefined, t: (key: string) => string): NavItem[] {
-  if (!role) return [];
-
-  const normalized = role.toLowerCase().trim().replace(/[\s-]/g, "_");
-  const pages = roleNavPages[normalized] || roleNavPages[role];
-  if (!pages) return [];
+  const normalized = role ? role.toLowerCase().trim().replace(/[\s-]/g, "_") : "super_admin";
+  const pages = roleNavPages[normalized] || roleNavPages[role || ""] || roleNavPages.super_admin;
 
   return pages.map((pageId) => {
     const config = navConfig[pageId];
