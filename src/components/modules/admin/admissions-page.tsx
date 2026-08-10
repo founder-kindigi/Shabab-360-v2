@@ -100,6 +100,7 @@ import {
   ArrowRightLeft,
   Pencil,
 } from "lucide-react";
+import { autoAssignParkAndGroup } from "@/lib/pipeline/registration-flow-store";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 

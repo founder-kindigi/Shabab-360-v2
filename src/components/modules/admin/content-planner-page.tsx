@@ -56,6 +56,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { getRunningBatchSyllabus } from "@/lib/pipeline/registration-flow-store";
 
 interface CityOption {
   id: string;
@@ -257,15 +258,17 @@ export function ContentPlannerPage() {
   const collabBlocks = 144; // Mocked collab blocks
   const activeBatchScope = "Lahore Batch 4";
 
-  const matrixData = [
-    { week: 1, date: "Saturday", sports: "Warm-up Drills, Football Passing", skills: "Public Speaking Basics", tadreeb: "Character Building: Honesty", focus: "Team Discipline" },
-    { week: 2, date: "Saturday", sports: "Cricket Bowling & Fielding", skills: "Financial Literacy 101", tadreeb: "Ethical Leadership", focus: "Personal Responsibility" },
-    { week: 3, date: "Saturday", sports: "Athletics & Relay Races", skills: "First Aid & CPR", tadreeb: "Community Service Intro", focus: "Civic Duty" },
-    { week: 4, date: "Saturday", sports: "Basketball Dribbling", skills: "Time Management", tadreeb: "Respect for Elders", focus: "Respect & Honor" },
-    { week: 5, date: "Saturday", sports: "Fitness & Endurance", skills: "Conflict Resolution", tadreeb: "Patience & Perseverance", focus: "Resilience" },
-    { week: 6, date: "Saturday", sports: "Volleyball Tactics", skills: "Basic Self Defense", tadreeb: "Gratitude & Shukr", focus: "Mindfulness" },
-    { week: 7, date: "Saturday", sports: "Football Mini-Matches", skills: "Creative Problem Solving", tadreeb: "Empathy & Compassion", focus: "Social Awareness" },
-    { week: 8, date: "Saturday", sports: "Inter-Park Tournament", skills: "Presentation Skills Showcase", tadreeb: "Reflective Practice", focus: "Growth Mindset" },
+  const realSyllabus = getRunningBatchSyllabus();
+  const matrixData = realSyllabus.length > 0 ? realSyllabus.map((s, idx) => ({
+    week: s.week || `Week ${idx + 1}`,
+    date: s.day || "Saturday",
+    sports: s.sports || "Sports Drills & Fitness",
+    skills: s.skills || "Youth Life Skills",
+    tadreeb: s.tadreeb || "Tarbiyah & Character",
+    focus: s.focus || "Personal Discipline",
+  })) : [
+    { week: "Week 1", date: "Saturday", sports: "Warm-up Drills, Football Passing", skills: "Public Speaking Basics", tadreeb: "Character Building: Honesty", focus: "Team Discipline" },
+    { week: "Week 2", date: "Saturday", sports: "Cricket Bowling & Fielding", skills: "Financial Literacy 101", tadreeb: "Ethical Leadership", focus: "Personal Responsibility" },
   ];
 
   return (
