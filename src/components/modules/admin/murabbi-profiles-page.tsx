@@ -46,6 +46,8 @@ import {
   TrendingUp,
   Eye,
   Activity,
+  Trash2,
+  Edit,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -81,8 +83,10 @@ export function MurabbiProfilesPage() {
 
   const [selectedMurabbi, setSelectedMurabbi] = useState<MurabbiRecord | null>(null);
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
+  const [editingMurabbi, setEditingMurabbi] = useState<MurabbiRecord | null>(null);
+  const [deletingMurabbi, setDeletingMurabbi] = useState<MurabbiRecord | null>(null);
 
-  // Form states for registering Murabbi
+  // Form states for registering/editing Murabbi
   const [formName, setFormName] = useState("");
   const [formPhone, setFormPhone] = useState("");
   const [formEmail, setFormEmail] = useState("");
@@ -134,11 +138,62 @@ export function MurabbiProfilesPage() {
     onError: (err: Error) => toast.error(err.message),
   });
 
+  const updateMutation = useMutation({
+    mutationFn: async () => {
+      if (!editingMurabbi) return;
+      const res = await fetch(`/api/admin/murabbis/${editingMurabbi.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: formName,
+          phone: formPhone,
+          email: formEmail,
+          park: formPark,
+          primaryRole: formPrimaryRole,
+          assignedGroup: formGroup,
+        }),
+      });
+      if (!res.ok) throw new Error("Failed to update Murabbi profile");
+      return res.json();
+    },
+    onSuccess: () => {
+      toast.success("Murabbi Profile Updated!");
+      setEditingMurabbi(null);
+      resetForm();
+      queryClient.invalidateQueries({ queryKey: ["murabbis-list"] });
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/admin/murabbis/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Failed to delete Murabbi profile");
+      return res.json();
+    },
+    onSuccess: () => {
+      toast.success("Murabbi Profile Deleted!");
+      setDeletingMurabbi(null);
+      queryClient.invalidateQueries({ queryKey: ["murabbis-list"] });
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
   const resetForm = () => {
     setFormName("");
     setFormPhone("");
     setFormEmail("");
     setFormGroup("");
+  };
+
+  const handleEditClick = (murabbi: MurabbiRecord) => {
+    setEditingMurabbi(murabbi);
+    setFormName(murabbi.name);
+    setFormPhone(murabbi.phone);
+    setFormEmail(murabbi.email || "");
+    setFormPark(murabbi.park);
+    setFormPrimaryRole(murabbi.primaryRole);
+    setFormGroup(murabbi.assignedGroup);
   };
 
   return (
@@ -165,61 +220,53 @@ export function MurabbiProfilesPage() {
 
       {/* KPI Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>
-          <Card className="rounded-2xl border-0 ring-1 ring-slate-200 dark:ring-slate-800 shadow-sm p-4 bg-gradient-to-br from-purple-500/5 to-indigo-500/5 hover:shadow-md transition-shadow">
-            <div className="flex items-center gap-3">
-              <div className="size-11 rounded-2xl bg-purple-600/10 flex items-center justify-center text-purple-600">
-                <UserCheck className="size-6" />
-              </div>
-              <div>
-                <p className="text-2xl font-black text-slate-900 dark:text-slate-100">{summary.totalActiveMurabbis}</p>
-                <p className="text-xs font-bold text-muted-foreground">Active Murabbi Leaders</p>
-              </div>
+        <Card className="rounded-2xl border-0 ring-1 ring-slate-200 dark:ring-slate-800 shadow-sm p-4 bg-gradient-to-br from-purple-500/5 to-indigo-500/5">
+          <div className="flex items-center gap-3">
+            <div className="size-11 rounded-2xl bg-purple-600/10 flex items-center justify-center text-purple-600">
+              <UserCheck className="size-6" />
             </div>
-          </Card>
-        </motion.div>
+            <div>
+              <p className="text-2xl font-black text-slate-900 dark:text-slate-100">{summary.totalActiveMurabbis}</p>
+              <p className="text-xs font-bold text-muted-foreground">Active Murabbi Leaders</p>
+            </div>
+          </div>
+        </Card>
 
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2, delay: 0.05 }}>
-          <Card className="rounded-2xl border-0 ring-1 ring-slate-200 dark:ring-slate-800 shadow-sm p-4 bg-gradient-to-br from-emerald-500/5 to-teal-500/5 hover:shadow-md transition-shadow">
-            <div className="flex items-center gap-3">
-              <div className="size-11 rounded-2xl bg-emerald-600/10 flex items-center justify-center text-emerald-600">
-                <Building className="size-6" />
-              </div>
-              <div>
-                <p className="text-2xl font-black text-slate-900 dark:text-slate-100">{summary.parksCovered} Parks</p>
-                <p className="text-xs font-bold text-muted-foreground">Lahore Parks Supervised</p>
-              </div>
+        <Card className="rounded-2xl border-0 ring-1 ring-slate-200 dark:ring-slate-800 shadow-sm p-4 bg-gradient-to-br from-emerald-500/5 to-teal-500/5">
+          <div className="flex items-center gap-3">
+            <div className="size-11 rounded-2xl bg-emerald-600/10 flex items-center justify-center text-emerald-600">
+              <Building className="size-6" />
             </div>
-          </Card>
-        </motion.div>
+            <div>
+              <p className="text-2xl font-black text-slate-900 dark:text-slate-100">{summary.parksCovered} Parks</p>
+              <p className="text-xs font-bold text-muted-foreground">Lahore Parks Supervised</p>
+            </div>
+          </div>
+        </Card>
 
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2, delay: 0.1 }}>
-          <Card className="rounded-2xl border-0 ring-1 ring-slate-200 dark:ring-slate-800 shadow-sm p-4 bg-gradient-to-br from-blue-500/5 to-cyan-500/5 hover:shadow-md transition-shadow">
-            <div className="flex items-center gap-3">
-              <div className="size-11 rounded-2xl bg-blue-600/10 flex items-center justify-center text-blue-600">
-                <Users className="size-6" />
-              </div>
-              <div>
-                <p className="text-2xl font-black text-slate-900 dark:text-slate-100">{summary.totalStudentsAssigned}</p>
-                <p className="text-xs font-bold text-muted-foreground">Shabab Students Managed</p>
-              </div>
+        <Card className="rounded-2xl border-0 ring-1 ring-slate-200 dark:ring-slate-800 shadow-sm p-4 bg-gradient-to-br from-blue-500/5 to-cyan-500/5">
+          <div className="flex items-center gap-3">
+            <div className="size-11 rounded-2xl bg-blue-600/10 flex items-center justify-center text-blue-600">
+              <Users className="size-6" />
             </div>
-          </Card>
-        </motion.div>
+            <div>
+              <p className="text-2xl font-black text-slate-900 dark:text-slate-100">{summary.totalStudentsAssigned}</p>
+              <p className="text-xs font-bold text-muted-foreground">Shabab Students Managed</p>
+            </div>
+          </div>
+        </Card>
 
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2, delay: 0.15 }}>
-          <Card className="rounded-2xl border-0 ring-1 ring-slate-200 dark:ring-slate-800 shadow-sm p-4 bg-gradient-to-br from-amber-500/5 to-orange-500/5 hover:shadow-md transition-shadow">
-            <div className="flex items-center gap-3">
-              <div className="size-11 rounded-2xl bg-amber-600/10 flex items-center justify-center text-amber-600">
-                <TrendingUp className="size-6" />
-              </div>
-              <div>
-                <p className="text-2xl font-black text-slate-900 dark:text-slate-100">{summary.averageMashwaraAttendance}%</p>
-                <p className="text-xs font-bold text-muted-foreground">Avg Mashwara Rate</p>
-              </div>
+        <Card className="rounded-2xl border-0 ring-1 ring-slate-200 dark:ring-slate-800 shadow-sm p-4 bg-gradient-to-br from-amber-500/5 to-orange-500/5">
+          <div className="flex items-center gap-3">
+            <div className="size-11 rounded-2xl bg-amber-600/10 flex items-center justify-center text-amber-600">
+              <TrendingUp className="size-6" />
             </div>
-          </Card>
-        </motion.div>
+            <div>
+              <p className="text-2xl font-black text-slate-900 dark:text-slate-100">{summary.averageMashwaraAttendance}%</p>
+              <p className="text-xs font-bold text-muted-foreground">Avg Mashwara Rate</p>
+            </div>
+          </div>
+        </Card>
       </div>
 
       {/* Main Tabs */}
@@ -279,7 +326,19 @@ export function MurabbiProfilesPage() {
                           className="size-12 rounded-2xl object-cover ring-2 ring-purple-600/20 shrink-0"
                         />
                         <div className="min-w-0 flex-1">
-                          <h3 className="font-extrabold text-base text-slate-900 dark:text-slate-100 truncate">{murabbi.name}</h3>
+                          <div className="flex items-center justify-between gap-1">
+                            <h3 className="font-extrabold text-base text-slate-900 dark:text-slate-100 truncate">{murabbi.name}</h3>
+                            {canManage && (
+                              <div className="flex items-center gap-1">
+                                <button onClick={() => handleEditClick(murabbi)} className="p-1 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-purple-700">
+                                  <Edit className="size-3.5" />
+                                </button>
+                                <button onClick={() => setDeletingMurabbi(murabbi)} className="p-1 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-600">
+                                  <Trash2 className="size-3.5" />
+                                </button>
+                              </div>
+                            )}
+                          </div>
                           <p className="text-xs font-bold text-purple-600">{murabbi.primaryRole}</p>
                           <p className="text-[11px] text-muted-foreground font-medium truncate">{murabbi.park}</p>
                         </div>
@@ -467,12 +526,14 @@ export function MurabbiProfilesPage() {
         </SheetContent>
       </Sheet>
 
-      {/* Add Murabbi Modal */}
-      <Dialog open={isRegisterOpen} onOpenChange={setIsRegisterOpen}>
+      {/* Add / Edit Murabbi Modal */}
+      <Dialog open={isRegisterOpen || !!editingMurabbi} onOpenChange={(open) => { if (!open) { setIsRegisterOpen(false); setEditingMurabbi(null); } }}>
         <DialogContent className="rounded-2xl max-w-md p-6">
           <DialogHeader>
-            <DialogTitle className="text-lg font-black">Add Murabbi Leader</DialogTitle>
-            <DialogDescription className="text-xs">Create a new Murabbi staff profile and assign primary role & park.</DialogDescription>
+            <DialogTitle className="text-lg font-black">{editingMurabbi ? "Edit Murabbi Profile" : "Add Murabbi Leader"}</DialogTitle>
+            <DialogDescription className="text-xs">
+              {editingMurabbi ? "Update contact information, assigned park, and primary role." : "Create a new Murabbi staff profile and assign primary role & park."}
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-3 py-2">
             <div>
@@ -518,13 +579,37 @@ export function MurabbiProfilesPage() {
             </div>
           </div>
           <DialogFooter className="pt-3">
-            <Button variant="outline" onClick={() => setIsRegisterOpen(false)} className="rounded-xl font-bold">Cancel</Button>
+            <Button variant="outline" onClick={() => { setIsRegisterOpen(false); setEditingMurabbi(null); }} className="rounded-xl font-bold">Cancel</Button>
             <Button
-              onClick={() => registerMutation.mutate()}
-              disabled={!formName || !formPhone || registerMutation.isPending}
+              onClick={() => editingMurabbi ? updateMutation.mutate() : registerMutation.mutate()}
+              disabled={!formName || !formPhone || registerMutation.isPending || updateMutation.isPending}
               className="bg-[#4B0A8F] hover:bg-[#380668] text-white font-bold rounded-xl px-5"
             >
-              {registerMutation.isPending ? <Loader2 className="size-4 animate-spin" /> : "Save Murabbi Leader"}
+              {registerMutation.isPending || updateMutation.isPending ? <Loader2 className="size-4 animate-spin" /> : editingMurabbi ? "Save Changes" : "Save Murabbi Leader"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={!!deletingMurabbi} onOpenChange={(open) => !open && setDeletingMurabbi(null)}>
+        <DialogContent className="rounded-2xl max-w-sm p-6 space-y-3">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-black text-red-600 flex items-center gap-2">
+              <Trash2 className="size-5" /> Delete Murabbi Record
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Are you sure you want to delete <span className="font-bold text-slate-900">{deletingMurabbi?.name}</span>? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="pt-2">
+            <Button variant="outline" onClick={() => setDeletingMurabbi(null)} className="rounded-xl font-bold">Cancel</Button>
+            <Button
+              onClick={() => deletingMurabbi && deleteMutation.mutate(deletingMurabbi.id)}
+              disabled={deleteMutation.isPending}
+              className="bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl px-4"
+            >
+              {deleteMutation.isPending ? <Loader2 className="size-4 animate-spin" /> : "Confirm Delete"}
             </Button>
           </DialogFooter>
         </DialogContent>

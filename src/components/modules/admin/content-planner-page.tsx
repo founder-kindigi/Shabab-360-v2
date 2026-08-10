@@ -511,7 +511,7 @@ export function ContentPlannerPage() {
                           <Button size="sm" className="flex-1 bg-[#4B0A8F] hover:bg-[#4B0A8FE6]" onClick={() => toast.info("View Session Syllabus")}>
                             Syllabus <ChevronRight className="size-3 ml-1" />
                           </Button>
-                          <Button size="sm" variant="outline" className="px-3" onClick={() => toast.info("Edit Plan")}>
+                          <Button size="sm" variant="outline" className="px-3 hover:text-purple-700" onClick={() => toast.success(`Edit plan "${plan.name}" modal opened`)}>
                             <Edit className="size-4" />
                           </Button>
                           {plan.kind === 'base' && (
@@ -519,6 +519,9 @@ export function ContentPlannerPage() {
                               <CopyPlus className="size-4" />
                             </Button>
                           )}
+                          <Button size="sm" variant="outline" className="px-3 text-red-500 hover:text-red-700 hover:bg-red-50" onClick={() => toast.success(`Plan "${plan.name}" archived/deleted`)}>
+                            <Archive className="size-4" />
+                          </Button>
                         </div>
                       </CardContent>
                     </Card>

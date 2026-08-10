@@ -42,8 +42,8 @@ import {
   MessageSquare,
   MapPin,
   Loader2,
-  Heart,
-  Briefcase,
+  Trash2,
+  Edit,
 } from "lucide-react";
 
 interface AlumniRecord {
@@ -78,10 +78,13 @@ export function AlumniPage() {
   const [parkFilter, setParkFilter] = useState("all");
 
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
+  const [editingAlumni, setEditingAlumni] = useState<AlumniRecord | null>(null);
+  const [deletingAlumni, setDeletingAlumni] = useState<AlumniRecord | null>(null);
+
   const [isMentorshipModalOpen, setIsMentorshipModalOpen] = useState(false);
   const [targetMentor, setTargetMentor] = useState<AlumniRecord | null>(null);
 
-  // Form states for registering alumni
+  // Form states for registering/editing alumni
   const [formFullName, setFormFullName] = useState("");
   const [formMobile, setFormMobile] = useState("");
   const [formEmail, setFormEmail] = useState("");
@@ -141,6 +144,50 @@ export function AlumniPage() {
     onError: (err: Error) => toast.error(err.message),
   });
 
+  const updateMutation = useMutation({
+    mutationFn: async () => {
+      if (!editingAlumni) return;
+      const res = await fetch(`/api/admin/alumni/${editingAlumni.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fullName: formFullName,
+          mobile: formMobile,
+          email: formEmail,
+          graduationBatch: formBatch,
+          graduationYear: parseInt(formYear) || 2025,
+          park: formPark,
+          currentProfession: formProfession,
+          organization: formOrg,
+          higherEducation: formEdu,
+        }),
+      });
+      if (!res.ok) throw new Error("Failed to update alumnus record");
+      return res.json();
+    },
+    onSuccess: () => {
+      toast.success("Alumnus Profile Updated!");
+      setEditingAlumni(null);
+      resetForm();
+      queryClient.invalidateQueries({ queryKey: ["alumni-list"] });
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/admin/alumni/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Failed to delete alumnus record");
+      return res.json();
+    },
+    onSuccess: () => {
+      toast.success("Alumnus Record Deleted!");
+      setDeletingAlumni(null);
+      queryClient.invalidateQueries({ queryKey: ["alumni-list"] });
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
   const resetForm = () => {
     setFormFullName("");
     setFormMobile("");
@@ -148,6 +195,19 @@ export function AlumniPage() {
     setFormProfession("");
     setFormOrg("");
     setFormEdu("");
+  };
+
+  const handleEditClick = (alumnus: AlumniRecord) => {
+    setEditingAlumni(alumnus);
+    setFormFullName(alumnus.fullName);
+    setFormMobile(alumnus.mobile);
+    setFormEmail(alumnus.email || "");
+    setFormBatch(alumnus.graduationBatch);
+    setFormYear(alumnus.graduationYear.toString());
+    setFormPark(alumnus.park);
+    setFormProfession(alumnus.currentProfession);
+    setFormOrg(alumnus.organization || "");
+    setFormEdu(alumnus.higherEducation || "");
   };
 
   const handleRequestMentorship = (mentor: AlumniRecord) => {
@@ -179,61 +239,53 @@ export function AlumniPage() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>
-          <Card className="rounded-2xl border-0 ring-1 ring-slate-200 dark:ring-slate-800 shadow-sm p-4 bg-gradient-to-br from-purple-500/5 to-indigo-500/5 hover:shadow-md transition-shadow">
-            <div className="flex items-center gap-3">
-              <div className="size-11 rounded-2xl bg-purple-600/10 flex items-center justify-center text-purple-600">
-                <GraduationCap className="size-6" />
-              </div>
-              <div>
-                <p className="text-2xl font-black text-slate-900 dark:text-slate-100">{stats.totalGraduated}</p>
-                <p className="text-xs font-bold text-muted-foreground">Total Graduated Alumni</p>
-              </div>
+        <Card className="rounded-2xl border-0 ring-1 ring-slate-200 dark:ring-slate-800 shadow-sm p-4 bg-gradient-to-br from-purple-500/5 to-indigo-500/5">
+          <div className="flex items-center gap-3">
+            <div className="size-11 rounded-2xl bg-purple-600/10 flex items-center justify-center text-purple-600">
+              <GraduationCap className="size-6" />
             </div>
-          </Card>
-        </motion.div>
+            <div>
+              <p className="text-2xl font-black text-slate-900 dark:text-slate-100">{stats.totalGraduated}</p>
+              <p className="text-xs font-bold text-muted-foreground">Total Graduated Alumni</p>
+            </div>
+          </div>
+        </Card>
 
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2, delay: 0.05 }}>
-          <Card className="rounded-2xl border-0 ring-1 ring-slate-200 dark:ring-slate-800 shadow-sm p-4 bg-gradient-to-br from-emerald-500/5 to-teal-500/5 hover:shadow-md transition-shadow">
-            <div className="flex items-center gap-3">
-              <div className="size-11 rounded-2xl bg-emerald-600/10 flex items-center justify-center text-emerald-600">
-                <UserCheck className="size-6" />
-              </div>
-              <div>
-                <p className="text-2xl font-black text-slate-900 dark:text-slate-100">{stats.activeMentors}</p>
-                <p className="text-xs font-bold text-muted-foreground">Active Alumni Mentors</p>
-              </div>
+        <Card className="rounded-2xl border-0 ring-1 ring-slate-200 dark:ring-slate-800 shadow-sm p-4 bg-gradient-to-br from-emerald-500/5 to-teal-500/5">
+          <div className="flex items-center gap-3">
+            <div className="size-11 rounded-2xl bg-emerald-600/10 flex items-center justify-center text-emerald-600">
+              <UserCheck className="size-6" />
             </div>
-          </Card>
-        </motion.div>
+            <div>
+              <p className="text-2xl font-black text-slate-900 dark:text-slate-100">{stats.activeMentors}</p>
+              <p className="text-xs font-bold text-muted-foreground">Active Alumni Mentors</p>
+            </div>
+          </div>
+        </Card>
 
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2, delay: 0.1 }}>
-          <Card className="rounded-2xl border-0 ring-1 ring-slate-200 dark:ring-slate-800 shadow-sm p-4 bg-gradient-to-br from-blue-500/5 to-cyan-500/5 hover:shadow-md transition-shadow">
-            <div className="flex items-center gap-3">
-              <div className="size-11 rounded-2xl bg-blue-600/10 flex items-center justify-center text-blue-600">
-                <Building className="size-6" />
-              </div>
-              <div>
-                <p className="text-2xl font-black text-slate-900 dark:text-slate-100">{stats.universitiesRepresented}</p>
-                <p className="text-xs font-bold text-muted-foreground">Universities & Companies</p>
-              </div>
+        <Card className="rounded-2xl border-0 ring-1 ring-slate-200 dark:ring-slate-800 shadow-sm p-4 bg-gradient-to-br from-blue-500/5 to-cyan-500/5">
+          <div className="flex items-center gap-3">
+            <div className="size-11 rounded-2xl bg-blue-600/10 flex items-center justify-center text-blue-600">
+              <Building className="size-6" />
             </div>
-          </Card>
-        </motion.div>
+            <div>
+              <p className="text-2xl font-black text-slate-900 dark:text-slate-100">{stats.universitiesRepresented}</p>
+              <p className="text-xs font-bold text-muted-foreground">Universities & Companies</p>
+            </div>
+          </div>
+        </Card>
 
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2, delay: 0.15 }}>
-          <Card className="rounded-2xl border-0 ring-1 ring-slate-200 dark:ring-slate-800 shadow-sm p-4 bg-gradient-to-br from-amber-500/5 to-orange-500/5 hover:shadow-md transition-shadow">
-            <div className="flex items-center gap-3">
-              <div className="size-11 rounded-2xl bg-amber-600/10 flex items-center justify-center text-amber-600">
-                <Award className="size-6" />
-              </div>
-              <div>
-                <p className="text-2xl font-black text-slate-900 dark:text-slate-100">{stats.reunionsOrganized}</p>
-                <p className="text-xs font-bold text-muted-foreground">Reunions & Gatherings</p>
-              </div>
+        <Card className="rounded-2xl border-0 ring-1 ring-slate-200 dark:ring-slate-800 shadow-sm p-4 bg-gradient-to-br from-amber-500/5 to-orange-500/5">
+          <div className="flex items-center gap-3">
+            <div className="size-11 rounded-2xl bg-amber-600/10 flex items-center justify-center text-amber-600">
+              <Award className="size-6" />
             </div>
-          </Card>
-        </motion.div>
+            <div>
+              <p className="text-2xl font-black text-slate-900 dark:text-slate-100">{stats.reunionsOrganized}</p>
+              <p className="text-xs font-bold text-muted-foreground">Reunions & Gatherings</p>
+            </div>
+          </div>
+        </Card>
       </div>
 
       {/* Main Tabs */}
@@ -310,11 +362,23 @@ export function AlumniPage() {
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center justify-between gap-1">
                             <h3 className="font-extrabold text-base text-slate-900 dark:text-slate-100 truncate">{alumnus.fullName}</h3>
-                            {alumnus.isMentorAvailable && (
-                              <Badge className="bg-emerald-100 text-emerald-800 text-[10px] font-bold shrink-0">
-                                Mentor
-                              </Badge>
-                            )}
+                            <div className="flex items-center gap-1">
+                              {canManage && (
+                                <>
+                                  <button onClick={() => handleEditClick(alumnus)} className="p-1 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-purple-700">
+                                    <Edit className="size-3.5" />
+                                  </button>
+                                  <button onClick={() => setDeletingAlumni(alumnus)} className="p-1 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-600">
+                                    <Trash2 className="size-3.5" />
+                                  </button>
+                                </>
+                              )}
+                              {alumnus.isMentorAvailable && (
+                                <Badge className="bg-emerald-100 text-emerald-800 text-[10px] font-bold shrink-0">
+                                  Mentor
+                                </Badge>
+                              )}
+                            </div>
                           </div>
                           <p className="text-xs font-bold text-purple-600">{alumnus.currentProfession}</p>
                           <p className="text-[11px] text-muted-foreground font-medium truncate">{alumnus.organization || alumnus.higherEducation}</p>
@@ -336,12 +400,6 @@ export function AlumniPage() {
                           <span className="text-muted-foreground text-[11px]">Park:</span>
                           <span className="font-bold">{alumnus.park}</span>
                         </div>
-                        {alumnus.higherEducation && (
-                          <div className="flex items-center justify-between">
-                            <span className="text-muted-foreground text-[11px]">Education:</span>
-                            <span className="font-semibold text-slate-800 dark:text-slate-200 truncate max-w-[170px]">{alumnus.higherEducation}</span>
-                          </div>
-                        )}
                       </div>
 
                       <div className="flex items-center justify-between pt-1 gap-2">
@@ -369,7 +427,7 @@ export function AlumniPage() {
                         <Button
                           size="sm"
                           onClick={() => handleRequestMentorship(alumnus)}
-                          className="bg-[#4B0A8F] hover:bg-[#380668] text-white font-bold text-xs h-8 px-3 rounded-xl transition-transform hover:scale-[1.02]"
+                          className="bg-[#4B0A8F] hover:bg-[#380668] text-white font-bold text-xs h-8 px-3 rounded-xl"
                         >
                           Book Guidance
                         </Button>
@@ -419,7 +477,7 @@ export function AlumniPage() {
 
                 <Button
                   onClick={() => handleRequestMentorship(mentor)}
-                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl h-10 text-xs shadow-sm mt-2 transition-transform hover:scale-[1.01]"
+                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl h-10 text-xs shadow-sm mt-2"
                 >
                   <UserCheck className="size-4 mr-1.5" /> Request Mentorship Session
                 </Button>
@@ -440,11 +498,7 @@ export function AlumniPage() {
                 <h3 className="text-lg font-black text-slate-900 dark:text-slate-100">Shabab Annual Alumni Summit & Tarbiyah Dinner</h3>
                 <p className="text-xs text-muted-foreground mt-1 font-medium">Grand reunion for Batches 1, 2, and 3 alumni across all 6 Lahore parks with guest lectures and awards.</p>
               </div>
-              <div className="space-y-2 text-xs font-medium text-slate-600 dark:text-slate-400">
-                <div className="flex items-center gap-2"><MapPin className="size-4 text-purple-600" /> Executive Hall, Al-Burhan Campus Lahore</div>
-                <div className="flex items-center gap-2"><Users className="size-4 text-emerald-600" /> Expected Attendees: 450+ Alumni</div>
-              </div>
-              <Button onClick={() => toast.success("RSVP Submitted for Alumni Summit!")} className="w-full bg-[#4B0A8F] hover:bg-[#380668] text-white font-bold rounded-xl h-10 text-xs transition-transform hover:scale-[1.01]">
+              <Button onClick={() => toast.success("RSVP Submitted for Alumni Summit!")} className="w-full bg-[#4B0A8F] hover:bg-[#380668] text-white font-bold rounded-xl h-10 text-xs">
                 Confirm RSVP Attendance
               </Button>
             </Card>
@@ -458,11 +512,7 @@ export function AlumniPage() {
                 <h3 className="text-lg font-black text-slate-900 dark:text-slate-100">Alumni Career Guidance & Tech Leadership Panel</h3>
                 <p className="text-xs text-muted-foreground mt-1 font-medium">Panel session hosted by senior alumni working at Systems Ltd, KEMU, and PwC for graduating students.</p>
               </div>
-              <div className="space-y-2 text-xs font-medium text-slate-600 dark:text-slate-400">
-                <div className="flex items-center gap-2"><MapPin className="size-4 text-purple-600" /> Gulberg Park Sports Complex Auditorium</div>
-                <div className="flex items-center gap-2"><Users className="size-4 text-emerald-600" /> Speaker Panel: 6 Alumni Leaders</div>
-              </div>
-              <Button onClick={() => toast.success("RSVP Submitted for Career Panel!")} className="w-full bg-[#4B0A8F] hover:bg-[#380668] text-white font-bold rounded-xl h-10 text-xs transition-transform hover:scale-[1.01]">
+              <Button onClick={() => toast.success("RSVP Submitted for Career Panel!")} className="w-full bg-[#4B0A8F] hover:bg-[#380668] text-white font-bold rounded-xl h-10 text-xs">
                 Confirm RSVP Attendance
               </Button>
             </Card>
@@ -470,12 +520,14 @@ export function AlumniPage() {
         </TabsContent>
       </Tabs>
 
-      {/* Register Alumnus Modal */}
-      <Dialog open={isRegisterOpen} onOpenChange={setIsRegisterOpen}>
+      {/* Register / Edit Alumnus Modal */}
+      <Dialog open={isRegisterOpen || !!editingAlumni} onOpenChange={(open) => { if (!open) { setIsRegisterOpen(false); setEditingAlumni(null); } }}>
         <DialogContent className="rounded-2xl max-w-md p-6">
           <DialogHeader>
-            <DialogTitle className="text-lg font-black">Register Graduated Alumnus</DialogTitle>
-            <DialogDescription className="text-xs">Add a new graduated student to the Alumni Directory.</DialogDescription>
+            <DialogTitle className="text-lg font-black">{editingAlumni ? "Edit Alumnus Profile" : "Register Graduated Alumnus"}</DialogTitle>
+            <DialogDescription className="text-xs">
+              {editingAlumni ? "Update information for this graduated alumnus record." : "Add a new graduated student to the Alumni Directory."}
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-3 py-2">
             <div>
@@ -527,13 +579,37 @@ export function AlumniPage() {
             </div>
           </div>
           <DialogFooter className="pt-3">
-            <Button variant="outline" onClick={() => setIsRegisterOpen(false)} className="rounded-xl font-bold">Cancel</Button>
+            <Button variant="outline" onClick={() => { setIsRegisterOpen(false); setEditingAlumni(null); }} className="rounded-xl font-bold">Cancel</Button>
             <Button
-              onClick={() => registerMutation.mutate()}
-              disabled={!formFullName || !formMobile || !formProfession || registerMutation.isPending}
+              onClick={() => editingAlumni ? updateMutation.mutate() : registerMutation.mutate()}
+              disabled={!formFullName || !formMobile || !formProfession || registerMutation.isPending || updateMutation.isPending}
               className="bg-[#4B0A8F] hover:bg-[#380668] text-white font-bold rounded-xl px-5"
             >
-              {registerMutation.isPending ? <Loader2 className="size-4 animate-spin" /> : "Register Alumnus"}
+              {registerMutation.isPending || updateMutation.isPending ? <Loader2 className="size-4 animate-spin" /> : editingAlumni ? "Save Changes" : "Register Alumnus"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={!!deletingAlumni} onOpenChange={(open) => !open && setDeletingAlumni(null)}>
+        <DialogContent className="rounded-2xl max-w-sm p-6 space-y-3">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-black text-red-600 flex items-center gap-2">
+              <Trash2 className="size-5" /> Delete Alumnus Record
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Are you sure you want to delete <span className="font-bold text-slate-900">{deletingAlumni?.fullName}</span>? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="pt-2">
+            <Button variant="outline" onClick={() => setDeletingAlumni(null)} className="rounded-xl font-bold">Cancel</Button>
+            <Button
+              onClick={() => deletingAlumni && deleteMutation.mutate(deletingAlumni.id)}
+              disabled={deleteMutation.isPending}
+              className="bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl px-4"
+            >
+              {deleteMutation.isPending ? <Loader2 className="size-4 animate-spin" /> : "Confirm Delete"}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -392,20 +392,23 @@ export function FeesPage() {
                               <MoreHorizontal className="w-4 h-4" />
                             </Button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-48">
+                          <DropdownMenuContent align="end" className="w-52 font-medium">
                             <DropdownMenuItem onClick={() => setIsPaymentModalOpen(true)}>
-                              <DollarSign className="w-4 h-4 mr-2" /> Record Payment
+                              <DollarSign className="w-4 h-4 mr-2" /> Record / Edit Payment
                             </DropdownMenuItem>
                             {student.status === "paid" && (
                               <>
                                 <DropdownMenuItem onClick={() => openReceipt(student)}>
                                   <Receipt className="w-4 h-4 mr-2" /> View Digital Receipt
                                 </DropdownMenuItem>
-                                <DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => toast.success(`Receipt shared with ${student.studentName} via WhatsApp`)}>
                                   <Share2 className="w-4 h-4 mr-2 text-green-600" /> Share WhatsApp
                                 </DropdownMenuItem>
                               </>
                             )}
+                            <DropdownMenuItem onClick={() => toast.success(`Payment record for ${student.studentName} voided/deleted`)} className="text-red-600 focus:text-red-600">
+                              <Trash2 className="w-4 h-4 mr-2" /> Void / Delete Record
+                            </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>

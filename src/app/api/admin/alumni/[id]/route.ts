@@ -10,25 +10,7 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
   if (authError) return authError;
 
   const { id } = await params;
-
-  return NextResponse.json({
-    id,
-    name: "Ikram Meer",
-    phone: "+923364543324",
-    whatsapp: "+923364543324",
-    email: "ikram.meer@shabab360.org",
-    park: "Gulberg Park",
-    city: "Lahore",
-    primaryRole: "Murabbi & Skills Lead",
-    secondaryRole: "Group 1 Lead",
-    assignedGroup: "Group 1 | Murabbi: Ikram",
-    assignedStudentsCount: 65,
-    callingAssignedCount: 150,
-    callingContactedCount: 110,
-    mashwaraAttendanceRate: 94,
-    attendanceVerificationRate: 98,
-    karguzariStatus: "Submitted (Up-to-date)",
-  });
+  return NextResponse.json({ id, fullName: "Usman Ghani", mobile: "+923001234567" });
 }
 
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
@@ -36,7 +18,6 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   if (authError) return authError;
 
   const { id } = await params;
-
   let body: any;
   try {
     body = await request.json();
@@ -46,7 +27,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
   return NextResponse.json({
     success: true,
-    murabbi: { id, ...body, updatedAt: new Date().toISOString() },
+    alumni: { id, ...body, updatedAt: new Date().toISOString() },
   });
 }
 
@@ -57,6 +38,6 @@ export async function DELETE(_request: NextRequest, { params }: RouteParams) {
   const { id } = await params;
   return NextResponse.json({
     success: true,
-    message: `Murabbi record ${id} deleted successfully`,
+    message: `Alumnus record ${id} deleted successfully`,
   });
 }
