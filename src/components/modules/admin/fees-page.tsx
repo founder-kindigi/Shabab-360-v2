@@ -65,7 +65,8 @@ import {
   Heart,
   CheckCircle2,
   XCircle,
-  FileText
+  FileText,
+  Trash2
 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
@@ -401,12 +402,12 @@ export function FeesPage() {
                                 <DropdownMenuItem onClick={() => openReceipt(student)}>
                                   <Receipt className="w-4 h-4 mr-2" /> View Digital Receipt
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => toast.success(`Receipt shared with ${student.studentName} via WhatsApp`)}>
+                                <DropdownMenuItem onClick={() => toast.success(`Receipt shared with ${student.name} via WhatsApp`)}>
                                   <Share2 className="w-4 h-4 mr-2 text-green-600" /> Share WhatsApp
                                 </DropdownMenuItem>
                               </>
                             )}
-                            <DropdownMenuItem onClick={() => toast.success(`Payment record for ${student.studentName} voided/deleted`)} className="text-red-600 focus:text-red-600">
+                            <DropdownMenuItem onClick={() => toast.success(`Payment record for ${student.name} voided/deleted`)} className="text-red-600 focus:text-red-600">
                               <Trash2 className="w-4 h-4 mr-2" /> Void / Delete Record
                             </DropdownMenuItem>
                           </DropdownMenuContent>
