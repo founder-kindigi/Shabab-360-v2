@@ -43,6 +43,7 @@ export type PageId =
   | "admin-certificates"
   | "admin-portal-import"
   | "admin-alumni"
+  | "admin-murabbi-profiles"
   | "public-program"
   | "notifications"
   // Murabbi pages
