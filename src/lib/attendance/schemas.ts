@@ -10,7 +10,7 @@ export const attendanceStatusSchema = z.enum([
 
 // Lahore reconciliation retains legacy UUID rows while newer Prisma rows use CUIDs.
 // Both are persisted identifiers; arbitrary client-provided strings stay invalid.
-const persistentIdSchema = z.union([z.string().cuid(), z.string().uuid()]);
+export const persistentIdSchema = z.union([z.string().cuid(), z.string().uuid()]);
 const isoDateTimeSchema = z
   .string()
   .trim()
@@ -59,4 +59,15 @@ export const syncAttendanceRequestSchema = z.object({
 export const checkAttendanceAlertsSchema = z.object({
   participantId: persistentIdSchema,
   eventId: persistentIdSchema,
+}).strict();
+
+export const materializeParkStaffAttendanceSchema = z.object({
+  parkId: persistentIdSchema,
+  eventDate: isoDateTimeSchema,
+}).strict();
+
+export const markParkStaffAttendanceSchema = z.object({
+  staffId: persistentIdSchema,
+  status: attendanceStatusSchema,
+  editReason: z.string().trim().min(1).max(500).optional(),
 }).strict();

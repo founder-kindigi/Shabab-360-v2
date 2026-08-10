@@ -10,13 +10,25 @@ import { EmptyState } from "@/components/layout/empty-state";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import {
   CalendarCheck,
   Circle,
   Lock,
   ChevronRight,
   CalendarDays,
+  Check,
+  Clock3,
+  ShieldCheck,
+  UsersRound,
+  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -41,6 +53,34 @@ type EventItem = {
 };
 
 type FilterStatus = "all" | "open" | "closed";
+type AttendanceStatus = "present" | "absent" | "late" | "excused";
+
+type StaffAttendanceSummary = {
+  park: { id: string; name: string };
+  date: string;
+  isScheduled: boolean;
+  canFinalize: boolean;
+  event: {
+    id: string;
+    title: string;
+    isClosed: boolean;
+    closedAt: string | null;
+    eventDate: string;
+    markedCount: number;
+  } | null;
+};
+
+type StaffRoster = {
+  event: { id: string; title: string; eventDate: string; isClosed: boolean; closedAt: string | null };
+  roster: Array<{
+    staffId: string;
+    name: string;
+    role: string;
+    status: AttendanceStatus | null;
+    recordId: string | null;
+    markedAt: string | null;
+  }>;
+};
 
 const cardVariants: Variants = {
   hidden: { opacity: 0, y: 16 },
@@ -72,6 +112,7 @@ export function ParkAttendancePage() {
 
   const [filter, setFilter] = useState<FilterStatus>("all");
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [staffSheetOpen, setStaffSheetOpen] = useState(false);
 
   // Fetch today's events
   const { data, isLoading, error } = useQuery<{
@@ -117,6 +158,99 @@ export function ParkAttendancePage() {
     },
   });
 
+  const staffSummaryQuery = useQuery<StaffAttendanceSummary>({
+    queryKey: ["park-staff-attendance", data?.parkId, selectedDate],
+    enabled: Boolean(data?.parkId),
+    queryFn: () => fetch(
+      `/api/park/staff-attendance?${new URLSearchParams({ parkId: data!.parkId, date: selectedDate })}`,
+    ).then(async (response) => {
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null);
+        throw new Error(payload?.error || "Could not load staff attendance");
+      }
+      return response.json();
+    }),
+    staleTime: 15000,
+  });
+
+  const staffEventId = staffSummaryQuery.data?.event?.id;
+  const staffRosterQuery = useQuery<StaffRoster>({
+    queryKey: ["park-staff-attendance-roster", staffEventId],
+    enabled: staffSheetOpen && Boolean(staffEventId),
+    queryFn: () => fetch(`/api/park/staff-attendance/${staffEventId}`).then(async (response) => {
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null);
+        throw new Error(payload?.error || "Could not load the staff roster");
+      }
+      return response.json();
+    }),
+  });
+
+  const openStaffRollCallMutation = useMutation({
+    mutationFn: () => fetch("/api/park/staff-attendance", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        parkId: data!.parkId,
+        eventDate: `${selectedDate}T12:00:00+05:00`,
+      }),
+    }).then(async (response) => {
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null);
+        throw new Error(payload?.error || "Could not start staff attendance");
+      }
+      return response.json();
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["park-staff-attendance"] });
+      toast.success("Park staff roll-call is ready");
+      setStaffSheetOpen(true);
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const markStaffMutation = useMutation({
+    mutationFn: ({ staffId, status }: { staffId: string; status: AttendanceStatus }) => fetch(
+      `/api/park/staff-attendance/${staffEventId}`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ staffId, status }),
+      },
+    ).then(async (response) => {
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null);
+        throw new Error(payload?.error || "Could not save staff attendance");
+      }
+      return response.json();
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["park-staff-attendance"] });
+      queryClient.invalidateQueries({ queryKey: ["park-staff-attendance-roster"] });
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const closeStaffMutation = useMutation({
+    mutationFn: () => fetch(`/api/park/staff-attendance/${staffEventId}/close`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reason: "Park staff roll-call verified" }),
+    }).then(async (response) => {
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null);
+        throw new Error(payload?.error || "Could not finalize staff attendance");
+      }
+      return response.json();
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["park-staff-attendance"] });
+      queryClient.invalidateQueries({ queryKey: ["park-staff-attendance-roster"] });
+      toast.success("Park staff attendance finalized");
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
   const handleMarkAttendance = (event: EventItem) => {
     if (!event.id) {
       materializeMutation.mutate(
@@ -136,6 +270,17 @@ export function ParkAttendancePage() {
 
   const events = data?.events || [];
   const selectedDateLabel = getDateLabel(data?.date || selectedDate);
+  const staffSummary = staffSummaryQuery.data;
+  const staffRoster = staffRosterQuery.data?.roster || [];
+  const markedStaffCount = staffRoster.filter((member) => member.status !== null).length;
+
+  const openStaffAttendance = () => {
+    if (staffSummary?.event) {
+      setStaffSheetOpen(true);
+      return;
+    }
+    openStaffRollCallMutation.mutate();
+  };
 
   const filters: { label: string; value: FilterStatus; count: number }[] = [
     { label: "All", value: "all", count: events.length },
@@ -201,11 +346,48 @@ export function ParkAttendancePage() {
           id="attendance-date"
           type="date"
           value={selectedDate}
-          onChange={(event) => setSelectedDate(event.target.value)}
+          onChange={(event) => {
+            setStaffSheetOpen(false);
+            setSelectedDate(event.target.value);
+          }}
           className="h-9 rounded-md border bg-background px-3 text-sm text-foreground"
         />
-        <span className="text-xs">{selectedDateLabel}</span>
+        <span className="w-full text-xs sm:w-auto">{selectedDateLabel}</span>
       </div>
+
+      <Card className="border-[#D4B8E3] bg-gradient-to-br from-[#FCFAFD] to-[#F4ECF8]">
+        <CardContent className="p-4 sm:p-5">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex min-w-0 items-start gap-3">
+              <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-[#4B0A8F] text-white shadow-sm">
+                <UsersRound className="size-5" />
+              </div>
+              <div className="min-w-0 space-y-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="text-base font-semibold">Park Staff Attendance</h2>
+                  {staffSummary?.event?.isClosed ? <Badge variant="secondary">Finalized</Badge> : null}
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Park Lead, Park Admin and Muawins. This does not duplicate student group attendance.
+                </p>
+                {!staffSummaryQuery.isLoading && !staffSummary?.isScheduled ? (
+                  <p className="text-xs font-medium text-amber-700">
+                    No class is scheduled on this date, so staff roll-call is unavailable.
+                  </p>
+                ) : null}
+              </div>
+            </div>
+            <Button
+              className="min-h-11 w-full bg-[#4B0A8F] text-white hover:bg-[#4B0A8F]/90 sm:w-auto"
+              disabled={!staffSummary?.isScheduled || openStaffRollCallMutation.isPending}
+              onClick={openStaffAttendance}
+            >
+              {staffSummary?.event ? (staffSummary.event.isClosed ? "View staff roll-call" : "Mark staff attendance") : "Start staff roll-call"}
+              <ChevronRight className="ml-1.5 size-4" />
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Filter chips */}
       <div className="flex items-center gap-2">
@@ -280,11 +462,11 @@ export function ParkAttendancePage() {
                           <Circle className="size-4 text-[#4B0A8F] dark:text-[#8A40B0] fill-[#4B0A8F] dark:fill-[#8A40B0] shrink-0" />
                         )}
                         <div className="min-w-0">
-                          <p className="text-sm font-semibold truncate">
-                            {event.title}
+                          <p className="text-base font-semibold leading-tight">
+                            {event.groupName}
                           </p>
-                          <p className="text-xs text-muted-foreground truncate">
-                            {event.groupName}{event.batchName ? ` · ${event.batchName}` : ""}
+                          <p className="text-xs text-muted-foreground">
+                            {event.batchName ? `${event.batchName} · ` : ""}Student attendance
                           </p>
                         </div>
                       </div>
@@ -392,6 +574,136 @@ export function ParkAttendancePage() {
           </AnimatePresence>
         </div>
       )}
+
+      <Sheet open={staffSheetOpen} onOpenChange={setStaffSheetOpen}>
+        <SheetContent side="bottom" className="h-[min(82dvh,46rem)] rounded-t-2xl p-0">
+          <SheetHeader className="border-b pr-12">
+            <SheetTitle>Park Staff Attendance</SheetTitle>
+            <SheetDescription>
+              {staffSummary?.park.name || "Park"} · {selectedDateLabel}
+            </SheetDescription>
+          </SheetHeader>
+
+          <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
+            {staffRosterQuery.isLoading ? (
+              <div className="space-y-3 py-4">
+                {Array.from({ length: 4 }).map((_, index) => (
+                  <div key={index} className="h-28 animate-pulse rounded-xl bg-muted" />
+                ))}
+              </div>
+            ) : staffRosterQuery.error ? (
+              <EmptyState
+                icon={UsersRound}
+                title="Could not load staff"
+                description="Please close this sheet and try again."
+              />
+            ) : staffRoster.length === 0 ? (
+              <EmptyState
+                icon={UsersRound}
+                title="No active staff in this park"
+                description="Assign active Park staff or group staff before marking their attendance."
+              />
+            ) : (
+              <div className="space-y-3 py-4">
+                <div className="flex items-center justify-between rounded-xl bg-muted/70 px-3 py-2 text-sm">
+                  <span className="font-medium">{markedStaffCount} of {staffRoster.length} marked</span>
+                  {staffRosterQuery.data?.event.isClosed ? (
+                    <Badge variant="secondary">Finalized</Badge>
+                  ) : (
+                    <Badge className="bg-[#F3ECF6] text-[#4B0A8F]">Open</Badge>
+                  )}
+                </div>
+
+                {staffRoster.map((member) => (
+                  <article key={member.staffId} className="rounded-xl border bg-card p-3 shadow-sm">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <h3 className="truncate text-base font-semibold">{member.name}</h3>
+                        <p className="text-xs capitalize text-muted-foreground">
+                          {member.role.replace(/_/g, " ")}
+                        </p>
+                      </div>
+                      <Badge
+                        variant="secondary"
+                        className={cn(
+                          "shrink-0 capitalize",
+                          member.status === "present" && "bg-emerald-100 text-emerald-800",
+                          member.status === "absent" && "bg-red-100 text-red-800",
+                          member.status === "late" && "bg-amber-100 text-amber-800",
+                          member.status === "excused" && "bg-sky-100 text-sky-800",
+                        )}
+                      >
+                        {member.status || "Unmarked"}
+                      </Badge>
+                    </div>
+
+                    {!staffRosterQuery.data?.event.isClosed ? (
+                      <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                        <Button
+                          variant={member.status === "present" ? "default" : "outline"}
+                          className="min-h-11 gap-1.5 text-xs"
+                          onClick={() => markStaffMutation.mutate({ staffId: member.staffId, status: "present" })}
+                          disabled={markStaffMutation.isPending}
+                        >
+                          <Check className="size-4" /> Present
+                        </Button>
+                        <Button
+                          variant={member.status === "absent" ? "destructive" : "outline"}
+                          className="min-h-11 gap-1.5 text-xs"
+                          onClick={() => markStaffMutation.mutate({ staffId: member.staffId, status: "absent" })}
+                          disabled={markStaffMutation.isPending}
+                        >
+                          <X className="size-4" /> Absent
+                        </Button>
+                        <Button
+                          variant="outline"
+                          className={cn("min-h-11 gap-1.5 text-xs", member.status === "late" && "border-amber-500 bg-amber-50 text-amber-900")}
+                          onClick={() => markStaffMutation.mutate({ staffId: member.staffId, status: "late" })}
+                          disabled={markStaffMutation.isPending}
+                        >
+                          <Clock3 className="size-4" /> Late
+                        </Button>
+                        <Button
+                          variant="outline"
+                          className={cn("min-h-11 gap-1.5 text-xs", member.status === "excused" && "border-sky-500 bg-sky-50 text-sky-900")}
+                          onClick={() => markStaffMutation.mutate({ staffId: member.staffId, status: "excused" })}
+                          disabled={markStaffMutation.isPending}
+                        >
+                          <ShieldCheck className="size-4" /> Excused
+                        </Button>
+                      </div>
+                    ) : null}
+                  </article>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {!staffRosterQuery.data?.event.isClosed && staffRoster.length > 0 && staffSummary?.canFinalize ? (
+            <SheetFooter className="border-t bg-background">
+              <Button
+                className="min-h-11 w-full bg-[#4B0A8F] text-white hover:bg-[#4B0A8F]/90"
+                disabled={closeStaffMutation.isPending || markedStaffCount !== staffRoster.length}
+                onClick={() => closeStaffMutation.mutate()}
+              >
+                <Lock className="mr-2 size-4" />
+                Finalize staff attendance
+              </Button>
+              {markedStaffCount !== staffRoster.length ? (
+                <p className="text-center text-xs text-muted-foreground">
+                  Mark every active staff member before finalizing.
+                </p>
+              ) : null}
+            </SheetFooter>
+          ) : !staffRosterQuery.data?.event.isClosed && staffRoster.length > 0 ? (
+            <SheetFooter className="border-t bg-background">
+              <p className="text-center text-xs text-muted-foreground">
+                A Park Lead or a user granted attendance correction can finalize this roll-call.
+              </p>
+            </SheetFooter>
+          ) : null}
+        </SheetContent>
+      </Sheet>
 
     </div>
   );

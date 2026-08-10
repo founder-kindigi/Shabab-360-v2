@@ -133,6 +133,7 @@ model Park {
   groups                Group[]
   contentPlans          ContentPlan[]
   parkStaff             StaffMeta[]            @relation("ParkStaffAssignment")
+  staffAttendanceEvents ParkStaffAttendanceEvent[]
   admissionApplications AdmissionApplication[]
 
   @@map("parks")
@@ -213,6 +214,7 @@ model StaffMeta {
   mediaAssignments          MediaBrief[]           @relation("MediaAssignee")
   mediaApprovals            MediaBrief[]           @relation("MediaApprover")
   staffAttendanceRecords    StaffAttendanceRecord[]
+  parkStaffAttendanceRecords ParkStaffAttendanceRecord[]
 
   @@map("staff_meta")
 }
@@ -615,6 +617,49 @@ model StaffAttendanceRecord {
   @@index([eventId])
   @@index([staffId])
   @@map("staff_attendance_records")
+}
+
+// A park-level staff roll call is distinct from student attendance events.
+// It prevents Park Leads, Park Admins, and Muawins from being duplicated across
+// every group session on the same operating day.
+model ParkStaffAttendanceEvent {
+  id        String   @id @default(cuid())
+  parkId    String
+  title     String
+  eventDate DateTime
+  isClosed  Boolean  @default(false)
+  closedAt  DateTime?
+  closedBy  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  park    Park                        @relation(fields: [parkId], references: [id], onDelete: Cascade)
+  records ParkStaffAttendanceRecord[]
+
+  @@unique([parkId, eventDate])
+  @@index([parkId, eventDate])
+  @@index([eventDate])
+  @@map("park_staff_attendance_events")
+}
+
+model ParkStaffAttendanceRecord {
+  id         String   @id @default(cuid())
+  eventId    String
+  staffId    String
+  status     String
+  markedBy   String?
+  markedAt   DateTime @default(now())
+  editReason String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  event ParkStaffAttendanceEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  staff StaffMeta                @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, staffId])
+  @@index([eventId])
+  @@index([staffId])
+  @@map("park_staff_attendance_records")
 }
 
 model AttendanceRosterSnapshot {
