@@ -69,38 +69,46 @@ import {
 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
-
-// --- Mock Data Fallbacks ---
-const mockKPIs = {
-  totalCollected: 450000,
-  pendingFees: 125,
-  collectionRate: 78,
-  donationsRecorded: 150000,
-};
-
 import rawDatasetJson from "@/lib/import-framework/portal-raw-dataset.json";
 
-const mockStudents = rawDatasetJson.map((r, i) => ({
-  id: `stu-${r.sr}`,
-  name: r.name,
-  phone: r.mobile,
-  park: r.park || "Gulberg Park",
-  batch: "Lahore Batch 4",
-  feeTitle: "Registration Fee",
-  amount: r.paymentAmount > 0 ? r.paymentAmount : 1000,
-  status: r.paymentAmount > 0 ? "paid" : (i % 5 === 0 ? "waived" : r.status === "Approved" ? "paid" : "pending"),
-  dueDate: r.registeredDate ? r.registeredDate.split(" ")[0] : "2026-08-10",
-  receiptNo: `REC-2026-${String(r.sr).padStart(4, "0")}`
-}));
+// Map raw 759 portal export records to student fee collection roster items
+const mockStudents = rawDatasetJson.map((r, i) => {
+  const isPaid = r.paymentAmount > 0 || r.status === "Approved";
+  const amount = r.paymentAmount > 0 ? r.paymentAmount : 1500;
+  const parkName = r.park ? (r.park.includes("Park") ? r.park : `${r.park} Park`) : "Gulberg Park";
+
+  return {
+    id: `stu-${r.sr}`,
+    name: r.name,
+    phone: r.mobile,
+    park: parkName,
+    batch: "Lahore Batch 4",
+    feeTitle: "Monthly Sports & Training Fee",
+    amount,
+    status: isPaid ? "paid" : (i % 7 === 0 ? "waived" : "pending"),
+    dueDate: r.registeredDate ? r.registeredDate.split(" ")[0] : "2026-08-10",
+    receiptNo: `REC-2026-${String(r.sr).padStart(4, "0")}`,
+  };
+});
+
+const LAHORE_PARKS = [
+  { id: "Gulberg Park", name: "Gulberg Park" },
+  { id: "Gulshan Iqbal Park", name: "Gulshan Iqbal Park" },
+  { id: "Griffin Park", name: "Griffin Park" },
+  { id: "Johar Town Park", name: "Johar Town Park" },
+  { id: "Gulshan Ravi Park", name: "Gulshan Ravi Park" },
+  { id: "State Life Park", name: "State Life Park" },
+];
 
 const mockEvents = [
-  { id: "e1", title: "Lahore Batch 4 Monthly Fee", amount: 1500, expected: 300000, collected: 250000, waived: 5 },
-  { id: "e2", title: "Sports Gala Contribution", amount: 500, expected: 50000, collected: 45000, waived: 2 },
+  { id: "e1", title: "Lahore Batch 4 Monthly Fee", amount: 1500, expected: 1138500, collected: 840000, waived: 15 },
+  { id: "e2", title: "Sports Gala & Kit Contribution", amount: 500, expected: 379500, collected: 310000, waived: 8 },
 ];
 
 const mockDonations = [
-  { id: "d1", donorName: "Ali Khan", phone: "03001112233", amount: 50000, purpose: "General Fund", receiptNo: "REC-DON-001", recordedBy: "Admin" },
-  { id: "d2", donorName: "Ayesha Ahmed", phone: "03334445566", amount: 25000, purpose: "Sponsorship", receiptNo: "REC-DON-002", recordedBy: "Staff" },
+  { id: "d1", donorName: "Ali Khan", phone: "03001112233", amount: 50000, purpose: "Sports Equipment Fund", receiptNo: "REC-DON-001", recordedBy: "Admin" },
+  { id: "d2", donorName: "Ayesha Ahmed", phone: "03334445566", amount: 25000, purpose: "Student Sponsorship", receiptNo: "REC-DON-002", recordedBy: "Staff" },
+  { id: "d3", donorName: "Tariq Mahmood", phone: "03218889900", amount: 75000, purpose: "Ground Maintenance", receiptNo: "REC-DON-003", recordedBy: "Admin" },
 ];
 
 export function FeesPage() {
@@ -126,16 +134,37 @@ export function FeesPage() {
   const [page, setPage] = useState(1);
   const recordsPerPage = 10;
 
-  // Data fetching (Simulated with fallbacks)
-  const { data: kpis, isLoading: isKpisLoading } = useQuery({
-    queryKey: ["fees-kpis"],
-    queryFn: async () => mockKPIs, // Replace with real API
-    initialData: mockKPIs
-  });
+  // Computed KPIs directly from 759 real records
+  const kpis = useMemo(() => {
+    let totalCollected = 0;
+    let pendingFees = 0;
+    let paidCount = 0;
+
+    for (const s of mockStudents) {
+      if (s.status === "paid") {
+        totalCollected += s.amount;
+        paidCount++;
+      } else if (s.status === "pending" || s.status === "overdue") {
+        pendingFees++;
+      }
+    }
+
+    const collectionRate = Math.round((paidCount / mockStudents.length) * 100);
+
+    return {
+      totalCollected,
+      pendingFees,
+      collectionRate,
+      donationsRecorded: 150000,
+    };
+  }, []);
 
   // Filtered Roster Logic
   const filteredStudents = useMemo(() => {
     let filtered = mockStudents;
+    if (parkFilter !== "all") {
+      filtered = filtered.filter(s => s.park.toLowerCase().includes(parkFilter.toLowerCase()));
+    }
     if (statusFilter !== "all") {
       filtered = filtered.filter(s => s.status === statusFilter);
     }
@@ -143,7 +172,7 @@ export function FeesPage() {
       filtered = filtered.filter(s => s.name.toLowerCase().includes(searchQuery.toLowerCase()) || s.phone.includes(searchQuery));
     }
     return filtered;
-  }, [statusFilter, searchQuery]);
+  }, [parkFilter, statusFilter, searchQuery]);
 
   const totalPages = Math.ceil(filteredStudents.length / recordsPerPage);
   const paginatedStudents = filteredStudents.slice((page - 1) * recordsPerPage, page * recordsPerPage);
@@ -274,10 +303,12 @@ export function FeesPage() {
               </Select>
               
               <Select value={parkFilter} onValueChange={(v) => handleFilterChange(setParkFilter, v)}>
-                <SelectTrigger className="w-[160px] bg-slate-50"><SelectValue placeholder="Park" /></SelectTrigger>
+                <SelectTrigger className="w-[180px] bg-slate-50"><SelectValue placeholder="Park" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Parks</SelectItem>
-                  <SelectItem value="iqbal">Iqbal Park</SelectItem>
+                  <SelectItem value="all">All Parks (6 Lahore)</SelectItem>
+                  {LAHORE_PARKS.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
 
