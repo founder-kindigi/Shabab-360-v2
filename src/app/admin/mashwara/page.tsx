@@ -5,11 +5,11 @@ import { useAppStore } from "@/stores/useAppStore";
 import { AppShell } from "@/components/layout/app-shell";
 
 export default function AdminMashwaraAppPage() {
-  const setCurrentPage = useAppStore((s) => s.setCurrentPage);
+  const navigateTo = useAppStore((s) => s.navigateTo);
 
   useEffect(() => {
-    setCurrentPage("admin-mashwara");
-  }, [setCurrentPage]);
+    navigateTo("admin-mashwara");
+  }, [navigateTo]);
 
   return <AppShell />;
 }

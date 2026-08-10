@@ -5,11 +5,11 @@ import { useAppStore } from "@/stores/useAppStore";
 import { AppShell } from "@/components/layout/app-shell";
 
 export default function ParkAttendanceAppPage() {
-  const setCurrentPage = useAppStore((s) => s.setCurrentPage);
+  const navigateTo = useAppStore((s) => s.navigateTo);
 
   useEffect(() => {
-    setCurrentPage("park-attendance");
-  }, [setCurrentPage]);
+    navigateTo("park-attendance");
+  }, [navigateTo]);
 
   return <AppShell />;
 }

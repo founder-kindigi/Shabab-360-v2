@@ -5,11 +5,11 @@ import { useAppStore } from "@/stores/useAppStore";
 import { AppShell } from "@/components/layout/app-shell";
 
 export default function AdminAdmissionsAppPage() {
-  const setCurrentPage = useAppStore((s) => s.setCurrentPage);
+  const navigateTo = useAppStore((s) => s.navigateTo);
 
   useEffect(() => {
-    setCurrentPage("admin-admissions");
-  }, [setCurrentPage]);
+    navigateTo("admin-admissions");
+  }, [navigateTo]);
 
   return <AppShell />;
 }

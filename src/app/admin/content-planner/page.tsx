@@ -5,11 +5,11 @@ import { useAppStore } from "@/stores/useAppStore";
 import { AppShell } from "@/components/layout/app-shell";
 
 export default function AdminContentPlannerAppPage() {
-  const setCurrentPage = useAppStore((s) => s.setCurrentPage);
+  const navigateTo = useAppStore((s) => s.navigateTo);
 
   useEffect(() => {
-    setCurrentPage("admin-content-planner");
-  }, [setCurrentPage]);
+    navigateTo("admin-content-planner");
+  }, [navigateTo]);
 
   return <AppShell />;
 }
