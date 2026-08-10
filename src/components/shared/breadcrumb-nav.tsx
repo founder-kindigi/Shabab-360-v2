@@ -113,6 +113,7 @@ const pageTitles: Record<PageId, string> = {
   "admin-security-access": "Security & Access",
   "admin-certificates": "Certificates & Graduation",
   "admin-portal-import": "Portal Raw Import",
+  "admin-alumni": "Alumni Network",
   "public-program": "Program Showcase",
   "admin-announcements": "Announcements",
   "admin-reports": "Reports",
