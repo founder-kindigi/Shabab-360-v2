@@ -143,7 +143,7 @@ export function assignPortalCallingLeads(appIds: string[], targetCallerId: strin
   return count;
 }
 
-export function logPortalCallInteraction(assignmentIdOrAppId: string, outcome: string, notes?: string): boolean {
+export function logPortalCallInteraction(assignmentIdOrAppId: string, outcome: string, notes?: string | null): boolean {
   const leads = getPortalCallingLeads();
   const lead = leads.find((l) => l.id === assignmentIdOrAppId || l.applicationId === assignmentIdOrAppId);
 
