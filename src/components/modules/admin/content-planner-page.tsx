@@ -57,6 +57,8 @@ import {
   LayoutGrid,
   Table as TableIcon,
   Activity,
+  ExternalLink,
+  Video,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -110,6 +112,79 @@ function cleanString(val: any): string {
     if (val.hyperlink) return String(val.text || val.hyperlink).trim();
   }
   return "";
+}
+
+function FormattedContentWithLinks({ content }: { content: string }) {
+  if (!content) return null;
+
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  const lines = content.split("\n");
+
+  return (
+    <div className="space-y-1 text-xs text-slate-800 dark:text-slate-200">
+      {lines.map((line, lIdx) => {
+        if (!line.trim()) return <div key={lIdx} className="h-0.5" />;
+
+        const parts = line.split(urlRegex);
+
+        return (
+          <div key={lIdx} className="leading-relaxed">
+            {parts.map((part, pIdx) => {
+              if (part.match(urlRegex)) {
+                const cleanUrl = part.trim();
+                const isDrive = cleanUrl.includes("drive.google.com");
+                const isYouTube = cleanUrl.includes("youtube.com") || cleanUrl.includes("youtu.be");
+
+                let label = "Open Reference Link";
+                if (isDrive) label = "Google Drive Document";
+                if (isYouTube) label = "Watch Video Tutorial";
+
+                return (
+                  <span key={pIdx} className="inline-block my-0.5 mr-1">
+                    <a
+                      href={cleanUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-bold text-purple-700 bg-purple-100/90 hover:bg-purple-200 dark:bg-purple-900/50 dark:text-purple-300 dark:hover:bg-purple-900/80 rounded-lg transition-colors border border-purple-200 dark:border-purple-800 shadow-2xs"
+                    >
+                      {isYouTube ? (
+                        <Video className="size-3.5 text-red-600 shrink-0" />
+                      ) : (
+                        <ExternalLink className="size-3.5 text-purple-600 shrink-0" />
+                      )}
+                      <span>{label}</span>
+                    </a>
+                  </span>
+                );
+              }
+
+              const trimmedPart = part.trim();
+              if (
+                trimmedPart.startsWith("Activity:") ||
+                trimmedPart.startsWith("Topics:") ||
+                trimmedPart.startsWith("Time:") ||
+                trimmedPart.startsWith("Essential Skills:") ||
+                trimmedPart.startsWith("Document with details:") ||
+                trimmedPart.startsWith("Video link:") ||
+                trimmedPart.startsWith("Profiling format:") ||
+                trimmedPart.startsWith("Islamic traits/skills:") ||
+                trimmedPart.startsWith("Material Required:") ||
+                trimmedPart.startsWith("Link for Preparation:")
+              ) {
+                return (
+                  <span key={pIdx} className="font-extrabold text-slate-900 dark:text-slate-100">
+                    {part}{" "}
+                  </span>
+                );
+              }
+
+              return <span key={pIdx}>{part}</span>;
+            })}
+          </div>
+        );
+      })}
+    </div>
+  );
 }
 
 export function ContentPlannerPage() {
@@ -614,7 +689,7 @@ export function ContentPlannerPage() {
                             <div className="flex items-center gap-1.5 font-bold text-slate-700 dark:text-slate-300">
                               <Activity className="size-3.5 text-slate-500" /> Exercises & Martial Arts
                             </div>
-                            <p className="text-slate-800 dark:text-slate-200 font-medium whitespace-pre-line leading-relaxed">{item.exercises}</p>
+                            <FormattedContentWithLinks content={item.exercises} />
                           </div>
                         )}
 
@@ -632,7 +707,7 @@ export function ContentPlannerPage() {
                             <div className="flex items-center gap-1.5 font-bold text-blue-700 dark:text-blue-400">
                               <Brain className="size-3.5 text-blue-500" /> Skills Module & Activity
                             </div>
-                            <p className="text-slate-800 dark:text-slate-200 font-medium whitespace-pre-line leading-relaxed">{item.skills}</p>
+                            <FormattedContentWithLinks content={item.skills} />
                           </div>
                         )}
 
@@ -641,7 +716,7 @@ export function ContentPlannerPage() {
                             <div className="flex items-center gap-1.5 font-bold text-rose-700 dark:text-rose-400">
                               <Heart className="size-3.5 text-rose-500" /> Tadreeb & Seerah Topic
                             </div>
-                            <p className="text-slate-800 dark:text-slate-200 font-medium whitespace-pre-line leading-relaxed">{item.tadreeb}</p>
+                            <FormattedContentWithLinks content={item.tadreeb} />
                           </div>
                         )}
                       </CardContent>
@@ -678,10 +753,10 @@ export function ContentPlannerPage() {
                           <div>{row.week} • {row.day}</div>
                           {row.date && <span className="text-[10px] text-muted-foreground font-normal block">{row.date}</span>}
                         </td>
-                        <td className="p-3.5 font-medium text-slate-700 dark:text-slate-300 whitespace-pre-line max-w-xs">{row.exercises || "—"}</td>
+                        <td className="p-3.5 font-medium max-w-xs"><FormattedContentWithLinks content={row.exercises} /></td>
                         <td className="p-3.5 font-bold text-orange-700 dark:text-orange-400">{row.sports || "—"}</td>
-                        <td className="p-3.5 font-medium text-blue-700 dark:text-blue-400 whitespace-pre-line max-w-sm">{row.skills || "—"}</td>
-                        <td className="p-3.5 font-medium text-emerald-700 dark:text-emerald-400 whitespace-pre-line max-w-sm">{row.tadreeb || "—"}</td>
+                        <td className="p-3.5 font-medium max-w-sm"><FormattedContentWithLinks content={row.skills} /></td>
+                        <td className="p-3.5 font-medium max-w-sm"><FormattedContentWithLinks content={row.tadreeb} /></td>
                       </tr>
                     ))}
                   </tbody>
