@@ -431,26 +431,6 @@ export function AppShell() {
     return () => document.removeEventListener("shortcut:escape", handleEscape);
   }, []);
   const pageTitle = pageTitles[currentPage] || "Dashboard";
-  const showPageHeader = ![
-    "admin-dashboard", "city-head-dashboard", "murabbi-dashboard", "park-dashboard",
-    "park-attendance-roster", "park-roster", "park-participants", "park-guardians",
-    "park-schedule", "guardian-dashboard", "guardian-history", "guardian-announcements",
-    "guardian-schedule", "guardian-fees", "student-dashboard", "student-history",
-    "student-announcements", "student-schedule", "student-fees", "student-profile",
-    "admin-cities", "admin-parks", "admin-batches", "admin-groups", "admin-users",
-    "admin-access", "admin-audit-log", "admin-settings", "admin-attendance-events",
-    "admin-people", "admin-announcements", "admin-reports", "admin-students",
-    "admin-guardians", "admin-fees", "admin-admissions", "admin-content-planner", "admin-community",
-    "admin-collaboration-teams", "admin-mashwara", "park-attendance", "notifications"
-  ].includes(currentPage);
-
-  // Show scope selector on admin pages (not dashboard, settings, or modules with built-in headers)
-  const showScopeSelector = currentPage.startsWith("admin-") && !(
-    ["admin-dashboard", "admin-settings", "admin-audit-log", "admin-people",
-     "admin-announcements", "admin-access", "admin-students", "admin-guardians",
-     "admin-fees", "admin-admissions", "admin-content-planner", "admin-community",
-     "admin-collaboration-teams", "admin-mashwara"] as const
-  ).includes(currentPage as any);
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
@@ -560,9 +540,7 @@ export function AppShell() {
 
         {/* Page content */}
         <main className="flex-1 overflow-y-auto pb-24 lg:pb-0">
-          <div className="px-4 sm:px-6 lg:px-8 py-2 space-y-4">
-            {showScopeSelector && <ScopeSelector />}
-            {showPageHeader && <PageHeader title={pageTitle} />}
+          <div className="space-y-4">
             <AnimatePresence mode="wait">
               <motion.div
                 key={currentPage}
