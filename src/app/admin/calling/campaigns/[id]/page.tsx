@@ -240,8 +240,9 @@ export default function CampaignDetailPage() {
       setAssignModal({ open: false, leadId: "" });
       setCallerId("");
       setBulkCallerId("");
-      queryClient.invalidateQueries({ queryKey: ["campaign-leads", campaignId] });
-      queryClient.invalidateQueries({ queryKey: ["calling-workloads", campaignId] });
+      queryClient.invalidateQueries({ queryKey: ["campaign-leads"] });
+      queryClient.invalidateQueries({ queryKey: ["calling-workloads"] });
+      queryClient.refetchQueries({ queryKey: ["campaign-leads"] });
     },
     onError: (err: Error) => toast.error(err.message),
   });
@@ -273,8 +274,9 @@ export default function CampaignDetailPage() {
       }
 
       toast.success(`Auto-Distributed ${unassignedLeads.length} leads evenly across ${STAFF_CALLER_OPTIONS.length} Murabbis (~${leadsPerCaller} leads each)!`);
-      queryClient.invalidateQueries({ queryKey: ["campaign-leads", campaignId] });
-      queryClient.invalidateQueries({ queryKey: ["calling-workloads", campaignId] });
+      queryClient.invalidateQueries({ queryKey: ["campaign-leads"] });
+      queryClient.invalidateQueries({ queryKey: ["calling-workloads"] });
+      queryClient.refetchQueries({ queryKey: ["campaign-leads"] });
     } catch (err) {
       toast.error("Failed to auto-distribute leads");
     } finally {

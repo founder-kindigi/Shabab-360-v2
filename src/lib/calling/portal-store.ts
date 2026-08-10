@@ -124,13 +124,23 @@ export function getPortalCallingLeads(): PortalLeadState[] {
   return globalThis.__portalCallingLeads;
 }
 
+function matchesLeadId(lead: PortalLeadState, targetId: string): boolean {
+  if (!targetId) return false;
+  if (lead.applicationId === targetId || lead.id === targetId) return true;
+  const targetDigits = targetId.replace(/\D/g, "");
+  const appDigits = lead.applicationId.replace(/\D/g, "");
+  const idDigits = lead.id.replace(/\D/g, "");
+  if (targetDigits && (appDigits === targetDigits || idDigits === targetDigits)) return true;
+  return false;
+}
+
 export function assignPortalCallingLeads(appIds: string[], targetCallerId: string): number {
   const leads = getPortalCallingLeads();
   const callerName = CALLERS_LIST[targetCallerId] || "Staff Caller";
   let count = 0;
 
   for (const lead of leads) {
-    if (appIds.includes(lead.applicationId) || appIds.includes(lead.id)) {
+    if (appIds.some((targetId) => matchesLeadId(lead, targetId))) {
       lead.callerStaffMetaId = targetCallerId;
       lead.callerName = callerName;
       lead.status = "pending";
@@ -145,7 +155,7 @@ export function assignPortalCallingLeads(appIds: string[], targetCallerId: strin
 
 export function logPortalCallInteraction(assignmentIdOrAppId: string, outcome: string, notes?: string | null): boolean {
   const leads = getPortalCallingLeads();
-  const lead = leads.find((l) => l.id === assignmentIdOrAppId || l.applicationId === assignmentIdOrAppId);
+  const lead = leads.find((l) => matchesLeadId(l, assignmentIdOrAppId));
 
   if (lead) {
     lead.outcome = outcome;
