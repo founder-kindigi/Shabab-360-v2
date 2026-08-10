@@ -238,36 +238,48 @@ export function MobilePortalImportPage({ onBack }: MobilePortalImportPageProps) 
 
               <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-2 text-xs">
                 <div className="flex justify-between font-semibold">
-                  <span className="text-muted-foreground">Father Name</span>
-                  <span className="font-bold text-slate-900 dark:text-slate-100">{selectedRecord.fatherName || "N/A"}</span>
+                  <span className="text-muted-foreground">Full Name</span>
+                  <span className="font-extrabold text-slate-900 dark:text-slate-100">{selectedRecord.name}</span>
                 </div>
                 <div className="flex justify-between font-semibold">
-                  <span className="text-muted-foreground">Mobile & WhatsApp</span>
+                  <span className="text-muted-foreground">Father Name</span>
+                  <span className="font-bold text-slate-800 dark:text-slate-200">{selectedRecord.fatherName || "N/A"}</span>
+                </div>
+                <div className="flex justify-between font-semibold">
+                  <span className="text-muted-foreground">Mobile Number</span>
                   <span className="font-mono text-purple-600 font-bold">{selectedRecord.mobile}</span>
                 </div>
                 <div className="flex justify-between font-semibold">
-                  <span className="text-muted-foreground">Allocated Park</span>
-                  <span className="font-bold text-slate-900 dark:text-slate-100">{selectedRecord.park || "Gulberg Park"}</span>
+                  <span className="text-muted-foreground">WhatsApp Number</span>
+                  <span className="font-mono text-emerald-600 font-bold">{selectedRecord.whatsapp || selectedRecord.mobile}</span>
                 </div>
                 <div className="flex justify-between font-semibold">
-                  <span className="text-muted-foreground">Admissions Status</span>
-                  <span className="font-bold">{selectedRecord.status} ({selectedRecord.remarks || "Standard entry"})</span>
-                </div>
-                <div className="flex justify-between font-semibold">
-                  <span className="text-muted-foreground">Initial Fee Paid</span>
-                  <span className="font-bold text-emerald-600">{selectedRecord.paymentAmount > 0 ? `PKR ${selectedRecord.paymentAmount} (${selectedRecord.paymentMethod || "Cash"})` : "No Fee Paid"}</span>
+                  <span className="text-muted-foreground">City & District</span>
+                  <span className="font-bold">{selectedRecord.city || "Lahore"}, {selectedRecord.district || selectedRecord.province || "Punjab"}</span>
                 </div>
                 <div className="flex justify-between font-semibold">
                   <span className="text-muted-foreground">Grade / Class</span>
                   <span className="font-bold">{selectedRecord.grade || "N/A"}</span>
                 </div>
                 <div className="flex justify-between font-semibold">
-                  <span className="text-muted-foreground">Interests</span>
-                  <span className="font-bold">{selectedRecord.interests || "N/A"}</span>
+                  <span className="text-muted-foreground">Age & DOB</span>
+                  <span className="font-bold">{selectedRecord.age ? `${selectedRecord.age} yrs` : "N/A"} ({selectedRecord.dob || "N/A"})</span>
+                </div>
+                <div className="flex justify-between font-semibold">
+                  <span className="text-muted-foreground">Registration Date</span>
+                  <span className="font-mono font-bold">{selectedRecord.registeredDate}</span>
+                </div>
+                <div className="flex justify-between font-semibold">
+                  <span className="text-muted-foreground">Payment Info</span>
+                  <span className="font-bold text-emerald-600">{selectedRecord.paymentAmount > 0 ? `PKR ${selectedRecord.paymentAmount} (${selectedRecord.paymentMethod || "Cash"})` : "No Fee Paid"}</span>
                 </div>
                 <div className="flex justify-between font-semibold">
                   <span className="text-muted-foreground">Address</span>
                   <span className="font-bold text-slate-800 dark:text-slate-200">{selectedRecord.address || "N/A"}</span>
+                </div>
+                <div className="flex justify-between font-semibold">
+                  <span className="text-muted-foreground">Interests & Hobbies</span>
+                  <span className="font-bold">{selectedRecord.interests || "N/A"}</span>
                 </div>
               </div>
 

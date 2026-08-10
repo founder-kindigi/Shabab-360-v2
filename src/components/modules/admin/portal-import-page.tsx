@@ -456,21 +456,20 @@ export function PortalImportPage() {
         <DialogContent className="max-w-2xl p-6 rounded-2xl space-y-4 max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-lg font-black flex items-center justify-between">
-              <span>Full 69-Column Metadata Inspector — Sr. #{selectedRecord?.sr}</span>
+              <span>Candidate Record — Sr. #{selectedRecord?.sr}</span>
               <Badge variant="outline" className="font-bold">{selectedRecord?.status}</Badge>
             </DialogTitle>
           </DialogHeader>
 
           {selectedRecord && (
-            <Tabs defaultValue="overview" className="w-full">
-              <TabsList className="grid grid-cols-3 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
-                <TabsTrigger value="overview" className="text-xs font-bold rounded-lg">Overview & Contact</TabsTrigger>
-                <TabsTrigger value="education" className="text-xs font-bold rounded-lg">Education & Seerah</TabsTrigger>
-                <TabsTrigger value="raw" className="text-xs font-bold rounded-lg">All Raw 69 Columns</TabsTrigger>
+            <Tabs defaultValue="primary" className="w-full">
+              <TabsList className="grid grid-cols-2 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
+                <TabsTrigger value="primary" className="text-xs font-bold rounded-lg">Primary Details</TabsTrigger>
+                <TabsTrigger value="full_detail" className="text-xs font-bold rounded-lg">Full Detail (69 Cols)</TabsTrigger>
               </TabsList>
 
-              {/* Tab 1: Overview & Contact */}
-              <TabsContent value="overview" className="space-y-3 pt-3">
+              {/* Tab 1: Primary Details (ONLY the 11 requested fields) */}
+              <TabsContent value="primary" className="space-y-3 pt-3">
                 <div className="grid grid-cols-2 gap-3 p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 text-xs">
                   <div>
                     <span className="text-muted-foreground font-semibold">Full Name:</span>
@@ -489,25 +488,26 @@ export function PortalImportPage() {
                     <p className="font-mono font-bold text-emerald-600">{selectedRecord.whatsapp || selectedRecord.mobile}</p>
                   </div>
                   <div>
-                    <span className="text-muted-foreground font-semibold">Allocated Park:</span>
-                    <p className="font-bold text-slate-900 dark:text-slate-100">{selectedRecord.park}</p>
+                    <span className="text-muted-foreground font-semibold">City & District:</span>
+                    <p className="font-bold text-slate-900 dark:text-slate-100">
+                      {selectedRecord.city || "Lahore"}, {selectedRecord.district || selectedRecord.province || "Punjab"}
+                    </p>
                   </div>
                   <div>
-                    <span className="text-muted-foreground font-semibold">City & District:</span>
-                    <p className="font-bold">{selectedRecord.city || "Lahore"}, {selectedRecord.province || "Punjab"}</p>
+                    <span className="text-muted-foreground font-semibold">Grade / Class:</span>
+                    <p className="font-bold text-slate-900 dark:text-slate-100">{selectedRecord.grade || "N/A"}</p>
                   </div>
-                  <div className="col-span-2">
-                    <span className="text-muted-foreground font-semibold">Address:</span>
-                    <p className="font-medium text-slate-800 dark:text-slate-200">{selectedRecord.address || "N/A"}</p>
+                  <div>
+                    <span className="text-muted-foreground font-semibold">Age & DOB:</span>
+                    <p className="font-bold text-slate-900 dark:text-slate-100">
+                      {selectedRecord.age ? `${selectedRecord.age} yrs` : "N/A"} ({selectedRecord.dob || "N/A"})
+                    </p>
                   </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3 p-4 rounded-xl bg-purple-50/50 dark:bg-purple-950/20 border border-purple-100 dark:border-purple-900 text-xs">
                   <div>
                     <span className="text-muted-foreground font-semibold">Registration Date:</span>
-                    <p className="font-mono font-bold">{selectedRecord.registeredDate}</p>
+                    <p className="font-mono font-bold text-slate-900 dark:text-slate-100">{selectedRecord.registeredDate}</p>
                   </div>
-                  <div>
+                  <div className="col-span-2">
                     <span className="text-muted-foreground font-semibold">Payment Info:</span>
                     <p className="font-bold text-emerald-700">
                       {selectedRecord.paymentAmount > 0
@@ -516,57 +516,22 @@ export function PortalImportPage() {
                     </p>
                   </div>
                   <div className="col-span-2">
-                    <span className="text-muted-foreground font-semibold">Request Status Remarks:</span>
-                    <p className="font-bold text-slate-900 dark:text-slate-100">{selectedRecord.remarks || "Standard portal entry"}</p>
-                  </div>
-                </div>
-              </TabsContent>
-
-              {/* Tab 2: Education & Seerah History */}
-              <TabsContent value="education" className="space-y-3 pt-3">
-                <div className="grid grid-cols-2 gap-3 p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 text-xs">
-                  <div>
-                    <span className="text-muted-foreground font-semibold">Grade / Class:</span>
-                    <p className="font-bold">{selectedRecord.grade || "N/A"}</p>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground font-semibold">Age & DOB:</span>
-                    <p className="font-bold">{selectedRecord.age ? `${selectedRecord.age} yrs` : "N/A"} ({selectedRecord.dob || "N/A"})</p>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground font-semibold">Student of Al-Burhan:</span>
-                    <p className="font-bold">{selectedRecord.isStudentAlburhan || "No"}</p>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground font-semibold">Is Alim / Alima:</span>
-                    <p className="font-bold">{selectedRecord.isAlim || "No"}</p>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground font-semibold">Studied Seerat Circle Phase-1:</span>
-                    <p className="font-bold">{selectedRecord.studiedSeeratCircle || "No"}</p>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground font-semibold">Murabbi Name:</span>
-                    <p className="font-bold">{selectedRecord.murabiName || "N/A"}</p>
+                    <span className="text-muted-foreground font-semibold">Address:</span>
+                    <p className="font-medium text-slate-800 dark:text-slate-200">{selectedRecord.address || "N/A"}</p>
                   </div>
                   <div className="col-span-2">
                     <span className="text-muted-foreground font-semibold">Interests & Hobbies:</span>
                     <p className="font-bold text-slate-900 dark:text-slate-100">{selectedRecord.interests || "N/A"}</p>
                   </div>
-                  {selectedRecord.medicalIssue && (
-                    <div className="col-span-2 p-2 bg-amber-50 rounded-lg text-amber-900 font-bold">
-                      Medical Issue: {selectedRecord.medicalIssue}
-                    </div>
-                  )}
                 </div>
               </TabsContent>
 
-              {/* Tab 3: All Raw 69 Columns */}
-              <TabsContent value="raw" className="pt-3">
-                <div className="space-y-2 max-h-[350px] overflow-y-auto pr-2 border border-slate-200 dark:border-slate-800 rounded-xl p-3 bg-slate-900 text-slate-100 font-mono text-[11px]">
+              {/* Tab 2: Full Detail (All 69 Raw Sheet Columns) */}
+              <TabsContent value="full_detail" className="pt-3">
+                <div className="space-y-2 max-h-[360px] overflow-y-auto pr-2 border border-slate-200 dark:border-slate-800 rounded-xl p-3 bg-slate-900 text-slate-100 font-mono text-[11px]">
                   {selectedRecord.rawFields ? (
                     Object.entries(selectedRecord.rawFields).map(([key, val]) => (
-                      <div key={key} className="flex justify-between border-b border-slate-800 pb-1 pt-1">
+                      <div key={key} className="flex justify-between border-b border-slate-800 pb-1.5 pt-1.5">
                         <span className="text-purple-400 font-bold">{key}:</span>
                         <span className="text-slate-200 text-right max-w-[300px] truncate">{String(val || "N/A")}</span>
                       </div>
@@ -581,7 +546,7 @@ export function PortalImportPage() {
 
           <DialogFooter className="pt-2">
             <Button onClick={() => setSelectedRecord(null)} className="w-full font-bold rounded-xl bg-[#4B0A8F] text-white">
-              Close Inspector
+              Close Preview
             </Button>
           </DialogFooter>
         </DialogContent>
