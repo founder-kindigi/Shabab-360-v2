@@ -31,6 +31,7 @@ export type PageId =
   | "admin-reports"
   | "admin-reports-builder"
   | "admin-audit-log"
+  | "admin-sync-conflicts"
   | "admin-access"
   | "admin-access-management"
   | "admin-collaboration-teams"

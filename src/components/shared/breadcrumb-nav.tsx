@@ -46,6 +46,7 @@ const pageSectionMap: Partial<Record<PageId, BreadcrumbSection>> = {
 
   // Admin – System
   "admin-audit-log": { section: "System", sectionPage: null },
+  "admin-sync-conflicts": { section: "System", sectionPage: null },
   "admin-access-management": { section: "System", sectionPage: null },
   "admin-collaboration-teams": { section: "System", sectionPage: null },
   "admin-settings": { section: "System", sectionPage: null },
@@ -122,6 +123,7 @@ const pageTitles: Record<PageId, string> = {
   "admin-reports": "Reports",
   "admin-reports-builder": "Custom Report Builder",
   "admin-audit-log": "Audit Log",
+  "admin-sync-conflicts": "Offline Sync Conflict Engine",
   notifications: "Notifications",
   "murabbi-dashboard": "Dashboard",
   "murabbi-groups": "My Groups",

@@ -20,6 +20,7 @@ import {
   Megaphone,
   BarChart3,
   ScrollText,
+  RefreshCw,
   Settings,
   LogOut,
   ChevronLeft,
@@ -90,6 +91,7 @@ const navConfig: Record<string, { tKey: string; section: string }> = {
   "admin-reports": { tKey: "nav.reports", section: "communication" },
   "admin-reports-builder": { tKey: "nav.reportsBuilder", section: "communication" },
   "admin-audit-log": { tKey: "nav.auditLog", section: "system" },
+  "admin-sync-conflicts": { tKey: "nav.syncConflicts", section: "system" },
   "notifications": { tKey: "nav.notifications", section: "system" },
   "admin-settings": { tKey: "nav.settings", section: "system" },
   "city-head-dashboard": { tKey: "nav.dashboard", section: "overview" },
@@ -154,6 +156,7 @@ const iconMap: Record<string, LucideIcon> = {
   "admin-reports": BarChart3,
   "admin-reports-builder": BarChart3,
   "admin-audit-log": ScrollText,
+  "admin-sync-conflicts": RefreshCw,
   "notifications": Bell,
   "admin-settings": Settings,
   "city-head-dashboard": LayoutDashboard,
@@ -179,9 +182,9 @@ const iconMap: Record<string, LucideIcon> = {
 };
 
 const roleNavPages: Record<string, PageId[]> = {
-  super_admin: ["admin-dashboard","admin-cities","admin-parks","admin-batches","admin-groups","admin-people","admin-students","admin-guardians","admin-attendance-events","admin-events","admin-calling","admin-mashwara","admin-content-planner","admin-community","admin-users","admin-access","admin-admissions","admin-fees","admin-announcements","admin-reports","admin-reports-builder","notifications","admin-audit-log","admin-access-management","admin-collaboration-teams","admin-settings"],
-  program_admin: ["admin-dashboard","admin-cities","admin-parks","admin-batches","admin-groups","admin-people","admin-students","admin-guardians","admin-attendance-events","admin-events","admin-calling","admin-mashwara","admin-content-planner","admin-community","admin-users","admin-access","admin-admissions","admin-fees","admin-announcements","admin-reports","admin-reports-builder","notifications","admin-audit-log","admin-settings"],
-  city_head: ["city-head-dashboard","admin-parks","admin-batches","admin-groups","admin-people","admin-students","admin-attendance-events","admin-events","admin-calling","admin-mashwara","admin-content-planner","admin-community","admin-access","admin-admissions","admin-fees","admin-announcements","admin-reports","admin-reports-builder","notifications"],
+  super_admin: ["admin-dashboard","admin-cities","admin-parks","admin-batches","admin-groups","admin-people","admin-students","admin-guardians","admin-attendance-events","admin-events","admin-calling","admin-mashwara","admin-content-planner","admin-community","admin-users","admin-access","admin-admissions","admin-fees","admin-announcements","admin-reports","admin-reports-builder","notifications","admin-audit-log","admin-sync-conflicts","admin-access-management","admin-collaboration-teams","admin-settings"],
+  program_admin: ["admin-dashboard","admin-cities","admin-parks","admin-batches","admin-groups","admin-people","admin-students","admin-guardians","admin-attendance-events","admin-events","admin-calling","admin-mashwara","admin-content-planner","admin-community","admin-users","admin-access","admin-admissions","admin-fees","admin-announcements","admin-reports","admin-reports-builder","notifications","admin-audit-log","admin-sync-conflicts","admin-settings"],
+  city_head: ["city-head-dashboard","admin-parks","admin-batches","admin-groups","admin-people","admin-students","admin-attendance-events","admin-events","admin-calling","admin-mashwara","admin-content-planner","admin-community","admin-access","admin-admissions","admin-fees","admin-announcements","admin-reports","admin-reports-builder","notifications","admin-sync-conflicts"],
   park_admin: ["park-dashboard","park-attendance","park-roster","park-participants","park-guardians","park-schedule","admin-community","notifications"],
   park_lead: ["park-dashboard","admin-groups","park-attendance","park-roster","park-participants","park-guardians","park-schedule","admin-community","notifications"],
   murabbi: ["murabbi-dashboard","murabbi-groups","park-attendance","park-schedule","admin-community","notifications"],

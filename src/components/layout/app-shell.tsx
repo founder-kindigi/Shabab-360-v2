@@ -28,6 +28,7 @@ const GroupsPage = lazy(() => import("@/components/modules/admin/groups-page").t
 const ParksPage = lazy(() => import("@/components/modules/admin/parks-page").then(m => ({ default: m.ParksPage })));
 const UsersPage = lazy(() => import("@/components/modules/admin/users-page").then(m => ({ default: m.UsersPage })));
 const AuditLogPage = lazy(() => import("@/components/modules/admin/audit-log-page").then(m => ({ default: m.AuditLogPage })));
+const SyncConflictsPage = lazy(() => import("@/components/modules/admin/sync-conflicts-page").then(m => ({ default: m.SyncConflictsPage })));
 const PeoplePage = lazy(() => import("@/components/modules/admin/people-page").then(m => ({ default: m.PeoplePage })));
 const StudentsPage = lazy(() => import("@/components/modules/admin/students-page").then(m => ({ default: m.StudentsPage })));
 const GuardiansPage = lazy(() => import("@/components/modules/admin/guardians-page").then(m => ({ default: m.GuardiansPage })));
@@ -154,6 +155,7 @@ const pageTitles: Record<PageId, string> = {
   "admin-reports": "Reports",
   "admin-reports-builder": "Custom Report Builder",
   "admin-audit-log": "Audit Log",
+  "admin-sync-conflicts": "Offline Sync Conflict Engine",
   "notifications": "Notifications",
   "murabbi-dashboard": "Dashboard",
   "murabbi-groups": "My Groups",
@@ -190,7 +192,7 @@ function isKnownPage(pageId: PageId): boolean {
     "admin-attendance-events", "admin-settings", "admin-users",
     "admin-admissions", "admin-fees", "admin-content-planner", "admin-announcements",
     "admin-events", "admin-events-detail",
-    "admin-reports", "admin-reports-builder", "admin-audit-log", "admin-access", "admin-access-management", "admin-collaboration-teams", "notifications",
+    "admin-reports", "admin-reports-builder", "admin-audit-log", "admin-sync-conflicts", "admin-access", "admin-access-management", "admin-collaboration-teams", "notifications",
     "admin-mashwara",
     "admin-mashwara-detail",
     "murabbi-dashboard", "murabbi-groups",
@@ -271,6 +273,8 @@ function PageContentInner({ pageId }: { pageId: PageId }) {
       return <CallingPage />;
     case "admin-audit-log":
       return <AuditLogPage />;
+    case "admin-sync-conflicts":
+      return <SyncConflictsPage />;
     case "notifications":
       return <NotificationsPage />;
     case "admin-settings":

@@ -15,13 +15,33 @@ export interface OfflineQueueItem {
   state: "pending" | "syncing" | "synced" | "failed";
 }
 
+export interface SyncConflictItem {
+  id: string;
+  mutationId: string;
+  entityType: "attendance" | "fee" | "event" | "mashwara";
+  entityId: string;
+  participantId?: string;
+  clientData: any;
+  serverData: any;
+  conflictType: "timestamp_mismatch" | "state_lock" | "concurrent_modification";
+  status: "pending_review" | "resolved_client_wins" | "resolved_server_wins" | "auto_resolved";
+  detectedAt: string;
+  resolvedAt?: string | null;
+  resolvedBy?: string | null;
+}
+
 export class ShababOfflineDB extends Dexie {
   queue!: Table<OfflineQueueItem, string>;
+  conflicts!: Table<SyncConflictItem, string>;
 
   constructor() {
     super("shabab360-offline");
     this.version(1).stores({
       queue: "mutationId, eventId, participantId, state, queuedAt",
+    });
+    this.version(2).stores({
+      queue: "mutationId, eventId, participantId, state, queuedAt",
+      conflicts: "id, mutationId, entityType, entityId, status, detectedAt",
     });
   }
 }
@@ -184,4 +204,33 @@ export async function pruneStaleSyncedItems(maxAgeMs = 24 * 60 * 60 * 1000): Pro
   const ids = staleItems.map((i) => i.mutationId);
   await offlineDB.queue.bulkDelete(ids);
   return ids.length;
+}
+
+/**
+ * Store a sync conflict in IndexedDB.
+ */
+export async function storeConflict(conflict: SyncConflictItem): Promise<void> {
+  await offlineDB.conflicts.put(conflict);
+}
+
+/**
+ * Get pending sync conflicts.
+ */
+export async function getPendingConflicts(): Promise<SyncConflictItem[]> {
+  return await offlineDB.conflicts.where("status").equals("pending_review").toArray();
+}
+
+/**
+ * Resolve a sync conflict.
+ */
+export async function resolveConflict(
+  id: string,
+  resolution: "resolved_client_wins" | "resolved_server_wins",
+  user: string
+): Promise<void> {
+  await offlineDB.conflicts.update(id, {
+    status: resolution,
+    resolvedAt: new Date().toISOString(),
+    resolvedBy: user,
+  });
 }
