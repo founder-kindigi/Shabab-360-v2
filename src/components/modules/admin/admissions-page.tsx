@@ -342,8 +342,11 @@ function getStatusBadge(status: string) {
   );
 }
 
-function getInitials(name: string) {
-  return name.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2);
+function getInitials(name?: string | null) {
+  if (!name || typeof name !== "string") return "??";
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "??";
+  return parts.map((w) => w[0]).join("").toUpperCase().slice(0, 2);
 }
 
 function getAge(dob: string | null): string {
