@@ -54,6 +54,8 @@ import {
   Flame,
   Trash2,
   Loader2,
+  LayoutGrid,
+  Table as TableIcon,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -92,6 +94,20 @@ const formSchema = z.object({
   batchId: z.string().optional(),
 });
 
+function cleanString(val: any): string {
+  if (val === null || val === undefined) return "";
+  if (typeof val === "string") return val.trim();
+  if (typeof val === "number" || typeof val === "boolean") return String(val);
+  if (val instanceof Date) return val.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  if (typeof val === "object") {
+    if (val.result !== undefined && val.result !== null) return cleanString(val.result);
+    if (Array.isArray(val.richText)) return val.richText.map((t: any) => t.text || "").join("");
+    if (val.text) return String(val.text);
+    if (val.hyperlink) return String(val.text || val.hyperlink);
+  }
+  return "";
+}
+
 export function ContentPlannerPage() {
   const queryClient = useQueryClient();
   const { data: session } = useSession();
@@ -106,6 +122,8 @@ export function ContentPlannerPage() {
   const [cityFilter, setCityFilter] = useState<string>("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [kindFilter, setKindFilter] = useState<string>("all");
+  const [teamFilter, setTeamFilter] = useState<string>("all");
+  const [viewMode, setViewMode] = useState<"cards" | "table">("cards");
   const [page, setPage] = useState(1);
 
   const [createOpen, setCreateOpen] = useState(false);
@@ -177,7 +195,7 @@ export function ContentPlannerPage() {
       _count: { sessions: 93, overrides: 0 },
     },
     {
-      id: "plan-b4-[#4B0A8F]",
+      id: "plan-b4-skills",
       name: "Youth Leadership, Tarbiyah & Public Speaking Master Plan",
       kind: "custom",
       status: "published",
@@ -307,17 +325,38 @@ export function ContentPlannerPage() {
   };
 
   const realSyllabus = getRunningBatchSyllabus();
-  const matrixData = realSyllabus.length > 0 ? realSyllabus.map((s, idx) => ({
-    week: s.week || `Week ${idx + 1}`,
-    date: s.day || "Saturday",
-    sports: s.sports || "Sports Drills & Fitness",
-    skills: s.skills || "Youth Life Skills",
-    tadreeb: s.tadreeb || "Tarbiyah & Character",
-    focus: s.focus || "Personal Discipline",
-  })) : [
-    { week: "Week 1", date: "Saturday", sports: "Warm-up Drills, Football Passing", skills: "Public Speaking Basics", tadreeb: "Character Building: Honesty", focus: "Team Discipline" },
-    { week: "Week 2", date: "Saturday", sports: "Cricket Bowling & Fielding", skills: "Financial Literacy 101", tadreeb: "Ethical Leadership", focus: "Personal Responsibility" },
-  ];
+  const matrixData = useMemo(() => {
+    return realSyllabus.map((s, idx) => {
+      let rawWeek = cleanString(s.week);
+      let rawDay = cleanString(s.day);
+
+      if (!rawWeek || rawWeek.includes("GMT") || rawWeek.includes("Standard Time")) {
+        rawWeek = `Session ${idx + 1}`;
+      }
+      if (!rawDay || rawDay.includes("GMT") || rawDay.includes("Standard Time")) {
+        rawDay = "Saturday";
+      }
+
+      return {
+        id: `syl-${idx}`,
+        week: rawWeek,
+        date: rawDay,
+        sports: cleanString(s.sports) || "Sports Drills & Physical Warm-up",
+        skills: cleanString(s.skills) || "Youth Competency Module",
+        tadreeb: cleanString(s.tadreeb) || "Tarbiyah & Spiritual Growth",
+        focus: cleanString(s.focus) || "Personal Discipline & Character",
+      };
+    });
+  }, [realSyllabus]);
+
+  // Team filtered matrix items
+  const filteredMatrix = useMemo(() => {
+    if (teamFilter === "sports") return matrixData.filter((m) => m.sports && m.sports.length > 2);
+    if (teamFilter === "skills") return matrixData.filter((m) => m.skills && m.skills.length > 2);
+    if (teamFilter === "tadreeb") return matrixData.filter((m) => m.tadreeb && m.tadreeb.length > 2);
+    if (teamFilter === "focus") return matrixData.filter((m) => m.focus && m.focus.length > 2);
+    return matrixData;
+  }, [matrixData, teamFilter]);
 
   return (
     <div className="space-y-6">
@@ -338,14 +377,14 @@ export function ContentPlannerPage() {
         }
       />
 
-      {/* KPI Cards */}
+      {/* KPI Banner */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="p-4 rounded-2xl border-0 ring-1 ring-slate-200 dark:ring-slate-800 shadow-sm bg-gradient-to-br from-purple-500/5 to-indigo-500/5">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs font-bold text-muted-foreground">Total Curriculum Plans</p>
-              <p className="text-2xl font-black text-slate-900 dark:text-slate-100">{pagination.total || plans.length}</p>
-              <p className="text-[11px] text-purple-600 font-bold mt-0.5">Lahore Batch 4 Master Plans</p>
+              <p className="text-xs font-bold text-muted-foreground">Total Master Plans</p>
+              <p className="text-2xl font-black text-slate-900 dark:text-slate-100">{plans.length}</p>
+              <p className="text-[11px] text-purple-600 font-bold mt-0.5">Lahore Batch 4 Curriculum</p>
             </div>
             <div className="size-11 rounded-2xl bg-purple-600/10 flex items-center justify-center text-purple-600">
               <BookOpen className="size-6" />
@@ -356,9 +395,9 @@ export function ContentPlannerPage() {
         <Card className="p-4 rounded-2xl border-0 ring-1 ring-slate-200 dark:ring-slate-800 shadow-sm bg-gradient-to-br from-emerald-500/5 to-teal-500/5">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs font-bold text-muted-foreground">Published Session Weeks</p>
-              <p className="text-2xl font-black text-slate-900 dark:text-slate-100">8 Weeks</p>
-              <p className="text-[11px] text-emerald-600 font-bold mt-0.5">93 Content Syllabus Items</p>
+              <p className="text-xs font-bold text-muted-foreground">Published Syllabus</p>
+              <p className="text-2xl font-black text-slate-900 dark:text-slate-100">{matrixData.length} Items</p>
+              <p className="text-[11px] text-emerald-600 font-bold mt-0.5">8 Weekly Sessions Active</p>
             </div>
             <div className="size-11 rounded-2xl bg-emerald-600/10 flex items-center justify-center text-emerald-600">
               <CalendarDays className="size-6" />
@@ -393,7 +432,7 @@ export function ContentPlannerPage() {
         </Card>
       </div>
 
-      {/* Tabs */}
+      {/* Main Content Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList className="bg-slate-100 dark:bg-slate-800/80 p-1.5 rounded-2xl h-11">
           <TabsTrigger value="roster" className="rounded-xl text-xs font-bold px-4 py-2 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 shadow-sm">
@@ -402,7 +441,7 @@ export function ContentPlannerPage() {
           </TabsTrigger>
           <TabsTrigger value="matrix" className="rounded-xl text-xs font-bold px-4 py-2 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 shadow-sm">
             <Sparkles className="size-4 mr-2 text-amber-500" />
-            Lahore Batch 4 Syllabus Matrix ({matrixData.length} items)
+            Lahore Batch 4 Running Syllabus Matrix ({matrixData.length} items)
           </TabsTrigger>
         </TabsList>
 
@@ -430,7 +469,7 @@ export function ContentPlannerPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {plans.map((plan) => (
               <Card key={plan.id} className="rounded-2xl border-0 ring-1 ring-slate-200 dark:ring-slate-800 shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col justify-between">
                 <CardContent className="p-5 space-y-4">
@@ -487,49 +526,155 @@ export function ContentPlannerPage() {
         </TabsContent>
 
         <TabsContent value="matrix" className="space-y-4">
-          <Card className="rounded-2xl border-0 ring-1 ring-slate-200 dark:ring-slate-800 shadow-sm overflow-hidden p-6 space-y-4">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b pb-4">
-              <div>
-                <h3 className="text-base font-black text-slate-900 dark:text-slate-100">Lahore Batch 4 Running Syllabus Matrix</h3>
-                <p className="text-xs text-muted-foreground font-medium">Extracted directly from B4_ Shabab Content Plan (1).xlsx across 4 Collaboration Teams.</p>
-              </div>
-              <Badge className="bg-purple-100 text-purple-800 font-bold text-xs">
-                {matrixData.length} Syllabus Items Active
-              </Badge>
+          {/* Team Filter Pills & View Switcher */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-card p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+            <div className="flex items-center gap-2 overflow-x-auto w-full sm:w-auto pb-1 sm:pb-0">
+              <span className="text-xs font-bold text-slate-500 shrink-0 mr-1">Filter Team:</span>
+              {[
+                { id: "all", label: "All Teams", icon: Sparkles },
+                { id: "sports", label: "Sports & Fitness", icon: Flame },
+                { id: "skills", label: "Skills Module", icon: Brain },
+                { id: "tadreeb", label: "Tadreeb & Tarbiyah", icon: Heart },
+                { id: "focus", label: "Theme Focus Area", icon: Target },
+              ].map((t) => {
+                const IconComponent = t.icon;
+                return (
+                  <button
+                    key={t.id}
+                    onClick={() => setTeamFilter(t.id)}
+                    className={cn(
+                      "px-3 py-1.5 rounded-xl text-xs font-bold shrink-0 transition-all flex items-center gap-1.5 border",
+                      teamFilter === t.id
+                        ? "bg-[#4B0A8F] text-white border-[#4B0A8F] shadow-sm"
+                        : "bg-white dark:bg-slate-900 text-slate-600 border-slate-200 dark:border-slate-800 hover:bg-slate-50"
+                    )}
+                  >
+                    <IconComponent className="size-3.5" />
+                    {t.label}
+                  </button>
+                );
+              })}
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
-                <thead className="bg-slate-100/70 dark:bg-slate-800/70 text-slate-700 dark:text-slate-300 text-xs uppercase font-extrabold tracking-wider border-b border-slate-200 dark:border-slate-800">
-                  <tr>
-                    <th className="p-4 w-28">Week</th>
-                    <th className="p-4"><div className="flex items-center gap-1.5"><Flame className="size-4 text-orange-500" /> Sports & Fitness</div></th>
-                    <th className="p-4"><div className="flex items-center gap-1.5"><Brain className="size-4 text-blue-500" /> Skills Module</div></th>
-                    <th className="p-4"><div className="flex items-center gap-1.5"><Heart className="size-4 text-rose-500" /> Tadreeb & Tarbiyah</div></th>
-                    <th className="p-4"><div className="flex items-center gap-1.5"><Target className="size-4 text-purple-500" /> Theme Focus</div></th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-xs font-medium">
-                  {matrixData.map((row, idx) => (
-                    <tr key={idx} className="hover:bg-purple-50/20 dark:hover:bg-purple-950/10 transition-colors">
-                      <td className="p-4 font-bold text-[#4B0A8F]">
-                        <div>{row.week}</div>
-                        <span className="text-[10px] text-muted-foreground font-normal">{row.date}</span>
-                      </td>
-                      <td className="p-4 font-semibold text-slate-900 dark:text-slate-100">{row.sports}</td>
-                      <td className="p-4 font-semibold text-blue-700 dark:text-blue-400">{row.skills}</td>
-                      <td className="p-4 font-semibold text-emerald-700 dark:text-emerald-400">{row.tadreeb}</td>
-                      <td className="p-4">
-                        <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200 text-[10px] font-bold">
-                          {row.focus}
-                        </Badge>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="flex items-center gap-1 self-end sm:self-auto bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
+              <Button
+                size="sm"
+                variant={viewMode === "cards" ? "default" : "ghost"}
+                onClick={() => setViewMode("cards")}
+                className={cn("h-7 px-2.5 rounded-lg text-xs font-bold gap-1", viewMode === "cards" && "bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-xs")}
+              >
+                <LayoutGrid className="size-3.5" /> Web Cards
+              </Button>
+              <Button
+                size="sm"
+                variant={viewMode === "table" ? "default" : "ghost"}
+                onClick={() => setViewMode("table")}
+                className={cn("h-7 px-2.5 rounded-lg text-xs font-bold gap-1", viewMode === "table" && "bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-xs")}
+              >
+                <TableIcon className="size-3.5" /> Table View
+              </Button>
             </div>
-          </Card>
+          </div>
+
+          {/* Render Mode 1: Modern Web Cards Grid */}
+          {viewMode === "cards" ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <AnimatePresence mode="popLayout">
+                {filteredMatrix.map((item) => (
+                  <motion.div
+                    key={item.id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    transition={{ duration: 0.15 }}
+                  >
+                    <Card className="rounded-2xl border-0 ring-1 ring-slate-200 dark:ring-slate-800 shadow-sm hover:shadow-md transition-all overflow-hidden h-full flex flex-col justify-between bg-card">
+                      <CardHeader className="p-4 pb-2 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex flex-row items-center justify-between">
+                        <div>
+                          <span className="text-xs font-black text-[#4B0A8F] tracking-wide">{item.week}</span>
+                          <span className="text-[10px] text-muted-foreground block font-semibold">{item.date}</span>
+                        </div>
+                        <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200 text-[10px] font-bold">
+                          {item.focus}
+                        </Badge>
+                      </CardHeader>
+
+                      <CardContent className="p-4 space-y-3.5 text-xs flex-1">
+                        {(teamFilter === "all" || teamFilter === "sports") && (
+                          <div className="space-y-1 p-2.5 rounded-xl bg-orange-50/50 dark:bg-orange-950/20 border border-orange-200/50 dark:border-orange-900/30">
+                            <div className="flex items-center gap-1.5 font-bold text-orange-700 dark:text-orange-400">
+                              <Flame className="size-3.5 text-orange-500" /> Sports & Fitness
+                            </div>
+                            <p className="text-slate-800 dark:text-slate-200 font-medium pl-5 leading-relaxed">{item.sports}</p>
+                          </div>
+                        )}
+
+                        {(teamFilter === "all" || teamFilter === "skills") && (
+                          <div className="space-y-1 p-2.5 rounded-xl bg-blue-50/50 dark:bg-blue-950/20 border border-blue-200/50 dark:border-blue-900/30">
+                            <div className="flex items-center gap-1.5 font-bold text-blue-700 dark:text-blue-400">
+                              <Brain className="size-3.5 text-blue-500" /> Skills Module
+                            </div>
+                            <p className="text-slate-800 dark:text-slate-200 font-medium pl-5 leading-relaxed">{item.skills}</p>
+                          </div>
+                        )}
+
+                        {(teamFilter === "all" || teamFilter === "tadreeb") && (
+                          <div className="space-y-1 p-2.5 rounded-xl bg-rose-50/50 dark:bg-rose-950/20 border border-rose-200/50 dark:border-rose-900/30">
+                            <div className="flex items-center gap-1.5 font-bold text-rose-700 dark:text-rose-400">
+                              <Heart className="size-3.5 text-rose-500" /> Tadreeb & Tarbiyah
+                            </div>
+                            <p className="text-slate-800 dark:text-slate-200 font-medium pl-5 leading-relaxed">{item.tadreeb}</p>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            </div>
+          ) : (
+            /* Render Mode 2: Formatted Table View */
+            <Card className="rounded-2xl border-0 ring-1 ring-slate-200 dark:ring-slate-800 shadow-sm overflow-hidden p-6 space-y-4 bg-card">
+              <div className="flex items-center justify-between border-b pb-3">
+                <h3 className="text-sm font-black text-slate-900 dark:text-slate-100">Lahore Batch 4 Syllabus Spreadsheet Table</h3>
+                <Badge className="bg-purple-100 text-purple-800 font-bold text-xs">
+                  {filteredMatrix.length} Items
+                </Badge>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-slate-100/70 dark:bg-slate-800/70 text-slate-700 dark:text-slate-300 text-xs uppercase font-extrabold tracking-wider border-b border-slate-200 dark:border-slate-800">
+                    <tr>
+                      <th className="p-3.5 w-28">Week</th>
+                      <th className="p-3.5"><div className="flex items-center gap-1.5"><Flame className="size-4 text-orange-500" /> Sports & Fitness</div></th>
+                      <th className="p-3.5"><div className="flex items-center gap-1.5"><Brain className="size-4 text-blue-500" /> Skills Module</div></th>
+                      <th className="p-3.5"><div className="flex items-center gap-1.5"><Heart className="size-4 text-rose-500" /> Tadreeb & Tarbiyah</div></th>
+                      <th className="p-3.5"><div className="flex items-center gap-1.5"><Target className="size-4 text-purple-500" /> Theme Focus</div></th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-xs font-medium">
+                    {filteredMatrix.map((row) => (
+                      <tr key={row.id} className="hover:bg-purple-50/20 dark:hover:bg-purple-950/10 transition-colors">
+                        <td className="p-3.5 font-bold text-[#4B0A8F]">
+                          <div>{row.week}</div>
+                          <span className="text-[10px] text-muted-foreground font-normal">{row.date}</span>
+                        </td>
+                        <td className="p-3.5 font-semibold text-slate-900 dark:text-slate-100">{row.sports}</td>
+                        <td className="p-3.5 font-semibold text-blue-700 dark:text-blue-400">{row.skills}</td>
+                        <td className="p-3.5 font-semibold text-emerald-700 dark:text-emerald-400">{row.tadreeb}</td>
+                        <td className="p-3.5">
+                          <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200 text-[10px] font-bold">
+                            {row.focus}
+                          </Badge>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          )}
         </TabsContent>
       </Tabs>
 
