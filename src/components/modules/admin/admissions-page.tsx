@@ -1559,6 +1559,21 @@ export function AdmissionsPage() {
                           Reject
                         </Button>
                       )}
+
+                      {/* Delete Record */}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8 text-xs text-red-600 border-red-200 hover:bg-red-50 rounded-xl font-bold"
+                        onClick={() => {
+                          if (confirm(`Are you sure you want to delete applicant ${detail.applicantName}?`)) {
+                            deleteMutation.mutate(detail.id);
+                          }
+                        }}
+                      >
+                        <Trash2 className="size-3.5 mr-1.5" />
+                        Delete Record
+                      </Button>
                     </div>
                   </div>
                 </div>
