@@ -752,7 +752,7 @@ export function AdmissionsPage() {
   }, [selectedApp, scoreForm, interviewResult, scoreNotes, interviewMutation]);
 
   // Detail data (must be before handlers that reference it)
-  const detail = selectedDetail || selectedApp;
+  const detail = (selectedDetail && !("error" in (selectedDetail as any)) ? selectedDetail : null) || selectedApp;
 
   const handleOpenEditAdditional = useCallback(() => {
     if (!detail) return;
