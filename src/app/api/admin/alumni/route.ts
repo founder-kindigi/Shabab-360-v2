@@ -12,6 +12,7 @@ const createAlumniSchema = z.object({
   graduationYear: z.number().default(2025),
   park: z.string(),
   city: z.string().default("Lahore"),
+  shababRole: z.string().optional(),
   currentProfession: z.string(),
   organization: z.string().optional(),
   higherEducation: z.string().optional(),
@@ -31,12 +32,13 @@ const mockAlumniList = [
     graduationYear: 2023,
     park: "Gulberg Park",
     city: "Lahore",
+    shababRole: "Former Sports Lead G12 & Muawin",
     currentProfession: "Software Engineer",
     organization: "Systems Limited",
     higherEducation: "BS Computer Science (FAST-NUCES)",
     linkedinUrl: "https://linkedin.com/in/usmanghani",
     isMentorAvailable: true,
-    mentorshipTopics: ["Software Engineering", "Career Counseling", "Public Speaking"],
+    mentorshipTopics: ["Software Engineering & Coding", "Tarbiyah & Character", "Public Speaking"],
     avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
   },
   {
@@ -49,12 +51,13 @@ const mockAlumniList = [
     graduationYear: 2024,
     park: "Gulshan Iqbal Park",
     city: "Lahore",
+    shababRole: "Former Tadreeb Lead & Murabbi Muawin",
     currentProfession: "Medical Officer",
     organization: "Services Hospital Lahore",
     higherEducation: "MBBS (King Edward Medical University)",
     linkedinUrl: "https://linkedin.com/in/ahmadraza",
     isMentorAvailable: true,
-    mentorshipTopics: ["Medical Career Prep", "Tarbiyah & Character"],
+    mentorshipTopics: ["Medical Career Prep", "Seerah Study Circles", "First Aid Workshops"],
     avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
   },
   {
@@ -67,12 +70,13 @@ const mockAlumniList = [
     graduationYear: 2023,
     park: "Johar Town Park",
     city: "Lahore",
+    shababRole: "Former Park Admin & Muawin G13",
     currentProfession: "Chartered Accountant",
     organization: "PwC Pakistan",
     higherEducation: "CA / ACCA (ICAP)",
     linkedinUrl: "https://linkedin.com/in/bilalhassan",
     isMentorAvailable: false,
-    mentorshipTopics: ["Finance & Audit", "Time Management"],
+    mentorshipTopics: ["Finance & Audit", "Time Management", "Park Operations Management"],
     avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80",
   },
   {
@@ -85,12 +89,13 @@ const mockAlumniList = [
     graduationYear: 2025,
     park: "Griffin Park",
     city: "Lahore",
+    shababRole: "Former Sports Muawin & Media Lead",
     currentProfession: "Civil Engineer",
     organization: "NESPAK",
     higherEducation: "BS Civil Engineering (UET Lahore)",
     linkedinUrl: "https://linkedin.com/in/hamzasheikh",
     isMentorAvailable: true,
-    mentorshipTopics: ["Engineering Admissions", "Sports & Fitness Leadership"],
+    mentorshipTopics: ["Engineering Admissions", "Sports Gala Organizing", "Fitness Drills"],
     avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80",
   },
   {
@@ -103,12 +108,13 @@ const mockAlumniList = [
     graduationYear: 2024,
     park: "Gulshan Ravi Park",
     city: "Lahore",
+    shababRole: "Former Tarbiyah Lead & Seerah Circle Muawin",
     currentProfession: "Islamic Studies Lecturer",
     organization: "Al-Burhan Institute",
     higherEducation: "M.Phil Islamic Studies (PU)",
     linkedinUrl: "https://linkedin.com/in/muhammadali",
     isMentorAvailable: true,
-    mentorshipTopics: ["Seerah & Tarbiyah", "Community Service"],
+    mentorshipTopics: ["Seerah & Tarbiyah", "Ethical Leadership", "Khidmat & Community Service"],
     avatar: "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=150&auto=format&fit=crop&q=80",
   },
   {
@@ -121,12 +127,13 @@ const mockAlumniList = [
     graduationYear: 2025,
     park: "State Life Park",
     city: "Lahore",
-    currentProfession: "Entrepreneur & Founder",
+    shababRole: "Former Skills Lead & Workshop Trainer",
+    currentProfession: "Entrepreneur & Tech Founder",
     organization: "TechVenture PK",
     higherEducation: "BS Business Analytics (LUMS)",
     linkedinUrl: "https://linkedin.com/in/zaidfarooq",
     isMentorAvailable: true,
-    mentorshipTopics: ["Entrepreneurship", "Public Speaking", "Financial Literacy"],
+    mentorshipTopics: ["Entrepreneurship", "Financial Literacy Workshops", "Public Speaking"],
     avatar: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150&auto=format&fit=crop&q=80",
   },
 ];
@@ -148,7 +155,8 @@ export async function GET(request: NextRequest) {
         a.fullName.toLowerCase().includes(search) ||
         a.currentProfession.toLowerCase().includes(search) ||
         a.organization.toLowerCase().includes(search) ||
-        a.mobile.includes(search)
+        a.mobile.includes(search) ||
+        (a.shababRole && a.shababRole.toLowerCase().includes(search))
     );
   }
 

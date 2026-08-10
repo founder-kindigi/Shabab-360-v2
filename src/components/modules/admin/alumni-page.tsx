@@ -61,6 +61,7 @@ interface AlumniRecord {
   graduationYear: number;
   park: string;
   city: string;
+  shababRole?: string;
   currentProfession: string;
   organization?: string;
   higherEducation?: string;
@@ -314,6 +315,12 @@ export function AlumniPage() {
                   </div>
 
                   <div className="space-y-1.5 text-xs text-slate-600 dark:text-slate-300 font-medium bg-slate-50 dark:bg-slate-900/50 p-3 rounded-xl">
+                    {alumnus.shababRole && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground text-[11px]">Shabab Role:</span>
+                        <span className="font-extrabold text-purple-700 dark:text-purple-400">{alumnus.shababRole}</span>
+                      </div>
+                    )}
                     <div className="flex items-center justify-between">
                       <span className="text-muted-foreground text-[11px]">Graduation:</span>
                       <span className="font-bold">{alumnus.graduationBatch} ({alumnus.graduationYear})</span>
