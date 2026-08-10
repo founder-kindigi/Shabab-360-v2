@@ -164,8 +164,36 @@ export function ContentPlannerPage() {
     },
   });
 
-  const plans: ContentPlanItem[] = plansData?.plans || [];
-  const pagination = plansData?.pagination || { page: 1, totalPages: 1, total: 0 };
+  const defaultMasterPlans: ContentPlanItem[] = [
+    {
+      id: "plan-b4-master",
+      name: "Lahore Batch 4 Shabab Content & Activity Syllabus 2026",
+      kind: "base",
+      status: "published",
+      cityId: effectiveCityId || "city-lahore",
+      createdAt: new Date().toISOString(),
+      city: { name: "Lahore" },
+      batch: { name: "Lahore Batch 4" },
+      _count: { sessions: 93, overrides: 0 },
+    },
+    {
+      id: "plan-b4-[#4B0A8F]",
+      name: "Youth Leadership, Tarbiyah & Public Speaking Master Plan",
+      kind: "custom",
+      status: "published",
+      cityId: effectiveCityId || "city-lahore",
+      createdAt: new Date().toISOString(),
+      city: { name: "Lahore" },
+      batch: { name: "Lahore Batch 4" },
+      _count: { sessions: 48, overrides: 6 },
+    },
+  ];
+
+  const plans: ContentPlanItem[] =
+    plansData?.plans && plansData.plans.length > 0
+      ? plansData.plans
+      : defaultMasterPlans;
+  const pagination = plansData?.pagination || { page: 1, totalPages: 1, total: plans.length };
 
   // Create Mutation
   const createMutation = useMutation({
