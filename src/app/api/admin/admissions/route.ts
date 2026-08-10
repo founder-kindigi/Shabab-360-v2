@@ -34,6 +34,26 @@ const admissionListQuerySchema = paginatedQuerySchema({ maxPageSize: 200 }).exte
   cityId: optionalIdentifier(),
 });
 
+function parseRawDateToIso(rawDate?: string): string {
+  if (!rawDate) return new Date().toISOString();
+  try {
+    const parts = rawDate.split(" ");
+    if (parts[0] && parts[0].includes("/")) {
+      const [d, m, y] = parts[0].split("/");
+      const time = parts[1] || "00:00:00";
+      if (d && m && y) {
+        const iso = `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}T${time}.000Z`;
+        const dt = new Date(iso);
+        if (!isNaN(dt.getTime())) return dt.toISOString();
+      }
+    }
+    const fallback = new Date(rawDate);
+    return isNaN(fallback.getTime()) ? new Date().toISOString() : fallback.toISOString();
+  } catch {
+    return new Date().toISOString();
+  }
+}
+
 // Map raw 759 portal export records to Admissions Application shape
 const portalDatasetApplications = rawDataset.map((r, idx) => ({
   id: `portal-app-${r.sr}`,
@@ -54,7 +74,7 @@ const portalDatasetApplications = rawDataset.map((r, idx) => ({
   emergencyPhone: r.whatsapp || r.mobile,
   previousEducation: r.grade || "N/A",
   reference: r.interests || "Portal Raw Import",
-  createdAt: r.registeredDate ? new Date(r.registeredDate.split(" ")[0].split("/").reverse().join("-")).toISOString() : new Date().toISOString(),
+  createdAt: parseRawDateToIso(r.registeredDate),
   updatedAt: new Date().toISOString(),
   interviews: r.status === "Approved" ? [{
     id: `intv-${r.sr}`,
