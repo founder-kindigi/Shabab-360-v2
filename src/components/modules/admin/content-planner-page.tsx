@@ -202,6 +202,7 @@ export function ContentPlannerPage() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [kindFilter, setKindFilter] = useState<string>("all");
   const [teamFilter, setTeamFilter] = useState<string>("all");
+  const [selectedWeekFilter, setSelectedWeekFilter] = useState<string>("Week 1");
   const [viewMode, setViewMode] = useState<"cards" | "table">("cards");
   const [page, setPage] = useState(1);
 
@@ -431,14 +432,21 @@ export function ContentPlannerPage() {
     });
   }, [realSyllabus]);
 
-  // Team filtered matrix items
+  // Single Active Week Filter (Defaults to 1 week plan: Week 1)
   const filteredMatrix = useMemo(() => {
-    if (teamFilter === "exercises") return matrixData.filter((m) => m.exercises && m.exercises.length > 2);
-    if (teamFilter === "sports") return matrixData.filter((m) => m.sports && m.sports.length > 2);
-    if (teamFilter === "skills") return matrixData.filter((m) => m.skills && m.skills.length > 2);
-    if (teamFilter === "tadreeb") return matrixData.filter((m) => m.tadreeb && m.tadreeb.length > 2);
-    return matrixData;
-  }, [matrixData, teamFilter]);
+    let list = matrixData;
+
+    if (selectedWeekFilter !== "all") {
+      list = list.filter((m) => m.week.toLowerCase().trim() === selectedWeekFilter.toLowerCase().trim());
+    }
+
+    if (teamFilter === "exercises") list = list.filter((m) => m.exercises && m.exercises.length > 2);
+    if (teamFilter === "sports") list = list.filter((m) => m.sports && m.sports.length > 2);
+    if (teamFilter === "skills") list = list.filter((m) => m.skills && m.skills.length > 2);
+    if (teamFilter === "tadreeb") list = list.filter((m) => m.tadreeb && m.tadreeb.length > 2);
+
+    return list;
+  }, [matrixData, selectedWeekFilter, teamFilter]);
 
   return (
     <div className="space-y-6">
@@ -477,9 +485,9 @@ export function ContentPlannerPage() {
         <Card className="p-4 rounded-2xl border-0 ring-1 ring-slate-200 dark:ring-slate-800 shadow-sm bg-gradient-to-br from-emerald-500/5 to-teal-500/5">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs font-bold text-muted-foreground">Published Syllabus</p>
-              <p className="text-2xl font-black text-slate-900 dark:text-slate-100">{matrixData.length} Items</p>
-              <p className="text-[11px] text-emerald-600 font-bold mt-0.5">Extracted directly from B4 Plan</p>
+              <p className="text-xs font-bold text-muted-foreground">Active Week Plan</p>
+              <p className="text-2xl font-black text-slate-900 dark:text-slate-100">{selectedWeekFilter === "all" ? "All 68 Items" : selectedWeekFilter}</p>
+              <p className="text-[11px] text-emerald-600 font-bold mt-0.5">Monday to Sunday Focus</p>
             </div>
             <div className="size-11 rounded-2xl bg-emerald-600/10 flex items-center justify-center text-emerald-600">
               <CalendarDays className="size-6" />
@@ -523,7 +531,7 @@ export function ContentPlannerPage() {
           </TabsTrigger>
           <TabsTrigger value="matrix" className="rounded-xl text-xs font-bold px-4 py-2 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 shadow-sm">
             <Sparkles className="size-4 mr-2 text-amber-500" />
-            Lahore Batch 4 Running Syllabus Matrix ({matrixData.length} items)
+            Lahore Batch 4 Running Syllabus Matrix ({filteredMatrix.length} items)
           </TabsTrigger>
         </TabsList>
 
@@ -608,6 +616,37 @@ export function ContentPlannerPage() {
         </TabsContent>
 
         <TabsContent value="matrix" className="space-y-4">
+          {/* Single Active Week Selector Bar */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+            <span className="text-xs font-bold text-slate-500 mr-1 shrink-0 flex items-center gap-1">
+              <CalendarDays className="size-3.5 text-purple-600" /> Active Week Plan:
+            </span>
+            {[
+              { id: "Week 1", label: "🌟 Week 1 (Active Mon - Sun)" },
+              { id: "Week 2", label: "Week 2" },
+              { id: "Week 3", label: "Week 3" },
+              { id: "Week 4", label: "Week 4" },
+              { id: "Week 5", label: "Week 5" },
+              { id: "Week 6", label: "Week 6" },
+              { id: "Week 7", label: "Week 7" },
+              { id: "Week 8", label: "Week 8" },
+              { id: "all", label: "All Weeks (Full Roster)" },
+            ].map((wTab) => (
+              <button
+                key={wTab.id}
+                onClick={() => setSelectedWeekFilter(wTab.id)}
+                className={cn(
+                  "px-3 py-1.5 rounded-xl text-xs font-bold shrink-0 transition-all border",
+                  selectedWeekFilter === wTab.id
+                    ? "bg-[#4B0A8F] text-white border-[#4B0A8F] shadow-sm"
+                    : "bg-white dark:bg-slate-900 text-slate-600 border-slate-200 dark:border-slate-800 hover:bg-slate-50"
+                )}
+              >
+                {wTab.label}
+              </button>
+            ))}
+          </div>
+
           {/* Team Filter Pills & View Switcher */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-card p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
             <div className="flex items-center gap-2 overflow-x-auto w-full sm:w-auto pb-1 sm:pb-0">
@@ -627,7 +666,7 @@ export function ContentPlannerPage() {
                     className={cn(
                       "px-3 py-1.5 rounded-xl text-xs font-bold shrink-0 transition-all flex items-center gap-1.5 border",
                       teamFilter === t.id
-                        ? "bg-[#4B0A8F] text-white border-[#4B0A8F] shadow-sm"
+                        ? "bg-purple-600 text-white border-purple-600 shadow-sm"
                         : "bg-white dark:bg-slate-900 text-slate-600 border-slate-200 dark:border-slate-800 hover:bg-slate-50"
                     )}
                   >
@@ -658,7 +697,7 @@ export function ContentPlannerPage() {
             </div>
           </div>
 
-          {/* Render Mode 1: Modern Web Cards Grid */}
+          {/* Render Mode 1: Modern Web Cards Grid (1 Active Week Plan) */}
           {viewMode === "cards" ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <AnimatePresence mode="popLayout">
@@ -729,7 +768,9 @@ export function ContentPlannerPage() {
             /* Render Mode 2: Formatted Table View */
             <Card className="rounded-2xl border-0 ring-1 ring-slate-200 dark:ring-slate-800 shadow-sm overflow-hidden p-6 space-y-4 bg-card">
               <div className="flex items-center justify-between border-b pb-3">
-                <h3 className="text-sm font-black text-slate-900 dark:text-slate-100">Lahore Batch 4 Syllabus Spreadsheet Table</h3>
+                <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                  <CalendarDays className="size-4 text-purple-600" /> Active Week Plan Table ({selectedWeekFilter === "all" ? "All Weeks" : selectedWeekFilter})
+                </h3>
                 <Badge className="bg-purple-100 text-purple-800 font-bold text-xs">
                   {filteredMatrix.length} Items
                 </Badge>
