@@ -48,6 +48,9 @@ import {
   Check,
   X,
   Share2,
+  Trophy,
+  Flame,
+  CheckCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -120,7 +123,9 @@ export function IslahMamulatPage() {
   const [isLogModalOpen, setIsLogModalOpen] = useState(false);
   const [isGuidanceModalOpen, setIsGuidanceModalOpen] = useState(false);
 
-  // Daily Tracker Interactive State
+  // Daily Tracker Interactive State (matching islahimamulat.com)
+  const [wakeupTime, setWakeupTime] = useState("05:30 AM");
+  const [sleepTime, setSleepTime] = useState("10:30 PM");
   const [fajr, setFajr] = useState(true);
   const [dhuhr, setDhuhr] = useState(true);
   const [asr, setAsr] = useState(true);
@@ -133,6 +138,9 @@ export function IslahMamulatPage() {
   const [mutalaahMins, setMutalaahMins] = useState(20);
   const [hifzNazar, setHifzNazar] = useState(5);
   const [logNotes, setLogNotes] = useState("");
+
+  // 40-Day Challenge Streak Tracker
+  const [streakDays, setStreakDays] = useState(14);
 
   // Guidance Form State
   const [guideTitle, setGuideTitle] = useState("");
@@ -174,6 +182,8 @@ export function IslahMamulatPage() {
   const handleSaveDailyLog = () => {
     logMutation.mutate({
       date: new Date().toISOString().slice(0, 10),
+      wakeupTime,
+      sleepTime,
       fajrJamaat: fajr,
       dhuhrJamaat: dhuhr,
       asrJamaat: asr,
@@ -190,19 +200,56 @@ export function IslahMamulatPage() {
     });
   };
 
+  // ─── Generate Urdu WhatsApp Message (matching islahimamulat.com format) ───
+  const generateWhatsAppMessage = () => {
+    const todayStr = new Date().toLocaleDateString("en-US", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+
+    const msg = `السلام عليكم و رحمة اللہ و برکاتہ
+
+*تاریخ: ${todayStr}*
+*اصلاحِ معمولات کارگزاری (دن: ${streakDays} of 40)*
+
+*فرض نماز باجماعت:*
+${fajr ? "(✓)" : "(✕)"} فجر باجماعت
+${dhuhr ? "(✓)" : "(✕)"} ظہر باجماعت
+${asr ? "(✓)" : "(✕)"} عصر باجماعت
+${maghrib ? "(✓)" : "(✕)"} مغرب باجماعت
+${isha ? "(✓)" : "(✕)"} عشاء باجماعت
+
+*یومیہ معمولات:*
+${tilawatMins > 0 ? `(✓) تلاوت قرآن: ${tilawatMins} منٹ` : "(✕) تلاوت قرآن"}
+${morningAzkar ? "(✓)" : "(✕)"} صبح کے اذکار
+${eveningAzkar ? "(✓)" : "(✕)"} شام کے اذکار
+${tahajjud ? "(✓)" : "(✕)"} تہجد
+${mutalaahMins > 0 ? `(✓) مطالعہ: ${mutalaahMins} منٹ` : "(✕) مطالعہ"}
+
+جاگنے کا وقت: ${wakeupTime}
+سونے کا وقت: ${sleepTime}
+
+*Shabab 360 Islah Studio*: https://islahimamulat.com/`;
+
+    const encoded = encodeURIComponent(msg);
+    window.open(`https://api.whatsapp.com/send?text=${encoded}`, "_blank");
+    toast.success("Opening WhatsApp with your formatted Islah report!");
+  };
+
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-1 pb-6 space-y-6">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-1 pb-12 space-y-6">
       {/* ─── Page Header & Portal Link ─── */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-gradient-to-r from-emerald-500/10 via-teal-500/5 to-transparent p-5 rounded-2xl border border-emerald-200/60 dark:border-emerald-900/40">
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-bold tracking-tight text-foreground">
               اصلاح و معمولات — Islah-i-Mamulat Studio
             </h1>
-            <Badge className="bg-[#4B0A8F] text-white">Al-Burhan Module</Badge>
+            <Badge className="bg-emerald-600 text-white font-bold">Al-Burhan Portal Synced</Badge>
           </div>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Spiritual Routine Tracker & Self-Reformation Studio • Daily Prayers, Quran Tilawat, Azkar & Murabbi Guidance.
+            Spiritual Routine Tracker & Self-Reformation Studio • Daily Prayers, Wakeup/Sleep Times, 40-Day Champions & Murabbi Inspection.
           </p>
         </div>
 
@@ -211,10 +258,19 @@ export function IslahMamulatPage() {
             variant="outline"
             size="sm"
             onClick={() => window.open("https://islahimamulat.com/", "_blank")}
-            className="gap-2 border-slate-300 dark:border-slate-700"
+            className="gap-2 border-emerald-300 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-50"
           >
-            <ExternalLink className="size-4 text-blue-600 dark:text-blue-400" />
+            <ExternalLink className="size-4 text-emerald-600" />
             <span>Open islahimamulat.com</span>
+          </Button>
+
+          <Button
+            size="sm"
+            onClick={generateWhatsAppMessage}
+            className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow"
+          >
+            <Share2 className="size-4" />
+            <span>Share Log on WhatsApp</span>
           </Button>
 
           <Button
@@ -228,7 +284,7 @@ export function IslahMamulatPage() {
         </div>
       </div>
 
-      {/* ─── 4 Top KPI Cards ─── */}
+      {/* ─── 4 Top KPI Cards (with 40-Day Champions) ─── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="border border-slate-200 dark:border-slate-800 shadow-sm rounded-xl overflow-hidden relative">
           <CardContent className="p-5">
@@ -249,20 +305,21 @@ export function IslahMamulatPage() {
           </CardContent>
         </Card>
 
+        {/* 40-Day Champions Card */}
         <Card className="border border-slate-200 dark:border-slate-800 shadow-sm rounded-xl overflow-hidden relative">
           <CardContent className="p-5">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Active Trackers
+                  40-Day Champions Streak
                 </p>
-                <h3 className="text-2xl font-bold text-foreground mt-1">240 Members</h3>
-                <p className="text-xs text-purple-600 dark:text-purple-400 font-medium mt-1">
-                  Across 6 Lahore Parks
+                <h3 className="text-2xl font-bold text-amber-600 dark:text-amber-400 mt-1">Day {streakDays} / 40</h3>
+                <p className="text-xs text-amber-600 font-medium mt-1 flex items-center gap-1">
+                  <Flame className="size-3 text-amber-500 fill-amber-500" /> Active 14-Day Streak
                 </p>
               </div>
-              <div className="size-12 rounded-xl bg-purple-100 dark:bg-purple-950/50 flex items-center justify-center text-purple-600 dark:text-purple-400">
-                <Users className="size-6" />
+              <div className="size-12 rounded-xl bg-amber-100 dark:bg-amber-950/50 flex items-center justify-center text-amber-600 dark:text-amber-400">
+                <Trophy className="size-6" />
               </div>
             </div>
           </CardContent>
@@ -275,12 +332,12 @@ export function IslahMamulatPage() {
                 <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   Monthly Islah Karguzaris
                 </p>
-                <h3 className="text-2xl font-bold text-foreground mt-1">180 Reports</h3>
-                <p className="text-xs text-blue-600 dark:text-blue-400 font-medium mt-1">
-                  Submitted This Month
+                <h3 className="text-2xl font-bold text-foreground mt-1">142 Reports</h3>
+                <p className="text-xs text-purple-600 dark:text-purple-400 font-medium mt-1">
+                  Across 6 Active Parks
                 </p>
               </div>
-              <div className="size-12 rounded-xl bg-blue-100 dark:bg-blue-950/50 flex items-center justify-center text-blue-600 dark:text-blue-400">
+              <div className="size-12 rounded-xl bg-purple-100 dark:bg-purple-950/50 flex items-center justify-center text-purple-600 dark:text-purple-400">
                 <CalendarCheck className="size-6" />
               </div>
             </div>
@@ -294,431 +351,260 @@ export function IslahMamulatPage() {
                 <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   Murabbi Guidance Notes
                 </p>
-                <h3 className="text-2xl font-bold text-foreground mt-1">142 Advice Notes</h3>
-                <p className="text-xs text-amber-600 dark:text-amber-400 font-medium mt-1">
-                  Issued Spiritual Guidance
+                <h3 className="text-2xl font-bold text-foreground mt-1">18 Verified</h3>
+                <p className="text-xs text-blue-600 dark:text-blue-400 font-medium mt-1">
+                  Active Mentorship
                 </p>
               </div>
-              <div className="size-12 rounded-xl bg-amber-100 dark:bg-amber-950/50 flex items-center justify-center text-amber-600 dark:text-amber-400">
-                <BookOpen className="size-6" />
+              <div className="size-12 rounded-xl bg-blue-100 dark:bg-blue-950/50 flex items-center justify-center text-blue-600 dark:text-blue-400">
+                <Sparkles className="size-6" />
               </div>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* ─── Navigation Tabs ─── */}
-      <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val as any)} className="w-full">
-        <TabsList className="grid grid-cols-5 w-full bg-muted/60 p-1 rounded-xl">
-          <TabsTrigger value="tracker" className="gap-2 text-xs font-medium rounded-lg">
-            <CheckCircle2 className="size-3.5" />
-            <span>Daily Tracker (یومیہ معمولات)</span>
+      {/* ─── Tabs Navigation ─── */}
+      <Tabs value={activeTab} onValueChange={(v: any) => setActiveTab(v)} className="w-full space-y-4">
+        <TabsList className="bg-slate-100 dark:bg-slate-800 p-1.5 rounded-xl">
+          <TabsTrigger value="tracker" className="rounded-lg text-xs font-bold gap-2">
+            <CheckCircle2 className="size-3.5" /> Daily Mamulat Tracker
           </TabsTrigger>
-          <TabsTrigger value="karguzari" className="gap-2 text-xs font-medium rounded-lg">
-            <CalendarCheck className="size-3.5" />
-            <span>Monthly Karguzari (کارگزاری)</span>
+          <TabsTrigger value="karguzari" className="rounded-lg text-xs font-bold gap-2">
+            <BookOpen className="size-3.5" /> Islah Karguzari Roster
           </TabsTrigger>
-          <TabsTrigger value="guidance" className="gap-2 text-xs font-medium rounded-lg">
-            <BookOpen className="size-3.5" />
-            <span>Murabbi Advice (رہنمائی)</span>
+          <TabsTrigger value="guidance" className="rounded-lg text-xs font-bold gap-2">
+            <MessageSquare className="size-3.5" /> Murabbi Guidance Feed
           </TabsTrigger>
-          <TabsTrigger value="presets" className="gap-2 text-xs font-medium rounded-lg">
-            <Layers className="size-3.5" />
-            <span>Routine Presets (نصاب)</span>
-          </TabsTrigger>
-          <TabsTrigger value="analytics" className="gap-2 text-xs font-medium rounded-lg">
-            <TrendingUp className="size-3.5" />
-            <span>Park Analytics</span>
+          <TabsTrigger value="presets" className="rounded-lg text-xs font-bold gap-2">
+            <Layers className="size-3.5" /> Routine Presets (Levels 1-3)
           </TabsTrigger>
         </TabsList>
 
         {/* ─── TAB 1: DAILY MAMULAT TRACKER ─── */}
-        <TabsContent value="tracker" className="mt-4 space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            {/* Left: Interactive Daily Checklist (7 cols) */}
-            <div className="lg:col-span-7 space-y-6">
-              <Card className="border border-slate-200 dark:border-slate-800 shadow-sm rounded-xl">
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <CardTitle className="text-base font-bold text-foreground">
-                        Today's Spiritual Routine Checklist (معمولاتِ یومیہ)
-                      </CardTitle>
-                      <CardDescription className="text-xs">
-                        Mark your daily prayers, Quran recitation, azkar, and self-reflection.
-                      </CardDescription>
-                    </div>
-                    <Badge className="bg-[#4B0A8F] text-white text-xs">
-                      {new Date().toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
-                    </Badge>
-                  </div>
-                </CardHeader>
+        <TabsContent value="tracker" className="space-y-4">
+          <Card className="border border-slate-200 dark:border-slate-800 shadow-sm rounded-xl overflow-hidden bg-white dark:bg-slate-900">
+            <CardHeader className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <CardTitle className="text-base font-bold text-foreground">
+                    Today's Islah-i-Mamulat Checklist & Sleep/Wake Timings
+                  </CardTitle>
+                  <CardDescription className="text-xs">
+                    Record your 5 Fardh Jama'at prayers, wake-up/sleep timings, Quran tilawat, and daily Azkar.
+                  </CardDescription>
+                </div>
+                <Badge className="bg-emerald-600 text-white font-mono text-xs">
+                  Day {streakDays} of 40 Challenge
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="p-6 space-y-6">
+              {/* 40-Day Progress Bar */}
+              <div className="p-4 rounded-xl border border-amber-200 dark:border-amber-900/60 bg-amber-50/40 dark:bg-amber-950/20 space-y-2">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-bold text-amber-900 dark:text-amber-300 flex items-center gap-1.5">
+                    <Trophy className="size-4 text-amber-600" />
+                    40-Day Champion Challenge Progress
+                  </span>
+                  <span className="font-mono font-bold text-amber-800 dark:text-amber-200">
+                    {Math.round((streakDays / 40) * 100)}% Completed
+                  </span>
+                </div>
+                <Progress value={(streakDays / 40) * 100} className="h-2.5 bg-amber-200 dark:bg-amber-950" />
+              </div>
 
-                <CardContent className="space-y-5 pt-0">
-                  {/* 🕌 Fardh Jama'at Prayers */}
-                  <div className="space-y-2">
-                    <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                      🕌 5 Fardh Jama'at Prayers (پنجگانہ باجماعت نماز)
-                    </Label>
-                    <div className="grid grid-cols-5 gap-2">
-                      {[
-                        { label: "Fajr", state: fajr, setter: setFajr },
-                        { label: "Dhuhr", state: dhuhr, setter: setDhuhr },
-                        { label: "Asr", state: asr, setter: setAsr },
-                        { label: "Maghrib", state: maghrib, setter: setMaghrib },
-                        { label: "Isha", state: isha, setter: setIsha },
-                      ].map((p) => (
-                        <Button
-                          key={p.label}
-                          type="button"
-                          variant={p.state ? "default" : "outline"}
-                          onClick={() => p.setter(!p.state)}
-                          className={cn(
-                            "h-10 text-xs font-bold flex flex-col items-center justify-center p-1 rounded-xl transition-all",
-                            p.state
-                              ? "bg-[#4B0A8F] hover:bg-[#3b0873] text-white shadow-sm"
-                              : "border-slate-300 dark:border-slate-700 text-muted-foreground"
-                          )}
-                        >
-                          <span>{p.label}</span>
-                          <span className="text-[10px] font-normal">{p.state ? "✓ Jama'at" : "Missed"}</span>
-                        </Button>
-                      ))}
-                    </div>
-                  </div>
+              {/* Wakeup & Sleep Time Inputs */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                    <Sun className="size-4 text-amber-500" /> Wake-up Time (جاگنے کا وقت)
+                  </Label>
+                  <Input
+                    value={wakeupTime}
+                    onChange={(e) => setWakeupTime(e.target.value)}
+                    className="text-xs bg-white dark:bg-slate-900"
+                    placeholder="e.g. 05:30 AM"
+                  />
+                </div>
 
-                  {/* 📖 Quran Tilawat & Azkar */}
-                  <div className="grid grid-cols-2 gap-3 pt-2">
-                    <div className="bg-slate-50 dark:bg-slate-900 p-3 rounded-xl border border-slate-200/80 dark:border-slate-800 space-y-2">
-                      <Label className="text-xs font-bold text-foreground">📖 Quran Tilawat (تلاوت)</Label>
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-semibold text-purple-600">{tilawatMins} Mins</span>
-                        <input
-                          type="range"
-                          min="5"
-                          max="60"
-                          step="5"
-                          value={tilawatMins}
-                          onChange={(e) => setTilawatMins(Number(e.target.value))}
-                          className="w-24 h-1.5 bg-purple-200 rounded-lg appearance-none cursor-pointer"
-                        />
-                      </div>
-                    </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                    <Moon className="size-4 text-indigo-500" /> Sleep Time (سونے کا وقت)
+                  </Label>
+                  <Input
+                    value={sleepTime}
+                    onChange={(e) => setSleepTime(e.target.value)}
+                    className="text-xs bg-white dark:bg-slate-900"
+                    placeholder="e.g. 10:30 PM"
+                  />
+                </div>
+              </div>
 
-                    <div className="bg-slate-50 dark:bg-slate-900 p-3 rounded-xl border border-slate-200/80 dark:border-slate-800 space-y-2">
-                      <Label className="text-xs font-bold text-foreground">📚 Mutala'ah Reading (مطالعہ)</Label>
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-semibold text-purple-600">{mutalaahMins} Mins</span>
-                        <input
-                          type="range"
-                          min="5"
-                          max="60"
-                          step="5"
-                          value={mutalaahMins}
-                          onChange={(e) => setMutalaahMins(Number(e.target.value))}
-                          className="w-24 h-1.5 bg-purple-200 rounded-lg appearance-none cursor-pointer"
-                        />
-                      </div>
-                    </div>
-                  </div>
+              {/* 5 Fardh Jama'at Prayers */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                  <Heart className="size-4 text-emerald-600" />
+                  5 Fardh Prayers in Jama'at (پنجگانہ باجماعت نماز)
+                </h4>
 
-                  {/* 📿 Morning/Evening Azkar & Tahajjud Toggles */}
-                  <div className="grid grid-cols-3 gap-2">
-                    <label className={cn("p-2.5 rounded-xl border text-xs font-semibold cursor-pointer flex items-center justify-between", morningAzkar ? "bg-purple-50 border-purple-300 text-purple-900 dark:bg-purple-950/40 dark:text-purple-300" : "border-slate-200 text-muted-foreground")}>
-                      <span>🌅 Morning Azkar</span>
-                      <Checkbox checked={morningAzkar} onCheckedChange={(v) => setMorningAzkar(!!v)} />
-                    </label>
-
-                    <label className={cn("p-2.5 rounded-xl border text-xs font-semibold cursor-pointer flex items-center justify-between", eveningAzkar ? "bg-purple-50 border-purple-300 text-purple-900 dark:bg-purple-950/40 dark:text-purple-300" : "border-slate-200 text-muted-foreground")}>
-                      <span>🌆 Evening Azkar</span>
-                      <Checkbox checked={eveningAzkar} onCheckedChange={(v) => setEveningAzkar(!!v)} />
-                    </label>
-
-                    <label className={cn("p-2.5 rounded-xl border text-xs font-semibold cursor-pointer flex items-center justify-between", tahajjud ? "bg-amber-50 border-amber-300 text-amber-900 dark:bg-amber-950/40 dark:text-amber-300" : "border-slate-200 text-muted-foreground")}>
-                      <span>🌙 Tahajjud Nafil</span>
-                      <Checkbox checked={tahajjud} onCheckedChange={(v) => setTahajjud(!!v)} />
-                    </label>
-                  </div>
-
-                  {/* 🛡️ Hifz-i-Nazar Rating */}
-                  <div className="space-y-1.5 pt-1">
-                    <div className="flex items-center justify-between">
-                      <Label className="text-xs font-bold text-foreground">🛡️ Hifz-i-Nazar & Moral Self-Restraint (حفظِ نظر)</Label>
-                      <span className="text-xs font-bold text-amber-600">{hifzNazar} / 5 Stars</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {[1, 2, 3, 4, 5].map((star) => (
-                        <button
-                          key={star}
-                          type="button"
-                          onClick={() => setHifzNazar(star)}
-                          className={cn("size-8 rounded-lg flex items-center justify-center transition-all", star <= hifzNazar ? "text-amber-500 bg-amber-50 dark:bg-amber-950/50" : "text-slate-300")}
-                        >
-                          <Star className="size-5 fill-current" />
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <Button
-                    onClick={handleSaveDailyLog}
-                    disabled={logMutation.isPending}
-                    className="w-full bg-[#4B0A8F] hover:bg-[#3b0873] text-white gap-2 shadow"
-                  >
-                    <CheckCircle2 className="size-4" />
-                    <span>Save Today's Spiritual Log</span>
-                  </Button>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Right: Submitted Logs History (5 cols) */}
-            <div className="lg:col-span-5 space-y-4">
-              <Card className="border border-slate-200 dark:border-slate-800 shadow-sm rounded-xl">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base font-bold text-foreground">Submitted Logs Roster</CardTitle>
-                  <CardDescription className="text-xs">History of recent daily spiritual entries.</CardDescription>
-                </CardHeader>
-
-                <CardContent className="pt-0 space-y-3">
-                  {dailyLogs.map((log: any) => (
-                    <div key={log.id} className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-1.5 text-xs">
-                      <div className="flex items-center justify-between">
-                        <span className="font-bold text-foreground">{log.userName}</span>
-                        <Badge variant="outline" className="text-[10px]">{log.date}</Badge>
-                      </div>
-
-                      <div className="flex flex-wrap gap-1 text-[10px]">
-                        <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400">
-                          Jama'at: {[log.fajrJamaat, log.dhuhrJamaat, log.asrJamaat, log.maghribJamaat, log.ishaJamaat].filter(Boolean).length}/5
-                        </Badge>
-                        <Badge className="bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300">
-                          Tilawat: {log.quranTilawatMinutes}m
-                        </Badge>
-                        <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400">
-                          Rating: {log.hifzNazarRating}★
-                        </Badge>
-                      </div>
-
-                      {log.notes && <p className="text-muted-foreground italic text-[11px] mt-1">{log.notes}</p>}
-                    </div>
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                  {[
+                    { label: "Fajr (فجر)", state: fajr, setter: setFajr },
+                    { label: "Dhuhr (ظہر)", state: dhuhr, setter: setDhuhr },
+                    { label: "Asr (عصر)", state: asr, setter: setAsr },
+                    { label: "Maghrib (مغرب)", state: maghrib, setter: setMaghrib },
+                    { label: "Isha (عشاء)", state: isha, setter: setIsha },
+                  ].map((item, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => item.setter(!item.state)}
+                      className={cn(
+                        "p-3 rounded-xl border text-xs font-bold flex items-center justify-between transition-all",
+                        item.state
+                          ? "bg-emerald-50 dark:bg-emerald-950/60 border-emerald-300 dark:border-emerald-700 text-emerald-900 dark:text-emerald-100"
+                          : "bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500"
+                      )}
+                    >
+                      <span>{item.label}</span>
+                      {item.state ? (
+                        <CheckCircle className="size-4 text-emerald-600 fill-emerald-100" />
+                      ) : (
+                        <X className="size-4 text-slate-400" />
+                      )}
+                    </button>
                   ))}
-                </CardContent>
-              </Card>
-            </div>
-          </div>
+                </div>
+              </div>
+
+              {/* Additional Daily Spiritual Regimen */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+                {/* Tilawat & Mutala'ah Sliders */}
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-xs font-bold">
+                      <Label className="flex items-center gap-1.5">
+                        <BookOpen className="size-4 text-purple-600" /> Tilawat-e-Quran Minutes
+                      </Label>
+                      <span className="text-purple-600 font-mono">{tilawatMins} Mins</span>
+                    </div>
+                    <Input
+                      type="number"
+                      value={tilawatMins}
+                      onChange={(e) => setTilawatMins(Number(e.target.value))}
+                      className="text-xs h-8"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-xs font-bold">
+                      <Label className="flex items-center gap-1.5">
+                        <BookOpen className="size-4 text-blue-600" /> Religious Mutala'ah Minutes
+                      </Label>
+                      <span className="text-blue-600 font-mono">{mutalaahMins} Mins</span>
+                    </div>
+                    <Input
+                      type="number"
+                      value={mutalaahMins}
+                      onChange={(e) => setMutalaahMins(Number(e.target.value))}
+                      className="text-xs h-8"
+                    />
+                  </div>
+                </div>
+
+                {/* Daily Azkar & Tahajjud Checkboxes */}
+                <div className="space-y-3 bg-slate-50 dark:bg-slate-800/60 p-4 rounded-xl border border-slate-200 dark:border-slate-800">
+                  <label className="flex items-center gap-2.5 text-xs font-bold text-foreground cursor-pointer">
+                    <Checkbox checked={morningAzkar} onCheckedChange={(v: any) => setMorningAzkar(!!v)} />
+                    <span>Masnoon Morning Azkar (صبح کے اذکار)</span>
+                  </label>
+
+                  <label className="flex items-center gap-2.5 text-xs font-bold text-foreground cursor-pointer">
+                    <Checkbox checked={eveningAzkar} onCheckedChange={(v: any) => setEveningAzkar(!!v)} />
+                    <span>Masnoon Evening Azkar (شام کے اذکار)</span>
+                  </label>
+
+                  <label className="flex items-center gap-2.5 text-xs font-bold text-foreground cursor-pointer">
+                    <Checkbox checked={tahajjud} onCheckedChange={(v: any) => setTahajjud(!!v)} />
+                    <span>Tahajjud Prayer (تہجد کی نماز)</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Submit & WhatsApp Action Buttons */}
+              <div className="flex flex-col sm:flex-row items-center justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+                <Button
+                  variant="outline"
+                  onClick={generateWhatsAppMessage}
+                  className="gap-2 text-xs font-bold border-emerald-500 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 w-full sm:w-auto"
+                >
+                  <Share2 className="size-4 text-emerald-600" />
+                  <span>Share Log on WhatsApp</span>
+                </Button>
+
+                <Button
+                  onClick={handleSaveDailyLog}
+                  disabled={logMutation.isPending}
+                  className="gap-2 text-xs font-bold bg-[#4B0A8F] hover:bg-[#3b0873] text-white w-full sm:w-auto"
+                >
+                  <CheckCircle2 className="size-4" />
+                  <span>{logMutation.isPending ? "Saving..." : "Save Daily Log"}</span>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
 
-        {/* ─── TAB 2: MONTHLY ISLAH KARGUZARI ─── */}
-        <TabsContent value="karguzari" className="mt-4 space-y-4">
-          <div>
-            <h3 className="text-base font-semibold text-foreground">ماہانہ اصلاحی کارگزاری — Monthly Progress Roster</h3>
-            <p className="text-xs text-muted-foreground">Monthly performance reports logged by participants across Lahore parks.</p>
-          </div>
+        {/* ─── TAB 2: ISLAH KARGUZARI ROSTER ─── */}
+        <TabsContent value="karguzari" className="space-y-4">
+          <Card className="border border-slate-200 dark:border-slate-800 shadow-sm rounded-xl overflow-hidden bg-white dark:bg-slate-900 p-6 space-y-4">
+            <div className="flex justify-between items-center">
+              <h3 className="text-base font-bold text-foreground">Youth Cadets Islah Karguzari Roster</h3>
+              <Badge className="bg-blue-600 text-white">Gulberg Park</Badge>
+            </div>
 
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
-                <thead className="bg-slate-50 dark:bg-slate-800/60 text-muted-foreground font-semibold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
+                <thead className="bg-slate-50 dark:bg-slate-800 text-muted-foreground font-semibold uppercase">
                   <tr>
-                    <th className="py-3 px-4">Participant Name</th>
-                    <th className="py-3 px-4">Park Scope</th>
-                    <th className="py-3 px-4">Jama'at Score</th>
-                    <th className="py-3 px-4">Quran Tilawat</th>
-                    <th className="py-3 px-4">Mutala'ah Books</th>
-                    <th className="py-3 px-4 text-right">Performance Status</th>
+                    <th className="py-3 px-4">Cadet Name</th>
+                    <th className="py-3 px-4">Wakeup / Sleep</th>
+                    <th className="py-3 px-4">Jama'at Prayers</th>
+                    <th className="py-3 px-4">Tilawat</th>
+                    <th className="py-3 px-4">40-Day Streak</th>
+                    <th className="py-3 px-4 text-center">Murabbi Status</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-foreground">
-                  <tr className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  <tr className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
                     <td className="py-3 px-4 font-bold text-foreground">Muhammad Umair</td>
-                    <td className="py-3 px-4 text-muted-foreground">Gulberg Park</td>
-                    <td className="py-3 px-4 font-bold text-emerald-600">142 / 150 (94%)</td>
-                    <td className="py-3 px-4 font-medium">12 Juz Completed</td>
-                    <td className="py-3 px-4 text-muted-foreground">Seerah Book 1</td>
-                    <td className="py-3 px-4 text-right">
-                      <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400 text-[10px]">
-                        Mumtaz (Excellent)
+                    <td className="py-3 px-4 font-mono">05:30 AM / 10:30 PM</td>
+                    <td className="py-3 px-4 font-bold text-emerald-600">5 / 5 Jama'at</td>
+                    <td className="py-3 px-4">25 Mins</td>
+                    <td className="py-3 px-4 font-bold text-amber-600">Day 14 (Active)</td>
+                    <td className="py-3 px-4 text-center">
+                      <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                        Verified by Murabbi
                       </Badge>
                     </td>
                   </tr>
-
-                  <tr className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
-                    <td className="py-3 px-4 font-bold text-foreground">M Abdullah Qureshi</td>
-                    <td className="py-3 px-4 text-muted-foreground">Gulberg Park</td>
-                    <td className="py-3 px-4 font-bold text-amber-600">120 / 150 (80%)</td>
-                    <td className="py-3 px-4 font-medium">8 Juz Completed</td>
-                    <td className="py-3 px-4 text-muted-foreground">Islamic Ethics Vol 2</td>
-                    <td className="py-3 px-4 text-right">
-                      <Badge className="bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-400 text-[10px]">
-                        Jayyid (Good)
-                      </Badge>
+                  <tr className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                    <td className="py-3 px-4 font-bold text-foreground">Muhammad Ahmad</td>
+                    <td className="py-3 px-4 font-mono">06:00 AM / 11:00 PM</td>
+                    <td className="py-3 px-4 font-bold text-emerald-600">4 / 5 Jama'at</td>
+                    <td className="py-3 px-4">15 Mins</td>
+                    <td className="py-3 px-4 font-bold text-amber-600">Day 8 (Active)</td>
+                    <td className="py-3 px-4 text-center">
+                      <Badge variant="outline" className="text-amber-600">Pending Review</Badge>
                     </td>
                   </tr>
                 </tbody>
               </table>
             </div>
-          </div>
-        </TabsContent>
-
-        {/* ─── TAB 3: MURABBI ADVICE FEED ─── */}
-        <TabsContent value="guidance" className="mt-4 space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-base font-semibold text-foreground">اصلاحی رہنمائی و نصائح — Murabbi Guidance Feed</h3>
-              <p className="text-xs text-muted-foreground">Spiritual advice notes and instruction dispatches from Sheikh & Murabbis.</p>
-            </div>
-            <Button
-              onClick={() => setIsGuidanceModalOpen(true)}
-              className="bg-[#4B0A8F] hover:bg-[#3b0873] text-white gap-2 text-xs"
-            >
-              <Plus className="size-3.5" />
-              <span>Add Guidance Note</span>
-            </Button>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {GUIDANCE_NOTES.map((g) => (
-              <Card key={g.id} className="border border-slate-200 dark:border-slate-800 shadow-sm rounded-xl">
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <Badge className="bg-purple-100 text-purple-700 dark:bg-purple-950 text-purple-300 text-[10px] mb-1">
-                        {g.targetPark}
-                      </Badge>
-                      <CardTitle className="text-base font-bold text-foreground">{g.title}</CardTitle>
-                      <CardDescription className="text-xs mt-0.5">{g.author} • {g.date}</CardDescription>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="pt-0 text-xs text-muted-foreground space-y-3">
-                  <p className="bg-slate-50 dark:bg-slate-900 p-3 rounded-lg border border-slate-200/80 dark:border-slate-800 text-foreground">
-                    "{g.content}"
-                  </p>
-                  <div className="flex items-center justify-between text-[11px] pt-1">
-                    <span className="text-purple-600 font-semibold">{g.likes} Members Read</span>
-                    <Button variant="ghost" size="sm" className="h-6 text-xs text-slate-500">
-                      <Share2 className="size-3 mr-1" /> Share Note
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </TabsContent>
-
-        {/* ─── TAB 4: ROUTINE PRESETS ─── */}
-        <TabsContent value="presets" className="mt-4 space-y-4">
-          <div>
-            <h3 className="text-base font-semibold text-foreground">معمولات کا نصاب — Spiritual Routine Curriculum Presets</h3>
-            <p className="text-xs text-muted-foreground">Pre-configured spiritual target levels tailored for cadets, students, and Murabbis.</p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {ROUTINE_PRESETS.map((preset) => (
-              <Card key={preset.id} className="border border-slate-200 dark:border-slate-800 shadow-sm rounded-xl flex flex-col justify-between">
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <Badge className="bg-purple-100 text-purple-700 dark:bg-purple-950 text-purple-300 text-[10px]">
-                      {preset.badge}
-                    </Badge>
-                  </div>
-                  <CardTitle className="text-base font-bold text-foreground mt-2">{preset.name}</CardTitle>
-                  <CardDescription className="text-xs mt-1">{preset.description}</CardDescription>
-                </CardHeader>
-
-                <CardContent className="pt-0 space-y-3 text-xs">
-                  <div className="bg-slate-50 dark:bg-slate-900 p-3 rounded-lg border border-slate-200/80 dark:border-slate-800 space-y-1.5">
-                    <p><span className="font-semibold text-foreground">🕌 Prayers:</span> {preset.prayersTarget}</p>
-                    <p><span className="font-semibold text-foreground">📖 Tilawat:</span> {preset.dailyTilawat}</p>
-                    <p><span className="font-semibold text-foreground">📿 Azkar:</span> {preset.dailyAzkar}</p>
-                  </div>
-
-                  <Button className="w-full bg-[#4B0A8F] hover:bg-[#3b0873] text-white text-xs h-8">
-                    Adopt This Routine Level
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </TabsContent>
-
-        {/* ─── TAB 5: PARK COMPLIANCE ANALYTICS ─── */}
-        <TabsContent value="analytics" className="mt-4 space-y-4">
-          <div>
-            <h3 className="text-base font-semibold text-foreground">پارک وائز معمولات کارگزاری — Park Compliance Analytics</h3>
-            <p className="text-xs text-muted-foreground">Side-by-side spiritual routine compliance comparison across Lahore parks.</p>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {[
-              { name: "Gulberg Park", rate: 94, members: 60, leader: "Murabbi Ikram Meer" },
-              { name: "Gulshan Iqbal Park", rate: 88, members: 50, leader: "Fahad bhai" },
-              { name: "Griffin Park", rate: 85, members: 30, leader: "Hamza Tanveer" },
-              { name: "Johar Town Park", rate: 82, members: 35, leader: "Usman Ghani" },
-              { name: "Gulshan Ravi Park", rate: 79, members: 30, leader: "Ali Raza" },
-              { name: "State Life Park", rate: 91, members: 20, leader: "Tariq Mahmood" },
-            ].map((park) => (
-              <Card key={park.name} className="border border-slate-200 dark:border-slate-800 shadow-sm rounded-xl p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-sm font-bold text-foreground">{park.name}</h4>
-                  <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400 text-xs">
-                    {park.rate}% Compliance
-                  </Badge>
-                </div>
-                <div className="space-y-1">
-                  <Progress value={park.rate} className="h-2" />
-                  <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                    <span>{park.members} Active Members</span>
-                    <span>Lead: {park.leader}</span>
-                  </div>
-                </div>
-              </Card>
-            ))}
-          </div>
+          </Card>
         </TabsContent>
       </Tabs>
-
-      {/* ─── LOG DAILY MAMULAT MODAL ─── */}
-      <Dialog open={isLogModalOpen} onOpenChange={setIsLogModalOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-base font-bold">
-              <CheckCircle2 className="size-5 text-[#4B0A8F]" />
-              Quick Log Daily Mamulat
-            </DialogTitle>
-            <DialogDescription className="text-xs">
-              Quickly submit your daily spiritual entries.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-3 py-2 text-xs">
-            <p className="font-semibold text-foreground">5 Jama'at Prayers Check:</p>
-            <div className="flex items-center gap-2">
-              <Button size="sm" variant={fajr ? "default" : "outline"} onClick={() => setFajr(!fajr)} className="h-7 text-[11px]">Fajr</Button>
-              <Button size="sm" variant={dhuhr ? "default" : "outline"} onClick={() => setDhuhr(!dhuhr)} className="h-7 text-[11px]">Dhuhr</Button>
-              <Button size="sm" variant={asr ? "default" : "outline"} onClick={() => setAsr(!asr)} className="h-7 text-[11px]">Asr</Button>
-              <Button size="sm" variant={maghrib ? "default" : "outline"} onClick={() => setMaghrib(!maghrib)} className="h-7 text-[11px]">Maghrib</Button>
-              <Button size="sm" variant={isha ? "default" : "outline"} onClick={() => setIsha(!isha)} className="h-7 text-[11px]">Isha</Button>
-            </div>
-
-            <div className="space-y-1">
-              <Label className="text-xs font-medium">Tilawat Minutes</Label>
-              <Input type="number" value={tilawatMins} onChange={(e) => setTilawatMins(Number(e.target.value))} className="text-xs h-8" />
-            </div>
-
-            <div className="space-y-1">
-              <Label className="text-xs font-medium">Notes / Reflections (Optional)</Label>
-              <Textarea value={logNotes} onChange={(e) => setLogNotes(e.target.value)} className="text-xs h-16" />
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsLogModalOpen(false)}>Cancel</Button>
-            <Button onClick={handleSaveDailyLog} className="bg-[#4B0A8F] hover:bg-[#3b0873] text-white">Save Log</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
