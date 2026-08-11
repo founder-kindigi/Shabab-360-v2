@@ -34,7 +34,11 @@ import {
   Plus,
   Zap,
   Lock,
+  LayoutGrid,
+  List,
+  Calendar as CalendarIcon,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { ExportButton } from "@/components/shared/export-button";
 import { AttendanceReportPrint } from "@/components/shared/attendance-report-print";
 
@@ -114,6 +118,7 @@ export function AdminAttendanceEvents() {
   const { data: session } = useSession();
 
   // Filters & State
+  const [viewMode, setViewMode] = useState<"grid" | "table">("grid"); // CARD GRID DEFAULT
   const [selectedCity, setSelectedCity] = useState("all");
   const [selectedPark, setSelectedPark] = useState("all");
   const [statusFilter, setStatusFilter] = useState<"all" | "open" | "closed">("all");
@@ -348,10 +353,10 @@ export function AdminAttendanceEvents() {
         </Card>
       </div>
 
-      {/* ─── FILTERS & SEARCH BAR ─── */}
+      {/* ─── FILTERS, SEARCH & VIEW TOGGLE BAR ─── */}
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 space-y-3 shadow-sm">
-        <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-          <div className="relative">
+        <div className="grid grid-cols-1 sm:grid-cols-5 gap-3">
+          <div className="relative col-span-1 sm:col-span-2">
             <Search className="absolute left-3 top-2.5 size-4 text-muted-foreground" />
             <Input
               placeholder="Search session title or park..."
@@ -385,129 +390,200 @@ export function AdminAttendanceEvents() {
             </SelectContent>
           </Select>
 
-          <div className="flex items-center gap-1">
-            <Button
+          {/* VIEW SWITCHER */}
+          <div className="flex items-center justify-end bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700">
+            <button
               type="button"
-              size="sm"
-              variant={statusFilter === "all" ? "default" : "outline"}
-              onClick={() => setStatusFilter("all")}
-              className="h-9 text-xs flex-1"
+              onClick={() => setViewMode("grid")}
+              className={cn(
+                "p-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 transition-all flex-1 justify-center",
+                viewMode === "grid"
+                  ? "bg-white dark:bg-slate-900 text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
             >
-              All
-            </Button>
-            <Button
+              <LayoutGrid className="size-4" />
+              <span>Cards</span>
+            </button>
+
+            <button
               type="button"
-              size="sm"
-              variant={statusFilter === "open" ? "default" : "outline"}
-              onClick={() => setStatusFilter("open")}
-              className="h-9 text-xs flex-1"
+              onClick={() => setViewMode("table")}
+              className={cn(
+                "p-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 transition-all flex-1 justify-center",
+                viewMode === "table"
+                  ? "bg-white dark:bg-slate-900 text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
             >
-              Open
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant={statusFilter === "closed" ? "default" : "outline"}
-              onClick={() => setStatusFilter("closed")}
-              className="h-9 text-xs flex-1"
-            >
-              Closed
-            </Button>
+              <List className="size-4" />
+              <span>Table</span>
+            </button>
           </div>
         </div>
       </div>
 
-      {/* ─── ATTENDANCE EVENTS ROSTER TABLE ─── */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-slate-50 dark:bg-slate-800/60 text-muted-foreground font-semibold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
-              <tr>
-                <th className="py-3.5 px-4">Session Title & Group</th>
-                <th className="py-3.5 px-4">Park Scope</th>
-                <th className="py-3.5 px-4">Date</th>
-                <th className="py-3.5 px-4">Marked Compliance</th>
-                <th className="py-3.5 px-4">Breakdown</th>
-                <th className="py-3.5 px-4">Roster Status</th>
-                <th className="py-3.5 px-4 text-right">Actions</th>
-              </tr>
-            </thead>
-
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-foreground">
-              {filteredEvents.map((evt: any) => (
-                <tr key={evt.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors">
-                  <td className="py-3.5 px-4">
-                    <div>
-                      <span className="font-bold text-foreground">{evt.title}</span>
-                      <p className="text-[10px] text-muted-foreground mt-0.5">{evt.groupName}</p>
-                    </div>
-                  </td>
-
-                  <td className="py-3.5 px-4">
-                    <Badge variant="outline" className="text-[10px]">
-                      <MapPin className="size-3 mr-1" /> {evt.parkName}
+      {/* ─── ATTENDANCE EVENTS CARD GRID VIEW (DEFAULT) VS TABLE ─── */}
+      {viewMode === "grid" ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredEvents.map((evt: any) => (
+            <Card
+              key={evt.id}
+              className="border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all bg-white dark:bg-slate-900 space-y-4 flex flex-col justify-between"
+            >
+              <div className="space-y-3">
+                <div className="flex items-start justify-between gap-2">
+                  <Badge variant="outline" className="text-[10px] gap-1">
+                    <MapPin className="size-3 text-purple-600" /> {evt.parkName}
+                  </Badge>
+                  {evt.isClosed ? (
+                    <Badge className="bg-slate-100 text-slate-700 dark:bg-slate-800 text-[10px] gap-1">
+                      <Lock className="size-3" /> Closed
                     </Badge>
-                  </td>
+                  ) : (
+                    <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-950 text-[10px] gap-1">
+                      <Zap className="size-3" /> Active
+                    </Badge>
+                  )}
+                </div>
 
-                  <td className="py-3.5 px-4 font-mono text-muted-foreground">
-                    {evt.eventDate}
-                  </td>
+                <div>
+                  <h4 className="font-bold text-base text-foreground leading-snug">{evt.title}</h4>
+                  <p className="text-xs text-muted-foreground mt-0.5">{evt.groupName}</p>
+                </div>
 
-                  <td className="py-3.5 px-4">
-                    <div className="space-y-1 w-32">
-                      <div className="flex items-center justify-between text-[10px] font-bold">
-                        <span>{evt.markedCount} / {evt.participantCount}</span>
-                        <span className="text-purple-600">{evt.progress}%</span>
-                      </div>
-                      <Progress value={evt.progress} className="h-1.5" />
-                    </div>
-                  </td>
+                {/* Progress bar */}
+                <div className="space-y-1 pt-1">
+                  <div className="flex items-center justify-between text-xs font-bold">
+                    <span className="text-muted-foreground">Compliance Marked</span>
+                    <span className="text-purple-600">{evt.markedCount} / {evt.participantCount} ({evt.progress}%)</span>
+                  </div>
+                  <Progress value={evt.progress} className="h-2" />
+                </div>
 
-                  <td className="py-3.5 px-4">
-                    <div className="flex items-center gap-1">
-                      <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400 text-[10px]">
-                        {evt.presentCount} P
-                      </Badge>
-                      <Badge className="bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-400 text-[10px]">
-                        {evt.absentCount} A
-                      </Badge>
-                      <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400 text-[10px]">
-                        {evt.lateCount} L
-                      </Badge>
-                    </div>
-                  </td>
+                {/* Breakdown Badges */}
+                <div className="flex items-center gap-1.5 pt-1">
+                  <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400 text-xs px-2 py-0.5">
+                    {evt.presentCount} Present
+                  </Badge>
+                  <Badge className="bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-400 text-xs px-2 py-0.5">
+                    {evt.absentCount} Absent
+                  </Badge>
+                  <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400 text-xs px-2 py-0.5">
+                    {evt.lateCount} Late
+                  </Badge>
+                </div>
+              </div>
 
-                  <td className="py-3.5 px-4">
-                    {evt.isClosed ? (
-                      <Badge className="bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 text-[10px] gap-1">
-                        <Lock className="size-3" /> Closed
-                      </Badge>
-                    ) : (
-                      <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400 text-[10px] gap-1">
-                        <Zap className="size-3" /> Open (Live)
-                      </Badge>
-                    )}
-                  </td>
+              <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                <span className="text-xs font-mono text-muted-foreground flex items-center gap-1">
+                  <CalendarIcon className="size-3.5" /> {evt.eventDate}
+                </span>
 
-                  <td className="py-3.5 px-4 text-right">
-                    <div className="flex items-center justify-end gap-1.5">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleOpenPrintDialog(evt)}
-                        className="h-7 text-[11px] gap-1 border-slate-300 dark:border-slate-700"
-                      >
-                        <Printer className="size-3" />
-                        <span>Print Report</span>
-                      </Button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleOpenPrintDialog(evt)}
+                  className="h-8 text-xs gap-1.5 border-slate-300 dark:border-slate-700"
+                >
+                  <Printer className="size-3.5" /> Print Report
+                </Button>
+              </div>
+            </Card>
+          ))}
         </div>
-      </div>
+      ) : (
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-slate-50 dark:bg-slate-800/60 text-muted-foreground font-semibold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
+                <tr>
+                  <th className="py-3.5 px-4">Session Title & Group</th>
+                  <th className="py-3.5 px-4">Park Scope</th>
+                  <th className="py-3.5 px-4">Date</th>
+                  <th className="py-3.5 px-4">Marked Compliance</th>
+                  <th className="py-3.5 px-4">Breakdown</th>
+                  <th className="py-3.5 px-4">Roster Status</th>
+                  <th className="py-3.5 px-4 text-right">Actions</th>
+                </tr>
+              </thead>
+
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-foreground">
+                {filteredEvents.map((evt: any) => (
+                  <tr key={evt.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors">
+                    <td className="py-3.5 px-4">
+                      <div>
+                        <span className="font-bold text-foreground">{evt.title}</span>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">{evt.groupName}</p>
+                      </div>
+                    </td>
+
+                    <td className="py-3.5 px-4">
+                      <Badge variant="outline" className="text-[10px]">
+                        <MapPin className="size-3 mr-1" /> {evt.parkName}
+                      </Badge>
+                    </td>
+
+                    <td className="py-3.5 px-4 font-mono text-muted-foreground">
+                      {evt.eventDate}
+                    </td>
+
+                    <td className="py-3.5 px-4">
+                      <div className="space-y-1 w-32">
+                        <div className="flex items-center justify-between text-[10px] font-bold">
+                          <span>{evt.markedCount} / {evt.participantCount}</span>
+                          <span className="text-purple-600">{evt.progress}%</span>
+                        </div>
+                        <Progress value={evt.progress} className="h-1.5" />
+                      </div>
+                    </td>
+
+                    <td className="py-3.5 px-4">
+                      <div className="flex items-center gap-1">
+                        <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400 text-[10px]">
+                          {evt.presentCount} P
+                        </Badge>
+                        <Badge className="bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-400 text-[10px]">
+                          {evt.absentCount} A
+                        </Badge>
+                        <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400 text-[10px]">
+                          {evt.lateCount} L
+                        </Badge>
+                      </div>
+                    </td>
+
+                    <td className="py-3.5 px-4">
+                      {evt.isClosed ? (
+                        <Badge className="bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 text-[10px] gap-1">
+                          <Lock className="size-3" /> Closed
+                        </Badge>
+                      ) : (
+                        <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400 text-[10px] gap-1">
+                          <Zap className="size-3" /> Open (Live)
+                        </Badge>
+                      )}
+                    </td>
+
+                    <td className="py-3.5 px-4 text-right">
+                      <div className="flex items-center justify-end gap-1.5">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleOpenPrintDialog(evt)}
+                          className="h-7 text-[11px] gap-1 border-slate-300 dark:border-slate-700"
+                        >
+                          <Printer className="size-3" />
+                          <span>Print Report</span>
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* ─── PRINT ATTENDANCE REPORT DIALOG ─── */}
       <Dialog open={isPrintDialogOpen} onOpenChange={setIsPrintDialogOpen}>

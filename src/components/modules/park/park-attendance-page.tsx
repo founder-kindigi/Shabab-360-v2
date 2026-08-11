@@ -2,16 +2,13 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { useSession } from "next-auth/react";
-import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
-import { EmptyState } from "@/components/layout/empty-state";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -35,27 +32,18 @@ import {
   MessageSquare,
   Search,
   TrendingUp,
-  Calendar,
-  Layers,
   GraduationCap,
   ShieldCheck,
-  Lock,
-  UserCheck,
   UserPlus,
   AlertTriangle,
   Activity,
   MapPin,
   ChevronLeft,
   ChevronRight,
-  UserMinus,
-  Sparkles,
   Zap,
-  Filter,
-  Share2,
-  Clock,
-  XCircle,
+  LayoutGrid,
+  List,
   Check,
-  FileSpreadsheet,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -134,6 +122,7 @@ export function ParkAttendancePage() {
 
   // Flow & State
   const [activeFlow, setActiveFlow] = useState<"student" | "murabbi">("student");
+  const [viewMode, setViewMode] = useState<"grid" | "table">("grid"); // DEFAULT TO CARD GRID VIEW
   const [selectedPark, setSelectedPark] = useState("Gulberg");
   const [selectedGroup, setSelectedGroup] = useState("Group 1 | Murabbi: Ikram");
   const [selectedDate, setSelectedDate] = useState("2026-08-11");
@@ -146,12 +135,10 @@ export function ParkAttendancePage() {
   const [students, setStudents] = useState<StudentRosterItem[]>(INITIAL_STUDENT_DATA);
   const [murabbis, setMurabbis] = useState<MurabbiRosterItem[]>(INITIAL_MURABBI_DATA);
 
-  // Bulk Selection & Modals
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  // Modals
   const [whatsappModalData, setWhatsappModalData] = useState<{ name: string; phone: string } | null>(null);
   const [isDelegateModalOpen, setIsDelegateModalOpen] = useState(false);
 
-  // Sync groups when park changes
   const parkInfo = useMemo(() => PARKS_MOCK.find((p) => p.name === selectedPark) || PARKS_MOCK[0], [selectedPark]);
 
   useEffect(() => {
@@ -178,7 +165,7 @@ export function ParkAttendancePage() {
   const handleMarkAllPresent = () => {
     if (activeFlow === "student") {
       setStudents((prev) => prev.map((s) => ({ ...s, status: "present" })));
-      toast.success("Marked all students as PRESENT!");
+      toast.success("Marked all cadets as PRESENT!");
     } else {
       setMurabbis((prev) => prev.map((m) => ({ ...m, status: "present" })));
       toast.success("Marked all Murabbis as PRESENT!");
@@ -480,7 +467,7 @@ export function ParkAttendancePage() {
         )}
       </div>
 
-      {/* ─── SEARCH & STATUS FILTER BAR ─── */}
+      {/* ─── SEARCH, STATUS FILTER & VIEW TOGGLE BAR ─── */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
         <div className="relative w-full sm:w-80">
           <Search className="absolute left-3 top-2.5 size-4 text-muted-foreground" />
@@ -492,300 +479,389 @@ export function ParkAttendancePage() {
           />
         </div>
 
-        <div className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto">
-          {[
-            { id: "all", label: "All Statuses" },
-            { id: "present", label: "Present" },
-            { id: "late", label: "Late" },
-            { id: "absent", label: "Absent" },
-            { id: "leave", label: "Leave" },
-          ].map((f) => (
-            <Button
-              key={f.id}
+        <div className="flex items-center justify-between sm:justify-end w-full sm:w-auto gap-2">
+          {/* Status Filters */}
+          <div className="flex items-center gap-1 overflow-x-auto">
+            {[
+              { id: "all", label: "All Statuses" },
+              { id: "present", label: "Present" },
+              { id: "late", label: "Late" },
+              { id: "absent", label: "Absent" },
+              { id: "leave", label: "Leave" },
+            ].map((f) => (
+              <Button
+                key={f.id}
+                type="button"
+                variant={statusFilter === f.id ? "default" : "ghost"}
+                size="sm"
+                onClick={() => { setStatusFilter(f.id); setCurrentPage(1); }}
+                className={cn(
+                  "h-7 text-xs rounded-lg px-2.5",
+                  statusFilter === f.id
+                    ? "bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 font-semibold"
+                    : "text-muted-foreground"
+                )}
+              >
+                {f.label}
+              </Button>
+            ))}
+          </div>
+
+          {/* VIEW SWITCHER: CARD GRID (DEFAULT) VS TABLE */}
+          <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700">
+            <button
               type="button"
-              variant={statusFilter === f.id ? "default" : "ghost"}
-              size="sm"
-              onClick={() => { setStatusFilter(f.id); setCurrentPage(1); }}
-              className={cn("h-7 text-xs rounded-lg px-2.5", statusFilter === f.id ? "bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 font-semibold" : "text-muted-foreground")}
+              onClick={() => setViewMode("grid")}
+              className={cn(
+                "p-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 transition-all",
+                viewMode === "grid"
+                  ? "bg-white dark:bg-slate-900 text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
             >
-              {f.label}
-            </Button>
-          ))}
+              <LayoutGrid className="size-4" />
+              <span className="hidden md:inline">Cards</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setViewMode("table")}
+              className={cn(
+                "p-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 transition-all",
+                viewMode === "table"
+                  ? "bg-white dark:bg-slate-900 text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <List className="size-4" />
+              <span className="hidden md:inline">Table</span>
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* ─── ATTENDANCE ROSTER TABLE ─── */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-slate-50 dark:bg-slate-800/60 text-muted-foreground font-semibold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
-              <tr>
-                <th className="py-3 px-4 w-12">#</th>
-                <th className="py-3 px-4">{activeFlow === "student" ? "Cadet Name & Grade" : "Staff Name & Roles"}</th>
-                <th className="py-3 px-4">Contact Phone</th>
-                {activeFlow === "student" && <th className="py-3 px-4">Age / Grade</th>}
-                <th className="py-3 px-4 text-center">Interactive Status Toggle</th>
-                <th className="py-3 px-4 text-right">Actions</th>
-              </tr>
-            </thead>
+      {/* ─── MAIN ROSTER DISPLAY (CARD GRID VIEW VS TABLE VIEW) ─── */}
+      {viewMode === "grid" ? (
+        /* CARD GRID VIEW (DEFAULT) */
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {activeFlow === "student" ? (
+              paginatedStudents.length === 0 ? (
+                <div className="col-span-full py-12 text-center text-muted-foreground bg-white dark:bg-slate-900 rounded-2xl border p-8">
+                  No cadet cards found matching search query or status filter.
+                </div>
+              ) : (
+                paginatedStudents.map((s, idx) => (
+                  <Card
+                    key={s.id}
+                    className="border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-sm hover:shadow-md transition-all relative overflow-hidden bg-white dark:bg-slate-900"
+                  >
+                    {/* Status Top Strip */}
+                    <div
+                      className={cn(
+                        "h-1.5 w-full absolute top-0 left-0",
+                        s.status === "present"
+                          ? "bg-emerald-500"
+                          : s.status === "late"
+                          ? "bg-amber-500"
+                          : s.status === "absent"
+                          ? "bg-rose-500"
+                          : s.status === "leave"
+                          ? "bg-blue-500"
+                          : "bg-slate-300 dark:bg-slate-700"
+                      )}
+                    />
 
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-foreground">
-              {activeFlow === "student" ? (
-                paginatedStudents.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="py-12 text-center text-muted-foreground">
-                      No cadets found matching search query or filters.
-                    </td>
-                  </tr>
-                ) : (
+                    <div className="flex items-start justify-between gap-2 mt-1">
+                      <div className="flex items-center gap-3">
+                        <div className="size-10 rounded-xl bg-purple-100 dark:bg-purple-950 flex items-center justify-center text-purple-700 dark:text-purple-300 font-bold text-sm">
+                          {s.name.slice(0, 2).toUpperCase()}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-bold text-sm text-foreground">{s.name}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <Badge variant="outline" className="text-[10px]">
+                              {s.grade || "Cadet"} ({s.age ? `${s.age} yrs` : "-"})
+                            </Badge>
+                            {s.consecutiveAbsences >= 2 && (
+                              <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 text-[9px] px-1 py-0">
+                                {s.consecutiveAbsences}x Risk
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => triggerWhatsappAlert(s.name, s.phone)}
+                        className="size-8 p-0 rounded-lg text-emerald-600 border-emerald-200 dark:border-emerald-800 hover:bg-emerald-50"
+                        title="Send WhatsApp Alert"
+                      >
+                        <MessageSquare className="size-4" />
+                      </Button>
+                    </div>
+
+                    <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs text-muted-foreground">
+                      <span className="truncate max-w-[170px]">{s.groupName}</span>
+                      <span className="font-mono text-[11px]">{s.phone || "-"}</span>
+                    </div>
+
+                    {/* 4-State Interactive Action Buttons */}
+                    <div className="grid grid-cols-4 gap-1 mt-3.5">
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => handleStudentStatusChange(s.id, "present")}
+                        className={cn(
+                          "h-8 text-[11px] font-bold rounded-lg transition-all px-0",
+                          s.status === "present"
+                            ? "bg-emerald-600 text-white shadow-sm"
+                            : "bg-slate-100 text-slate-600 hover:bg-emerald-100 dark:bg-slate-800 dark:text-slate-400"
+                        )}
+                      >
+                        Present
+                      </Button>
+
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => handleStudentStatusChange(s.id, "late")}
+                        className={cn(
+                          "h-8 text-[11px] font-bold rounded-lg transition-all px-0",
+                          s.status === "late"
+                            ? "bg-amber-500 text-white shadow-sm"
+                            : "bg-slate-100 text-slate-600 hover:bg-amber-100 dark:bg-slate-800 dark:text-slate-400"
+                        )}
+                      >
+                        Late
+                      </Button>
+
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => handleStudentStatusChange(s.id, "absent")}
+                        className={cn(
+                          "h-8 text-[11px] font-bold rounded-lg transition-all px-0",
+                          s.status === "absent"
+                            ? "bg-rose-600 text-white shadow-sm"
+                            : "bg-slate-100 text-slate-600 hover:bg-rose-100 dark:bg-slate-800 dark:text-slate-400"
+                        )}
+                      >
+                        Absent
+                      </Button>
+
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => handleStudentStatusChange(s.id, "leave")}
+                        className={cn(
+                          "h-8 text-[11px] font-bold rounded-lg transition-all px-0",
+                          s.status === "leave"
+                            ? "bg-blue-600 text-white shadow-sm"
+                            : "bg-slate-100 text-slate-600 hover:bg-blue-100 dark:bg-slate-800 dark:text-slate-400"
+                        )}
+                      >
+                        Leave
+                      </Button>
+                    </div>
+                  </Card>
+                ))
+              )
+            ) : (
+              paginatedMurabbis.length === 0 ? (
+                <div className="col-span-full py-12 text-center text-muted-foreground bg-white dark:bg-slate-900 rounded-2xl border p-8">
+                  No staff cards found matching search query or status filter.
+                </div>
+              ) : (
+                paginatedMurabbis.map((m) => (
+                  <Card
+                    key={m.id}
+                    className="border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-sm hover:shadow-md transition-all relative overflow-hidden bg-white dark:bg-slate-900"
+                  >
+                    <div
+                      className={cn(
+                        "h-1.5 w-full absolute top-0 left-0",
+                        m.status === "present"
+                          ? "bg-emerald-500"
+                          : m.status === "late"
+                          ? "bg-amber-500"
+                          : m.status === "absent"
+                          ? "bg-rose-500"
+                          : "bg-slate-300 dark:bg-slate-700"
+                      )}
+                    />
+
+                    <div className="flex items-start justify-between gap-2 mt-1">
+                      <div className="flex items-center gap-3">
+                        <div className="size-10 rounded-xl bg-amber-100 dark:bg-amber-950 flex items-center justify-center text-amber-700 dark:text-amber-300 font-bold text-sm">
+                          {m.name.slice(0, 2).toUpperCase()}
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-sm text-foreground">{m.name}</h4>
+                          <div className="flex flex-wrap gap-1 mt-0.5">
+                            {m.roles.map((r) => (
+                              <Badge key={r} className="bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 text-[9px] px-1 py-0">
+                                {r}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => triggerWhatsappAlert(m.name, m.phone)}
+                        className="size-8 p-0 text-slate-600"
+                      >
+                        <Phone className="size-4" />
+                      </Button>
+                    </div>
+
+                    <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs text-muted-foreground">
+                      <span>{m.parkName} Staff</span>
+                      <span className="font-mono text-[11px]">{m.phone || "-"}</span>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-1.5 mt-3.5">
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => handleMurabbiStatusChange(m.id, "present")}
+                        className={cn(
+                          "h-8 text-[11px] font-bold rounded-lg transition-all",
+                          m.status === "present"
+                            ? "bg-emerald-600 text-white shadow-sm"
+                            : "bg-slate-100 text-slate-600 hover:bg-emerald-100 dark:bg-slate-800"
+                        )}
+                      >
+                        Present
+                      </Button>
+
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => handleMurabbiStatusChange(m.id, "late")}
+                        className={cn(
+                          "h-8 text-[11px] font-bold rounded-lg transition-all",
+                          m.status === "late"
+                            ? "bg-amber-500 text-white shadow-sm"
+                            : "bg-slate-100 text-slate-600 hover:bg-amber-100 dark:bg-slate-800"
+                        )}
+                      >
+                        Late
+                      </Button>
+
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => handleMurabbiStatusChange(m.id, "absent")}
+                        className={cn(
+                          "h-8 text-[11px] font-bold rounded-lg transition-all",
+                          m.status === "absent"
+                            ? "bg-rose-600 text-white shadow-sm"
+                            : "bg-slate-100 text-slate-600 hover:bg-rose-100 dark:bg-slate-800"
+                        )}
+                      >
+                        Absent
+                      </Button>
+                    </div>
+                  </Card>
+                ))
+              )
+            )}
+          </div>
+        </div>
+      ) : (
+        /* TABLE VIEW (FALLBACK OPTION) */
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-slate-50 dark:bg-slate-800/60 text-muted-foreground font-semibold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
+                <tr>
+                  <th className="py-3 px-4 w-12">#</th>
+                  <th className="py-3 px-4">{activeFlow === "student" ? "Cadet Name & Grade" : "Staff Name & Roles"}</th>
+                  <th className="py-3 px-4">Contact Phone</th>
+                  {activeFlow === "student" && <th className="py-3 px-4">Age / Grade</th>}
+                  <th className="py-3 px-4 text-center">Interactive Status Toggle</th>
+                  <th className="py-3 px-4 text-right">Actions</th>
+                </tr>
+              </thead>
+
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-foreground">
+                {activeFlow === "student" ? (
                   paginatedStudents.map((s, idx) => (
                     <tr key={s.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors">
                       <td className="py-3.5 px-4 font-mono text-muted-foreground font-semibold">
                         {(currentPage - 1) * itemsPerPage + idx + 1}
                       </td>
-
                       <td className="py-3.5 px-4">
-                        <div className="flex items-center gap-2.5">
-                          <div className="size-8 rounded-full bg-purple-100 dark:bg-purple-950 flex items-center justify-center text-purple-700 dark:text-purple-300 font-bold text-xs">
-                            {s.name.slice(0, 2).toUpperCase()}
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-1.5">
-                              <span className="font-bold text-foreground">{s.name}</span>
-                              {s.consecutiveAbsences >= 2 && (
-                                <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-400 text-[9px] px-1 py-0">
-                                  {s.consecutiveAbsences}x Absences Risk
-                                </Badge>
-                              )}
-                            </div>
-                            <span className="text-[10px] text-muted-foreground">{s.groupName}</span>
-                          </div>
-                        </div>
+                        <span className="font-bold text-foreground">{s.name}</span>
                       </td>
-
-                      <td className="py-3.5 px-4 font-mono">
-                        {s.phone ? (
-                          <div className="flex items-center gap-1">
-                            <span>{s.phone}</span>
-                            {s.ownPhone && <Badge variant="outline" className="text-[9px]">Own</Badge>}
-                          </div>
-                        ) : (
-                          <span className="text-muted-foreground">-</span>
-                        )}
+                      <td className="py-3.5 px-4 font-mono">{s.phone || "-"}</td>
+                      <td className="py-3.5 px-4">{s.grade}</td>
+                      <td className="py-3.5 px-4 text-center">
+                        <Badge className="capitalize">{s.status}</Badge>
                       </td>
-
-                      <td className="py-3.5 px-4">
-                        <Badge variant="secondary" className="text-[10px]">
-                          {s.grade || "Cadet"} ({s.age ? `${s.age} yrs` : "-"})
-                        </Badge>
-                      </td>
-
-                      <td className="py-3.5 px-4">
-                        <div className="flex items-center justify-center gap-1">
-                          <Button
-                            type="button"
-                            size="sm"
-                            onClick={() => handleStudentStatusChange(s.id, "present")}
-                            className={cn(
-                              "h-7 text-[11px] font-bold px-2.5 rounded-lg transition-all",
-                              s.status === "present"
-                                ? "bg-emerald-600 text-white shadow-sm"
-                                : "bg-slate-100 text-slate-600 hover:bg-emerald-100 hover:text-emerald-700 dark:bg-slate-800 dark:text-slate-400"
-                            )}
-                          >
-                            Present
-                          </Button>
-
-                          <Button
-                            type="button"
-                            size="sm"
-                            onClick={() => handleStudentStatusChange(s.id, "late")}
-                            className={cn(
-                              "h-7 text-[11px] font-bold px-2.5 rounded-lg transition-all",
-                              s.status === "late"
-                                ? "bg-amber-500 text-white shadow-sm"
-                                : "bg-slate-100 text-slate-600 hover:bg-amber-100 hover:text-amber-700 dark:bg-slate-800 dark:text-slate-400"
-                            )}
-                          >
-                            Late
-                          </Button>
-
-                          <Button
-                            type="button"
-                            size="sm"
-                            onClick={() => handleStudentStatusChange(s.id, "absent")}
-                            className={cn(
-                              "h-7 text-[11px] font-bold px-2.5 rounded-lg transition-all",
-                              s.status === "absent"
-                                ? "bg-rose-600 text-white shadow-sm"
-                                : "bg-slate-100 text-slate-600 hover:bg-rose-100 hover:text-rose-700 dark:bg-slate-800 dark:text-slate-400"
-                            )}
-                          >
-                            Absent
-                          </Button>
-
-                          <Button
-                            type="button"
-                            size="sm"
-                            onClick={() => handleStudentStatusChange(s.id, "leave")}
-                            className={cn(
-                              "h-7 text-[11px] font-bold px-2.5 rounded-lg transition-all",
-                              s.status === "leave"
-                                ? "bg-blue-600 text-white shadow-sm"
-                                : "bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 dark:bg-slate-800 dark:text-slate-400"
-                            )}
-                          >
-                            Leave
-                          </Button>
-                        </div>
-                      </td>
-
                       <td className="py-3.5 px-4 text-right">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => triggerWhatsappAlert(s.name, s.phone)}
-                          className="h-7 text-[11px] text-emerald-700 border-emerald-300 dark:border-emerald-800 dark:text-emerald-400 gap-1"
-                        >
-                          <MessageSquare className="size-3" />
-                          <span>WhatsApp</span>
+                        <Button variant="outline" size="sm" onClick={() => triggerWhatsappAlert(s.name, s.phone)}>
+                          WhatsApp
                         </Button>
                       </td>
                     </tr>
                   ))
-                )
-              ) : (
-                paginatedMurabbis.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="py-12 text-center text-muted-foreground">
-                      No staff members found matching search query or filters.
-                    </td>
-                  </tr>
                 ) : (
                   paginatedMurabbis.map((m, idx) => (
-                    <tr key={m.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors">
-                      <td className="py-3.5 px-4 font-mono text-muted-foreground font-semibold">
-                        {(currentPage - 1) * itemsPerPage + idx + 1}
-                      </td>
-
-                      <td className="py-3.5 px-4">
-                        <div className="flex items-center gap-2.5">
-                          <div className="size-8 rounded-full bg-amber-100 dark:bg-amber-950 flex items-center justify-center text-amber-700 dark:text-amber-300 font-bold text-xs">
-                            {m.name.slice(0, 2).toUpperCase()}
-                          </div>
-                          <div>
-                            <span className="font-bold text-foreground">{m.name}</span>
-                            <div className="flex flex-wrap gap-1 mt-0.5">
-                              {m.roles.map((r) => (
-                                <Badge key={r} className="bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-400 text-[9px] px-1 py-0">
-                                  {r}
-                                </Badge>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-
-                      <td className="py-3.5 px-4 font-mono">
-                        {m.phone ? <span>{m.phone}</span> : <span className="text-muted-foreground">-</span>}
-                      </td>
-
-                      <td className="py-3.5 px-4">
-                        <div className="flex items-center justify-center gap-1">
-                          <Button
-                            type="button"
-                            size="sm"
-                            onClick={() => handleMurabbiStatusChange(m.id, "present")}
-                            className={cn(
-                              "h-7 text-[11px] font-bold px-2.5 rounded-lg transition-all",
-                              m.status === "present"
-                                ? "bg-emerald-600 text-white shadow-sm"
-                                : "bg-slate-100 text-slate-600 hover:bg-emerald-100 dark:bg-slate-800"
-                            )}
-                          >
-                            Present
-                          </Button>
-
-                          <Button
-                            type="button"
-                            size="sm"
-                            onClick={() => handleMurabbiStatusChange(m.id, "late")}
-                            className={cn(
-                              "h-7 text-[11px] font-bold px-2.5 rounded-lg transition-all",
-                              m.status === "late"
-                                ? "bg-amber-500 text-white shadow-sm"
-                                : "bg-slate-100 text-slate-600 hover:bg-amber-100 dark:bg-slate-800"
-                            )}
-                          >
-                            Late
-                          </Button>
-
-                          <Button
-                            type="button"
-                            size="sm"
-                            onClick={() => handleMurabbiStatusChange(m.id, "absent")}
-                            className={cn(
-                              "h-7 text-[11px] font-bold px-2.5 rounded-lg transition-all",
-                              m.status === "absent"
-                                ? "bg-rose-600 text-white shadow-sm"
-                                : "bg-slate-100 text-slate-600 hover:bg-rose-100 dark:bg-slate-800"
-                            )}
-                          >
-                            Absent
-                          </Button>
-                        </div>
-                      </td>
-
-                      <td className="py-3.5 px-4 text-right">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => triggerWhatsappAlert(m.name, m.phone)}
-                          className="h-7 text-[11px] text-slate-600"
-                        >
-                          <MessageSquare className="size-3 mr-1" /> Call Staff
-                        </Button>
-                      </td>
+                    <tr key={m.id}>
+                      <td className="py-3.5 px-4">{idx + 1}</td>
+                      <td className="py-3.5 px-4">{m.name}</td>
+                      <td className="py-3.5 px-4">{m.phone}</td>
+                      <td className="py-3.5 px-4 text-center"><Badge>{m.status}</Badge></td>
+                      <td className="py-3.5 px-4 text-right"><Button variant="ghost" size="sm">Call</Button></td>
                     </tr>
                   ))
-                )
-              )}
-            </tbody>
-          </table>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
+      )}
 
-        {/* ─── PAGINATION FOOTER ─── */}
-        <div className="flex items-center justify-between px-4 py-3 bg-slate-50 dark:bg-slate-800/40 border-t border-slate-200 dark:border-slate-800 text-xs">
-          <span className="text-muted-foreground">
-            Showing {totalItems > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0} to{" "}
-            {Math.min(currentPage * itemsPerPage, totalItems)} of {totalItems} entries
+      {/* ─── PAGINATION FOOTER ─── */}
+      <div className="flex items-center justify-between px-4 py-3 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 text-xs shadow-sm">
+        <span className="text-muted-foreground">
+          Showing {totalItems > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0} to{" "}
+          {Math.min(currentPage * itemsPerPage, totalItems)} of {totalItems} entries
+        </span>
+
+        <div className="flex items-center gap-1">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={currentPage === 1}
+            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            className="h-7 px-2"
+          >
+            <ChevronLeft className="size-4" />
+          </Button>
+
+          <span className="px-2 font-medium text-foreground">
+            Page {currentPage} of {totalPages}
           </span>
 
-          <div className="flex items-center gap-1">
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={currentPage === 1}
-              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-              className="h-7 px-2"
-            >
-              <ChevronLeft className="size-4" />
-            </Button>
-
-            <span className="px-2 font-medium text-foreground">
-              Page {currentPage} of {totalPages}
-            </span>
-
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={currentPage === totalPages}
-              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-              className="h-7 px-2"
-            >
-              <ChevronRight className="size-4" />
-            </Button>
-          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={currentPage === totalPages}
+            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+            className="h-7 px-2"
+          >
+            <ChevronRight className="size-4" />
+          </Button>
         </div>
       </div>
 
