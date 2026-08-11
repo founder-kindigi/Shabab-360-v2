@@ -6,7 +6,6 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useAppStore, type PageId } from "@/stores/useAppStore";
 import { Sidebar } from "@/components/layout/sidebar";
 import { NotificationBell } from "@/components/layout/notification-bell";
-import { PageHeader } from "@/components/layout/page-header";
 import { EmptyState } from "@/components/layout/empty-state";
 import { Button } from "@/components/ui/button";
 import {
@@ -385,7 +384,6 @@ export function AppShell() {
     return () => document.removeEventListener("shortcut:escape", handleEscape);
   }, []);
   const pageTitle = pageTitles[currentPage] || "Dashboard";
-  const showPageHeader = !["admin-dashboard", "city-head-dashboard", "murabbi-dashboard", "park-dashboard", "park-attendance", "park-attendance-roster", "park-roster", "park-participants", "park-guardians", "park-schedule", "guardian-dashboard", "guardian-history", "guardian-announcements", "guardian-schedule", "guardian-fees", "student-dashboard", "student-history", "student-announcements", "student-schedule", "student-fees", "student-profile", "admin-cities", "admin-parks", "admin-batches", "admin-groups", "admin-users", "admin-access", "admin-audit-log", "admin-settings", "admin-attendance-events", "admin-people", "admin-announcements", "admin-reports", "admin-students", "admin-guardians", "admin-fees", "admin-admissions", "admin-events", "admin-events-detail", "admin-calling", "admin-calling-campaign-detail", "admin-calling-templates", "admin-collaboration-teams", "admin-mashwara", "admin-mashwara-detail", "admin-content-planner", "admin-media", "notifications"].includes(currentPage);
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
@@ -496,8 +494,6 @@ export function AppShell() {
         {/* Page content */}
         <main className="flex-1 overflow-y-auto pb-24 lg:pb-0">
           <div className="p-4 md:p-6 space-y-4">
-            {showPageHeader && <PageHeader title={pageTitle} />}
-            {!showPageHeader && <div className="mb-6" />}
             <AnimatePresence mode="wait">
               <motion.div
                 key={currentPage}
