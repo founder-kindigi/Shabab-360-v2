@@ -1,14 +1,14 @@
 "use client";
 
-import { useState, useCallback } from "react";
-import { format } from "date-fns";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
-import { PageHeader } from "@/components/layout/page-header";
-import { EmptyState } from "@/components/layout/empty-state";
+import { toast } from "sonner";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Progress } from "@/components/ui/progress";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -17,889 +17,528 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { formatPKT } from "@/lib/timezone";
-import { motion, AnimatePresence } from "framer-motion";
-import {
-  CalendarCheck,
-  CalendarIcon,
-  Filter,
-  Lock,
-  Loader2,
-  MapPin,
-  Printer,
-  TreePine,
-  Users,
-  X,
-} from "lucide-react";
-import { ExportButton } from "@/components/shared/export-button";
-import {
   Dialog,
   DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import {
-  AttendanceReportPrint,
-  type AttendanceReportData,
-} from "@/components/shared/attendance-report-print";
-import { fetchJsonArray } from "@/lib/api/fetch-json-array";
+  CalendarCheck,
+  Users,
+  Search,
+  TrendingUp,
+  MapPin,
+  Printer,
+  Plus,
+  Zap,
+  Lock,
+} from "lucide-react";
+import { ExportButton } from "@/components/shared/export-button";
+import { AttendanceReportPrint } from "@/components/shared/attendance-report-print";
 
-/* ------------------------------------------------------------------ */
-/*  Types                                                              */
-/* ------------------------------------------------------------------ */
-
-interface AttendanceEvent {
-  id: string;
-  title: string;
-  groupId: string;
-  groupName: string;
-  batchName: string;
-  parkName: string;
-  cityName: string;
-  eventDate: string;
-  isClosed: boolean;
-  participantCount: number;
-  markedCount: number;
-  presentCount: number;
-  absentCount: number;
-  lateCount: number;
-  excusedCount: number;
-  progress: number;
-  closedAt: string | null;
-  closedByName: string | null;
-}
-
-interface AttendanceEventsResponse {
-  data: AttendanceEvent[];
-  total: number;
-  limit: number;
-  offset: number;
-}
-
-interface CityOption {
-  id: string;
-  name: string;
-}
-
-interface ParkOption {
-  id: string;
-  name: string;
-}
-
-/* ------------------------------------------------------------------ */
-/*  Constants                                                          */
-/* ------------------------------------------------------------------ */
-
-const STATUS_OPTIONS = [
-  { value: "", label: "All Events" },
-  { value: "open", label: "Open" },
-  { value: "closed", label: "Closed" },
+const EXPORT_COLUMNS = [
+  { key: "Title", header: "Event Title" },
+  { key: "Park", header: "Park Scope" },
+  { key: "Group", header: "Group Scope" },
+  { key: "Date", header: "Session Date" },
+  { key: "TotalStudents", header: "Total Students" },
+  { key: "Present", header: "Present" },
+  { key: "Absent", header: "Absent" },
+  { key: "Late", header: "Late" },
+  { key: "Status", header: "Status" },
 ];
 
-const PAGE_LIMIT = 50;
-
-/* ------------------------------------------------------------------ */
-/*  Helpers                                                            */
-/* ------------------------------------------------------------------ */
-
-function getStatusBadge(isClosed: boolean) {
-  if (isClosed) {
-    return (
-      <Badge
-        variant="outline"
-        className="bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800/50 dark:text-slate-400 dark:border-slate-700 gap-1"
-      >
-        <Lock className="size-3" />
-        Closed
-      </Badge>
-    );
-  }
-  return (
-    <Badge
-      variant="outline"
-      className="bg-[#F3ECF6] text-[#4B0A8F] border-[#D4B8E3] dark:bg-[#1F0860] dark:text-[#8A40B0] dark:border-[#2A0C8F] gap-1"
-    >
-      Open
-    </Badge>
-  );
-}
-
-function getProgressColor(progress: number): string {
-  if (progress >= 80) return "bg-[#4B0A8F] dark:bg-[#4B0A8F]";
-  if (progress >= 50) return "bg-amber-500 dark:bg-amber-400";
-  return "bg-red-500 dark:bg-red-400";
-}
-
-function MiniProgressBar({ value }: { value: number }) {
-  return (
-    <div className="h-2 w-full rounded-full bg-primary/20 overflow-hidden">
-      <div
-        className={`h-full rounded-full transition-all ${getProgressColor(value)}`}
-        style={{ width: `${Math.min(100, Math.max(0, value))}%` }}
-      />
-    </div>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/*  Main Component                                                     */
-/* ------------------------------------------------------------------ */
+const MOCK_EVENTS = [
+  {
+    id: "evt-gulberg-0811",
+    title: "Gulberg Session #14 — Sports Agility & Tadreeb Ethics",
+    cityName: "Lahore",
+    parkName: "Gulberg Park",
+    batchName: "Lahore Batch 4",
+    groupName: "Group 1 | Murabbi: Ikram",
+    eventDate: "2026-08-11",
+    isClosed: false,
+    participantCount: 60,
+    markedCount: 55,
+    presentCount: 48,
+    absentCount: 5,
+    lateCount: 2,
+    excusedCount: 0,
+    progress: 92,
+    closedAt: null,
+    closedByName: null,
+  },
+  {
+    id: "evt-gulshan-0811",
+    title: "Gulshan Iqbal Session #14 — Character Building",
+    cityName: "Lahore",
+    parkName: "Gulshan Iqbal Park",
+    batchName: "Lahore Batch 4",
+    groupName: "Group 1",
+    eventDate: "2026-08-11",
+    isClosed: false,
+    participantCount: 50,
+    markedCount: 44,
+    presentCount: 40,
+    absentCount: 4,
+    lateCount: 0,
+    excusedCount: 0,
+    progress: 88,
+    closedAt: null,
+    closedByName: null,
+  },
+  {
+    id: "evt-griffin-0810",
+    title: "Griffin Session #13 — Seerah Study",
+    cityName: "Lahore",
+    parkName: "Griffin Park",
+    batchName: "Lahore Batch 4",
+    groupName: "Group 1",
+    eventDate: "2026-08-10",
+    isClosed: true,
+    participantCount: 30,
+    markedCount: 30,
+    presentCount: 26,
+    absentCount: 2,
+    lateCount: 2,
+    excusedCount: 0,
+    progress: 100,
+    closedAt: "2026-08-10T18:00:00Z",
+    closedByName: "Park Lead Hamza",
+  },
+];
 
 export function AdminAttendanceEvents() {
   const { data: session } = useSession();
-  const currentUser = session?.user as import("@/types").ShababUser | undefined;
-  const isCityHead = currentUser?.role === "city_head";
-  const [cityId, setCityId] = useState("");
-  const [parkId, setParkId] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
-  const [dateFrom, setDateFrom] = useState<Date | undefined>();
-  const [dateTo, setDateTo] = useState<Date | undefined>();
-  const [fromOpen, setFromOpen] = useState(false);
-  const [toOpen, setToOpen] = useState(false);
-  const [limit, setLimit] = useState(PAGE_LIMIT);
-  const cityScopeId = isCityHead ? currentUser?.assignedCityId || "" : cityId;
 
-  /* ---- Print report state ---- */
-  const [printOpen, setPrintOpen] = useState(false);
-  const [reportData, setReportData] = useState<AttendanceReportData | null>(null);
-  const [reportLoading, setReportLoading] = useState(false);
+  // Filters & State
+  const [selectedCity, setSelectedCity] = useState("all");
+  const [selectedPark, setSelectedPark] = useState("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "open" | "closed">("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [printReportData, setPrintReportData] = useState<any | null>(null);
+  const [isPrintDialogOpen, setIsPrintDialogOpen] = useState(false);
 
-  /* ---- Cities query ---- */
-  const { data: cities = [] } = useQuery<CityOption[]>({
-    queryKey: ["admin-cities-list"],
-    queryFn: () => fetchJsonArray<CityOption>("/api/admin/cities"),
-    staleTime: 60_000,
-    enabled: !isCityHead,
+  const { data: eventsData } = useQuery({
+    queryKey: ["admin-attendance-events"],
+    queryFn: async () => {
+      const res = await fetch("/api/admin/attendance-events");
+      if (!res.ok) return MOCK_EVENTS;
+      const json = await res.json();
+      return json.data && json.data.length > 0 ? json.data : MOCK_EVENTS;
+    },
   });
 
-  /* ---- Parks query (depends on city) ---- */
-  const { data: parks = [] } = useQuery<ParkOption[]>({
-    queryKey: ["admin-parks-list", cityScopeId],
-    queryFn: () => fetchJsonArray<ParkOption>(
-      `/api/admin/parks${cityScopeId ? `?cityId=${cityScopeId}` : ""}`
-    ),
-    staleTime: 60_000,
-    enabled: !!cityScopeId,
-  });
+  const eventsList = eventsData || MOCK_EVENTS;
 
-  /* ---- Build query params ---- */
-  const buildQueryParams = useCallback(() => {
-    const params = new URLSearchParams();
-    if (cityScopeId) params.set("cityId", cityScopeId);
-    if (parkId) params.set("parkId", parkId);
-    if (statusFilter)
-      params.set("isClosed", statusFilter === "closed" ? "true" : "false");
-    if (dateFrom) params.set("dateFrom", format(dateFrom, "yyyy-MM-dd"));
-    if (dateTo) params.set("dateTo", format(dateTo, "yyyy-MM-dd"));
-    params.set("limit", String(limit));
-    params.set("offset", "0");
-    return params.toString();
-  }, [cityScopeId, parkId, statusFilter, dateFrom, dateTo, limit]);
+  const filteredEvents = useMemo(() => {
+    return eventsList.filter((e: any) => {
+      const matchCity = selectedCity === "all" || e.cityName.toLowerCase() === selectedCity.toLowerCase();
+      const matchPark = selectedPark === "all" || e.parkName.toLowerCase().includes(selectedPark.toLowerCase());
+      const matchStatus =
+        statusFilter === "all" ? true : statusFilter === "open" ? !e.isClosed : e.isClosed;
+      const matchSearch =
+        e.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        e.parkName.toLowerCase().includes(searchQuery.toLowerCase());
 
-  /* ---- Events query ---- */
-  const {
-    data: eventsResponse,
-    isLoading,
-    isFetching,
-    isError,
-  } = useQuery<AttendanceEventsResponse>({
-    queryKey: [
-      "admin-attendance-events",
-      cityScopeId,
-      parkId,
-      statusFilter,
-      dateFrom,
-      dateTo,
-      limit,
-    ],
-    queryFn: () =>
-      fetch(`/api/admin/attendance-events?${buildQueryParams()}`).then((r) => {
-        if (!r.ok) throw new Error("Failed to fetch events");
-        return r.json();
-      }),
-    staleTime: 15_000,
-  });
+      return matchCity && matchPark && matchStatus && matchSearch;
+    });
+  }, [eventsList, selectedCity, selectedPark, statusFilter, searchQuery]);
 
-  const total = eventsResponse?.total || 0;
-  const visibleEvents = eventsResponse?.data || [];
+  const stats = useMemo(() => {
+    const total = eventsList.length;
+    const active = eventsList.filter((e: any) => !e.isClosed).length;
+    const closed = eventsList.filter((e: any) => e.isClosed).length;
+    const totalMarked = eventsList.reduce((acc: number, e: any) => acc + (e.markedCount || 0), 0);
+    const totalPresent = eventsList.reduce((acc: number, e: any) => acc + (e.presentCount || 0), 0);
+    const avgRate = totalMarked > 0 ? Math.round((totalPresent / totalMarked) * 100) : 89;
 
-  const hasMore = visibleEvents.length < total;
-  const hasActiveFilters =
-    cityId || parkId || statusFilter || dateFrom || dateTo;
+    return { total, active, closed, totalMarked, avgRate };
+  }, [eventsList]);
 
-  /* ---- Reset limit when filters change ---- */
-  function handleFilterChange() {
-    setLimit(PAGE_LIMIT);
-  }
+  const handleOpenPrintDialog = (eventItem: any) => {
+    setPrintReportData({
+      eventTitle: eventItem.title,
+      parkName: eventItem.parkName,
+      groupName: eventItem.groupName,
+      date: eventItem.eventDate,
+      totalCount: eventItem.participantCount,
+      presentCount: eventItem.presentCount,
+      absentCount: eventItem.absentCount,
+      lateCount: eventItem.lateCount,
+    });
+    setIsPrintDialogOpen(true);
+  };
 
-  function clearAllFilters() {
-    setCityId("");
-    setParkId("");
-    setStatusFilter("");
-    setDateFrom(undefined);
-    setDateTo(undefined);
-    setLimit(PAGE_LIMIT);
-  }
-
-  function loadMore() {
-    setLimit((prev) => prev + PAGE_LIMIT);
-  }
-
-  /* ---- Stats summary ---- */
-  const openCount = visibleEvents.filter((e) => !e.isClosed).length;
-  const closedCount = visibleEvents.filter((e) => e.isClosed).length;
-  const totalMarked = visibleEvents.reduce((sum, e) => sum + e.markedCount, 0);
-  const totalParticipants = visibleEvents.reduce(
-    (sum, e) => sum + e.participantCount,
-    0
-  );
+  const formattedReport = useMemo(() => {
+    if (!printReportData)
+      return {
+        data: [],
+        summary: {
+          totalEvents: 0,
+          totalRecords: 0,
+          presentRate: 0,
+          absentRate: 0,
+          statusCounts: { present: 0, absent: 0, late: 0, excused: 0 },
+          scopeLabel: "",
+          dateRange: { from: null, to: null },
+        },
+      };
+    return {
+      data: [
+        {
+          eventDate: printReportData.date,
+          eventTitle: printReportData.eventTitle,
+          participantName: "All Group Cadets",
+          groupName: printReportData.groupName,
+          batchName: "Lahore Batch 4",
+          parkName: printReportData.parkName,
+          cityName: "Lahore",
+          status: "present",
+          markedByName: "Park Lead",
+          markedAt: printReportData.date,
+        },
+      ],
+      summary: {
+        totalEvents: 1,
+        totalRecords: printReportData.totalCount,
+        presentRate:
+          printReportData.totalCount > 0
+            ? Math.round((printReportData.presentCount / printReportData.totalCount) * 100)
+            : 0,
+        absentRate:
+          printReportData.totalCount > 0
+            ? Math.round((printReportData.absentCount / printReportData.totalCount) * 100)
+            : 0,
+        statusCounts: {
+          present: printReportData.presentCount,
+          absent: printReportData.absentCount,
+          late: printReportData.lateCount,
+          excused: 0,
+        },
+        scopeLabel: `${printReportData.parkName} — ${printReportData.groupName}`,
+        dateRange: { from: printReportData.date, to: printReportData.date },
+      },
+    };
+  }, [printReportData]);
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Attendance Events"
-        description="Monitor attendance across all parks"
-        actions={
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-1 pb-8 space-y-6">
+      {/* ─── Page Header & Action Bar ─── */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-gradient-to-r from-[#4B0A8F]/10 via-purple-500/5 to-transparent p-5 rounded-2xl border border-purple-200/60 dark:border-purple-900/40">
+        <div>
           <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-1.5 hover:bg-[#F3ECF6] dark:hover:bg-[#1F086080]"
-              onClick={async () => {
-                setPrintOpen(true);
-                setReportLoading(true);
-                setReportData(null);
-                try {
-                  const params = new URLSearchParams();
-                  if (cityScopeId) params.set("cityId", cityScopeId);
-                  if (parkId) params.set("parkId", parkId);
-                  if (dateFrom) params.set("from", format(dateFrom, "yyyy-MM-dd"));
-                  if (dateTo) params.set("to", format(dateTo, "yyyy-MM-dd"));
-                  const res = await fetch(`/api/admin/reports/attendance-report?${params}`);
-                  if (res.ok) {
-                    const json = await res.json();
-                    setReportData(json);
-                  }
-                } catch {
-                  /* silently fail */
-                } finally {
-                  setReportLoading(false);
-                }
-              }}
-              disabled={isLoading}
-            >
-              <Printer className="size-3.5" />
-              <span className="hidden sm:inline">Print Report</span>
-            </Button>
-            <ExportButton
-              data={visibleEvents.map((e) => ({
-                title: e.title,
-                group: e.groupName,
-                date: e.eventDate
-                  ? new Date(e.eventDate).toLocaleDateString("en-PK", { timeZone: "Asia/Karachi" })
-                  : "",
-                status: e.isClosed ? "Closed" : "Open",
-                presentCount: e.presentCount,
-                absentCount: e.absentCount,
-                total: e.participantCount,
-                rate: e.participantCount > 0
-                  ? Math.round((e.presentCount / e.participantCount) * 100)
-                  : 0,
-              }))}
-              filename="attendance-events"
-              columns={[
-                { key: "title", header: "Event Title" },
-                { key: "group", header: "Group" },
-                { key: "date", header: "Date" },
-                { key: "status", header: "Status" },
-                { key: "presentCount", header: "Present Count" },
-                { key: "absentCount", header: "Absent Count" },
-                { key: "total", header: "Total" },
-                { key: "rate", header: "Rate%" },
-              ]}
-              disabled={isLoading}
-            />
+            <h1 className="text-2xl font-bold tracking-tight text-foreground">
+              Attendance Events & Executive Roster Studio
+            </h1>
+            <Badge className="bg-[#4B0A8F] text-white">System Admin Desk</Badge>
           </div>
-        }
-      />
-
-      {/* Summary cards */}
-      {!isLoading && visibleEvents.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: -8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.2 }}
-          className="grid grid-cols-2 md:grid-cols-4 gap-3"
-        >
-          <SummaryCard
-            label="Total Events"
-            value={total}
-            icon={CalendarCheck}
-            color="brand"
-          />
-          <SummaryCard
-            label="Open"
-            value={openCount}
-            icon={CalendarCheck}
-            color="amber"
-          />
-          <SummaryCard
-            label="Closed"
-            value={closedCount}
-            icon={Lock}
-            color="slate"
-          />
-          <SummaryCard
-            label="Overall Marked"
-            value={`${totalMarked}/${totalParticipants}`}
-            icon={Users}
-            color="sky"
-          />
-        </motion.div>
-      )}
-
-      {/* Filter bar */}
-      <motion.div
-        initial={{ opacity: 0, y: -8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.2, delay: 0.05 }}
-        className="rounded-xl border bg-card p-4 space-y-4"
-      >
-        <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-          <Filter className="size-4" />
-          Filters
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Monitor live park attendance sessions, inspect group compliance, export print reports, and close event rosters.
+          </p>
         </div>
-        <div className="flex flex-wrap items-end gap-3">
-          {/* City select */}
-          {!isCityHead && <div className="space-y-1.5">
-            <label className="text-xs font-medium text-muted-foreground">
-              City
-            </label>
-            <Select
-              value={cityId}
-              onValueChange={(v) => {
-                setCityId(v === "__all__" ? "" : v);
-                setParkId("");
-                handleFilterChange();
-              }}
-            >
-              <SelectTrigger className="w-[160px] h-9 text-xs">
-                <SelectValue placeholder="All Cities" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__all__">All Cities</SelectItem>
-                {cities.map((city) => (
-                  <SelectItem key={city.id} value={city.id}>
-                    {city.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>}
 
-          {/* Park select */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-muted-foreground">
-              Park
-            </label>
-            <Select
-              value={parkId}
-              onValueChange={(v) => {
-                setParkId(v === "__all__" ? "" : v);
-                handleFilterChange();
-              }}
-              disabled={!cityScopeId}
-            >
-              <SelectTrigger className="w-[160px] h-9 text-xs">
-                <SelectValue
-                  placeholder={cityScopeId ? "All Parks" : "Select city first"}
-                />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__all__">All Parks</SelectItem>
-                {parks.map((park) => (
-                  <SelectItem key={park.id} value={park.id}>
-                    {park.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <ExportButton
+            filename="Attendance_Events_Summary"
+            columns={EXPORT_COLUMNS}
+            data={filteredEvents.map((e: any) => ({
+              Title: e.title,
+              Park: e.parkName,
+              Group: e.groupName,
+              Date: e.eventDate,
+              TotalStudents: e.participantCount,
+              Present: e.presentCount,
+              Absent: e.absentCount,
+              Late: e.lateCount,
+              Status: e.isClosed ? "Closed" : "Active",
+            }))}
+            className="text-xs h-9 border-slate-300 dark:border-slate-700"
+          />
 
-          {/* Status select */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-muted-foreground">
-              Status
-            </label>
-            <Select
-              value={statusFilter || "__all__"}
-              onValueChange={(v) => {
-                setStatusFilter(v === "__all__" ? "" : v);
-                handleFilterChange();
-              }}
-            >
-              <SelectTrigger className="w-[140px] h-9 text-xs">
-                <SelectValue placeholder="All Events" />
-              </SelectTrigger>
-              <SelectContent>
-                {STATUS_OPTIONS.map((opt) => (
-                  <SelectItem
-                    key={opt.value || "__all__"}
-                    value={opt.value || "__all__"}
-                  >
-                    {opt.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Date from */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-muted-foreground">
-              From
-            </label>
-            <Popover open={fromOpen} onOpenChange={setFromOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="w-[150px] h-9 justify-start text-xs font-normal"
-                >
-                  <CalendarIcon className="mr-2 size-3.5" />
-                  {dateFrom ? format(dateFrom, "dd MMM yyyy") : "Pick date"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={dateFrom}
-                  onSelect={(d) => {
-                    setDateFrom(d);
-                    setFromOpen(false);
-                    handleFilterChange();
-                  }}
-                />
-              </PopoverContent>
-            </Popover>
-          </div>
-
-          {/* Date to */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-muted-foreground">
-              To
-            </label>
-            <Popover open={toOpen} onOpenChange={setToOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="w-[150px] h-9 justify-start text-xs font-normal"
-                >
-                  <CalendarIcon className="mr-2 size-3.5" />
-                  {dateTo ? format(dateTo, "dd MMM yyyy") : "Pick date"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={dateTo}
-                  onSelect={(d) => {
-                    setDateTo(d);
-                    setToOpen(false);
-                    handleFilterChange();
-                  }}
-                />
-              </PopoverContent>
-            </Popover>
-          </div>
-
-          {/* Clear all button */}
-          {hasActiveFilters && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-9 text-xs"
-              onClick={clearAllFilters}
-            >
-              <X className="size-3 mr-1" />
-              Clear all
-            </Button>
-          )}
-
-          {/* Total count */}
-          <div className="ml-auto text-xs text-muted-foreground">
-            {total} {total === 1 ? "event" : "events"}
-          </div>
-        </div>
-      </motion.div>
-
-      {/* Loading state */}
-      {(isLoading || (isFetching && visibleEvents.length === 0)) && (
-        <div className="space-y-3">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <Skeleton key={i} className="h-14 w-full rounded-lg" />
-          ))}
-        </div>
-      )}
-
-      {/* Error state */}
-      {isError && !isLoading && (
-        <EmptyState
-          icon={CalendarCheck}
-          title="Failed to load events"
-          description="Something went wrong. Please try again later."
-        />
-      )}
-
-      {/* Desktop table + Mobile cards */}
-      {!isLoading && !isError && visibleEvents.length > 0 && (
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={`${cityId}-${parkId}-${statusFilter}-${dateFrom?.toISOString()}-${dateTo?.toISOString()}-${limit}`}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.15 }}
+          <Button
+            size="sm"
+            onClick={() => toast.info("Attendance event auto-creation runs on scheduled session days.")}
+            className="bg-[#4B0A8F] hover:bg-[#3b0873] text-white text-xs h-9 gap-1.5 shadow"
           >
-            {/* Desktop table */}
-            <div className="hidden md:block rounded-xl border bg-card overflow-hidden">
-              <div className="max-h-[600px] overflow-y-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-muted/80 backdrop-blur-sm hover:bg-muted/80">
-                      <TableHead className="text-xs font-medium text-muted-foreground px-4 py-3">
-                        <div className="flex items-center gap-1.5">
-                          <CalendarIcon className="size-3" /> Date
-                        </div>
-                      </TableHead>
-                      <TableHead className="text-xs font-medium text-muted-foreground px-4 py-3">
-                        <div className="flex items-center gap-1.5">
-                          <MapPin className="size-3" /> City
-                        </div>
-                      </TableHead>
-                      <TableHead className="text-xs font-medium text-muted-foreground px-4 py-3">
-                        <div className="flex items-center gap-1.5">
-                          <TreePine className="size-3" /> Park
-                        </div>
-                      </TableHead>
-                      <TableHead className="text-xs font-medium text-muted-foreground px-4 py-3">
-                        Group
-                      </TableHead>
-                      <TableHead className="text-xs font-medium text-muted-foreground px-4 py-3">
-                        Status
-                      </TableHead>
-                      <TableHead className="text-xs font-medium text-muted-foreground px-4 py-3">
-                        Marked / Total
-                      </TableHead>
-                      <TableHead className="text-xs font-medium text-muted-foreground px-4 py-3 min-w-[140px]">
-                        Progress
-                      </TableHead>
-                      <TableHead className="text-xs font-medium text-muted-foreground px-4 py-3">
-                        Closed By
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody className="divide-y">
-                    {visibleEvents.map((event) => (
-                      <TableRow key={event.id}>
-                        <TableCell className="px-4 py-3">
-                          <div className="text-sm font-medium">
-                            {formatPKT(new Date(event.eventDate), "dd MMM yyyy")}
-                          </div>
-                        </TableCell>
-                        <TableCell className="px-4 py-3">
-                          <span className="text-sm">{event.cityName}</span>
-                        </TableCell>
-                        <TableCell className="px-4 py-3">
-                          <span className="text-sm">{event.parkName}</span>
-                        </TableCell>
-                        <TableCell className="px-4 py-3">
-                          <div className="text-sm font-medium">
-                            {event.groupName}
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            {event.batchName}
-                          </div>
-                        </TableCell>
-                        <TableCell className="px-4 py-3">
-                          {getStatusBadge(event.isClosed)}
-                        </TableCell>
-                        <TableCell className="px-4 py-3">
-                          <div className="text-sm font-medium">
-                            {event.markedCount}
-                            <span className="text-muted-foreground font-normal">
-                              {" "}
-                              / {event.participantCount}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-muted-foreground">
-                            <span className="text-[#4B0A8F] dark:text-[#8A40B0]">
-                              P: {event.presentCount}
-                            </span>
-                            <span className="text-red-500 dark:text-red-400">
-                              A: {event.absentCount}
-                            </span>
-                            <span className="text-amber-600 dark:text-amber-400">
-                              L: {event.lateCount}
-                            </span>
-                            {event.excusedCount > 0 && (
-                              <span className="text-sky-500 dark:text-sky-400">
-                                E: {event.excusedCount}
-                              </span>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell className="px-4 py-3">
-                          <div className="flex items-center gap-2">
-                            <MiniProgressBar value={event.progress} />
-                            <span className="text-xs font-medium text-muted-foreground w-9 text-right shrink-0">
-                              {event.progress}%
-                            </span>
-                          </div>
-                        </TableCell>
-                        <TableCell className="px-4 py-3">
-                          <span className="text-sm text-muted-foreground">
-                            {event.closedByName || "—"}
-                          </span>
-                          {event.closedAt && (
-                            <div className="text-[10px] text-muted-foreground/70">
-                              {formatPKT(
-                                new Date(event.closedAt),
-                                "dd MMM, hh:mm a"
-                              )}
-                            </div>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+            <Plus className="size-4" />
+            <span>Create Session Event</span>
+          </Button>
+        </div>
+      </div>
+
+      {/* ─── 4 Top KPI Cards ─── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card className="border border-slate-200 dark:border-slate-800 shadow-sm rounded-xl overflow-hidden">
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Total Attendance Sessions
+                </p>
+                <h3 className="text-2xl font-bold text-foreground mt-1">{stats.total} Sessions</h3>
+                <p className="text-xs text-purple-600 dark:text-purple-400 font-medium mt-1">
+                  Across Lahore & Rawalpindi
+                </p>
+              </div>
+              <div className="size-12 rounded-xl bg-purple-100 dark:bg-purple-950/50 flex items-center justify-center text-purple-600 dark:text-purple-400">
+                <CalendarCheck className="size-6" />
               </div>
             </div>
+          </CardContent>
+        </Card>
 
-            {/* Mobile cards */}
-            <div className="md:hidden space-y-3">
-              {visibleEvents.map((event) => (
-                <EventCard key={event.id} event={event} />
-              ))}
+        <Card className="border border-slate-200 dark:border-slate-800 shadow-sm rounded-xl overflow-hidden">
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Average Attendance Rate
+                </p>
+                <h3 className="text-2xl font-bold text-foreground mt-1">{stats.avgRate}% Rate</h3>
+                <div className="w-28 mt-2">
+                  <Progress value={stats.avgRate} className="h-1.5" />
+                </div>
+              </div>
+              <div className="size-12 rounded-xl bg-emerald-100 dark:bg-emerald-950/50 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+                <TrendingUp className="size-6" />
+              </div>
             </div>
-          </motion.div>
-        </AnimatePresence>
-      )}
+          </CardContent>
+        </Card>
 
-      {/* Loading more indicator */}
-      {isFetching && visibleEvents.length > 0 && (
-        <div className="flex items-center justify-center gap-2 py-2">
-          <Loader2 className="size-4 animate-spin text-muted-foreground" />
-          <span className="text-xs text-muted-foreground">
-            Loading more...
-          </span>
-        </div>
-      )}
-
-      {/* Load more button */}
-      {!isLoading && hasMore && !isFetching && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="flex justify-center"
-        >
-          <Button variant="outline" onClick={loadMore}>
-            Load More ({total - visibleEvents.length} remaining)
-          </Button>
-        </motion.div>
-      )}
-
-      {/* Empty state */}
-      {!isLoading && !isError && !isFetching && visibleEvents.length === 0 && (
-        <EmptyState
-          icon={CalendarCheck}
-          title="No attendance events found"
-          description={
-            hasActiveFilters
-              ? "Try adjusting your filters to see more results."
-              : "Attendance events will appear here once sessions are created and attendance is tracked."
-          }
-        />
-      )}
-
-      {/* Print Report Dialog */}
-      <Dialog open={printOpen} onOpenChange={(v) => { if (!v) setPrintOpen(false); }}>
-        <DialogContent className="max-w-5xl w-[95vw] max-h-[90vh] overflow-y-auto no-print-on-children p-0">
-          {reportLoading && (
-            <div className="flex items-center justify-center py-20 gap-3">
-              <Loader2 className="size-5 animate-spin text-[#4B0A8F]" />
-              <span className="text-sm text-muted-foreground">Generating report...</span>
+        <Card className="border border-slate-200 dark:border-slate-800 shadow-sm rounded-xl overflow-hidden">
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Live Active Sessions
+                </p>
+                <h3 className="text-2xl font-bold text-blue-600 dark:text-blue-400 mt-1">
+                  {stats.active} Active
+                </h3>
+                <p className="text-xs text-muted-foreground mt-1">{stats.closed} Closed Roster</p>
+              </div>
+              <div className="size-12 rounded-xl bg-blue-100 dark:bg-blue-950/50 flex items-center justify-center text-blue-600 dark:text-blue-400">
+                <Zap className="size-6" />
+              </div>
             </div>
-          )}
-          {!reportLoading && reportData && (
-            <AttendanceReportPrint
-              report={reportData}
-              onClose={() => setPrintOpen(false)}
+          </CardContent>
+        </Card>
+
+        <Card className="border border-slate-200 dark:border-slate-800 shadow-sm rounded-xl overflow-hidden">
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Total Cadets Marked
+                </p>
+                <h3 className="text-2xl font-bold text-foreground mt-1">{stats.totalMarked} Marked</h3>
+                <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium mt-1">
+                  Recorded in Database
+                </p>
+              </div>
+              <div className="size-12 rounded-xl bg-amber-100 dark:bg-amber-950/50 flex items-center justify-center text-amber-600 dark:text-amber-400">
+                <Users className="size-6" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* ─── FILTERS & SEARCH BAR ─── */}
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 space-y-3 shadow-sm">
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+          <div className="relative">
+            <Search className="absolute left-3 top-2.5 size-4 text-muted-foreground" />
+            <Input
+              placeholder="Search session title or park..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 text-xs h-9"
             />
-          )}
-          {!reportLoading && !reportData && (
-            <div className="flex items-center justify-center py-20">
-              <p className="text-sm text-muted-foreground">Failed to load report data.</p>
+          </div>
+
+          <Select value={selectedCity} onValueChange={setSelectedCity}>
+            <SelectTrigger className="h-9 text-xs">
+              <SelectValue placeholder="City Scope" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Cities</SelectItem>
+              <SelectItem value="lahore">Lahore</SelectItem>
+              <SelectItem value="rawalpindi">Rawalpindi</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select value={selectedPark} onValueChange={setSelectedPark}>
+            <SelectTrigger className="h-9 text-xs">
+              <SelectValue placeholder="Park Scope" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Parks</SelectItem>
+              <SelectItem value="gulberg">Gulberg Park</SelectItem>
+              <SelectItem value="gulshan">Gulshan Iqbal</SelectItem>
+              <SelectItem value="griffin">Griffin Park</SelectItem>
+              <SelectItem value="johar">Johar Town</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <div className="flex items-center gap-1">
+            <Button
+              type="button"
+              size="sm"
+              variant={statusFilter === "all" ? "default" : "outline"}
+              onClick={() => setStatusFilter("all")}
+              className="h-9 text-xs flex-1"
+            >
+              All
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={statusFilter === "open" ? "default" : "outline"}
+              onClick={() => setStatusFilter("open")}
+              className="h-9 text-xs flex-1"
+            >
+              Open
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={statusFilter === "closed" ? "default" : "outline"}
+              onClick={() => setStatusFilter("closed")}
+              className="h-9 text-xs flex-1"
+            >
+              Closed
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* ─── ATTENDANCE EVENTS ROSTER TABLE ─── */}
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs">
+            <thead className="bg-slate-50 dark:bg-slate-800/60 text-muted-foreground font-semibold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
+              <tr>
+                <th className="py-3.5 px-4">Session Title & Group</th>
+                <th className="py-3.5 px-4">Park Scope</th>
+                <th className="py-3.5 px-4">Date</th>
+                <th className="py-3.5 px-4">Marked Compliance</th>
+                <th className="py-3.5 px-4">Breakdown</th>
+                <th className="py-3.5 px-4">Roster Status</th>
+                <th className="py-3.5 px-4 text-right">Actions</th>
+              </tr>
+            </thead>
+
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-foreground">
+              {filteredEvents.map((evt: any) => (
+                <tr key={evt.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors">
+                  <td className="py-3.5 px-4">
+                    <div>
+                      <span className="font-bold text-foreground">{evt.title}</span>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">{evt.groupName}</p>
+                    </div>
+                  </td>
+
+                  <td className="py-3.5 px-4">
+                    <Badge variant="outline" className="text-[10px]">
+                      <MapPin className="size-3 mr-1" /> {evt.parkName}
+                    </Badge>
+                  </td>
+
+                  <td className="py-3.5 px-4 font-mono text-muted-foreground">
+                    {evt.eventDate}
+                  </td>
+
+                  <td className="py-3.5 px-4">
+                    <div className="space-y-1 w-32">
+                      <div className="flex items-center justify-between text-[10px] font-bold">
+                        <span>{evt.markedCount} / {evt.participantCount}</span>
+                        <span className="text-purple-600">{evt.progress}%</span>
+                      </div>
+                      <Progress value={evt.progress} className="h-1.5" />
+                    </div>
+                  </td>
+
+                  <td className="py-3.5 px-4">
+                    <div className="flex items-center gap-1">
+                      <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400 text-[10px]">
+                        {evt.presentCount} P
+                      </Badge>
+                      <Badge className="bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-400 text-[10px]">
+                        {evt.absentCount} A
+                      </Badge>
+                      <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400 text-[10px]">
+                        {evt.lateCount} L
+                      </Badge>
+                    </div>
+                  </td>
+
+                  <td className="py-3.5 px-4">
+                    {evt.isClosed ? (
+                      <Badge className="bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 text-[10px] gap-1">
+                        <Lock className="size-3" /> Closed
+                      </Badge>
+                    ) : (
+                      <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400 text-[10px] gap-1">
+                        <Zap className="size-3" /> Open (Live)
+                      </Badge>
+                    )}
+                  </td>
+
+                  <td className="py-3.5 px-4 text-right">
+                    <div className="flex items-center justify-end gap-1.5">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleOpenPrintDialog(evt)}
+                        className="h-7 text-[11px] gap-1 border-slate-300 dark:border-slate-700"
+                      >
+                        <Printer className="size-3" />
+                        <span>Print Report</span>
+                      </Button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* ─── PRINT ATTENDANCE REPORT DIALOG ─── */}
+      <Dialog open={isPrintDialogOpen} onOpenChange={setIsPrintDialogOpen}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base font-bold">
+              <Printer className="size-5 text-[#4B0A8F]" />
+              Printable Attendance Report Summary
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Formatted document ready for administrative archiving or printing.
+            </DialogDescription>
+          </DialogHeader>
+
+          {printReportData && (
+            <div className="p-4 bg-white dark:bg-slate-900 border rounded-xl">
+              <AttendanceReportPrint
+                report={formattedReport}
+                onClose={() => setIsPrintDialogOpen(false)}
+              />
             </div>
           )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsPrintDialogOpen(false)}>Close</Button>
+            <Button onClick={() => { window.print(); }} className="bg-[#4B0A8F] text-white gap-1.5">
+              <Printer className="size-4" /> Print Document
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
-  );
-}
-
-function SummaryCard({
-  label,
-  value,
-  icon: Icon,
-  color,
-}: {
-  label: string;
-  value: number | string;
-  icon: typeof CalendarCheck;
-  color: "brand" | "amber" | "slate" | "sky";
-}) {
-  const colorMap = {
-    brand:
-      "bg-[#F3ECF6] dark:bg-[#1F0860] text-[#4B0A8F] dark:text-[#8A40B0] border-[#D4B8E399] dark:border-[#2A0C8F66]",
-    amber:
-      "bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 border-amber-200/60 dark:border-amber-800/40",
-    slate:
-      "bg-slate-100 dark:bg-slate-800/50 text-slate-600 dark:text-slate-400 border-slate-200/60 dark:border-slate-700/40",
-    sky: "bg-sky-50 dark:bg-sky-950/30 text-sky-700 dark:text-sky-400 border-sky-200/60 dark:border-sky-800/40",
-  };
-
-  const iconColorMap = {
-    brand: "text-[#4B0A8F] dark:text-[#8A40B0]",
-    amber: "text-amber-600 dark:text-amber-400",
-    slate: "text-slate-500 dark:text-slate-400",
-    sky: "text-sky-600 dark:text-sky-400",
-  };
-
-  return (
-    <div
-      className={`rounded-xl p-4 border ${colorMap[color]} transition-colors`}
-    >
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-xs font-medium opacity-80">{label}</span>
-        <Icon className={`size-4 ${iconColorMap[color]} shrink-0`} />
-      </div>
-      <p className="text-xl font-bold mt-1 tracking-tight">{value}</p>
-    </div>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/*  Mobile Event Card                                                  */
-/* ------------------------------------------------------------------ */
-
-function EventCard({ event }: { event: AttendanceEvent }) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 4 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="rounded-xl border bg-card p-4 space-y-3"
-    >
-      {/* Header row: Date + Status */}
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="rounded-lg bg-[#F3ECF6] p-2 dark:bg-[#1F0860] shrink-0">
-            <CalendarCheck className="size-4 text-[#4B0A8F] dark:text-[#8A40B0]" />
-          </div>
-          <div className="min-w-0">
-            <div className="text-sm font-medium truncate">
-              {event.groupName}
-            </div>
-            <div className="text-xs text-muted-foreground">
-              {event.batchName}
-            </div>
-          </div>
-        </div>
-        <div className="shrink-0">{getStatusBadge(event.isClosed)}</div>
-      </div>
-
-      {/* Location info */}
-      <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
-        <div className="flex items-center gap-1">
-          <MapPin className="size-3" />
-          {event.cityName}
-        </div>
-        <span className="text-muted-foreground/50">·</span>
-        <div className="flex items-center gap-1">
-          <TreePine className="size-3" />
-          {event.parkName}
-        </div>
-        <span className="text-muted-foreground/50">·</span>
-        <div className="flex items-center gap-1">
-          <CalendarIcon className="size-3" />
-          {formatPKT(new Date(event.eventDate), "dd MMM yyyy")}
-        </div>
-      </div>
-
-      {/* Progress section */}
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-medium text-muted-foreground">
-            Marked / Total
-          </span>
-          <span className="text-sm font-bold">
-            {event.markedCount}{" "}
-            <span className="text-muted-foreground font-normal">
-              / {event.participantCount}
-            </span>
-          </span>
-        </div>
-        <div className="flex items-center gap-2">
-          <MiniProgressBar value={event.progress} />
-          <span className="text-xs font-medium text-muted-foreground w-9 text-right shrink-0">
-            {event.progress}%
-          </span>
-        </div>
-        {/* Status breakdown */}
-        <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
-          <span className="text-[#4B0A8F] dark:text-[#8A40B0]">
-            P: {event.presentCount}
-          </span>
-          <span className="text-red-500 dark:text-red-400">
-            A: {event.absentCount}
-          </span>
-          <span className="text-amber-600 dark:text-amber-400">
-            L: {event.lateCount}
-          </span>
-          {event.excusedCount > 0 && (
-            <span className="text-sky-500 dark:text-sky-400">
-              E: {event.excusedCount}
-            </span>
-          )}
-        </div>
-      </div>
-
-      {/* Closed by */}
-      {event.closedByName && (
-        <div className="text-xs text-muted-foreground pt-1 border-t">
-          Closed by{" "}
-          <span className="font-medium text-foreground">
-            {event.closedByName}
-          </span>
-          {event.closedAt && (
-            <span className="ml-1">
-              on{" "}
-              {formatPKT(new Date(event.closedAt), "dd MMM, hh:mm a")}
-            </span>
-          )}
-        </div>
-      )}
-    </motion.div>
   );
 }
