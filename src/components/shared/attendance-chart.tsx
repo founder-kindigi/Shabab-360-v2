@@ -220,11 +220,11 @@ export function AttendanceChart({
           </defs>
 
           {/* Grid lines */}
-          {yTicks.map((val) => {
+          {yTicks.map((val, index) => {
             const y = getY(val);
             return (
               <line
-                key={val}
+                key={`grid-${index}-${val}`}
                 x1={PADDING.left}
                 y1={y}
                 x2={PADDING.left + chartW}
@@ -237,11 +237,11 @@ export function AttendanceChart({
           })}
 
           {/* Y-axis labels */}
-          {yTicks.map((val) => {
+          {yTicks.map((val, index) => {
             const y = getY(val);
             return (
               <text
-                key={val}
+                key={`label-${index}-${val}`}
                 x={PADDING.left - 8}
                 y={y + 3}
                 textAnchor="end"
