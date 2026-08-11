@@ -42,7 +42,7 @@ export async function POST(req: Request) {
       try {
         const event = await db.attendanceEvent.findUnique({
           where: { id: eventId },
-          include: { group: { include: { batch: true } } },
+          include: { group: { include: { batch: { include: { park: true } } } } },
         });
         if (!event) {
           results.push({ mutationId, status: "failed", recordId: null, error: "Event not found" });
@@ -50,7 +50,7 @@ export async function POST(req: Request) {
         }
         if (!canAccessResourceScope(
           user,
-          { parkId: event.group.batch.parkId, groupId: event.groupId },
+          { cityId: event.group.batch.park.cityId, parkId: event.group.batch.parkId, groupId: event.groupId },
           ATTENDANCE_ROLES
         )) {
           results.push({ mutationId, status: "failed", recordId: null, error: "Forbidden" });

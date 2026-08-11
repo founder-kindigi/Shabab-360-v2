@@ -18,6 +18,9 @@ export const ORGANIZATION_MANAGEMENT_ROLES: readonly StaffRole[] = [
   "park_lead",
 ];
 export const ATTENDANCE_ROLES: readonly StaffRole[] = [
+  "super_admin",
+  "program_admin",
+  "city_head",
   "park_admin",
   "park_lead",
   "murabbi",

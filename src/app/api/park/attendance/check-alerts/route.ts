@@ -24,7 +24,7 @@ export async function POST(req: Request) {
 
     const event = await db.attendanceEvent.findUnique({
       where: { id: eventId },
-      include: { group: { include: { batch: true } } },
+      include: { group: { include: { batch: { include: { park: true } } } } },
     });
     if (!event) {
       return NextResponse.json({ error: "Event not found" }, { status: 404 });
@@ -32,7 +32,7 @@ export async function POST(req: Request) {
 
     const scopeError = requireResourceScope(
       auth.user,
-      { parkId: event.group.batch.parkId, groupId: event.groupId },
+      { cityId: event.group.batch.park.cityId, parkId: event.group.batch.parkId, groupId: event.groupId },
       ATTENDANCE_ROLES
     );
     if (scopeError) return scopeError;

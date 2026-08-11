@@ -41,7 +41,7 @@ const event = {
   id: "event-1",
   groupId: "group-1",
   isClosed: false,
-  group: { batch: { parkId: "park-1" } },
+  group: { batch: { parkId: "park-1", park: { cityId: "city-1" } } },
 };
 const PARTICIPANT_ID = "ckaaaaaaaaaaaaaaaaaaaaaaa";
 const OTHER_PARTICIPANT_ID = "ckbbbbbbbbbbbbbbbbbbbbbbb";

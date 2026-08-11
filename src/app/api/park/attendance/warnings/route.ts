@@ -51,7 +51,7 @@ export async function GET(req: Request) {
 
     const scopeError = requireResourceScope(
       user,
-      { parkId: group.batch.parkId, groupId },
+      { cityId: group.batch.park.cityId, parkId: group.batch.parkId, groupId },
       ATTENDANCE_ROLES
     );
     if (scopeError) return scopeError;

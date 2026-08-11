@@ -39,7 +39,7 @@ describe("DELETE /api/park/attendance/[eventId]/reset", () => {
       id: "event-2",
       groupId: "group-2",
       isClosed: false,
-      group: { batch: { parkId: "park-2" } },
+      group: { batch: { parkId: "park-2", park: { cityId: "city-2" } } },
     });
     mocks.requireResourceScope.mockReturnValue(
       NextResponse.json({ error: "Forbidden" }, { status: 403 })
@@ -54,8 +54,8 @@ describe("DELETE /api/park/attendance/[eventId]/reset", () => {
     expect(response.status).toBe(403);
     expect(mocks.requireResourceScope).toHaveBeenCalledWith(
       expect.objectContaining({ id: "park-lead" }),
-      { parkId: "park-2", groupId: "group-2" },
-      ["park_lead"]
+      { cityId: "city-2", parkId: "park-2", groupId: "group-2" },
+      ["super_admin", "program_admin", "city_head", "park_lead"]
     );
     expect(mocks.recordCount).not.toHaveBeenCalled();
     expect(mocks.recordDeleteMany).not.toHaveBeenCalled();

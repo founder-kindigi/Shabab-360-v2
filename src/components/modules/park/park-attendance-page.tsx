@@ -58,7 +58,7 @@ async function fetchAttendanceEvents(date: string, parkId?: string): Promise<Att
 }
 
 async function fetchParks(): Promise<ParkOption[]> {
-  const response = await fetch("/api/admin/parks");
+  const response = await fetch("/api/park/attendance/parks");
   const body = await response.json().catch(() => []);
   if (!response.ok || !Array.isArray(body)) throw new Error("Could not load parks");
   return body;

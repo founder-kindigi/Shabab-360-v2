@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
 import { editAttendanceRecordSchema } from "@/lib/attendance/schemas";
 
-const EDIT_ROLES = ["super_admin", "program_admin", "park_lead"] as const;
+const EDIT_ROLES = ["super_admin", "program_admin", "city_head", "park_lead"] as const;
 
 /**
  * PATCH /api/park/attendance/[eventId]/records/[recordId]
@@ -40,7 +40,7 @@ export async function PATCH(
       include: {
         event: {
           include: {
-            group: { include: { batch: true } },
+            group: { include: { batch: { include: { park: true } } } },
           },
         },
       },
@@ -52,7 +52,7 @@ export async function PATCH(
 
     const scopeError = requireResourceScope(
       user,
-      { parkId: record.event.group.batch.parkId, groupId: record.event.groupId },
+      { cityId: record.event.group.batch.park.cityId, parkId: record.event.group.batch.parkId, groupId: record.event.groupId },
       EDIT_ROLES
     );
     if (scopeError) return scopeError;

@@ -32,14 +32,14 @@ describe("PATCH /api/park/attendance/[eventId]/close", () => {
       id: "event-2",
       groupId: "group-2",
       isClosed: false,
-      group: { batch: { parkId: "park-1" } },
+      group: { batch: { parkId: "park-1", park: { cityId: "city-1" } } },
     });
     mocks.requireResourceScope.mockReturnValue(
       NextResponse.json({ error: "Forbidden" }, { status: 403 })
     );
   });
 
-  it("passes the Park Lead-only correction policy to the scope checker", async () => {
+  it("passes the city-scoped supervisor correction policy to the scope checker", async () => {
     const response = await PATCH(
       new Request("http://localhost/api/park/attendance/event-2/close", {
         method: "PATCH",
@@ -52,8 +52,8 @@ describe("PATCH /api/park/attendance/[eventId]/close", () => {
     expect(response.status).toBe(403);
     expect(mocks.requireResourceScope).toHaveBeenCalledWith(
       expect.objectContaining({ id: "park-admin" }),
-      { parkId: "park-1", groupId: "group-2" },
-      ["park_lead"]
+      { cityId: "city-1", parkId: "park-1", groupId: "group-2" },
+      ["super_admin", "program_admin", "city_head", "park_lead"]
     );
     expect(mocks.eventUpdate).not.toHaveBeenCalled();
   });

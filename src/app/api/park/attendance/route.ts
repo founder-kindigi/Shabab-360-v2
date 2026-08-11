@@ -53,7 +53,13 @@ export async function GET(req: Request) {
       groupIds = [user.assignedGroupId!];
     } else {
       if (!parkId) return NextResponse.json({ error: "parkId required" }, { status: 400 });
-      const scopeError = requireResourceScope(user, { parkId }, ATTENDANCE_ROLES);
+      const park = await db.park.findUnique({
+        where: { id: parkId, isActive: true },
+        select: { id: true, cityId: true },
+      });
+      if (!park) return NextResponse.json({ error: "Park not found" }, { status: 404 });
+
+      const scopeError = requireResourceScope(user, { parkId, cityId: park.cityId }, ATTENDANCE_ROLES);
       if (scopeError) return scopeError;
 
       const batches = await db.batch.findMany({
@@ -203,7 +209,7 @@ export async function POST(req: Request) {
 
     const scopeError = requireResourceScope(
       user,
-      { parkId: group.batch.parkId, groupId },
+      { cityId: group.batch.park.cityId, parkId: group.batch.parkId, groupId },
       ATTENDANCE_ROLES
     );
     if (scopeError) return scopeError;

@@ -36,7 +36,7 @@ export async function GET(
 
     const scopeError = requireResourceScope(
       user,
-      { parkId: event.group.batch.parkId, groupId: event.groupId },
+      { cityId: event.group.batch.park.cityId, parkId: event.group.batch.parkId, groupId: event.groupId },
       ATTENDANCE_ROLES
     );
     if (scopeError) return scopeError;
@@ -160,7 +160,7 @@ export async function POST(
     const event = await db.attendanceEvent.findUnique({
       where: { id: eventId },
       include: {
-        group: { include: { batch: true } },
+        group: { include: { batch: { include: { park: true } } } },
       },
     });
 
@@ -170,7 +170,7 @@ export async function POST(
 
     const scopeError = requireResourceScope(
       user,
-      { parkId: event.group.batch.parkId, groupId: event.groupId },
+      { cityId: event.group.batch.park.cityId, parkId: event.group.batch.parkId, groupId: event.groupId },
       ATTENDANCE_ROLES
     );
     if (scopeError) return scopeError;

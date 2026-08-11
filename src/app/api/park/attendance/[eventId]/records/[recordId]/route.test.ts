@@ -40,7 +40,7 @@ describe("PATCH /api/park/attendance/[eventId]/records/[recordId]", () => {
       eventId: "event-2",
       status: "present",
       markedBy: null,
-      event: { groupId: "group-2", group: { batch: { parkId: "park-2" } } },
+      event: { groupId: "group-2", group: { batch: { parkId: "park-2", park: { cityId: "city-2" } } } },
     });
     mocks.requireResourceScope.mockReturnValue(
       NextResponse.json({ error: "Forbidden" }, { status: 403 })
@@ -57,8 +57,8 @@ describe("PATCH /api/park/attendance/[eventId]/records/[recordId]", () => {
     expect(response.status).toBe(403);
     expect(mocks.requireResourceScope).toHaveBeenCalledWith(
       expect.objectContaining({ id: "park-admin" }),
-      { parkId: "park-2", groupId: "group-2" },
-      ["super_admin", "program_admin", "park_lead"]
+      { cityId: "city-2", parkId: "park-2", groupId: "group-2" },
+      ["super_admin", "program_admin", "city_head", "park_lead"]
     );
     expect(mocks.staffMetaFindUnique).not.toHaveBeenCalled();
     expect(mocks.recordUpdate).not.toHaveBeenCalled();

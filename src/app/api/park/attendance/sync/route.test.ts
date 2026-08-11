@@ -13,7 +13,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/auth/authorize", () => ({
-  ATTENDANCE_ROLES: ["park_admin", "park_lead", "murabbi"],
+  ATTENDANCE_ROLES: ["super_admin", "program_admin", "city_head", "park_admin", "park_lead", "murabbi"],
   requireAuth: mocks.requireAuth,
   requireCapability: mocks.requireCapability,
   canAccessResourceScope: mocks.canAccessResourceScope,
@@ -33,7 +33,7 @@ import { POST } from "./route";
 
 const event = {
   id: "event-1", groupId: "group-1", isClosed: false,
-  group: { batch: { parkId: "park-1" } },
+  group: { batch: { parkId: "park-1", park: { cityId: "city-1" } } },
 };
 const EVENT_ID = "ckccccccccccccccccccccccc";
 const PARTICIPANT_ID = "ckaaaaaaaaaaaaaaaaaaaaaaa";

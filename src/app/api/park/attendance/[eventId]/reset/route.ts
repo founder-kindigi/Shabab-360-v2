@@ -3,7 +3,7 @@ import { requireAuth, requireCapability, requireResourceScope } from "@/lib/auth
 import { db } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
 
-const EVENT_SUPERVISOR_ROLES = ["park_lead"] as const;
+const EVENT_SUPERVISOR_ROLES = ["super_admin", "program_admin", "city_head", "park_lead"] as const;
 
 export async function DELETE(
   _req: Request,
@@ -20,7 +20,7 @@ export async function DELETE(
     // Fetch event for scope check
     const event = await db.attendanceEvent.findUnique({
       where: { id: eventId },
-      include: { group: { include: { batch: true } } },
+      include: { group: { include: { batch: { include: { park: true } } } } },
     });
 
     if (!event) {
@@ -37,7 +37,7 @@ export async function DELETE(
     // Scope check
     const scopeError = requireResourceScope(
       user,
-      { parkId: event.group.batch.parkId, groupId: event.groupId },
+      { cityId: event.group.batch.park.cityId, parkId: event.group.batch.parkId, groupId: event.groupId },
       EVENT_SUPERVISOR_ROLES
     );
     if (scopeError) return scopeError;

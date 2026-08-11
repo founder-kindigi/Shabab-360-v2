@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
 import { closeAttendanceEventSchema } from "@/lib/attendance/schemas";
 
-const EVENT_SUPERVISOR_ROLES = ["park_lead"] as const;
+const EVENT_SUPERVISOR_ROLES = ["super_admin", "program_admin", "city_head", "park_lead"] as const;
 
 export async function PATCH(
   req: Request,
@@ -32,7 +32,7 @@ export async function PATCH(
     const event = await db.attendanceEvent.findUnique({
       where: { id: eventId },
       include: {
-        group: { include: { batch: true } },
+        group: { include: { batch: { include: { park: true } } } },
       },
     });
 
@@ -50,7 +50,7 @@ export async function PATCH(
     // Scope check
     const scopeError = requireResourceScope(
       user,
-      { parkId: event.group.batch.parkId, groupId: event.groupId },
+      { cityId: event.group.batch.park.cityId, parkId: event.group.batch.parkId, groupId: event.groupId },
       EVENT_SUPERVISOR_ROLES
     );
     if (scopeError) return scopeError;
