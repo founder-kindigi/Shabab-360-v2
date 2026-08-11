@@ -6,11 +6,20 @@ import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import {
@@ -33,8 +42,11 @@ import {
   Activity,
   ExternalLink,
   Youtube,
-  Shield,
-  Zap,
+  Edit3,
+  Save,
+  Menu,
+  X,
+  Layers,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -61,7 +73,7 @@ export type WeekGroup = {
   sessions: SyllabusSession[];
 };
 
-// --- AUTHENTIC SHABAB BATCH 4 RUNNING DATASET (V1 MATCHER) ---
+// --- AUTHENTIC SHABAB BATCH 4 RUNNING DATASET (DB SEEDED MATCH) ---
 const AUTHENTIC_BATCH4_SYLLABUS: WeekGroup[] = [
   {
     weekNumber: 1,
@@ -336,6 +348,18 @@ export function ContentPlannerPage() {
   // Active Category Tab: "tadreeb" | "skills" | "sports" | "exercises"
   const [activeCategoryTab, setActiveCategoryTab] = useState<string>("tadreeb");
 
+  // Mobile Drawer State
+  const [isMobileWeeksOpen, setIsMobileWeeksOpen] = useState(false);
+
+  // Collaboration Team Content Edit Modal State
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editTitle, setEditTitle] = useState("");
+  const [editSports, setEditSports] = useState("");
+  const [editSkills, setEditSkills] = useState("");
+  const [editTadreeb, setEditTadreeb] = useState("");
+  const [editExercises, setEditExercises] = useState("");
+  const [editVideoUrl, setEditVideoUrl] = useState("");
+
   // State
   const [syllabusData, setSyllabusData] = useState<WeekGroup[]>(AUTHENTIC_BATCH4_SYLLABUS);
   const [selectedSessionId, setSelectedSessionId] = useState<string>("w1-d1");
@@ -388,8 +412,43 @@ export function ContentPlannerPage() {
     );
   };
 
+  // Open Edit Modal with active session content
+  const handleOpenEditModal = () => {
+    if (!activeSession) return;
+    setEditTitle(activeSession.title);
+    setEditSports(activeSession.sportsDrill);
+    setEditSkills(activeSession.skillsModule);
+    setEditTadreeb(activeSession.tadreebEthics);
+    setEditExercises(activeSession.exercises);
+    setEditVideoUrl(activeSession.videoUrl || "");
+    setIsEditModalOpen(true);
+  };
+
+  // Save Content Edit Changes
+  const handleSaveContentEdit = () => {
+    setSyllabusData((prev) =>
+      prev.map((w) => ({
+        ...w,
+        sessions: w.sessions.map((s) => {
+          if (s.id !== activeSession.id) return s;
+          return {
+            ...s,
+            title: editTitle,
+            sportsDrill: editSports,
+            skillsModule: editSkills,
+            tadreebEthics: editTadreeb,
+            exercises: editExercises,
+            videoUrl: editVideoUrl || undefined,
+          };
+        }),
+      }))
+    );
+    toast.success("Session content updated successfully by Collaboration Team!");
+    setIsEditModalOpen(false);
+  };
+
   return (
-    <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-1 pb-12 space-y-6">
+    <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-1 pb-28 sm:pb-12 space-y-6">
       {/* ─── PAGE HEADER & VIEW OPTION SWITCHER ─── */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-gradient-to-r from-[#4B0A8F]/10 via-purple-500/5 to-transparent p-5 rounded-2xl border border-purple-200/60 dark:border-purple-900/40">
         <div>
@@ -400,7 +459,7 @@ export function ContentPlannerPage() {
             <Badge className="bg-[#4B0A8F] text-white font-bold">Lahore Batch 4</Badge>
           </div>
           <p className="text-xs text-muted-foreground mt-0.5">
-            4-Pillar activity syllabus (Tadreeb, Skills, Sports, Exercises & Martial Arts) with session curriculum.
+            4-Pillar activity syllabus (Tadreeb, Skills, Sports, Exercises & Martial Arts) with team content updates.
           </p>
         </div>
 
@@ -436,11 +495,28 @@ export function ContentPlannerPage() {
         </div>
       </div>
 
+      {/* ─── MOBILE WEEK SELECTOR DRAWER BUTTON (MOBILE-FIRST RESPONSIVE) ─── */}
+      <div className="block lg:hidden">
+        <Button
+          onClick={() => setIsMobileWeeksOpen(!isMobileWeeksOpen)}
+          variant="outline"
+          className="w-full flex items-center justify-between border-purple-300 dark:border-purple-800 text-purple-900 dark:text-purple-200 font-bold text-xs"
+        >
+          <div className="flex items-center gap-2">
+            <Menu className="size-4 text-purple-600" />
+            <span>
+              Week {activeSession.weekNumber} • Day {activeSession.dayNumber} — {activeSession.title}
+            </span>
+          </div>
+          <ChevronDown className={cn("size-4 transition-transform", isMobileWeeksOpen && "rotate-180")} />
+        </Button>
+      </div>
+
       {/* ─── OPTION 2: CLASSROOM & COURSE WORKSPACE VIEW (SKOOL STYLE) ─── */}
       {viewOption === "classroom" ? (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* ─── LEFT SIDEBAR: WEEKS & SESSION DAYS OUTLINE ─── */}
-          <div className="lg:col-span-4 space-y-4">
+          <div className={cn("lg:col-span-4 space-y-4", !isMobileWeeksOpen && "hidden lg:block")}>
             <Card className="border border-slate-200 dark:border-slate-800 shadow-sm rounded-2xl overflow-hidden bg-white dark:bg-slate-900">
               <CardContent className="p-4 space-y-4">
                 {/* Completion Progress Bar */}
@@ -498,7 +574,10 @@ export function ContentPlannerPage() {
                               <button
                                 key={s.id}
                                 type="button"
-                                onClick={() => setSelectedSessionId(s.id)}
+                                onClick={() => {
+                                  setSelectedSessionId(s.id);
+                                  setIsMobileWeeksOpen(false);
+                                }}
                                 className={cn(
                                   "w-full text-left p-2.5 rounded-xl text-xs transition-all flex items-start justify-between gap-2 border",
                                   isSelected
@@ -537,7 +616,7 @@ export function ContentPlannerPage() {
           <div className="lg:col-span-8 space-y-4">
             <Card className="border border-slate-200 dark:border-slate-800 shadow-sm rounded-2xl overflow-hidden bg-white dark:bg-slate-900">
               <CardContent className="p-6 space-y-6">
-                {/* Session Header */}
+                {/* Session Header & Edit Button */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-800">
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
@@ -553,20 +632,32 @@ export function ContentPlannerPage() {
                     </h2>
                   </div>
 
-                  <Button
-                    size="sm"
-                    variant={activeSession.isCompleted ? "outline" : "default"}
-                    onClick={() => toggleSessionCompletion(activeSession.id)}
-                    className={cn(
-                      "gap-2 text-xs font-bold shadow-sm h-9",
-                      activeSession.isCompleted
-                        ? "border-emerald-500 text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40"
-                        : "bg-emerald-600 hover:bg-emerald-700 text-white"
-                    )}
-                  >
-                    <CheckCircle2 className="size-4" />
-                    <span>{activeSession.isCompleted ? "Completed ✓" : "Mark Completed"}</span>
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={handleOpenEditModal}
+                      className="gap-1.5 text-xs font-bold border-purple-300 text-purple-800 dark:text-purple-300 hover:bg-purple-50"
+                    >
+                      <Edit3 className="size-3.5 text-purple-600" />
+                      <span>Edit Content</span>
+                    </Button>
+
+                    <Button
+                      size="sm"
+                      variant={activeSession.isCompleted ? "outline" : "default"}
+                      onClick={() => toggleSessionCompletion(activeSession.id)}
+                      className={cn(
+                        "gap-2 text-xs font-bold shadow-sm h-9",
+                        activeSession.isCompleted
+                          ? "border-emerald-500 text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40"
+                          : "bg-emerald-600 hover:bg-emerald-700 text-white"
+                      )}
+                    >
+                      <CheckCircle2 className="size-4" />
+                      <span>{activeSession.isCompleted ? "Completed ✓" : "Mark Completed"}</span>
+                    </Button>
+                  </div>
                 </div>
 
                 {/* ─── 4 CATEGORY TABS UNDER HEADING ─── */}
@@ -724,7 +815,7 @@ export function ContentPlannerPage() {
           </div>
         </div>
       ) : (
-        /* ─── OPTION 1: MASTER ROSTER TABLE VIEW (PREVIOUS VIEW) ─── */
+        /* ─── OPTION 1: MASTER ROSTER TABLE VIEW ─── */
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden p-6 space-y-4">
           <h3 className="text-lg font-bold text-foreground">Lahore Batch 4 — Master Curriculum Matrix</h3>
 
@@ -768,6 +859,88 @@ export function ContentPlannerPage() {
           </div>
         </div>
       )}
+
+      {/* ─── COLLABORATION TEAM CONTENT UPDATE MODAL ─── */}
+      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+        <DialogContent className="max-w-xl rounded-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold flex items-center gap-2">
+              <Edit3 className="size-5 text-purple-600" />
+              Update Session Content (Collaboration Teams)
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Sports, Skills, Tadreeb, and Media teams can update session drills, ethics, and links.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2 text-xs">
+            <div className="space-y-1.5">
+              <Label className="font-bold text-foreground">Session Title</Label>
+              <Input
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                className="text-xs"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="font-bold text-blue-700 dark:text-blue-400">⚽ Sports & Agility Drills (Sports Team)</Label>
+              <Textarea
+                value={editSports}
+                onChange={(e) => setEditSports(e.target.value)}
+                className="text-xs min-h-[70px]"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="font-bold text-purple-700 dark:text-purple-400">💡 Life Skills Module (Skills Team)</Label>
+              <Textarea
+                value={editSkills}
+                onChange={(e) => setEditSkills(e.target.value)}
+                className="text-xs min-h-[70px]"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="font-bold text-emerald-700 dark:text-emerald-400">📜 Tadreeb & Tarbiyah Ethics (Tadreeb Team)</Label>
+              <Textarea
+                value={editTadreeb}
+                onChange={(e) => setEditTadreeb(e.target.value)}
+                className="text-xs min-h-[70px]"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="font-bold text-amber-700 dark:text-amber-400">🧘 Exercises & Martial Arts Routine</Label>
+              <Textarea
+                value={editExercises}
+                onChange={(e) => setEditExercises(e.target.value)}
+                className="text-xs min-h-[70px]"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="font-bold text-red-600">🎥 YouTube Video Link (Media Team)</Label>
+              <Input
+                value={editVideoUrl}
+                onChange={(e) => setEditVideoUrl(e.target.value)}
+                placeholder="https://www.youtube.com/watch?v=..."
+                className="text-xs font-mono"
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button variant="outline" size="sm" onClick={() => setIsEditModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button size="sm" onClick={handleSaveContentEdit} className="bg-[#4B0A8F] hover:bg-[#3b0873] text-white font-bold gap-1.5">
+              <Save className="size-4" />
+              <span>Save Content Updates</span>
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
