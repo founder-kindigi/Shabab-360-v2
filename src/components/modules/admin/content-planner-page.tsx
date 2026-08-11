@@ -576,41 +576,34 @@ export function ContentPlannerPage() {
                   </Button>
                 </div>
 
-                {/* 🎥 EMBEDDED YOUTUBE VIDEO PLAYER / MEDIA WORKSPACE */}
-                {activeYoutubeId ? (
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between text-xs text-muted-foreground">
-                      <span className="font-bold text-foreground flex items-center gap-1.5">
-                        <Youtube className="size-4 text-red-600" />
-                        Session Video Demonstration
-                      </span>
-                      <a
-                        href={activeSession.videoUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-purple-600 hover:underline flex items-center gap-1 font-medium"
-                      >
-                        Open on YouTube <ExternalLink className="size-3" />
-                      </a>
+                {/* 🎥 YOUTUBE VIDEO DIRECT LINK BAR (SIMPLE CLEAN LINK) */}
+                {activeSession.videoUrl && (
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-4 rounded-2xl bg-gradient-to-r from-red-500/10 via-rose-500/5 to-transparent border border-red-200 dark:border-red-900/40 shadow-sm">
+                    <div className="flex items-center gap-3">
+                      <div className="size-10 rounded-xl bg-red-100 dark:bg-red-950/60 flex items-center justify-center text-red-600 dark:text-red-400 shrink-0">
+                        <Youtube className="size-6" />
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-sm text-foreground flex items-center gap-1.5">
+                          Session Video Demonstration
+                          <Badge className="bg-red-600 text-white text-[9px] px-1.5 font-bold">YouTube</Badge>
+                        </h4>
+                        <p className="text-xs text-muted-foreground mt-0.5 truncate max-w-sm sm:max-w-md font-mono">
+                          {activeSession.videoUrl}
+                        </p>
+                      </div>
                     </div>
 
-                    <div className="relative rounded-2xl overflow-hidden shadow-md aspect-video bg-black border border-slate-800">
-                      <iframe
-                        className="w-full h-full"
-                        src={`https://www.youtube.com/embed/${activeYoutubeId}?rel=0&modestbranding=1`}
-                        title={activeSession.title}
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                        allowFullScreen
-                      />
-                    </div>
-                  </div>
-                ) : (
-                  <div className="relative rounded-2xl overflow-hidden bg-slate-950 aspect-video flex flex-col items-center justify-center text-white shadow-inner border border-slate-800 p-6 text-center">
-                    <Video className="size-12 text-purple-400 mb-2" />
-                    <h4 className="font-bold text-base">{activeSession.title}</h4>
-                    <p className="text-xs text-slate-400 max-w-md mt-1">
-                      On-site outdoor session module for {activeSession.date}. Complete the 4-pillar drills and tarbiyah circle below.
-                    </p>
+                    <a
+                      href={activeSession.videoUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-red-600 hover:bg-red-700 text-white shadow transition-all shrink-0"
+                    >
+                      <Youtube className="size-4" />
+                      <span>Watch Video Demonstration on YouTube</span>
+                      <ExternalLink className="size-3.5 ml-0.5" />
+                    </a>
                   </div>
                 )}
 
