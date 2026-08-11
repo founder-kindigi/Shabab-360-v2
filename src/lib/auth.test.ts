@@ -1,9 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const mocks = vi.hoisted(() => ({
-  findUnique: vi.fn(),
-  credentialsProvider: vi.fn((config) => config),
-}));
+const mocks = vi.hoisted(() => {
+  let credentialsConfig: { authorize?: (credentials: { email: string; password: string }) => Promise<unknown> } | undefined;
+
+  return {
+    findUnique: vi.fn(),
+    credentialsProvider: vi.fn((config) => {
+      credentialsConfig = config;
+      return config;
+    }),
+    getCredentialsConfig: () => credentialsConfig,
+  };
+});
 
 vi.mock("next-auth/providers/credentials", () => ({ default: mocks.credentialsProvider }));
 vi.mock("@/lib/db", () => ({
@@ -40,5 +48,26 @@ describe("JWT session invalidation", () => {
     const result = await callback!({ token } as never);
 
     expect(result).toEqual(token);
+  });
+});
+
+describe("credentials login diagnostics", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("records a non-PII reason when an active account cannot be resolved", async () => {
+    mocks.findUnique.mockResolvedValue(null);
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const credentialsProvider = mocks.getCredentialsConfig();
+
+    await expect(credentialsProvider?.authorize?.({
+      email: "operator@example.com",
+      password: "not-a-real-password",
+    })).resolves.toBeNull();
+
+    expect(warn).toHaveBeenCalledWith(
+      JSON.stringify({ event: "credentials_login_denied", reason: "account_unavailable" }),
+    );
   });
 });

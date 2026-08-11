@@ -8,6 +8,12 @@ const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 const MAX_LOGIN_ATTEMPTS = 5;
 const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
 
+// Keep the browser response generic, but retain a non-PII server-side reason
+// code so an operator can diagnose a failed credentials callback.
+function logDeniedLogin(reason: string) {
+  console.warn(JSON.stringify({ event: "credentials_login_denied", reason }));
+}
+
 function checkRateLimit(email: string): boolean {
   const now = Date.now();
   const entry = rateLimitMap.get(email);
@@ -74,11 +80,13 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
+          logDeniedLogin("missing_credentials");
           return null;
         }
 
         // Rate limiting: check before DB query
         if (!checkRateLimit(credentials.email)) {
+          logDeniedLogin("rate_limited");
           return null;
         }
 
@@ -88,12 +96,14 @@ export const authOptions: NextAuthOptions = {
         });
 
         if (!user || !user.isActive) {
+          logDeniedLogin("account_unavailable");
           return null;
         }
 
         // Verify password
         const isValid = await bcrypt.compare(credentials.password, user.passwordHash);
         if (!isValid) {
+          logDeniedLogin("password_rejected");
           return null;
         }
 
@@ -134,6 +144,7 @@ export const authOptions: NextAuthOptions = {
         }
 
         if (!role) {
+          logDeniedLogin("active_profile_missing");
           return null;
         }
 

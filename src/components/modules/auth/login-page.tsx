@@ -67,8 +67,8 @@ export function LoginPage() {
         redirect: false,
       });
 
-      if (result?.error) {
-        setError(result.error === "CredentialsSignin" ? t("auth.invalidCredentials") : t("auth.loginFailed"));
+      if (!result?.ok || result.error) {
+        setError(result?.error === "CredentialsSignin" ? t("auth.invalidCredentials") : t("auth.loginFailed"));
         triggerShake();
       }
     } catch {
