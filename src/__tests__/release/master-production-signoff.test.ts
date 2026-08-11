@@ -38,19 +38,19 @@ describe("PROD-HANDOVER-001: Master Production Sign-Off", () => {
       for (const m of pg) expect(sqlite.has(m)).toBe(true);
     });
 
-    it("PostgreSQL migrations chain complete (18 migrations)", () => {
-      expect(allMigrationDirs(PG_MIGRATIONS)).toHaveLength(18);
+    it("PostgreSQL migrations chain complete (19 migrations)", () => {
+      expect(allMigrationDirs(PG_MIGRATIONS)).toHaveLength(19);
     });
 
-    it("SQLite migrations chain complete (10 migrations)", () => {
-      expect(allMigrationDirs(SQLITE_MIGRATIONS)).toHaveLength(10);
+    it("SQLite migrations chain complete (11 migrations)", () => {
+      expect(allMigrationDirs(SQLITE_MIGRATIONS)).toHaveLength(11);
     });
 
-    it("keeps the forward-only park staff attendance migration at the chain head", () => {
+    it("keeps the forward-only attendance event uniqueness migration at the chain head", () => {
       const pg = allMigrationDirs(PG_MIGRATIONS);
       const sql = allMigrationDirs(SQLITE_MIGRATIONS);
-      expect(pg[pg.length - 1]).toContain("add_park_staff_attendance");
-      expect(sql[sql.length - 1]).toContain("add_park_staff_attendance");
+      expect(pg[pg.length - 1]).toContain("add_attendance_event_uniqueness");
+      expect(sql[sql.length - 1]).toContain("add_attendance_event_uniqueness");
     });
   });
 

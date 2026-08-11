@@ -21,6 +21,10 @@ const listQuerySchema = z.object({
   status: z.enum(["open", "closed"]).optional(),
 });
 
+function isDuplicateAttendanceEventError(error: unknown): boolean {
+  return typeof error === "object" && error !== null && "code" in error && error.code === "P2002";
+}
+
 export async function GET(req: Request) {
   const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
@@ -131,7 +135,7 @@ export async function GET(req: Request) {
     else if (statusFilter === "closed") where.isClosed = true;
 
     // Get events with record counts
-    const events = await db.attendanceEvent.findMany({
+    const persistedEvents = await db.attendanceEvent.findMany({
       where,
       include: {
         group: true,
@@ -149,6 +153,24 @@ export async function GET(req: Request) {
     const pCountMap = new Map(groupPCounts.map((g) => [g.groupId, g._count]));
 
     // Resolve closedBy names from StaffMeta
+    // Historical retries may have created a duplicate before the database
+    // uniqueness constraint existed. Prefer the event with real marks, then a
+    // finalized event, then the earliest creation. Never show two cards.
+    const eventsByGroupId = new Map<string, typeof persistedEvents[number]>();
+    for (const event of persistedEvents) {
+      const current = eventsByGroupId.get(event.groupId);
+      if (!current) {
+        eventsByGroupId.set(event.groupId, event);
+        continue;
+      }
+      const eventWins =
+        event.records.length > current.records.length ||
+        (event.records.length === current.records.length && event.isClosed && !current.isClosed) ||
+        (event.records.length === current.records.length && event.isClosed === current.isClosed && event.createdAt < current.createdAt);
+      if (eventWins) eventsByGroupId.set(event.groupId, event);
+    }
+    const events = Array.from(eventsByGroupId.values());
+
     const closedByIds = events
       .map((e) => e.closedBy)
       .filter((id): id is string => !!id);
@@ -327,6 +349,12 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ success: true, event }, { status: 201 });
   } catch (error) {
+    if (isDuplicateAttendanceEventError(error)) {
+      return NextResponse.json(
+        { error: "Attendance already exists for this group and date" },
+        { status: 409 },
+      );
+    }
     console.error("Event create error:", error);
     return NextResponse.json(
       { error: "Internal server error" },

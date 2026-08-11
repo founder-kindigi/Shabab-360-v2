@@ -8,6 +8,10 @@ import { materializeScheduledAttendanceSchema } from "@/lib/attendance/schemas";
 import { createRosterSnapshot } from "@/lib/attendance/summaries";
 import { isScheduledAttendanceSession } from "@/lib/attendance/scheduled-sessions";
 
+function isDuplicateAttendanceEventError(error: unknown): boolean {
+  return typeof error === "object" && error !== null && "code" in error && error.code === "P2002";
+}
+
 export async function POST(req: Request) {
   const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
@@ -96,6 +100,12 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ success: true, event }, { status: 201 });
   } catch (error) {
+    if (isDuplicateAttendanceEventError(error)) {
+      return NextResponse.json(
+        { error: "Attendance already exists for this group and date" },
+        { status: 409 },
+      );
+    }
     console.error("Create event error:", error);
     return NextResponse.json(
       { error: "Internal server error" },

@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   eventFindMany: vi.fn(),
   participantGroupBy: vi.fn(),
   staffMetaFindMany: vi.fn(),
+  eventCreate: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/authorize", () => ({
@@ -23,7 +24,7 @@ vi.mock("@/lib/db", () => ({
   db: {
     group: { findUnique: mocks.groupFindUnique, findMany: mocks.groupFindMany },
     batch: { findMany: mocks.batchFindMany },
-    attendanceEvent: { findFirst: vi.fn(), create: vi.fn(), findMany: mocks.eventFindMany },
+    attendanceEvent: { findFirst: vi.fn(), create: mocks.eventCreate, findMany: mocks.eventFindMany },
     participant: { groupBy: mocks.participantGroupBy },
     staffMeta: { findMany: mocks.staffMetaFindMany },
   },
@@ -126,5 +127,25 @@ describe("POST /api/park/attendance", () => {
         },
       }),
     }));
+  });
+
+  it("returns 409 when a concurrent attendance event insert hits the database uniqueness rule", async () => {
+    mocks.groupFindUnique.mockResolvedValue({
+      id: "11111111-1111-4111-8111-111111111111",
+      batch: { parkId: "park-1" },
+    });
+    mocks.eventCreate.mockRejectedValue({ code: "P2002" });
+
+    const response = await POST(new Request("http://localhost/api/park/attendance", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        groupId: "11111111-1111-4111-8111-111111111111",
+        title: "Group 1 attendance",
+        eventDate: "2026-08-01T12:00:00+05:00",
+      }),
+    }));
+
+    expect(response.status).toBe(409);
   });
 });

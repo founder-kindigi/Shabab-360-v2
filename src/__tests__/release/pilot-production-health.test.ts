@@ -64,8 +64,8 @@ describe("PILOT-PROD-001: Pilot Production Health", () => {
 
   /* ── 2. Migration health ─────────────────────────────────────────── */
   describe("Migration health", () => {
-    it("POSTGRES has 18 migration folders", () => {
-      expect(allMigrations(PG_MIGRATIONS)).toHaveLength(18);
+    it("POSTGRES has 19 migration folders", () => {
+      expect(allMigrations(PG_MIGRATIONS)).toHaveLength(19);
     });
 
     it("SQLITE includes the approved baseline and Mashwara FK repair", () => {

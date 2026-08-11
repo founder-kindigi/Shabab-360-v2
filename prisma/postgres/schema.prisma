@@ -618,6 +618,7 @@ model AttendanceEvent {
   staffRecords    StaffAttendanceRecord[]
   rosterSnapshots AttendanceRosterSnapshot[]
 
+  @@unique([groupId, eventDate])
   @@index([groupId, eventDate])
   @@index([eventDate])
   @@map("attendance_events")

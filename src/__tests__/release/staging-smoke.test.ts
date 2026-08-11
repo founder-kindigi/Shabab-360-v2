@@ -77,10 +77,10 @@ describe("STAGING-DEPLOY-001: Staging Smoke Tests", () => {
       expect(content).toContain('provider = "postgresql"');
     });
 
-    it("POSTGRES migrations directory has 18 migration folders", () => {
+    it("POSTGRES migrations directory has 19 migration folders", () => {
       const dir = join(ROOT, "prisma/postgres/migrations");
       const dirs = readdirSync(dir).filter((d) => d.startsWith("2026"));
-      expect(dirs.length).toBe(18);
+      expect(dirs.length).toBe(19);
     });
 
     it("every POSTGRES migration has a non-empty migration.sql file", () => {
