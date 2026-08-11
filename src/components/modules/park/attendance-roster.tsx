@@ -53,7 +53,8 @@ import {
   WifiOff,
   Filter,
   X,
-  Printer,
+  LayoutGrid,
+  List,
   RotateCcw,
   Check,
   Users,
@@ -235,6 +236,7 @@ export function AttendanceRoster() {
 
   const [search, setSearch] = useState("");
   const [showUnmarkedOnly, setShowUnmarkedOnly] = useState(false);
+  const [rosterView, setRosterView] = useState<"cards" | "table">("cards");
   const [closeDialogOpen, setCloseDialogOpen] = useState(false);
   const [closeReason, setCloseReason] = useState("");
   const [processingIds, setProcessingIds] = useState<Set<string>>(new Set());
@@ -399,7 +401,7 @@ export function AttendanceRoster() {
         return r.json();
       }),
     onSuccess: () => {
-      toast.success("Event closed successfully");
+      toast.success("Attendance locked successfully");
       setCloseDialogOpen(false);
       setCloseReason("");
       queryClient.invalidateQueries({ queryKey: ["attendance-roster", selectedEventId] });
@@ -782,15 +784,17 @@ export function AttendanceRoster() {
             {event.groupName} &middot; {event.batchName}
           </p>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          className="no-print shrink-0 mt-0.5"
-          onClick={() => window.print()}
-        >
-          <Printer className="size-4 mr-1.5" />
-          Print
-        </Button>
+        {!isClosed && canClose && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="no-print shrink-0 mt-0.5 border-amber-300 text-amber-800 hover:bg-amber-50 dark:border-amber-800 dark:text-amber-300 dark:hover:bg-amber-950/30"
+            onClick={() => setCloseDialogOpen(true)}
+          >
+            <Lock className="size-4 mr-1.5" />
+            Lock attendance
+          </Button>
+        )}
       </div>
 
       {/* Offline indicator */}
@@ -825,7 +829,7 @@ export function AttendanceRoster() {
           <Lock className="size-4 text-muted-foreground shrink-0" />
           <div className="text-sm">
             <span className="font-medium text-muted-foreground">
-              Event Closed
+              Attendance locked
             </span>
             {event.closedByName && (
               <span className="text-muted-foreground">
@@ -1016,10 +1020,65 @@ export function AttendanceRoster() {
           <Filter className="size-3.5 mr-1.5" />
           Unmarked
         </Button>
+        <div className="ml-auto flex rounded-lg border bg-muted/40 p-1" aria-label="Roster layout">
+          <Button
+            aria-pressed={rosterView === "cards"}
+            className={cn("h-8 px-2", rosterView === "cards" ? "bg-background shadow-sm" : "text-muted-foreground")}
+            onClick={() => setRosterView("cards")}
+            size="sm"
+            type="button"
+            variant="ghost"
+          >
+            <LayoutGrid className="size-4" />
+            <span className="sr-only">Cards</span>
+          </Button>
+          <Button
+            aria-pressed={rosterView === "table"}
+            className={cn("h-8 px-2", rosterView === "table" ? "bg-background shadow-sm" : "text-muted-foreground")}
+            onClick={() => setRosterView("table")}
+            size="sm"
+            type="button"
+            variant="ghost"
+          >
+            <List className="size-4" />
+            <span className="sr-only">Table</span>
+          </Button>
+        </div>
       </div>
 
-      {/* ─── Roster list ─────────────────────────────────────────────────── */}
-      <div className="space-y-1.5 max-h-[50vh] overflow-y-auto pr-1 custom-scrollbar">
+      {/* One document scroll only; cards are the fast-touch default. */}
+      {rosterView === "table" ? (
+        <div className="rounded-xl border bg-card">
+          <div className="overflow-x-auto">
+            <table className="min-w-[620px] w-full text-left text-sm">
+              <thead className="border-b bg-muted/40 text-xs text-muted-foreground">
+                <tr>
+                  <th className="px-3 py-3 font-medium">Participant</th>
+                  <th className="px-3 py-3 font-medium">Current status</th>
+                  <th className="px-3 py-3 font-medium">Mark attendance</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {filteredRoster.map((item) => {
+                  const status = getStatus(item);
+                  return (
+                    <tr key={item.participantId}>
+                      <td className="px-3 py-3"><p className="font-medium">{item.participantName}</p>{item.phone && <p className="text-xs text-muted-foreground">{item.phone}</p>}</td>
+                      <td className="px-3 py-3"><Badge variant="secondary">{status ? STATUS_CONFIG[status].label : "Unmarked"}</Badge></td>
+                      <td className="px-3 py-3">
+                        {isClosed ? <span className="text-xs text-muted-foreground">Locked</span> : (
+                          <div className="flex gap-1.5">{QUICK_STATUSES.map((qs) => <Button className={cn("h-8 px-2 text-xs", status === qs.status && qs.colorClass)} disabled={processingIds.has(item.participantId)} key={qs.status} onClick={() => handleMarkSingle(item.participantId, qs.status)} size="sm" variant={status === qs.status ? "default" : "outline"}>{qs.label}</Button>)}</div>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : (
+      <div className="space-y-1.5">
         {filteredRoster.length === 0 ? (
           <div className="py-12 text-center">
             <p className="text-sm text-muted-foreground">
@@ -1234,6 +1293,7 @@ export function AttendanceRoster() {
           </AnimatePresence>
         )}
       </div>
+      )}
 
       {/* ─── Attendance Summary Bar (sticky bottom) ──────────────────────── */}
       {roster.length > 0 && (
@@ -1351,20 +1411,6 @@ export function AttendanceRoster() {
         )}
       </AnimatePresence>
 
-      {/* Close event button */}
-      {!isClosed && canClose && (
-        <div className="pt-1">
-          <Button
-            variant="outline"
-            className="w-full border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 dark:border-red-800 dark:hover:bg-red-950/30 dark:text-red-400 dark:hover:text-red-300"
-            onClick={() => setCloseDialogOpen(true)}
-          >
-            <Lock className="size-4 mr-2" />
-            Close Event
-          </Button>
-        </div>
-      )}
-
       {/* Offline Queue Panel */}
       <OfflineQueuePanel />
 
@@ -1458,11 +1504,11 @@ export function AttendanceRoster() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* ─── Close Event Dialog ──────────────────────────────────────────── */}
+      {/* ─── Lock attendance dialog ─────────────────────────────────────── */}
       <Dialog open={closeDialogOpen} onOpenChange={setCloseDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Close Event</DialogTitle>
+            <DialogTitle>Lock attendance</DialogTitle>
             <DialogDescription>
               This will lock the event and prevent further attendance marks
               (except for park admins/leads with an edit reason).
@@ -1504,7 +1550,7 @@ export function AttendanceRoster() {
                   Closing...
                 </>
               ) : (
-                "Close Event"
+                "Lock attendance"
               )}
             </Button>
           </DialogFooter>
