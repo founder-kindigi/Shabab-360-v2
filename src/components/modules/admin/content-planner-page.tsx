@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import {
@@ -21,7 +22,6 @@ import {
   Dumbbell,
   Heart,
   Sparkles,
-  PlayCircle,
   Download,
   FileText,
   Video,
@@ -33,6 +33,8 @@ import {
   Activity,
   ExternalLink,
   Youtube,
+  Shield,
+  Zap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -57,13 +59,6 @@ export type WeekGroup = {
   weekNumber: number;
   title: string;
   sessions: SyllabusSession[];
-};
-
-// --- Helper: Extract YouTube Video ID from any URL ---
-const extractYoutubeId = (url?: string) => {
-  if (!url) return null;
-  const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
-  return match ? match[1] : null;
 };
 
 // --- AUTHENTIC SHABAB BATCH 4 RUNNING DATASET (V1 MATCHER) ---
@@ -338,6 +333,9 @@ export function ContentPlannerPage() {
   // Layout View Option: "classroom" (Skool-style LMS) vs "master" (Roster Table)
   const [viewOption, setViewOption] = useState<"classroom" | "master">("classroom");
 
+  // Active Category Tab: "tadreeb" | "skills" | "sports" | "exercises"
+  const [activeCategoryTab, setActiveCategoryTab] = useState<string>("tadreeb");
+
   // State
   const [syllabusData, setSyllabusData] = useState<WeekGroup[]>(AUTHENTIC_BATCH4_SYLLABUS);
   const [selectedSessionId, setSelectedSessionId] = useState<string>("w1-d1");
@@ -352,11 +350,6 @@ export function ContentPlannerPage() {
     }
     return syllabusData[0].sessions[0];
   }, [syllabusData, selectedSessionId]);
-
-  // YouTube Video ID Extractor
-  const activeYoutubeId = useMemo(() => {
-    return extractYoutubeId(activeSession.videoUrl);
-  }, [activeSession]);
 
   // Overall Completion Progress
   const totalSessionsCount = useMemo(() => {
@@ -407,7 +400,7 @@ export function ContentPlannerPage() {
             <Badge className="bg-[#4B0A8F] text-white font-bold">Lahore Batch 4</Badge>
           </div>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Design 4-pillar activity syllabus, stream embedded YouTube lectures & drills, and manage session curriculum.
+            4-Pillar activity syllabus (Tadreeb, Skills, Sports, Exercises & Martial Arts) with session curriculum.
           </p>
         </div>
 
@@ -540,7 +533,7 @@ export function ContentPlannerPage() {
             </Card>
           </div>
 
-          {/* ─── RIGHT MAIN CONTENT PANE: EMBEDDED YOUTUBE VIDEO & SYLLABUS ─── */}
+          {/* ─── RIGHT MAIN CONTENT PANE: SESSION HEADER & 4 CATEGORY TABS ─── */}
           <div className="lg:col-span-8 space-y-4">
             <Card className="border border-slate-200 dark:border-slate-800 shadow-sm rounded-2xl overflow-hidden bg-white dark:bg-slate-900">
               <CardContent className="p-6 space-y-6">
@@ -576,118 +569,156 @@ export function ContentPlannerPage() {
                   </Button>
                 </div>
 
-                {/* 🎥 YOUTUBE VIDEO DIRECT LINK BAR (SIMPLE CLEAN LINK) */}
-                {activeSession.videoUrl && (
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-4 rounded-2xl bg-gradient-to-r from-red-500/10 via-rose-500/5 to-transparent border border-red-200 dark:border-red-900/40 shadow-sm">
-                    <div className="flex items-center gap-3">
-                      <div className="size-10 rounded-xl bg-red-100 dark:bg-red-950/60 flex items-center justify-center text-red-600 dark:text-red-400 shrink-0">
-                        <Youtube className="size-6" />
-                      </div>
-                      <div>
-                        <h4 className="font-bold text-sm text-foreground flex items-center gap-1.5">
-                          Session Video Demonstration
-                          <Badge className="bg-red-600 text-white text-[9px] px-1.5 font-bold">YouTube</Badge>
-                        </h4>
-                        <p className="text-xs text-muted-foreground mt-0.5 truncate max-w-sm sm:max-w-md font-mono">
-                          {activeSession.videoUrl}
-                        </p>
-                      </div>
-                    </div>
-
-                    <a
-                      href={activeSession.videoUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-red-600 hover:bg-red-700 text-white shadow transition-all shrink-0"
+                {/* ─── 4 CATEGORY TABS UNDER HEADING ─── */}
+                <Tabs value={activeCategoryTab} onValueChange={setActiveCategoryTab} className="w-full space-y-5">
+                  <TabsList className="grid grid-cols-2 sm:grid-cols-4 bg-slate-100 dark:bg-slate-800/80 p-1.5 rounded-2xl h-auto gap-1 border border-slate-200 dark:border-slate-700">
+                    {/* Tab 1: Tadreeb */}
+                    <TabsTrigger
+                      value="tadreeb"
+                      className="rounded-xl text-xs font-bold py-2.5 flex items-center justify-center gap-2 data-[state=active]:bg-emerald-600 data-[state=active]:text-white shadow-none transition-all"
                     >
-                      <Youtube className="size-4" />
-                      <span>Watch Video Demonstration on YouTube</span>
-                      <ExternalLink className="size-3.5 ml-0.5" />
-                    </a>
-                  </div>
-                )}
+                      <Heart className="size-4 shrink-0" />
+                      <span>Tadreeb</span>
+                    </TabsTrigger>
 
-                {/* 4 CORE CURRICULUM PILLARS GRID */}
-                <div className="space-y-3 pt-2">
-                  <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-                    <Sparkles className="size-4 text-purple-600" />
-                    4-Pillar Session Syllabus Breakdown
-                  </h3>
+                    {/* Tab 2: Skills */}
+                    <TabsTrigger
+                      value="skills"
+                      className="rounded-xl text-xs font-bold py-2.5 flex items-center justify-center gap-2 data-[state=active]:bg-purple-600 data-[state=active]:text-white shadow-none transition-all"
+                    >
+                      <Brain className="size-4 shrink-0" />
+                      <span>Skills</span>
+                    </TabsTrigger>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {/* Pillar 1: Sports & Agility */}
-                    <div className="p-4 rounded-xl border border-blue-200 dark:border-blue-900/60 bg-blue-50/50 dark:bg-blue-950/20 space-y-2">
-                      <div className="flex items-center gap-2 text-blue-700 dark:text-blue-400 font-bold text-xs">
-                        <Dumbbell className="size-4" />
-                        <span>Sports & Agility Drills</span>
+                    {/* Tab 3: Sports */}
+                    <TabsTrigger
+                      value="sports"
+                      className="rounded-xl text-xs font-bold py-2.5 flex items-center justify-center gap-2 data-[state=active]:bg-blue-600 data-[state=active]:text-white shadow-none transition-all"
+                    >
+                      <Dumbbell className="size-4 shrink-0" />
+                      <span>Sports</span>
+                    </TabsTrigger>
+
+                    {/* Tab 4: Exercises & Martial Arts */}
+                    <TabsTrigger
+                      value="exercises"
+                      className="rounded-xl text-xs font-bold py-2.5 flex items-center justify-center gap-2 data-[state=active]:bg-amber-600 data-[state=active]:text-white shadow-none transition-all"
+                    >
+                      <Activity className="size-4 shrink-0" />
+                      <span>Exercises & Martial Arts</span>
+                    </TabsTrigger>
+                  </TabsList>
+
+                  {/* ─── TAB 1: TADREEB CONTENT ─── */}
+                  <TabsContent value="tadreeb" className="space-y-4 focus-visible:outline-none">
+                    <div className="p-5 rounded-2xl border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50/40 dark:bg-emerald-950/20 space-y-3">
+                      <div className="flex items-center gap-2 text-emerald-800 dark:text-emerald-300 font-bold text-sm">
+                        <Heart className="size-5 text-emerald-600" />
+                        <span>Tadreeb & Tarbiyah Ethics Study</span>
                       </div>
-                      <p className="text-xs text-foreground leading-relaxed font-medium">
-                        {activeSession.sportsDrill}
-                      </p>
-                    </div>
-
-                    {/* Pillar 2: Life Skills */}
-                    <div className="p-4 rounded-xl border border-purple-200 dark:border-purple-900/60 bg-purple-50/50 dark:bg-purple-950/20 space-y-2">
-                      <div className="flex items-center gap-2 text-purple-700 dark:text-purple-400 font-bold text-xs">
-                        <Brain className="size-4" />
-                        <span>Life Skills Module</span>
-                      </div>
-                      <p className="text-xs text-foreground leading-relaxed font-medium">
-                        {activeSession.skillsModule}
-                      </p>
-                    </div>
-
-                    {/* Pillar 3: Tadreeb & Tarbiyah Ethics */}
-                    <div className="p-4 rounded-xl border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50/50 dark:bg-emerald-950/20 space-y-2">
-                      <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400 font-bold text-xs">
-                        <Heart className="size-4" />
-                        <span>Tadreeb & Tarbiyah Ethics</span>
-                      </div>
-                      <p className="text-xs text-foreground leading-relaxed font-medium">
+                      <p className="text-xs text-foreground leading-relaxed font-medium whitespace-pre-line">
                         {activeSession.tadreebEthics}
                       </p>
                     </div>
 
-                    {/* Pillar 4: Physical Exercises */}
-                    <div className="p-4 rounded-xl border border-amber-200 dark:border-amber-900/60 bg-amber-50/50 dark:bg-amber-950/20 space-y-2">
-                      <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400 font-bold text-xs">
-                        <Activity className="size-4" />
-                        <span>Physical Warm-up & Exercises</span>
+                    {/* Drive links for Tadreeb */}
+                    {activeSession.driveLinks && activeSession.driveLinks.length > 0 && (
+                      <div className="space-y-2 pt-2">
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                          <Download className="size-3.5 text-emerald-600" />
+                          Tadreeb Study Guide Documents
+                        </h4>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {activeSession.driveLinks.map((link, idx) => (
+                            <a
+                              key={idx}
+                              href={link.url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="flex items-center justify-between p-3 rounded-xl border border-emerald-200 dark:border-emerald-900/60 bg-white dark:bg-slate-900 hover:border-emerald-400 transition-colors text-xs font-medium"
+                            >
+                              <div className="flex items-center gap-2">
+                                <FileText className="size-4 text-emerald-600" />
+                                <span>{link.name}</span>
+                              </div>
+                              <ExternalLink className="size-3 text-muted-foreground" />
+                            </a>
+                          ))}
+                        </div>
                       </div>
-                      <p className="text-xs text-foreground leading-relaxed font-medium">
+                    )}
+                  </TabsContent>
+
+                  {/* ─── TAB 2: SKILLS CONTENT ─── */}
+                  <TabsContent value="skills" className="space-y-4 focus-visible:outline-none">
+                    <div className="p-5 rounded-2xl border border-purple-200 dark:border-purple-900/60 bg-purple-50/40 dark:bg-purple-950/20 space-y-3">
+                      <div className="flex items-center gap-2 text-purple-800 dark:text-purple-300 font-bold text-sm">
+                        <Brain className="size-5 text-purple-600" />
+                        <span>Life Skills Module & Group Activity</span>
+                      </div>
+                      <p className="text-xs text-foreground leading-relaxed font-medium whitespace-pre-line">
+                        {activeSession.skillsModule}
+                      </p>
+                    </div>
+
+                    {/* YouTube Video Direct Link Banner */}
+                    {activeSession.videoUrl && (
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-4 rounded-2xl bg-gradient-to-r from-red-500/10 via-rose-500/5 to-transparent border border-red-200 dark:border-red-900/40 shadow-sm">
+                        <div className="flex items-center gap-3">
+                          <div className="size-10 rounded-xl bg-red-100 dark:bg-red-950/60 flex items-center justify-center text-red-600 dark:text-red-400 shrink-0">
+                            <Youtube className="size-6" />
+                          </div>
+                          <div>
+                            <h4 className="font-bold text-sm text-foreground flex items-center gap-1.5">
+                              Skill Activity YouTube Reference
+                              <Badge className="bg-red-600 text-white text-[9px] px-1.5 font-bold">YouTube</Badge>
+                            </h4>
+                            <p className="text-xs text-muted-foreground mt-0.5 truncate max-w-sm sm:max-w-md font-mono">
+                              {activeSession.videoUrl}
+                            </p>
+                          </div>
+                        </div>
+
+                        <a
+                          href={activeSession.videoUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-red-600 hover:bg-red-700 text-white shadow transition-all shrink-0"
+                        >
+                          <Youtube className="size-4" />
+                          <span>Watch Video on YouTube</span>
+                          <ExternalLink className="size-3.5 ml-0.5" />
+                        </a>
+                      </div>
+                    )}
+                  </TabsContent>
+
+                  {/* ─── TAB 3: SPORTS CONTENT ─── */}
+                  <TabsContent value="sports" className="space-y-4 focus-visible:outline-none">
+                    <div className="p-5 rounded-2xl border border-blue-200 dark:border-blue-900/60 bg-blue-50/40 dark:bg-blue-950/20 space-y-3">
+                      <div className="flex items-center gap-2 text-blue-800 dark:text-blue-300 font-bold text-sm">
+                        <Dumbbell className="size-5 text-blue-600" />
+                        <span>Sports & Agility Field Drills</span>
+                      </div>
+                      <p className="text-xs text-foreground leading-relaxed font-medium whitespace-pre-line">
+                        {activeSession.sportsDrill}
+                      </p>
+                    </div>
+                  </TabsContent>
+
+                  {/* ─── TAB 4: EXERCISES & MARTIAL ARTS CONTENT ─── */}
+                  <TabsContent value="exercises" className="space-y-4 focus-visible:outline-none">
+                    <div className="p-5 rounded-2xl border border-amber-200 dark:border-amber-900/60 bg-amber-50/40 dark:bg-amber-950/20 space-y-3">
+                      <div className="flex items-center gap-2 text-amber-800 dark:text-amber-300 font-bold text-sm">
+                        <Activity className="size-5 text-amber-600" />
+                        <span>Physical Warm-up, Exercises & Martial Arts</span>
+                      </div>
+                      <p className="text-xs text-foreground leading-relaxed font-medium whitespace-pre-line">
                         {activeSession.exercises}
                       </p>
                     </div>
-                  </div>
-                </div>
-
-                {/* GOOGLE DRIVE & LESSON ATTACHMENTS */}
-                {activeSession.driveLinks && activeSession.driveLinks.length > 0 && (
-                  <div className="space-y-3 pt-4 border-t border-slate-100 dark:border-slate-800">
-                    <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-                      <Download className="size-4 text-purple-600" />
-                      Session Resource Links & Drive Documents
-                    </h4>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      {activeSession.driveLinks.map((link, idx) => (
-                        <a
-                          key={idx}
-                          href={link.url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="flex items-center justify-between p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 hover:border-purple-400 transition-colors text-xs group"
-                        >
-                          <div className="flex items-center gap-2">
-                            <FileText className="size-4 text-purple-600 group-hover:scale-110 transition-transform" />
-                            <span className="font-bold text-foreground">{link.name}</span>
-                          </div>
-                          <ExternalLink className="size-3.5 text-muted-foreground group-hover:text-purple-600" />
-                        </a>
-                      ))}
-                    </div>
-                  </div>
-                )}
+                  </TabsContent>
+                </Tabs>
               </CardContent>
             </Card>
           </div>
@@ -704,9 +735,10 @@ export function ContentPlannerPage() {
                   <th className="py-3 px-4">Week & Day</th>
                   <th className="py-3 px-4">Session Date</th>
                   <th className="py-3 px-4">Session Title</th>
-                  <th className="py-3 px-4">Sports & Agility</th>
-                  <th className="py-3 px-4">Life Skills</th>
-                  <th className="py-3 px-4">Tadreeb Ethics</th>
+                  <th className="py-3 px-4">Tadreeb</th>
+                  <th className="py-3 px-4">Skills</th>
+                  <th className="py-3 px-4">Sports</th>
+                  <th className="py-3 px-4">Exercises & Martial Arts</th>
                   <th className="py-3 px-4 text-center">Status</th>
                 </tr>
               </thead>
@@ -717,9 +749,10 @@ export function ContentPlannerPage() {
                       <td className="py-3 px-4 font-bold text-purple-600">Week {s.weekNumber} • Day {s.dayNumber}</td>
                       <td className="py-3 px-4 font-mono">{s.date}</td>
                       <td className="py-3 px-4 font-bold">{s.title}</td>
-                      <td className="py-3 px-4">{s.sportsDrill}</td>
-                      <td className="py-3 px-4">{s.skillsModule}</td>
                       <td className="py-3 px-4">{s.tadreebEthics}</td>
+                      <td className="py-3 px-4">{s.skillsModule}</td>
+                      <td className="py-3 px-4">{s.sportsDrill}</td>
+                      <td className="py-3 px-4">{s.exercises}</td>
                       <td className="py-3 px-4 text-center">
                         {s.isCompleted ? (
                           <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-400">Completed</Badge>
