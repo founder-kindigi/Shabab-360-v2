@@ -4,24 +4,33 @@ import { NextResponse } from "next/server";
 const mocks = vi.hoisted(() => ({
   requireAuth: vi.fn(),
   requireCapability: vi.fn(),
+  requireResourceScope: vi.fn(),
   groupFindUnique: vi.fn(),
+  groupFindMany: vi.fn(),
+  batchFindMany: vi.fn(),
+  eventFindMany: vi.fn(),
+  participantGroupBy: vi.fn(),
+  staffMetaFindMany: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/authorize", () => ({
   ATTENDANCE_ROLES: ["park_admin", "park_lead", "murabbi"],
   requireAuth: mocks.requireAuth,
   requireCapability: mocks.requireCapability,
-  requireResourceScope: vi.fn(),
+  requireResourceScope: mocks.requireResourceScope,
 }));
 vi.mock("@/lib/db", () => ({
   db: {
-    group: { findUnique: mocks.groupFindUnique },
-    attendanceEvent: { findFirst: vi.fn(), create: vi.fn() },
+    group: { findUnique: mocks.groupFindUnique, findMany: mocks.groupFindMany },
+    batch: { findMany: mocks.batchFindMany },
+    attendanceEvent: { findFirst: vi.fn(), create: vi.fn(), findMany: mocks.eventFindMany },
+    participant: { groupBy: mocks.participantGroupBy },
+    staffMeta: { findMany: mocks.staffMetaFindMany },
   },
 }));
 vi.mock("@/lib/audit", () => ({ logAudit: vi.fn() }));
 
-import { POST } from "./route";
+import { GET, POST } from "./route";
 
 describe("POST /api/park/attendance", () => {
   beforeEach(() => {
@@ -30,6 +39,36 @@ describe("POST /api/park/attendance", () => {
       user: { id: "staff-user-1", role: "park_admin", assignedParkId: "park-1" },
     });
     mocks.requireCapability.mockResolvedValue(null);
+    mocks.requireResourceScope.mockReturnValue(null);
+    mocks.batchFindMany.mockResolvedValue([{ id: "batch-1" }]);
+    mocks.groupFindMany.mockResolvedValue([
+      {
+        id: "group-1",
+        name: "Group 1",
+        batch: {
+          name: "Batch 4",
+          startDate: new Date("2026-07-31T19:00:00.000Z"),
+          endDate: null,
+          settings: null,
+        },
+      },
+      {
+        id: "group-2",
+        name: "Group 2",
+        batch: {
+          name: "Batch 4",
+          startDate: new Date("2026-07-31T19:00:00.000Z"),
+          endDate: null,
+          settings: null,
+        },
+      },
+    ]);
+    mocks.eventFindMany.mockResolvedValue([]);
+    mocks.participantGroupBy.mockResolvedValue([
+      { groupId: "group-1", _count: 12 },
+      { groupId: "group-2", _count: 10 },
+    ]);
+    mocks.staffMetaFindMany.mockResolvedValue([]);
   });
 
   it("returns 400 for invalid eventDate before querying group scope", async () => {
@@ -64,5 +103,28 @@ describe("POST /api/park/attendance", () => {
 
     expect(response.status).toBe(403);
     expect(mocks.groupFindUnique).not.toHaveBeenCalled();
+  });
+
+  it("returns every eligible group for the selected Saturday without shifting the date", async () => {
+    const response = await GET(
+      new Request("http://localhost/api/park/attendance?date=2026-08-08")
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      date: "2026-08-08",
+      events: [
+        { groupId: "group-1", groupName: "Group 1", isScheduled: true, participantCount: 12 },
+        { groupId: "group-2", groupName: "Group 2", isScheduled: true, participantCount: 10 },
+      ],
+    });
+    expect(mocks.eventFindMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({
+        eventDate: {
+          gte: new Date("2026-08-07T19:00:00.000Z"),
+          lt: new Date("2026-08-08T19:00:00.000Z"),
+        },
+      }),
+    }));
   });
 });

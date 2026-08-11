@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { ATTENDANCE_ROLES, requireAuth, requireCapability, requireResourceScope } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
-import { fromPKT } from "@/lib/timezone";
+import { nextPKTDay, startOfPKTDay } from "@/lib/timezone";
 import { logAudit } from "@/lib/audit";
 import { parseISO } from "date-fns";
 import { materializeScheduledAttendanceSchema } from "@/lib/attendance/schemas";
@@ -51,8 +51,8 @@ export async function POST(req: Request) {
     );
     if (scopeError) return scopeError;
 
-    const date = fromPKT(parseISO(eventDate));
-    const dayAfter = new Date(date.getTime() + 24 * 60 * 60 * 1000);
+    const date = startOfPKTDay(parseISO(eventDate));
+    const dayAfter = nextPKTDay(date);
 
     if (!isScheduledAttendanceSession(date, group.batch)) {
       return NextResponse.json(

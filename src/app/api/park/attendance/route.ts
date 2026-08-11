@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { ATTENDANCE_ROLES, requireAuth, requireCapability, requireResourceScope } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
-import { todayPKT, endOfTodayPKT, formatPKT, fromPKT } from "@/lib/timezone";
+import { todayPKT, endOfTodayPKT, formatPKT, nextPKTDay, parseDateOnlyPKT, startOfPKTDay } from "@/lib/timezone";
 import { parseISO, isValid } from "date-fns";
 import {
   optionalDateOnly,
@@ -107,16 +107,15 @@ export async function GET(req: Request) {
     let endDate: Date;
 
     if (dateParam) {
-      const parsed = parseISO(dateParam);
-      if (!isValid(parsed)) {
+      const pktDate = parseDateOnlyPKT(dateParam);
+      if (!pktDate) {
         return NextResponse.json(
           { error: "Invalid date format" },
           { status: 400 }
         );
       }
-      const pktDate = fromPKT(parsed);
-      startDate = new Date(pktDate.getFullYear(), pktDate.getMonth(), pktDate.getDate());
-      endDate = new Date(startDate.getTime() + 24 * 60 * 60 * 1000);
+      startDate = pktDate;
+      endDate = nextPKTDay(startDate);
     } else {
       startDate = todayPKT();
       endDate = endOfTodayPKT();
@@ -293,11 +292,11 @@ export async function POST(req: Request) {
 
     // Check if event already exists for this group+date
     const parsedDate = eventDate ? parseISO(eventDate) : null;
-    const date = parsedDate ? fromPKT(parsedDate) : todayPKT();
+    const date = parsedDate && isValid(parsedDate) ? startOfPKTDay(parsedDate) : todayPKT();
     const existingEvent = await db.attendanceEvent.findFirst({
       where: {
         groupId,
-        eventDate: { gte: date, lt: new Date(date.getTime() + 24 * 60 * 60 * 1000) },
+        eventDate: { gte: date, lt: nextPKTDay(date) },
       },
     });
 

@@ -52,7 +52,6 @@ type EventItem = {
   closedByName: string | null;
 };
 
-type FilterStatus = "all" | "open" | "closed";
 type AttendanceStatus = "present" | "absent" | "late" | "excused";
 
 type StaffAttendanceSummary = {
@@ -106,12 +105,18 @@ function getDateLabel(date: string): string {
   });
 }
 
+function localDateInputValue(date = new Date()): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 export function ParkAttendancePage() {
   const { navigateTo, setSelectedEventId } = useAppStore();
   const queryClient = useQueryClient();
 
-  const [filter, setFilter] = useState<FilterStatus>("all");
-  const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [selectedDate, setSelectedDate] = useState(() => localDateInputValue());
   const [staffSheetOpen, setStaffSheetOpen] = useState(false);
 
   // Fetch today's events
@@ -120,10 +125,9 @@ export function ParkAttendancePage() {
     parkId: string;
     events: EventItem[];
   }>({
-    queryKey: ["park-attendance", filter, selectedDate],
+    queryKey: ["park-attendance", selectedDate],
     queryFn: () => {
       const params = new URLSearchParams();
-      if (filter !== "all") params.set("status", filter);
       params.set("date", selectedDate);
       return fetch(`/api/park/attendance?${params}`).then((r) => {
         if (!r.ok) throw new Error("Failed to load events");
@@ -282,20 +286,6 @@ export function ParkAttendancePage() {
     openStaffRollCallMutation.mutate();
   };
 
-  const filters: { label: string; value: FilterStatus; count: number }[] = [
-    { label: "All", value: "all", count: events.length },
-    {
-      label: "Open",
-      value: "open",
-      count: events.filter((e) => !e.isClosed).length,
-    },
-    {
-      label: "Closed",
-      value: "closed",
-      count: events.filter((e) => e.isClosed).length,
-    },
-  ];
-
   if (isLoading) {
     return (
       <div className="space-y-6">
@@ -341,7 +331,7 @@ export function ParkAttendancePage() {
       {/* Date header */}
       <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
         <CalendarDays className="size-4" />
-        <label className="font-medium" htmlFor="attendance-date">Class date</label>
+        <label className="font-medium" htmlFor="attendance-date">Select class date</label>
         <input
           id="attendance-date"
           type="date"
@@ -354,6 +344,10 @@ export function ParkAttendancePage() {
         />
         <span className="w-full text-xs sm:w-auto">{selectedDateLabel}</span>
       </div>
+
+      <p className="text-sm text-muted-foreground">
+        Every active group in your park is ready here on scheduled class days. Choose a group and start marking.
+      </p>
 
       <Card className="border-[#D4B8E3] bg-gradient-to-br from-[#FCFAFD] to-[#F4ECF8]">
         <CardContent className="p-4 sm:p-5">
@@ -389,42 +383,12 @@ export function ParkAttendancePage() {
         </CardContent>
       </Card>
 
-      {/* Filter chips */}
-      <div className="flex items-center gap-2">
-        {filters.map((f) => (
-          <button
-            key={f.value}
-            onClick={() => setFilter(f.value)}
-            className={cn(
-              "px-3.5 py-1.5 rounded-full text-sm font-medium transition-colors",
-              filter === f.value
-                ? "bg-[#4B0A8F] text-white shadow-sm"
-                : "bg-muted text-muted-foreground hover:bg-muted/80"
-            )}
-          >
-            {f.label}{" "}
-            <span
-              className={cn(
-                "ml-1 text-xs",
-                filter === f.value ? "text-white/70" : "text-muted-foreground/70"
-              )}
-            >
-              {f.count}
-            </span>
-          </button>
-        ))}
-      </div>
-
       {/* Events grid */}
       {events.length === 0 ? (
         <EmptyState
           icon={CalendarCheck}
           title="No events today"
-          description={
-            filter !== "all"
-              ? `No ${filter} events found. Try a different filter.`
-              : "No class is scheduled for this date. Classes run on Saturdays and Sundays, excluding configured off days."
-          }
+          description="No class is scheduled for this date. Classes run on Saturdays and Sundays, excluding configured off days."
         />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">

@@ -9,7 +9,7 @@ import { userHasCapability } from "@/lib/auth/capability-access";
 import { db } from "@/lib/db";
 import { isScheduledAttendanceSession } from "@/lib/attendance/scheduled-sessions";
 import { materializeParkStaffAttendanceSchema } from "@/lib/attendance/schemas";
-import { formatPKT, fromPKT, todayPKT } from "@/lib/timezone";
+import { formatPKT, parseDateOnlyPKT, startOfPKTDay, todayPKT } from "@/lib/timezone";
 import { isValid, parseISO } from "date-fns";
 import { z } from "zod";
 
@@ -58,8 +58,10 @@ async function isParkOperatingDate(parkId: string, date: Date): Promise<boolean>
 
 function parseParkDate(value: string | undefined): Date | null {
   if (!value) return todayPKT();
+  const calendarDate = parseDateOnlyPKT(value);
+  if (calendarDate) return calendarDate;
   const parsed = parseISO(value);
-  return isValid(parsed) ? fromPKT(parsed) : null;
+  return isValid(parsed) ? startOfPKTDay(parsed) : null;
 }
 
 export async function GET(req: Request) {
@@ -112,7 +114,7 @@ export async function POST(req: Request) {
   const scope = await resolveManagedPark(capabilityAuth.user, parsedBody.data.parkId);
   if (scope.error) return scope.error;
 
-  const eventDate = fromPKT(parseISO(parsedBody.data.eventDate));
+  const eventDate = startOfPKTDay(parseISO(parsedBody.data.eventDate));
   if (!(await isParkOperatingDate(scope.park.id, eventDate))) {
     return NextResponse.json({ error: "Staff attendance is available only on a scheduled operating day." }, { status: 400 });
   }

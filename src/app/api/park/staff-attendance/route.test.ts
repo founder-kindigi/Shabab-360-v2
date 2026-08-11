@@ -31,7 +31,7 @@ vi.mock("@/lib/auth/capability-access", () => ({
   userHasCapability: mocks.userHasCapability,
 }));
 
-import { POST } from "./route";
+import { GET, POST } from "./route";
 
 const parkId = "ckggggggggggggggggggggggg";
 const saturday = "2026-08-01T08:00:00.000Z";
@@ -124,5 +124,24 @@ describe("POST /api/park/staff-attendance", () => {
     expect(response.status).toBe(409);
     expect(tx.parkStaffAttendanceEvent.create).not.toHaveBeenCalled();
     expect(tx.auditLog.create).not.toHaveBeenCalled();
+  });
+
+  it("uses the selected Saturday as the PKT calendar day when listing staff roll-call", async () => {
+    mocks.eventFindUnique.mockResolvedValue(null);
+
+    const response = await GET(new Request(
+      `http://localhost/api/park/staff-attendance?parkId=${parkId}&date=2026-08-01`,
+    ));
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({ date: "2026-08-01", isScheduled: true });
+    expect(mocks.eventFindUnique).toHaveBeenCalledWith(expect.objectContaining({
+      where: {
+        parkId_eventDate: {
+          parkId,
+          eventDate: new Date("2026-07-31T19:00:00.000Z"),
+        },
+      },
+    }));
   });
 });
