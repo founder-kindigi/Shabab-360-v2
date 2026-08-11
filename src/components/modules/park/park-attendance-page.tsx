@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useSession } from "next-auth/react";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { CalendarDays, CheckCircle2, LayoutGrid, List, Lock, Play, Users } from "lucide-react";
@@ -10,6 +11,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
@@ -35,22 +43,50 @@ type AttendanceListResponse = {
   events: AttendanceEvent[];
 };
 
-async function fetchAttendanceEvents(date: string): Promise<AttendanceListResponse> {
-  const response = await fetch(`/api/park/attendance?date=${encodeURIComponent(date)}`);
+type ParkOption = {
+  id: string;
+  name: string;
+};
+
+async function fetchAttendanceEvents(date: string, parkId?: string): Promise<AttendanceListResponse> {
+  const query = new URLSearchParams({ date });
+  if (parkId) query.set("parkId", parkId);
+  const response = await fetch(`/api/park/attendance?${query.toString()}`);
   const body = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(body.error || "Could not load attendance sessions");
+  return body;
+}
+
+async function fetchParks(): Promise<ParkOption[]> {
+  const response = await fetch("/api/admin/parks");
+  const body = await response.json().catch(() => []);
+  if (!response.ok || !Array.isArray(body)) throw new Error("Could not load parks");
   return body;
 }
 
 export function ParkAttendancePage() {
   const navigateTo = useAppStore((state) => state.navigateTo);
   const setSelectedEventId = useAppStore((state) => state.setSelectedEventId);
+  const { data: session, status: sessionStatus } = useSession();
   const [selectedDate, setSelectedDate] = useState(() => format(new Date(), "yyyy-MM-dd"));
   const [view, setView] = useState<"cards" | "table">("cards");
+  const [selectedParkId, setSelectedParkId] = useState("");
+  const assignedParkId = session?.user?.assignedParkId;
+  const isMurabbi = session?.user?.role === "murabbi";
+  const requiresParkSelection = sessionStatus === "authenticated" && !assignedParkId && !isMurabbi;
+  const effectiveParkId = assignedParkId || selectedParkId;
+
+  const parksQuery = useQuery({
+    queryKey: ["attendance-parks"],
+    queryFn: fetchParks,
+    enabled: requiresParkSelection,
+    staleTime: 5 * 60 * 1000,
+  });
 
   const { data, error, isLoading, isFetching, refetch } = useQuery({
-    queryKey: ["park-attendance", selectedDate],
-    queryFn: () => fetchAttendanceEvents(selectedDate),
+    queryKey: ["park-attendance", selectedDate, effectiveParkId],
+    queryFn: () => fetchAttendanceEvents(selectedDate, effectiveParkId || undefined),
+    enabled: sessionStatus !== "loading" && (!requiresParkSelection || Boolean(effectiveParkId)),
   });
 
   const events = data?.events ?? [];
@@ -77,6 +113,22 @@ export function ParkAttendancePage() {
             </p>
           </div>
           <div className="flex items-center gap-2">
+            {requiresParkSelection && (
+              <Select
+                onValueChange={setSelectedParkId}
+                value={selectedParkId}
+                disabled={parksQuery.isLoading || parksQuery.isError}
+              >
+                <SelectTrigger aria-label="Attendance park" className="h-10 w-[172px]">
+                  <SelectValue placeholder={parksQuery.isLoading ? "Loading parks..." : "Select a park"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {parksQuery.data?.map((park) => (
+                    <SelectItem key={park.id} value={park.id}>{park.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
             <div className="relative">
               <CalendarDays className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
@@ -123,7 +175,11 @@ export function ParkAttendancePage() {
         )}
       </section>
 
-      {isLoading ? (
+      {requiresParkSelection && parksQuery.isError ? (
+        <Card className="border-destructive/30"><CardContent className="space-y-3 p-5"><p className="font-medium">Could not load parks</p><p className="text-sm text-muted-foreground">Choose a different account or try again.</p><Button onClick={() => parksQuery.refetch()} variant="outline">Try again</Button></CardContent></Card>
+      ) : requiresParkSelection && !effectiveParkId ? (
+        <Card><CardContent className="p-8 text-center"><p className="font-semibold">Select a park to view attendance</p><p className="mt-1 text-sm text-muted-foreground">City-scoped attendance stays separated by park.</p></CardContent></Card>
+      ) : isLoading ? (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {[1, 2, 3].map((item) => <Skeleton className="h-52 rounded-2xl" key={item} />)}
         </div>
