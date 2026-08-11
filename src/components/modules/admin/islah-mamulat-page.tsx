@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -51,10 +51,113 @@ import {
   Trophy,
   Flame,
   CheckCircle,
+  Search,
+  Filter,
+  UserCheck,
+  Crown,
+  UserX,
+  ChevronRight,
+  Shield,
+  GraduationCap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-// ─── Routine Level Presets ───
+// ─── Guided Cadet Mock Dataset (Matching islahimamulat.com structure) ───
+export type GuidedCadet = {
+  id: string;
+  name: string;
+  parkName: string;
+  groupName: string;
+  wakeupTime: string;
+  sleepTime: string;
+  lastLoggedDate: string;
+  jamaatCount: number; // out of 5
+  tilawatMins: number;
+  streakDays: number;
+  is40DayChampion: boolean;
+  hasUnreadLog: boolean;
+  isInactive: boolean;
+};
+
+const MOCK_GUIDED_CADETS: GuidedCadet[] = [
+  {
+    id: "c-1",
+    name: "Muhammad Umair",
+    parkName: "Gulberg Park",
+    groupName: "Group 1 • Murabbi Ikram",
+    wakeupTime: "05:30 AM",
+    sleepTime: "10:30 PM",
+    lastLoggedDate: "11 Aug 2026",
+    jamaatCount: 5,
+    tilawatMins: 25,
+    streakDays: 42,
+    is40DayChampion: true,
+    hasUnreadLog: true,
+    isInactive: false,
+  },
+  {
+    id: "c-2",
+    name: "Muhammad Ahmad",
+    parkName: "Gulberg Park",
+    groupName: "Group 1 • Murabbi Ikram",
+    wakeupTime: "06:00 AM",
+    sleepTime: "11:00 PM",
+    lastLoggedDate: "11 Aug 2026",
+    jamaatCount: 4,
+    tilawatMins: 15,
+    streakDays: 14,
+    is40DayChampion: false,
+    hasUnreadLog: true,
+    isInactive: false,
+  },
+  {
+    id: "c-3",
+    name: "M. Abdullah Qureshi",
+    parkName: "Gulberg Park",
+    groupName: "Group 1 • Murabbi Ikram",
+    wakeupTime: "05:15 AM",
+    sleepTime: "10:00 PM",
+    lastLoggedDate: "11 Aug 2026",
+    jamaatCount: 5,
+    tilawatMins: 30,
+    streakDays: 40,
+    is40DayChampion: true,
+    hasUnreadLog: false,
+    isInactive: false,
+  },
+  {
+    id: "c-4",
+    name: "Muhammad Huzaifa Saif",
+    parkName: "Gulberg Park",
+    groupName: "Group 2 • Murabbi Hanzala",
+    wakeupTime: "05:45 AM",
+    sleepTime: "10:45 PM",
+    lastLoggedDate: "10 Aug 2026",
+    jamaatCount: 5,
+    tilawatMins: 20,
+    streakDays: 9,
+    is40DayChampion: false,
+    hasUnreadLog: false,
+    isInactive: false,
+  },
+  {
+    id: "c-5",
+    name: "Muhammad Yusha",
+    parkName: "Gulberg Park",
+    groupName: "Group 2 • Murabbi Hanzala",
+    wakeupTime: "07:30 AM",
+    sleepTime: "12:00 AM",
+    lastLoggedDate: "02 Aug 2026",
+    jamaatCount: 2,
+    tilawatMins: 0,
+    streakDays: 0,
+    is40DayChampion: false,
+    hasUnreadLog: false,
+    isInactive: true, // No logs for 7+ days
+  },
+];
+
+// ─── Routine Presets ───
 const ROUTINE_PRESETS = [
   {
     id: "level-1",
@@ -91,39 +194,18 @@ const ROUTINE_PRESETS = [
   },
 ];
 
-// ─── Guidance Notes Mock ───
-const GUIDANCE_NOTES = [
-  {
-    id: "guide-1",
-    author: "Sheikh & Murabbi Hanzala Tauseef",
-    title: "Consistency in Fajr Jama'at & Morning Azkar",
-    date: "10 Aug 2026",
-    content: "The key to spiritual growth is consistency (Istiqaamat) in Fajr Jama'at. Even on weekends, maintain the morning time after Fajr for Quran Tilawat and Azkar.",
-    targetPark: "Gulberg Park",
-    likes: 42,
-  },
-  {
-    id: "guide-2",
-    author: "Murabbi Ikram Meer",
-    title: "Purity of Intention (Ikhlaas) in Mutala'ah",
-    date: "08 Aug 2026",
-    content: "When reading Seerah books during Mutala'ah time, intend to practice every Sunnah learned rather than just finishing pages.",
-    targetPark: "All Parks",
-    likes: 38,
-  },
-];
-
 export function IslahMamulatPage() {
   const { data: session } = useSession();
   const queryClient = useQueryClient();
 
-  const [activeTab, setActiveTab] = useState<"tracker" | "karguzari" | "guidance" | "presets" | "analytics">("tracker");
+  // Workspace Switcher: "cadet" (Personal Daily Log) vs "murabbi" (Guided Cadets Desk)
+  const [workspaceRole, setWorkspaceRole] = useState<"cadet" | "murabbi">("cadet");
 
-  // Modals state
-  const [isLogModalOpen, setIsLogModalOpen] = useState(false);
-  const [isGuidanceModalOpen, setIsGuidanceModalOpen] = useState(false);
+  // Murabbi Filter Pill: "all" | "today" | "streak7" | "champions" | "inactive"
+  const [murabbiFilter, setMurabbiFilter] = useState<string>("all");
+  const [searchQuery, setSearchQuery] = useState("");
 
-  // Daily Tracker Interactive State (matching islahimamulat.com)
+  // Cadet Log State
   const [wakeupTime, setWakeupTime] = useState("05:30 AM");
   const [sleepTime, setSleepTime] = useState("10:30 PM");
   const [fajr, setFajr] = useState(true);
@@ -138,27 +220,30 @@ export function IslahMamulatPage() {
   const [mutalaahMins, setMutalaahMins] = useState(20);
   const [hifzNazar, setHifzNazar] = useState(5);
   const [logNotes, setLogNotes] = useState("");
-
-  // 40-Day Challenge Streak Tracker
   const [streakDays, setStreakDays] = useState(14);
 
-  // Guidance Form State
-  const [guideTitle, setGuideTitle] = useState("");
-  const [guideContent, setGuideContent] = useState("");
+  // Murabbi Inspection Modal State
+  const [selectedCadet, setSelectedCadet] = useState<GuidedCadet | null>(null);
+  const [guidanceNote, setGuidanceNote] = useState("");
 
-  // ─── Fetch Daily Logs ───
-  const { data: logData, isLoading } = useQuery({
-    queryKey: ["islah-daily-logs"],
-    queryFn: async () => {
-      const res = await fetch("/api/islah/daily-log");
-      if (!res.ok) return [];
-      const json = await res.json();
-      return json.data || [];
-    },
-  });
+  // Filtered Guided Cadets for Murabbi Desk
+  const filteredCadets = useMemo(() => {
+    return MOCK_GUIDED_CADETS.filter((cadet) => {
+      const matchesSearch = cadet.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        cadet.groupName.toLowerCase().includes(searchQuery.toLowerCase());
+      
+      if (!matchesSearch) return false;
 
-  const dailyLogs = logData || [];
+      if (murabbiFilter === "today") return cadet.lastLoggedDate === "11 Aug 2026";
+      if (murabbiFilter === "streak7") return cadet.streakDays >= 7;
+      if (murabbiFilter === "champions") return cadet.is40DayChampion;
+      if (murabbiFilter === "inactive") return cadet.isInactive;
 
+      return true;
+    });
+  }, [murabbiFilter, searchQuery]);
+
+  // Submit Log Mutation
   const logMutation = useMutation({
     mutationFn: async (payload: any) => {
       const res = await fetch("/api/islah/daily-log", {
@@ -171,7 +256,6 @@ export function IslahMamulatPage() {
     },
     onSuccess: () => {
       toast.success("Daily Mamulat log submitted successfully!");
-      setIsLogModalOpen(false);
       queryClient.invalidateQueries({ queryKey: ["islah-daily-logs"] });
     },
     onError: () => {
@@ -200,7 +284,7 @@ export function IslahMamulatPage() {
     });
   };
 
-  // ─── Generate Urdu WhatsApp Message (matching islahimamulat.com format) ───
+  // Generate Urdu WhatsApp Karguzari Text
   const generateWhatsAppMessage = () => {
     const todayStr = new Date().toLocaleDateString("en-US", {
       day: "numeric",
@@ -237,153 +321,145 @@ ${mutalaahMins > 0 ? `(✓) مطالعہ: ${mutalaahMins} منٹ` : "(✕) مط�
     toast.success("Opening WhatsApp with your formatted Islah report!");
   };
 
+  const handleVerifyCadetLog = () => {
+    if (!selectedCadet) return;
+    toast.success(`Verified Islah log for ${selectedCadet.name}! Guidance note sent.`);
+    setSelectedCadet(null);
+    setGuidanceNote("");
+  };
+
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-1 pb-12 space-y-6">
-      {/* ─── Page Header & Portal Link ─── */}
+    <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-1 pb-12 space-y-6">
+      {/* ─── PAGE HEADER & WORKSPACE ROLE SWITCHER ─── */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-gradient-to-r from-emerald-500/10 via-teal-500/5 to-transparent p-5 rounded-2xl border border-emerald-200/60 dark:border-emerald-900/40">
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-bold tracking-tight text-foreground">
               اصلاح و معمولات — Islah-i-Mamulat Studio
             </h1>
-            <Badge className="bg-emerald-600 text-white font-bold">Al-Burhan Portal Synced</Badge>
+            <Badge className="bg-emerald-600 text-white font-bold">Al-Burhan Synced</Badge>
           </div>
-          <p className="text-sm text-muted-foreground mt-0.5">
+          <p className="text-xs text-muted-foreground mt-0.5">
             Spiritual Routine Tracker & Self-Reformation Studio • Daily Prayers, Wakeup/Sleep Times, 40-Day Champions & Murabbi Inspection.
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => window.open("https://islahimamulat.com/", "_blank")}
-            className="gap-2 border-emerald-300 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-50"
+        {/* Workspace Switcher */}
+        <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-700">
+          <button
+            type="button"
+            onClick={() => setWorkspaceRole("cadet")}
+            className={cn(
+              "px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-2 transition-all shadow-sm",
+              workspaceRole === "cadet"
+                ? "bg-emerald-600 text-white shadow-emerald-500/20"
+                : "text-muted-foreground hover:text-foreground"
+            )}
           >
-            <ExternalLink className="size-4 text-emerald-600" />
-            <span>Open islahimamulat.com</span>
-          </Button>
+            <GraduationCap className="size-4" />
+            <span>My Daily Mamulat (Cadet View)</span>
+          </button>
 
-          <Button
-            size="sm"
-            onClick={generateWhatsAppMessage}
-            className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow"
+          <button
+            type="button"
+            onClick={() => setWorkspaceRole("murabbi")}
+            className={cn(
+              "px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-2 transition-all",
+              workspaceRole === "murabbi"
+                ? "bg-[#4B0A8F] text-white shadow-purple-500/20"
+                : "text-muted-foreground hover:text-foreground"
+            )}
           >
-            <Share2 className="size-4" />
-            <span>Share Log on WhatsApp</span>
-          </Button>
-
-          <Button
-            size="sm"
-            onClick={() => setIsLogModalOpen(true)}
-            className="gap-2 bg-[#4B0A8F] hover:bg-[#3b0873] text-white shadow"
-          >
-            <CheckCircle2 className="size-4" />
-            <span>Log Daily Mamulat</span>
-          </Button>
+            <Shield className="size-4" />
+            <span>Murabbi Guidance Desk</span>
+          </button>
         </div>
       </div>
 
-      {/* ─── 4 Top KPI Cards (with 40-Day Champions) ─── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="border border-slate-200 dark:border-slate-800 shadow-sm rounded-xl overflow-hidden relative">
-          <CardContent className="p-5">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Daily Compliance Rate
-                </p>
-                <h3 className="text-2xl font-bold text-foreground mt-1">88% Fulfillment</h3>
-                <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium mt-1">
-                  Jama'at & Quran Tilawat
-                </p>
-              </div>
-              <div className="size-12 rounded-xl bg-emerald-100 dark:bg-emerald-950/50 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
-                <Heart className="size-6" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      {/* ─── WORKSPACE 1: CADET DAILY MAMULAT VIEW ─── */}
+      {workspaceRole === "cadet" ? (
+        <div className="space-y-6">
+          {/* 4 KPI Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Card className="border border-slate-200 dark:border-slate-800 shadow-sm rounded-xl overflow-hidden">
+              <CardContent className="p-5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Daily Compliance Rate
+                    </p>
+                    <h3 className="text-2xl font-bold text-foreground mt-1">88% Fulfillment</h3>
+                    <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium mt-1">
+                      Jama'at & Quran Tilawat
+                    </p>
+                  </div>
+                  <div className="size-12 rounded-xl bg-emerald-100 dark:bg-emerald-950/50 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+                    <Heart className="size-6" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
-        {/* 40-Day Champions Card */}
-        <Card className="border border-slate-200 dark:border-slate-800 shadow-sm rounded-xl overflow-hidden relative">
-          <CardContent className="p-5">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  40-Day Champions Streak
-                </p>
-                <h3 className="text-2xl font-bold text-amber-600 dark:text-amber-400 mt-1">Day {streakDays} / 40</h3>
-                <p className="text-xs text-amber-600 font-medium mt-1 flex items-center gap-1">
-                  <Flame className="size-3 text-amber-500 fill-amber-500" /> Active 14-Day Streak
-                </p>
-              </div>
-              <div className="size-12 rounded-xl bg-amber-100 dark:bg-amber-950/50 flex items-center justify-center text-amber-600 dark:text-amber-400">
-                <Trophy className="size-6" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            <Card className="border border-slate-200 dark:border-slate-800 shadow-sm rounded-xl overflow-hidden">
+              <CardContent className="p-5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      40-Day Champions Streak
+                    </p>
+                    <h3 className="text-2xl font-bold text-amber-600 dark:text-amber-400 mt-1">Day {streakDays} / 40</h3>
+                    <p className="text-xs text-amber-600 font-medium mt-1 flex items-center gap-1">
+                      <Flame className="size-3 text-amber-500 fill-amber-500" /> Active 14-Day Streak
+                    </p>
+                  </div>
+                  <div className="size-12 rounded-xl bg-amber-100 dark:bg-amber-950/50 flex items-center justify-center text-amber-600 dark:text-amber-400">
+                    <Trophy className="size-6" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
-        <Card className="border border-slate-200 dark:border-slate-800 shadow-sm rounded-xl overflow-hidden relative">
-          <CardContent className="p-5">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Monthly Islah Karguzaris
-                </p>
-                <h3 className="text-2xl font-bold text-foreground mt-1">142 Reports</h3>
-                <p className="text-xs text-purple-600 dark:text-purple-400 font-medium mt-1">
-                  Across 6 Active Parks
-                </p>
-              </div>
-              <div className="size-12 rounded-xl bg-purple-100 dark:bg-purple-950/50 flex items-center justify-center text-purple-600 dark:text-purple-400">
-                <CalendarCheck className="size-6" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            <Card className="border border-slate-200 dark:border-slate-800 shadow-sm rounded-xl overflow-hidden">
+              <CardContent className="p-5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Total Days Recorded
+                    </p>
+                    <h3 className="text-2xl font-bold text-foreground mt-1">42 Days</h3>
+                    <p className="text-xs text-purple-600 dark:text-purple-400 font-medium mt-1">
+                      Gulberg Park Cadets
+                    </p>
+                  </div>
+                  <div className="size-12 rounded-xl bg-purple-100 dark:bg-purple-950/50 flex items-center justify-center text-purple-600 dark:text-purple-400">
+                    <CalendarCheck className="size-6" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
-        <Card className="border border-slate-200 dark:border-slate-800 shadow-sm rounded-xl overflow-hidden relative">
-          <CardContent className="p-5">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Murabbi Guidance Notes
-                </p>
-                <h3 className="text-2xl font-bold text-foreground mt-1">18 Verified</h3>
-                <p className="text-xs text-blue-600 dark:text-blue-400 font-medium mt-1">
-                  Active Mentorship
-                </p>
-              </div>
-              <div className="size-12 rounded-xl bg-blue-100 dark:bg-blue-950/50 flex items-center justify-center text-blue-600 dark:text-blue-400">
-                <Sparkles className="size-6" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+            <Card className="border border-slate-200 dark:border-slate-800 shadow-sm rounded-xl overflow-hidden">
+              <CardContent className="p-5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Murabbi Verification
+                    </p>
+                    <h3 className="text-2xl font-bold text-foreground mt-1">18 Verified</h3>
+                    <p className="text-xs text-blue-600 dark:text-blue-400 font-medium mt-1">
+                      Active Mentorship
+                    </p>
+                  </div>
+                  <div className="size-12 rounded-xl bg-blue-100 dark:bg-blue-950/50 flex items-center justify-center text-blue-600 dark:text-blue-400">
+                    <Sparkles className="size-6" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
 
-      {/* ─── Tabs Navigation ─── */}
-      <Tabs value={activeTab} onValueChange={(v: any) => setActiveTab(v)} className="w-full space-y-4">
-        <TabsList className="bg-slate-100 dark:bg-slate-800 p-1.5 rounded-xl">
-          <TabsTrigger value="tracker" className="rounded-lg text-xs font-bold gap-2">
-            <CheckCircle2 className="size-3.5" /> Daily Mamulat Tracker
-          </TabsTrigger>
-          <TabsTrigger value="karguzari" className="rounded-lg text-xs font-bold gap-2">
-            <BookOpen className="size-3.5" /> Islah Karguzari Roster
-          </TabsTrigger>
-          <TabsTrigger value="guidance" className="rounded-lg text-xs font-bold gap-2">
-            <MessageSquare className="size-3.5" /> Murabbi Guidance Feed
-          </TabsTrigger>
-          <TabsTrigger value="presets" className="rounded-lg text-xs font-bold gap-2">
-            <Layers className="size-3.5" /> Routine Presets (Levels 1-3)
-          </TabsTrigger>
-        </TabsList>
-
-        {/* ─── TAB 1: DAILY MAMULAT TRACKER ─── */}
-        <TabsContent value="tracker" className="space-y-4">
-          <Card className="border border-slate-200 dark:border-slate-800 shadow-sm rounded-xl overflow-hidden bg-white dark:bg-slate-900">
+          {/* Daily Mamulat Checklist Card */}
+          <Card className="border border-slate-200 dark:border-slate-800 shadow-sm rounded-2xl overflow-hidden bg-white dark:bg-slate-900">
             <CardHeader className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-800">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div>
@@ -480,7 +556,6 @@ ${mutalaahMins > 0 ? `(✓) مطالعہ: ${mutalaahMins} منٹ` : "(✕) مط�
 
               {/* Additional Daily Spiritual Regimen */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
-                {/* Tilawat & Mutala'ah Sliders */}
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <div className="flex justify-between text-xs font-bold">
@@ -513,7 +588,6 @@ ${mutalaahMins > 0 ? `(✓) مطالعہ: ${mutalaahMins} منٹ` : "(✕) مط�
                   </div>
                 </div>
 
-                {/* Daily Azkar & Tahajjud Checkboxes */}
                 <div className="space-y-3 bg-slate-50 dark:bg-slate-800/60 p-4 rounded-xl border border-slate-200 dark:border-slate-800">
                   <label className="flex items-center gap-2.5 text-xs font-bold text-foreground cursor-pointer">
                     <Checkbox checked={morningAzkar} onCheckedChange={(v: any) => setMorningAzkar(!!v)} />
@@ -532,7 +606,7 @@ ${mutalaahMins > 0 ? `(✓) مطالعہ: ${mutalaahMins} منٹ` : "(✕) مط�
                 </div>
               </div>
 
-              {/* Submit & WhatsApp Action Buttons */}
+              {/* Action Buttons */}
               <div className="flex flex-col sm:flex-row items-center justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
                 <Button
                   variant="outline"
@@ -554,57 +628,287 @@ ${mutalaahMins > 0 ? `(✓) مطالعہ: ${mutalaahMins} منٹ` : "(✕) مط�
               </div>
             </CardContent>
           </Card>
-        </TabsContent>
+        </div>
+      ) : (
+        /* ─── WORKSPACE 2: MURABBI GUIDANCE DESK (MODELED AFTER ISLAHIMAMULAT.COM MURABBI DASHBOARD) ─── */
+        <div className="space-y-6">
+          {/* 4 Stat Summary Cards (Exact matching islahimamulat.com Murabbi Dashboard) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Card className="border border-slate-200 dark:border-slate-800 shadow-sm rounded-xl overflow-hidden">
+              <CardContent className="p-5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Total Guided Cadets
+                    </p>
+                    <h3 className="text-2xl font-bold text-foreground mt-1">48 Cadets</h3>
+                    <p className="text-xs text-purple-600 font-medium mt-1">
+                      My Youth Groups
+                    </p>
+                  </div>
+                  <div className="size-12 rounded-xl bg-purple-100 dark:bg-purple-950/50 flex items-center justify-center text-purple-600">
+                    <Users className="size-6" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
-        {/* ─── TAB 2: ISLAH KARGUZARI ROSTER ─── */}
-        <TabsContent value="karguzari" className="space-y-4">
-          <Card className="border border-slate-200 dark:border-slate-800 shadow-sm rounded-xl overflow-hidden bg-white dark:bg-slate-900 p-6 space-y-4">
-            <div className="flex justify-between items-center">
-              <h3 className="text-base font-bold text-foreground">Youth Cadets Islah Karguzari Roster</h3>
-              <Badge className="bg-blue-600 text-white">Gulberg Park</Badge>
+            <Card className="border border-slate-200 dark:border-slate-800 shadow-sm rounded-xl overflow-hidden">
+              <CardContent className="p-5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Logged Today
+                    </p>
+                    <h3 className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">32 Cadets</h3>
+                    <p className="text-xs text-emerald-600 font-medium mt-1">
+                      67% Response Rate
+                    </p>
+                  </div>
+                  <div className="size-12 rounded-xl bg-emerald-100 dark:bg-emerald-950/50 flex items-center justify-center text-emerald-600">
+                    <CalendarCheck className="size-6" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border border-slate-200 dark:border-slate-800 shadow-sm rounded-xl overflow-hidden">
+              <CardContent className="p-5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      7-Day Streak Cadets
+                    </p>
+                    <h3 className="text-2xl font-bold text-blue-600 dark:text-blue-400 mt-1">28 Cadets</h3>
+                    <p className="text-xs text-blue-600 font-medium mt-1 flex items-center gap-1">
+                      <Flame className="size-3" /> Consistent Routine
+                    </p>
+                  </div>
+                  <div className="size-12 rounded-xl bg-blue-100 dark:bg-blue-950/50 flex items-center justify-center text-blue-600">
+                    <Flame className="size-6" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border border-slate-200 dark:border-slate-800 shadow-sm rounded-xl overflow-hidden">
+              <CardContent className="p-5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      40-Day Champions
+                    </p>
+                    <h3 className="text-2xl font-bold text-amber-600 dark:text-amber-400 mt-1">12 Cadets</h3>
+                    <p className="text-xs text-amber-600 font-medium mt-1 flex items-center gap-1">
+                      <Crown className="size-3" /> Top Spiritual Performers
+                    </p>
+                  </div>
+                  <div className="size-12 rounded-xl bg-amber-100 dark:bg-amber-950/50 flex items-center justify-center text-amber-600">
+                    <Crown className="size-6" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Filter Bar & Search */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+            {/* Filter Pills */}
+            <div className="flex flex-wrap items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setMurabbiFilter("all")}
+                className={cn(
+                  "px-3 py-1.5 rounded-xl text-xs font-bold transition-all",
+                  murabbiFilter === "all"
+                    ? "bg-[#4B0A8F] text-white shadow-sm"
+                    : "bg-slate-100 dark:bg-slate-800 text-muted-foreground hover:text-foreground"
+                )}
+              >
+                All Cadets ({MOCK_GUIDED_CADETS.length})
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setMurabbiFilter("today")}
+                className={cn(
+                  "px-3 py-1.5 rounded-xl text-xs font-bold transition-all",
+                  murabbiFilter === "today"
+                    ? "bg-emerald-600 text-white shadow-sm"
+                    : "bg-slate-100 dark:bg-slate-800 text-muted-foreground hover:text-foreground"
+                )}
+              >
+                Logged Today (3)
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setMurabbiFilter("streak7")}
+                className={cn(
+                  "px-3 py-1.5 rounded-xl text-xs font-bold transition-all",
+                  murabbiFilter === "streak7"
+                    ? "bg-blue-600 text-white shadow-sm"
+                    : "bg-slate-100 dark:bg-slate-800 text-muted-foreground hover:text-foreground"
+                )}
+              >
+                7-Day Streak (4)
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setMurabbiFilter("champions")}
+                className={cn(
+                  "px-3 py-1.5 rounded-xl text-xs font-bold transition-all",
+                  murabbiFilter === "champions"
+                    ? "bg-amber-600 text-white shadow-sm"
+                    : "bg-slate-100 dark:bg-slate-800 text-muted-foreground hover:text-foreground"
+                )}
+              >
+                40-Day Champions (2)
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setMurabbiFilter("inactive")}
+                className={cn(
+                  "px-3 py-1.5 rounded-xl text-xs font-bold transition-all",
+                  murabbiFilter === "inactive"
+                    ? "bg-red-600 text-white shadow-sm"
+                    : "bg-slate-100 dark:bg-slate-800 text-muted-foreground hover:text-foreground"
+                )}
+              >
+                ⚠️ Inactive 7+ Days (1)
+              </button>
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-slate-50 dark:bg-slate-800 text-muted-foreground font-semibold uppercase">
-                  <tr>
-                    <th className="py-3 px-4">Cadet Name</th>
-                    <th className="py-3 px-4">Wakeup / Sleep</th>
-                    <th className="py-3 px-4">Jama'at Prayers</th>
-                    <th className="py-3 px-4">Tilawat</th>
-                    <th className="py-3 px-4">40-Day Streak</th>
-                    <th className="py-3 px-4 text-center">Murabbi Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                  <tr className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                    <td className="py-3 px-4 font-bold text-foreground">Muhammad Umair</td>
-                    <td className="py-3 px-4 font-mono">05:30 AM / 10:30 PM</td>
-                    <td className="py-3 px-4 font-bold text-emerald-600">5 / 5 Jama'at</td>
-                    <td className="py-3 px-4">25 Mins</td>
-                    <td className="py-3 px-4 font-bold text-amber-600">Day 14 (Active)</td>
-                    <td className="py-3 px-4 text-center">
-                      <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
-                        Verified by Murabbi
+            {/* Search Input */}
+            <div className="relative min-w-[200px]">
+              <Search className="absolute left-3 top-2.5 size-3.5 text-muted-foreground" />
+              <Input
+                placeholder="Search cadet name..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-8 text-xs h-8 bg-slate-50 dark:bg-slate-800"
+              />
+            </div>
+          </div>
+
+          {/* Guided Cadets Cards List */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {filteredCadets.map((cadet) => (
+              <Card
+                key={cadet.id}
+                className={cn(
+                  "border shadow-sm rounded-2xl overflow-hidden transition-all hover:border-purple-300 dark:hover:border-purple-800 bg-white dark:bg-slate-900",
+                  cadet.isInactive ? "border-red-200 dark:border-red-900/60 bg-red-50/20" : "border-slate-200 dark:border-slate-800"
+                )}
+              >
+                <CardContent className="p-5 space-y-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h4 className="font-bold text-base text-foreground">{cadet.name}</h4>
+                        {cadet.is40DayChampion && (
+                          <Badge className="bg-amber-600 text-white text-[9px] font-bold gap-1 px-1.5">
+                            <Crown className="size-3" /> 40-Day Champion
+                          </Badge>
+                        )}
+                        {cadet.isInactive && (
+                          <Badge className="bg-red-600 text-white text-[9px] font-bold gap-1 px-1.5">
+                            <UserX className="size-3" /> Inactive (7+ Days)
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {cadet.groupName} • {cadet.parkName}
+                      </p>
+                    </div>
+
+                    {cadet.hasUnreadLog && (
+                      <Badge className="bg-purple-600 text-white text-[10px] animate-pulse">
+                        Unread Log
                       </Badge>
-                    </td>
-                  </tr>
-                  <tr className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                    <td className="py-3 px-4 font-bold text-foreground">Muhammad Ahmad</td>
-                    <td className="py-3 px-4 font-mono">06:00 AM / 11:00 PM</td>
-                    <td className="py-3 px-4 font-bold text-emerald-600">4 / 5 Jama'at</td>
-                    <td className="py-3 px-4">15 Mins</td>
-                    <td className="py-3 px-4 font-bold text-amber-600">Day 8 (Active)</td>
-                    <td className="py-3 px-4 text-center">
-                      <Badge variant="outline" className="text-amber-600">Pending Review</Badge>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 text-xs p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 font-medium">
+                    <div>
+                      <span className="text-muted-foreground block text-[10px]">Wakeup / Sleep</span>
+                      <span className="font-mono font-bold text-foreground">{cadet.wakeupTime} / {cadet.sleepTime}</span>
+                    </div>
+
+                    <div>
+                      <span className="text-muted-foreground block text-[10px]">Jama'at & Tilawat</span>
+                      <span className="font-bold text-emerald-600">{cadet.jamaatCount}/5 Jama'at • {cadet.tilawatMins}m</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-1">
+                    <span className="text-xs font-mono font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                      <Flame className="size-3.5" /> Day {cadet.streakDays} Streak
+                    </span>
+
+                    <Button
+                      size="sm"
+                      onClick={() => setSelectedCadet(cadet)}
+                      className="gap-1.5 text-xs font-bold bg-[#4B0A8F] hover:bg-[#3b0873] text-white h-8"
+                    >
+                      <span>Inspect Log & Guidance</span>
+                      <ChevronRight className="size-3.5" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ─── MURABBI INSPECTION & GUIDANCE MODAL ─── */}
+      <Dialog open={!!selectedCadet} onOpenChange={() => setSelectedCadet(null)}>
+        <DialogContent className="max-w-md rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold flex items-center gap-2">
+              <ShieldCheck className="size-5 text-purple-600" />
+              Inspect Islah Log: {selectedCadet?.name}
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Review daily mamulat compliance and provide Murabbi guidance & encouragement notes.
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedCadet && (
+            <div className="space-y-4 py-2 text-xs">
+              <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800 space-y-1">
+                <p className="font-bold text-foreground">{selectedCadet.name} ({selectedCadet.groupName})</p>
+                <p className="text-muted-foreground text-[11px]">
+                  Logged for {selectedCadet.lastLoggedDate} • Wakeup: {selectedCadet.wakeupTime} • Sleep: {selectedCadet.sleepTime}
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-xs font-bold text-foreground">Write Murabbi Guidance Note / Dua</Label>
+                <Textarea
+                  placeholder="e.g. MashAllah excelente consistency! Maintain Fajr Jama'at and increase Tilawat by 5 mins..."
+                  value={guidanceNote}
+                  onChange={(e) => setGuidanceNote(e.target.value)}
+                  className="text-xs min-h-[90px]"
+                />
+              </div>
             </div>
-          </Card>
-        </TabsContent>
-      </Tabs>
+          )}
+
+          <DialogFooter className="gap-2">
+            <Button variant="outline" size="sm" onClick={() => setSelectedCadet(null)}>
+              Cancel
+            </Button>
+            <Button size="sm" onClick={handleVerifyCadetLog} className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold gap-1.5">
+              <CheckCircle2 className="size-4" />
+              <span>Verify & Send Note</span>
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
