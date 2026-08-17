@@ -40,6 +40,7 @@ import { POST } from "./route";
 const event = {
   id: "event-1",
   groupId: "group-1",
+  eventDate: new Date("2026-08-16T00:00:00.000Z"),
   isClosed: false,
   group: { batch: { parkId: "park-1", park: { cityId: "city-1" } } },
 };
@@ -114,7 +115,7 @@ describe("POST /api/park/attendance/[eventId]", () => {
     expect(mocks.eventFindUnique).not.toHaveBeenCalled();
   });
 
-  it("rejects a participant who is not active in the event group", async () => {
+  it("rejects a participant who is not in the event group", async () => {
     mocks.participantFindFirst.mockResolvedValue(null);
 
     const response = await POST(request({ participantId: OTHER_PARTICIPANT_ID, status: "present" }), {
@@ -124,12 +125,26 @@ describe("POST /api/park/attendance/[eventId]", () => {
     expect(response.status).toBe(409);
     await expect(response.json()).resolves.toEqual({ error: "Participant not in this group" });
     expect(mocks.participantFindFirst).toHaveBeenCalledWith({
-      where: { id: OTHER_PARTICIPANT_ID, groupId: "group-1", state: "active" },
+      where: { id: OTHER_PARTICIPANT_ID, groupId: "group-1" },
     });
   });
 
+  it("rejects attendance on or after a participant dropout date", async () => {
+    mocks.participantFindFirst.mockResolvedValue({
+      id: PARTICIPANT_ID,
+      state: "dropout",
+      dropoutAt: new Date("2026-08-01T00:00:00.000Z"),
+    });
+    const response = await POST(request({ participantId: PARTICIPANT_ID, status: "present" }), {
+      params: Promise.resolve({ eventId: "event-1" }),
+    });
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toEqual({ error: "Attendance is discontinued for this participant" });
+    expect(mocks.attendanceRecordCreate).not.toHaveBeenCalled();
+  });
+
   it("evaluates absence alerts in-process after a successful attendance record", async () => {
-    mocks.participantFindFirst.mockResolvedValue({ id: PARTICIPANT_ID });
+    mocks.participantFindFirst.mockResolvedValue({ id: PARTICIPANT_ID, state: "active", dropoutAt: null });
     mocks.staffMetaFindUnique.mockResolvedValue({ id: "staff-1", user: { name: "Murabbi" } });
     mocks.attendanceRecordFindUnique.mockResolvedValue(null);
     mocks.attendanceRecordCreate.mockResolvedValue({

@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { CalendarDays, CheckCircle2, LayoutGrid, List, Lock, Play, Users } from "lucide-react";
+import { AlertTriangle, BarChart3, CalendarDays, CheckCircle2, LayoutGrid, List, Lock, Play, Users } from "lucide-react";
 import { useAppStore } from "@/stores/useAppStore";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -75,6 +75,14 @@ type StaffAttendanceDetail = {
   roster: StaffRosterMember[];
 };
 
+type AttendanceSummaries = {
+  scope: { parkName: string; from: string; to: string };
+  overview: { groups: number; students: number; closedSessions: number; attendanceRate: number; warnings: number; dropouts: number };
+  groupStats: Array<{ groupId: string; groupName: string; batchName: string; studentCount: number; sessionCount: number; attendanceRate: number; warnings: number; dropouts: number; murabbis: Array<{ name: string }> }>;
+  students: Array<{ participantId: string; name: string; groupName: string; state: string; attendanceRate: number; present: number; late: number; absent: number; excused: number; unmarked: number; total: number; consecutiveAbsentWeeks: number; warning: boolean }>;
+  murabbis: Array<{ staffMetaId: string; name: string; groupName: string; studentAttendanceRate: number; staffAttendanceRate: number; staffSessions: number; warningStudents: number }>;
+};
+
 async function prepareAndFetchAttendance(date: string, parkId?: string): Promise<AttendanceListResponse & { preparation: AttendancePreparation }> {
   const preparationResponse = await fetch("/api/park/attendance/prepare", {
     method: "POST",
@@ -115,6 +123,7 @@ export function ParkAttendancePage() {
   const [view, setView] = useState<"cards" | "table">("cards");
   const [selectedParkId, setSelectedParkId] = useState("");
   const [staffEventId, setStaffEventId] = useState<string | null>(null);
+  const [showInsights, setShowInsights] = useState(false);
   const assignedParkId = session?.user?.assignedParkId;
   const isMurabbi = session?.user?.role === "murabbi";
   const requiresParkSelection = sessionStatus === "authenticated" && !assignedParkId && !isMurabbi;
@@ -138,6 +147,19 @@ export function ParkAttendancePage() {
     queryFn: () => fetchStaffAttendance(selectedDate, effectiveParkId!),
     enabled: Boolean(effectiveParkId) && sessionStatus !== "loading",
     retry: false,
+  });
+  const insightsQuery = useQuery<AttendanceSummaries>({
+    queryKey: ["attendance-summaries", effectiveParkId],
+    queryFn: async () => {
+      const query = new URLSearchParams();
+      if (effectiveParkId) query.set("parkId", effectiveParkId);
+      const response = await fetch(`/api/park/attendance/summaries?${query}`);
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.error || "Could not load attendance summaries");
+      return body;
+    },
+    enabled: showInsights && sessionStatus !== "loading" && (!requiresParkSelection || Boolean(effectiveParkId)),
+    staleTime: 60 * 1000,
   });
 
   const prepareStaffMutation = useMutation({
@@ -182,6 +204,16 @@ export function ParkAttendancePage() {
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <Button
+              aria-pressed={showInsights}
+              className="h-10"
+              onClick={() => setShowInsights((value) => !value)}
+              type="button"
+              variant={showInsights ? "default" : "outline"}
+            >
+              <BarChart3 className="mr-2 size-4" />
+              <span className="hidden sm:inline">Summaries</span>
+            </Button>
             {requiresParkSelection && (
               <Select
                 onValueChange={setSelectedParkId}
@@ -244,6 +276,10 @@ export function ParkAttendancePage() {
         )}
       </section>
 
+      {showInsights && (
+        <AttendanceInsights data={insightsQuery.data} error={insightsQuery.error} loading={insightsQuery.isLoading} onRetry={() => insightsQuery.refetch()} />
+      )}
+
       {staffSummaryQuery.data && (
         <Card className="overflow-hidden border-[#D8B4FE] bg-gradient-to-br from-[#FAF5FF] to-card shadow-sm">
           <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between">
@@ -300,6 +336,43 @@ export function ParkAttendancePage() {
       <StaffRollCallDialog eventId={staffEventId} onOpenChange={(open) => !open && setStaffEventId(null)} />
     </div>
   );
+}
+
+function AttendanceInsights({ data, error, loading, onRetry }: { data?: AttendanceSummaries; error: Error | null; loading: boolean; onRetry: () => void }) {
+  const [section, setSection] = useState<"groups" | "students" | "murabbis">("groups");
+  if (loading) return <div className="grid gap-3 sm:grid-cols-3">{[1, 2, 3].map((item) => <Skeleton className="h-28 rounded-2xl" key={item} />)}</div>;
+  if (error) return <Card className="border-destructive/30"><CardContent className="space-y-3 p-5"><p className="font-semibold">Could not load summaries</p><p className="text-sm text-muted-foreground">{error.message}</p><Button onClick={onRetry} variant="outline">Try again</Button></CardContent></Card>;
+  if (!data) return null;
+  return (
+    <section className="space-y-3 rounded-2xl border bg-card p-3 shadow-sm sm:p-4">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+        <div><p className="font-semibold">Attendance insights</p><p className="text-xs text-muted-foreground">Last 90 days · {data.scope.parkName}</p></div>
+        <p className="text-2xl font-bold text-[#4B0A8F]">{data.overview.attendanceRate}% <span className="text-xs font-normal text-muted-foreground">attendance</span></p>
+      </div>
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <InsightMetric label="Students" value={data.overview.students} />
+        <InsightMetric label="Closed sessions" value={data.overview.closedSessions} />
+        <InsightMetric label="Warnings" tone="warning" value={data.overview.warnings} />
+        <InsightMetric label="Dropouts" tone="danger" value={data.overview.dropouts} />
+      </div>
+      <div className="grid grid-cols-3 rounded-xl bg-muted p-1">
+        {(["groups", "students", "murabbis"] as const).map((item) => <Button className="h-9 capitalize" key={item} onClick={() => setSection(item)} variant={section === item ? "default" : "ghost"}>{item}</Button>)}
+      </div>
+      {section === "groups" && <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">{data.groupStats.map((group) => (
+        <div className="rounded-xl border p-3" key={group.groupId}><div className="flex items-center justify-between"><p className="font-semibold">{group.groupName}</p><Badge variant="secondary">{group.attendanceRate}%</Badge></div><p className="text-xs text-muted-foreground">{group.batchName} · {group.studentCount} students · {group.sessionCount} sessions</p><Progress className="my-3 h-2" value={group.attendanceRate} /><div className="flex flex-wrap gap-2 text-xs"><span>{group.murabbis.map((item) => item.name).join(", ") || "Murabbi unassigned"}</span>{group.warnings > 0 && <span className="text-amber-700">{group.warnings} warning</span>}{group.dropouts > 0 && <span className="text-red-700">{group.dropouts} dropout</span>}</div></div>
+      ))}</div>}
+      {section === "students" && <div className="space-y-2">{data.students.map((student) => (
+        <div className="grid gap-2 rounded-xl border p-3 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center" key={student.participantId}><div className="min-w-0"><div className="flex items-center gap-2"><p className="truncate font-semibold">{student.name}</p>{student.warning && <AlertTriangle className="size-4 text-amber-600" />}{student.state === "dropout" && <Badge variant="destructive">Dropout</Badge>}</div><p className="text-xs text-muted-foreground">{student.groupName} · P {student.present} · L {student.late} · A {student.absent} · E {student.excused}{student.unmarked ? ` · U ${student.unmarked}` : ""}</p></div><p className="font-bold">{student.attendanceRate}%</p><p className="text-xs text-muted-foreground">{student.consecutiveAbsentWeeks} absent week(s)</p></div>
+      ))}</div>}
+      {section === "murabbis" && <div className="grid gap-2 sm:grid-cols-2">{data.murabbis.map((murabbi) => (
+        <div className="rounded-xl border p-3" key={`${murabbi.staffMetaId}-${murabbi.groupName}`}><p className="font-semibold">{murabbi.name}</p><p className="text-xs text-muted-foreground">{murabbi.groupName}</p><div className="mt-3 grid grid-cols-2 gap-2"><InsightMetric label="Student attendance" value={`${murabbi.studentAttendanceRate}%`} /><InsightMetric label="Own attendance" value={murabbi.staffSessions ? `${murabbi.staffAttendanceRate}%` : "—"} /></div>{murabbi.warningStudents > 0 && <p className="mt-2 text-xs text-amber-700">{murabbi.warningStudents} student(s) need follow-up</p>}</div>
+      ))}</div>}
+    </section>
+  );
+}
+
+function InsightMetric({ label, value, tone }: { label: string; value: string | number; tone?: "warning" | "danger" }) {
+  return <div className={cn("rounded-xl bg-muted/50 p-3", tone === "warning" && "bg-amber-50 text-amber-900", tone === "danger" && "bg-red-50 text-red-900")}><p className="text-xl font-bold">{value}</p><p className="text-[11px] opacity-70">{label}</p></div>;
 }
 
 function AttendanceSessionCard({ event, onStart }: { event: AttendanceEvent; onStart: () => void }) {
