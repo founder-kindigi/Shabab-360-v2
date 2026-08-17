@@ -3,10 +3,11 @@ import { subDays } from "date-fns";
 import { z } from "zod";
 import { requireCapability, requireResourceScope } from "@/lib/auth/authorize";
 import { evaluateConsecutiveAbsenceWeeks } from "@/lib/attendance/dropout-policy";
+import { attendanceIdentifierSchema } from "@/lib/attendance/schemas";
 import { db } from "@/lib/db";
 
 const querySchema = z.object({
-  parkId: z.string().cuid().optional(),
+  parkId: attendanceIdentifierSchema.optional(),
   from: z.string().date().optional(),
   to: z.string().date().optional(),
 }).strict().refine((value) => !value.from || !value.to || value.from <= value.to, {

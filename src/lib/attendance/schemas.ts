@@ -8,20 +8,29 @@ export const attendanceStatusSchema = z.enum([
   "excused",
 ]);
 
-const cuidSchema = z.string().cuid();
+export const attendanceIdentifierSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(128)
+  .refine(
+    (value) => z.string().cuid().safeParse(value).success
+      || z.string().uuid().safeParse(value).success,
+    { message: "Invalid identifier" }
+  );
 const isoDateTimeSchema = z
   .string()
   .trim()
   .refine((value) => isValid(parseISO(value)), { message: "Invalid datetime" });
 
 export const createAttendanceEventSchema = z.object({
-  groupId: cuidSchema,
+  groupId: attendanceIdentifierSchema,
   title: z.string().trim().min(1).max(200),
   eventDate: isoDateTimeSchema.optional(),
 });
 
 export const markAttendanceSchema = z.object({
-  participantId: cuidSchema,
+  participantId: attendanceIdentifierSchema,
   status: attendanceStatusSchema,
   mutationId: z.string().trim().max(100).optional(),
   editReason: z.string().trim().min(1).max(1000).optional(),
@@ -39,8 +48,8 @@ export const editAttendanceRecordSchema = z.object({
 
 export const syncMutationSchema = z.object({
   mutationId: z.string().trim().min(1).max(100),
-  eventId: cuidSchema,
-  participantId: cuidSchema,
+  eventId: attendanceIdentifierSchema,
+  participantId: attendanceIdentifierSchema,
   status: attendanceStatusSchema,
   markedAt: isoDateTimeSchema.optional(),
 });
@@ -62,13 +71,13 @@ export const syncAttendanceRequestSchema = z.object({
 });
 
 export const checkAttendanceAlertsSchema = z.object({
-  participantId: cuidSchema,
-  eventId: cuidSchema,
+  participantId: attendanceIdentifierSchema,
+  eventId: attendanceIdentifierSchema,
 });
 
 export const prepareAttendanceSessionsSchema = z.object({
   date: z.string().date(),
-  parkId: cuidSchema.optional(),
+  parkId: attendanceIdentifierSchema.optional(),
 }).strict();
 
 export const updateAttendanceScheduleSchema = z.object({
@@ -81,18 +90,18 @@ export const updateAttendanceScheduleSchema = z.object({
 }).strict();
 
 export const operationalOffDateSchema = z.object({
-  cityId: cuidSchema,
+  cityId: attendanceIdentifierSchema,
   offDate: z.string().date(),
   label: z.string().trim().min(2).max(120),
 }).strict();
 
 export const prepareStaffAttendanceSchema = z.object({
-  parkId: cuidSchema,
+  parkId: attendanceIdentifierSchema,
   date: z.string().date(),
 }).strict();
 
 export const markStaffAttendanceSchema = z.object({
-  staffMetaId: cuidSchema,
+  staffMetaId: attendanceIdentifierSchema,
   status: attendanceStatusSchema,
   editReason: z.string().trim().min(10).max(1000).optional(),
 }).strict();

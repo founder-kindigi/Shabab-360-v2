@@ -48,6 +48,33 @@ describe("POST /api/park/attendance/prepare", () => {
     body: JSON.stringify({ date: "2026-08-01" }),
   });
 
+  it("accepts an imported UUID park identifier", async () => {
+    const parkId = "be979d3b-1da9-43fb-81fa-2a2f4f6c82dd";
+    mocks.parkFindUnique.mockResolvedValue({ id: parkId, cityId: "61ae6957-3990-42bf-a321-b2beea3b314a" });
+    const response = await POST(new Request("http://localhost/api/park/attendance/prepare", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ date: "2026-08-01", parkId }),
+    }));
+
+    expect(response.status).toBe(200);
+    expect(mocks.parkFindUnique).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: parkId, isActive: true },
+    }));
+  });
+
+  it("rejects malformed park identifiers before database reads", async () => {
+    const response = await POST(new Request("http://localhost/api/park/attendance/prepare", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ date: "2026-08-01", parkId: "not-an-id" }),
+    }));
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ error: "Invalid identifier" });
+    expect(mocks.parkFindUnique).not.toHaveBeenCalled();
+  });
+
   it("fails before reads when capability is denied", async () => {
     mocks.requireCapability.mockResolvedValue(NextResponse.json({ error: "Forbidden" }, { status: 403 }));
     expect((await POST(request())).status).toBe(403);
