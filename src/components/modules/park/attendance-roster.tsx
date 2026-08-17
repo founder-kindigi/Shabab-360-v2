@@ -985,6 +985,40 @@ export function AttendanceRoster() {
               </Tooltip>
             )}
 
+            <div className="ml-2 hidden min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1 border-l pl-3 text-xs md:flex">
+              <span className="font-semibold text-foreground">
+                Total: {liveSummary.total}
+              </span>
+              <span className="flex items-center gap-1 font-medium text-emerald-600 dark:text-emerald-400">
+                <CheckCircle2 className="size-3" />
+                Present: {liveSummary.present}
+                <span className="text-muted-foreground">
+                  ({liveSummary.total > 0 ? Math.round((liveSummary.present / liveSummary.total) * 100) : 0}%)
+                </span>
+              </span>
+              <span className="flex items-center gap-1 font-medium text-red-600 dark:text-red-400">
+                <XCircle className="size-3" />
+                Absent: {liveSummary.absent}
+                <span className="text-muted-foreground">
+                  ({liveSummary.total > 0 ? Math.round((liveSummary.absent / liveSummary.total) * 100) : 0}%)
+                </span>
+              </span>
+              <span className="flex items-center gap-1 font-medium text-amber-600 dark:text-amber-400">
+                <Clock className="size-3" />
+                Late: {liveSummary.late}
+                <span className="text-muted-foreground">
+                  ({liveSummary.total > 0 ? Math.round((liveSummary.late / liveSummary.total) * 100) : 0}%)
+                </span>
+              </span>
+              <span className="flex items-center gap-1 font-medium text-sky-600 dark:text-sky-400">
+                <ShieldCheck className="size-3" />
+                Excused: {liveSummary.excused}
+                <span className="text-muted-foreground">
+                  ({liveSummary.total > 0 ? Math.round((liveSummary.excused / liveSummary.total) * 100) : 0}%)
+                </span>
+              </span>
+            </div>
+
             {selectedIds.size > 0 && (
               <div className="flex items-center gap-1 ml-auto">
                 <Badge variant="secondary" className="text-[10px] gap-1">
@@ -1309,7 +1343,7 @@ export function AttendanceRoster() {
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          className="relative z-20 rounded-xl border bg-background/95 px-3 py-3 shadow-sm backdrop-blur-sm no-print sm:sticky sm:bottom-3 sm:px-4"
+          className="relative z-20 rounded-xl border bg-background/95 px-3 py-3 shadow-sm backdrop-blur-sm no-print md:hidden"
         >
           {/* Progress bar */}
           <div className="mb-2">
@@ -1320,64 +1354,13 @@ export function AttendanceRoster() {
           </div>
 
           {/* Summary counts */}
-          <div className="grid grid-cols-3 gap-2 text-center text-xs sm:hidden">
+          <div className="grid grid-cols-3 gap-2 text-center text-xs">
             <span className="rounded-lg bg-muted px-2 py-2 font-semibold">Total<br />{liveSummary.total}</span>
             <span className="rounded-lg bg-emerald-50 px-2 py-2 font-semibold text-emerald-700">Present<br />{liveSummary.present}</span>
             <span className="rounded-lg bg-red-50 px-2 py-2 font-semibold text-red-700">Absent<br />{liveSummary.absent}</span>
             <span className="rounded-lg bg-amber-50 px-2 py-2 font-semibold text-amber-700">Late<br />{liveSummary.late}</span>
             <span className="rounded-lg bg-sky-50 px-2 py-2 font-semibold text-sky-700">Excused<br />{liveSummary.excused}</span>
             <span className="rounded-lg bg-muted px-2 py-2 font-semibold text-muted-foreground">Unmarked<br />{liveSummary.unmarked}</span>
-          </div>
-          <div className="hidden flex-wrap items-center gap-x-3 gap-y-1 text-xs sm:flex">
-            <span className="font-semibold text-foreground">
-              Total: {liveSummary.total}
-            </span>
-            <span className="text-muted-foreground">|</span>
-
-            <span className="flex items-center gap-1 font-medium text-emerald-600 dark:text-emerald-400">
-              <CheckCircle2 className="size-3" />
-              Present: {liveSummary.present}{" "}
-              <span className="text-muted-foreground">
-                ({liveSummary.total > 0 ? Math.round((liveSummary.present / liveSummary.total) * 100) : 0}%)
-              </span>
-            </span>
-
-            <span className="flex items-center gap-1 font-medium text-red-600 dark:text-red-400">
-              <XCircle className="size-3" />
-              Absent: {liveSummary.absent}{" "}
-              <span className="text-muted-foreground">
-                ({liveSummary.total > 0 ? Math.round((liveSummary.absent / liveSummary.total) * 100) : 0}%)
-              </span>
-            </span>
-
-            <span className="flex items-center gap-1 font-medium text-amber-600 dark:text-amber-400">
-              <Clock className="size-3" />
-              Late: {liveSummary.late}{" "}
-              <span className="text-muted-foreground">
-                ({liveSummary.total > 0 ? Math.round((liveSummary.late / liveSummary.total) * 100) : 0}%)
-              </span>
-            </span>
-
-            <span className="flex items-center gap-1 font-medium text-sky-600 dark:text-sky-400">
-              <ShieldCheck className="size-3" />
-              Excused: {liveSummary.excused}{" "}
-              <span className="text-muted-foreground">
-                ({liveSummary.total > 0 ? Math.round((liveSummary.excused / liveSummary.total) * 100) : 0}%)
-              </span>
-            </span>
-
-            {liveSummary.unmarked > 0 && (
-              <>
-                <span className="text-muted-foreground">|</span>
-                <span className="flex items-center gap-1 text-muted-foreground">
-                  <Circle className="size-3" />
-                  Unmarked: {liveSummary.unmarked}{" "}
-                  <span>
-                    ({Math.round((liveSummary.unmarked / liveSummary.total) * 100)}%)
-                  </span>
-                </span>
-              </>
-            )}
           </div>
         </motion.div>
       )}
