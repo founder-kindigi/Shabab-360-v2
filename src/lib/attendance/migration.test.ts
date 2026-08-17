@@ -22,6 +22,16 @@ describe.each([
   });
 });
 
+describe("PostgreSQL dropout migration", () => {
+  const sql = readMigration(
+    "prisma/postgres/migrations/20260817120000_add_attendance_dropout_lifecycle/migration.sql",
+  );
+
+  it("tolerates columns restored by an older attendance foundation", () => {
+    expect(sql.match(/ADD COLUMN IF NOT EXISTS/g)).toHaveLength(7);
+  });
+});
+
 describe.each([
   "prisma/migrations/20260817090000_add_attendance_schedule/migration.sql",
   "prisma/postgres/migrations/20260817090000_add_attendance_schedule/migration.sql",
