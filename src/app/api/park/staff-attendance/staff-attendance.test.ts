@@ -29,7 +29,7 @@ vi.mock("@/lib/db", () => ({ db: {
   $transaction: mocks.transaction,
 } }));
 
-import { POST } from "./route";
+import { GET, POST } from "./route";
 import { GET as GET_DETAIL, PATCH as MARK } from "./[eventId]/route";
 
 const parkId = "ckggggggggggggggggggggggg";
@@ -71,8 +71,24 @@ describe("park staff attendance", () => {
     expect(tx.auditLog.create).not.toHaveBeenCalled();
   });
 
+  it("loads the park and roll-call summary in one database query", async () => {
+    mocks.parkFindUnique.mockResolvedValue({
+      id: parkId,
+      name: "Gulberg",
+      cityId: "city-1",
+      staffAttendanceEvents: [{ id: "event-1", parkId, isClosed: false, _count: { records: 3 } }],
+    });
+
+    const response = await GET(new Request(`http://localhost/api/park/staff-attendance?parkId=${parkId}&date=2026-08-01`));
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ event: { id: "event-1", _count: { records: 3 } } });
+    expect(mocks.parkFindUnique).toHaveBeenCalledTimes(1);
+    expect(mocks.eventFindUnique).not.toHaveBeenCalled();
+  });
+
   it("returns only active park staff and their existing status", async () => {
-    mocks.eventFindUnique.mockResolvedValue({ id: "event-1", parkId, title: "Roll-call", eventDate: new Date(), isClosed: false, closedAt: null });
+    mocks.eventFindUnique.mockResolvedValue({ id: "event-1", parkId, title: "Roll-call", eventDate: new Date(), isClosed: false, closedAt: null, park: { cityId: "city-1" } });
     mocks.staffFindMany.mockResolvedValue([{ id: staffMetaId, role: "murabbi", user: { name: "Murabbi One" } }]);
     mocks.recordFindMany.mockResolvedValue([{ id: "record-1", staffMetaId, status: "present", markedAt: new Date() }]);
     const response = await GET_DETAIL(new Request("http://localhost"), { params: Promise.resolve({ eventId: "event-1" }) });
@@ -82,7 +98,7 @@ describe("park staff attendance", () => {
   });
 
   it("rejects marking an inactive or foreign-park staff member", async () => {
-    mocks.eventFindUnique.mockResolvedValue({ id: "event-1", parkId, title: "Roll-call", eventDate: new Date(), isClosed: false, closedAt: null });
+    mocks.eventFindUnique.mockResolvedValue({ id: "event-1", parkId, title: "Roll-call", eventDate: new Date(), isClosed: false, closedAt: null, park: { cityId: "city-1" } });
     mocks.staffFindUnique.mockResolvedValue({ id: staffMetaId, isActive: false, user: { isActive: true }, assignedParkId: parkId, assignedGroup: null });
     const response = await MARK(new Request("http://localhost", {
       method: "PATCH",

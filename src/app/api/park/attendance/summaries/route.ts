@@ -28,10 +28,15 @@ export async function GET(request: Request) {
   const parsed = querySchema.safeParse(Object.fromEntries(new URL(request.url).searchParams));
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
 
-  const staffMeta = await db.staffMeta.findUnique({
-    where: { userId: auth.user.id },
-    include: { assignedGroup: { include: { batch: true } } },
-  });
+  const needsStaffScopeLookup = !auth.user.assignedParkId
+    && !auth.user.assignedGroupId
+    && !parsed.data.parkId;
+  const staffMeta = needsStaffScopeLookup
+    ? await db.staffMeta.findUnique({
+        where: { userId: auth.user.id },
+        include: { assignedGroup: { include: { batch: true } } },
+      })
+    : null;
   const parkId = auth.user.assignedParkId
     ?? staffMeta?.assignedParkId
     ?? staffMeta?.assignedGroup?.batch.parkId
@@ -60,22 +65,37 @@ export async function GET(request: Request) {
     orderBy: { name: "asc" },
   });
   const groupIds = groups.map((group) => group.id);
-  const events = groupIds.length === 0 ? [] : await db.attendanceEvent.findMany({
-    where: { groupId: { in: groupIds }, eventDate: { gte: from, lte: to }, isClosed: true },
-    select: { id: true, groupId: true, eventDate: true },
-    orderBy: { eventDate: "asc" },
-  });
-  const records = events.length === 0 ? [] : await db.attendanceRecord.findMany({
-    where: { eventId: { in: events.map((event) => event.id) } },
-    select: { eventId: true, participantId: true, status: true },
-  });
+  const murabbiIds = [...new Set(groups.flatMap((group) => group.murabbis.map((murabbi) => murabbi.id)))];
+  const [events, records, staffRecords] = groupIds.length === 0
+    ? [[], [], []]
+    : await Promise.all([
+        db.attendanceEvent.findMany({
+          where: { groupId: { in: groupIds }, eventDate: { gte: from, lte: to }, isClosed: true },
+          select: { id: true, groupId: true, eventDate: true },
+          orderBy: { eventDate: "asc" },
+        }),
+        db.attendanceRecord.findMany({
+          where: {
+            event: { groupId: { in: groupIds }, eventDate: { gte: from, lte: to }, isClosed: true },
+          },
+          select: { eventId: true, participantId: true, status: true },
+        }),
+        murabbiIds.length === 0
+          ? Promise.resolve([])
+          : db.staffAttendanceRecord.findMany({
+              where: { staffMetaId: { in: murabbiIds }, event: { parkId, eventDate: { gte: from, lte: to }, isClosed: true } },
+              select: { staffMetaId: true, status: true },
+            }),
+      ]);
+  const eventsByGroup = new Map<string, typeof events>();
+  for (const event of events) eventsByGroup.set(event.groupId, [...(eventsByGroup.get(event.groupId) ?? []), event]);
   const recordsByParticipant = new Map<string, typeof records>();
   for (const record of records) recordsByParticipant.set(record.participantId, [...(recordsByParticipant.get(record.participantId) ?? []), record]);
 
   const students = groups.flatMap((group) => group.participants.map((participant) => {
     const participantRecords = recordsByParticipant.get(participant.id) ?? [];
-    const expectedEvents = events.filter((event) => event.groupId === group.id
-      && (!participant.dropoutAt || event.eventDate < participant.dropoutAt));
+    const expectedEvents = (eventsByGroup.get(group.id) ?? []).filter((event) =>
+      !participant.dropoutAt || event.eventDate < participant.dropoutAt);
     const present = participantRecords.filter((record) => record.status === "present").length;
     const late = participantRecords.filter((record) => record.status === "late").length;
     const absent = participantRecords.filter((record) => record.status === "absent").length;
@@ -111,8 +131,11 @@ export async function GET(request: Request) {
     };
   }));
 
+  const studentsByGroup = new Map<string, typeof students>();
+  for (const student of students) studentsByGroup.set(student.groupId, [...(studentsByGroup.get(student.groupId) ?? []), student]);
+
   const groupStats = groups.map((group) => {
-    const members = students.filter((student) => student.groupId === group.id);
+    const members = studentsByGroup.get(group.id) ?? [];
     const attended = members.reduce((sum, member) => sum + member.present + member.late, 0);
     const total = members.reduce((sum, member) => sum + member.total, 0);
     return {
@@ -120,7 +143,7 @@ export async function GET(request: Request) {
       groupName: group.name,
       batchName: group.batch.name,
       studentCount: group.participants.length,
-      sessionCount: events.filter((event) => event.groupId === group.id).length,
+      sessionCount: eventsByGroup.get(group.id)?.length ?? 0,
       attendanceRate: percentage(attended, total),
       warnings: members.filter((member) => member.warning).length,
       dropouts: members.filter((member) => member.state === "dropout").length,
@@ -128,14 +151,12 @@ export async function GET(request: Request) {
     };
   });
 
-  const murabbiIds = [...new Set(groups.flatMap((group) => group.murabbis.map((murabbi) => murabbi.id)))];
-  const staffRecords = murabbiIds.length === 0 ? [] : await db.staffAttendanceRecord.findMany({
-    where: { staffMetaId: { in: murabbiIds }, event: { parkId, eventDate: { gte: from, lte: to }, isClosed: true } },
-    select: { staffMetaId: true, status: true },
-  });
+  const staffRecordsByStaff = new Map<string, typeof staffRecords>();
+  for (const record of staffRecords) staffRecordsByStaff.set(record.staffMetaId, [...(staffRecordsByStaff.get(record.staffMetaId) ?? []), record]);
+  const groupStatsById = new Map(groupStats.map((item) => [item.groupId, item]));
   const murabbis = groups.flatMap((group) => group.murabbis.map((murabbi) => {
-    const ownRecords = staffRecords.filter((record) => record.staffMetaId === murabbi.id);
-    const groupStat = groupStats.find((item) => item.groupId === group.id)!;
+    const ownRecords = staffRecordsByStaff.get(murabbi.id) ?? [];
+    const groupStat = groupStatsById.get(group.id)!;
     return {
       staffMetaId: murabbi.id,
       name: murabbi.user.name,

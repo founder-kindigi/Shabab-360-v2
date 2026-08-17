@@ -11,12 +11,22 @@ type ScopedStaffEvent =
   | { event: null; error: NextResponse };
 
 async function scopedEvent(user: Parameters<typeof requireResourceScope>[0], eventId: string): Promise<ScopedStaffEvent> {
-  const event = await db.staffAttendanceEvent.findUnique({ where: { id: eventId }, select: { id: true, parkId: true, title: true, eventDate: true, isClosed: true, closedAt: true } });
+  const event = await db.staffAttendanceEvent.findUnique({
+    where: { id: eventId },
+    select: {
+      id: true,
+      parkId: true,
+      title: true,
+      eventDate: true,
+      isClosed: true,
+      closedAt: true,
+      park: { select: { cityId: true } },
+    },
+  });
   if (!event) return { error: NextResponse.json({ error: "Staff attendance not found" }, { status: 404 }), event: null };
-  const park = await db.park.findUnique({ where: { id: event.parkId }, select: { cityId: true } });
-  if (!park) return { error: NextResponse.json({ error: "Park not found" }, { status: 404 }), event: null };
-  const scopeError = requireResourceScope(user, { cityId: park.cityId, parkId: event.parkId }, ATTENDANCE_ROLES);
-  return scopeError ? { error: scopeError, event: null } : { event, error: null };
+  const scopeError = requireResourceScope(user, { cityId: event.park.cityId, parkId: event.parkId }, ATTENDANCE_ROLES);
+  const { park: _park, ...scoped } = event;
+  return scopeError ? { error: scopeError, event: null } : { event: scoped, error: null };
 }
 
 export async function GET(_request: Request, { params }: { params: Promise<{ eventId: string }> }) {

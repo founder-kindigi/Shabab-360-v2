@@ -54,14 +54,36 @@ export async function GET(request: Request) {
   if (auth instanceof NextResponse) return auth;
   const parsed = listSchema.safeParse(queryParamsToObject(new URL(request.url).searchParams));
   if (!parsed.success || !parsed.data.date) return NextResponse.json(parsed.success ? { error: "date required" } : queryValidationError(parsed.error), { status: 400 });
-  const result = await resolvePark(auth.user, parsed.data.parkId);
-  if (result.error) return result.error;
+  const parkId = parsed.data.parkId ?? auth.user.assignedParkId;
+  if (!parkId) return NextResponse.json({ error: "parkId required" }, { status: 400 });
   const eventDate = attendanceDateStart(parsed.data.date);
-  const event = await db.staffAttendanceEvent.findUnique({
-    where: { parkId_eventDate: { parkId: result.park.id, eventDate } },
-    include: { _count: { select: { records: true } } },
+  const park = await db.park.findUnique({
+    where: { id: parkId, isActive: true },
+    select: {
+      id: true,
+      name: true,
+      cityId: true,
+      staffAttendanceEvents: {
+        where: { eventDate },
+        take: 1,
+        select: {
+          id: true,
+          parkId: true,
+          title: true,
+          eventDate: true,
+          isClosed: true,
+          closedAt: true,
+          closedBy: true,
+          _count: { select: { records: true } },
+        },
+      },
+    },
   });
-  return NextResponse.json({ park: result.park, date: parsed.data.date, event });
+  if (!park) return NextResponse.json({ error: "Park not found" }, { status: 404 });
+  const scopeError = requireResourceScope(auth.user, { cityId: park.cityId, parkId }, ATTENDANCE_ROLES);
+  if (scopeError) return scopeError;
+  const { staffAttendanceEvents, ...parkSummary } = park;
+  return NextResponse.json({ park: parkSummary, date: parsed.data.date, event: staffAttendanceEvents[0] ?? null });
 }
 
 export async function POST(request: Request) {

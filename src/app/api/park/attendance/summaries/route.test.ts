@@ -85,5 +85,9 @@ describe("attendance operational summaries", () => {
     expect(body.murabbis[0]).toMatchObject({ name: "Murabbi One", staffAttendanceRate: 100 });
     expect(body.students[0]).toMatchObject({ name: "Student One", attendanceRate: 100 });
     expect(JSON.stringify(body)).not.toContain("phone");
+    expect(mocks.staffFindUnique).not.toHaveBeenCalled();
+    expect(mocks.recordFindMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { event: expect.objectContaining({ groupId: { in: ["group-1"] }, isClosed: true }) },
+    }));
   });
 });
