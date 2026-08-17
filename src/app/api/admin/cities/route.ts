@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireRole, requireAuth } from "@/lib/auth/authorize";
+import { requireRole, requireAuth, requireCapability } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
 import { z } from "zod";
@@ -20,8 +20,11 @@ const defaultCities = [
 ];
 
 export async function GET() {
-  const authError = await requireRole(["super_admin", "program_admin", "city_head", "park_admin", "park_lead", "murabbi"]);
+  const authError = await requireRole(["super_admin", "program_admin"]);
   if (authError) return authError;
+
+  const capabilityAuth = await requireCapability("organisation.view");
+  if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
   try {
     const cities = await db.city.findMany({
@@ -52,6 +55,9 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   const authError = await requireRole(["super_admin", "program_admin"]);
   if (authError) return authError;
+
+  const capabilityAuth = await requireCapability("organisation.manage");
+  if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
   const auth = await requireAuth();
   if (!auth || auth instanceof NextResponse) return auth as NextResponse;

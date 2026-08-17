@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireRole, requireAuth } from "@/lib/auth/authorize";
+import { requireRole, requireAuth, requireCapability } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
 import { z } from "zod";
 import { logAudit } from "@/lib/audit";
@@ -192,10 +192,18 @@ export async function POST(request: NextRequest) {
   const authError = await requireRole(["super_admin", "program_admin"]);
   if (authError) return authError;
 
+  const capabilityAuth = await requireCapability("admissions.manage");
+  if (capabilityAuth instanceof NextResponse) return capabilityAuth;
+
   const auth = await requireAuth();
   if (!auth || auth instanceof NextResponse) return auth as NextResponse;
 
-  const body = await request.json();
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
   const parsed = createSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json({ error: "Invalid input data", details: parsed.error.format() }, { status: 400 });
@@ -215,10 +223,10 @@ export async function POST(request: NextRequest) {
       cityId: parsed.data.cityId,
       preferredParkId: parsed.data.preferredParkId,
       notes: parsed.data.notes,
-      emergencyContact: parsed.data.emergencyContact,
-      emergencyPhone: parsed.data.emergencyPhone,
-      previousEducation: parsed.data.previousEducation,
-      reference: parsed.data.reference,
+      emergencyContact: parsed.data.emergencyContact ?? null,
+      emergencyPhone: parsed.data.emergencyPhone ?? null,
+      previousEducation: parsed.data.previousEducation ?? null,
+      reference: parsed.data.reference ?? null,
     },
     include: {
       city: { select: { id: true, name: true } },

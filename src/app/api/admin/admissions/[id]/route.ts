@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireRole, requireAuth } from "@/lib/auth/authorize";
+import { requireRole, requireCapability } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
 import { z } from "zod";
 import { logAudit } from "@/lib/audit";
@@ -7,6 +7,13 @@ import { admissionAdditionalFieldsShape } from "@/lib/admissions/validation";
 import rawDataset from "@/lib/import-framework/portal-raw-dataset.json";
 
 const VALID_STATUSES = ["submitted", "screening", "interview_scheduled", "interviewed", "accepted", "rejected", "enrolled"] as const;
+
+const updateAdditionalFieldsSchema = z
+  .object(admissionAdditionalFieldsShape)
+  .strict()
+  .refine((data) => Object.values(data).some((value) => value !== undefined), {
+    message: "At least one field is required",
+  });
 
 function parseRawDateToIso(rawDate?: string): string {
   if (!rawDate) return new Date().toISOString();
@@ -34,6 +41,9 @@ export async function GET(
 ) {
   const authError = await requireRole(["super_admin", "program_admin", "city_head", "park_admin", "park_lead", "murabbi"]);
   if (authError) return authError;
+
+  const capabilityAuth = await requireCapability("admissions.manage");
+  if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
   const { id } = await params;
 
@@ -127,21 +137,36 @@ export async function PATCH(
   const authError = await requireRole(["super_admin", "program_admin", "city_head", "park_admin", "park_lead", "murabbi"]);
   if (authError) return authError;
 
+  const capabilityAuth = await requireCapability("admissions.manage");
+  if (capabilityAuth instanceof NextResponse) return capabilityAuth;
+
   const { id } = await params;
 
-  let body: any;
+  let body: unknown;
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
+  const parsed = updateAdditionalFieldsSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: "Invalid input data", details: parsed.error.format() },
+      { status: 400 }
+    );
+  }
+
+  const updateData = Object.fromEntries(
+    Object.entries(parsed.data).filter(([, value]) => value !== undefined)
+  );
+
   try {
     const existing = await db.admissionApplication.findUnique({ where: { id } });
     if (existing) {
       const updated = await db.admissionApplication.update({
         where: { id },
-        data: body,
+        data: updateData,
       });
       return NextResponse.json(updated);
     }
@@ -151,7 +176,7 @@ export async function PATCH(
 
   return NextResponse.json({
     id,
-    ...body,
+    ...updateData,
     updatedAt: new Date().toISOString(),
   });
 }

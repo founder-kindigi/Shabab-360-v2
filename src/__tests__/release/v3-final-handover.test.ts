@@ -13,13 +13,13 @@ function modelNames(schemaPath: string): string[] {
 }
 
 describe("V3-HANDOVER-001: V3 Final Production Release Handoff & Sign-Off", () => {
-  describe("1. Dual Prisma Schema Parity (65 Models)", () => {
-    it("SQLite schema has exactly 65 models", () => {
-      expect(modelNames(SQLITE_SCHEMA).length).toBe(65);
+  describe("1. Dual Prisma Schema Parity (67 Models)", () => {
+    it("SQLite schema has exactly 67 models", () => {
+      expect(modelNames(SQLITE_SCHEMA).length).toBe(67);
     });
 
-    it("PostgreSQL schema has exactly 65 models", () => {
-      expect(modelNames(POSTGRES_SCHEMA).length).toBe(65);
+    it("PostgreSQL schema has exactly 67 models", () => {
+      expect(modelNames(POSTGRES_SCHEMA).length).toBe(67);
     });
 
     it("all SQLite models match PostgreSQL models bidirectionally", () => {

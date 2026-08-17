@@ -57,7 +57,7 @@ describe("authorization scope policy", () => {
       const superAdmin = user({ role: "super_admin" });
 
       // Allowed roles explicitly defined and does not contain super_admin
-      expect(canAccessResourceScope(superAdmin, {}, ATTENDANCE_ROLES)).toBe(false);
+      expect(canAccessResourceScope(superAdmin, {}, ["city_head"])).toBe(false);
     });
   });
 
@@ -147,7 +147,7 @@ describe("authorization scope policy", () => {
       const cityHead = user({ role: "city_head", assignedCityId: "city-1" });
 
       // Allowed roles lists that omit city_head
-      expect(canAccessResourceScope(cityHead, { cityId: "city-1" }, ATTENDANCE_ROLES)).toBe(false);
+      expect(canAccessResourceScope(cityHead, { cityId: "city-1" }, ["park_admin", "park_lead"])).toBe(false);
       expect(canAccessResourceScope(cityHead, { cityId: "city-1" }, ["super_admin"])).toBe(false);
 
       // Allowed list containing city_head

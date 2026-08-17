@@ -32,12 +32,12 @@ function allMigrations(base: string): string[] {
 describe("PILOT-PROD-001: Pilot Production Health", () => {
   /* ── 1. Schema health ────────────────────────────────────────────── */
   describe("Schema health", () => {
-    it("SQLITE schema has 65 models", () => {
-      expect(modelNames(SQLITE_SCHEMA).length).toBe(65);
+    it("SQLITE schema has 67 models", () => {
+      expect(modelNames(SQLITE_SCHEMA).length).toBe(67);
     });
 
-    it("POSTGRES schema has 65 models", () => {
-      expect(modelNames(PG_SCHEMA).length).toBe(65);
+    it("POSTGRES schema has 67 models", () => {
+      expect(modelNames(PG_SCHEMA).length).toBe(67);
     });
 
     it("all models present in both schemas", () => {
@@ -64,12 +64,12 @@ describe("PILOT-PROD-001: Pilot Production Health", () => {
 
   /* ── 2. Migration health ─────────────────────────────────────────── */
   describe("Migration health", () => {
-    it("POSTGRES has 12 migration folders", () => {
-      expect(allMigrations(PG_MIGRATIONS)).toHaveLength(12);
+    it("POSTGRES has 22 migration folders", () => {
+      expect(allMigrations(PG_MIGRATIONS)).toHaveLength(22);
     });
 
-    it("SQLITE has 4 migration folders", () => {
-      expect(allMigrations(SQLITE_MIGRATIONS)).toHaveLength(4);
+    it("SQLITE has 12 migration folders", () => {
+      expect(allMigrations(SQLITE_MIGRATIONS)).toHaveLength(12);
     });
 
     it("both chains contain mashwara and login_attempts migrations", () => {
@@ -88,10 +88,17 @@ describe("PILOT-PROD-001: Pilot Production Health", () => {
       }
     });
 
-    it("no SQLITE migration drops tables", () => {
+    it("allows only data-preserving SQLite table rebuilds", () => {
       for (const dir of allMigrations(SQLITE_MIGRATIONS)) {
         const sql = readFileSync(join(SQLITE_MIGRATIONS, dir, "migration.sql"), "utf-8");
-        expect(sql).not.toMatch(/^\s*DROP\s+(TABLE|INDEX)\b/im);
+        expect(sql).not.toMatch(/^\s*DROP\s+INDEX\b/im);
+        for (const match of sql.matchAll(/^\s*DROP\s+TABLE\s+"([^"]+)"\s*;/gim)) {
+          const table = match[1];
+          const replacement = `new_${table}`;
+          expect(sql).toContain(`CREATE TABLE "${replacement}"`);
+          expect(sql).toContain(`INSERT INTO "${replacement}"`);
+          expect(sql).toContain(`ALTER TABLE "${replacement}" RENAME TO "${table}"`);
+        }
       }
     });
   });

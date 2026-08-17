@@ -66,28 +66,28 @@ describe("POST /api/admin/admissions", () => {
     });
 
     expect(response.status).toBe(201);
-    expect(mocks.create).toHaveBeenCalledWith({
+    expect(mocks.create).toHaveBeenCalledWith(expect.objectContaining({
       data: expect.objectContaining({
         emergencyContact: "Bilal Ahmed",
         emergencyPhone: "03111234567",
         previousEducation: "Crescent School",
         reference: "Community referral",
       }),
-    });
+    }));
   });
 
   it("stores omitted optional fields as null", async () => {
     const response = await postApplication(requiredApplication);
 
     expect(response.status).toBe(201);
-    expect(mocks.create).toHaveBeenCalledWith({
+    expect(mocks.create).toHaveBeenCalledWith(expect.objectContaining({
       data: expect.objectContaining({
         emergencyContact: null,
         emergencyPhone: null,
         previousEducation: null,
         reference: null,
       }),
-    });
+    }));
   });
 
   it.each([
