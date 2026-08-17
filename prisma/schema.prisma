@@ -615,7 +615,7 @@ model StaffAttendanceEvent {
   park    Park                     @relation(fields: [parkId], references: [id], onDelete: Cascade)
   records StaffAttendanceRecord[]
 
-  @@index([parkId, eventDate])
+  @@unique([parkId, eventDate])
   @@index([eventDate])
   @@map("staff_attendance_events")
 }

@@ -70,3 +70,14 @@ export const operationalOffDateSchema = z.object({
   offDate: z.string().date(),
   label: z.string().trim().min(2).max(120),
 }).strict();
+
+export const prepareStaffAttendanceSchema = z.object({
+  parkId: cuidSchema,
+  date: z.string().date(),
+}).strict();
+
+export const markStaffAttendanceSchema = z.object({
+  staffMetaId: cuidSchema,
+  status: attendanceStatusSchema,
+  editReason: z.string().trim().min(10).max(1000).optional(),
+}).strict();

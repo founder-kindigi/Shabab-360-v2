@@ -23,6 +23,7 @@ CREATE INDEX "batch_class_dates_classDate_idx" ON "batch_class_dates"("classDate
 CREATE UNIQUE INDEX "operational_off_dates_cityId_offDate_key" ON "operational_off_dates"("cityId", "offDate");
 CREATE INDEX "operational_off_dates_offDate_idx" ON "operational_off_dates"("offDate");
 CREATE UNIQUE INDEX "attendance_events_groupId_eventDate_key" ON "attendance_events"("groupId", "eventDate");
+CREATE UNIQUE INDEX "staff_attendance_events_parkId_eventDate_key" ON "staff_attendance_events"("parkId", "eventDate");
 
 ALTER TABLE "batch_class_dates" ADD CONSTRAINT "batch_class_dates_batchId_fkey" FOREIGN KEY ("batchId") REFERENCES "batches"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE "operational_off_dates" ADD CONSTRAINT "operational_off_dates_cityId_fkey" FOREIGN KEY ("cityId") REFERENCES "cities"("id") ON DELETE CASCADE ON UPDATE CASCADE;

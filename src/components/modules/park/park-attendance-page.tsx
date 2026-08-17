@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { CalendarDays, CheckCircle2, LayoutGrid, List, Lock, Play, Users } from "lucide-react";
 import { useAppStore } from "@/stores/useAppStore";
@@ -20,6 +20,8 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { toast } from "sonner";
 
 type AttendanceEvent = {
   id: string;
@@ -55,6 +57,24 @@ type ParkOption = {
   name: string;
 };
 
+type StaffAttendanceSummary = {
+  event: { id: string; isClosed: boolean; _count: { records: number } } | null;
+  park: ParkOption;
+  date: string;
+};
+
+type StaffRosterMember = {
+  staffMetaId: string;
+  name: string;
+  role: string;
+  status: "present" | "absent" | "late" | "excused" | null;
+};
+
+type StaffAttendanceDetail = {
+  event: { id: string; title: string; isClosed: boolean };
+  roster: StaffRosterMember[];
+};
+
 async function prepareAndFetchAttendance(date: string, parkId?: string): Promise<AttendanceListResponse & { preparation: AttendancePreparation }> {
   const preparationResponse = await fetch("/api/park/attendance/prepare", {
     method: "POST",
@@ -78,13 +98,23 @@ async function fetchParks(): Promise<ParkOption[]> {
   return body;
 }
 
+async function fetchStaffAttendance(date: string, parkId: string): Promise<StaffAttendanceSummary | null> {
+  const response = await fetch(`/api/park/staff-attendance?${new URLSearchParams({ date, parkId })}`);
+  if (response.status === 403) return null;
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(body.error || "Could not load staff attendance");
+  return body;
+}
+
 export function ParkAttendancePage() {
+  const queryClient = useQueryClient();
   const navigateTo = useAppStore((state) => state.navigateTo);
   const setSelectedEventId = useAppStore((state) => state.setSelectedEventId);
   const { data: session, status: sessionStatus } = useSession();
   const [selectedDate, setSelectedDate] = useState(() => format(new Date(), "yyyy-MM-dd"));
   const [view, setView] = useState<"cards" | "table">("cards");
   const [selectedParkId, setSelectedParkId] = useState("");
+  const [staffEventId, setStaffEventId] = useState<string | null>(null);
   const assignedParkId = session?.user?.assignedParkId;
   const isMurabbi = session?.user?.role === "murabbi";
   const requiresParkSelection = sessionStatus === "authenticated" && !assignedParkId && !isMurabbi;
@@ -101,6 +131,31 @@ export function ParkAttendancePage() {
     queryKey: ["park-attendance", selectedDate, effectiveParkId],
     queryFn: () => prepareAndFetchAttendance(selectedDate, effectiveParkId || undefined),
     enabled: sessionStatus !== "loading" && (!requiresParkSelection || Boolean(effectiveParkId)),
+  });
+
+  const staffSummaryQuery = useQuery({
+    queryKey: ["park-staff-attendance", selectedDate, effectiveParkId],
+    queryFn: () => fetchStaffAttendance(selectedDate, effectiveParkId!),
+    enabled: Boolean(effectiveParkId) && sessionStatus !== "loading",
+    retry: false,
+  });
+
+  const prepareStaffMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch("/api/park/staff-attendance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ parkId: effectiveParkId, date: selectedDate }),
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.error || "Could not start staff roll-call");
+      return body.event as { id: string };
+    },
+    onSuccess: (event) => {
+      setStaffEventId(event.id);
+      queryClient.invalidateQueries({ queryKey: ["park-staff-attendance", selectedDate, effectiveParkId] });
+    },
+    onError: (mutationError) => toast.error(mutationError.message),
   });
 
   const events = data?.events ?? [];
@@ -189,6 +244,24 @@ export function ParkAttendancePage() {
         )}
       </section>
 
+      {staffSummaryQuery.data && (
+        <Card className="overflow-hidden border-[#D8B4FE] bg-gradient-to-br from-[#FAF5FF] to-card shadow-sm">
+          <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="grid size-11 shrink-0 place-items-center rounded-xl bg-[#4B0A8F] text-white"><Users className="size-5" /></div>
+              <div className="min-w-0"><p className="font-semibold">Park staff attendance</p><p className="text-xs text-muted-foreground">Park Lead, Park Admin, Murabbis and other active park staff</p></div>
+            </div>
+            <Button
+              className="h-11 w-full sm:w-auto"
+              disabled={prepareStaffMutation.isPending}
+              onClick={() => staffSummaryQuery.data?.event ? setStaffEventId(staffSummaryQuery.data.event.id) : prepareStaffMutation.mutate()}
+            >
+              {staffSummaryQuery.data.event?.isClosed ? <><Lock className="mr-2 size-4" />View locked roll-call</> : <><Play className="mr-2 size-4" />{staffSummaryQuery.data.event ? "Continue staff roll-call" : "Start staff roll-call"}</>}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       {requiresParkSelection && parksQuery.isError ? (
         <Card className="border-destructive/30"><CardContent className="space-y-3 p-5"><p className="font-medium">Could not load parks</p><p className="text-sm text-muted-foreground">Choose a different account or try again.</p><Button onClick={() => parksQuery.refetch()} variant="outline">Try again</Button></CardContent></Card>
       ) : requiresParkSelection && !effectiveParkId ? (
@@ -224,6 +297,7 @@ export function ParkAttendancePage() {
       )}
 
       {isFetching && !isLoading && <p className="text-center text-xs text-muted-foreground">Refreshing sessions…</p>}
+      <StaffRollCallDialog eventId={staffEventId} onOpenChange={(open) => !open && setStaffEventId(null)} />
     </div>
   );
 }
@@ -241,5 +315,92 @@ function AttendanceSessionCard({ event, onStart }: { event: AttendanceEvent; onS
         <Button className="h-11 w-full" disabled={event.isClosed} onClick={onStart}>{event.isClosed ? <><Lock className="mr-2 size-4" />Attendance locked</> : <><CheckCircle2 className="mr-2 size-4" />Start student attendance</>}</Button>
       </CardContent>
     </Card>
+  );
+}
+
+function StaffRollCallDialog({ eventId, onOpenChange }: { eventId: string | null; onOpenChange: (open: boolean) => void }) {
+  const queryClient = useQueryClient();
+  const detail = useQuery<StaffAttendanceDetail>({
+    queryKey: ["staff-attendance-detail", eventId],
+    queryFn: async () => {
+      const response = await fetch(`/api/park/staff-attendance/${eventId}`);
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.error || "Could not load staff roster");
+      return body;
+    },
+    enabled: Boolean(eventId),
+  });
+  const mark = useMutation({
+    mutationFn: async ({ staffMetaId, status }: { staffMetaId: string; status: Exclude<StaffRosterMember["status"], null> }) => {
+      const response = await fetch(`/api/park/staff-attendance/${eventId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ staffMetaId, status }),
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.error || "Could not mark attendance");
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["staff-attendance-detail", eventId] }),
+    onError: (error) => toast.error(error.message),
+  });
+  const lock = useMutation({
+    mutationFn: async () => {
+      const response = await fetch(`/api/park/staff-attendance/${eventId}/close`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason: "Completed park staff roll-call" }),
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.error || "Could not lock staff attendance");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["staff-attendance-detail", eventId] });
+      queryClient.invalidateQueries({ queryKey: ["park-staff-attendance"] });
+      toast.success("Staff attendance locked");
+    },
+    onError: (error) => toast.error(error.message),
+  });
+  const marked = detail.data?.roster.filter((member) => member.status).length ?? 0;
+  const total = detail.data?.roster.length ?? 0;
+
+  return (
+    <Dialog open={Boolean(eventId)} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[92dvh] w-[calc(100%-1rem)] max-w-2xl overflow-hidden p-0 sm:w-full">
+        <DialogHeader className="border-b px-4 py-4 text-left">
+          <DialogTitle>Park staff roll-call</DialogTitle>
+          <DialogDescription>{marked} of {total} staff marked. Active park and group staff are included.</DialogDescription>
+        </DialogHeader>
+        <div className="max-h-[65dvh] space-y-2 overflow-y-auto px-3 py-3 sm:px-4">
+          {detail.isLoading ? [1, 2, 3].map((item) => <Skeleton className="h-24 rounded-xl" key={item} />) : detail.error ? (
+            <div className="rounded-xl border border-destructive/30 p-4 text-sm text-destructive">{detail.error.message}</div>
+          ) : detail.data?.roster.length === 0 ? (
+            <div className="rounded-xl border p-6 text-center text-sm text-muted-foreground">No active staff are assigned to this park.</div>
+          ) : detail.data?.roster.map((member) => (
+            <div className="rounded-xl border bg-card p-3" key={member.staffMetaId}>
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <div className="min-w-0"><p className="truncate font-semibold">{member.name}</p><p className="text-xs capitalize text-muted-foreground">{member.role.replaceAll("_", " ")}</p></div>
+                {member.status && <Badge className="capitalize" variant="secondary">{member.status}</Badge>}
+              </div>
+              <div className="grid grid-cols-4 gap-2">
+                {(["present", "absent", "late", "excused"] as const).map((status) => (
+                  <Button
+                    aria-label={`Mark ${member.name} ${status}`}
+                    className={cn("h-11 px-1 text-[11px] capitalize sm:text-xs", member.status === status && status === "present" && "bg-emerald-600 hover:bg-emerald-600", member.status === status && status === "absent" && "bg-red-600 hover:bg-red-600", member.status === status && status === "late" && "bg-amber-600 hover:bg-amber-600", member.status === status && status === "excused" && "bg-sky-600 hover:bg-sky-600")}
+                    disabled={detail.data?.event.isClosed || mark.isPending}
+                    key={status}
+                    onClick={() => mark.mutate({ staffMetaId: member.staffMetaId, status })}
+                    variant={member.status === status ? "default" : "outline"}
+                  >{status}</Button>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="flex flex-col-reverse gap-2 border-t bg-background px-4 py-3 sm:flex-row sm:justify-end">
+          <Button onClick={() => onOpenChange(false)} variant="outline">Close</Button>
+          <Button disabled={!total || marked !== total || detail.data?.event.isClosed || lock.isPending} onClick={() => lock.mutate()}><Lock className="mr-2 size-4" />{detail.data?.event.isClosed ? "Attendance locked" : "Lock staff attendance"}</Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
