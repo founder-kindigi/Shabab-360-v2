@@ -775,9 +775,9 @@ export function AttendanceRoster() {
   // ─── Render ──────────────────────────────────────────────────────────────
 
   return (
-    <div className="space-y-4 px-3 pb-5 pt-2 sm:px-4 lg:px-6">
+    <div className="mx-auto w-full max-w-7xl space-y-4 px-3 pb-24 pt-2 sm:px-4 sm:pb-6 lg:px-6">
       {/* Back button + event info */}
-      <div className="flex items-start gap-3">
+      <div className="grid grid-cols-[44px_minmax(0,1fr)] items-start gap-2 sm:flex sm:gap-3">
         <Button
           variant="ghost"
           size="icon"
@@ -809,7 +809,7 @@ export function AttendanceRoster() {
           <Button
             variant="outline"
             size="sm"
-            className="no-print shrink-0 mt-0.5 border-amber-300 text-amber-800 hover:bg-amber-50 dark:border-amber-800 dark:text-amber-300 dark:hover:bg-amber-950/30"
+            className="no-print col-span-2 h-11 w-full shrink-0 border-amber-300 text-amber-800 hover:bg-amber-50 sm:col-auto sm:mt-0.5 sm:h-9 sm:w-auto dark:border-amber-800 dark:text-amber-300 dark:hover:bg-amber-950/30"
             onClick={() => setCloseDialogOpen(true)}
           >
             <Lock className="size-4 mr-1.5" />
@@ -845,7 +845,7 @@ export function AttendanceRoster() {
         <motion.div
           initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex items-center gap-2.5 px-4 py-2.5 rounded-lg bg-muted border"
+          className="flex flex-wrap items-center gap-2.5 rounded-lg border bg-muted px-3 py-3 sm:px-4 sm:py-2.5"
         >
           <Lock className="size-4 text-muted-foreground shrink-0" />
           <div className="text-sm">
@@ -871,7 +871,7 @@ export function AttendanceRoster() {
           </div>
           {canClose && (
             <Button
-              className="ml-auto shrink-0"
+              className="h-11 w-full shrink-0 sm:ml-auto sm:h-9 sm:w-auto"
               onClick={() => setReopenDialogOpen(true)}
               size="sm"
               variant="outline"
@@ -888,7 +888,7 @@ export function AttendanceRoster() {
         <motion.div
           initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex items-center gap-2.5 px-4 py-2.5 rounded-lg bg-amber-50 border border-amber-200 dark:bg-amber-950/30 dark:border-amber-800/50"
+          className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-2.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-3 sm:flex sm:px-4 sm:py-2.5 dark:border-amber-800/50 dark:bg-amber-950/30"
         >
           <AlertTriangle className="size-4 text-amber-500 dark:text-amber-400 shrink-0" />
           <p className="text-sm text-amber-800 dark:text-amber-300 flex-1">
@@ -899,7 +899,7 @@ export function AttendanceRoster() {
           <Button
             size="sm"
             variant="outline"
-            className="shrink-0 text-[11px] h-7 px-2.5 border-amber-300 text-amber-700 hover:bg-amber-100 dark:border-amber-700 dark:text-amber-300 dark:hover:bg-amber-950/50"
+            className="col-span-2 h-11 w-full shrink-0 border-amber-300 px-3 text-xs text-amber-700 hover:bg-amber-100 sm:col-auto sm:h-8 sm:w-auto sm:text-[11px] dark:border-amber-700 dark:text-amber-300 dark:hover:bg-amber-950/50"
             onClick={() => setWarningDialogOpen(true)}
           >
             View Details
@@ -912,9 +912,9 @@ export function AttendanceRoster() {
         <motion.div
           initial={{ opacity: 0, y: -4 }}
           animate={{ opacity: 1, y: 0 }}
-          className="sticky top-0 z-20 rounded-xl border bg-background/95 px-3 py-2.5 backdrop-blur-sm no-print sm:px-4"
+          className="sticky top-0 z-20 rounded-xl border bg-background/95 px-3 py-2.5 shadow-sm backdrop-blur-sm no-print sm:px-4"
         >
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="grid grid-cols-3 items-center gap-2 sm:flex sm:flex-wrap">
             <span className="text-xs font-medium text-muted-foreground mr-1 hidden sm:inline">
               Bulk:
             </span>
@@ -925,7 +925,7 @@ export function AttendanceRoster() {
                   size="sm"
                   variant="outline"
                   className={cn(
-                    "gap-1.5 text-xs",
+                    "h-11 gap-1.5 px-2 text-xs sm:h-8",
                     "border-emerald-300 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800",
                     "dark:border-emerald-700 dark:text-emerald-400 dark:hover:bg-emerald-950/30 dark:hover:text-emerald-300"
                   )}
@@ -948,7 +948,7 @@ export function AttendanceRoster() {
                   size="sm"
                   variant="outline"
                   className={cn(
-                    "gap-1.5 text-xs",
+                    "h-11 gap-1.5 px-2 text-xs sm:h-8",
                     "border-red-300 text-red-600 hover:bg-red-50 hover:text-red-700",
                     "dark:border-red-700 dark:text-red-400 dark:hover:bg-red-950/30 dark:hover:text-red-300"
                   )}
@@ -971,7 +971,7 @@ export function AttendanceRoster() {
                   <Button
                     size="sm"
                     variant="ghost"
-                    className="gap-1.5 text-xs text-muted-foreground hover:text-destructive"
+                    className="h-11 gap-1.5 px-2 text-xs text-muted-foreground hover:text-destructive sm:h-8"
                     onClick={() =>
                       setBulkConfirm({ type: "reset", count: liveSummary.total - liveSummary.unmarked })
                     }

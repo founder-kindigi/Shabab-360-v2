@@ -196,7 +196,7 @@ export function ParkAttendancePage() {
 
   return (
     <div className="mx-auto w-full max-w-7xl space-y-4 px-3 pb-24 pt-1 sm:px-6 sm:pb-10 lg:px-8">
-      <section className="rounded-2xl border bg-card p-4 shadow-sm">
+      <section className="rounded-2xl border bg-card p-3 shadow-sm sm:p-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-sm font-semibold">Attendance sessions</p>
@@ -204,10 +204,10 @@ export function ParkAttendancePage() {
               Choose a group, then start student attendance. Locked sessions remain read-only.
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="grid w-full grid-cols-[44px_minmax(0,1fr)_auto] gap-2 sm:flex sm:w-auto sm:items-center">
             <Button
               aria-pressed={showInsights}
-              className="h-10"
+              className="h-11 w-11 px-0 sm:h-10 sm:w-auto sm:px-4"
               onClick={() => setShowInsights((value) => !value)}
               type="button"
               variant={showInsights ? "default" : "outline"}
@@ -221,7 +221,7 @@ export function ParkAttendancePage() {
                 value={selectedParkId}
                 disabled={parksQuery.isLoading || parksQuery.isError}
               >
-                <SelectTrigger aria-label="Attendance park" className="h-10 w-[172px]">
+                <SelectTrigger aria-label="Attendance park" className="col-span-2 h-11 w-full min-w-0 sm:h-10 sm:w-[172px]">
                   <SelectValue placeholder={parksQuery.isLoading ? "Loading parks..." : "Select a park"} />
                 </SelectTrigger>
                 <SelectContent>
@@ -235,7 +235,7 @@ export function ParkAttendancePage() {
               <PopoverTrigger asChild>
                 <Button
                   aria-label="Choose attendance date"
-                  className="h-10 w-[168px] justify-start px-3 font-normal"
+                  className="h-11 min-w-0 justify-start px-3 font-normal sm:h-10 sm:w-[168px]"
                   type="button"
                   variant="outline"
                 >
@@ -256,10 +256,10 @@ export function ParkAttendancePage() {
                 />
               </PopoverContent>
             </Popover>
-            <div className="flex rounded-lg border bg-muted/40 p-1" aria-label="Attendance layout">
+            <div className="flex h-11 rounded-lg border bg-muted/40 p-1 sm:h-10" aria-label="Attendance layout">
               <Button
                 aria-pressed={view === "cards"}
-                className={cn("h-8 px-2", view === "cards" ? "bg-background shadow-sm" : "text-muted-foreground")}
+                className={cn("h-9 min-w-9 px-2 sm:h-8", view === "cards" ? "bg-background shadow-sm" : "text-muted-foreground")}
                 onClick={() => setView("cards")}
                 size="sm"
                 type="button"
@@ -270,7 +270,7 @@ export function ParkAttendancePage() {
               </Button>
               <Button
                 aria-pressed={view === "table"}
-                className={cn("h-8 px-2", view === "table" ? "bg-background shadow-sm" : "text-muted-foreground")}
+                className={cn("h-9 min-w-9 px-2 sm:h-8", view === "table" ? "bg-background shadow-sm" : "text-muted-foreground")}
                 onClick={() => setView("table")}
                 size="sm"
                 type="button"
