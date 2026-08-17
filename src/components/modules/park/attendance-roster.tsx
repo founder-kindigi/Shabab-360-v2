@@ -1022,8 +1022,8 @@ export function AttendanceRoster() {
       </div>
 
       {/* Search + filter */}
-      <div className="flex items-center gap-2">
-        <div className="relative flex-1">
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative basis-full sm:min-w-0 sm:flex-1 sm:basis-auto">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
           <Input
             placeholder="Search participant..."
@@ -1180,7 +1180,7 @@ export function AttendanceRoster() {
 
                   {/* Quick status buttons (mobile: always visible, desktop: hover) */}
                   {!isClosed && (
-                    <div className="flex items-center gap-1.5 sm:gap-1 shrink-0 sm:opacity-0 sm:group-hover/row:opacity-100 transition-opacity duration-150">
+                    <div className="hidden items-center gap-1 sm:flex sm:shrink-0 sm:opacity-0 sm:transition-opacity sm:duration-150 sm:group-hover/row:opacity-100">
                       {QUICK_STATUSES.map((qs) => {
                         const isCurrentStatus = status === qs.status;
                         const Icon = qs.icon;
@@ -1332,7 +1332,7 @@ export function AttendanceRoster() {
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          className="sticky bottom-0 z-20 -mx-4 px-4 py-3 bg-background/95 backdrop-blur-sm border-t no-print"
+          className="relative z-20 -mx-1 rounded-xl border bg-background/95 px-3 py-3 shadow-sm backdrop-blur-sm no-print sm:sticky sm:bottom-0 sm:-mx-4 sm:rounded-none sm:border-x-0 sm:px-4"
         >
           {/* Progress bar */}
           <div className="mb-2">
@@ -1343,7 +1343,15 @@ export function AttendanceRoster() {
           </div>
 
           {/* Summary counts */}
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+          <div className="grid grid-cols-3 gap-2 text-center text-xs sm:hidden">
+            <span className="rounded-lg bg-muted px-2 py-2 font-semibold">Total<br />{liveSummary.total}</span>
+            <span className="rounded-lg bg-emerald-50 px-2 py-2 font-semibold text-emerald-700">Present<br />{liveSummary.present}</span>
+            <span className="rounded-lg bg-red-50 px-2 py-2 font-semibold text-red-700">Absent<br />{liveSummary.absent}</span>
+            <span className="rounded-lg bg-amber-50 px-2 py-2 font-semibold text-amber-700">Late<br />{liveSummary.late}</span>
+            <span className="rounded-lg bg-sky-50 px-2 py-2 font-semibold text-sky-700">Excused<br />{liveSummary.excused}</span>
+            <span className="rounded-lg bg-muted px-2 py-2 font-semibold text-muted-foreground">Unmarked<br />{liveSummary.unmarked}</span>
+          </div>
+          <div className="hidden flex-wrap items-center gap-x-3 gap-y-1 text-xs sm:flex">
             <span className="font-semibold text-foreground">
               Total: {liveSummary.total}
             </span>
@@ -1405,12 +1413,12 @@ export function AttendanceRoster() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
             transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 rounded-xl border bg-background shadow-xl px-3 py-2 no-print sm:bottom-8"
+            className="fixed inset-x-3 bottom-20 z-50 flex flex-col gap-2 rounded-xl border bg-background px-3 py-3 shadow-xl no-print sm:inset-x-auto sm:bottom-8 sm:left-1/2 sm:-translate-x-1/2 sm:flex-row sm:items-center sm:py-2"
           >
             <span className="text-xs font-medium text-muted-foreground whitespace-nowrap">
               Mark {selectedIds.size} as:
             </span>
-            <div className="flex items-center gap-1.5">
+            <div className="grid w-full grid-cols-4 gap-1.5 sm:flex sm:w-auto sm:items-center">
               {QUICK_STATUSES.map((qs) => {
                 const Icon = qs.icon;
                 return (
@@ -1419,14 +1427,15 @@ export function AttendanceRoster() {
                     size="sm"
                     variant="ghost"
                     className={cn(
-                      "h-8 gap-1.5 px-2.5 text-xs font-medium",
+                      "h-11 gap-1 px-1 text-xs font-medium sm:h-8 sm:gap-1.5 sm:px-2.5",
                       qs.colorClass
                     )}
                     onClick={() => handleRangeMark(qs.status)}
                     disabled={batchSyncMutation.isPending}
                   >
                     <Icon className="size-3.5" />
-                    {qs.label}
+                    <span className="hidden sm:inline">{qs.label}</span>
+                    <span className="sr-only sm:hidden">{qs.label}</span>
                   </Button>
                 );
               })}
@@ -1434,7 +1443,7 @@ export function AttendanceRoster() {
             <Button
               size="sm"
               variant="ghost"
-              className="h-8 px-2 text-xs text-muted-foreground"
+              className="absolute right-2 top-2 h-8 px-2 text-xs text-muted-foreground sm:static"
               onClick={clearSelection}
             >
               <X className="size-3.5" />
