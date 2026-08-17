@@ -85,19 +85,14 @@ type AttendanceSummaries = {
 };
 
 async function prepareAndFetchAttendance(date: string, parkId?: string): Promise<AttendanceListResponse & { preparation: AttendancePreparation }> {
-  const preparationResponse = await fetch("/api/park/attendance/prepare", {
+  const response = await fetch("/api/park/attendance/prepare", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ date, ...(parkId ? { parkId } : {}) }),
   });
-  const preparation = await preparationResponse.json().catch(() => ({}));
-  if (!preparationResponse.ok) throw new Error(preparation.error || "Could not prepare attendance sessions");
-  const query = new URLSearchParams({ date });
-  if (parkId) query.set("parkId", parkId);
-  const response = await fetch(`/api/park/attendance?${query.toString()}`);
   const body = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(body.error || "Could not load attendance sessions");
-  return { ...body, preparation };
+  if (!response.ok) throw new Error(body.error || "Could not prepare attendance sessions");
+  return body;
 }
 
 async function fetchParks(): Promise<ParkOption[]> {
@@ -142,13 +137,17 @@ export function ParkAttendancePage() {
     queryKey: ["park-attendance", selectedDate, effectiveParkId],
     queryFn: () => prepareAndFetchAttendance(selectedDate, effectiveParkId || undefined),
     enabled: sessionStatus === "authenticated" && (!requiresParkSelection || Boolean(effectiveParkId)),
+    refetchOnWindowFocus: false,
+    staleTime: 30 * 1000,
   });
 
   const staffSummaryQuery = useQuery({
     queryKey: ["park-staff-attendance", selectedDate, effectiveParkId],
     queryFn: () => fetchStaffAttendance(selectedDate, effectiveParkId!),
     enabled: Boolean(effectiveParkId) && sessionStatus === "authenticated",
+    refetchOnWindowFocus: false,
     retry: false,
+    staleTime: 30 * 1000,
   });
   const insightsQuery = useQuery<AttendanceSummaries>({
     queryKey: ["attendance-summaries", effectiveParkId],

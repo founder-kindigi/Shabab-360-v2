@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { ATTENDANCE_ROLES, requireAuth, requireCapability, requireResourceScope } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
-import { todayPKT, endOfTodayPKT, formatPKT, fromPKT } from "@/lib/timezone";
+import { todayPKT, formatPKT, fromPKT } from "@/lib/timezone";
 import { parseISO, isValid } from "date-fns";
 import {
   optionalDateOnly,
@@ -12,6 +12,7 @@ import {
 } from "@/lib/api/query-params";
 import { z } from "zod";
 import { createAttendanceEventSchema } from "@/lib/attendance/schemas";
+import { listAttendanceSessions } from "@/lib/attendance/session-list";
 
 const listQuerySchema = z.object({
   parkId: optionalIdentifier(),
@@ -62,12 +63,8 @@ export async function GET(req: Request) {
       const scopeError = requireResourceScope(user, { parkId, cityId: park.cityId }, ATTENDANCE_ROLES);
       if (scopeError) return scopeError;
 
-      const batches = await db.batch.findMany({
-        where: { parkId, isActive: true },
-        select: { id: true },
-      });
       const groups = await db.group.findMany({
-        where: { batchId: { in: batches.map((batch) => batch.id) }, isActive: true },
+        where: { batch: { parkId, isActive: true }, isActive: true },
         select: { id: true },
       });
       groupIds = groups.map((group) => group.id);
@@ -75,8 +72,6 @@ export async function GET(req: Request) {
 
     // Determine date range
     let startDate: Date;
-    let endDate: Date;
-
     if (dateParam) {
       const parsed = parseISO(dateParam);
       if (!isValid(parsed)) {
@@ -87,85 +82,17 @@ export async function GET(req: Request) {
       }
       const pktDate = fromPKT(parsed);
       startDate = new Date(pktDate.getFullYear(), pktDate.getMonth(), pktDate.getDate());
-      endDate = new Date(startDate.getTime() + 24 * 60 * 60 * 1000);
     } else {
       startDate = todayPKT();
-      endDate = endOfTodayPKT();
     }
 
-    // Build where clause
-    const where: Record<string, unknown> = {
-      groupId: { in: groupIds },
-      eventDate: { gte: startDate, lt: endDate },
-    };
-
-    if (statusFilter === "open") where.isClosed = false;
-    else if (statusFilter === "closed") where.isClosed = true;
-
-    // Get events with record counts
-    const events = await db.attendanceEvent.findMany({
-      where,
-      include: {
-        group: true,
-        records: { select: { id: true, status: true } },
-      },
-      orderBy: { eventDate: "desc" },
-    });
-
-    // Get participant counts per group
-    const groupPCounts = await db.participant.groupBy({
-      by: ["groupId"],
-      where: { groupId: { in: groupIds }, state: "active" },
-      _count: true,
-    });
-    const pCountMap = new Map(groupPCounts.map((g) => [g.groupId, g._count]));
-
-    // Resolve closedBy names from StaffMeta
-    const closedByIds = events
-      .map((e) => e.closedBy)
-      .filter((id): id is string => !!id);
-    const closedByStaff = closedByIds.length > 0
-      ? await db.staffMeta.findMany({
-          where: { id: { in: closedByIds } },
-          include: { user: { select: { name: true } } },
-        })
-      : [];
-    const closedByNameMap = new Map(
-      closedByStaff.map((s) => [s.id, s.user.name])
-    );
-
-    const eventList = events.map((e) => {
-      const pCount = pCountMap.get(e.groupId) || 0;
-      const mCount = e.records.length;
-      const presentCount = e.records.filter((r) => r.status === "present").length;
-      const absentCount = e.records.filter((r) => r.status === "absent").length;
-      const lateCount = e.records.filter((r) => r.status === "late").length;
-      const excusedCount = e.records.filter((r) => r.status === "excused").length;
-
-      return {
-        id: e.id,
-        title: e.title,
-        groupId: e.groupId,
-        groupName: e.group.name,
-        eventDate: e.eventDate.toISOString(),
-        isClosed: e.isClosed,
-        participantCount: pCount,
-        markedCount: mCount,
-        presentCount,
-        absentCount,
-        lateCount,
-        excusedCount,
-        progress: pCount > 0 ? Math.round((mCount / pCount) * 100) : 0,
-        closedAt: e.closedAt?.toISOString() || null,
-        closedByName: e.closedBy ? closedByNameMap.get(e.closedBy) || null : null,
-      };
-    });
-
-    return NextResponse.json({
+    return NextResponse.json(await listAttendanceSessions({
       date: formatPKT(startDate, "yyyy-MM-dd"),
+      eventDate: startDate,
+      groupIds,
       parkId,
-      events: eventList,
-    });
+      status: statusFilter,
+    }));
   } catch (error) {
     console.error("Attendance list error:", error);
     return NextResponse.json(

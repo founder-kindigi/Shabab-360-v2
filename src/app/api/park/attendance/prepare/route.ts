@@ -1,15 +1,14 @@
 import { NextResponse } from "next/server";
 import { createAuditLogData } from "@/lib/audit";
-import { ATTENDANCE_ROLES, requireAuth, requireCapability, requireResourceScope } from "@/lib/auth/authorize";
+import { ATTENDANCE_ROLES, requireCapability, requireResourceScope } from "@/lib/auth/authorize";
 import { attendanceDateStart, isBatchClassDate } from "@/lib/attendance/schedule";
 import { prepareAttendanceSessionsSchema } from "@/lib/attendance/schemas";
+import { listAttendanceSessions } from "@/lib/attendance/session-list";
 import { db } from "@/lib/db";
 
 export async function POST(request: Request) {
-  const auth = await requireAuth();
+  const auth = await requireCapability("attendance.mark");
   if (auth instanceof NextResponse) return auth;
-  const capability = await requireCapability("attendance.mark");
-  if (capability instanceof NextResponse) return capability;
 
   const parsed = prepareAttendanceSessionsSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
@@ -45,7 +44,12 @@ export async function POST(request: Request) {
     where: { cityId: park.cityId, offDate: { gte: eventDate, lt: nextDate } },
     select: { label: true },
   });
-  if (offDate) return NextResponse.json({ date, prepared: 0, isOffDate: true, reason: offDate.label });
+  if (offDate) return NextResponse.json({
+    date,
+    parkId,
+    events: [],
+    preparation: { prepared: 0, eligibleGroups: 0, isOffDate: true, reason: offDate.label },
+  });
 
   const groups = await db.group.findMany({
     where: {
@@ -77,13 +81,13 @@ export async function POST(request: Request) {
   }));
 
   const prepared = await db.$transaction(async (tx) => {
+    const existing = await tx.attendanceEvent.findMany({
+      where: { groupId: { in: eligible.map((group) => group.id) }, eventDate },
+      select: { groupId: true },
+    });
+    const existingGroupIds = new Set(existing.map((event) => event.groupId));
     let created = 0;
-    for (const group of eligible) {
-      const existing = await tx.attendanceEvent.findUnique({
-        where: { groupId_eventDate: { groupId: group.id, eventDate } },
-        select: { id: true },
-      });
-      if (existing) continue;
+    for (const group of eligible.filter((item) => !existingGroupIds.has(item.id))) {
       const event = await tx.attendanceEvent.create({
         data: { groupId: group.id, eventDate, title: `${group.name} - ${group.batch.name}` },
       });
@@ -99,5 +103,14 @@ export async function POST(request: Request) {
     return created;
   });
 
-  return NextResponse.json({ date, prepared, eligibleGroups: eligible.length, isOffDate: false });
+  const sessions = await listAttendanceSessions({
+    date,
+    eventDate,
+    groupIds: groups.map((group) => group.id),
+    parkId,
+  });
+  return NextResponse.json({
+    ...sessions,
+    preparation: { prepared, eligibleGroups: eligible.length, isOffDate: false },
+  });
 }
