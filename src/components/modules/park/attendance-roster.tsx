@@ -2,7 +2,6 @@
 
 import { useState, useCallback, useRef, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useSession } from "next-auth/react";
 import { useAppStore } from "@/stores/useAppStore";
 import { useAttendanceSync } from "@/hooks/use-attendance-sync";
 import { useOnlineStatus } from "@/hooks/use-online-status";
@@ -229,7 +228,6 @@ const QUICK_STATUSES: { status: AttendanceStatus; icon: typeof CheckCircle2; lab
 
 export function AttendanceRoster() {
   const { selectedEventId, navigateTo } = useAppStore();
-  const { data: session } = useSession();
   const { markAttendance, pendingCount } = useAttendanceSync();
   const isOnline = useOnlineStatus();
   const queryClient = useQueryClient();
@@ -239,6 +237,8 @@ export function AttendanceRoster() {
   const [rosterView, setRosterView] = useState<"cards" | "table">("cards");
   const [closeDialogOpen, setCloseDialogOpen] = useState(false);
   const [closeReason, setCloseReason] = useState("");
+  const [reopenDialogOpen, setReopenDialogOpen] = useState(false);
+  const [reopenReason, setReopenReason] = useState("");
   const [processingIds, setProcessingIds] = useState<Set<string>>(new Set());
   const [warningDialogOpen, setWarningDialogOpen] = useState(false);
 
@@ -264,11 +264,6 @@ export function AttendanceRoster() {
     () => new Map()
   );
 
-  const userRole = (session?.user as { role?: string } | undefined)?.role;
-  const canEditRecord = userRole === "admin" || userRole === "super_admin" || userRole === "program_admin" || userRole === "park_lead";
-  const canClose = userRole === "park_lead";
-  const canReset = canClose;
-
   // ─── Fetch roster ────────────────────────────────────────────────────────
 
   const {
@@ -277,6 +272,7 @@ export function AttendanceRoster() {
     error,
     refetch,
   } = useQuery<{
+    permissions: { canCorrect: boolean };
     event: EventInfo;
     roster: RosterItem[];
     summary: Summary;
@@ -291,6 +287,10 @@ export function AttendanceRoster() {
     refetchInterval: 15000,
     staleTime: 10000,
   });
+
+  const canEditRecord = data?.permissions.canCorrect === true;
+  const canClose = canEditRecord;
+  const canReset = canEditRecord;
 
   // ─── Fetch warnings for this group ───────────────────────────────────
 
@@ -411,6 +411,27 @@ export function AttendanceRoster() {
     onError: (err: Error) => {
       toast.error(err.message || "Failed to close event");
     },
+  });
+
+  const reopenMutation = useMutation({
+    mutationFn: (reason: string) =>
+      fetch(`/api/park/attendance/${selectedEventId}/reopen`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason }),
+      }).then(async (response) => {
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(body.error || "Failed to reopen attendance");
+        return body;
+      }),
+    onSuccess: () => {
+      toast.success("Attendance reopened for correction");
+      setReopenDialogOpen(false);
+      setReopenReason("");
+      queryClient.invalidateQueries({ queryKey: ["attendance-roster", selectedEventId] });
+      queryClient.invalidateQueries({ queryKey: ["park-attendance"] });
+    },
+    onError: (error: Error) => toast.error(error.message),
   });
 
   // ─── Handlers ────────────────────────────────────────────────────────────
@@ -848,6 +869,17 @@ export function AttendanceRoster() {
               </span>
             )}
           </div>
+          {canClose && (
+            <Button
+              className="ml-auto shrink-0"
+              onClick={() => setReopenDialogOpen(true)}
+              size="sm"
+              variant="outline"
+            >
+              <RotateCcw className="mr-1.5 size-3.5" />
+              Reopen
+            </Button>
+          )}
         </motion.div>
       )}
 
@@ -1552,6 +1584,37 @@ export function AttendanceRoster() {
               ) : (
                 "Lock attendance"
               )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={reopenDialogOpen} onOpenChange={setReopenDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Reopen attendance?</DialogTitle>
+            <DialogDescription>
+              Reopening permits corrections. Existing records and any completed dropout decisions remain unchanged.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-2">
+            <Label htmlFor="reopen-reason">Reason for reopening</Label>
+            <Textarea
+              id="reopen-reason"
+              onChange={(event) => setReopenReason(event.target.value)}
+              placeholder="e.g. A register correction was requested"
+              rows={3}
+              value={reopenReason}
+            />
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setReopenDialogOpen(false)} variant="outline">Cancel</Button>
+            <Button
+              disabled={!reopenReason.trim() || reopenMutation.isPending}
+              onClick={() => reopenMutation.mutate(reopenReason.trim())}
+            >
+              {reopenMutation.isPending && <Loader2 className="mr-2 size-4 animate-spin" />}
+              Reopen attendance
             </Button>
           </DialogFooter>
         </DialogContent>

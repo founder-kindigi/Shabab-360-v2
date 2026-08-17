@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
 import { parseISO } from "date-fns";
 import { markAttendanceSchema } from "@/lib/attendance/schemas";
+import { userHasCapability } from "@/lib/auth/capability-access";
 
 const VALID_STATUSES = ["present", "absent", "late", "excused"];
 
@@ -115,6 +116,9 @@ export async function GET(
     }
 
     return NextResponse.json({
+      permissions: {
+        canCorrect: await userHasCapability(user, "attendance.correct"),
+      },
       event: {
         id: event.id,
         title: event.title,
