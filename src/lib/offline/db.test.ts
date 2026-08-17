@@ -1,22 +1,41 @@
 import { describe, expect, it } from "vitest";
-import { orderSyncItems } from "./db";
+import { coalesceAttendanceItems, orderSyncItems } from "./db";
 
-describe("orderSyncItems", () => {
-  it("preserves chronological order for conflicting queued attendance mutations", () => {
-    const items = orderSyncItems([
-      { mutationId: "later", queuedAt: "2026-07-15T10:05:00.000Z" },
-      { mutationId: "earlier", queuedAt: "2026-07-15T10:00:00.000Z" },
-    ]);
+const item = (
+  mutationId: string,
+  participantId: string,
+  queuedAt: string,
+  status: "present" | "absent" = "present"
+) => ({
+  mutationId,
+  eventId: "event-1",
+  participantId,
+  status,
+  markedAt: queuedAt,
+  queuedAt,
+  retryCount: 0,
+  lastError: null,
+  errorCode: null,
+  retryable: null,
+  syncedAt: null,
+  state: "pending" as const,
+});
 
-    expect(items.map((item) => item.mutationId)).toEqual(["earlier", "later"]);
+describe("attendance offline queue ordering", () => {
+  it("preserves chronological order", () => {
+    const later = item("later", "student-2", "2026-08-17T10:01:00.000Z");
+    const earlier = item("earlier", "student-1", "2026-08-17T10:00:00.000Z");
+
+    expect(orderSyncItems([later, earlier]).map((entry) => entry.mutationId))
+      .toEqual(["earlier", "later"]);
   });
 
-  it("handles identical timestamp ordering safely", () => {
-    const ts = "2026-08-05T09:00:00.000Z";
-    const items = orderSyncItems([
-      { mutationId: "m1", queuedAt: ts },
-      { mutationId: "m2", queuedAt: ts },
-    ]);
-    expect(items.length).toBe(2);
+  it("keeps only the newest mark for the same event and participant", () => {
+    const stale = item("stale", "student-1", "2026-08-17T10:00:00.000Z", "present");
+    const latest = item("latest", "student-1", "2026-08-17T10:01:00.000Z", "absent");
+    const other = item("other", "student-2", "2026-08-17T10:02:00.000Z");
+
+    expect(coalesceAttendanceItems([latest, other, stale]).map((entry) => entry.mutationId))
+      .toEqual(["latest", "other"]);
   });
 });

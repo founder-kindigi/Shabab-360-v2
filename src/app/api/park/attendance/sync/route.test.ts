@@ -32,7 +32,7 @@ vi.mock("@/lib/audit", () => ({ logAudit: mocks.logAudit }));
 import { POST } from "./route";
 
 const event = {
-  id: "event-1", groupId: "group-1", isClosed: false,
+  id: "event-1", groupId: "group-1", isClosed: false, eventDate: new Date("2026-08-01T00:00:00.000Z"),
   group: { batch: { parkId: "park-1", park: { cityId: "city-1" } } },
 };
 const EVENT_ID = "ckccccccccccccccccccccccc";
@@ -51,7 +51,7 @@ describe("POST /api/park/attendance/sync", () => {
     mocks.requireCapability.mockResolvedValue(null);
     mocks.staffMetaFindUnique.mockResolvedValue({ id: "staff-meta-1" });
     mocks.eventFindUnique.mockResolvedValue({ ...event, id: EVENT_ID });
-    mocks.participantFindFirst.mockResolvedValue({ id: PARTICIPANT_ID });
+    mocks.participantFindFirst.mockResolvedValue({ id: PARTICIPANT_ID, state: "active" });
     mocks.canAccessResourceScope.mockReturnValue(true);
     mocks.recordUpsert.mockResolvedValue({ id: "record-1" });
   });
@@ -78,6 +78,16 @@ describe("POST /api/park/attendance/sync", () => {
     expect(mocks.staffMetaFindUnique).not.toHaveBeenCalled();
   });
 
+  it("rejects duplicate mutation identifiers before querying staff data", async () => {
+    const response = await POST(request([
+      { mutationId: "duplicate", eventId: EVENT_ID, participantId: PARTICIPANT_ID, status: "present" },
+      { mutationId: "duplicate", eventId: EVENT_ID, participantId: PARTICIPANT_ID, status: "absent" },
+    ]));
+
+    expect(response.status).toBe(400);
+    expect(mocks.staffMetaFindUnique).not.toHaveBeenCalled();
+  });
+
   it("denies attendance marking before querying staff data", async () => {
     mocks.requireCapability.mockResolvedValue(
       NextResponse.json({ error: "Forbidden" }, { status: 403 })
@@ -98,7 +108,10 @@ describe("POST /api/park/attendance/sync", () => {
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(body).toMatchObject({ summary: { processed: 0, failed: 1 }, results: [{ error: "Forbidden" }] });
+    expect(body).toMatchObject({
+      summary: { processed: 0, failed: 1 },
+      results: [{ error: "Forbidden", code: "FORBIDDEN", retryable: false }],
+    });
     expect(mocks.participantFindFirst).not.toHaveBeenCalled();
   });
 
@@ -110,11 +123,14 @@ describe("POST /api/park/attendance/sync", () => {
     }]));
     const body = await response.json();
 
-    expect(body).toMatchObject({ summary: { processed: 0, failed: 1 }, results: [{ error: "Event is closed" }] });
+    expect(body).toMatchObject({
+      summary: { processed: 0, failed: 1 },
+      results: [{ error: "Attendance is locked", code: "EVENT_LOCKED", retryable: false }],
+    });
     expect(mocks.recordUpsert).not.toHaveBeenCalled();
   });
 
-  it("applies ordered mutations in request order so the latest status wins", async () => {
+  it("supersedes stale queued marks so only the latest status is written", async () => {
     const response = await POST(request([
       { mutationId: "first", eventId: EVENT_ID, participantId: PARTICIPANT_ID, status: "present" },
       { mutationId: "latest", eventId: EVENT_ID, participantId: PARTICIPANT_ID, status: "absent" },
@@ -122,8 +138,30 @@ describe("POST /api/park/attendance/sync", () => {
     const body = await response.json();
 
     expect(body.summary).toEqual({ total: 2, processed: 2, failed: 0 });
-    expect(mocks.recordUpsert).toHaveBeenNthCalledWith(1, expect.objectContaining({ create: expect.objectContaining({ status: "present" }) }));
-    expect(mocks.recordUpsert).toHaveBeenNthCalledWith(2, expect.objectContaining({ update: expect.objectContaining({ status: "absent" }) }));
+    expect(body.results[0]).toMatchObject({ status: "processed", code: "SUPERSEDED" });
+    expect(mocks.recordUpsert).toHaveBeenCalledTimes(1);
+    expect(mocks.recordUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({ update: expect.objectContaining({ status: "absent" }) })
+    );
+  });
+
+  it("classifies discontinued attendance as a permanent failure", async () => {
+    mocks.participantFindFirst.mockResolvedValue({
+      id: PARTICIPANT_ID,
+      state: "dropout",
+      dropoutAt: new Date("2026-07-01T00:00:00.000Z"),
+    });
+
+    const response = await POST(request([{
+      mutationId: "mutation-1", eventId: EVENT_ID, participantId: PARTICIPANT_ID, status: "present",
+    }]));
+    const body = await response.json();
+
+    expect(body.results[0]).toMatchObject({
+      code: "ATTENDANCE_DISCONTINUED",
+      retryable: false,
+    });
+    expect(mocks.recordUpsert).not.toHaveBeenCalled();
   });
 
   it("returns a safe mutation error without leaking internal exception details", async () => {
@@ -141,6 +179,7 @@ describe("POST /api/park/attendance/sync", () => {
 
     expect(response.status).toBe(200);
     expect(body.results[0].error).toBe("Processing error");
+    expect(body.results[0]).toMatchObject({ code: "PROCESSING_ERROR", retryable: true });
     expect(body.results[0].error).not.toContain("Prisma");
   });
 });

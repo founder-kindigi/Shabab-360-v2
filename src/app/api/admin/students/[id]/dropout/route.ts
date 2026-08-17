@@ -10,12 +10,21 @@ async function scopedParticipant(id: string, user: Parameters<typeof requireReso
     include: { group: { include: { batch: { include: { park: true } } } } },
   });
   if (!participant) return { error: NextResponse.json({ error: "Participant not found" }, { status: 404 }) };
+  if (!participant.group) {
+    return {
+      error: NextResponse.json(
+        { error: "Participant must be assigned to a group before this action" },
+        { status: 409 }
+      ),
+    };
+  }
   const scopeError = requireResourceScope(user, {
     cityId: participant.group.batch.cityId ?? participant.group.batch.park.cityId,
     parkId: participant.group.batch.parkId,
     groupId: participant.groupId,
   });
-  return scopeError ? { error: scopeError } : { participant };
+  if (scopeError) return { error: scopeError };
+  return { participant };
 }
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -24,7 +33,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   const capability = await requireCapability("students.profile.view");
   if (capability instanceof NextResponse) return capability;
   const result = await scopedParticipant((await params).id, auth.user);
-  if ("error" in result) return result.error;
+  if ("error" in result) return result.error!;
   return NextResponse.json({
     participantId: result.participant.id,
     state: result.participant.state,
@@ -41,7 +50,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const capability = await requireCapability("students.manage");
   if (capability instanceof NextResponse) return capability;
   const result = await scopedParticipant((await params).id, auth.user);
-  if ("error" in result) return result.error;
+  if ("error" in result) return result.error!;
   const parsed = participantDropoutActionSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
 

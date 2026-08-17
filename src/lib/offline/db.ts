@@ -11,6 +11,8 @@ export interface OfflineQueueItem {
   queuedAt: string;
   retryCount: number;
   lastError: string | null;
+  errorCode: string | null;
+  retryable: boolean | null;
   syncedAt: string | null;
   state: "pending" | "syncing" | "synced" | "failed";
 }
@@ -49,10 +51,22 @@ export class ShababOfflineDB extends Dexie {
 export const offlineDB = new ShababOfflineDB();
 
 const MAX_RETRIES = 5;
+const STUCK_SYNC_AGE_MS = 2 * 60 * 1000;
 
 /** Preserves the user's mutation order when multiple offline marks target one record. */
 export function orderSyncItems<T extends Pick<OfflineQueueItem, "queuedAt">>(items: T[]): T[] {
   return [...items].sort((a, b) => a.queuedAt.localeCompare(b.queuedAt));
+}
+
+/** Keeps only the newest unsent mark for each attendance record. */
+export function coalesceAttendanceItems<T extends Pick<OfflineQueueItem, "eventId" | "participantId" | "queuedAt">>(
+  items: T[]
+): T[] {
+  const latest = new Map<string, T>();
+  for (const item of orderSyncItems(items)) {
+    latest.set(`${item.eventId}:${item.participantId}`, item);
+  }
+  return orderSyncItems([...latest.values()]);
 }
 
 /**
@@ -65,13 +79,27 @@ export async function queueAttendanceMark(params: {
   status: AttendanceStatus;
   markedAt: string;
 }): Promise<void> {
-  await offlineDB.queue.add({
-    ...params,
-    queuedAt: new Date().toISOString(),
-    retryCount: 0,
-    lastError: null,
-    syncedAt: null,
-    state: "pending",
+  await offlineDB.transaction("rw", offlineDB.queue, async () => {
+    const replaceable = await offlineDB.queue
+      .where("eventId")
+      .equals(params.eventId)
+      .filter((item) =>
+        item.participantId === params.participantId &&
+        (item.state === "pending" || item.state === "failed")
+      )
+      .primaryKeys();
+    if (replaceable.length > 0) await offlineDB.queue.bulkDelete(replaceable);
+
+    await offlineDB.queue.add({
+      ...params,
+      queuedAt: new Date().toISOString(),
+      retryCount: 0,
+      lastError: null,
+      errorCode: null,
+      retryable: null,
+      syncedAt: null,
+      state: "pending",
+    });
   });
 }
 
@@ -81,11 +109,11 @@ export async function queueAttendanceMark(params: {
 export async function getPendingSyncItems(): Promise<OfflineQueueItem[]> {
   const items = await offlineDB.queue
     .where("state")
-    .anyOf(["pending", "failed"])
+    .equals("pending")
     .filter((item) => item.retryCount < MAX_RETRIES)
     .limit(200)
     .toArray();
-  return orderSyncItems(items);
+  return coalesceAttendanceItems(items);
 }
 
 /**
@@ -116,17 +144,19 @@ export async function markAsSynced(mutationIds: string[]): Promise<void> {
  * Mark items as failed after sync attempt.
  */
 export async function markAsFailed(
-  results: Array<{ mutationId: string; error?: string }>
+  results: Array<{ mutationId: string; error?: string; code?: string; retryable?: boolean }>
 ): Promise<void> {
   await offlineDB.transaction("rw", offlineDB.queue, async () => {
-    for (const { mutationId, error } of results) {
+    for (const { mutationId, error, code, retryable = true } of results) {
       const item = await offlineDB.queue.get(mutationId);
       if (!item) continue;
       const newRetryCount = item.retryCount + 1;
       await offlineDB.queue.update(mutationId, {
-        state: newRetryCount >= MAX_RETRIES ? "failed" : ("pending" as const),
+        state: !retryable || newRetryCount >= MAX_RETRIES ? "failed" : ("pending" as const),
         retryCount: newRetryCount,
         lastError: error || null,
+        errorCode: code || null,
+        retryable,
       });
     }
   });
@@ -139,7 +169,39 @@ export async function retryAllFailed(): Promise<void> {
   await offlineDB.queue
     .where("state")
     .equals("failed")
-    .modify({ state: "pending", lastError: null });
+    .modify({
+      state: "pending",
+      retryCount: 0,
+      lastError: null,
+      errorCode: null,
+      retryable: null,
+    });
+}
+
+export async function discardFailed(mutationId: string): Promise<void> {
+  const item = await offlineDB.queue.get(mutationId);
+  if (item?.state === "failed") await offlineDB.queue.delete(mutationId);
+}
+
+/** Returns interrupted sync attempts to the queue after a browser/network crash. */
+export async function recoverStuckSyncing(maxAgeMs = STUCK_SYNC_AGE_MS): Promise<number> {
+  const cutoff = new Date(Date.now() - maxAgeMs).toISOString();
+  const stuck = await offlineDB.queue
+    .where("state")
+    .equals("syncing")
+    .filter((item) => item.queuedAt < cutoff)
+    .toArray();
+  if (stuck.length === 0) return 0;
+  await offlineDB.queue.bulkUpdate(stuck.map((item) => ({
+    key: item.mutationId,
+    changes: {
+      state: "pending" as const,
+      lastError: "Previous sync was interrupted",
+      errorCode: "SYNC_INTERRUPTED",
+      retryable: true,
+    },
+  })));
+  return stuck.length;
 }
 
 /**

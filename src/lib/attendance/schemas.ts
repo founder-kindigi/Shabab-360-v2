@@ -47,6 +47,18 @@ export const syncMutationSchema = z.object({
 
 export const syncAttendanceRequestSchema = z.object({
   mutations: z.array(syncMutationSchema).min(1).max(50),
+}).strict().superRefine(({ mutations }, ctx) => {
+  const seen = new Set<string>();
+  mutations.forEach((mutation, index) => {
+    if (seen.has(mutation.mutationId)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Duplicate mutationId",
+        path: ["mutations", index, "mutationId"],
+      });
+    }
+    seen.add(mutation.mutationId);
+  });
 });
 
 export const checkAttendanceAlertsSchema = z.object({

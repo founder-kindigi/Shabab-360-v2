@@ -11,7 +11,18 @@ type SyncResult = {
   status: "processed" | "failed";
   recordId: string | null;
   error: string | null;
+  code: string | null;
+  retryable: boolean;
 };
+
+function failedResult(
+  mutationId: string,
+  code: string,
+  error: string,
+  retryable = false
+): SyncResult {
+  return { mutationId, status: "failed", recordId: null, error, code, retryable };
+}
 
 export async function POST(req: Request) {
   const auth = await requireAuth();
@@ -34,10 +45,28 @@ export async function POST(req: Request) {
 
     const staffMeta = await db.staffMeta.findUnique({ where: { userId: user.id } });
     const results: SyncResult[] = [];
+    const latestMutationByRecord = new Map<string, string>();
+    for (const mutation of mutations) {
+      latestMutationByRecord.set(
+        `${mutation.eventId}:${mutation.participantId}`,
+        mutation.mutationId
+      );
+    }
 
     for (const mutation of mutations) {
       const { mutationId, eventId, participantId, status, markedAt } = mutation;
       const markedAtDate = markedAt ? parseISO(markedAt) : new Date();
+      if (latestMutationByRecord.get(`${eventId}:${participantId}`) !== mutationId) {
+        results.push({
+          mutationId,
+          status: "processed",
+          recordId: null,
+          error: null,
+          code: "SUPERSEDED",
+          retryable: false,
+        });
+        continue;
+      }
 
       try {
         const event = await db.attendanceEvent.findUnique({
@@ -45,7 +74,7 @@ export async function POST(req: Request) {
           include: { group: { include: { batch: { include: { park: true } } } } },
         });
         if (!event) {
-          results.push({ mutationId, status: "failed", recordId: null, error: "Event not found" });
+          results.push(failedResult(mutationId, "EVENT_NOT_FOUND", "Event not found"));
           continue;
         }
         if (!canAccessResourceScope(
@@ -53,11 +82,11 @@ export async function POST(req: Request) {
           { cityId: event.group.batch.park.cityId, parkId: event.group.batch.parkId, groupId: event.groupId },
           ATTENDANCE_ROLES
         )) {
-          results.push({ mutationId, status: "failed", recordId: null, error: "Forbidden" });
+          results.push(failedResult(mutationId, "FORBIDDEN", "Forbidden"));
           continue;
         }
         if (event.isClosed) {
-          results.push({ mutationId, status: "failed", recordId: null, error: "Event is closed" });
+          results.push(failedResult(mutationId, "EVENT_LOCKED", "Attendance is locked"));
           continue;
         }
 
@@ -65,13 +94,21 @@ export async function POST(req: Request) {
           where: { id: participantId, groupId: event.groupId },
         });
         if (!participant) {
-          results.push({ mutationId, status: "failed", recordId: null, error: "Participant not in this group" });
+          results.push(failedResult(
+            mutationId,
+            "PARTICIPANT_SCOPE_CHANGED",
+            "Participant is no longer in this group"
+          ));
           continue;
         }
         const dropoutEffective = participant.state === "dropout"
           && (!participant.dropoutAt || participant.dropoutAt <= event.eventDate);
         if (participant.state === "inactive" || dropoutEffective) {
-          results.push({ mutationId, status: "failed", recordId: null, error: "Attendance is discontinued for this participant" });
+          results.push(failedResult(
+            mutationId,
+            "ATTENDANCE_DISCONTINUED",
+            "Attendance is discontinued for this participant"
+          ));
           continue;
         }
 
@@ -99,14 +136,21 @@ export async function POST(req: Request) {
           }
         }
 
-        results.push({ mutationId, status: "processed", recordId: record.id, error: null });
-      } catch (error) {
         results.push({
           mutationId,
-          status: "failed",
-          recordId: null,
-          error: "Processing error",
+          status: "processed",
+          recordId: record.id,
+          error: null,
+          code: null,
+          retryable: false,
         });
+      } catch (error) {
+        results.push(failedResult(
+          mutationId,
+          "PROCESSING_ERROR",
+          "Processing error",
+          true
+        ));
       }
     }
 

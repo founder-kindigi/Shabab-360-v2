@@ -10,15 +10,22 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { RefreshCw, ChevronDown, AlertCircle, Loader2, WifiOff } from "lucide-react";
+import { RefreshCw, ChevronDown, AlertCircle, Loader2, WifiOff, Trash2 } from "lucide-react";
 import type { OfflineQueueItem } from "@/lib/offline/db";
 
 export function OfflineQueuePanel() {
-  const { pendingCount, failedCount, isOnline, syncNow, retryFailed, getFailedItems } =
-    useAttendanceSync();
+  const {
+    pendingCount,
+    failedCount,
+    isOnline,
+    isSyncing,
+    syncNow,
+    retryFailed,
+    getFailedItems,
+    discardFailedItem,
+  } = useAttendanceSync();
   const [open, setOpen] = useState(false);
   const [failedItems, setFailedItems] = useState<OfflineQueueItem[]>([]);
-  const [syncing, setSyncing] = useState(false);
 
   const loadFailedItems = useCallback(async () => {
     const items = await getFailedItems();
@@ -38,23 +45,13 @@ export function OfflineQueuePanel() {
   }, [failedCount, loadFailedItems]);
 
   const handleSync = async () => {
-    setSyncing(true);
-    try {
-      await syncNow();
-      await loadFailedItems();
-    } finally {
-      setSyncing(false);
-    }
+    await syncNow();
+    await loadFailedItems();
   };
 
   const handleRetry = async () => {
-    setSyncing(true);
-    try {
-      await retryFailed();
-      await loadFailedItems();
-    } finally {
-      setSyncing(false);
-    }
+    await retryFailed();
+    await loadFailedItems();
   };
 
   // Don't show if everything is clean
@@ -81,7 +78,7 @@ export function OfflineQueuePanel() {
                 <RefreshCw
                   className={cn(
                     "size-4 text-[#4B0A8F] dark:text-[#8A40B0] shrink-0",
-                    syncing && "animate-spin"
+                    isSyncing && "animate-spin"
                   )}
                 />
               ) : (
@@ -127,10 +124,10 @@ export function OfflineQueuePanel() {
                   size="sm"
                   variant="outline"
                   onClick={handleSync}
-                  disabled={syncing || !isOnline}
+                  disabled={isSyncing || !isOnline}
                   className="text-xs"
                 >
-                  {syncing ? (
+                  {isSyncing ? (
                     <Loader2 className="size-3.5 mr-1.5 animate-spin" />
                   ) : (
                     <RefreshCw className="size-3.5 mr-1.5" />
@@ -143,7 +140,7 @@ export function OfflineQueuePanel() {
                   size="sm"
                   variant="outline"
                   onClick={handleRetry}
-                  disabled={syncing}
+                  disabled={isSyncing || !isOnline}
                   className="text-xs border-amber-300 text-amber-700 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-400 dark:hover:bg-amber-950/30"
                 >
                   <RefreshCw className="size-3.5 mr-1.5" />
@@ -161,14 +158,32 @@ export function OfflineQueuePanel() {
                     className="flex items-start gap-2 text-xs rounded-md bg-red-50 dark:bg-red-950/20 px-2.5 py-2 border border-red-100 dark:border-red-900/30"
                   >
                     <AlertCircle className="size-3.5 text-red-500 shrink-0 mt-0.5" />
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <p className="text-red-700 dark:text-red-400 font-medium">
                         {item.status} for {item.participantId.slice(0, 8)}...
                       </p>
                       <p className="text-red-500 dark:text-red-500/70 mt-0.5">
                         {item.lastError || "Unknown error"}
                       </p>
+                      <p className="text-muted-foreground mt-1">
+                        {item.retryable === false
+                          ? "This mark needs review before retrying."
+                          : `Retry ${item.retryCount} of 5`}
+                      </p>
                     </div>
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="ghost"
+                      className="size-8 shrink-0 text-red-600"
+                      aria-label="Discard failed attendance mark"
+                      onClick={async () => {
+                        await discardFailedItem(item.mutationId);
+                        await loadFailedItems();
+                      }}
+                    >
+                      <Trash2 className="size-3.5" />
+                    </Button>
                   </div>
                 ))}
               </div>

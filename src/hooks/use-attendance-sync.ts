@@ -10,6 +10,10 @@ import {
   markAsFailed,
   getQueueCounts,
   clearSyncedItems,
+  queueAttendanceMark,
+  recoverStuckSyncing,
+  retryAllFailed,
+  discardFailed,
   type OfflineQueueItem,
 } from "@/lib/offline/db";
 import { v4 as uuidv4 } from "uuid";
@@ -31,6 +35,7 @@ export function useAttendanceSync() {
   const [pendingCount, setPendingCount] = useState(0);
   const [failedCount, setFailedCount] = useState(0);
   const [lastSyncError, setLastSyncError] = useState<string | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   // Poll queue counts
   const refreshCounts = useCallback(async () => {
@@ -44,109 +49,17 @@ export function useAttendanceSync() {
   }, []);
 
   /**
-   * Sync a single mutation to the server.
-   */
-  const syncSingle = useCallback(
-    async (mutationId: string): Promise<{ success: boolean; error?: string }> => {
-      const item = await offlineDB.queue.get(mutationId);
-      if (!item) return { success: false, error: "Item not found" };
-
-      try {
-        await offlineDB.queue.update(mutationId, { state: "syncing" });
-        const res = await fetch(
-          `/api/park/attendance/${item.eventId}`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              participantId: item.participantId,
-              status: item.status,
-              mutationId: item.mutationId,
-              markedAt: item.markedAt,
-            }),
-          }
-        );
-
-        if (res.ok) {
-          await offlineDB.queue.update(mutationId, {
-            state: "synced",
-            syncedAt: new Date().toISOString(),
-          });
-          await refreshCounts();
-          return { success: true };
-        }
-
-        const err = await res.json().catch(() => ({ error: "Request failed" }));
-        await offlineDB.queue.update(mutationId, {
-          state: "failed",
-          retryCount: item.retryCount + 1,
-          lastError: err.error || "Unknown error",
-        });
-        await refreshCounts();
-        return { success: false, error: err.error };
-      } catch (error) {
-        await offlineDB.queue.update(mutationId, {
-          state: "failed",
-          retryCount: item.retryCount + 1,
-          lastError: error instanceof Error ? error.message : "Network error",
-        });
-        await refreshCounts();
-        return { success: false, error: "Network error" };
-      }
-    },
-    [refreshCounts]
-  );
-
-  /**
-   * Submit a single attendance mark. Queues offline if needed.
-   */
-  const markAttendance = useCallback(
-    async (params: {
-      eventId: string;
-      participantId: string;
-      status: AttendanceStatus;
-    }): Promise<{ success: boolean; error?: string }> => {
-      const mutationId = uuidv4();
-      const markedAt = new Date().toISOString();
-
-      if (!VALID_STATUSES.includes(params.status)) {
-        return { success: false, error: `Invalid status: ${params.status}` };
-      }
-
-      // Optimistic - always queue first
-      await offlineDB.queue.add({
-        mutationId,
-        eventId: params.eventId,
-        participantId: params.participantId,
-        status: params.status,
-        markedAt,
-        queuedAt: new Date().toISOString(),
-        retryCount: 0,
-        lastError: null,
-        syncedAt: null,
-        state: "pending",
-      });
-
-      await refreshCounts();
-
-      // If online, try to sync immediately
-      if (isOnline) {
-        return syncSingle(mutationId);
-      }
-
-      return { success: true };
-    },
-    [isOnline, refreshCounts, syncSingle]
-  );
-
-  /**
    * Sync all pending items in a batch.
    */
   const syncNow = useCallback((): Promise<SyncResult> => {
     if (activeQueueSync) return activeQueueSync;
 
     const runningSync = (async (): Promise<SyncResult> => {
+      let lockedItems: OfflineQueueItem[] = [];
       try {
+      setIsSyncing(true);
+      setLastSyncError(null);
+      await recoverStuckSyncing();
       const items = await getPendingSyncItems();
       if (items.length === 0) {
         await clearSyncedItems();
@@ -155,6 +68,7 @@ export function useAttendanceSync() {
 
       const mutationIds = items.map((i) => i.mutationId);
       await markAsSyncing(mutationIds);
+      lockedItems = items;
 
       const res = await fetch("/api/park/attendance/sync", {
         method: "POST",
@@ -172,9 +86,12 @@ export function useAttendanceSync() {
 
       if (!res.ok) {
         // Server error - reset all back to pending
-        await markAsFailed(
-          mutationIds.map((id) => ({ mutationId: id, error: "Server error" }))
-        );
+        await markAsFailed(mutationIds.map((id) => ({
+          mutationId: id,
+          error: `Server error (${res.status})`,
+          code: "SERVER_ERROR",
+          retryable: true,
+        })));
         await refreshCounts();
         return { success: false, processed: 0, failed: items.length };
       }
@@ -190,9 +107,11 @@ export function useAttendanceSync() {
       if (processedIds.length > 0) await markAsSynced(processedIds);
       if (failedItems.length > 0)
         await markAsFailed(
-          failedItems.map((r: { mutationId: string; error?: string }) => ({
+          failedItems.map((r: { mutationId: string; error?: string; code?: string; retryable?: boolean }) => ({
             mutationId: r.mutationId,
             error: r.error,
+            code: r.code,
+            retryable: r.retryable,
           }))
         );
 
@@ -205,12 +124,20 @@ export function useAttendanceSync() {
         failed: failedItems.length,
       };
       } catch (error) {
-        setLastSyncError(
-          error instanceof Error ? error.message : "Sync failed"
-        );
+        const message = error instanceof Error ? error.message : "Sync failed";
+        setLastSyncError(message);
+        if (lockedItems.length > 0) {
+          await markAsFailed(lockedItems.map((item) => ({
+            mutationId: item.mutationId,
+            error: message,
+            code: "NETWORK_ERROR",
+            retryable: true,
+          })));
+        }
         await refreshCounts();
-        return { success: false, processed: 0, failed: 0 };
+        return { success: false, processed: 0, failed: lockedItems.length };
       } finally {
+        setIsSyncing(false);
         activeQueueSync = null;
       }
     })();
@@ -218,6 +145,32 @@ export function useAttendanceSync() {
     activeQueueSync = runningSync;
     return runningSync;
   }, [refreshCounts]);
+
+  const markAttendance = useCallback(
+    async (params: {
+      eventId: string;
+      participantId: string;
+      status: AttendanceStatus;
+    }): Promise<{ success: boolean; error?: string }> => {
+      if (!VALID_STATUSES.includes(params.status)) {
+        return { success: false, error: `Invalid status: ${params.status}` };
+      }
+
+      await queueAttendanceMark({
+        ...params,
+        mutationId: uuidv4(),
+        markedAt: new Date().toISOString(),
+      });
+      await refreshCounts();
+
+      if (!isOnline) return { success: true };
+      const result = await syncNow();
+      return result.success
+        ? { success: true }
+        : { success: false, error: "Attendance saved locally but could not sync" };
+    },
+    [isOnline, refreshCounts, syncNow]
+  );
 
   // Auto-sync when coming back online after syncNow is initialized.
   useEffect(() => {
@@ -249,15 +202,15 @@ export function useAttendanceSync() {
    * Retry all failed items.
    */
   const retryFailed = useCallback(async () => {
-    const { offlineDB: db } = await import("@/lib/offline/db");
-    await db.queue
-      .where("state")
-      .equals("failed")
-      .modify({ state: "pending" as const, lastError: null });
+    await retryAllFailed();
     await refreshCounts();
-    // Auto-trigger sync
-    if (isOnline) syncNow();
+    if (isOnline) await syncNow();
   }, [isOnline, syncNow, refreshCounts]);
+
+  const discardFailedItem = useCallback(async (mutationId: string) => {
+    await discardFailed(mutationId);
+    await refreshCounts();
+  }, [refreshCounts]);
 
   /**
    * Get all failed items for display.
@@ -270,11 +223,13 @@ export function useAttendanceSync() {
     pendingCount,
     failedCount,
     lastSyncError,
+    isSyncing,
     isOnline,
     markAttendance,
     syncNow,
     retryFailed,
     getFailedItems,
+    discardFailedItem,
     refreshCounts,
   };
 }
