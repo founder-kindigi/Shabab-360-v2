@@ -667,15 +667,16 @@ model StaffAttendanceEvent {
   records StaffAttendanceRecord[]
 
   @@unique([parkId, eventDate])
+  @@index([parkId, eventDate])
   @@index([eventDate])
-  @@map("staff_attendance_events")
+  @@map("park_staff_attendance_events")
 }
 
 model StaffAttendanceRecord {
   id          String           @id @default(cuid())
   eventId     String
-  staffMetaId String
-  status      AttendanceStatus
+  staffMetaId String   @map("staffId")
+  status      String
   markedBy    String?
   markedAt    DateTime         @default(now())
   editReason  String?
@@ -689,7 +690,7 @@ model StaffAttendanceRecord {
   @@index([eventId])
   @@index([staffMetaId])
   @@index([markedAt])
-  @@map("staff_attendance_records")
+  @@map("park_staff_attendance_records")
 }
 
 model FeeEvent {

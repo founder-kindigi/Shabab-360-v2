@@ -623,14 +623,15 @@ model StaffAttendanceEvent {
   records StaffAttendanceRecord[]
 
   @@unique([parkId, eventDate])
+  @@index([parkId, eventDate])
   @@index([eventDate])
-  @@map("staff_attendance_events")
+  @@map("park_staff_attendance_events")
 }
 
 model StaffAttendanceRecord {
   id          String   @id @default(cuid())
   eventId     String
-  staffMetaId String
+  staffMetaId String   @map("staffId")
   status      String
   markedBy    String?
   markedAt    DateTime @default(now())
@@ -644,7 +645,7 @@ model StaffAttendanceRecord {
   @@unique([eventId, staffMetaId])
   @@index([eventId])
   @@index([staffMetaId])
-  @@map("staff_attendance_records")
+  @@map("park_staff_attendance_records")
 }
 
 // ========== FEES ==========
