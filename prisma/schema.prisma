@@ -117,6 +117,7 @@ model City {
   financialAdjustments  FinancialAdjustment[]
   purchaseOrders        PurchaseOrder[]
   digitalResources      DigitalResource[]
+  operationalOffDates   OperationalOffDate[]
 
   @@map("cities")
 }
@@ -166,6 +167,7 @@ model Batch {
   settings  BatchSettings?
   feeEvents FeeEvent[]
   contentPlans ContentPlan[]
+  extraClassDates BatchClassDate[]
 
   @@index([cityId, isActive])
   @@map("batches")
@@ -522,12 +524,41 @@ model BatchSettings {
   batchId        String   @unique
   warningAbsents Int      @default(3)
   dropoutAbsents Int      @default(6)
+  classWeekdays  String   @default("[0,6]")
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
   batch Batch @relation(fields: [batchId], references: [id], onDelete: Cascade)
 
   @@map("batch_settings")
+}
+
+model BatchClassDate {
+  id        String   @id @default(cuid())
+  batchId   String
+  classDate DateTime
+  createdAt DateTime @default(now())
+
+  batch Batch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  @@unique([batchId, classDate])
+  @@index([classDate])
+  @@map("batch_class_dates")
+}
+
+model OperationalOffDate {
+  id        String   @id @default(cuid())
+  cityId    String
+  offDate   DateTime
+  label     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  city City @relation(fields: [cityId], references: [id], onDelete: Cascade)
+
+  @@unique([cityId, offDate])
+  @@index([offDate])
+  @@map("operational_off_dates")
 }
 
 model AttendanceEvent {
@@ -544,7 +575,7 @@ model AttendanceEvent {
   group   Group              @relation(fields: [groupId], references: [id], onDelete: Cascade)
   records AttendanceRecord[]
 
-  @@index([groupId, eventDate])
+  @@unique([groupId, eventDate])
   @@index([eventDate])
   @@map("attendance_events")
 }

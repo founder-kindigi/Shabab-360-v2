@@ -53,3 +53,20 @@ export const checkAttendanceAlertsSchema = z.object({
   participantId: cuidSchema,
   eventId: cuidSchema,
 });
+
+export const prepareAttendanceSessionsSchema = z.object({
+  date: z.string().date(),
+  parkId: cuidSchema.optional(),
+}).strict();
+
+export const updateAttendanceScheduleSchema = z.object({
+  classWeekdays: z.array(z.number().int().min(0).max(6)).min(1).max(7)
+    .transform((days) => [...new Set(days)].sort()),
+  extraClassDates: z.array(z.string().date()).max(60).default([]),
+}).strict();
+
+export const operationalOffDateSchema = z.object({
+  cityId: cuidSchema,
+  offDate: z.string().date(),
+  label: z.string().trim().min(2).max(120),
+}).strict();

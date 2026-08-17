@@ -43,18 +43,32 @@ type AttendanceListResponse = {
   events: AttendanceEvent[];
 };
 
+type AttendancePreparation = {
+  prepared: number;
+  eligibleGroups?: number;
+  isOffDate: boolean;
+  reason?: string;
+};
+
 type ParkOption = {
   id: string;
   name: string;
 };
 
-async function fetchAttendanceEvents(date: string, parkId?: string): Promise<AttendanceListResponse> {
+async function prepareAndFetchAttendance(date: string, parkId?: string): Promise<AttendanceListResponse & { preparation: AttendancePreparation }> {
+  const preparationResponse = await fetch("/api/park/attendance/prepare", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ date, ...(parkId ? { parkId } : {}) }),
+  });
+  const preparation = await preparationResponse.json().catch(() => ({}));
+  if (!preparationResponse.ok) throw new Error(preparation.error || "Could not prepare attendance sessions");
   const query = new URLSearchParams({ date });
   if (parkId) query.set("parkId", parkId);
   const response = await fetch(`/api/park/attendance?${query.toString()}`);
   const body = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(body.error || "Could not load attendance sessions");
-  return body;
+  return { ...body, preparation };
 }
 
 async function fetchParks(): Promise<ParkOption[]> {
@@ -85,7 +99,7 @@ export function ParkAttendancePage() {
 
   const { data, error, isLoading, isFetching, refetch } = useQuery({
     queryKey: ["park-attendance", selectedDate, effectiveParkId],
-    queryFn: () => fetchAttendanceEvents(selectedDate, effectiveParkId || undefined),
+    queryFn: () => prepareAndFetchAttendance(selectedDate, effectiveParkId || undefined),
     enabled: sessionStatus !== "loading" && (!requiresParkSelection || Boolean(effectiveParkId)),
   });
 
@@ -186,7 +200,7 @@ export function ParkAttendancePage() {
       ) : error ? (
         <Card className="border-destructive/30"><CardContent className="space-y-3 p-5"><p className="font-medium">Could not load attendance</p><p className="text-sm text-muted-foreground">{error.message}</p><Button onClick={() => refetch()} variant="outline">Try again</Button></CardContent></Card>
       ) : events.length === 0 ? (
-        <Card><CardContent className="p-8 text-center"><p className="font-semibold">No group sessions for this date</p><p className="mt-1 text-sm text-muted-foreground">Sessions appear here when the scheduled class date is prepared for your scoped groups.</p></CardContent></Card>
+        <Card><CardContent className="p-8 text-center"><p className="font-semibold">{data?.preparation.isOffDate ? "Operational day off" : "No classes scheduled for this date"}</p><p className="mt-1 text-sm text-muted-foreground">{data?.preparation.isOffDate ? data.preparation.reason : "Choose a configured class day within the active batch dates."}</p></CardContent></Card>
       ) : view === "cards" ? (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {events.map((event) => <AttendanceSessionCard event={event} key={event.id} onStart={() => startStudentAttendance(event.id)} />)}
