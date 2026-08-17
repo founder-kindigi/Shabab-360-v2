@@ -3,13 +3,14 @@
 import { useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { AlertTriangle, BarChart3, CalendarDays, CheckCircle2, LayoutGrid, List, Lock, Play, Users } from "lucide-react";
 import { useAppStore } from "@/stores/useAppStore";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Progress } from "@/components/ui/progress";
 import {
   Select,
@@ -120,6 +121,7 @@ export function ParkAttendancePage() {
   const setSelectedEventId = useAppStore((state) => state.setSelectedEventId);
   const { data: session, status: sessionStatus } = useSession();
   const [selectedDate, setSelectedDate] = useState(() => format(new Date(), "yyyy-MM-dd"));
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [view, setView] = useState<"cards" | "table">("cards");
   const [selectedParkId, setSelectedParkId] = useState("");
   const [staffEventId, setStaffEventId] = useState<string | null>(null);
@@ -230,16 +232,31 @@ export function ParkAttendancePage() {
                 </SelectContent>
               </Select>
             )}
-            <div className="relative">
-              <CalendarDays className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                aria-label="Attendance date"
-                className="h-10 w-[168px] pl-9"
-                type="date"
-                value={selectedDate}
-                onChange={(event) => setSelectedDate(event.target.value)}
-              />
-            </div>
+            <Popover onOpenChange={setDatePickerOpen} open={datePickerOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  aria-label="Choose attendance date"
+                  className="h-10 w-[168px] justify-start px-3 font-normal"
+                  type="button"
+                  variant="outline"
+                >
+                  <CalendarDays className="mr-2 size-4 text-muted-foreground" />
+                  {format(parseISO(selectedDate), "dd MMM yyyy")}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-auto p-0">
+                <Calendar
+                  captionLayout="dropdown"
+                  mode="single"
+                  onSelect={(date) => {
+                    if (!date) return;
+                    setSelectedDate(format(date, "yyyy-MM-dd"));
+                    setDatePickerOpen(false);
+                  }}
+                  selected={parseISO(selectedDate)}
+                />
+              </PopoverContent>
+            </Popover>
             <div className="flex rounded-lg border bg-muted/40 p-1" aria-label="Attendance layout">
               <Button
                 aria-pressed={view === "cards"}
