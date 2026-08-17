@@ -2,6 +2,13 @@ import { z } from "zod";
 
 const cuidSchema = z.string().trim().min(1, "Identifier required");
 
+export const getCampaignsQuerySchema = z
+  .object({
+    cityId: cuidSchema.optional(),
+    status: z.enum(["draft", "active", "completed", "cancelled"]).optional(),
+  })
+  .strict();
+
 export const createCampaignSchema = z
   .object({
     cityId: cuidSchema.optional(),

@@ -3,21 +3,7 @@ import { requireCapability } from "@/lib/auth/authorize";
 import { resolveActorCity } from "@/lib/auth/events-scope";
 import { db } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
-import { createCampaignSchema } from "@/lib/validations/calling";
-import rawDataset from "@/lib/import-framework/portal-raw-dataset.json";
-
-const fallbackLahoreCampaigns = [
-  {
-    id: "camp-lahore-batch-4",
-    name: "Lahore Batch 4 Portal Registration Outreach Drive",
-    description: `Calling campaign for ${rawDataset.length} portal registration leads across Lahore parks (Gulberg, Johar Town, Gulshan Ravi, Griffin, Gulshan Iqbal, State Life).`,
-    status: "active",
-    startDate: "2026-05-01T00:00:00.000Z",
-    endDate: "2026-08-31T23:59:59.000Z",
-    city: { id: "city-lahore-01", name: "Lahore", code: "LHR" },
-    _count: { assignments: rawDataset.length, pocAssignments: 12, templates: 4 },
-  },
-];
+import { createCampaignSchema, getCampaignsQuerySchema } from "@/lib/validations/calling";
 
 export async function GET(request: NextRequest) {
   const auth = await requireCapability("calling.view");
@@ -25,32 +11,39 @@ export async function GET(request: NextRequest) {
   const user = auth.user;
 
   const url = new URL(request.url);
-  const requestedCityId = url.searchParams.get("cityId");
-  const statusParam = url.searchParams.get("status");
-
-  const isHq = user.role === "super_admin" || user.role === "program_admin";
-
-  try {
-    const where: any = {};
-    if (statusParam) where.status = statusParam;
-
-    const campaigns = await db.callingCampaign.findMany({
-      where,
-      orderBy: { createdAt: "desc" },
-      include: {
-        city: { select: { id: true, name: true, code: true } },
-        _count: { select: { assignments: true, pocAssignments: true, templates: true } },
-      },
-    });
-
-    if (campaigns.length > 0) {
-      return NextResponse.json(campaigns);
-    }
-  } catch (err) {
-    console.warn("Calling campaigns DB query error, falling back to Lahore Batch 4:", err);
+  const parsed = getCampaignsQuerySchema.safeParse({
+    cityId: url.searchParams.get("cityId") || undefined,
+    status: url.searchParams.get("status") || undefined,
+  });
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: "Invalid query parameters", details: parsed.error.flatten() },
+      { status: 400 }
+    );
   }
 
-  return NextResponse.json(fallbackLahoreCampaigns);
+  const resolved = await resolveActorCity(user, parsed.data.cityId);
+  if (resolved.error || !resolved.cityId) {
+    return NextResponse.json(
+      { error: resolved.error || "City resolution failed" },
+      { status: resolved.status || 400 }
+    );
+  }
+
+  const campaigns = await db.callingCampaign.findMany({
+    where: {
+      cityId: resolved.cityId,
+      ...(parsed.data.status ? { status: parsed.data.status } : {}),
+    },
+    orderBy: { createdAt: "desc" },
+    take: 100,
+    include: {
+      city: { select: { id: true, name: true, code: true } },
+      _count: { select: { assignments: true, pocAssignments: true, templates: true } },
+    },
+  });
+
+  return NextResponse.json(campaigns);
 }
 
 export async function POST(request: NextRequest) {

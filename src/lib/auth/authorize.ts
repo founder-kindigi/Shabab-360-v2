@@ -73,9 +73,10 @@ export async function requireAuth(): Promise<{ user: SessionUser } | NextRespons
  * substitute for requireResourceScope on city, park, group, or record data.
  */
 export async function requireCapability(
-  capability: AccessCapability
+  capability: AccessCapability,
+  authenticatedUser?: SessionUser
 ): Promise<{ user: SessionUser } | NextResponse> {
-  const auth = await requireAuth();
+  const auth = authenticatedUser ? { user: authenticatedUser } : await requireAuth();
   if (auth instanceof NextResponse) return auth;
 
   if (!(await userHasCapability(auth.user, capability))) {

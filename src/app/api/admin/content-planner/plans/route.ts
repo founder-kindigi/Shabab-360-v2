@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
   const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
 
-  const capabilityAuth = await requireCapability("content.view");
+  const capabilityAuth = await requireCapability("content.view", auth.user);
   if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
   // Parse and validate query parameters
@@ -39,17 +39,17 @@ export async function GET(request: NextRequest) {
   const { page, pageSize, cityId, batchId, parkId, status, kind, search } =
     parsed.data;
 
-  // HQ roles see all cities, default to first city if not provided
-  let targetCityId = cityId;
-  if (isHqRole((auth.user as SessionUser).role) && !targetCityId) {
-    const firstCity = await db.city.findFirst({ select: { id: true } });
-    if (firstCity) targetCityId = firstCity.id;
+  if (isHqRole((auth.user as SessionUser).role) && !cityId) {
+    return NextResponse.json(
+      { error: "cityId is required for HQ actors" },
+      { status: 400 }
+    );
   }
 
   // Build scope filter - request params may only narrow scope
   const scopeFilter = await buildContentPlanScopeFilter(
     auth.user as SessionUser,
-    targetCityId,
+    cityId,
     batchId,
     parkId
   );
@@ -108,7 +108,7 @@ export async function POST(request: NextRequest) {
   const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
 
-  const capabilityAuth = await requireCapability("content.manage");
+  const capabilityAuth = await requireCapability("content.manage", auth.user);
   if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
   let body;

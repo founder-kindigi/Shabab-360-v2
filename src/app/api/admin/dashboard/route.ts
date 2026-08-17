@@ -91,7 +91,7 @@ export async function GET(request: NextRequest) {
   const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
   const { user } = auth;
-  const capabilityAuth = await requireCapability("dashboard.view");
+  const capabilityAuth = await requireCapability("dashboard.view", auth.user);
   if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
   // Get user's scope

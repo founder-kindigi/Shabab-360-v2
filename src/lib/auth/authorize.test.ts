@@ -73,4 +73,14 @@ describe("authorization guards", () => {
       "attendance.mark"
     );
   });
+
+  it("reuses an already authenticated user without loading the session twice", async () => {
+    const user = { id: "user-1", role: "city_head", mustResetPwd: false } as const;
+    mocks.userHasCapability.mockResolvedValue(true);
+
+    await expect(requireCapability("dashboard.view", user)).resolves.toEqual({ user });
+
+    expect(mocks.getServerSession).not.toHaveBeenCalled();
+    expect(mocks.userHasCapability).toHaveBeenCalledWith(user, "dashboard.view");
+  });
 });
