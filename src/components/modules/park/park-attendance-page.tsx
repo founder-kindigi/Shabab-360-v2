@@ -139,13 +139,13 @@ export function ParkAttendancePage() {
   const { data, error, isLoading, isFetching, refetch } = useQuery({
     queryKey: ["park-attendance", selectedDate, effectiveParkId],
     queryFn: () => prepareAndFetchAttendance(selectedDate, effectiveParkId || undefined),
-    enabled: sessionStatus !== "loading" && (!requiresParkSelection || Boolean(effectiveParkId)),
+    enabled: sessionStatus === "authenticated" && (!requiresParkSelection || Boolean(effectiveParkId)),
   });
 
   const staffSummaryQuery = useQuery({
     queryKey: ["park-staff-attendance", selectedDate, effectiveParkId],
     queryFn: () => fetchStaffAttendance(selectedDate, effectiveParkId!),
-    enabled: Boolean(effectiveParkId) && sessionStatus !== "loading",
+    enabled: Boolean(effectiveParkId) && sessionStatus === "authenticated",
     retry: false,
   });
   const insightsQuery = useQuery<AttendanceSummaries>({
@@ -158,7 +158,7 @@ export function ParkAttendancePage() {
       if (!response.ok) throw new Error(body.error || "Could not load attendance summaries");
       return body;
     },
-    enabled: showInsights && sessionStatus !== "loading" && (!requiresParkSelection || Boolean(effectiveParkId)),
+    enabled: showInsights && sessionStatus === "authenticated" && (!requiresParkSelection || Boolean(effectiveParkId)),
     staleTime: 60 * 1000,
   });
 
