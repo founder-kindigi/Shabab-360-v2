@@ -775,7 +775,7 @@ export function AttendanceRoster() {
   // ─── Render ──────────────────────────────────────────────────────────────
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4 px-3 pb-5 pt-2 sm:px-4 lg:px-6">
       {/* Back button + event info */}
       <div className="flex items-start gap-3">
         <Button
@@ -912,7 +912,7 @@ export function AttendanceRoster() {
         <motion.div
           initial={{ opacity: 0, y: -4 }}
           animate={{ opacity: 1, y: 0 }}
-          className="sticky top-0 z-20 -mx-4 px-4 py-2.5 bg-background/95 backdrop-blur-sm border-b no-print"
+          className="sticky top-0 z-20 rounded-xl border bg-background/95 px-3 py-2.5 backdrop-blur-sm no-print sm:px-4"
         >
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-xs font-medium text-muted-foreground mr-1 hidden sm:inline">
@@ -1110,7 +1110,7 @@ export function AttendanceRoster() {
           </div>
         </div>
       ) : (
-      <div className="space-y-1.5">
+      <div className="space-y-2">
         {filteredRoster.length === 0 ? (
           <div className="py-12 text-center">
             <p className="text-sm text-muted-foreground">
@@ -1231,29 +1231,6 @@ export function AttendanceRoster() {
                           </Tooltip>
                         );
                       })}
-                      {/* Edit button on desktop (visible alongside quick status) */}
-                      {canEditRecord && item.recordId && (
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setEditTarget({
-                                  recordId: item.recordId!,
-                                  participantName: item.participantName,
-                                  currentStatus: status,
-                                });
-                                setEditDialogOpen(true);
-                              }}
-                              className="flex items-center justify-center w-7 h-7 rounded-full text-muted-foreground/60 hover:text-foreground hover:bg-muted/50 transition-colors"
-                              aria-label={`Edit ${item.participantName}`}
-                            >
-                              <Pencil className="size-3" />
-                            </button>
-                          </TooltipTrigger>
-                          <TooltipContent side="left">Edit record</TooltipContent>
-                        </Tooltip>
-                      )}
                     </div>
                   )}
 
@@ -1332,7 +1309,7 @@ export function AttendanceRoster() {
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          className="relative z-20 -mx-1 rounded-xl border bg-background/95 px-3 py-3 shadow-sm backdrop-blur-sm no-print sm:sticky sm:bottom-0 sm:-mx-4 sm:rounded-none sm:border-x-0 sm:px-4"
+          className="relative z-20 rounded-xl border bg-background/95 px-3 py-3 shadow-sm backdrop-blur-sm no-print sm:sticky sm:bottom-3 sm:px-4"
         >
           {/* Progress bar */}
           <div className="mb-2">
