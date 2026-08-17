@@ -4,6 +4,7 @@ import {
   isOffDate,
   canMarkAttendance,
   AttendanceStatusRecord,
+  evaluateConsecutiveAbsenceWeeks,
 } from '../dropout-policy';
 
 describe('V2-304 Attendance Operations & Dropout Policy Engine', () => {
@@ -70,5 +71,27 @@ describe('V2-304 Attendance Operations & Dropout Policy Engine', () => {
     const res = canMarkAttendance('dropout');
     expect(res.canMark).toBe(false);
     expect(res.reason).toContain('Reactivation required');
+  });
+
+  it('requires fully absent weeks instead of counting individual sessions', () => {
+    const records: AttendanceStatusRecord[] = [
+      { eventId: 'w3-sat', eventDate: '2026-08-15', status: 'absent' },
+      { eventId: 'w3-sun', eventDate: '2026-08-16', status: 'absent' },
+      { eventId: 'w2-sat', eventDate: '2026-08-08', status: 'absent' },
+      { eventId: 'w2-sun', eventDate: '2026-08-09', status: 'absent' },
+      { eventId: 'w1-sat', eventDate: '2026-08-01', status: 'absent' },
+      { eventId: 'w1-sun', eventDate: '2026-08-02', status: 'absent' },
+    ];
+    expect(evaluateConsecutiveAbsenceWeeks(records, { warningConsecutiveWeeks: 2, dropoutConsecutiveWeeks: 3 }))
+      .toMatchObject({ consecutiveAbsentWeeks: 3, shouldWarn: true, shouldDropout: true });
+  });
+
+  it('breaks the weekly streak when any session is present', () => {
+    const records: AttendanceStatusRecord[] = [
+      { eventId: 'new', eventDate: '2026-08-15', status: 'absent' },
+      { eventId: 'break', eventDate: '2026-08-09', status: 'present' },
+      { eventId: 'old', eventDate: '2026-08-01', status: 'absent' },
+    ];
+    expect(evaluateConsecutiveAbsenceWeeks(records, { warningConsecutiveWeeks: 2, dropoutConsecutiveWeeks: 3 }).consecutiveAbsentWeeks).toBe(1);
   });
 });

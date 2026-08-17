@@ -22,6 +22,12 @@ export interface ProfileCapabilities {
 // ─── Sensitive field toggle ──────────────────────────────────────────
 
 type ProfileData = Record<string, string | null | undefined>;
+type DropoutStatus = {
+  state: string;
+  dropoutAt: string | null;
+  dropoutReason: string | null;
+  dropoutSource: string | null;
+};
 
 const SENSITIVE_FIELDS = new Set([
   "financialStatus", "deenBackground", "badHabits",
@@ -101,9 +107,19 @@ export function StudentProfilePage({
   const [editMode, setEditMode] = useState(false);
   const [showSensitive, setShowSensitive] = useState(false);
   const [draft, setDraft] = useState<ProfileData>({});
+  const [dropoutReason, setDropoutReason] = useState("");
 
   const canEdit = capabilities.canManage;
   const canViewSensitive = capabilities.canViewSensitive;
+  const { data: dropoutStatus } = useQuery<DropoutStatus>({
+    queryKey: ["student-dropout-status", participantId],
+    queryFn: async () => {
+      const response = await fetch(`/api/admin/students/${participantId}/dropout`);
+      if (!response.ok) throw new Error("Failed to load attendance status");
+      return response.json();
+    },
+    enabled: capabilities.canView,
+  });
 
   // ── Fetch ──────────────────────────────────────────────────────────
 
@@ -160,6 +176,25 @@ export function StudentProfilePage({
     onError: (err: Error) => {
       toast.error(err.message);
     },
+  });
+
+  const dropoutMutation = useMutation({
+    mutationFn: async (action: "dropout" | "reactivate") => {
+      const response = await fetch(`/api/admin/students/${participantId}/dropout`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, reason: dropoutReason }),
+      });
+      const payload = await response.json().catch(() => ({ error: "Status update failed" }));
+      if (!response.ok) throw new Error(typeof payload.error === "string" ? payload.error : "Status update failed");
+      return payload;
+    },
+    onSuccess: (_data, action) => {
+      toast.success(action === "dropout" ? "Attendance discontinued" : "Student reactivated");
+      setDropoutReason("");
+      queryClient.invalidateQueries({ queryKey: ["student-dropout-status", participantId] });
+    },
+    onError: (mutationError: Error) => toast.error(mutationError.message),
   });
 
   // ── Handlers ──────────────────────────────────────────────────────
@@ -252,6 +287,47 @@ export function StudentProfilePage({
           )}
         </div>
       </div>
+
+      {dropoutStatus && (
+        <Card className={dropoutStatus.state === "dropout" ? "border-amber-300 bg-amber-50/60" : "border-emerald-200"}>
+          <CardContent className="space-y-3 p-4">
+            <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="font-semibold">Attendance eligibility</p>
+                <p className="text-sm text-muted-foreground">
+                  {dropoutStatus.state === "dropout"
+                    ? `Discontinued${dropoutStatus.dropoutAt ? ` from ${new Date(dropoutStatus.dropoutAt).toLocaleDateString()}` : ""}`
+                    : "Active for scheduled attendance"}
+                </p>
+              </div>
+              {dropoutStatus.dropoutSource && (
+                <span className="w-fit rounded-full bg-background px-3 py-1 text-xs font-medium capitalize">
+                  {dropoutStatus.dropoutSource} decision
+                </span>
+              )}
+            </div>
+            {dropoutStatus.dropoutReason && <p className="text-sm">{dropoutStatus.dropoutReason}</p>}
+            {canEdit && (
+              <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+                <Textarea
+                  value={dropoutReason}
+                  onChange={(event) => setDropoutReason(event.target.value)}
+                  placeholder={dropoutStatus.state === "dropout" ? "Reason for reactivation (minimum 10 characters)" : "Reason for discontinuing attendance (minimum 10 characters)"}
+                  className="min-h-11"
+                />
+                <Button
+                  variant={dropoutStatus.state === "dropout" ? "default" : "destructive"}
+                  className="min-h-11"
+                  disabled={dropoutReason.trim().length < 10 || dropoutMutation.isPending}
+                  onClick={() => dropoutMutation.mutate(dropoutStatus.state === "dropout" ? "reactivate" : "dropout")}
+                >
+                  {dropoutStatus.state === "dropout" ? "Reactivate student" : "Mark as dropout"}
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Sensitive toggle */}
       {canViewSensitive && !editMode && (

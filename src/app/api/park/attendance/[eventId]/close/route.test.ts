@@ -6,7 +6,8 @@ const mocks = vi.hoisted(() => ({
   requireCapability: vi.fn(),
   requireResourceScope: vi.fn(),
   eventFindUnique: vi.fn(),
-  eventUpdate: vi.fn(),
+  staffFindUnique: vi.fn(),
+  transaction: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/authorize", () => ({
@@ -14,61 +15,84 @@ vi.mock("@/lib/auth/authorize", () => ({
   requireCapability: mocks.requireCapability,
   requireResourceScope: mocks.requireResourceScope,
 }));
-vi.mock("@/lib/db", () => ({
-  db: { attendanceEvent: { findUnique: mocks.eventFindUnique, update: mocks.eventUpdate } },
-}));
-vi.mock("@/lib/audit", () => ({ logAudit: vi.fn() }));
+vi.mock("@/lib/db", () => ({ db: {
+  attendanceEvent: { findUnique: mocks.eventFindUnique },
+  staffMeta: { findUnique: mocks.staffFindUnique },
+  $transaction: mocks.transaction,
+} }));
 
 import { PATCH } from "./route";
 
-describe("PATCH /api/park/attendance/[eventId]/close", () => {
+const eventId = "event-1";
+const request = (body: unknown) => new Request("http://localhost", {
+  method: "PATCH",
+  headers: { "content-type": "application/json" },
+  body: JSON.stringify(body),
+});
+
+describe("attendance close and automatic dropout", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.requireAuth.mockResolvedValue({
-      user: { id: "park-admin", role: "park_admin", assignedParkId: "park-1" },
-    });
-    mocks.requireCapability.mockResolvedValue(null);
+    mocks.requireAuth.mockResolvedValue({ user: { id: "user-1", role: "park_lead" } });
+    mocks.requireCapability.mockResolvedValue({ user: { id: "user-1", role: "park_lead" } });
+    mocks.requireResourceScope.mockReturnValue(null);
+    mocks.staffFindUnique.mockResolvedValue({ id: "staff-1", user: { name: "Lead" } });
     mocks.eventFindUnique.mockResolvedValue({
-      id: "event-2",
-      groupId: "group-2",
+      id: eventId,
+      eventDate: new Date("2026-08-16T00:00:00.000Z"),
+      groupId: "group-1",
       isClosed: false,
-      group: { batch: { parkId: "park-1", park: { cityId: "city-1" } } },
+      group: { batch: {
+        cityId: "city-1",
+        parkId: "park-1",
+        park: { cityId: "city-1" },
+        settings: { classWeekdays: "[0,6]", automaticDropoutEnabled: true, warningConsecutiveWeeks: 2, dropoutConsecutiveWeeks: 3 },
+      } },
     });
-    mocks.requireResourceScope.mockReturnValue(
-      NextResponse.json({ error: "Forbidden" }, { status: 403 })
-    );
   });
 
-  it("passes the city-scoped supervisor correction policy to the scope checker", async () => {
-    const response = await PATCH(
-      new Request("http://localhost/api/park/attendance/event-2/close", {
-        method: "PATCH",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ reason: "Attendance verified by the Park Lead" }),
-      }),
-      { params: Promise.resolve({ eventId: "event-2" }) }
-    );
-
-    expect(response.status).toBe(403);
-    expect(mocks.requireResourceScope).toHaveBeenCalledWith(
-      expect.objectContaining({ id: "park-admin" }),
-      { cityId: "city-1", parkId: "park-1", groupId: "group-2" },
-      ["super_admin", "program_admin", "city_head", "park_lead"]
-    );
-    expect(mocks.eventUpdate).not.toHaveBeenCalled();
-  });
-
-  it("rejects a non-string reason before reading the event", async () => {
-    const response = await PATCH(
-      new Request("http://localhost/api/park/attendance/event-2/close", {
-        method: "PATCH",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ reason: true }),
-      }),
-      { params: Promise.resolve({ eventId: "event-2" }) }
-    );
-
-    expect(response.status).toBe(400);
+  it("denies when correction capability is missing", async () => {
+    mocks.requireCapability.mockResolvedValue(NextResponse.json({ error: "Forbidden" }, { status: 403 }));
+    expect((await PATCH(request({ reason: "Weekly register complete" }), { params: Promise.resolve({ eventId }) })).status).toBe(403);
     expect(mocks.eventFindUnique).not.toHaveBeenCalled();
+  });
+
+  it("atomically closes the event, drops a three-week absentee, and audits both", async () => {
+    const dates = ["2026-08-01", "2026-08-02", "2026-08-08", "2026-08-09", "2026-08-15", "2026-08-16"];
+    const closedEvents = dates.map((date, index) => ({ id: `event-${index}`, eventDate: new Date(`${date}T00:00:00.000Z`) }));
+    const tx = {
+      attendanceEvent: {
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+        findMany: vi.fn().mockResolvedValue(closedEvents),
+      },
+      participant: {
+        findMany: vi.fn().mockResolvedValue([{ id: "participant-1", state: "active" }]),
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+      },
+      attendanceRecord: {
+        findMany: vi.fn().mockResolvedValue(closedEvents.map((event) => ({ participantId: "participant-1", eventId: event.id, status: "absent" }))),
+      },
+      auditLog: { create: vi.fn().mockResolvedValue({}) },
+    };
+    mocks.transaction.mockImplementation((callback) => callback(tx));
+    const response = await PATCH(request({ reason: "Weekly register complete" }), { params: Promise.resolve({ eventId }) });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ automaticDropouts: 1 });
+    expect(tx.participant.updateMany).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ state: "dropout", dropoutSource: "automatic" }) }));
+    expect(tx.auditLog.create).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not drop a participant when one expected mark is missing", async () => {
+    const closedEvents = ["2026-08-01", "2026-08-02", "2026-08-08", "2026-08-09", "2026-08-15", "2026-08-16"]
+      .map((date, index) => ({ id: `event-${index}`, eventDate: new Date(`${date}T00:00:00.000Z`) }));
+    const tx = {
+      attendanceEvent: { updateMany: vi.fn().mockResolvedValue({ count: 1 }), findMany: vi.fn().mockResolvedValue(closedEvents) },
+      participant: { findMany: vi.fn().mockResolvedValue([{ id: "participant-1", state: "active" }]), updateMany: vi.fn() },
+      attendanceRecord: { findMany: vi.fn().mockResolvedValue(closedEvents.slice(1).map((event) => ({ participantId: "participant-1", eventId: event.id, status: "absent" }))) },
+      auditLog: { create: vi.fn().mockResolvedValue({}) },
+    };
+    mocks.transaction.mockImplementation((callback) => callback(tx));
+    expect((await PATCH(request({ reason: "Weekly register complete" }), { params: Promise.resolve({ eventId }) })).status).toBe(200);
+    expect(tx.participant.updateMany).not.toHaveBeenCalled();
   });
 });

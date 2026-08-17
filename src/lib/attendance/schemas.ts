@@ -63,6 +63,9 @@ export const updateAttendanceScheduleSchema = z.object({
   classWeekdays: z.array(z.number().int().min(0).max(6)).min(1).max(7)
     .transform((days) => [...new Set(days)].sort()),
   extraClassDates: z.array(z.string().date()).max(60).default([]),
+  automaticDropoutEnabled: z.boolean().optional(),
+  warningConsecutiveWeeks: z.number().int().min(1).max(12).optional(),
+  dropoutConsecutiveWeeks: z.number().int().min(1).max(12).optional(),
 }).strict();
 
 export const operationalOffDateSchema = z.object({
@@ -80,4 +83,19 @@ export const markStaffAttendanceSchema = z.object({
   staffMetaId: cuidSchema,
   status: attendanceStatusSchema,
   editReason: z.string().trim().min(10).max(1000).optional(),
+}).strict();
+
+export const updateDropoutPolicySchema = z.object({
+  automaticDropoutEnabled: z.boolean(),
+  warningConsecutiveWeeks: z.number().int().min(1).max(12),
+  dropoutConsecutiveWeeks: z.number().int().min(1).max(12),
+}).strict().refine((value) => value.warningConsecutiveWeeks < value.dropoutConsecutiveWeeks, {
+  message: "Warning threshold must be lower than dropout threshold",
+  path: ["warningConsecutiveWeeks"],
+});
+
+export const participantDropoutActionSchema = z.object({
+  action: z.enum(["dropout", "reactivate"]),
+  reason: z.string().trim().min(10).max(500),
+  effectiveDate: z.string().date().optional(),
 }).strict();

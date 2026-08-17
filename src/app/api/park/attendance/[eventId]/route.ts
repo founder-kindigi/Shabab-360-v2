@@ -41,9 +41,16 @@ export async function GET(
     );
     if (scopeError) return scopeError;
 
-    // Get all active participants in the group
+    // Keep historical rosters available while excluding students whose dropout
+    // became effective on or before this session.
     const participants = await db.participant.findMany({
-      where: { groupId: event.groupId, state: "active" },
+      where: {
+        groupId: event.groupId,
+        OR: [
+          { state: "active" },
+          { state: "dropout", dropoutAt: { gt: event.eventDate } },
+        ],
+      },
       orderBy: { name: "asc" },
     });
 
@@ -88,6 +95,8 @@ export async function GET(
         participantId: p.id,
         participantName: p.name,
         phone: p.phone,
+        participantState: p.state,
+        dropoutAt: p.dropoutAt?.toISOString() ?? null,
         status: record?.status || null,
         recordId: record?.recordId || null,
         markedAt: record?.markedAt || null,
@@ -193,12 +202,20 @@ export async function POST(
 
     // Verify participant belongs to the event's group
     const participant = await db.participant.findFirst({
-      where: { id: participantId, groupId: event.groupId, state: "active" },
+      where: { id: participantId, groupId: event.groupId },
     });
 
     if (!participant) {
       return NextResponse.json(
         { error: "Participant not in this group" },
+        { status: 409 }
+      );
+    }
+    const dropoutEffective = participant.state === "dropout"
+      && (!participant.dropoutAt || participant.dropoutAt <= event.eventDate);
+    if (participant.state === "inactive" || dropoutEffective) {
+      return NextResponse.json(
+        { error: "Attendance is discontinued for this participant" },
         { status: 409 }
       );
     }

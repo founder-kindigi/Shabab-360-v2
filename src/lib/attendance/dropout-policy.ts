@@ -24,6 +24,56 @@ export interface ParticipantStateResult {
   reason?: string;
 }
 
+export interface WeeklyDropoutPolicySettings {
+  warningConsecutiveWeeks: number;
+  dropoutConsecutiveWeeks: number;
+}
+
+export interface WeeklyAbsenceResult {
+  consecutiveAbsentWeeks: number;
+  shouldWarn: boolean;
+  shouldDropout: boolean;
+}
+
+function weekKey(value: Date | string): string {
+  const date = new Date(value);
+  const utcDay = date.getUTCDay();
+  const distanceFromMonday = (utcDay + 6) % 7;
+  const monday = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate() - distanceFromMonday));
+  return monday.toISOString().slice(0, 10);
+}
+
+/**
+ * Counts consecutive fully-absent class weeks. A present/late week breaks the
+ * streak; an excused-only or incomplete week pauses it without counting.
+ */
+export function evaluateConsecutiveAbsenceWeeks(
+  records: AttendanceStatusRecord[],
+  settings: WeeklyDropoutPolicySettings,
+): WeeklyAbsenceResult {
+  const weeks = new Map<string, AttendanceStatusRecord[]>();
+  for (const record of records) {
+    const key = weekKey(record.eventDate);
+    weeks.set(key, [...(weeks.get(key) ?? []), record]);
+  }
+
+  let consecutiveAbsentWeeks = 0;
+  for (const [, weekRecords] of [...weeks.entries()].sort(([a], [b]) => b.localeCompare(a))) {
+    if (weekRecords.some((record) => record.status === "present" || record.status === "late")) break;
+    if (weekRecords.length > 0 && weekRecords.every((record) => record.status === "absent")) {
+      consecutiveAbsentWeeks += 1;
+      continue;
+    }
+    // Excused or incomplete weeks do not count and do not erase earlier evidence.
+  }
+
+  return {
+    consecutiveAbsentWeeks,
+    shouldWarn: consecutiveAbsentWeeks >= settings.warningConsecutiveWeeks,
+    shouldDropout: consecutiveAbsentWeeks >= settings.dropoutConsecutiveWeeks,
+  };
+}
+
 /**
  * Checks if a given date is a configured off weekend or exception date.
  */

@@ -62,10 +62,16 @@ export async function POST(req: Request) {
         }
 
         const participant = await db.participant.findFirst({
-          where: { id: participantId, groupId: event.groupId, state: "active" },
+          where: { id: participantId, groupId: event.groupId },
         });
         if (!participant) {
           results.push({ mutationId, status: "failed", recordId: null, error: "Participant not in this group" });
+          continue;
+        }
+        const dropoutEffective = participant.state === "dropout"
+          && (!participant.dropoutAt || participant.dropoutAt <= event.eventDate);
+        if (participant.state === "inactive" || dropoutEffective) {
+          results.push({ mutationId, status: "failed", recordId: null, error: "Attendance is discontinued for this participant" });
           continue;
         }
 

@@ -498,6 +498,10 @@ model Participant {
   address     String?
   groupId     String
   state       String    @default("active")
+  dropoutAt   DateTime?
+  dropoutReason String?
+  dropoutSource String?
+  reactivatedAt DateTime?
   joinedAt    DateTime  @default(now())
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -525,6 +529,9 @@ model BatchSettings {
   warningAbsents Int      @default(3)
   dropoutAbsents Int      @default(6)
   classWeekdays  String   @default("[0,6]")
+  automaticDropoutEnabled Boolean @default(true)
+  warningConsecutiveWeeks Int @default(2)
+  dropoutConsecutiveWeeks Int @default(3)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 

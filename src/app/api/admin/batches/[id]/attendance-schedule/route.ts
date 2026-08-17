@@ -31,6 +31,9 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     batchId: result.batch.id,
     classWeekdays: parseClassWeekdays(result.batch.settings?.classWeekdays),
     extraClassDates: result.batch.extraClassDates.map((item) => formatPKT(item.classDate, "yyyy-MM-dd")),
+    automaticDropoutEnabled: result.batch.settings?.automaticDropoutEnabled ?? true,
+    warningConsecutiveWeeks: result.batch.settings?.warningConsecutiveWeeks ?? 2,
+    dropoutConsecutiveWeeks: result.batch.settings?.dropoutConsecutiveWeeks ?? 3,
   });
 }
 
@@ -43,12 +46,30 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   if ("error" in result) return result.error;
   const parsed = updateAttendanceScheduleSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+  const warningConsecutiveWeeks = parsed.data.warningConsecutiveWeeks
+    ?? result.batch.settings?.warningConsecutiveWeeks ?? 2;
+  const dropoutConsecutiveWeeks = parsed.data.dropoutConsecutiveWeeks
+    ?? result.batch.settings?.dropoutConsecutiveWeeks ?? 3;
+  if (warningConsecutiveWeeks >= dropoutConsecutiveWeeks) {
+    return NextResponse.json({ error: "Warning threshold must be lower than dropout threshold" }, { status: 400 });
+  }
 
   const updated = await db.$transaction(async (tx) => {
     const settings = await tx.batchSettings.upsert({
       where: { batchId: result.batch.id },
-      create: { batchId: result.batch.id, classWeekdays: JSON.stringify(parsed.data.classWeekdays) },
-      update: { classWeekdays: JSON.stringify(parsed.data.classWeekdays) },
+      create: {
+        batchId: result.batch.id,
+        classWeekdays: JSON.stringify(parsed.data.classWeekdays),
+        automaticDropoutEnabled: parsed.data.automaticDropoutEnabled ?? true,
+        warningConsecutiveWeeks,
+        dropoutConsecutiveWeeks,
+      },
+      update: {
+        classWeekdays: JSON.stringify(parsed.data.classWeekdays),
+        automaticDropoutEnabled: parsed.data.automaticDropoutEnabled,
+        warningConsecutiveWeeks,
+        dropoutConsecutiveWeeks,
+      },
     });
     await tx.batchClassDate.deleteMany({ where: { batchId: result.batch.id } });
     for (const date of parsed.data.extraClassDates) {
@@ -71,5 +92,8 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     batchId: result.batch.id,
     classWeekdays: parseClassWeekdays(updated.classWeekdays),
     extraClassDates: parsed.data.extraClassDates,
+    automaticDropoutEnabled: updated.automaticDropoutEnabled,
+    warningConsecutiveWeeks: updated.warningConsecutiveWeeks,
+    dropoutConsecutiveWeeks: updated.dropoutConsecutiveWeeks,
   });
 }
