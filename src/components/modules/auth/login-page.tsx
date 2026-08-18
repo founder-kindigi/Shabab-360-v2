@@ -67,10 +67,15 @@ export function LoginPage() {
         redirect: false,
       });
 
-      if (result?.error) {
+      if (!result || result.error || !result.ok) {
         setError(result.error === "CredentialsSignin" ? t("auth.invalidCredentials") : t("auth.loginFailed"));
         triggerShake();
+        return;
       }
+
+      // `redirect: false` does not refresh the SessionProvider on every browser.
+      // Reload the app after a confirmed sign-in so role routing uses the new session.
+      window.location.assign("/");
     } catch {
       setError(t("auth.unexpectedError"));
       triggerShake();
