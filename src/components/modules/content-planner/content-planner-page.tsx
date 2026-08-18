@@ -438,13 +438,12 @@ export function ContentPlannerPage() {
   if (!canView) return <DeniedState />;
 
   return (
-    <div className="space-y-5 pb-24 sm:pb-8">
-      <Card className="border-purple-200/70 bg-gradient-to-r from-purple-50/80 via-background to-amber-50/60 shadow-sm">
-        <CardContent className="flex flex-col gap-3 p-3 sm:flex-row sm:items-center sm:justify-between sm:p-4">
+    <div className="space-y-4 px-3 pb-24 pt-3 sm:px-5 sm:pb-8 sm:pt-4 lg:px-6">
+      <div className="flex flex-col gap-3 rounded-xl border bg-card/75 p-3 shadow-sm sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             {isHq && (
               <Select value={selectedCityId} onValueChange={(v) => { setSelectedCityId(v); setSelectedPlanId(null); setSelectedSessionId(null); }}>
-                <SelectTrigger className="h-11 w-full bg-background sm:w-56"><SelectValue placeholder="Select a city" /></SelectTrigger>
+                <SelectTrigger className="h-10 w-full bg-background sm:w-56"><SelectValue placeholder="Select a city" /></SelectTrigger>
                 <SelectContent>
                   {(citiesQuery.data?.data ?? []).map((city) => (
                     <SelectItem key={city.id} value={city.id}>{city.name}</SelectItem>
@@ -460,7 +459,7 @@ export function ContentPlannerPage() {
                 setSelectedSessionId(null);
               }}
             >
-              <SelectTrigger className="h-11 w-full bg-background sm:w-44"><SelectValue placeholder="All statuses" /></SelectTrigger>
+              <SelectTrigger className="h-10 w-full bg-background sm:w-44"><SelectValue placeholder="All statuses" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All statuses</SelectItem>
                 <SelectItem value="draft">Draft</SelectItem>
@@ -468,11 +467,11 @@ export function ContentPlannerPage() {
                 <SelectItem value="archived">Archived</SelectItem>
               </SelectContent>
             </Select>
-            <div className="grid grid-cols-2 rounded-xl border bg-background p-1">
+            <div className="grid h-10 grid-cols-2 rounded-xl border bg-background p-1">
               <Button
                 type="button"
                 variant={workspaceView === "classroom" ? "secondary" : "ghost"}
-                className="h-9 px-3 text-xs"
+                className="h-8 px-3 text-xs"
                 onClick={() => setWorkspaceView("classroom")}
               >
                 <LayoutGrid className="mr-1.5 size-3.5" />Classroom
@@ -480,7 +479,7 @@ export function ContentPlannerPage() {
               <Button
                 type="button"
                 variant={workspaceView === "matrix" ? "secondary" : "ghost"}
-                className="h-9 px-3 text-xs"
+                className="h-8 px-3 text-xs"
                 onClick={() => setWorkspaceView("matrix")}
               >
                 <TableProperties className="mr-1.5 size-3.5" />Matrix
@@ -488,12 +487,11 @@ export function ContentPlannerPage() {
             </div>
           </div>
         {canManage && (
-            <Button className="h-11" disabled={isHq && !selectedCityId} onClick={() => setShowCreate(true)}>
+            <Button className="h-10" disabled={isHq && !selectedCityId} onClick={() => setShowCreate(true)}>
               <Plus className="mr-2 size-4" />New plan
             </Button>
         )}
-        </CardContent>
-      </Card>
+      </div>
 
       {/* HQ with no city selected */}
       {isHq && !selectedCityId && (
@@ -518,16 +516,16 @@ export function ContentPlannerPage() {
               {canManage && <Button variant="outline" className="mt-4" onClick={() => setShowCreate(true)}><Plus className="mr-2 size-4" />Create first plan</Button>}
             </CardContent></Card>
           ) : (
-            <div className="space-y-6">
+            <div className="space-y-4">
               {/* Plan list */}
-              <div className="space-y-3">
+              <div className="space-y-2">
                 <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Plans ({plansQuery.data.pagination.total})</h2>
                 <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                   {plansQuery.data.plans.map((plan) => (
                   <button
                     key={plan.id}
                     onClick={() => { setSelectedPlanId(plan.id); setSelectedSessionId(null); }}
-                    className={`w-full rounded-xl border p-4 text-left transition-colors ${plan.id === selectedPlanId ? "border-primary bg-primary/5 ring-1 ring-primary/30" : "hover:bg-muted/50"}`}
+                    className={`w-full rounded-xl border p-3 text-left transition-colors ${plan.id === selectedPlanId ? "border-primary bg-primary/5 ring-1 ring-primary/30" : "hover:bg-muted/50"}`}
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
@@ -773,33 +771,28 @@ function DetailView({
 
   return (
     <div className="space-y-4">
-      <Card className="overflow-hidden border-purple-200/70 bg-gradient-to-r from-purple-50 via-background to-amber-50/50 shadow-sm">
-        <CardHeader className="pb-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <CardTitle className="text-xl">{plan.name}</CardTitle>
-              <CardDescription>
-                {plan.city.name}{plan.batch ? ` · ${plan.batch.name}` : ""}{plan.park ? ` · ${plan.park.name}` : ""}
-              </CardDescription>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <Badge variant={plan.kind === "template" ? "outline" : "secondary"}>{plan.kind === "template" ? "Template" : "Override"}</Badge>
-              {statusBadge(plan.status)}
-            </div>
+      <div className="border-b px-1 pb-3">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <h2 className="truncate text-lg font-semibold">{plan.name}</h2>
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              {plan.city.name}{plan.batch ? ` · ${plan.batch.name}` : ""}{plan.park ? ` · ${plan.park.name}` : ""}
+            </p>
           </div>
-          {plan.basePlan && <p className="mt-1 text-xs text-muted-foreground">Based on: {plan.basePlan.name}</p>}
-          {plan.overrides?.length > 0 && (
-            <div className="mt-2">
-              <p className="text-xs font-medium text-muted-foreground mb-1">Overrides ({plan.overrides.length})</p>
-              <div className="flex flex-wrap gap-1.5">
-                {plan.overrides.map((ov) => (
-                  <Badge key={ov.id} variant="outline" className="text-[10px]">{ov.name}{ov.park ? ` (${ov.park.name})` : ""}</Badge>
-                ))}
-              </div>
-            </div>
-          )}
-        </CardHeader>
-      </Card>
+          <div className="flex shrink-0 items-center gap-1.5">
+            <Badge variant={plan.kind === "template" ? "outline" : "secondary"}>{plan.kind === "template" ? "Template" : "Override"}</Badge>
+            {statusBadge(plan.status)}
+          </div>
+        </div>
+        {(plan.basePlan || plan.overrides?.length > 0) && (
+          <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+            {plan.basePlan && <span>Based on: {plan.basePlan.name}</span>}
+            {plan.overrides.map((ov) => (
+              <Badge key={ov.id} variant="outline" className="text-[10px]">{ov.name}{ov.park ? ` (${ov.park.name})` : ""}</Badge>
+            ))}
+          </div>
+        )}
+      </div>
 
       <Button
         type="button"
