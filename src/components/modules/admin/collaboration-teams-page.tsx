@@ -57,8 +57,6 @@ function roleLabel(role: string) {
   return role.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
-const HQ_ROLES = ["super_admin", "program_admin"];
-
 export function CollaborationTeamsPage() {
   const queryClient = useQueryClient();
   const [selectedTeamId, setSelectedTeamId] = useState("");
@@ -67,62 +65,53 @@ export function CollaborationTeamsPage() {
   const [membershipToEnd, setMembershipToEnd] = useState<Membership | null>(null);
   const [cityId, setCityId] = useState("");
 
-  // ── Session info ──────────────────────────────────────────────────────────
-  const sessionQuery = useQuery<{ user: { role: string; assignedCityId?: string | null } }>({
-    queryKey: ["session-role"],
-    queryFn: () => request("/api/auth/session"),
+  const context = useQuery<{ canView: boolean; canManage: boolean; isHq: boolean }>({
+    queryKey: ["teams-ui-context"],
+    queryFn: () => request("/api/admin/teams/ui-context"),
     staleTime: 60000,
+    retry: false,
   });
-  const role = sessionQuery.data?.user?.role ?? "";
-  const isHq = HQ_ROLES.includes(role);
-
-  // UI permission signal — resolved server-side through the full override chain
-  const canManageQuery = useQuery<{ canManage: boolean }>({
-    queryKey: ["can-manage-teams"],
-    queryFn: () => request("/api/admin/teams/can-manage"),
-    staleTime: 60000,
-  });
-  const canManage = canManageQuery.data?.canManage ?? false;
+  const isHq = context.data?.isHq ?? false;
+  const canManage = context.data?.canManage ?? false;
 
   // Cities (HQ only: pick a city; scoped: derive automatically)
-  const cities = useQuery<CityItem[]>({
+  const cities = useQuery<{ data: CityItem[] }>({
     queryKey: ["collaboration-team-cities"],
     queryFn: () => request("/api/admin/cities"),
     staleTime: 60000,
-    enabled: isHq,
+    enabled: Boolean(context.data) && isHq,
   });
 
-  // Preselect the first city for HQ so the query key stabilises.
-  const effectiveCityId = isHq
-    ? (cityId || cities.data?.[0]?.id || "")
-    : "";
+  // HQ must select the city explicitly; scoped users do not send cityId.
+  const effectiveCityId = isHq ? cityId : "";
 
   // ── Teams ─────────────────────────────────────────────────────────────────
   const teamsQueryKey = ["collaboration-teams", effectiveCityId] as const;
-  const teams = useQuery<{ data: Team[]; total: number; page: number; pageSize: number }>({
+  const teams = useQuery<Team[]>({
     queryKey: teamsQueryKey,
     queryFn: () => {
       const params = effectiveCityId ? `?cityId=${effectiveCityId}` : "";
       return request(`/api/admin/teams${params}`);
     },
     staleTime: 30000,
-    enabled: Boolean(effectiveCityId) || !isHq,
+    enabled: Boolean(context.data) && (Boolean(effectiveCityId) || !isHq),
   });
 
   const staff = useQuery<{ data: StaffOption[] }>({
     queryKey: ["collaboration-team-staff"],
     queryFn: () => request("/api/admin/users?pageSize=100&status=active"),
     staleTime: 30000,
+    enabled: canManage,
   });
 
-  const selectedTeam = teams.data?.data?.find((team) => team.id === selectedTeamId)
-    ?? teams.data?.data?.[0]
+  const selectedTeam = teams.data?.find((team) => team.id === selectedTeamId)
+    ?? teams.data?.[0]
     ?? null;
   const activeTeamId = selectedTeam?.id ?? "";
-  const memberships = useQuery<{ data: Membership[] }>({
+  const memberships = useQuery<Membership[]>({
     queryKey: ["collaboration-team-members", activeTeamId],
     queryFn: () => request(`/api/admin/teams/${activeTeamId}/members`),
-    enabled: Boolean(activeTeamId),
+    enabled: Boolean(context.data) && Boolean(activeTeamId),
     staleTime: 15000,
   });
 
@@ -156,7 +145,7 @@ export function CollaborationTeamsPage() {
   });
 
   const staffOptions = (staff.data?.data ?? []).filter((user) => user.isActive && user.staffMeta?.isActive);
-  const assignedStaffIds = new Set((memberships.data?.data ?? []).map((membership) => membership.staffMeta.id));
+  const assignedStaffIds = new Set((memberships.data ?? []).map((membership) => membership.staffMeta.id));
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-1 pb-6 space-y-6">
@@ -180,7 +169,7 @@ export function CollaborationTeamsPage() {
               <SelectValue placeholder="Select a city" />
             </SelectTrigger>
             <SelectContent>
-              {(cities.data ?? []).map((city) => (
+              {(cities.data?.data ?? []).map((city) => (
                 <SelectItem key={city.id} value={city.id}>{city.name}</SelectItem>
               ))}
             </SelectContent>
@@ -188,9 +177,9 @@ export function CollaborationTeamsPage() {
         </div>
       )}
 
-      {teams.isLoading ? <p className="text-sm text-muted-foreground">Loading collaboration teams...</p> : teams.isError ? <p className="text-sm text-destructive">Unable to load collaboration teams.</p> : !teams.data?.data?.length ? <Card><CardContent className="py-10 text-center text-sm text-muted-foreground">No collaboration teams are available for this workspace.</CardContent></Card> : <>
+      {context.isLoading ? <p className="text-sm text-muted-foreground">Verifying Teams access...</p> : context.isError ? <Card><CardContent className="py-10 text-center text-sm text-destructive">Teams access is unavailable.</CardContent></Card> : isHq && !effectiveCityId ? <Card><CardContent className="py-10 text-center text-sm text-muted-foreground">Select a city to view its collaboration teams.</CardContent></Card> : teams.isLoading ? <p className="text-sm text-muted-foreground">Loading collaboration teams...</p> : teams.isError ? <p className="text-sm text-destructive">Unable to load collaboration teams.</p> : !teams.data?.length ? <Card><CardContent className="py-10 text-center text-sm text-muted-foreground">No collaboration teams are available for this workspace.</CardContent></Card> : <>
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-          {teams.data?.data?.map((team) => (
+          {teams.data?.map((team) => (
             <button
               key={team.id}
               onClick={() => setSelectedTeamId(team.id)}
@@ -210,8 +199,8 @@ export function CollaborationTeamsPage() {
               <CardDescription>{selectedTeam.description || `Operational team for ${selectedTeam.city.name}.`}</CardDescription>
             </CardHeader>
             <CardContent>
-              {memberships.isLoading ? <p className="text-sm text-muted-foreground">Loading active members...</p> : memberships.isError ? <p className="text-sm text-destructive">Unable to load team members.</p> : !memberships.data?.data?.length ? <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">No active team members yet.</div> : <div className="space-y-3">
-                {memberships.data?.data?.map((membership) => <div key={membership.id} className="flex items-center justify-between gap-3 rounded-xl border p-3">
+              {memberships.isLoading ? <p className="text-sm text-muted-foreground">Loading active members...</p> : memberships.isError ? <p className="text-sm text-destructive">Unable to load team members.</p> : !memberships.data?.length ? <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">No active team members yet.</div> : <div className="space-y-3">
+                {memberships.data?.map((membership) => <div key={membership.id} className="flex items-center justify-between gap-3 rounded-xl border p-3">
                   <div className="flex min-w-0 items-center gap-3"><div className="rounded-full bg-muted p-2"><CircleUserRound className="size-4" /></div><div className="min-w-0"><p className="truncate text-sm font-medium">{membership.staffMeta.user.name || membership.staffMeta.user.email}</p><p className="truncate text-xs text-muted-foreground">{roleLabel(membership.staffMeta.role)}{membership.title ? ` · ${membership.title}` : ""}</p></div></div>
                   {canManage && <Button size="sm" variant="outline" onClick={() => setMembershipToEnd(membership)}>End membership</Button>}
                 </div>)}
@@ -235,7 +224,7 @@ export function CollaborationTeamsPage() {
         {selectedTeam && (
           <TeamActivityPlanner
             teamId={activeTeamId}
-            members={(memberships.data?.data ?? []).map((membership) => ({
+            members={(memberships.data ?? []).map((membership) => ({
               id: membership.id,
               title: membership.title,
               staffMeta: membership.staffMeta,

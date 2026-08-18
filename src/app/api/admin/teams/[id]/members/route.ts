@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireCapability } from "@/lib/auth/authorize";
 import { resolveActorCity } from "@/lib/auth/events-scope";
 import { db } from "@/lib/db";
-import { logAudit } from "@/lib/audit";
+import { createAuditLogData } from "@/lib/audit";
 import { assignTeamMemberSchema } from "@/lib/validations/team";
 
 interface RouteParams {
@@ -32,7 +32,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   }
 
   const memberships = await db.staffTeamMembership.findMany({
-    where: { teamId: id, isActive: true },
+    where: { teamId: id, isActive: true, endedAt: null },
     orderBy: { createdAt: "asc" },
     include: {
       staffMeta: {
@@ -109,7 +109,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   }
 
   const existing = await db.staffTeamMembership.findFirst({
-    where: { teamId: id, staffMetaId: staff.id, isActive: true },
+    where: { teamId: id, staffMetaId: staff.id, isActive: true, endedAt: null },
   });
   if (existing) {
     return NextResponse.json(
@@ -118,29 +118,35 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     );
   }
 
-  const membership = await db.staffTeamMembership.create({
-    data: {
-      teamId: id,
-      staffMetaId: staff.id,
-      title: parsed.data.title || null,
-      isActive: true,
-      startedAt: new Date(),
-    },
-    include: {
-      staffMeta: {
-        include: {
-          user: { select: { id: true, name: true, email: true } },
+  const membership = await db.$transaction(async (tx) => {
+    const created = await tx.staffTeamMembership.create({
+      data: {
+        teamId: id,
+        staffMetaId: staff.id,
+        title: parsed.data.title || null,
+        isActive: true,
+        startedAt: new Date(),
+      },
+      include: {
+        staffMeta: {
+          include: {
+            user: { select: { id: true, name: true, email: true } },
+          },
         },
       },
-    },
-  });
+    });
 
-  await logAudit({
-    userId: user.id!,
-    action: "team_membership.assign",
-    entityType: "StaffTeamMembership",
-    entityId: membership.id,
-    newValues: { teamId: id, staffMetaId: staff.id, title: membership.title },
+    await tx.auditLog.create({
+      data: createAuditLogData({
+        userId: user.id!,
+        action: "team_membership.assign",
+        entityType: "StaffTeamMembership",
+        entityId: created.id,
+        newValues: { teamId: id, staffMetaId: staff.id, title: created.title },
+      }),
+    });
+
+    return created;
   });
 
   return NextResponse.json(membership, { status: 201 });

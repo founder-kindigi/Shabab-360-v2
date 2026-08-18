@@ -34,7 +34,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     include: {
       city: { select: { id: true, name: true, code: true } },
       memberships: {
-        where: { isActive: true },
+        where: { isActive: true, endedAt: null },
         orderBy: { createdAt: "asc" },
         include: {
           staffMeta: {
@@ -47,7 +47,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
           },
         },
       },
-      _count: { select: { memberships: { where: { isActive: true } } } },
+      _count: {
+        select: { memberships: { where: { isActive: true, endedAt: null } } },
+      },
     },
   });
 

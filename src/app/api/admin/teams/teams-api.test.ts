@@ -8,14 +8,16 @@ import { DELETE as revokeTeamMember } from "./members/[membershipId]/route";
 const mocks = vi.hoisted(() => ({
   requireCapability: vi.fn(),
   resolveActorCity: vi.fn(),
-  logAudit: vi.fn(),
+  createAuditLogData: vi.fn((params) => params),
   teamFindMany: vi.fn(),
   teamFindUnique: vi.fn(),
   membershipFindMany: vi.fn(),
   membershipFindFirst: vi.fn(),
   membershipFindUnique: vi.fn(),
   membershipCreate: vi.fn(),
-  membershipUpdate: vi.fn(),
+  membershipUpdateMany: vi.fn(),
+  auditLogCreate: vi.fn(),
+  transaction: vi.fn(),
   staffMetaFindUnique: vi.fn(),
 }));
 
@@ -28,7 +30,7 @@ vi.mock("@/lib/auth/events-scope", () => ({
 }));
 
 vi.mock("@/lib/audit", () => ({
-  logAudit: mocks.logAudit,
+  createAuditLogData: mocks.createAuditLogData,
 }));
 
 vi.mock("@/lib/db", () => ({
@@ -42,11 +44,13 @@ vi.mock("@/lib/db", () => ({
       findFirst: mocks.membershipFindFirst,
       findUnique: mocks.membershipFindUnique,
       create: mocks.membershipCreate,
-      update: mocks.membershipUpdate,
+      updateMany: mocks.membershipUpdateMany,
     },
     staffMeta: {
       findUnique: mocks.staffMetaFindUnique,
     },
+    auditLog: { create: mocks.auditLogCreate },
+    $transaction: mocks.transaction,
   },
 }));
 
@@ -55,6 +59,13 @@ describe("TEAM-003: Collaboration Teams API & Security Test Matrix", () => {
     vi.clearAllMocks();
     mocks.requireCapability.mockResolvedValue({ user: { id: "user_actor_1", role: "city_head" } });
     mocks.resolveActorCity.mockResolvedValue({ cityId: "city_lhr", isHQ: false });
+    mocks.transaction.mockImplementation(async (callback) => callback({
+      staffTeamMembership: {
+        create: mocks.membershipCreate,
+        updateMany: mocks.membershipUpdateMany,
+      },
+      auditLog: { create: mocks.auditLogCreate },
+    }));
   });
 
   describe("1. GET /api/admin/teams (List Teams)", () => {
@@ -71,6 +82,15 @@ describe("TEAM-003: Collaboration Teams API & Security Test Matrix", () => {
       const data = await res.json();
       expect(data).toEqual(mockTeams);
       expect(mocks.resolveActorCity).toHaveBeenCalledWith({ id: "user_actor_1", role: "city_head" }, "city_lhr");
+      expect(mocks.teamFindMany).toHaveBeenCalledWith(expect.objectContaining({
+        include: expect.objectContaining({
+          _count: expect.objectContaining({
+            select: expect.objectContaining({
+              memberships: { where: { isActive: true, endedAt: null } },
+            }),
+          }),
+        }),
+      }));
     });
 
     it("returns 400 Bad Request when HQ actor omits cityId parameter", async () => {
@@ -167,12 +187,12 @@ describe("TEAM-003: Collaboration Teams API & Security Test Matrix", () => {
       expect(res.status).toBe(201);
       const data = await res.json();
       expect(data).toEqual(createdMembership);
-      expect(mocks.logAudit).toHaveBeenCalledWith(
-        expect.objectContaining({
+      expect(mocks.auditLogCreate).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({
           action: "team_membership.assign",
           entityType: "StaffTeamMembership",
           entityId: "membership_1",
-        })
+        }) })
       );
     });
   });
@@ -197,8 +217,7 @@ describe("TEAM-003: Collaboration Teams API & Security Test Matrix", () => {
         team: { id: "team_1", cityId: "city_lhr", name: "Sports" },
       };
       mocks.membershipFindUnique.mockResolvedValue(mockMembership);
-      const updatedMembership = { ...mockMembership, isActive: false, endedAt: new Date() };
-      mocks.membershipUpdate.mockResolvedValue(updatedMembership);
+      mocks.membershipUpdateMany.mockResolvedValue({ count: 1 });
 
       const req = new NextRequest("http://localhost/api/admin/teams/members/membership_1", {
         method: "DELETE",
@@ -206,13 +225,30 @@ describe("TEAM-003: Collaboration Teams API & Security Test Matrix", () => {
       const res = await revokeTeamMember(req, { params: Promise.resolve({ membershipId: "membership_1" }) });
 
       expect(res.status).toBe(200);
-      expect(mocks.logAudit).toHaveBeenCalledWith(
-        expect.objectContaining({
+      expect(mocks.auditLogCreate).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({
           action: "team_membership.revoke",
           entityType: "StaffTeamMembership",
           entityId: "membership_1",
-        })
+        }) })
       );
+    });
+
+    it("rejects an already-ended membership without a mutation", async () => {
+      mocks.membershipFindUnique.mockResolvedValue({
+        id: "membership_1",
+        isActive: true,
+        endedAt: new Date("2026-08-01T00:00:00.000Z"),
+        team: { id: "team_1", cityId: "city_lhr", name: "Sports" },
+      });
+
+      const res = await revokeTeamMember(
+        new NextRequest("http://localhost/api/admin/teams/members/membership_1", { method: "DELETE" }),
+        { params: Promise.resolve({ membershipId: "membership_1" }) }
+      );
+
+      expect(res.status).toBe(409);
+      expect(mocks.membershipUpdateMany).not.toHaveBeenCalled();
     });
   });
 });

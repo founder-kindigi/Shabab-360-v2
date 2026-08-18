@@ -43,7 +43,9 @@ export async function GET(request: NextRequest) {
     orderBy: [{ city: { name: "asc" } }, { name: "asc" }],
     include: {
       city: { select: { id: true, name: true, code: true } },
-      _count: { select: { memberships: { where: { isActive: true } } } },
+      _count: {
+        select: { memberships: { where: { isActive: true, endedAt: null } } },
+      },
     },
   });
 
