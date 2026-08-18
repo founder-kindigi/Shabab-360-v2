@@ -48,7 +48,7 @@ const EventsPage = lazy(() => import("@/app/admin/events/page").then(m => ({ def
 const FeesPage = lazy(() => import("@/components/modules/admin/fees-page").then(m => ({ default: m.FeesPage })));
 const NotificationsPage = lazy(() => import("@/components/modules/admin/notifications-page").then(m => ({ default: m.NotificationsPage })));
 const AdmissionsPage = lazy(() => import("@/components/modules/admin/admissions-page").then(m => ({ default: m.AdmissionsPage })));
-const ContentPlannerPage = lazy(() => import("@/components/modules/admin/content-planner-page").then(m => ({ default: m.ContentPlannerPage })));
+const ContentPlannerPage = lazy(() => import("@/components/modules/content-planner/content-planner-page").then(m => ({ default: m.ContentPlannerPage })));
 const CommunityPage = lazy(() => import("@/components/modules/admin/community-page").then(m => ({ default: m.CommunityPage })));
 const ProcurementPage = lazy(() => import("@/components/modules/admin/procurement-page").then(m => ({ default: m.ProcurementPage })));
 const GamificationPage = lazy(() => import("@/components/modules/admin/gamification-page").then(m => ({ default: m.GamificationPage })));

@@ -44,8 +44,14 @@ import {
 
 // ── Types ──────────────────────────────────────────────────────────────
 
-type Permissions = { canView: boolean; canManage: boolean; isHq: boolean };
+type Permissions = {
+  canView: boolean;
+  canManage: boolean;
+  isHq: boolean;
+  actorCityId: string | null;
+};
 type CityItem = { id: string; name: string; code: string };
+type CitiesResponse = { data: CityItem[] };
 
 type PlanListItem = {
   id: string;
@@ -155,14 +161,20 @@ export function ContentPlannerPage() {
 
   // ── Permissions ────────────────────────────────────────────────────
   const permQuery = useQuery<Permissions>({
-    queryKey: ["content-planner-permissions"],
-    queryFn: () => request("/api/admin/content-planner/permissions"),
+    queryKey: ["content-planner-ui-context"],
+    queryFn: () => request("/api/admin/content-planner/ui-context"),
     staleTime: 60000,
+    retry: false,
   });
-  const { canView, canManage, isHq } = permQuery.data ?? { canView: false, canManage: false, isHq: false };
+  const { canView, canManage, isHq, actorCityId } = permQuery.data ?? {
+    canView: false,
+    canManage: false,
+    isHq: false,
+    actorCityId: null,
+  };
 
   // ── Cities (HQ only) ───────────────────────────────────────────────
-  const citiesQuery = useQuery<CityItem[]>({
+  const citiesQuery = useQuery<CitiesResponse>({
     queryKey: ["content-planner-cities"],
     queryFn: () => request("/api/admin/cities"),
     staleTime: 60000,
@@ -227,7 +239,7 @@ export function ContentPlannerPage() {
   const createPlan = useMutation({
     mutationFn: () => {
       const body: any = { name: createName.trim(), kind: "template" };
-      if (isHq) body.cityId = selectedCityId;
+      body.cityId = isHq ? selectedCityId : actorCityId;
       return request("/api/admin/content-planner/plans", {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -373,7 +385,7 @@ export function ContentPlannerPage() {
           <Select value={selectedCityId} onValueChange={(v) => { setSelectedCityId(v); setSelectedPlanId(null); setSelectedSessionId(null); }}>
             <SelectTrigger className="w-64"><SelectValue placeholder="Select a city" /></SelectTrigger>
             <SelectContent>
-              {(citiesQuery.data ?? []).map((c) => (
+              {(citiesQuery.data?.data ?? []).map((c) => (
                 <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
               ))}
             </SelectContent>
