@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  blocksForCategory,
+  buildContentPlansUrl,
+  choosePreferredPlan,
+  choosePreferredSession,
+} from "./content-planner-view-model";
 import {
   Dialog,
   DialogContent,
@@ -40,6 +47,13 @@ import {
   CheckCircle2,
   Clock,
   Trash2,
+  Heart,
+  Brain,
+  Dumbbell,
+  Activity,
+  Menu,
+  ChevronDown,
+  Save,
 } from "lucide-react";
 
 // ── Types ──────────────────────────────────────────────────────────────
@@ -187,13 +201,11 @@ export function ContentPlannerPage() {
   const plansQueryKey = ["content-planner-plans", isHq ? selectedCityId : "scoped", statusFilter] as const;
   const plansQuery = useQuery<PlanListResponse>({
     queryKey: plansQueryKey,
-    queryFn: () => {
-      const params = new URLSearchParams();
-      if (isHq && selectedCityId) params.set("cityId", selectedCityId);
-      if (statusFilter !== "all") params.set("status", statusFilter);
-      params.set("pageSize", "50");
-      return request(`/api/admin/content-planner/plans?${params.toString()}`);
-    },
+    queryFn: () => request(buildContentPlansUrl({
+      isHq,
+      cityId: selectedCityId,
+      status: statusFilter,
+    })),
     enabled: canView && (isHq ? Boolean(selectedCityId) : true),
     staleTime: 30000,
   });
@@ -309,6 +321,34 @@ export function ContentPlannerPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  useEffect(() => {
+    if (selectedPlanId || !plansQuery.data?.plans.length) return;
+    const preferredPlan = choosePreferredPlan(plansQuery.data.plans);
+    if (!preferredPlan) return;
+    setSelectedPlanId(preferredPlan.id);
+  }, [plansQuery.data, selectedPlanId]);
+
+  useEffect(() => {
+    if (selectedSessionId || !detailQuery.data?.sessions.length) return;
+    const preferredSession = choosePreferredSession(detailQuery.data.sessions);
+    if (!preferredSession) return;
+    setSelectedSessionId(preferredSession.id);
+  }, [detailQuery.data, selectedSessionId]);
+
+  const completeSession = useMutation({
+    mutationFn: (sessionId: string) =>
+      request(`/api/admin/content-planner/sessions/${sessionId}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ status: "delivered" }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["content-planner-plan", selectedPlanId] });
+      toast.success("Session marked delivered");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   // ── Create block ───────────────────────────────────────────────────
   const [showCreateBlock, setShowCreateBlock] = useState(false);
   const [blockCategory, setBlockCategory] = useState("");
@@ -360,52 +400,78 @@ export function ContentPlannerPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const [editBlockTarget, setEditBlockTarget] = useState<BlockItem | null>(null);
+  const [editBlockTitle, setEditBlockTitle] = useState("");
+  const [editBlockContent, setEditBlockContent] = useState("");
+
+  const openBlockEditor = (block: BlockItem) => {
+    setEditBlockTarget(block);
+    setEditBlockTitle(block.title ?? "");
+    setEditBlockContent(block.content);
+  };
+
+  const updateBlock = useMutation({
+    mutationFn: () =>
+      request(`/api/admin/content-planner/blocks/${editBlockTarget?.id}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          title: editBlockTitle.trim() || null,
+          content: editBlockContent.trim(),
+        }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["content-planner-blocks", selectedSessionId] });
+      setEditBlockTarget(null);
+      toast.success("Pillar content updated");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   // ── Loading/error/denied early returns ─────────────────────────────
   if (permQuery.isLoading) return <LoadingSkeleton />;
   if (permQuery.isError) return <ErrorState message="Unable to load permissions." onRetry={() => permQuery.refetch()} />;
   if (!canView) return <DeniedState />;
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Content Planner</h1>
-          <p className="text-sm text-muted-foreground">Manage curriculum plans, sessions, and activity blocks.</p>
-        </div>
+    <div className="space-y-5 pb-24 sm:pb-8">
+      <Card className="border-purple-200/70 bg-gradient-to-r from-purple-50/80 via-background to-amber-50/60 shadow-sm">
+        <CardContent className="flex flex-col gap-3 p-3 sm:flex-row sm:items-center sm:justify-between sm:p-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            {isHq && (
+              <Select value={selectedCityId} onValueChange={(v) => { setSelectedCityId(v); setSelectedPlanId(null); setSelectedSessionId(null); }}>
+                <SelectTrigger className="h-11 w-full bg-background sm:w-56"><SelectValue placeholder="Select a city" /></SelectTrigger>
+                <SelectContent>
+                  {(citiesQuery.data?.data ?? []).map((city) => (
+                    <SelectItem key={city.id} value={city.id}>{city.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            <Select
+              value={statusFilter}
+              onValueChange={(value) => {
+                setStatusFilter(value);
+                setSelectedPlanId(null);
+                setSelectedSessionId(null);
+              }}
+            >
+              <SelectTrigger className="h-11 w-full bg-background sm:w-44"><SelectValue placeholder="All statuses" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All statuses</SelectItem>
+                <SelectItem value="draft">Draft</SelectItem>
+                <SelectItem value="published">Published</SelectItem>
+                <SelectItem value="archived">Archived</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         {canManage && (
-          <Button onClick={() => setShowCreate(true)}><Plus className="mr-2 size-4" />New Plan</Button>
+            <Button className="h-11" disabled={isHq && !selectedCityId} onClick={() => setShowCreate(true)}>
+              <Plus className="mr-2 size-4" />New plan
+            </Button>
         )}
-      </div>
-
-      {/* City selector (HQ only) — scoped users never see this */}
-      {isHq && (
-        <div className="flex items-center gap-2">
-          <Label className="text-sm font-medium shrink-0">City</Label>
-          <Select value={selectedCityId} onValueChange={(v) => { setSelectedCityId(v); setSelectedPlanId(null); setSelectedSessionId(null); }}>
-            <SelectTrigger className="w-64"><SelectValue placeholder="Select a city" /></SelectTrigger>
-            <SelectContent>
-              {(citiesQuery.data?.data ?? []).map((c) => (
-                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      )}
-
-      {/* Status filter */}
-      <div className="flex items-center gap-2">
-        <Label className="text-sm font-medium shrink-0">Status</Label>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-40"><SelectValue placeholder="All statuses" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All statuses</SelectItem>
-            <SelectItem value="draft">Draft</SelectItem>
-            <SelectItem value="published">Published</SelectItem>
-            <SelectItem value="archived">Archived</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+        </CardContent>
+      </Card>
 
       {/* HQ with no city selected */}
       {isHq && !selectedCityId && (
@@ -430,11 +496,12 @@ export function ContentPlannerPage() {
               {canManage && <Button variant="outline" className="mt-4" onClick={() => setShowCreate(true)}><Plus className="mr-2 size-4" />Create first plan</Button>}
             </CardContent></Card>
           ) : (
-            <div className="grid gap-6 lg:grid-cols-[1.3fr_1fr]">
+            <div className="space-y-6">
               {/* Plan list */}
               <div className="space-y-3">
                 <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Plans ({plansQuery.data.pagination.total})</h2>
-                {plansQuery.data.plans.map((plan) => (
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                  {plansQuery.data.plans.map((plan) => (
                   <button
                     key={plan.id}
                     onClick={() => { setSelectedPlanId(plan.id); setSelectedSessionId(null); }}
@@ -464,7 +531,8 @@ export function ContentPlannerPage() {
                       </div>
                     )}
                   </button>
-                ))}
+                  ))}
+                </div>
               </div>
 
               {/* Detail panel */}
@@ -484,9 +552,12 @@ export function ContentPlannerPage() {
                     onSelectSession={setSelectedSessionId}
                     onCreateSession={() => setShowCreateSession(true)}
                     onCancelSession={(s) => setCancelTarget(s)}
+                    onCompleteSession={(s) => completeSession.mutate(s.id)}
+                    isCompletingSession={completeSession.isPending}
                     blocksQuery={blocksQuery}
                     teamsQuery={teamsQuery}
                     onCreateBlock={() => setShowCreateBlock(true)}
+                    onEditBlock={openBlockEditor}
                     onDeleteBlock={(b) => setDeleteBlockTarget(b)}
                   />
                 ) : null}
@@ -586,6 +657,46 @@ export function ContentPlannerPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={Boolean(editBlockTarget)} onOpenChange={(open) => !open && setEditBlockTarget(null)}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Edit pillar content</DialogTitle>
+            <DialogDescription>
+              Update the selected session block. Category and collaboration team remain server-controlled.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Title</Label>
+              <Input
+                value={editBlockTitle}
+                maxLength={200}
+                onChange={(event) => setEditBlockTitle(event.target.value)}
+              />
+            </div>
+            <div>
+              <Label>Content</Label>
+              <Textarea
+                value={editBlockContent}
+                maxLength={10_000}
+                rows={8}
+                onChange={(event) => setEditBlockContent(event.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditBlockTarget(null)}>Cancel</Button>
+            <Button
+              disabled={!editBlockContent.trim() || updateBlock.isPending}
+              onClick={() => updateBlock.mutate()}
+            >
+              <Save className="mr-2 size-4" />
+              {updateBlock.isPending ? "Saving..." : "Save changes"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -594,8 +705,8 @@ export function ContentPlannerPage() {
 
 function DetailView({
   plan, canManage, canView, selectedSessionId, onSelectSession,
-  onCreateSession, onCancelSession, blocksQuery, teamsQuery,
-  onCreateBlock, onDeleteBlock,
+  onCreateSession, onCancelSession, onCompleteSession, isCompletingSession,
+  blocksQuery, teamsQuery, onCreateBlock, onEditBlock, onDeleteBlock,
 }: {
   plan: PlanDetail;
   canManage: boolean;
@@ -604,21 +715,38 @@ function DetailView({
   onSelectSession: (id: string | null) => void;
   onCreateSession: () => void;
   onCancelSession: (s: SessionItem) => void;
+  onCompleteSession: (s: SessionItem) => void;
+  isCompletingSession: boolean;
   blocksQuery: ReturnType<typeof useQuery<BlocksResponse>>;
   teamsQuery: ReturnType<typeof useQuery<TeamsResponse>>;
   onCreateBlock: () => void;
+  onEditBlock: (b: BlockItem) => void;
   onDeleteBlock: (b: BlockItem) => void;
 }) {
   const selectedSession = plan.sessions.find((s) => s.id === selectedSessionId);
+  const [activeCategory, setActiveCategory] = useState("tadreeb");
+  const [isMobileSessionsOpen, setIsMobileSessionsOpen] = useState(false);
+  const blocks = blocksQuery.data?.blocks ?? [];
+
+  const selectSession = (sessionId: string) => {
+    onSelectSession(sessionId);
+    setIsMobileSessionsOpen(false);
+  };
+
+  const pillars = [
+    { value: "tadreeb", label: "Tadreeb", icon: Heart, accent: "emerald" },
+    { value: "skills", label: "Skills", icon: Brain, accent: "purple" },
+    { value: "sports", label: "Sports", icon: Dumbbell, accent: "blue" },
+    { value: "exercises", label: "Exercises", icon: Activity, accent: "amber" },
+  ] as const;
 
   return (
     <div className="space-y-4">
-      {/* Plan header */}
-      <Card>
-        <CardHeader className="pb-3">
-          <div className="flex items-start justify-between">
+      <Card className="overflow-hidden border-purple-200/70 bg-gradient-to-r from-purple-50 via-background to-amber-50/50 shadow-sm">
+        <CardHeader className="pb-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <CardTitle className="text-lg">{plan.name}</CardTitle>
+              <CardTitle className="text-xl">{plan.name}</CardTitle>
               <CardDescription>
                 {plan.city.name}{plan.batch ? ` · ${plan.batch.name}` : ""}{plan.park ? ` · ${plan.park.name}` : ""}
               </CardDescription>
@@ -642,104 +770,199 @@ function DetailView({
         </CardHeader>
       </Card>
 
-      {/* Sessions */}
-      <Card>
-        <CardHeader className="pb-3 flex-row items-center justify-between">
-          <CardTitle className="text-base">Sessions ({plan.sessions.length})</CardTitle>
-          {canManage && <Button size="sm" variant="outline" onClick={onCreateSession}><Plus className="mr-1 size-3" />Add</Button>}
-        </CardHeader>
-        <CardContent>
-          {plan.sessions.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No sessions defined yet.</p>
-          ) : (
-            <div className="space-y-2 max-h-[300px] overflow-y-auto">
-              {plan.sessions.map((s) => (
-                <button
-                  key={s.id}
-                  onClick={() => onSelectSession(s.id === selectedSessionId ? null : s.id)}
-                  className={`w-full rounded-lg border p-3 text-left transition-colors ${s.id === selectedSessionId ? "border-primary bg-primary/5" : "hover:bg-muted/50"} ${s.isOffDay ? "bg-muted/30" : ""}`}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2 min-w-0">
-                      {sessionStatusIcon(s.status)}
-                      <div className="min-w-0">
-                        <p className={`text-sm font-medium truncate ${s.isOffDay ? "text-muted-foreground" : ""}`}>
-                          {new Date(s.sessionDate).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })}
-                          {s.dayLabel ? ` — ${s.dayLabel}` : ""}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {s.isOffDay ? "Off day" : `${s._count.blocks} blocks`}
-                          {s.weekLabel ? ` · ${s.weekLabel}` : ""}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1">{statusBadge(s.status)}</div>
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      <Button
+        type="button"
+        variant="outline"
+        className="h-12 w-full justify-between lg:hidden"
+        onClick={() => setIsMobileSessionsOpen((current) => !current)}
+      >
+        <span className="flex min-w-0 items-center gap-2">
+          <Menu className="size-4 shrink-0" />
+          <span className="truncate">
+            {selectedSession
+              ? `${selectedSession.weekLabel ?? "Session"} · ${selectedSession.dayLabel ?? new Date(selectedSession.sessionDate).toLocaleDateString("en-GB")}`
+              : "Choose a session"}
+          </span>
+        </span>
+        <ChevronDown className={`size-4 transition-transform ${isMobileSessionsOpen ? "rotate-180" : ""}`} />
+      </Button>
 
-      {/* Selected session: blocks */}
-      {selectedSession && (
-        <Card>
-          <CardHeader className="pb-3 flex-row items-center justify-between">
-            <CardTitle className="text-base">
-              Blocks — {new Date(selectedSession.sessionDate).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })}
-            </CardTitle>
-            {canManage && !selectedSession.isOffDay && selectedSession.status !== "cancelled" && (
-              <Button size="sm" variant="outline" onClick={onCreateBlock}><Plus className="mr-1 size-3" />Add block</Button>
+      <div className="grid gap-4 lg:grid-cols-[minmax(250px,0.85fr)_minmax(0,2fr)]">
+        <Card className={`${isMobileSessionsOpen ? "block" : "hidden"} overflow-hidden lg:block`}>
+          <CardHeader className="flex-row items-center justify-between border-b pb-3">
+            <CardTitle className="text-base">Sessions ({plan.sessions.length})</CardTitle>
+            {canManage && (
+              <Button size="sm" variant="outline" onClick={onCreateSession}>
+                <Plus className="mr-1 size-3" />Add
+              </Button>
             )}
           </CardHeader>
-          <CardContent>
-            {selectedSession.isOffDay ? (
-              <p className="text-sm text-muted-foreground">Off day — no blocks can be added.</p>
-            ) : selectedSession.status === "cancelled" ? (
-              <p className="text-sm text-muted-foreground">Session is cancelled.</p>
-            ) : blocksQuery.isLoading ? (
-              <div className="space-y-2"><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /></div>
-            ) : blocksQuery.isError ? (
-              <p className="text-sm text-destructive">Unable to load blocks.</p>
-            ) : !blocksQuery.data?.blocks?.length ? (
-              <p className="text-sm text-muted-foreground">No blocks yet.</p>
-            ) : (
-              <div className="space-y-2 max-h-[300px] overflow-y-auto">
-                {blocksQuery.data.blocks.map((b) => (
-                  <div key={b.id} className="flex items-start justify-between gap-2 rounded-lg border p-3">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <Badge className="text-[10px]">{CATEGORY_LABEL[b.category] || b.category}</Badge>
-                        <span className="text-xs text-muted-foreground">· {b.team.name}</span>
-                        <span className="text-xs text-muted-foreground">· #{b.sortOrder}</span>
-                      </div>
-                      <p className="text-sm font-medium mt-1">{b.title || "Untitled"}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{b.content}</p>
-                      <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
-                        {b.resources.length > 0 && <span>{b.resources.length} resource(s)</span>}
-                        {b._count.activities > 0 && <span>{b._count.activities} activity/activities</span>}
-                      </div>
-                    </div>
-                    {canManage && (
-                      <Button size="sm" variant="ghost" className="shrink-0 h-7 text-xs text-destructive" onClick={() => onDeleteBlock(b)}>
-                        <Trash2 className="size-3" />
-                      </Button>
-                    )}
+          <CardContent className="max-h-[620px] space-y-2 overflow-y-auto p-3">
+            {plan.sessions.length === 0 ? (
+              <p className="p-4 text-sm text-muted-foreground">No sessions defined yet.</p>
+            ) : plan.sessions.map((session) => (
+              <button
+                key={session.id}
+                type="button"
+                onClick={() => selectSession(session.id)}
+                className={`w-full rounded-xl border p-3 text-left transition-all ${
+                  session.id === selectedSessionId
+                    ? "border-amber-300 bg-amber-50 shadow-sm"
+                    : "border-transparent bg-muted/35 hover:border-purple-200 hover:bg-purple-50/50"
+                }`}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold">
+                      {session.weekLabel ?? "Session"}{session.dayLabel ? ` · ${session.dayLabel}` : ""}
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {new Date(session.sessionDate).toLocaleDateString("en-GB", {
+                        weekday: "short",
+                        day: "numeric",
+                        month: "short",
+                      })}
+                      {session.isOffDay ? " · Off day" : ` · ${session._count.blocks} blocks`}
+                    </p>
                   </div>
-                ))}
-              </div>
-            )}
+                  {sessionStatusIcon(session.status)}
+                </div>
+              </button>
+            ))}
           </CardContent>
         </Card>
-      )}
 
-      {/* Cancel session dialog rendered in parent */}
-      {canManage && selectedSession && !selectedSession.isOffDay && selectedSession.status !== "cancelled" && (
-        <Button size="sm" variant="outline" className="text-destructive" onClick={() => onCancelSession(selectedSession)}>
-          <X className="mr-1 size-3" />Cancel session
-        </Button>
-      )}
+        {!selectedSession ? (
+          <Card>
+            <CardContent className="flex min-h-72 flex-col items-center justify-center gap-3 text-center">
+              <BookOpen className="size-12 text-purple-300" />
+              <p className="font-semibold">Choose a curriculum session</p>
+              <p className="max-w-sm text-sm text-muted-foreground">
+                Select a week and day to open its live Tadreeb, Skills, Sports and Exercises content.
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card className="overflow-hidden">
+            <CardHeader className="border-b bg-muted/20 pb-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <div className="mb-2 flex flex-wrap items-center gap-2">
+                    <Badge variant="outline">{selectedSession.weekLabel ?? "Session"}</Badge>
+                    {statusBadge(selectedSession.status)}
+                  </div>
+                  <CardTitle className="text-xl">
+                    {selectedSession.dayLabel ?? new Date(selectedSession.sessionDate).toLocaleDateString("en-GB", { weekday: "long" })}
+                  </CardTitle>
+                  <CardDescription>
+                    {new Date(selectedSession.sessionDate).toLocaleDateString("en-GB", {
+                      weekday: "long",
+                      day: "numeric",
+                      month: "long",
+                      year: "numeric",
+                    })}
+                  </CardDescription>
+                </div>
+                {canManage && !selectedSession.isOffDay && selectedSession.status !== "cancelled" && (
+                  <div className="flex flex-wrap gap-2">
+                    <Button size="sm" variant="outline" onClick={onCreateBlock}>
+                      <Plus className="mr-1 size-3" />Add block
+                    </Button>
+                    {selectedSession.status !== "delivered" && (
+                      <Button
+                        size="sm"
+                        disabled={isCompletingSession}
+                        onClick={() => onCompleteSession(selectedSession)}
+                      >
+                        <CheckCircle2 className="mr-1 size-4" />
+                        {isCompletingSession ? "Saving..." : "Mark delivered"}
+                      </Button>
+                    )}
+                    <Button size="sm" variant="outline" className="text-destructive" onClick={() => onCancelSession(selectedSession)}>
+                      <X className="mr-1 size-3" />Cancel
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent className="p-4 sm:p-6">
+              {selectedSession.isOffDay ? (
+                <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">
+                  This is a configured off day. Curriculum blocks are disabled.
+                </div>
+              ) : selectedSession.status === "cancelled" ? (
+                <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-8 text-center text-sm text-muted-foreground">
+                  This session is cancelled and remains read-only.
+                </div>
+              ) : blocksQuery.isLoading ? (
+                <div className="space-y-3"><Skeleton className="h-12 w-full" /><Skeleton className="h-40 w-full" /></div>
+              ) : blocksQuery.isError ? (
+                <p className="text-sm text-destructive">Unable to load curriculum blocks.</p>
+              ) : (
+                <Tabs value={activeCategory} onValueChange={setActiveCategory} className="space-y-5">
+                  <TabsList className="grid h-auto grid-cols-2 gap-1 rounded-2xl p-1.5 sm:grid-cols-4">
+                    {pillars.map((pillar) => {
+                      const Icon = pillar.icon;
+                      return (
+                        <TabsTrigger key={pillar.value} value={pillar.value} className="min-h-11 rounded-xl gap-2">
+                          <Icon className="size-4" />{pillar.label}
+                        </TabsTrigger>
+                      );
+                    })}
+                  </TabsList>
+                  {pillars.map((pillar) => {
+                    const Icon = pillar.icon;
+                    const categoryBlocks = blocksForCategory(blocks, pillar.value);
+                    return (
+                      <TabsContent key={pillar.value} value={pillar.value} className="space-y-3">
+                        {categoryBlocks.length === 0 ? (
+                          <div className="rounded-2xl border border-dashed p-8 text-center">
+                            <Icon className="mx-auto mb-3 size-9 text-muted-foreground/50" />
+                            <p className="text-sm font-medium">No {pillar.label} content yet</p>
+                            <p className="mt-1 text-xs text-muted-foreground">Add a block to this session when content is ready.</p>
+                          </div>
+                        ) : categoryBlocks.map((block) => (
+                          <div key={block.id} className="rounded-2xl border bg-card p-4 shadow-sm sm:p-5">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <Badge variant="secondary">{CATEGORY_LABEL[block.category] ?? block.category}</Badge>
+                                  <span className="text-xs text-muted-foreground">{block.team.name}</span>
+                                </div>
+                                <h3 className="mt-3 font-semibold">{block.title || `${pillar.label} activity`}</h3>
+                              </div>
+                              {canManage && (
+                                <div className="flex shrink-0 gap-1">
+                                  <Button size="icon" variant="ghost" className="size-9" onClick={() => onEditBlock(block)} aria-label={`Edit ${block.title ?? pillar.label}`}>
+                                    <Edit3 className="size-4" />
+                                  </Button>
+                                  <Button size="icon" variant="ghost" className="size-9 text-destructive" onClick={() => onDeleteBlock(block)} aria-label={`Delete ${block.title ?? pillar.label}`}>
+                                    <Trash2 className="size-4" />
+                                  </Button>
+                                </div>
+                              )}
+                            </div>
+                            <p className="mt-3 whitespace-pre-line text-sm leading-6 text-foreground/85">{block.content}</p>
+                            {block.resources.length > 0 && (
+                              <div className="mt-4 flex flex-wrap gap-2">
+                                {block.resources.map((resource) => (
+                                  <a key={resource.id} href={resource.url} target="_blank" rel="noreferrer" className="rounded-lg border px-3 py-2 text-xs font-medium hover:bg-muted">
+                                    {resource.label}
+                                  </a>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </TabsContent>
+                    );
+                  })}
+                </Tabs>
+              )}
+            </CardContent>
+          </Card>
+        )}
+      </div>
     </div>
   );
 }
