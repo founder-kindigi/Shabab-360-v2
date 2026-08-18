@@ -63,6 +63,7 @@ export async function GET(
           dayLabel: true,
           isOffDay: true,
           status: true,
+          blocks: { select: { category: true } },
           _count: { select: { blocks: true } },
         },
         orderBy: { sessionDate: "asc" },

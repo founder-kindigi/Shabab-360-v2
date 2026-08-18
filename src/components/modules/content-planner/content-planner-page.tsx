@@ -54,6 +54,8 @@ import {
   Menu,
   ChevronDown,
   Save,
+  LayoutGrid,
+  TableProperties,
 } from "lucide-react";
 
 // ── Types ──────────────────────────────────────────────────────────────
@@ -91,6 +93,7 @@ type SessionItem = {
   dayLabel: string | null;
   isOffDay: boolean;
   status: string;
+  blocks?: { category: string }[];
   _count: { blocks: number };
 };
 
@@ -172,6 +175,7 @@ export function ContentPlannerPage() {
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState("all");
+  const [workspaceView, setWorkspaceView] = useState<"classroom" | "matrix">("classroom");
 
   // ── Permissions ────────────────────────────────────────────────────
   const permQuery = useQuery<Permissions>({
@@ -464,6 +468,24 @@ export function ContentPlannerPage() {
                 <SelectItem value="archived">Archived</SelectItem>
               </SelectContent>
             </Select>
+            <div className="grid grid-cols-2 rounded-xl border bg-background p-1">
+              <Button
+                type="button"
+                variant={workspaceView === "classroom" ? "secondary" : "ghost"}
+                className="h-9 px-3 text-xs"
+                onClick={() => setWorkspaceView("classroom")}
+              >
+                <LayoutGrid className="mr-1.5 size-3.5" />Classroom
+              </Button>
+              <Button
+                type="button"
+                variant={workspaceView === "matrix" ? "secondary" : "ghost"}
+                className="h-9 px-3 text-xs"
+                onClick={() => setWorkspaceView("matrix")}
+              >
+                <TableProperties className="mr-1.5 size-3.5" />Matrix
+              </Button>
+            </div>
           </div>
         {canManage && (
             <Button className="h-11" disabled={isHq && !selectedCityId} onClick={() => setShowCreate(true)}>
@@ -543,6 +565,15 @@ export function ContentPlannerPage() {
                   <Card><CardContent className="p-4 space-y-3"><Skeleton className="h-5 w-3/4" /><Skeleton className="h-3 w-1/2" /><Skeleton className="h-20 w-full" /></CardContent></Card>
                 ) : detailQuery.isError ? (
                   <Card><CardContent className="py-6 text-center text-sm text-destructive">Unable to load plan details.</CardContent></Card>
+                ) : detailQuery.data && workspaceView === "matrix" ? (
+                  <CurriculumMatrix
+                    plan={detailQuery.data}
+                    selectedSessionId={selectedSessionId}
+                    onSelectSession={(sessionId) => {
+                      setSelectedSessionId(sessionId);
+                      setWorkspaceView("classroom");
+                    }}
+                  />
                 ) : detailQuery.data ? (
                   <DetailView
                     plan={detailQuery.data}
@@ -964,6 +995,66 @@ function DetailView({
         )}
       </div>
     </div>
+  );
+}
+
+function CurriculumMatrix({
+  plan,
+  selectedSessionId,
+  onSelectSession,
+}: {
+  plan: PlanDetail;
+  selectedSessionId: string | null;
+  onSelectSession: (sessionId: string) => void;
+}) {
+  const categories = ["tadreeb", "skills", "sports", "exercises"] as const;
+
+  return (
+    <Card className="overflow-hidden">
+      <CardHeader className="border-b">
+        <CardTitle className="text-lg">Master curriculum matrix</CardTitle>
+        <CardDescription>{plan.name} · live plan structure and pillar coverage</CardDescription>
+      </CardHeader>
+      <CardContent className="p-0">
+        <div className="overflow-x-auto">
+          <table className="min-w-[760px] w-full text-left text-sm">
+            <thead className="bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
+              <tr>
+                <th className="px-4 py-3">Week / day</th>
+                <th className="px-4 py-3">Date</th>
+                {categories.map((category) => <th key={category} className="px-4 py-3 capitalize">{category}</th>)}
+                <th className="px-4 py-3">Status</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {plan.sessions.map((session) => {
+                const availableCategories = new Set(session.blocks?.map((block) => block.category) ?? []);
+                return (
+                  <tr key={session.id} className={session.id === selectedSessionId ? "bg-purple-50/70" : "hover:bg-muted/30"}>
+                    <td className="px-4 py-3 font-medium">
+                      <button type="button" className="text-left hover:text-primary hover:underline" onClick={() => onSelectSession(session.id)}>
+                        {session.weekLabel ?? "Session"}{session.dayLabel ? ` · ${session.dayLabel}` : ""}
+                      </button>
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground">
+                      {new Date(session.sessionDate).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+                    </td>
+                    {categories.map((category) => (
+                      <td key={category} className="px-4 py-3">
+                        {session.isOffDay ? "—" : availableCategories.has(category) ? (
+                          <span className="inline-flex items-center gap-1 text-emerald-700"><CheckCircle2 className="size-4" />Ready</span>
+                        ) : <span className="text-muted-foreground">Pending</span>}
+                      </td>
+                    ))}
+                    <td className="px-4 py-3">{statusBadge(session.status)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
