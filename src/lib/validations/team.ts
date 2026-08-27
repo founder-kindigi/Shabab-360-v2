@@ -39,3 +39,8 @@ export const sendTeamChatMessageSchema = z
     message: z.string().trim().min(1, "Message cannot be empty").max(2000, "Message is too long"),
   })
   .strict();
+
+export const teamChatQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  offset: z.coerce.number().int().min(0).default(0),
+}).strict();

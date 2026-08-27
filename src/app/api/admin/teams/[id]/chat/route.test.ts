@@ -1,162 +1,141 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
-import { GET, POST } from "./route";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest, NextResponse } from "next/server";
-import { requireCapability } from "@/lib/auth/authorize";
+import { GET, POST } from "./route";
+import { requireAuth } from "@/lib/auth/authorize";
+import { userHasCapability } from "@/lib/auth/capability-access";
 import { resolveActorCity } from "@/lib/auth/events-scope";
 import { db } from "@/lib/db";
 
-vi.mock("@/lib/auth/authorize", () => ({
-  requireCapability: vi.fn(),
-}));
-
-vi.mock("@/lib/auth/events-scope", () => ({
-  resolveActorCity: vi.fn(),
-}));
-
-vi.mock("@/lib/audit", () => ({
-  logAudit: vi.fn(),
-}));
-
+vi.mock("@/lib/auth/authorize", () => ({ requireAuth: vi.fn() }));
+vi.mock("@/lib/auth/capability-access", () => ({ userHasCapability: vi.fn() }));
+vi.mock("@/lib/auth/events-scope", () => ({ resolveActorCity: vi.fn() }));
+vi.mock("@/lib/audit", () => ({ createAuditLogData: vi.fn((data) => data) }));
 vi.mock("@/lib/db", () => ({
   db: {
-    collaborationTeam: {
-      findUnique: vi.fn(),
-    },
-    staffMeta: {
-      findUnique: vi.fn(),
-    },
-    teamChatMessage: {
-      findMany: vi.fn(),
-      count: vi.fn(),
-      create: vi.fn(),
-    },
+    collaborationTeam: { findUnique: vi.fn() },
+    staffTeamMembership: { findFirst: vi.fn() },
+    teamChatMessage: { findMany: vi.fn(), count: vi.fn(), create: vi.fn() },
+    $transaction: vi.fn(),
   },
 }));
 
-describe("Internal Team Chat API (GET & POST /api/admin/teams/[id]/chat)", () => {
+const activeTeam = { id: "team_1", cityId: "city_lahore", name: "Sports Team", isActive: true };
+
+describe("Internal Team Chat API", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(requireAuth).mockResolvedValue({ user: { id: "usr_1" } } as any);
+    vi.mocked(db.collaborationTeam.findUnique).mockResolvedValue(activeTeam as any);
+    vi.mocked(resolveActorCity).mockResolvedValue({ cityId: "city_lahore" } as any);
+    vi.mocked(userHasCapability).mockResolvedValue(false);
+    vi.mocked(db.staffTeamMembership.findFirst).mockResolvedValue({ staffMetaId: "staff_1" } as any);
+    vi.mocked(db.$transaction).mockImplementation(async (callback: any) => callback({
+      teamChatMessage: { create: db.teamChatMessage.create },
+      auditLog: { create: vi.fn() },
+    }));
   });
 
-  it("returns 401 when user is not authenticated", async () => {
-    vi.mocked(requireCapability).mockResolvedValue(
-      NextResponse.json({ error: "Unauthorized" }, { status: 401 }) as any
-    );
+  it("returns 401 before looking up a team", async () => {
+    vi.mocked(requireAuth).mockResolvedValue(NextResponse.json({ error: "Unauthorized" }, { status: 401 }) as any);
 
-    const req = new NextRequest("http://localhost:3000/api/admin/teams/team_1/chat");
-    const res = await GET(req, { params: Promise.resolve({ id: "team_1" }) });
+    const res = await GET(new NextRequest("http://localhost/api/admin/teams/team_1/chat"), {
+      params: Promise.resolve({ id: "team_1" }),
+    });
 
     expect(res.status).toBe(401);
+    expect(db.collaborationTeam.findUnique).not.toHaveBeenCalled();
   });
 
-  it("returns 403 when team is outside assigned city scope", async () => {
-    vi.mocked(requireCapability).mockResolvedValue({ user: { id: "usr_1" } } as any);
-    vi.mocked(db.collaborationTeam.findUnique).mockResolvedValue({
-      id: "team_1",
-      cityId: "city_lahore",
-      name: "Sports Team",
-      isActive: true,
-    } as any);
-    vi.mocked(resolveActorCity).mockResolvedValue({
-      error: "Scope mismatch",
-      cityId: "city_karachi",
-    } as any);
+  it("denies a same-city user who is not an active member and cannot manage the team", async () => {
+    vi.mocked(db.staffTeamMembership.findFirst).mockResolvedValue(null);
 
-    const req = new NextRequest("http://localhost:3000/api/admin/teams/team_1/chat");
-    const res = await GET(req, { params: Promise.resolve({ id: "team_1" }) });
+    const res = await GET(new NextRequest("http://localhost/api/admin/teams/team_1/chat"), {
+      params: Promise.resolve({ id: "team_1" }),
+    });
 
     expect(res.status).toBe(403);
+    expect(db.teamChatMessage.findMany).not.toHaveBeenCalled();
   });
 
-  it("returns paginated team chat messages", async () => {
-    vi.mocked(requireCapability).mockResolvedValue({ user: { id: "usr_1" } } as any);
-    vi.mocked(db.collaborationTeam.findUnique).mockResolvedValue({
-      id: "team_1",
-      cityId: "city_lahore",
-      name: "Sports Team",
-      isActive: true,
-    } as any);
-    vi.mocked(resolveActorCity).mockResolvedValue({ cityId: "city_lahore" } as any);
+  it("denies a foreign-city member before listing retained messages", async () => {
+    vi.mocked(resolveActorCity).mockResolvedValue({ error: "City mismatch", status: 403, cityId: "city_other" } as any);
 
-    vi.mocked(db.teamChatMessage.findMany).mockResolvedValue([
-      {
-        id: "msg_1",
-        teamId: "team_1",
-        message: "Hello team!",
-        isFlagged: false,
-        createdAt: new Date(),
-        author: {
-          id: "staff_1",
-          userId: "usr_1",
-          user: { name: "Ali Khan", email: "ali@example.com" },
-        },
-      },
-    ] as any);
+    const res = await GET(new NextRequest("http://localhost/api/admin/teams/team_1/chat"), {
+      params: Promise.resolve({ id: "team_1" }),
+    });
+
+    expect(res.status).toBe(403);
+    expect(db.teamChatMessage.findMany).not.toHaveBeenCalled();
+  });
+
+  it("returns retained messages to an active member without leaking author email", async () => {
+    vi.mocked(db.teamChatMessage.findMany).mockResolvedValue([{
+      id: "msg_1", teamId: "team_1", message: "Hello team!", isFlagged: false, createdAt: new Date(),
+      author: { id: "staff_1", user: { name: "Ali Khan" } },
+    }] as any);
     vi.mocked(db.teamChatMessage.count).mockResolvedValue(1);
 
-    const req = new NextRequest("http://localhost:3000/api/admin/teams/team_1/chat");
-    const res = await GET(req, { params: Promise.resolve({ id: "team_1" }) });
-    expect(res.status).toBe(200);
+    const res = await GET(new NextRequest("http://localhost/api/admin/teams/team_1/chat"), {
+      params: Promise.resolve({ id: "team_1" }),
+    });
 
+    expect(res.status).toBe(200);
     const data = await res.json();
     expect(data.messages).toHaveLength(1);
-    expect(data.messages[0].message).toBe("Hello team!");
+    expect(data.messages[0].author).toEqual({ id: "staff_1", name: "Ali Khan" });
   });
 
-  it("rejects sending message to an archived team", async () => {
-    vi.mocked(requireCapability).mockResolvedValue({ user: { id: "usr_1" } } as any);
-    vi.mocked(db.collaborationTeam.findUnique).mockResolvedValue({
-      id: "team_archived",
-      cityId: "city_lahore",
-      name: "Old Team",
-      isActive: false, // Archived team
-    } as any);
+  it("rejects malformed pagination before querying messages", async () => {
+    const res = await GET(new NextRequest("http://localhost/api/admin/teams/team_1/chat?limit=101"), {
+      params: Promise.resolve({ id: "team_1" }),
+    });
 
-    const req = new NextRequest("http://localhost:3000/api/admin/teams/team_archived/chat", {
+    expect(res.status).toBe(400);
+    expect(db.teamChatMessage.findMany).not.toHaveBeenCalled();
+  });
+
+  it("retains archived messages but denies new posts", async () => {
+    vi.mocked(db.collaborationTeam.findUnique).mockResolvedValue({ ...activeTeam, isActive: false } as any);
+
+    const res = await POST(new NextRequest("http://localhost/api/admin/teams/team_1/chat", {
       method: "POST",
       body: JSON.stringify({ message: "Hello?" }),
-    });
+    }), { params: Promise.resolve({ id: "team_1" }) });
 
-    const res = await POST(req, { params: Promise.resolve({ id: "team_archived" }) });
     expect(res.status).toBe(400);
-
-    const data = await res.json();
-    expect(data.error).toContain("archived team");
+    expect(db.teamChatMessage.create).not.toHaveBeenCalled();
   });
 
-  it("posts new team chat message successfully", async () => {
-    vi.mocked(requireCapability).mockResolvedValue({ user: { id: "usr_1" } } as any);
-    vi.mocked(db.collaborationTeam.findUnique).mockResolvedValue({
-      id: "team_1",
-      cityId: "city_lahore",
-      name: "Sports Team",
-      isActive: true,
-    } as any);
-    vi.mocked(resolveActorCity).mockResolvedValue({ cityId: "city_lahore" } as any);
-    vi.mocked(db.staffMeta.findUnique).mockResolvedValue({ id: "staff_1" } as any);
-
+  it("creates a message and its audit record atomically for an active member", async () => {
     vi.mocked(db.teamChatMessage.create).mockResolvedValue({
-      id: "msg_new",
-      teamId: "team_1",
-      message: "Ready for match",
-      isFlagged: false,
-      createdAt: new Date(),
-      author: {
-        id: "staff_1",
-        user: { name: "Ali Khan", email: "ali@example.com" },
-      },
+      id: "msg_new", teamId: "team_1", message: "Ready for match", isFlagged: false, createdAt: new Date(),
+      author: { id: "staff_1", user: { name: "Ali Khan" } },
     } as any);
+    const auditCreate = vi.fn();
+    vi.mocked(db.$transaction).mockImplementation(async (callback: any) => callback({
+      teamChatMessage: { create: db.teamChatMessage.create },
+      auditLog: { create: auditCreate },
+    }));
 
-    const req = new NextRequest("http://localhost:3000/api/admin/teams/team_1/chat", {
+    const res = await POST(new NextRequest("http://localhost/api/admin/teams/team_1/chat", {
       method: "POST",
       body: JSON.stringify({ message: "Ready for match" }),
-    });
+    }), { params: Promise.resolve({ id: "team_1" }) });
 
-    const res = await POST(req, { params: Promise.resolve({ id: "team_1" }) });
     expect(res.status).toBe(201);
+    expect(auditCreate).toHaveBeenCalledTimes(1);
+    expect((await res.json()).author.email).toBeUndefined();
+  });
 
-    const data = await res.json();
-    expect(data.id).toBe("msg_new");
-    expect(data.message).toBe("Ready for match");
+  it("does not let a manager post without active membership", async () => {
+    vi.mocked(userHasCapability).mockResolvedValue(true);
+    vi.mocked(db.staffTeamMembership.findFirst).mockResolvedValue(null);
+
+    const res = await POST(new NextRequest("http://localhost/api/admin/teams/team_1/chat", {
+      method: "POST",
+      body: JSON.stringify({ message: "Manager note" }),
+    }), { params: Promise.resolve({ id: "team_1" }) });
+
+    expect(res.status).toBe(403);
   });
 });

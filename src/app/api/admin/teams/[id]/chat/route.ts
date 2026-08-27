@@ -1,15 +1,38 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireCapability } from "@/lib/auth/authorize";
+import { requireAuth } from "@/lib/auth/authorize";
+import { userHasCapability } from "@/lib/auth/capability-access";
 import { resolveActorCity } from "@/lib/auth/events-scope";
 import { db } from "@/lib/db";
-import { logAudit } from "@/lib/audit";
-import { sendTeamChatMessageSchema } from "@/lib/validations/team";
+import { createAuditLogData } from "@/lib/audit";
+import { sendTeamChatMessageSchema, teamChatQuerySchema } from "@/lib/validations/team";
+
+async function resolveChatAccess(user: { id: string }, teamId: string, cityId: string) {
+  const resolved = await resolveActorCity(user as any, cityId);
+  if (resolved.error || resolved.cityId !== cityId) {
+    return { error: "Access denied: team is outside assigned scope", status: 403 } as const;
+  }
+
+  const [canManage, membership] = await Promise.all([
+    userHasCapability(user as any, "organisation.manage"),
+    db.staffTeamMembership.findFirst({
+      where: {
+        teamId,
+        isActive: true,
+        endedAt: null,
+        staffMeta: { userId: user.id, isActive: true },
+      },
+      select: { staffMetaId: true },
+    }),
+  ]);
+
+  return { canManage, membership } as const;
+}
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = await requireCapability("organisation.view");
+  const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
   const user = auth.user;
 
@@ -24,17 +47,27 @@ export async function GET(
     return NextResponse.json({ error: "Team not found" }, { status: 404 });
   }
 
-  const resolved = await resolveActorCity(user, team.cityId);
-  if (resolved.error || resolved.cityId !== team.cityId) {
+  const access = await resolveChatAccess(user, teamId, team.cityId);
+  if ("error" in access) {
     return NextResponse.json(
-      { error: "Access denied: team is outside assigned scope" },
-      { status: 403 }
+      { error: access.error },
+      { status: access.status }
     );
   }
 
+  if (!access.canManage && !access.membership) {
+    return NextResponse.json({ error: "Forbidden: active team membership is required" }, { status: 403 });
+  }
+
   const url = new URL(request.url);
-  const limit = Math.min(parseInt(url.searchParams.get("limit") || "50", 10), 100);
-  const offset = Math.max(parseInt(url.searchParams.get("offset") || "0", 10), 0);
+  const parsedQuery = teamChatQuerySchema.safeParse({
+    limit: url.searchParams.get("limit") || undefined,
+    offset: url.searchParams.get("offset") || undefined,
+  });
+  if (!parsedQuery.success) {
+    return NextResponse.json({ error: "Validation failed", details: parsedQuery.error.format() }, { status: 400 });
+  }
+  const { limit, offset } = parsedQuery.data;
 
   const [messages, total] = await Promise.all([
     db.teamChatMessage.findMany({
@@ -47,7 +80,7 @@ export async function GET(
           select: {
             id: true,
             userId: true,
-            user: { select: { name: true, email: true } },
+            user: { select: { name: true } },
           },
         },
       },
@@ -64,7 +97,6 @@ export async function GET(
     author: {
       id: m.author.id,
       name: m.author.user.name,
-      email: m.author.user.email,
     },
   }));
 
@@ -81,7 +113,7 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = await requireCapability("organisation.view");
+  const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
   const user = auth.user;
 
@@ -103,27 +135,25 @@ export async function POST(
     );
   }
 
-  const resolved = await resolveActorCity(user, team.cityId);
-  if (resolved.error || resolved.cityId !== team.cityId) {
+  const access = await resolveChatAccess(user, teamId, team.cityId);
+  if ("error" in access) {
     return NextResponse.json(
-      { error: "Access denied: team is outside assigned scope" },
+      { error: access.error },
+      { status: access.status }
+    );
+  }
+
+  if (!access.membership) {
+    return NextResponse.json(
+      { error: "Forbidden: active team membership is required to send messages" },
       { status: 403 }
     );
   }
 
-  const staffMeta = await db.staffMeta.findUnique({
-    where: { userId: user.id },
-    select: { id: true },
-  });
-
-  if (!staffMeta) {
-    return NextResponse.json(
-      { error: "Staff meta profile required to send team chat messages" },
-      { status: 400 }
-    );
+  const body = await request.json().catch(() => null);
+  if (body === null) {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
-
-  const body = await request.json().catch(() => ({}));
   const parsed = sendTeamChatMessageSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
@@ -132,31 +162,32 @@ export async function POST(
     );
   }
 
-  const messageRecord = await db.teamChatMessage.create({
-    data: {
-      teamId,
-      authorId: staffMeta.id,
-      message: parsed.data.message,
-    },
-    include: {
-      author: {
-        select: {
-          id: true,
-          user: { select: { name: true, email: true } },
+  const messageRecord = await db.$transaction(async (tx) => {
+    const created = await tx.teamChatMessage.create({
+      data: {
+        teamId,
+        authorId: access.membership.staffMetaId,
+        message: parsed.data.message,
+      },
+      include: {
+        author: {
+          select: {
+            id: true,
+            user: { select: { name: true } },
+          },
         },
       },
-    },
-  });
-
-  logAudit({
-    userId: user.id,
-    action: "team.chat.create",
-    entityType: "team_chat_message",
-    entityId: messageRecord.id,
-    newValues: {
-      teamId,
-      messageLength: messageRecord.message.length,
-    },
+    });
+    await tx.auditLog.create({
+      data: createAuditLogData({
+        userId: user.id,
+        action: "team.chat.create",
+        entityType: "team_chat_message",
+        entityId: created.id,
+        newValues: { teamId, messageLength: created.message.length },
+      }),
+    });
+    return created;
   });
 
   return NextResponse.json(
@@ -169,7 +200,6 @@ export async function POST(
       author: {
         id: messageRecord.author.id,
         name: messageRecord.author.user.name,
-        email: messageRecord.author.user.email,
       },
     },
     { status: 201 }
