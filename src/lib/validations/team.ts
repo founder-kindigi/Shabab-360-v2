@@ -18,7 +18,7 @@ export const createTeamActivitySchema = z
     description: z.string().trim().max(1000, "Description is too long").optional(),
     assignedStaffMetaId: z.string().trim().min(1).optional(),
     contentBlockId: z.string().trim().min(1).optional(),
-    status: z.enum(["planned", "in_progress", "completed", "archived"]).optional().default("planned"),
+    status: z.enum(["planned", "in_progress", "completed", "cancelled", "archived"]).optional().default("planned"),
     scheduledFor: z.string().optional().nullable(),
   })
   .strict();
@@ -29,7 +29,7 @@ export const updateTeamActivitySchema = z
     description: z.string().trim().max(1000, "Description is too long").optional().nullable(),
     assignedStaffMetaId: z.string().trim().min(1).optional().nullable(),
     contentBlockId: z.string().trim().min(1).optional().nullable(),
-    status: z.enum(["planned", "in_progress", "completed", "archived"]).optional(),
+    status: z.enum(["planned", "in_progress", "completed", "cancelled", "archived"]).optional(),
     scheduledFor: z.string().optional().nullable(),
   })
   .strict();

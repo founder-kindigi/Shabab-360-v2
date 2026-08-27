@@ -1,15 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireCapability } from "@/lib/auth/authorize";
+import { requireAuth, requireCapability } from "@/lib/auth/authorize";
+import { userHasCapability } from "@/lib/auth/capability-access";
 import { resolveActorCity } from "@/lib/auth/events-scope";
 import { db } from "@/lib/db";
-import { logAudit } from "@/lib/audit";
+import { createAuditLogData } from "@/lib/audit";
 import { updateTeamActivitySchema } from "@/lib/validations/team";
 
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string; activityId: string }> }
 ) {
-  const auth = await requireCapability("organisation.manage");
+  const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
   const user = auth.user;
 
@@ -35,7 +36,10 @@ export async function PATCH(
     );
   }
 
-  const body = await request.json().catch(() => ({}));
+  const body = await request.json().catch(() => null);
+  if (body === null) {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
   const parsed = updateTeamActivitySchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
@@ -44,8 +48,47 @@ export async function PATCH(
     );
   }
 
-  const { title, description, assignedStaffMetaId, contentBlockId, status, scheduledFor } =
-    parsed.data;
+  const { title, description, assignedStaffMetaId, contentBlockId, status, scheduledFor } = parsed.data;
+  const canManage = await userHasCapability(user, "organisation.manage");
+  const currentMembership = await db.staffTeamMembership.findFirst({
+    where: {
+      teamId,
+      isActive: true,
+      endedAt: null,
+      staffMeta: { userId: user.id, isActive: true },
+    },
+    select: { staffMetaId: true },
+  });
+  const isOwnAssignment = Boolean(
+    currentMembership && existing.assignedStaffMetaId === currentMembership.staffMetaId
+  );
+
+  if (!canManage) {
+    const isSelfStart =
+      isOwnAssignment &&
+      existing.status === "planned" &&
+      status === "in_progress" &&
+      title === undefined &&
+      description === undefined &&
+      assignedStaffMetaId === undefined &&
+      contentBlockId === undefined &&
+      scheduledFor === undefined;
+
+    if (!isSelfStart) {
+      return NextResponse.json(
+        { error: "Forbidden: only managers may edit this activity; assignees may only start their own planned work" },
+        { status: 403 }
+      );
+    }
+  }
+
+  if (["completed", "cancelled"].includes(existing.status)) {
+    return NextResponse.json({ error: "Conflict: completed or cancelled activities cannot be changed" }, { status: 409 });
+  }
+
+  if (status && !canManage && status !== "in_progress") {
+    return NextResponse.json({ error: "Forbidden: assignees may only start work" }, { status: 403 });
+  }
 
   // Enforce active membership check if updating to a new assigned staff member
   if (assignedStaffMetaId && assignedStaffMetaId !== existing.assignedStaffMetaId) {
@@ -69,39 +112,49 @@ export async function PATCH(
     }
   }
 
-  const updated = await db.activityPlanItem.update({
-    where: { id: activityId },
-    data: {
-      ...(title !== undefined && { title }),
-      ...(description !== undefined && { description }),
-      ...(assignedStaffMetaId !== undefined && { assignedStaffMetaId }),
-      ...(contentBlockId !== undefined && { contentBlockId }),
-      ...(status !== undefined && { status }),
-      ...(scheduledFor !== undefined && {
-        scheduledFor: scheduledFor ? new Date(scheduledFor) : null,
+  const updateData = {
+    ...(title !== undefined && { title }),
+    ...(description !== undefined && { description }),
+    ...(assignedStaffMetaId !== undefined && { assignedStaffMetaId }),
+    ...(contentBlockId !== undefined && { contentBlockId }),
+    ...(status !== undefined && { status }),
+    ...(scheduledFor !== undefined && { scheduledFor: scheduledFor ? new Date(scheduledFor) : null }),
+  };
+
+  const updated = await db.$transaction(async (tx) => {
+    const result = await tx.activityPlanItem.updateMany({
+      where: { id: activityId, status: existing.status },
+      data: updateData,
+    });
+    if (result.count !== 1) {
+      throw new Error("ACTIVITY_STATE_CONFLICT");
+    }
+    const activity = await tx.activityPlanItem.findUnique({
+      where: { id: activityId },
+      include: { assignedStaff: { select: { id: true, user: { select: { name: true, email: true } } } } },
+    });
+    if (!activity) throw new Error("ACTIVITY_NOT_FOUND");
+    await tx.auditLog.create({
+      data: createAuditLogData({
+        userId: user.id,
+        action: "team.activity.update",
+        entityType: "team_activity",
+        entityId: activity.id,
+        oldValues: { status: existing.status },
+        newValues: { teamId, activityId, status: activity.status },
       }),
-    },
-    include: {
-      assignedStaff: {
-        select: {
-          id: true,
-          user: { select: { name: true, email: true } },
-        },
-      },
-    },
+    });
+    return activity;
+  }).catch((error) => {
+    if (error instanceof Error && error.message === "ACTIVITY_STATE_CONFLICT") {
+      return null;
+    }
+    throw error;
   });
 
-  logAudit({
-    userId: user.id,
-    action: "team.activity.update",
-    entityType: "team_activity",
-    entityId: updated.id,
-    newValues: {
-      teamId,
-      activityId,
-      status: updated.status,
-    },
-  });
+  if (!updated) {
+    return NextResponse.json({ error: "Conflict: activity changed by another user" }, { status: 409 });
+  }
 
   return NextResponse.json(updated);
 }
@@ -136,16 +189,19 @@ export async function DELETE(
     );
   }
 
-  await db.activityPlanItem.delete({
-    where: { id: activityId },
-  });
-
-  logAudit({
-    userId: user.id,
-    action: "delete",
-    entityType: "team_activity",
-    entityId: activityId,
-    newValues: { teamId, title: existing.title },
+  await db.$transaction(async (tx) => {
+    await tx.activityPlanItem.delete({
+      where: { id: activityId },
+    });
+    await tx.auditLog.create({
+      data: createAuditLogData({
+        userId: user.id,
+        action: "team.activity.delete",
+        entityType: "team_activity",
+        entityId: activityId,
+        newValues: { teamId, title: existing.title },
+      }),
+    });
   });
 
   return NextResponse.json({ success: true });

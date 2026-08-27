@@ -1,15 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireCapability } from "@/lib/auth/authorize";
+import { requireAuth, requireCapability } from "@/lib/auth/authorize";
+import { userHasCapability } from "@/lib/auth/capability-access";
 import { resolveActorCity } from "@/lib/auth/events-scope";
 import { db } from "@/lib/db";
-import { logAudit } from "@/lib/audit";
+import { createAuditLogData } from "@/lib/audit";
 import { createTeamActivitySchema } from "@/lib/validations/team";
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = await requireCapability("organisation.view");
+  const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
   const user = auth.user;
 
@@ -30,6 +31,24 @@ export async function GET(
       { error: "Access denied: team is outside assigned scope" },
       { status: 403 }
     );
+  }
+
+  const [canView, canManage, currentMembership] = await Promise.all([
+    userHasCapability(user, "organisation.view"),
+    userHasCapability(user, "organisation.manage"),
+    db.staffTeamMembership.findFirst({
+      where: {
+        teamId,
+        isActive: true,
+        endedAt: null,
+        staffMeta: { userId: user.id, isActive: true },
+      },
+      select: { staffMetaId: true },
+    }),
+  ]);
+
+  if (!canView && !currentMembership) {
+    return NextResponse.json({ error: "Forbidden: active team membership is required" }, { status: 403 });
   }
 
   const activities = await db.activityPlanItem.findMany({
@@ -66,15 +85,21 @@ export async function GET(
       scheduledFor: a.scheduledFor,
       contentBlockId: a.contentBlockId,
       assignedStaffMetaId: a.assignedStaffMetaId,
-      assignedStaffName: a.assignedStaff?.user.name || null,
-      assignedStaffEmail: a.assignedStaff?.user.email || null,
+      assignedStaff: a.assignedStaff,
       isCurrentMember,
       createdAt: a.createdAt,
       updatedAt: a.updatedAt,
     };
   });
 
-  return NextResponse.json(formatted);
+  return NextResponse.json({
+    data: formatted,
+    total: formatted.length,
+    meta: {
+      canManage,
+      currentStaffMetaId: currentMembership?.staffMetaId || null,
+    },
+  });
 }
 
 export async function POST(
@@ -134,38 +159,44 @@ export async function POST(
     }
   }
 
-  const activity = await db.activityPlanItem.create({
-    data: {
-      teamId,
-      title: parsed.data.title,
-      description: parsed.data.description || null,
-      scheduledFor: parsed.data.scheduledFor
-        ? new Date(parsed.data.scheduledFor)
-        : null,
-      contentBlockId: parsed.data.contentBlockId || null,
-      assignedStaffMetaId: parsed.data.assignedStaffMetaId || null,
-    },
-    include: {
-      assignedStaff: {
-        select: {
-          id: true,
-          user: { select: { name: true, email: true } },
+  const activity = await db.$transaction(async (tx) => {
+    const created = await tx.activityPlanItem.create({
+      data: {
+        teamId,
+        title: parsed.data.title,
+        description: parsed.data.description || null,
+        scheduledFor: parsed.data.scheduledFor
+          ? new Date(parsed.data.scheduledFor)
+          : null,
+        contentBlockId: parsed.data.contentBlockId || null,
+        assignedStaffMetaId: parsed.data.assignedStaffMetaId || null,
+      },
+      include: {
+        assignedStaff: {
+          select: {
+            id: true,
+            user: { select: { name: true, email: true } },
+          },
         },
       },
-    },
-  });
+    });
 
-  logAudit({
-    userId: user.id,
-    action: "team.activity.create",
-    entityType: "team_activity",
-    entityId: activity.id,
-    newValues: {
-      teamId,
-      title: activity.title,
-      assignedStaffMetaId: activity.assignedStaffMetaId || null,
-      status: activity.status,
-    },
+    await tx.auditLog.create({
+      data: createAuditLogData({
+        userId: user.id,
+        action: "team.activity.create",
+        entityType: "team_activity",
+        entityId: created.id,
+        newValues: {
+          teamId,
+          title: created.title,
+          assignedStaffMetaId: created.assignedStaffMetaId || null,
+          status: created.status,
+        },
+      }),
+    });
+
+    return created;
   });
 
   return NextResponse.json(activity, { status: 201 });
