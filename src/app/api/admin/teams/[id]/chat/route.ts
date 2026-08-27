@@ -35,6 +35,8 @@ export async function GET(
   const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
   const user = auth.user;
+  if (!user.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const actor = { id: user.id };
 
   const { id: teamId } = await params;
 
@@ -47,7 +49,7 @@ export async function GET(
     return NextResponse.json({ error: "Team not found" }, { status: 404 });
   }
 
-  const access = await resolveChatAccess(user, teamId, team.cityId);
+  const access = await resolveChatAccess(actor, teamId, team.cityId);
   if ("error" in access) {
     return NextResponse.json(
       { error: access.error },
@@ -116,6 +118,8 @@ export async function POST(
   const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
   const user = auth.user;
+  if (!user.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const actor = { id: user.id };
 
   const { id: teamId } = await params;
 
@@ -135,7 +139,7 @@ export async function POST(
     );
   }
 
-  const access = await resolveChatAccess(user, teamId, team.cityId);
+  const access = await resolveChatAccess(actor, teamId, team.cityId);
   if ("error" in access) {
     return NextResponse.json(
       { error: access.error },
@@ -149,6 +153,7 @@ export async function POST(
       { status: 403 }
     );
   }
+  const membership = access.membership;
 
   const body = await request.json().catch(() => null);
   if (body === null) {
@@ -166,7 +171,7 @@ export async function POST(
     const created = await tx.teamChatMessage.create({
       data: {
         teamId,
-        authorId: access.membership.staffMetaId,
+        authorId: membership.staffMetaId,
         message: parsed.data.message,
       },
       include: {

@@ -266,6 +266,7 @@ model StaffMeta {
   mashwaraShares            MashwaraMeetingShare[] @relation("MashwaraShareRecipient")
   mashwaraGrants            MashwaraMeetingShare[] @relation("MashwaraShareGranter")
   chatMessages              TeamChatMessage[]
+  createdTeamDocumentLinks  TeamDocumentLink[] @relation("TeamDocumentLinkCreator")
   staffAttendanceRecords    StaffAttendanceRecord[]
 
   @@map("staff_meta")
@@ -287,6 +288,7 @@ model CollaborationTeam {
   contentBlocks ContentPlanBlock[]
   activityPlans ActivityPlanItem[]
   chatMessages  TeamChatMessage[]
+  documentLinks TeamDocumentLink[]
   mashwaraDecisionTargets  MashwaraDecision[] @relation("MashwaraDecisionTargetTeam")
   mashwaraActionItemsTeams MashwaraActionItem[] @relation("MashwaraActionItemTeam")
 
@@ -1420,6 +1422,33 @@ model TeamChatMessage {
   @@index([teamId, createdAt])
   @@index([authorId])
   @@map("team_chat_messages")
+}
+
+// Team documents are vetted external links; file uploads remain out of scope.
+model TeamDocumentLink {
+  id                   String   @id @default(cuid())
+  teamId               String
+  createdByStaffMetaId String
+  label                String
+  url                  String
+  createdAt            DateTime @default(now())
+
+  team      CollaborationTeam @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  createdBy StaffMeta         @relation("TeamDocumentLinkCreator", fields: [createdByStaffMetaId], references: [id], onDelete: Restrict)
+
+  @@index([teamId, createdAt])
+  @@index([createdByStaffMetaId])
+  @@map("team_document_links")
+}
+
+// Singleton global policy, managed only by a Super Admin with settings.manage.
+model ExternalLinkPolicy {
+  id                         String   @id
+  allowedDomains             String
+  requireInterstitialWarning Boolean  @default(true)
+  updatedAt                  DateTime @updatedAt
+
+  @@map("external_link_policies")
 }
 
 model EventRegistration {

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CircleUserRound, Plus, UsersRound } from "lucide-react";
+import { CircleUserRound, ExternalLink, FileText, Plus, UsersRound } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/layout/page-header";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -12,6 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { TeamActivityPlanner } from "@/components/modules/admin/team-activity-planner";
 
 type Team = {
@@ -45,6 +46,8 @@ type StaffOption = {
 };
 
 type CityItem = { id: string; name: string };
+type TeamDocument = { id: string; label: string; url: string; createdAt: string };
+type TeamDocumentsResponse = { data: TeamDocument[]; requireInterstitialWarning: boolean };
 
 async function request(url: string, init?: RequestInit) {
   const response = await fetch(url, init);
@@ -64,6 +67,10 @@ export function CollaborationTeamsPage() {
   const [title, setTitle] = useState("");
   const [membershipToEnd, setMembershipToEnd] = useState<Membership | null>(null);
   const [cityId, setCityId] = useState("");
+  const [documentLabel, setDocumentLabel] = useState("");
+  const [documentUrl, setDocumentUrl] = useState("");
+  const [documentDialogOpen, setDocumentDialogOpen] = useState(false);
+  const [pendingExternalDocument, setPendingExternalDocument] = useState<TeamDocument | null>(null);
 
   const context = useQuery<{ canView: boolean; canManage: boolean; isHq: boolean }>({
     queryKey: ["teams-ui-context"],
@@ -114,6 +121,12 @@ export function CollaborationTeamsPage() {
     enabled: Boolean(context.data) && Boolean(activeTeamId),
     staleTime: 15000,
   });
+  const documents = useQuery<TeamDocumentsResponse>({
+    queryKey: ["team-documents", activeTeamId],
+    queryFn: () => request(`/api/admin/teams/${activeTeamId}/documents`),
+    enabled: Boolean(context.data) && Boolean(activeTeamId),
+    staleTime: 15000,
+  });
 
   const addMember = useMutation({
     mutationFn: () => request(`/api/admin/teams/${activeTeamId}/members`, {
@@ -140,6 +153,21 @@ export function CollaborationTeamsPage() {
       queryClient.invalidateQueries({ queryKey: ["collaboration-team-members", activeTeamId] });
       setMembershipToEnd(null);
       toast.success("Team membership ended. The historical assignment is retained.");
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+  const addDocument = useMutation({
+    mutationFn: () => request(`/api/admin/teams/${activeTeamId}/documents`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ label: documentLabel.trim(), url: documentUrl.trim() }),
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["team-documents", activeTeamId] });
+      setDocumentDialogOpen(false);
+      setDocumentLabel("");
+      setDocumentUrl("");
+      toast.success("Document link added.");
     },
     onError: (error: Error) => toast.error(error.message),
   });
@@ -231,6 +259,16 @@ export function CollaborationTeamsPage() {
             }))}
           />
         )}
+
+        {selectedTeam && <Card>
+          <CardHeader className="flex-row items-start justify-between gap-4">
+            <div><CardTitle className="text-base">Team Documents</CardTitle><CardDescription>Approved external links for this team. Uploads are intentionally not enabled.</CardDescription></div>
+            {canManage && <Button size="sm" onClick={() => setDocumentDialogOpen(true)}><Plus className="size-4" />Add link</Button>}
+          </CardHeader>
+          <CardContent>
+            {documents.isLoading ? <p className="text-sm text-muted-foreground">Loading document links...</p> : documents.isError ? <p className="text-sm text-destructive">Unable to load team documents.</p> : !documents.data?.data.length ? <p className="rounded-lg border border-dashed p-5 text-center text-sm text-muted-foreground">No approved document links yet.</p> : <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{documents.data.data.map((document) => <button key={document.id} type="button" onClick={() => documents.data?.requireInterstitialWarning ? setPendingExternalDocument(document) : window.open(document.url, "_blank", "noopener,noreferrer")} className="flex min-w-0 items-center gap-3 rounded-lg border p-3 text-left hover:bg-muted/50"><FileText className="size-5 shrink-0 text-primary" /><span className="min-w-0 flex-1"><span className="block truncate text-sm font-medium">{document.label}</span><span className="block truncate text-xs text-muted-foreground">{new URL(document.url).hostname}</span></span><ExternalLink className="size-4 shrink-0 text-muted-foreground" /></button>)}</div>}
+          </CardContent>
+        </Card>}
       </>}
 
       <AlertDialog open={Boolean(membershipToEnd)} onOpenChange={(open) => !open && setMembershipToEnd(null)}>
@@ -238,6 +276,14 @@ export function CollaborationTeamsPage() {
           <AlertDialogHeader><AlertDialogTitle>End this team membership?</AlertDialogTitle><AlertDialogDescription>This removes the active team assignment only. It does not change the staff member&apos;s role or hierarchy scope, and the membership history remains available for audit.</AlertDialogDescription></AlertDialogHeader>
           <AlertDialogFooter><AlertDialogCancel disabled={endMembership.isPending}>Cancel</AlertDialogCancel><AlertDialogAction disabled={endMembership.isPending} onClick={() => membershipToEnd && endMembership.mutate(membershipToEnd)}>{endMembership.isPending ? "Ending..." : "End membership"}</AlertDialogAction></AlertDialogFooter>
         </AlertDialogContent>
+      </AlertDialog>
+
+      <Dialog open={documentDialogOpen} onOpenChange={setDocumentDialogOpen}>
+        <DialogContent><DialogHeader><DialogTitle>Add document link</DialogTitle><DialogDescription>Only approved HTTPS domains can be saved. Team members will see a warning before leaving Shabab 360 when that setting is enabled.</DialogDescription></DialogHeader><div className="space-y-4"><div><Label htmlFor="document-label">Label</Label><Input id="document-label" value={documentLabel} maxLength={120} onChange={(event) => setDocumentLabel(event.target.value)} placeholder="e.g. Week 1 training guide" /></div><div><Label htmlFor="document-url">HTTPS URL</Label><Input id="document-url" value={documentUrl} type="url" maxLength={2048} onChange={(event) => setDocumentUrl(event.target.value)} placeholder="https://drive.google.com/..." /></div></div><DialogFooter><Button variant="outline" onClick={() => setDocumentDialogOpen(false)}>Cancel</Button><Button disabled={!documentLabel.trim() || !documentUrl.trim() || addDocument.isPending} onClick={() => addDocument.mutate()}>{addDocument.isPending ? "Adding..." : "Add link"}</Button></DialogFooter></DialogContent>
+      </Dialog>
+
+      <AlertDialog open={Boolean(pendingExternalDocument)} onOpenChange={(open) => !open && setPendingExternalDocument(null)}>
+        <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Open external document?</AlertDialogTitle><AlertDialogDescription>This will open {pendingExternalDocument ? new URL(pendingExternalDocument.url).hostname : "an external website"} in a new tab. Only proceed if you trust the document.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => { if (pendingExternalDocument) window.open(pendingExternalDocument.url, "_blank", "noopener,noreferrer"); setPendingExternalDocument(null); }}>Open document</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
       </AlertDialog>
     </div>
   );
