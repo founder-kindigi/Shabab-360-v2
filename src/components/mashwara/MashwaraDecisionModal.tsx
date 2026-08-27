@@ -55,6 +55,15 @@ export const decisionFormSchema = z.object({
 
 export type DecisionFormValues = z.infer<typeof decisionFormSchema>;
 
+export type CanonicalTeamOption = {
+  id: string;
+  name: string;
+};
+
+export function buildMashwaraTeamsUrl(cityId?: string) {
+  return `/api/admin/teams${cityId ? `?cityId=${encodeURIComponent(cityId)}` : ""}`;
+}
+
 interface MashwaraDecisionModalProps {
   open: boolean;
   onClose: () => void;
@@ -85,14 +94,17 @@ export function MashwaraDecisionModal({
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // Fetch collaboration teams for the city
-  const { data: teamsData } = useQuery<{ data: { id: string; name: string }[] }>({
-    queryKey: ["collaboration-teams", cityId],
-    queryFn: () =>
-      fetch(`/api/admin/collaboration-teams${cityId ? `?cityId=${cityId}` : ""}`).then(
-        (r) => r.json()
-      ),
-    enabled: open,
+  // The canonical Teams API resolves city scope on the server.
+  const { data: teams = [] } = useQuery<CanonicalTeamOption[]>({
+    queryKey: ["teams", cityId],
+    queryFn: async () => {
+      const response = await fetch(buildMashwaraTeamsUrl(cityId));
+      if (!response.ok) {
+        throw new Error("Unable to load collaboration teams");
+      }
+      return response.json();
+    },
+    enabled: open && Boolean(cityId),
   });
 
   // Fetch staff members for the city
@@ -107,7 +119,6 @@ export function MashwaraDecisionModal({
     enabled: open,
   });
 
-  const teams = teamsData?.data || [];
   const staffList = (staffData?.data || []).filter((u) => u.staffMeta?.id);
 
   const createDecisionMutation = useMutation({

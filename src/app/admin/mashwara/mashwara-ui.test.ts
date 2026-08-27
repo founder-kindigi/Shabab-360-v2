@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { createMashwaraSchema, STATUS_STYLES } from "./_client";
-import { decisionFormSchema } from "@/components/mashwara/MashwaraDecisionModal";
+import {
+  buildMashwaraTeamsUrl,
+  decisionFormSchema,
+} from "@/components/mashwara/MashwaraDecisionModal";
 import { shareFormSchema } from "@/components/mashwara/MashwaraShareModal";
 
 describe("Mashwara UI Validation Schemas", () => {
@@ -108,6 +111,18 @@ describe("Mashwara UI Validation Schemas", () => {
         actionItemAssignedToId: "staff-123",
       });
       expect(result.success).toBe(false);
+    });
+  });
+
+  describe("Mashwara canonical Teams lookup", () => {
+    it("uses the canonical Teams API with the meeting city", () => {
+      expect(buildMashwaraTeamsUrl("city lahore/1")).toBe(
+        "/api/admin/teams?cityId=city%20lahore%2F1"
+      );
+    });
+
+    it("does not fall back to a legacy endpoint when no city is available", () => {
+      expect(buildMashwaraTeamsUrl()).toBe("/api/admin/teams");
     });
   });
 
