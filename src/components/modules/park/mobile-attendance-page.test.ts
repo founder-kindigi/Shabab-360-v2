@@ -79,4 +79,51 @@ describe("MobileAttendancePage", () => {
     expect(prepareQueryConfig).toBeDefined();
     expect(prepareQueryConfig?.enabled).toBe(false);
   });
+
+  it("requires a park staff member to choose a group before loading a roster", () => {
+    mocks.useSession.mockReturnValue({
+      data: {
+        user: {
+          id: "u-park-lead-1",
+          name: "Park Lead",
+          role: "park_lead",
+          assignedParkId: "park-1",
+        },
+      },
+      status: "authenticated",
+    });
+
+    const queryCalls: unknown[] = [];
+    mocks.useQuery.mockImplementation((options: unknown) => {
+      queryCalls.push(options);
+      const config = options as { queryKey?: unknown[] };
+      const key = config.queryKey?.[0];
+
+      if (key === "mobile-attendance-parks") {
+        return { data: [{ id: "park-1", name: "Park One" }], isLoading: false };
+      }
+      if (key === "mobile-attendance-sessions") {
+        return {
+          data: {
+            events: [{ id: "event-1", groupId: "group-1", groupName: "Group 1", markedCount: 0, participantCount: 20, isClosed: false }],
+            preparation: { isOffDate: false },
+          },
+          isLoading: false,
+        };
+      }
+      return { data: null, isLoading: false };
+    });
+
+    const html = renderToString(React.createElement(MobileAttendancePage));
+    expect(html).toContain("Group Selection");
+    expect(html).toContain("Group 1");
+    expect(html).toContain("Choose a group to open its attendance roster.");
+
+    const rosterQueryConfig = queryCalls.find((query) => {
+      const config = query as { queryKey?: unknown; enabled?: boolean };
+      return Array.isArray(config.queryKey) && config.queryKey[0] === "mobile-attendance-roster";
+    }) as { enabled?: boolean } | undefined;
+    expect(rosterQueryConfig).toBeDefined();
+    expect(rosterQueryConfig?.enabled).toBe(false);
+  });
 });

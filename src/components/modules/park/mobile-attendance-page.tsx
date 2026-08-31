@@ -182,9 +182,8 @@ export function MobileAttendancePage({ onBack }: MobileAttendancePageProps) {
         const assigned = events.find((e) => e.groupId === assignedGroupId);
         if (assigned) return assigned.id;
       }
-      return events[0].id;
     }
-    return selectedEventId || null;
+    return null;
   }, [selectedEventId, events, assignedGroupId]);
 
   // ─── Query: Fetch Event Student Roster ─────────────────────────────────────
@@ -876,6 +875,11 @@ export function MobileAttendancePage({ onBack }: MobileAttendancePageProps) {
                     );
                   })}
                 </div>
+                {!effectiveEventId && !isMurabbi && (
+                  <p className="px-1 pt-1 text-xs font-medium text-muted-foreground">
+                    Choose a group to open its attendance roster.
+                  </p>
+                )}
               </div>
             ) : !isSessionsLoading && !sessionsData?.preparation.isOffDate ? (
               <div className="p-8 text-center bg-card rounded-3xl border border-border/80 space-y-3">
