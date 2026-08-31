@@ -32,7 +32,7 @@ function queryConfig(calls: unknown[], key: string) {
   return calls.find((call) => {
     const config = call as { queryKey?: unknown };
     return Array.isArray(config.queryKey) && config.queryKey[0] === key;
-  }) as { enabled?: boolean; queryKey?: unknown[] } | undefined;
+  }) as { enabled?: boolean; queryKey?: unknown[]; queryFn?: () => Promise<unknown> } | undefined;
 }
 
 const mockPlan = {
@@ -376,7 +376,50 @@ describe("MobileContentPlannerPage", () => {
     renderToString(React.createElement(MobileContentPlannerPage));
     const plans = queryConfig(calls, "pwa-content-planner-plans");
     expect(plans?.enabled).toBe(true);
-    expect(plans?.queryKey).toEqual(["pwa-content-planner-plans", "scoped"]);
+    expect(plans?.queryKey).toEqual(["pwa-content-planner-plans", "scoped", "all"]);
+  });
+
+  it("keeps drafts available to managers but not to read-only viewers", async () => {
+    const managerCalls: unknown[] = [];
+    mocks.useQuery.mockImplementation((options: unknown) => {
+      managerCalls.push(options);
+      const key = (options as { queryKey?: unknown[] }).queryKey?.[0];
+      if (key === "pwa-content-planner-context") {
+        return { data: { canView: true, canManage: true, isHq: false }, isLoading: false, isError: false };
+      }
+      if (key === "pwa-content-planner-plans") {
+        return { data: { plans: [mockPlan] }, isLoading: false, isError: false };
+      }
+      if (key === "pwa-content-planner-plan") {
+        return { data: mockPlan, isLoading: false, isError: false };
+      }
+      return { data: undefined, isLoading: false, isError: false };
+    });
+    renderToString(React.createElement(MobileContentPlannerPage));
+    expect(queryConfig(managerCalls, "pwa-content-planner-plans")?.queryKey).toEqual([
+      "pwa-content-planner-plans",
+      "scoped",
+      "all",
+    ]);
+
+    const viewerCalls: unknown[] = [];
+    mocks.useQuery.mockImplementation((options: unknown) => {
+      viewerCalls.push(options);
+      const key = (options as { queryKey?: unknown[] }).queryKey?.[0];
+      if (key === "pwa-content-planner-context") {
+        return { data: { canView: true, canManage: false, isHq: false }, isLoading: false, isError: false };
+      }
+      if (key === "pwa-content-planner-plans") {
+        return { data: { plans: [] }, isLoading: false, isError: false };
+      }
+      return { data: undefined, isLoading: false, isError: false };
+    });
+    renderToString(React.createElement(MobileContentPlannerPage));
+    expect(queryConfig(viewerCalls, "pwa-content-planner-plans")?.queryKey).toEqual([
+      "pwa-content-planner-plans",
+      "scoped",
+      "published",
+    ]);
   });
 
   it("disables all dependent planner queries on context 403 / unverified access", () => {

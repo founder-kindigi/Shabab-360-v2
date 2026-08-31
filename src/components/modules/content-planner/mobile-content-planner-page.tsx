@@ -153,6 +153,8 @@ export function MobileContentPlannerPage() {
   });
   const context = contextQuery.data;
   const canManage = Boolean(context?.canManage);
+  // Managers must be able to find and prepare drafts; read-only users only see released curriculum.
+  const planStatus = canManage ? "all" : "published";
 
   // ── 2. Cities (HQ only) ───────────────────────────────────────────────────
   const citiesQuery = useQuery<{ data: City[] }>({
@@ -164,8 +166,8 @@ export function MobileContentPlannerPage() {
 
   // ── 3. Plans List ─────────────────────────────────────────────────────────
   const plansQuery = useQuery<{ plans: Plan[] }>({
-    queryKey: ["pwa-content-planner-plans", context?.isHq ? cityId : "scoped"],
-    queryFn: () => request(buildContentPlansUrl({ isHq: Boolean(context?.isHq), cityId, status: "published" })),
+    queryKey: ["pwa-content-planner-plans", context?.isHq ? cityId : "scoped", planStatus],
+    queryFn: () => request(buildContentPlansUrl({ isHq: Boolean(context?.isHq), cityId, status: planStatus })),
     enabled: Boolean(context?.canView) && (!context?.isHq || Boolean(cityId)),
     staleTime: 30_000,
   });
@@ -402,8 +404,12 @@ export function MobileContentPlannerPage() {
   if (!plans.length) {
     return (
       <PlannerMessage
-        title="No published plan"
-        message="There are no published curriculum plans in this scope yet."
+        title={canManage ? "No curriculum plans" : "No published plan"}
+        message={
+          canManage
+            ? "Create a curriculum plan for this scope to start preparing sessions."
+            : "There are no published curriculum plans in this scope yet."
+        }
       />
     );
   }
@@ -437,7 +443,7 @@ export function MobileContentPlannerPage() {
               {plans.find((item) => item.id === selectedPlanId)?.name ?? "Select plan"}
             </span>
             <span className="mt-1 block text-xs text-muted-foreground">
-              {plans.length} published plan{plans.length === 1 ? "" : "s"} available
+              {plans.length} plan{plans.length === 1 ? "" : "s"} available
             </span>
           </span>
           <ChevronDown
