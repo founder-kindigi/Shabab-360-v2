@@ -156,16 +156,17 @@ export function MobileAttendancePage({ onBack }: MobileAttendancePageProps) {
   }>({
     queryKey: ["mobile-attendance-sessions", selectedDate, effectiveParkId],
     queryFn: async () => {
+      if (!effectiveParkId) throw new Error("parkId required");
       const res = await fetch("/api/park/attendance/prepare", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ date: selectedDate, ...(effectiveParkId ? { parkId: effectiveParkId } : {}) }),
+        body: JSON.stringify({ date: selectedDate, parkId: effectiveParkId }),
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body.error || "Could not prepare attendance sessions");
       return body;
     },
-    enabled: Boolean(effectiveParkId) || sessionStatus === "authenticated",
+    enabled: sessionStatus === "authenticated" && Boolean(effectiveParkId),
     staleTime: 30 * 1000,
   });
 
@@ -808,6 +809,32 @@ export function MobileAttendancePage({ onBack }: MobileAttendancePageProps) {
                     <span>Go to Sign In</span>
                   </a>
                 </div>
+              </div>
+            ) : !effectiveParkId ? (
+              <div className="p-6 text-center bg-card rounded-3xl border border-border/80 space-y-3 shadow-sm" data-testid="park-selection-required">
+                <Building2 className="size-10 text-[#4B0A8F] mx-auto opacity-70" />
+                <h3 className="text-base font-extrabold text-foreground">Select a Park</h3>
+                <p className="text-xs text-muted-foreground max-w-xs mx-auto">
+                  Please select a park location to view scheduled classes and mark attendance.
+                </p>
+                {parksData && parksData.length > 0 ? (
+                  <div className="pt-2 flex flex-wrap justify-center gap-2 max-w-xs mx-auto">
+                    {parksData.map((park) => (
+                      <button
+                        key={park.id}
+                        type="button"
+                        onClick={() => setSelectedParkId(park.id)}
+                        className="px-4 py-2 rounded-2xl bg-[#4B0A8F] text-white font-bold text-xs shadow-sm hover:bg-[#4B0A8FE6] active:scale-95"
+                      >
+                        {park.name}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-amber-600 dark:text-amber-400 font-medium">
+                    No active parks found. Please contact an administrator to assign a park.
+                  </p>
+                )}
               </div>
             ) : events.length > 0 ? (
               <div className="space-y-2 p-3.5 rounded-3xl bg-card border border-border/80 shadow-sm">
