@@ -1,10 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { signIn } from "next-auth/react";
-import { Mail, Lock, Eye, EyeOff, ShieldCheck, ArrowRight, Loader2, AlertCircle } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Mail, Lock, Eye, EyeOff, ArrowRight, Loader2, AlertCircle } from "lucide-react";
 
 interface MobileLoginPageProps {
   onSuccess?: () => void;
@@ -12,50 +11,69 @@ interface MobileLoginPageProps {
   initialRolePrefill?: string;
 }
 
-export function MobileLoginPage({ onSuccess, onBackToSplash, initialRolePrefill }: MobileLoginPageProps) {
-  const [email, setEmail] = useState(() => {
-    if (initialRolePrefill === "murabbi") return "murabbi.lhr@shabab360.org";
-    if (initialRolePrefill === "park_lead") return "lead.statelife@shabab360.org";
-    if (initialRolePrefill === "guardian") return "guardian.ahmed@shabab360.org";
-    if (initialRolePrefill === "student") return "student.ali@shabab360.org";
-    return "";
-  });
-  const [password, setPassword] = useState("Password123!");
+export function MobileLoginPage({ onSuccess, onBackToSplash }: MobileLoginPageProps) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(true);
+  const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [activeRole, setActiveRole] = useState(initialRolePrefill || "");
 
-  const DEMO_ACCOUNTS = [
-    { role: "super_admin", label: "Super Admin", email: "admin@shabab360.org" },
-    { role: "murabbi", label: "Murabbi", email: "murabbi.lhr@shabab360.org" },
-    { role: "park_lead", label: "Park Lead", email: "lead.statelife@shabab360.org" },
-    { role: "guardian", label: "Guardian", email: "guardian.ahmed@shabab360.org" },
-    { role: "student", label: "Student", email: "student.ali@shabab360.org" },
-  ];
-
-  function handleRolePrefill(acc: { role: string; email: string }) {
-    setActiveRole(acc.role);
-    setEmail(acc.email);
-    setPassword("Password123!");
-    setError("");
-  }
+  // Restore remember-me email only if previously saved locally
+  useEffect(() => {
+    try {
+      const savedEmail = localStorage.getItem("shabab360-remember-email");
+      const savedRemember = localStorage.getItem("shabab360-remember-me");
+      if (savedRemember === "true" && savedEmail) {
+        setEmail(savedEmail);
+        setRememberMe(true);
+      }
+    } catch {
+      // Ignore localStorage read errors in restricted contexts
+    }
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
 
-    if (!email.trim() || !password.trim()) {
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail || !password) {
       setError("Please enter both email and password.");
       return;
     }
 
     setLoading(true);
-    setTimeout(() => {
+    try {
+      if (rememberMe) {
+        localStorage.setItem("shabab360-remember-email", trimmedEmail);
+        localStorage.setItem("shabab360-remember-me", "true");
+      } else {
+        localStorage.removeItem("shabab360-remember-email");
+        localStorage.removeItem("shabab360-remember-me");
+      }
+
+      const res = await signIn("credentials", {
+        email: trimmedEmail,
+        password,
+        redirect: false,
+      });
+
+      if (!res || res.error || !res.ok) {
+        setError("Invalid email or password.");
+        return;
+      }
+
+      if (onSuccess) {
+        onSuccess();
+      } else {
+        window.location.assign("/pwa");
+      }
+    } catch {
+      setError("Sign-in failed. Please try again.");
+    } finally {
       setLoading(false);
-      if (onSuccess) onSuccess();
-    }, 500);
+    }
   }
 
   return (
@@ -63,7 +81,7 @@ export function MobileLoginPage({ onSuccess, onBackToSplash, initialRolePrefill 
       {/* ─── Top Brand Background Header ──────────────────────────────────── */}
       <div className="relative w-full bg-gradient-to-br from-[#1F0860] via-[#4B0A8F] to-[#380668] text-white pt-10 pb-16 px-6 overflow-hidden rounded-b-[2.5rem] shadow-xl">
         <div className="absolute top-0 right-0 size-64 bg-white/5 rounded-full blur-2xl pointer-events-none" />
-        
+
         {/* Navigation / Back Button */}
         {onBackToSplash && (
           <button
@@ -75,41 +93,39 @@ export function MobileLoginPage({ onSuccess, onBackToSplash, initialRolePrefill 
         )}
 
         <div className="flex items-center gap-3 mb-2">
-          <div className="size-12 rounded-2xl bg-gradient-to-br from-[#D90429] via-[#4B0A8F] to-[#1F0860] p-1 border border-white/20 shadow-md flex items-center justify-center overflow-hidden shrink-0">
+          <div className="size-12 rounded-2xl bg-white/10 p-1.5 border border-white/20 shadow-md flex items-center justify-center overflow-hidden shrink-0 backdrop-blur-md">
             <img
               src="/shabab-logo.png"
-              alt="Shabab 360 Logo"
+              alt="Logo"
               className="size-full object-contain"
             />
           </div>
-          <div>
-            <h1 className="text-xl font-bold text-white tracking-tight">Shabab 360</h1>
-            <p className="text-xs text-purple-200 font-medium">Youth Operations & Attendance</p>
-          </div>
         </div>
 
-        <h2 className="text-2xl font-extrabold text-white mt-4">Welcome Back</h2>
-        <p className="text-xs text-purple-200">Sign in to access your assigned park or portal</p>
+        <h1 className="text-2xl font-black tracking-tight text-white mt-1">Welcome Back</h1>
+        <p className="text-xs text-purple-200 font-medium mt-1">
+          Sign in to access your assigned park or portal
+        </p>
       </div>
 
-      {/* ─── Login Form Container ────────────────────────────────────────── */}
+      {/* ─── Login Card Form ──────────────────────────────────────────────── */}
       <div className="-mt-8 px-5 z-10 w-full max-w-md mx-auto">
         <motion.div
-          initial={{ opacity: 0, y: 15 }}
+          initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4 }}
-          className="rounded-3xl bg-card border border-border/80 shadow-2xl p-6 space-y-5 backdrop-blur-xl"
+          className="bg-card rounded-3xl p-6 shadow-xl border border-border/80 space-y-5"
         >
-          {/* Error Alert */}
+          {/* Error Message Box */}
           <AnimatePresence>
             {error && (
               <motion.div
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: "auto" }}
                 exit={{ opacity: 0, height: 0 }}
-                className="flex items-center gap-2.5 p-3 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-xs font-medium dark:bg-red-950/40 dark:border-red-800"
+                className="flex items-center gap-2 p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs font-semibold"
+                role="alert"
               >
-                <AlertCircle className="size-4 shrink-0 text-red-500" />
+                <AlertCircle className="size-4 shrink-0" />
                 <span>{error}</span>
               </motion.div>
             )}
@@ -118,18 +134,20 @@ export function MobileLoginPage({ onSuccess, onBackToSplash, initialRolePrefill 
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Email Input */}
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-foreground/80 pl-1">
-                Email Address / Phone
+              <label htmlFor="email" className="text-xs font-bold text-foreground pl-1">
+                Email Address
               </label>
-              <div className="relative flex items-center">
-                <Mail className="absolute left-3.5 size-5 text-muted-foreground pointer-events-none" />
+              <div className="relative">
+                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
                 <input
+                  id="email"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="name@shabab360.org"
-                  className="w-full h-12 pl-11 pr-4 rounded-2xl bg-muted/50 border border-border text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#4B0A8F] focus:border-transparent transition-all"
+                  placeholder="name@shabab360.pk"
                   required
+                  autoComplete="email"
+                  className="w-full h-12 rounded-2xl bg-muted/40 border border-border pl-10 pr-4 text-xs font-medium text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-[#4B0A8F]/40 focus:border-[#4B0A8F]"
                 />
               </div>
             </div>
@@ -137,30 +155,27 @@ export function MobileLoginPage({ onSuccess, onBackToSplash, initialRolePrefill 
             {/* Password Input */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between pl-1">
-                <label className="text-xs font-semibold text-foreground/80">
+                <label htmlFor="password" className="text-xs font-bold text-foreground">
                   Password
                 </label>
-                <button
-                  type="button"
-                  className="text-xs font-semibold text-[#4B0A8F] dark:text-purple-400 hover:underline"
-                >
-                  Forgot?
-                </button>
               </div>
-              <div className="relative flex items-center">
-                <Lock className="absolute left-3.5 size-5 text-muted-foreground pointer-events-none" />
+              <div className="relative">
+                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
                 <input
+                  id="password"
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full h-12 pl-11 pr-11 rounded-2xl bg-muted/50 border border-border text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#4B0A8F] focus:border-transparent transition-all"
                   required
+                  autoComplete="current-password"
+                  className="w-full h-12 rounded-2xl bg-muted/40 border border-border pl-10 pr-10 text-xs font-medium text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-[#4B0A8F]/40 focus:border-[#4B0A8F]"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3.5 p-1 text-muted-foreground hover:text-foreground rounded-lg"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                 >
                   {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
                 </button>
@@ -200,31 +215,6 @@ export function MobileLoginPage({ onSuccess, onBackToSplash, initialRolePrefill 
               )}
             </button>
           </form>
-
-          {/* Quick Demo Account Selector */}
-          <div className="pt-3 border-t border-border/60">
-            <p className="text-[11px] font-bold text-muted-foreground text-center mb-2.5 uppercase tracking-wider">
-              Test Prefill Accounts
-            </p>
-            <div className="grid grid-cols-2 gap-2">
-              {DEMO_ACCOUNTS.map((acc) => (
-                <button
-                  key={acc.role}
-                  type="button"
-                  onClick={() => handleRolePrefill(acc)}
-                  className={cn(
-                    "flex items-center gap-2 p-2.5 rounded-xl border text-xs font-medium transition-all text-left",
-                    activeRole === acc.role
-                      ? "border-[#4B0A8F] bg-[#F3ECF6] text-[#4B0A8F] dark:bg-purple-950/40 dark:text-purple-300 font-bold"
-                      : "border-border/60 bg-muted/30 text-foreground hover:bg-muted/70"
-                  )}
-                >
-                  <ShieldCheck className={cn("size-3.5 shrink-0", activeRole === acc.role ? "text-[#4B0A8F]" : "text-muted-foreground")} />
-                  <span className="truncate">{acc.label}</span>
-                </button>
-              ))}
-            </div>
-          </div>
         </motion.div>
 
         {/* Footer */}

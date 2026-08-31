@@ -50,10 +50,10 @@ export function MobileSplashPage({ onContinue, onSelectRole }: MobileSplashPageP
           <div className="absolute -inset-3 rounded-3xl bg-gradient-to-r from-red-500/50 via-purple-500/50 to-indigo-500/50 blur-lg animate-pulse" />
           
           {/* Official Logo Container */}
-          <div className="relative size-28 rounded-3xl bg-gradient-to-br from-[#D90429] via-[#4B0A8F] to-[#1F0860] border-2 border-white/30 shadow-2xl p-2 flex items-center justify-center overflow-hidden">
+          <div className="relative size-28 rounded-3xl bg-white/10 border-2 border-white/20 shadow-2xl p-2 flex items-center justify-center overflow-hidden backdrop-blur-md">
             <img
               src="/shabab-logo.png"
-              alt="Shabab 360 Logo"
+              alt="Logo"
               className="size-full object-contain drop-shadow-md"
             />
           </div>
@@ -115,31 +115,6 @@ export function MobileSplashPage({ onContinue, onSelectRole }: MobileSplashPageP
           <span>Get Started / Sign In</span>
           <ArrowRight className="size-5 transition-transform group-hover:translate-x-1" />
         </button>
-
-        {/* Demo Role Quick Switcher */}
-        {onSelectRole && (
-          <div className="pt-2 border-t border-white/10">
-            <p className="text-[11px] font-semibold text-center text-purple-200/80 mb-2 uppercase tracking-wider">
-              Quick Demo Roles
-            </p>
-            <div className="flex items-center justify-center gap-1.5 overflow-x-auto no-scrollbar py-1">
-              {[
-                { role: "murabbi", label: "Murabbi" },
-                { role: "park_lead", label: "Park Lead" },
-                { role: "guardian", label: "Guardian" },
-                { role: "student", label: "Student" },
-              ].map((item) => (
-                <button
-                  key={item.role}
-                  onClick={() => onSelectRole(item.role)}
-                  className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 text-xs font-medium text-white transition-all whitespace-nowrap active:scale-95"
-                >
-                  {item.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
       </motion.div>
     </div>
   );

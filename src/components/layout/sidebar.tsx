@@ -331,25 +331,10 @@ function DesktopSidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
       className="hidden lg:flex flex-col h-screen border-r bg-card/50 backdrop-blur-sm flex-none overflow-hidden relative"
     >
       {/* Header / Brand */}
-      <div className="group/brand flex items-center gap-3 px-4 h-14 border-b shrink-0 transition-shadow duration-500 hover:shadow-[0_0_20px_rgba(75,10,143,0.15)]">
-        <div className="flex items-center justify-center size-8 rounded-lg bg-gradient-to-br from-[#2A0C8F] via-[#A0006B] to-[#FF0015] text-white font-bold text-sm shrink-0 shadow-sm transition-transform duration-300 group-hover/brand:scale-105">
-          S
+      <div className="group/brand flex items-center justify-start px-4 h-14 border-b shrink-0 transition-shadow duration-500 hover:shadow-[0_0_20px_rgba(75,10,143,0.15)]">
+        <div className="flex items-center justify-center size-9 rounded-xl overflow-hidden shrink-0 shadow-sm transition-transform duration-300 group-hover/brand:scale-105">
+          <img src="/shabab-logo.png" alt="Logo" className="size-full object-contain" />
         </div>
-        <AnimatePresence>
-          {!collapsed && (
-            <motion.div
-              initial={{ opacity: 0, width: 0 }}
-              animate={{ opacity: 1, width: "auto" }}
-              exit={{ opacity: 0, width: 0 }}
-              transition={{ duration: 0.15 }}
-              className="overflow-hidden"
-            >
-              <p className="text-sm font-bold whitespace-nowrap bg-gradient-to-r from-[#4B0A8F] to-[#A0006B] bg-clip-text text-transparent">
-                Shabab360
-              </p>
-            </motion.div>
-          )}
-        </AnimatePresence>
       </div>
 
       {/* Navigation */}
@@ -467,13 +452,10 @@ function MobileSidebar({
       <SheetContent side="left" className="w-72 p-0">
         {/* Header */}
         <div className="group/brand flex items-center justify-between px-4 h-14 border-b transition-shadow duration-500 hover:shadow-[0_0_20px_rgba(75,10,143,0.15)]">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center size-8 rounded-lg bg-gradient-to-br from-[#2A0C8F] via-[#A0006B] to-[#FF0015] text-white font-bold text-sm shadow-sm transition-transform duration-300 group-hover/brand:scale-105">
-              S
+          <div className="flex items-center">
+            <div className="flex items-center justify-center size-9 rounded-xl overflow-hidden shadow-sm transition-transform duration-300 group-hover/brand:scale-105">
+              <img src="/shabab-logo.png" alt="Logo" className="size-full object-contain" />
             </div>
-            <p className="text-sm font-bold bg-gradient-to-r from-[#4B0A8F] to-[#A0006B] bg-clip-text text-transparent">
-              Shabab360
-            </p>
           </div>
           <Button
             variant="ghost"

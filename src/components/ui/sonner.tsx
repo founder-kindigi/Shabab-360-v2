@@ -4,7 +4,13 @@ import { useTheme } from "@/components/providers/theme-provider"
 import { Toaster as Sonner, ToasterProps } from "sonner"
 
 const Toaster = ({ ...props }: ToasterProps) => {
-  const { theme = "system" } = useTheme()
+  let theme: string = "system";
+  try {
+    const themeContext = useTheme();
+    theme = themeContext?.theme || "system";
+  } catch {
+    theme = "system";
+  }
 
   return (
     <Sonner

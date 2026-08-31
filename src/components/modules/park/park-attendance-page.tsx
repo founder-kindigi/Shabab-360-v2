@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format, parseISO } from "date-fns";
-import { AlertTriangle, BarChart3, CalendarDays, CheckCircle2, LayoutGrid, List, Lock, Play, Users } from "lucide-react";
+import { AlertTriangle, BarChart3, CalendarDays, CheckCircle2, LayoutGrid, Layers, List, Lock, Play, Users } from "lucide-react";
 import { useAppStore } from "@/stores/useAppStore";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -181,6 +181,8 @@ export function ParkAttendancePage() {
     onError: (mutationError) => toast.error(mutationError.message),
   });
 
+  const [selectedGroupFilter, setSelectedGroupFilter] = useState<string>("all");
+
   const events = data?.events ?? [];
   const summary = useMemo(() => {
     const total = events.reduce((sum, event) => sum + event.participantCount, 0);
@@ -188,6 +190,11 @@ export function ParkAttendancePage() {
     const open = events.filter((event) => !event.isClosed).length;
     return { total, marked, open, progress: total ? Math.round((marked / total) * 100) : 0 };
   }, [events]);
+
+  const displayedEvents = useMemo(() => {
+    if (selectedGroupFilter === "all") return events;
+    return events.filter((e) => e.groupId === selectedGroupFilter || e.id === selectedGroupFilter);
+  }, [events, selectedGroupFilter]);
 
   const startStudentAttendance = (eventId: string) => {
     setSelectedEventId(eventId);
@@ -283,11 +290,77 @@ export function ParkAttendancePage() {
           </div>
         </div>
 
-        {!isLoading && !error && (
-          <div className="mt-4 grid grid-cols-3 gap-2 border-t pt-3 sm:max-w-md">
-            <div><p className="text-[11px] text-muted-foreground">Groups</p><p className="font-semibold">{events.length}</p></div>
-            <div><p className="text-[11px] text-muted-foreground">Open</p><p className="font-semibold">{summary.open}</p></div>
-            <div><p className="text-[11px] text-muted-foreground">Marked</p><p className="font-semibold">{summary.marked}/{summary.total}</p></div>
+        {!isLoading && !error && events.length > 0 && (
+          <div className="mt-4 flex flex-col gap-3 border-t pt-3">
+            <div className="grid grid-cols-3 gap-2 sm:max-w-md">
+              <div><p className="text-[11px] text-muted-foreground">Groups</p><p className="font-semibold">{events.length}</p></div>
+              <div><p className="text-[11px] text-muted-foreground">Open</p><p className="font-semibold">{summary.open}</p></div>
+              <div><p className="text-[11px] text-muted-foreground">Marked</p><p className="font-semibold">{summary.marked}/{summary.total}</p></div>
+            </div>
+
+            {/* Group Selection Filter Bar */}
+            <div className="flex flex-col gap-1.5 pt-1">
+              <div className="flex items-center justify-between text-xs font-bold text-muted-foreground">
+                <span className="flex items-center gap-1.5 text-foreground">
+                  <Layers className="size-3.5 text-[#4B0A8F]" />
+                  Group Selection ({events.length})
+                </span>
+                {selectedGroupFilter !== "all" && (
+                  <button
+                    type="button"
+                    onClick={() => setSelectedGroupFilter("all")}
+                    className="text-[11px] font-bold text-[#4B0A8F] hover:underline"
+                  >
+                    Show all groups
+                  </button>
+                )}
+              </div>
+              <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar" aria-label="Select group filter">
+                <Button
+                  variant={selectedGroupFilter === "all" ? "default" : "outline"}
+                  size="sm"
+                  type="button"
+                  className={cn(
+                    "h-9 rounded-xl font-bold text-xs shrink-0 transition-all",
+                    selectedGroupFilter === "all"
+                      ? "bg-[#4B0A8F] text-white hover:bg-[#4B0A8FE6] shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                  onClick={() => setSelectedGroupFilter("all")}
+                >
+                  All Groups ({events.length})
+                </Button>
+                {events.map((ev) => {
+                  const isSelected = selectedGroupFilter === ev.groupId || selectedGroupFilter === ev.id;
+                  return (
+                    <Button
+                      key={ev.id}
+                      variant={isSelected ? "default" : "outline"}
+                      size="sm"
+                      type="button"
+                      className={cn(
+                        "h-9 rounded-xl font-bold text-xs shrink-0 transition-all flex items-center gap-1.5 border",
+                        isSelected
+                          ? "bg-[#4B0A8F] text-white hover:bg-[#4B0A8FE6] shadow-sm ring-2 ring-purple-400/40 font-extrabold"
+                          : "text-muted-foreground hover:text-foreground"
+                      )}
+                      onClick={() => setSelectedGroupFilter(isSelected ? "all" : ev.groupId)}
+                    >
+                      <span>{ev.groupName}</span>
+                      <span
+                        className={cn(
+                          "px-1.5 py-0.5 rounded-md text-[10px] font-black",
+                          isSelected ? "bg-white/20 text-white" : "bg-muted text-muted-foreground"
+                        )}
+                      >
+                        {ev.markedCount}/{ev.participantCount}
+                      </span>
+                      {ev.isClosed && <Lock className="size-3 text-amber-300 shrink-0" />}
+                    </Button>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         )}
       </section>
@@ -326,9 +399,11 @@ export function ParkAttendancePage() {
         <Card className="border-destructive/30"><CardContent className="space-y-3 p-5"><p className="font-medium">Could not load attendance</p><p className="text-sm text-muted-foreground">{error.message}</p><Button onClick={() => refetch()} variant="outline">Try again</Button></CardContent></Card>
       ) : events.length === 0 ? (
         <Card><CardContent className="p-8 text-center"><p className="font-semibold">{data?.preparation.isOffDate ? "Operational day off" : "No classes scheduled for this date"}</p><p className="mt-1 text-sm text-muted-foreground">{data?.preparation.isOffDate ? data.preparation.reason : "Choose a configured class day within the active batch dates."}</p></CardContent></Card>
+      ) : displayedEvents.length === 0 ? (
+        <Card><CardContent className="p-8 text-center"><p className="font-semibold">No group matches the selected filter</p><p className="mt-1 text-sm text-muted-foreground">Select 'All Groups' to view all available groups.</p><Button onClick={() => setSelectedGroupFilter("all")} variant="outline" className="mt-3">Show all groups</Button></CardContent></Card>
       ) : view === "cards" ? (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {events.map((event) => <AttendanceSessionCard event={event} key={event.id} onStart={() => startStudentAttendance(event.id)} />)}
+          {displayedEvents.map((event) => <AttendanceSessionCard event={event} key={event.id} onStart={() => startStudentAttendance(event.id)} />)}
         </div>
       ) : (
         <section className="rounded-2xl border bg-card shadow-sm">
@@ -336,7 +411,7 @@ export function ParkAttendancePage() {
             <span>Group</span><span>Progress</span><span>Status</span><span>Action</span>
           </div>
           <div className="divide-y">
-            {events.map((event) => (
+            {displayedEvents.map((event) => (
               <div className="grid gap-3 px-4 py-4 md:grid-cols-[minmax(0,1fr)_180px_auto_auto] md:items-center" key={event.id}>
                 <div><p className="font-semibold">{event.groupName}</p><p className="text-xs text-muted-foreground">{event.markedCount} of {event.participantCount} students marked</p></div>
                 <div className="space-y-1"><Progress value={event.progress} className="h-2" /><p className="text-right text-xs text-muted-foreground">{event.progress}%</p></div>

@@ -61,6 +61,7 @@ import {
   Phone,
   Send,
   Pencil,
+  Layers,
 } from "lucide-react";
 import { AttendanceEditDialog } from "@/components/shared/attendance-edit-dialog";
 import { cn } from "@/lib/utils";
@@ -227,7 +228,7 @@ const QUICK_STATUSES: { status: AttendanceStatus; icon: typeof CheckCircle2; lab
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export function AttendanceRoster() {
-  const { selectedEventId, navigateTo } = useAppStore();
+  const { selectedEventId, setSelectedEventId, navigateTo } = useAppStore();
   const { markAttendance, pendingCount } = useAttendanceSync();
   const isOnline = useOnlineStatus();
   const queryClient = useQueryClient();
@@ -312,6 +313,27 @@ export function AttendanceRoster() {
     }
     return map;
   }, [warningsData]);
+
+  const eventDateStr = data?.event?.eventDate ? data.event.eventDate.slice(0, 10) : "";
+
+  const { data: siblingEventsData } = useQuery<{
+    events: { id: string; groupId: string; groupName: string; participantCount: number; markedCount: number; isClosed: boolean }[];
+  }>({
+    queryKey: ["attendance-sibling-events", eventDateStr],
+    queryFn: async () => {
+      const res = await fetch("/api/park/attendance/prepare", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ date: eventDateStr }),
+      });
+      if (!res.ok) return { events: [] };
+      return res.json();
+    },
+    enabled: Boolean(eventDateStr),
+    staleTime: 30000,
+  });
+
+  const siblingEvents = siblingEventsData?.events ?? [];
 
   // ─── Mutations ───────────────────────────────────────────────────────────
 
@@ -817,6 +839,45 @@ export function AttendanceRoster() {
           </Button>
         )}
       </div>
+
+      {/* Sibling Group Switcher Bar */}
+      {siblingEvents.length > 1 && (
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar no-print" aria-label="Switch group">
+          <span className="text-xs font-bold text-muted-foreground mr-1 shrink-0 flex items-center gap-1">
+            <Layers className="size-3.5 text-[#4B0A8F]" />
+            Switch Group:
+          </span>
+          {siblingEvents.map((ev) => {
+            const isCurrent = ev.id === selectedEventId;
+            return (
+              <Button
+                key={ev.id}
+                variant={isCurrent ? "default" : "outline"}
+                size="sm"
+                type="button"
+                className={cn(
+                  "h-8 rounded-xl font-bold text-xs shrink-0 transition-all flex items-center gap-1.5 border",
+                  isCurrent
+                    ? "bg-[#4B0A8F] text-white hover:bg-[#4B0A8FE6] shadow-sm ring-2 ring-purple-400/40 font-extrabold"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+                onClick={() => setSelectedEventId(ev.id)}
+              >
+                <span>{ev.groupName}</span>
+                <span
+                  className={cn(
+                    "px-1.5 py-0.5 rounded-md text-[10px] font-black",
+                    isCurrent ? "bg-white/20 text-white" : "bg-muted text-muted-foreground"
+                  )}
+                >
+                  {ev.markedCount}/{ev.participantCount}
+                </span>
+                {ev.isClosed && <Lock className="size-3 text-amber-300 shrink-0" />}
+              </Button>
+            );
+          })}
+        </div>
+      )}
 
       {/* Offline indicator */}
       {!isOnline && (

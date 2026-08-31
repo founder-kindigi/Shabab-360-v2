@@ -48,10 +48,10 @@ type ScreenId =
 // ─── Bottom nav tabs per role group ───────────────────────────────────────────
 const ADMIN_TABS = [
   { id: "home" as ScreenId,       label: "Home",       icon: Home },
+  { id: "attendance" as ScreenId, label: "Attend",     icon: CheckSquare },
   { id: "admissions" as ScreenId, label: "Admits",     icon: User },
   { id: "fees" as ScreenId,       label: "Fees",       icon: DollarSign },
   { id: "calling" as ScreenId,    label: "Calls",      icon: PhoneCall },
-  { id: "events" as ScreenId,     label: "Events",     icon: CalendarCheck },
 ];
 
 const PARK_TABS = [
@@ -98,6 +98,7 @@ function getHomeDashboard(role: string): ScreenId {
 
 const CITY_HEAD_TABS = [
   { id: "home" as ScreenId,       label: "Home",       icon: Home },
+  { id: "attendance" as ScreenId, label: "Attend",     icon: CheckSquare },
   { id: "admissions" as ScreenId, label: "Admits",     icon: User },
   { id: "calling" as ScreenId,    label: "Calls",      icon: PhoneCall },
   { id: "events" as ScreenId,     label: "Events",     icon: CalendarCheck },
@@ -117,15 +118,13 @@ function getTabsForRole(role: string) {
   }
 }
 
-// ─── Loading screen ────────────────────────────────────────────────────────────
 function PwaLoadingScreen() {
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-[#1F0860] via-[#4B0A8F] to-[#D90429] flex flex-col items-center justify-center gap-5">
       <div className="size-20 rounded-3xl bg-white/10 border border-white/20 p-2 shadow-2xl backdrop-blur-xl flex items-center justify-center">
-        <img src="/shabab-logo.png" alt="Shabab 360" className="size-full object-contain" />
+        <img src="/shabab-logo.png" alt="Logo" className="size-full object-contain" />
       </div>
       <Loader2 className="size-7 text-white/70 animate-spin" />
-      <p className="text-xs text-purple-200 font-medium tracking-wide">Shabab 360</p>
     </div>
   );
 }
@@ -183,7 +182,6 @@ export function PwaApp() {
       return (
         <MobileSplashPage
           onContinue={() => setScreen("login")}
-          onSelectRole={(r) => { setRolePrefill(r); setScreen("login"); }}
         />
       );
     }
@@ -191,7 +189,6 @@ export function PwaApp() {
     if (screen === "login") {
       return (
         <MobileLoginPage
-          initialRolePrefill={rolePrefill}
           onBackToSplash={() => setScreen("splash")}
           onSuccess={() => setScreen("home")}
         />
