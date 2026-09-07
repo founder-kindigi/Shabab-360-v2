@@ -22,6 +22,7 @@ import {
   CalendarCheck,
   CreditCard,
   Trophy,
+  Award,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -266,6 +267,13 @@ export function MobileMorePage({ onNavigate }: MobileMorePageProps) {
               title="Gamification & Badges"
               subtitle="Leaderboard, points, streaks & awards"
               onClick={() => onNavigate("gamification")}
+            />
+            <SettingRow
+              icon={<Award className="w-4 h-4 text-purple-600" />}
+              iconBg="bg-purple-50"
+              title="Certificates & Graduation"
+              subtitle="Diplomas, cryptographic verification & shares"
+              onClick={() => onNavigate("certificates")}
               isLast={true}
             />
           </div>
