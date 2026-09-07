@@ -23,7 +23,8 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  if (user.role !== "student") {
+  const isHq = user.role === "super_admin" || user.role === "program_admin";
+  if (user.role !== "student" && !isHq) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   const capabilityAuth = await requireCapability("dashboard.view");
@@ -31,7 +32,7 @@ export async function GET() {
 
   try {
     // Find participant linked to this user
-    const participant = await db.participant.findFirst({
+    let participant = await db.participant.findFirst({
       where: { userId: user.id },
       include: {
         group: {
@@ -47,6 +48,25 @@ export async function GET() {
         },
       },
     });
+
+    if (!participant && isHq) {
+      participant = await db.participant.findFirst({
+        where: { state: "active" },
+        include: {
+          group: {
+            include: {
+              batch: {
+                include: {
+                  park: {
+                    include: { city: true },
+                  },
+                },
+              },
+            },
+          },
+        },
+      });
+    }
 
     if (!participant) {
       return NextResponse.json({ participant: null });

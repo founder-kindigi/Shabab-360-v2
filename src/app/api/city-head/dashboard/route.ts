@@ -24,17 +24,22 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  if (user.role !== "city_head") {
+  const isHq = user.role === "super_admin" || user.role === "program_admin";
+  if (user.role !== "city_head" && !isHq) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   const capabilityAuth = await requireCapability("dashboard.view");
   if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
-  if (!user.assignedCityId) {
-    return NextResponse.json({ error: "No city assigned" }, { status: 403 });
+  let cityId = user.assignedCityId;
+  if (!cityId && isHq) {
+    const firstCity = await db.city.findFirst({ where: { isActive: true }, orderBy: { name: "asc" } });
+    cityId = firstCity?.id || null;
   }
 
-  const cityId = user.assignedCityId;
+  if (!cityId) {
+    return NextResponse.json({ error: "No city assigned" }, { status: 403 });
+  }
 
   try {
     // Fire audit log (fire-and-forget)

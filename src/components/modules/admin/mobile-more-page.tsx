@@ -56,15 +56,16 @@ import { useTheme } from "@/components/providers/theme-provider";
 
 interface MobileMorePageProps {
   onNavigate: (screen: string) => void;
+  role?: string;
 }
 
-export function MobileMorePage({ onNavigate }: MobileMorePageProps) {
+export function MobileMorePage({ onNavigate, role: propRole }: MobileMorePageProps) {
   const { data: session } = useSession();
   const { theme, setTheme, resolvedTheme } = useTheme();
   const queryClient = useQueryClient();
   const user = session?.user as any;
   const email = user?.email || "admin@shabab.pk";
-  const role = user?.role || "super_admin";
+  const role = propRole || user?.role || "super_admin";
 
   // Sheet open states
   const [isPermissionsOpen, setIsPermissionsOpen] = useState(false);
@@ -104,10 +105,20 @@ export function MobileMorePage({ onNavigate }: MobileMorePageProps) {
   const displayRole =
     role === "super_admin"
       ? "Main admin"
+      : role === "program_admin"
+      ? "Program Admin"
+      : role === "city_head"
+      ? "City Head"
       : role === "park_lead"
       ? "Park Lead"
+      : role === "park_admin"
+      ? "Park Admin"
       : role === "murabbi"
       ? "Murabbi"
+      : role === "student"
+      ? "Student"
+      : role === "guardian"
+      ? "Guardian"
       : "Admin";
 
   const handleReload = () => {
@@ -281,6 +292,338 @@ export function MobileMorePage({ onNavigate }: MobileMorePageProps) {
               <span>Theme Preference</span>
               <span className="font-bold capitalize text-slate-700 dark:text-purple-200">{theme} {theme === "system" && `(${resolvedTheme})`}</span>
             </p>
+          </div>
+        </div>
+
+        {/* Role Primary Desks Quick Launcher */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between px-2">
+            <h2 className="text-[11px] font-extrabold text-purple-700 dark:text-purple-300 uppercase tracking-wider flex items-center gap-1.5">
+              <Award className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
+              {displayRole} Primary Desks
+            </h2>
+            <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full">
+              Full Test Access
+            </span>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            {role === "city_head" && (
+              <>
+                <button
+                  onClick={() => onNavigate("mashwara")}
+                  className="p-3 rounded-2xl bg-white dark:bg-[#180E30] border border-purple-200 dark:border-purple-900/50 shadow-sm flex items-center gap-2.5 text-left active:scale-[0.98] transition-all"
+                >
+                  <div className="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 flex items-center justify-center shrink-0">
+                    <CalendarCheck className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-slate-900 dark:text-white truncate">Mashwara</p>
+                    <p className="text-[10px] text-slate-400 truncate">Weekly executive</p>
+                  </div>
+                </button>
+                <button
+                  onClick={() => onNavigate("calling")}
+                  className="p-3 rounded-2xl bg-white dark:bg-[#180E30] border border-purple-200 dark:border-purple-900/50 shadow-sm flex items-center gap-2.5 text-left active:scale-[0.98] transition-all"
+                >
+                  <div className="w-8 h-8 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 flex items-center justify-center shrink-0">
+                    <PhoneCall className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-slate-900 dark:text-white truncate">Calling Desk</p>
+                    <p className="text-[10px] text-slate-400 truncate">Outreach pipeline</p>
+                  </div>
+                </button>
+                <button
+                  onClick={() => onNavigate("admissions")}
+                  className="p-3 rounded-2xl bg-white dark:bg-[#180E30] border border-purple-200 dark:border-purple-900/50 shadow-sm flex items-center gap-2.5 text-left active:scale-[0.98] transition-all"
+                >
+                  <div className="w-8 h-8 rounded-xl bg-purple-50 dark:bg-purple-950/40 text-purple-600 flex items-center justify-center shrink-0">
+                    <UserPlus className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-slate-900 dark:text-white truncate">Admissions</p>
+                    <p className="text-[10px] text-slate-400 truncate">Intake & cohorts</p>
+                  </div>
+                </button>
+                <button
+                  onClick={() => onNavigate("custom-reports")}
+                  className="p-3 rounded-2xl bg-white dark:bg-[#180E30] border border-purple-200 dark:border-purple-900/50 shadow-sm flex items-center gap-2.5 text-left active:scale-[0.98] transition-all"
+                >
+                  <div className="w-8 h-8 rounded-xl bg-teal-50 dark:bg-teal-950/40 text-teal-600 flex items-center justify-center shrink-0">
+                    <BarChart2 className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-slate-900 dark:text-white truncate">Reports</p>
+                    <p className="text-[10px] text-slate-400 truncate">City performance</p>
+                  </div>
+                </button>
+              </>
+            )}
+
+            {(role === "park_lead" || role === "park_admin") && (
+              <>
+                <button
+                  onClick={() => onNavigate("events")}
+                  className="p-3 rounded-2xl bg-white dark:bg-[#180E30] border border-purple-200 dark:border-purple-900/50 shadow-sm flex items-center gap-2.5 text-left active:scale-[0.98] transition-all"
+                >
+                  <div className="w-8 h-8 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-600 flex items-center justify-center shrink-0">
+                    <Calendar className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-slate-900 dark:text-white truncate">Events & Camps</p>
+                    <p className="text-[10px] text-slate-400 truncate">Park schedules</p>
+                  </div>
+                </button>
+                <button
+                  onClick={() => onNavigate("procurement")}
+                  className="p-3 rounded-2xl bg-white dark:bg-[#180E30] border border-purple-200 dark:border-purple-900/50 shadow-sm flex items-center gap-2.5 text-left active:scale-[0.98] transition-all"
+                >
+                  <div className="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 flex items-center justify-center shrink-0">
+                    <Package className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-slate-900 dark:text-white truncate">Supplies</p>
+                    <p className="text-[10px] text-slate-400 truncate">Park inventory</p>
+                  </div>
+                </button>
+                <button
+                  onClick={() => onNavigate("teams")}
+                  className="p-3 rounded-2xl bg-white dark:bg-[#180E30] border border-purple-200 dark:border-purple-900/50 shadow-sm flex items-center gap-2.5 text-left active:scale-[0.98] transition-all"
+                >
+                  <div className="w-8 h-8 rounded-xl bg-teal-50 dark:bg-teal-950/40 text-teal-600 flex items-center justify-center shrink-0">
+                    <Users className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-slate-900 dark:text-white truncate">Teams</p>
+                    <p className="text-[10px] text-slate-400 truncate">Sports & Media</p>
+                  </div>
+                </button>
+                <button
+                  onClick={() => onNavigate("calling")}
+                  className="p-3 rounded-2xl bg-white dark:bg-[#180E30] border border-purple-200 dark:border-purple-900/50 shadow-sm flex items-center gap-2.5 text-left active:scale-[0.98] transition-all"
+                >
+                  <div className="w-8 h-8 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 flex items-center justify-center shrink-0">
+                    <PhoneCall className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-slate-900 dark:text-white truncate">Calling</p>
+                    <p className="text-[10px] text-slate-400 truncate">Cadet retention</p>
+                  </div>
+                </button>
+              </>
+            )}
+
+            {role === "murabbi" && (
+              <>
+                <button
+                  onClick={() => onNavigate("islah")}
+                  className="p-3 rounded-2xl bg-white dark:bg-[#180E30] border border-purple-200 dark:border-purple-900/50 shadow-sm flex items-center gap-2.5 text-left active:scale-[0.98] transition-all"
+                >
+                  <div className="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 flex items-center justify-center shrink-0">
+                    <Heart className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-slate-900 dark:text-white truncate">Mamulat Log</p>
+                    <p className="text-[10px] text-slate-400 truncate">Fajr & Quran streaks</p>
+                  </div>
+                </button>
+                <button
+                  onClick={() => onNavigate("calling")}
+                  className="p-3 rounded-2xl bg-white dark:bg-[#180E30] border border-purple-200 dark:border-purple-900/50 shadow-sm flex items-center gap-2.5 text-left active:scale-[0.98] transition-all"
+                >
+                  <div className="w-8 h-8 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 flex items-center justify-center shrink-0">
+                    <PhoneCall className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-slate-900 dark:text-white truncate">Cadet Calling</p>
+                    <p className="text-[10px] text-slate-400 truncate">Check-in calls</p>
+                  </div>
+                </button>
+                <button
+                  onClick={() => onNavigate("content-planner")}
+                  className="p-3 rounded-2xl bg-white dark:bg-[#180E30] border border-purple-200 dark:border-purple-900/50 shadow-sm flex items-center gap-2.5 text-left active:scale-[0.98] transition-all"
+                >
+                  <div className="w-8 h-8 rounded-xl bg-sky-50 dark:bg-sky-950/40 text-sky-600 flex items-center justify-center shrink-0">
+                    <BookOpen className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-slate-900 dark:text-white truncate">Tarbiyah LMS</p>
+                    <p className="text-[10px] text-slate-400 truncate">Lesson curriculum</p>
+                  </div>
+                </button>
+                <button
+                  onClick={() => onNavigate("mashwara")}
+                  className="p-3 rounded-2xl bg-white dark:bg-[#180E30] border border-purple-200 dark:border-purple-900/50 shadow-sm flex items-center gap-2.5 text-left active:scale-[0.98] transition-all"
+                >
+                  <div className="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 flex items-center justify-center shrink-0">
+                    <CalendarCheck className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-slate-900 dark:text-white truncate">Mashwara</p>
+                    <p className="text-[10px] text-slate-400 truncate">Weekly shura</p>
+                  </div>
+                </button>
+              </>
+            )}
+
+            {role === "student" && (
+              <>
+                <button
+                  onClick={() => onNavigate("islah")}
+                  className="p-3 rounded-2xl bg-white dark:bg-[#180E30] border border-purple-200 dark:border-purple-900/50 shadow-sm flex items-center gap-2.5 text-left active:scale-[0.98] transition-all"
+                >
+                  <div className="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 flex items-center justify-center shrink-0">
+                    <Heart className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-slate-900 dark:text-white truncate">Daily Mamulat</p>
+                    <p className="text-[10px] text-slate-400 truncate">Checklist & habits</p>
+                  </div>
+                </button>
+                <button
+                  onClick={() => onNavigate("gamification")}
+                  className="p-3 rounded-2xl bg-white dark:bg-[#180E30] border border-purple-200 dark:border-purple-900/50 shadow-sm flex items-center gap-2.5 text-left active:scale-[0.98] transition-all"
+                >
+                  <div className="w-8 h-8 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 flex items-center justify-center shrink-0">
+                    <Trophy className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-slate-900 dark:text-white truncate">Badges & Points</p>
+                    <p className="text-[10px] text-slate-400 truncate">Cadet ranks</p>
+                  </div>
+                </button>
+                <button
+                  onClick={() => onNavigate("certificates")}
+                  className="p-3 rounded-2xl bg-white dark:bg-[#180E30] border border-purple-200 dark:border-purple-900/50 shadow-sm flex items-center gap-2.5 text-left active:scale-[0.98] transition-all"
+                >
+                  <div className="w-8 h-8 rounded-xl bg-purple-50 dark:bg-purple-950/40 text-purple-600 flex items-center justify-center shrink-0">
+                    <Award className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-slate-900 dark:text-white truncate">Certificates</p>
+                    <p className="text-[10px] text-slate-400 truncate">Graduation credentials</p>
+                  </div>
+                </button>
+                <button
+                  onClick={() => onNavigate("content-planner")}
+                  className="p-3 rounded-2xl bg-white dark:bg-[#180E30] border border-purple-200 dark:border-purple-900/50 shadow-sm flex items-center gap-2.5 text-left active:scale-[0.98] transition-all"
+                >
+                  <div className="w-8 h-8 rounded-xl bg-sky-50 dark:bg-sky-950/40 text-sky-600 flex items-center justify-center shrink-0">
+                    <BookOpen className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-slate-900 dark:text-white truncate">Sunday Routine</p>
+                    <p className="text-[10px] text-slate-400 truncate">Lesson planner</p>
+                  </div>
+                </button>
+              </>
+            )}
+
+            {role === "guardian" && (
+              <>
+                <button
+                  onClick={() => onNavigate("fees")}
+                  className="p-3 rounded-2xl bg-white dark:bg-[#180E30] border border-purple-200 dark:border-purple-900/50 shadow-sm flex items-center gap-2.5 text-left active:scale-[0.98] transition-all"
+                >
+                  <div className="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 flex items-center justify-center shrink-0">
+                    <CreditCard className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-slate-900 dark:text-white truncate">Fee Receipts</p>
+                    <p className="text-[10px] text-slate-400 truncate">Ledger & vouchers</p>
+                  </div>
+                </button>
+                <button
+                  onClick={() => onNavigate("community")}
+                  className="p-3 rounded-2xl bg-white dark:bg-[#180E30] border border-purple-200 dark:border-purple-900/50 shadow-sm flex items-center gap-2.5 text-left active:scale-[0.98] transition-all"
+                >
+                  <div className="w-8 h-8 rounded-xl bg-sky-50 dark:bg-sky-950/40 text-sky-600 flex items-center justify-center shrink-0">
+                    <MessageSquare className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-slate-900 dark:text-white truncate">Community</p>
+                    <p className="text-[10px] text-slate-400 truncate">Announcements</p>
+                  </div>
+                </button>
+                <button
+                  onClick={() => onNavigate("knowledge-base")}
+                  className="p-3 rounded-2xl bg-white dark:bg-[#180E30] border border-purple-200 dark:border-purple-900/50 shadow-sm flex items-center gap-2.5 text-left active:scale-[0.98] transition-all"
+                >
+                  <div className="w-8 h-8 rounded-xl bg-purple-50 dark:bg-purple-950/40 text-purple-600 flex items-center justify-center shrink-0">
+                    <HelpCircle className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-slate-900 dark:text-white truncate">SOPs & Safety</p>
+                    <p className="text-[10px] text-slate-400 truncate">Program rules</p>
+                  </div>
+                </button>
+                <button
+                  onClick={() => onNavigate("events")}
+                  className="p-3 rounded-2xl bg-white dark:bg-[#180E30] border border-purple-200 dark:border-purple-900/50 shadow-sm flex items-center gap-2.5 text-left active:scale-[0.98] transition-all"
+                >
+                  <div className="w-8 h-8 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-600 flex items-center justify-center shrink-0">
+                    <Calendar className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-slate-900 dark:text-white truncate">Events Calendar</p>
+                    <p className="text-[10px] text-slate-400 truncate">Camps & sports days</p>
+                  </div>
+                </button>
+              </>
+            )}
+
+            {(role === "super_admin" || role === "program_admin" || !["city_head", "park_lead", "park_admin", "murabbi", "student", "guardian"].includes(role)) && (
+              <>
+                <button
+                  onClick={() => onNavigate("admissions")}
+                  className="p-3 rounded-2xl bg-white dark:bg-[#180E30] border border-purple-200 dark:border-purple-900/50 shadow-sm flex items-center gap-2.5 text-left active:scale-[0.98] transition-all"
+                >
+                  <div className="w-8 h-8 rounded-xl bg-purple-50 dark:bg-purple-950/40 text-purple-600 flex items-center justify-center shrink-0">
+                    <UserPlus className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-slate-900 dark:text-white truncate">Admissions</p>
+                    <p className="text-[10px] text-slate-400 truncate">Intake & cohorts</p>
+                  </div>
+                </button>
+                <button
+                  onClick={() => onNavigate("calling")}
+                  className="p-3 rounded-2xl bg-white dark:bg-[#180E30] border border-purple-200 dark:border-purple-900/50 shadow-sm flex items-center gap-2.5 text-left active:scale-[0.98] transition-all"
+                >
+                  <div className="w-8 h-8 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 flex items-center justify-center shrink-0">
+                    <PhoneCall className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-slate-900 dark:text-white truncate">Calling</p>
+                    <p className="text-[10px] text-slate-400 truncate">Retention desk</p>
+                  </div>
+                </button>
+                <button
+                  onClick={() => onNavigate("mashwara")}
+                  className="p-3 rounded-2xl bg-white dark:bg-[#180E30] border border-purple-200 dark:border-purple-900/50 shadow-sm flex items-center gap-2.5 text-left active:scale-[0.98] transition-all"
+                >
+                  <div className="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 flex items-center justify-center shrink-0">
+                    <CalendarCheck className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-slate-900 dark:text-white truncate">Mashwara</p>
+                    <p className="text-[10px] text-slate-400 truncate">Executive shura</p>
+                  </div>
+                </button>
+                <button
+                  onClick={() => onNavigate("security-access")}
+                  className="p-3 rounded-2xl bg-white dark:bg-[#180E30] border border-purple-200 dark:border-purple-900/50 shadow-sm flex items-center gap-2.5 text-left active:scale-[0.98] transition-all"
+                >
+                  <div className="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 flex items-center justify-center shrink-0">
+                    <ShieldCheck className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-slate-900 dark:text-white truncate">Security Access</p>
+                    <p className="text-[10px] text-slate-400 truncate">Roles & tokens</p>
+                  </div>
+                </button>
+              </>
+            )}
           </div>
         </div>
 

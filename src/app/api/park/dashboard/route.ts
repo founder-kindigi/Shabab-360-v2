@@ -22,7 +22,7 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const allowedRoles = ["park_admin", "park_lead", "murabbi"];
+  const allowedRoles = ["park_admin", "park_lead", "murabbi", "super_admin", "program_admin", "city_head"];
   if (!user.role || !allowedRoles.includes(user.role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
@@ -56,6 +56,18 @@ export async function GET() {
         select: { id: true },
       });
       groupIds = groups.map((g) => g.id);
+    } else if (!parkId && (user.role === "super_admin" || user.role === "program_admin" || user.role === "city_head")) {
+      const firstPark = await db.park.findFirst({
+        where: user.assignedCityId ? { cityId: user.assignedCityId, isActive: true } : { isActive: true },
+        include: { city: true },
+      });
+      if (firstPark) {
+        parkId = firstPark.id;
+        const batches = await db.batch.findMany({ where: { parkId, isActive: true }, select: { id: true } });
+        const batchIds = batches.map((b) => b.id);
+        const groups = await db.group.findMany({ where: { batchId: { in: batchIds }, isActive: true }, select: { id: true } });
+        groupIds = groups.map((g) => g.id);
+      }
     }
 
     if (!parkId) {

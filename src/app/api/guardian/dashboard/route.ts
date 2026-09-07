@@ -61,7 +61,8 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  if (user.role !== "guardian") {
+  const isHq = user.role === "super_admin" || user.role === "program_admin";
+  if (user.role !== "guardian" && !isHq) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   const capabilityAuth = await requireCapability("dashboard.view");
@@ -76,9 +77,13 @@ export async function GET() {
     });
 
     // Find guardian record linked to this user
-    const guardian = await db.guardian.findFirst({
+    let guardian = await db.guardian.findFirst({
       where: { userId: user.id },
     });
+
+    if (!guardian && isHq) {
+      guardian = await db.guardian.findFirst();
+    }
 
     if (!guardian) {
       return NextResponse.json({
