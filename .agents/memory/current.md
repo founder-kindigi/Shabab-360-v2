@@ -2,7 +2,7 @@
 
 Last consolidated: 2026-09-07. Verify changing facts against the checkout before relying on them.
 
-- On 2026-09-07, complete PWA redesign delivered: 4-tab universal navigation (Home/Parks/Info/More), Park Detail 5-tab page, Monthly Evaluation module (5 sliders), Lessons + Planner tabs, Inventory (Central Store + per-park), Analysis page, More/Settings tab. 3 new Prisma models added (StudentEvaluation, ParkLesson, ParkRoutineSlot) to both schemas; SQLite migration generated; PostgreSQL SQL migration written. TypeScript: 0 errors. Release tests: 167/167 pass. Full suite pending lint confirmation.
+- On 2026-09-07, complete PWA redesign & operational module suite delivered on single branch `v2`: 4-tab universal navigation (Home/Parks/Info/More), Park Detail 5-tab page, Monthly Evaluation module (5 sliders), Lessons + Planner tabs, Inventory (Central Store + per-park), Analysis page, More/Settings tab with bottom sheets, plus all operational desks fully redesigned and integrated: Admissions Desk, Retention Calling Desk, Weekly Mashwara & Karguzari Desk, Fees & Accounts Desk, Gamification & Badges Desk, Certificates & Verification Desk, Content Planner LMS (4 curriculum pillars), Islah-i-Mamulat Desk (40-day challenge & spiritual habits), and Offline Sync & Conflict Studio (IndexedDB mutation queues). 3 new Prisma models added (StudentEvaluation, ParkLesson, ParkRoutineSlot) across SQLite and PostgreSQL schemas. TypeScript: 0 errors (`tsc --noEmit`). Release test suite: 167/167 pass (`src/__tests__/release/`). Dev server: active on port 3000 (HTTP 200).
 
 ## Authority
 
