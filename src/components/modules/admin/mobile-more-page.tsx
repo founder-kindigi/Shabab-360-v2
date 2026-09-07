@@ -222,6 +222,23 @@ export function MobileMorePage({ onNavigate }: MobileMorePageProps) {
           </div>
         </div>
 
+        {/* OPERATIONS & DESKS Section */}
+        <div className="space-y-2">
+          <h2 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider px-2">
+            OPERATIONS & DESKS
+          </h2>
+          <div className="rounded-2xl bg-white border border-slate-100 shadow-sm flex flex-col overflow-hidden">
+            <SettingRow
+              icon={<UserPlus className="w-4 h-4 text-purple-600" />}
+              iconBg="bg-purple-50"
+              title="Admissions Desk"
+              subtitle="Intake applications, screening & cohorts"
+              onClick={() => onNavigate("admissions")}
+              isLast={true}
+            />
+          </div>
+        </div>
+
         {/* SETTINGS Section */}
         <div className="space-y-2">
           <h2 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider px-2">

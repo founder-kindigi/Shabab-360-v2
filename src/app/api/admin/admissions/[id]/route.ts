@@ -9,7 +9,12 @@ import rawDataset from "@/lib/import-framework/portal-raw-dataset.json";
 const VALID_STATUSES = ["submitted", "screening", "interview_scheduled", "interviewed", "accepted", "rejected", "enrolled"] as const;
 
 const updateAdditionalFieldsSchema = z
-  .object(admissionAdditionalFieldsShape)
+  .object({
+    ...admissionAdditionalFieldsShape,
+    status: z.enum(VALID_STATUSES).optional(),
+    notes: z.string().trim().optional(),
+    preferredParkId: z.string().optional(),
+  })
   .strict()
   .refine((data) => Object.values(data).some((value) => value !== undefined), {
     message: "At least one field is required",
