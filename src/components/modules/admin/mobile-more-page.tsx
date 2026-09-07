@@ -25,6 +25,18 @@ import {
   Award,
   BookOpen,
   Heart,
+  Calendar,
+  GraduationCap,
+  MessageSquare,
+  Users,
+  FileText,
+  Contact,
+  ShieldCheck,
+  History,
+  Megaphone,
+  HelpCircle,
+  Package,
+  FileUp,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -208,12 +220,12 @@ export function MobileMorePage({ onNavigate }: MobileMorePageProps) {
         {/* ACCESS Section */}
         <div className="space-y-2">
           <h2 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider px-2">
-            ACCESS
+            ACCESS & SECURITY
           </h2>
-          <div className="rounded-2xl bg-white border border-slate-100 shadow-sm overflow-hidden">
+          <div className="rounded-2xl bg-white border border-slate-100 shadow-sm overflow-hidden flex flex-col">
             <button
               onClick={() => setIsPermissionsOpen(true)}
-              className="w-full p-4 flex items-center justify-between hover:bg-slate-50 transition-colors"
+              className="w-full p-4 flex items-center justify-between hover:bg-slate-50 transition-colors border-b border-slate-100"
             >
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
@@ -226,6 +238,28 @@ export function MobileMorePage({ onNavigate }: MobileMorePageProps) {
               </div>
               <ChevronRight className="w-4 h-4 text-slate-400" />
             </button>
+            <SettingRow
+              icon={<ShieldCheck className="w-4 h-4 text-emerald-600" />}
+              iconBg="bg-emerald-50"
+              title="Security Access & Roles"
+              subtitle="Role RBAC matrix, tokens & capabilities"
+              onClick={() => onNavigate("security-access")}
+            />
+            <SettingRow
+              icon={<Contact className="w-4 h-4 text-indigo-600" />}
+              iconBg="bg-indigo-50"
+              title="Staff Directory"
+              subtitle="Murabbis, Park Leads, Admins & phone roster"
+              onClick={() => onNavigate("staff-directory")}
+            />
+            <SettingRow
+              icon={<History className="w-4 h-4 text-slate-600" />}
+              iconBg="bg-slate-100"
+              title="Audit Log Trail"
+              subtitle="Security events, mutations & tamper audit"
+              onClick={() => onNavigate("audit-log")}
+              isLast={true}
+            />
           </div>
         </div>
 
@@ -255,6 +289,34 @@ export function MobileMorePage({ onNavigate }: MobileMorePageProps) {
               title="Weekly Mashwara"
               subtitle="Executive shura, decisions & minutes"
               onClick={() => onNavigate("mashwara")}
+            />
+            <SettingRow
+              icon={<Calendar className="w-4 h-4 text-rose-600" />}
+              iconBg="bg-rose-50"
+              title="Events & Schedules"
+              subtitle="Special camps, sports days & park overrides"
+              onClick={() => onNavigate("events")}
+            />
+            <SettingRow
+              icon={<Users className="w-4 h-4 text-teal-600" />}
+              iconBg="bg-teal-50"
+              title="Collaboration Teams"
+              subtitle="Sports, Skills, Media & Tadreeb squads"
+              onClick={() => onNavigate("teams")}
+            />
+            <SettingRow
+              icon={<MessageSquare className="w-4 h-4 text-sky-600" />}
+              iconBg="bg-sky-50"
+              title="Community Hub"
+              subtitle="Park stories, Q&A, likes & brotherhood"
+              onClick={() => onNavigate("community")}
+            />
+            <SettingRow
+              icon={<GraduationCap className="w-4 h-4 text-violet-600" />}
+              iconBg="bg-violet-50"
+              title="Alumni Network"
+              subtitle="Graduates, mentorship & career registry"
+              onClick={() => onNavigate("alumni")}
             />
             <SettingRow
               icon={<CreditCard className="w-4 h-4 text-emerald-600" />}
@@ -305,7 +367,7 @@ export function MobileMorePage({ onNavigate }: MobileMorePageProps) {
         {/* SETTINGS Section */}
         <div className="space-y-2">
           <h2 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider px-2">
-            SETTINGS
+            SETTINGS & TOOLS
           </h2>
           <div className="rounded-2xl bg-white border border-slate-100 shadow-sm flex flex-col overflow-hidden">
             <SettingRow
@@ -314,6 +376,41 @@ export function MobileMorePage({ onNavigate }: MobileMorePageProps) {
               title="Analysis"
               subtitle="Attendance by date, park & murabbi"
               onClick={() => onNavigate("analysis")}
+            />
+            <SettingRow
+              icon={<FileText className="w-4 h-4 text-blue-600" />}
+              iconBg="bg-blue-50"
+              title="Custom Reports Builder"
+              subtitle="Multi-domain query, columns & CSV export"
+              onClick={() => onNavigate("custom-reports")}
+            />
+            <SettingRow
+              icon={<Package className="w-4 h-4 text-amber-600" />}
+              iconBg="bg-amber-50"
+              title="Procurement & Stock"
+              subtitle="Central inventory, requisitions & supplies"
+              onClick={() => onNavigate("procurement")}
+            />
+            <SettingRow
+              icon={<HelpCircle className="w-4 h-4 text-indigo-600" />}
+              iconBg="bg-indigo-50"
+              title="Knowledge Base SOPs"
+              subtitle="Curriculum guides, policies & articles"
+              onClick={() => onNavigate("knowledge-base")}
+            />
+            <SettingRow
+              icon={<Megaphone className="w-4 h-4 text-rose-600" />}
+              iconBg="bg-rose-50"
+              title="Notifications Hub"
+              subtitle="Push alerts, broadcasts & targeted notices"
+              onClick={() => onNavigate("notifications")}
+            />
+            <SettingRow
+              icon={<FileUp className="w-4 h-4 text-teal-600" />}
+              iconBg="bg-teal-50"
+              title="Bulk Portal Import"
+              subtitle="Universal intake & student .xlsx parser"
+              onClick={() => onNavigate("portal-import")}
             />
             <SettingRow
               icon={<Info className="w-4 h-4 text-sky-600" />}

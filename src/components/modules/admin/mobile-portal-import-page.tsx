@@ -90,7 +90,7 @@ export function MobilePortalImportPage({ onBack }: MobilePortalImportPageProps) 
   };
 
   return (
-    <div className="w-full min-h-screen bg-background pb-28 space-y-4 px-4 pt-4">
+    <div className="w-full max-w-[460px] mx-auto min-h-screen bg-background pb-28 space-y-4 px-4 pt-4">
       {/* Top Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">

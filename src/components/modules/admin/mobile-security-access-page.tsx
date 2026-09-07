@@ -83,7 +83,7 @@ export function MobileSecurityAccessPage({ onBack }: MobileSecurityAccessPagePro
   });
 
   return (
-    <div className="flex flex-col min-h-screen w-full bg-slate-50 dark:bg-slate-950 text-foreground pb-28 select-none">
+    <div className="flex flex-col min-h-screen w-full max-w-[460px] mx-auto bg-slate-50 dark:bg-slate-950 text-foreground pb-28 select-none">
       {/* ─── Top Brand Header ────────────────────────────────────────────── */}
       <div className="relative w-full bg-gradient-to-br from-[#1F0860] via-[#4B0A8F] to-[#380668] text-white pt-6 pb-12 px-5 rounded-b-[2.5rem] shadow-xl overflow-hidden">
         <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none" />

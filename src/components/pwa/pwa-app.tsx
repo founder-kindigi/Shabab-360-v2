@@ -31,6 +31,18 @@ import { MobileCertificatesPage } from "@/components/modules/admin/mobile-certif
 import { MobileContentPlannerPage } from "@/components/modules/content-planner/mobile-content-planner-page";
 import { IslahMamulatPage } from "@/components/modules/admin/islah-mamulat-page";
 import { SyncConflictsPage } from "@/components/modules/admin/sync-conflicts-page";
+import { MobileEventsPage } from "@/components/modules/admin/mobile-events-page";
+import { MobileKnowledgeBasePage } from "@/components/modules/admin/mobile-knowledge-base-page";
+import { MobileProcurementPage } from "@/components/modules/admin/mobile-procurement-page";
+import { MobileSecurityAccessPage } from "@/components/modules/admin/mobile-security-access-page";
+import { MobilePortalImportPage } from "@/components/modules/admin/mobile-portal-import-page";
+import { MobileAlumniPage } from "@/components/modules/admin/mobile-alumni-page";
+import { MobileCommunityPage } from "@/components/modules/admin/mobile-community-page";
+import { MobileCollaborationTeamsPage } from "@/components/modules/admin/mobile-collaboration-teams-page";
+import { MobileReportsBuilderPage } from "@/components/modules/admin/mobile-reports-builder-page";
+import { MobileStaffDirectoryPage } from "@/components/modules/admin/mobile-staff-directory-page";
+import { MobileAuditLogPage } from "@/components/modules/admin/mobile-audit-log-page";
+import { MobileNotificationsPage } from "@/components/modules/admin/mobile-notifications-page";
 
 import {
   Home,
@@ -61,7 +73,19 @@ type ScreenId =
   | "certificates"
   | "content-planner"
   | "islah"
-  | "sync";
+  | "sync"
+  | "events"
+  | "knowledge-base"
+  | "procurement"
+  | "security-access"
+  | "portal-import"
+  | "alumni"
+  | "community"
+  | "teams"
+  | "custom-reports"
+  | "staff-directory"
+  | "audit-log"
+  | "notifications";
 
 export type ParkNav = {
   parkId: string;
@@ -212,6 +236,18 @@ export function PwaApp() {
                 {screen === "content-planner" && <MobileContentPlannerPage onBack={() => setScreen("more")} />}
                 {screen === "islah" && <IslahMamulatPage onBack={() => setScreen("more")} />}
                 {screen === "sync" && <SyncConflictsPage onBack={() => setScreen("more")} />}
+                {screen === "events" && <MobileEventsPage onBack={() => setScreen("more")} />}
+                {screen === "knowledge-base" && <MobileKnowledgeBasePage onBack={() => setScreen("more")} />}
+                {screen === "procurement" && <MobileProcurementPage onBack={() => setScreen("more")} />}
+                {screen === "security-access" && <MobileSecurityAccessPage onBack={() => setScreen("more")} />}
+                {screen === "portal-import" && <MobilePortalImportPage onBack={() => setScreen("more")} />}
+                {screen === "alumni" && <MobileAlumniPage onBack={() => setScreen("more")} />}
+                {screen === "community" && <MobileCommunityPage onBack={() => setScreen("more")} />}
+                {screen === "teams" && <MobileCollaborationTeamsPage onBack={() => setScreen("more")} />}
+                {screen === "custom-reports" && <MobileReportsBuilderPage onBack={() => setScreen("more")} />}
+                {screen === "staff-directory" && <MobileStaffDirectoryPage onBack={() => setScreen("more")} />}
+                {screen === "audit-log" && <MobileAuditLogPage onBack={() => setScreen("more")} />}
+                {screen === "notifications" && <MobileNotificationsPage onBack={() => setScreen("more")} />}
               </motion.div>
             </AnimatePresence>
           </main>
@@ -223,7 +259,12 @@ export function PwaApp() {
                 const Icon = tab.icon;
                 const isActive = screen === tab.id || 
                                  (tab.id === "parks" && ["park-detail", "inventory", "evaluation"].includes(screen)) ||
-                                 (tab.id === "more" && ["analysis", "admissions", "calling", "mashwara", "fees", "gamification", "certificates", "content-planner", "islah", "sync"].includes(screen));
+                                 (tab.id === "more" && [
+                                   "analysis", "admissions", "calling", "mashwara", "fees", "gamification", 
+                                   "certificates", "content-planner", "islah", "sync",
+                                   "events", "knowledge-base", "procurement", "security-access", "portal-import",
+                                   "alumni", "community", "teams", "custom-reports", "staff-directory", "audit-log", "notifications"
+                                 ].includes(screen));
                 
                 return (
                   <button

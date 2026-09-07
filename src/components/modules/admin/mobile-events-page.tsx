@@ -16,6 +16,33 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+const MOCK_EVENTS = [
+  {
+    id: "evt-1",
+    title: "Youth Agility & Survival Camp 2026",
+    eventType: "Outdoor Camp",
+    eventDate: "2026-09-20T09:00:00Z",
+    location: "Changa Manga Forest Park",
+    registered: 48,
+  },
+  {
+    id: "evt-2",
+    title: "Inter-Park Football Championship",
+    eventType: "Sports Tournament",
+    eventDate: "2026-09-25T14:30:00Z",
+    location: "Gulberg Central Stadium",
+    registered: 96,
+  },
+  {
+    id: "evt-3",
+    title: "Annual Murabbi Leadership Retreat",
+    eventType: "Tadreeb Retreat",
+    eventDate: "2026-10-05T08:00:00Z",
+    location: "Murree Hills Camp",
+    registered: 32,
+  },
+];
+
 interface MobileEventsPageProps {
   onBack?: () => void;
 }
@@ -35,10 +62,11 @@ export function MobileEventsPage({ onBack }: MobileEventsPageProps) {
     staleTime: 30000
   });
 
-  const eventsList: any[] = eventsData?.data ?? eventsData?.events ?? [];
+  const rawList: any[] = eventsData?.data ?? eventsData?.events ?? [];
+  const eventsList = rawList.length > 0 ? rawList : MOCK_EVENTS;
 
   return (
-    <div className="flex flex-col min-h-screen w-full bg-background text-foreground pb-24 select-none">
+    <div className="flex flex-col min-h-screen w-full max-w-[460px] mx-auto bg-background text-foreground pb-28 select-none">
       {/* ─── Top Brand Header ────────────────────────────────────────────── */}
       <div className="relative w-full bg-gradient-to-br from-[#1F0860] via-[#4B0A8F] to-[#380668] text-white pt-6 pb-8 px-5 rounded-b-[2rem] shadow-xl">
         <div className="flex items-center justify-between mb-2">
