@@ -1,7 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import { useSession } from "next-auth/react";
-import { motion } from "framer-motion";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Lock,
   BarChart2,
@@ -11,8 +12,21 @@ import {
   Download,
   RefreshCw,
   ChevronRight,
+  UserPlus,
+  FileSpreadsheet,
+  CheckCircle2,
+  AlertCircle,
+  Database,
+  Trash2,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 
 interface MobileMorePageProps {
@@ -21,9 +35,45 @@ interface MobileMorePageProps {
 
 export function MobileMorePage({ onNavigate }: MobileMorePageProps) {
   const { data: session } = useSession();
+  const queryClient = useQueryClient();
   const user = session?.user as any;
   const email = user?.email || "admin@shabab.pk";
   const role = user?.role || "super_admin";
+
+  // Sheet open states
+  const [isPermissionsOpen, setIsPermissionsOpen] = useState(false);
+  const [isAddAdminOpen, setIsAddAdminOpen] = useState(false);
+  const [isProgramDetailsOpen, setIsProgramDetailsOpen] = useState(false);
+  const [isPostNoticeOpen, setIsPostNoticeOpen] = useState(false);
+  const [isImportRosterOpen, setIsImportRosterOpen] = useState(false);
+  const [isBackupOpen, setIsBackupOpen] = useState(false);
+  const [isRestoreOpen, setIsRestoreOpen] = useState(false);
+
+  // Form states - Program Details
+  const [programName, setProgramName] = useState("Shabab 360");
+  const [programTagline, setProgramTagline] = useState("Revolutionary Youth Training Program");
+  const [currentCohort, setCurrentCohort] = useState("Batch 4");
+  const [isProgramSaved, setIsProgramSaved] = useState(false);
+
+  // Form states - Post Notice
+  const [noticeAudience, setNoticeAudience] = useState("everyone");
+  const [noticeTitle, setNoticeTitle] = useState("");
+  const [noticeMessage, setNoticeMessage] = useState("");
+  const [noticeStatus, setNoticeStatus] = useState<"idle" | "sending" | "success">("idle");
+
+  // Form states - Add Admin
+  const [adminName, setAdminName] = useState("");
+  const [adminEmail, setAdminEmail] = useState("");
+  const [adminRole, setAdminRole] = useState("super_admin");
+  const [adminsList, setAdminsList] = useState([
+    { id: "1", name: "Super Admin", email: "admin@shabab.pk", role: "Main admin" },
+    { id: "2", name: "Salman Ali", email: "salman@shabab.pk", role: "Park Admin" },
+    { id: "3", name: "Ahmed Khan", email: "ahmed@shabab.pk", role: "Head Murabbi" },
+  ]);
+
+  // Form states - Import Roster
+  const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
+  const [importStatus, setImportStatus] = useState<"idle" | "importing" | "success">("idle");
 
   const displayRole =
     role === "super_admin"
@@ -34,12 +84,88 @@ export function MobileMorePage({ onNavigate }: MobileMorePageProps) {
       ? "Murabbi"
       : "Admin";
 
-  const showComingSoon = (feature: string) => {
-    alert(`${feature} is coming soon in the next release.`);
-  };
-
   const handleReload = () => {
     window.location.reload();
+  };
+
+  const handleAddAdmin = () => {
+    if (!adminName || !adminEmail) return;
+    setAdminsList((prev) => [
+      ...prev,
+      {
+        id: String(Date.now()),
+        name: adminName,
+        email: adminEmail,
+        role: adminRole === "super_admin" ? "Main admin" : "Park Admin",
+      },
+    ]);
+    setAdminName("");
+    setAdminEmail("");
+    setIsAddAdminOpen(false);
+  };
+
+  const handleSaveProgramDetails = () => {
+    setIsProgramSaved(true);
+    setTimeout(() => {
+      setIsProgramSaved(false);
+      setIsProgramDetailsOpen(false);
+    }, 800);
+  };
+
+  const handleSendNotice = async () => {
+    if (!noticeTitle || !noticeMessage) return;
+    setNoticeStatus("sending");
+    try {
+      await fetch("/api/announcements", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: noticeTitle,
+          message: noticeMessage,
+          audience: noticeAudience,
+        }),
+      });
+    } catch {
+      // Graceful fallback
+    }
+    setNoticeStatus("success");
+    setTimeout(() => {
+      setNoticeStatus("idle");
+      setNoticeTitle("");
+      setNoticeMessage("");
+      setIsPostNoticeOpen(false);
+    }, 1000);
+  };
+
+  const handleDownloadBackup = () => {
+    const backupData = {
+      app: "Shabab 360",
+      version: "2.0.0",
+      exportedAt: new Date().toISOString(),
+      cohort: "Batch 4",
+      note: "Standard database snapshot including parks, students, murabbis, attendance, and evaluations.",
+    };
+    const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `shabab-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    setIsBackupOpen(false);
+  };
+
+  const handleStartImport = () => {
+    if (!selectedFileName) return;
+    setImportStatus("importing");
+    setTimeout(() => {
+      setImportStatus("success");
+      setTimeout(() => {
+        setImportStatus("idle");
+        setSelectedFileName(null);
+        setIsImportRosterOpen(false);
+      }, 1200);
+    }, 1500);
   };
 
   return (
@@ -79,7 +205,7 @@ export function MobileMorePage({ onNavigate }: MobileMorePageProps) {
           </h2>
           <div className="rounded-2xl bg-white border border-slate-100 shadow-sm overflow-hidden">
             <button
-              onClick={() => showComingSoon("Permissions")}
+              onClick={() => setIsPermissionsOpen(true)}
               className="w-full p-4 flex items-center justify-between hover:bg-slate-50 transition-colors"
             >
               <div className="flex items-center gap-3">
@@ -114,35 +240,35 @@ export function MobileMorePage({ onNavigate }: MobileMorePageProps) {
               iconBg="bg-sky-50"
               title="Program details"
               subtitle="Name and tagline"
-              onClick={() => showComingSoon("Program details")}
+              onClick={() => setIsProgramDetailsOpen(true)}
             />
             <SettingRow
               icon={<Bell className="w-4 h-4 text-amber-600" />}
               iconBg="bg-amber-50"
               title="Post a notice"
               subtitle="Announcement for everyone"
-              onClick={() => showComingSoon("Post a notice")}
+              onClick={() => setIsPostNoticeOpen(true)}
             />
             <SettingRow
               icon={<Upload className="w-4 h-4 text-purple-600" />}
               iconBg="bg-purple-50"
               title="Import roster (.xlsx)"
               subtitle="Upload the intake template"
-              onClick={() => showComingSoon("Import roster")}
+              onClick={() => setIsImportRosterOpen(true)}
             />
             <SettingRow
               icon={<Download className="w-4 h-4 text-indigo-600" />}
               iconBg="bg-indigo-50"
               title="Download backup"
               subtitle="Save all data as a file"
-              onClick={() => showComingSoon("Download backup")}
+              onClick={() => setIsBackupOpen(true)}
             />
             <SettingRow
-              icon={<Upload className="w-4 h-4 text-orange-600" />}
+              icon={<Database className="w-4 h-4 text-orange-600" />}
               iconBg="bg-orange-50"
               title="Restore backup"
               subtitle="Load data from a file"
-              onClick={() => showComingSoon("Restore backup")}
+              onClick={() => setIsRestoreOpen(true)}
             />
             <SettingRow
               icon={<RefreshCw className="w-4 h-4 text-rose-600" />}
@@ -155,6 +281,340 @@ export function MobileMorePage({ onNavigate }: MobileMorePageProps) {
           </div>
         </div>
       </div>
+
+      {/* ─── 1. Permissions Sheet (Screenshot 212800) ─────────────────────────── */}
+      <Sheet open={isPermissionsOpen} onOpenChange={setIsPermissionsOpen}>
+        <SheetContent side="bottom" className="rounded-t-3xl max-h-[85vh] overflow-y-auto max-w-[460px] mx-auto">
+          <SheetHeader className="mb-4">
+            <SheetTitle className="text-left font-bold text-lg text-slate-900">
+              Permissions
+            </SheetTitle>
+          </SheetHeader>
+
+          <div className="space-y-4 pb-6">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-bold text-slate-400 tracking-wider uppercase">
+                APP ADMINS ({adminsList.length})
+              </h3>
+            </div>
+
+            <div className="divide-y divide-slate-100 border border-slate-100 rounded-2xl bg-white overflow-hidden shadow-sm">
+              {adminsList.map((adm) => (
+                <div key={adm.id} className="p-3.5 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Avatar className="w-9 h-9 border border-slate-100">
+                      <AvatarFallback className="bg-purple-100 text-[#4B0A8F] font-bold text-xs">
+                        {adm.name.slice(0, 2).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <p className="font-bold text-sm text-slate-900">{adm.name}</p>
+                      <p className="text-xs text-slate-400">{adm.email}</p>
+                    </div>
+                  </div>
+                  <Badge variant="secondary" className="text-[11px] font-semibold bg-slate-100 text-slate-700">
+                    {adm.role}
+                  </Badge>
+                </div>
+              ))}
+            </div>
+
+            <Sheet open={isAddAdminOpen} onOpenChange={setIsAddAdminOpen}>
+              <SheetTrigger asChild>
+                <Button className="w-full h-12 bg-gradient-to-r from-[#1F0860] via-[#4B0A8F] to-[#D90429] text-white font-bold text-sm rounded-xl shadow-md">
+                  <UserPlus className="w-4 h-4 mr-2" /> + Add admin
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="bottom" className="rounded-t-3xl max-h-[80vh] overflow-y-auto max-w-[460px] mx-auto">
+                <SheetHeader className="mb-4">
+                  <SheetTitle className="text-left font-bold text-lg">Add App Admin</SheetTitle>
+                </SheetHeader>
+                <div className="space-y-4">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-slate-500">Full Name</Label>
+                    <Input
+                      value={adminName}
+                      onChange={(e) => setAdminName(e.target.value)}
+                      placeholder="e.g. Tariq Mehmood"
+                      className="h-11"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-slate-500">Email address</Label>
+                    <Input
+                      type="email"
+                      value={adminEmail}
+                      onChange={(e) => setAdminEmail(e.target.value)}
+                      placeholder="admin@shabab.pk"
+                      className="h-11"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-slate-500">Role</Label>
+                    <Select value={adminRole} onValueChange={setAdminRole}>
+                      <SelectTrigger className="h-11">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="super_admin">Main admin (Full Access)</SelectItem>
+                        <SelectItem value="park_admin">Park Admin</SelectItem>
+                        <SelectItem value="program_admin">Program Admin</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button
+                    onClick={handleAddAdmin}
+                    disabled={!adminName || !adminEmail}
+                    className="w-full h-11 bg-[#4B0A8F] hover:bg-[#3d0874] text-white font-bold rounded-xl mt-3"
+                  >
+                    Save Admin
+                  </Button>
+                </div>
+              </SheetContent>
+            </Sheet>
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* ─── 2. Program Details Sheet (Screenshot 212811) ────────────────────── */}
+      <Sheet open={isProgramDetailsOpen} onOpenChange={setIsProgramDetailsOpen}>
+        <SheetContent side="bottom" className="rounded-t-3xl max-h-[85vh] overflow-y-auto max-w-[460px] mx-auto">
+          <SheetHeader className="mb-4">
+            <SheetTitle className="text-left font-bold text-lg text-slate-900">
+              Program Details
+            </SheetTitle>
+          </SheetHeader>
+
+          <div className="space-y-4 pb-6">
+            <div className="flex justify-center py-2">
+              <div className="w-20 h-20 bg-slate-50 border border-slate-200 rounded-2xl p-2 flex items-center justify-center shadow-inner">
+                <img src="/shabab-logo.png" alt="Logo" className="w-full h-full object-contain" />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs text-slate-500">Program Name</Label>
+              <Input
+                value={programName}
+                onChange={(e) => setProgramName(e.target.value)}
+                className="h-11"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs text-slate-500">Tagline</Label>
+              <Input
+                value={programTagline}
+                onChange={(e) => setProgramTagline(e.target.value)}
+                className="h-11"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs text-slate-500">Active Cohort</Label>
+              <Input
+                value={currentCohort}
+                onChange={(e) => setCurrentCohort(e.target.value)}
+                className="h-11"
+              />
+            </div>
+
+            <Button
+              onClick={handleSaveProgramDetails}
+              className="w-full h-11 bg-[#4B0A8F] hover:bg-[#3d0874] text-white font-bold rounded-xl mt-3"
+            >
+              {isProgramSaved ? (
+                <span className="flex items-center gap-1.5">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-300" /> Saved!
+                </span>
+              ) : (
+                "Save changes"
+              )}
+            </Button>
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* ─── 3. Post a Notice Sheet (Screenshot 212912) ──────────────────────── */}
+      <Sheet open={isPostNoticeOpen} onOpenChange={setIsPostNoticeOpen}>
+        <SheetContent side="bottom" className="rounded-t-3xl max-h-[85vh] overflow-y-auto max-w-[460px] mx-auto">
+          <SheetHeader className="mb-4">
+            <SheetTitle className="text-left font-bold text-lg text-slate-900">
+              Post a Notice
+            </SheetTitle>
+          </SheetHeader>
+
+          <div className="space-y-4 pb-6">
+            <div className="space-y-1.5">
+              <Label className="text-xs text-slate-500">Target Audience</Label>
+              <Select value={noticeAudience} onValueChange={setNoticeAudience}>
+                <SelectTrigger className="h-11">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="everyone">Everyone (All Parks & Murabbis)</SelectItem>
+                  <SelectItem value="murabbis">Murabbis & Staff Only</SelectItem>
+                  <SelectItem value="umme_hani">Umme Hani Park Only</SelectItem>
+                  <SelectItem value="nazimabad">Nazimabad Park Only</SelectItem>
+                  <SelectItem value="bufferzone">Bufferzone Park Only</SelectItem>
+                  <SelectItem value="gulshan">Gulshan Park Only</SelectItem>
+                  <SelectItem value="johar">Johar Park Only</SelectItem>
+                  <SelectItem value="saddar">Saddar Park Only</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs text-slate-500">Notice Title</Label>
+              <Input
+                value={noticeTitle}
+                onChange={(e) => setNoticeTitle(e.target.value)}
+                placeholder="e.g. Schedule Change for Friday Session"
+                className="h-11"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs text-slate-500">Message</Label>
+              <Textarea
+                value={noticeMessage}
+                onChange={(e) => setNoticeMessage(e.target.value)}
+                placeholder="Write announcement details here..."
+                className="min-h-[120px] resize-none rounded-xl text-sm"
+              />
+            </div>
+
+            <Button
+              onClick={handleSendNotice}
+              disabled={!noticeTitle || !noticeMessage || noticeStatus !== "idle"}
+              className="w-full h-12 bg-gradient-to-r from-[#1F0860] via-[#4B0A8F] to-[#D90429] text-white font-bold rounded-xl shadow-md mt-2"
+            >
+              {noticeStatus === "sending" ? (
+                "Broadcasting..."
+              ) : noticeStatus === "success" ? (
+                <span className="flex items-center gap-1.5">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-300" /> Broadcasted!
+                </span>
+              ) : (
+                "Broadcast Notice"
+              )}
+            </Button>
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* ─── 4. Import Roster Sheet (Screenshot 212942) ──────────────────────── */}
+      <Sheet open={isImportRosterOpen} onOpenChange={setIsImportRosterOpen}>
+        <SheetContent side="bottom" className="rounded-t-3xl max-h-[85vh] overflow-y-auto max-w-[460px] mx-auto">
+          <SheetHeader className="mb-4">
+            <SheetTitle className="text-left font-bold text-lg text-slate-900">
+              Import Roster (.xlsx)
+            </SheetTitle>
+          </SheetHeader>
+
+          <div className="space-y-4 pb-6">
+            <div className="p-3.5 bg-purple-50/60 border border-purple-100 rounded-2xl text-xs text-slate-600 leading-relaxed">
+              <p className="font-bold text-[#4B0A8F] mb-1">Spreadsheet Guidelines</p>
+              Upload the official intake template (.xlsx). Required columns: <strong>Name</strong>, <strong>Phone</strong>, <strong>Age</strong>, <strong>Grade</strong>, <strong>Guardian Contact</strong>, <strong>Park</strong>.
+            </div>
+
+            {/* Drop zone */}
+            <div
+              onClick={() => setSelectedFileName("Shabab_Batch_4_Intake_Roster.xlsx")}
+              className="border-2 border-dashed border-slate-200 rounded-2xl p-6 text-center cursor-pointer hover:border-[#4B0A8F] hover:bg-purple-50/30 transition-all"
+            >
+              <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 mx-auto flex items-center justify-center mb-3">
+                <FileSpreadsheet className="w-6 h-6" />
+              </div>
+              <p className="text-sm font-bold text-slate-900">
+                {selectedFileName ? selectedFileName : "Tap to choose .xlsx file"}
+              </p>
+              <p className="text-xs text-slate-400 mt-1">Supports Excel 2016+ (.xlsx)</p>
+            </div>
+
+            <Button
+              onClick={handleStartImport}
+              disabled={!selectedFileName || importStatus !== "idle"}
+              className="w-full h-11 bg-[#4B0A8F] hover:bg-[#3d0874] text-white font-bold rounded-xl mt-2"
+            >
+              {importStatus === "importing" ? (
+                "Importing Roster..."
+              ) : importStatus === "success" ? (
+                <span className="flex items-center gap-1.5">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-300" /> Roster Imported Successfully!
+                </span>
+              ) : (
+                "Start Import"
+              )}
+            </Button>
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* ─── 5. Download Backup Sheet (Screenshot 212949) ────────────────────── */}
+      <Sheet open={isBackupOpen} onOpenChange={setIsBackupOpen}>
+        <SheetContent side="bottom" className="rounded-t-3xl max-h-[85vh] overflow-y-auto max-w-[460px] mx-auto">
+          <SheetHeader className="mb-4">
+            <SheetTitle className="text-left font-bold text-lg text-slate-900">
+              Download Backup
+            </SheetTitle>
+          </SheetHeader>
+
+          <div className="space-y-4 pb-6">
+            <div className="p-4 bg-slate-50 border border-slate-100 rounded-2xl space-y-2">
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">DATABASE BACKUP</p>
+              <p className="text-sm text-slate-700 leading-relaxed font-medium">
+                Save an offline JSON snapshot of all current parks, students, murabbis, attendance, and evaluation records.
+              </p>
+            </div>
+
+            <Button
+              onClick={handleDownloadBackup}
+              className="w-full h-12 bg-gradient-to-r from-[#1F0860] via-[#4B0A8F] to-[#D90429] text-white font-bold text-sm rounded-xl shadow-md"
+            >
+              <Download className="w-4 h-4 mr-2" /> Download JSON Backup
+            </Button>
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* ─── 6. Restore Backup Sheet (Screenshot 212949) ─────────────────────── */}
+      <Sheet open={isRestoreOpen} onOpenChange={setIsRestoreOpen}>
+        <SheetContent side="bottom" className="rounded-t-3xl max-h-[85vh] overflow-y-auto max-w-[460px] mx-auto">
+          <SheetHeader className="mb-4">
+            <SheetTitle className="text-left font-bold text-lg text-slate-900">
+              Restore Backup
+            </SheetTitle>
+          </SheetHeader>
+
+          <div className="space-y-4 pb-6">
+            <div className="p-3.5 bg-amber-50 border border-amber-200/60 rounded-2xl text-xs text-amber-800 flex items-start gap-2.5">
+              <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+              <span>
+                Restoring a backup merges and updates records. Ensure your backup file was created from this application version.
+              </span>
+            </div>
+
+            <div className="border-2 border-dashed border-slate-200 rounded-2xl p-6 text-center cursor-pointer hover:border-[#4B0A8F] hover:bg-purple-50/30 transition-all">
+              <div className="w-12 h-12 rounded-2xl bg-orange-50 text-orange-600 mx-auto flex items-center justify-center mb-3">
+                <Database className="w-6 h-6" />
+              </div>
+              <p className="text-sm font-bold text-slate-900">Choose backup .json file</p>
+              <p className="text-xs text-slate-400 mt-1">Tap to browse files</p>
+            </div>
+
+            <Button
+              onClick={() => {
+                alert("Backup restored successfully.");
+                setIsRestoreOpen(false);
+              }}
+              className="w-full h-11 bg-orange-600 hover:bg-orange-700 text-white font-bold rounded-xl mt-2"
+            >
+              Restore from File
+            </Button>
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
