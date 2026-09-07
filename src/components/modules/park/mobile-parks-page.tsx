@@ -74,23 +74,23 @@ export function MobileParksPage({ onParkSelect, onSelectInventory }: MobileParks
   };
 
   return (
-    <div className="w-full max-w-[460px] mx-auto flex flex-col min-h-screen w-full bg-[#f8f9fa] pb-28 relative font-sans select-none">
+    <div className="w-full max-w-[460px] mx-auto flex flex-col min-h-screen w-full bg-[#f8f9fa] dark:bg-[#0c0817] text-slate-900 dark:text-slate-100 pb-28 relative font-sans select-none">
       {/* ─── Header ──────────────────────────────────────────────────────── */}
-      <div className="px-5 pt-8 pb-3 bg-white border-b border-gray-100">
+      <div className="px-5 pt-8 pb-3 bg-white dark:bg-[#180E30] border-b border-gray-100 dark:border-white/10">
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Parks</h1>
-          <span className="text-[11px] font-semibold text-[#15803d] bg-[#f0fdf4] border border-[#bbf7d0] px-3 py-1 rounded-full">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">Parks</h1>
+          <span className="text-[11px] font-semibold text-[#15803d] dark:text-emerald-400 bg-[#f0fdf4] dark:bg-emerald-950/40 border border-[#bbf7d0] dark:border-emerald-800 px-3 py-1 rounded-full">
             {roleLabel}
           </span>
         </div>
 
         {/* ─── Batch & Count Filter Bar ──────────────────────────────────── */}
         <div className="flex items-center justify-between mt-5 mb-1">
-          <button className="bg-[#180A40] hover:bg-[#23105a] text-white text-xs font-semibold px-3.5 py-1.5 rounded-full flex items-center gap-1.5 shadow-sm active:scale-95 transition-all">
+          <button className="bg-[#180A40] dark:bg-purple-950/80 border border-transparent dark:border-purple-500/30 hover:bg-[#23105a] text-white text-xs font-semibold px-3.5 py-1.5 rounded-full flex items-center gap-1.5 shadow-sm active:scale-95 transition-all">
             <span>Batch 4</span>
             <span className="text-[9px] opacity-70">▼</span>
           </button>
-          <span className="text-xs text-gray-400 font-medium">
+          <span className="text-xs text-gray-400 dark:text-gray-400 font-medium">
             {totalParksCount} parks
           </span>
         </div>
@@ -101,20 +101,20 @@ export function MobileParksPage({ onParkSelect, onSelectInventory }: MobileParks
         {/* Central Store Card */}
         <div 
           onClick={onSelectInventory}
-          className="bg-white rounded-2xl p-3.5 border border-gray-100 shadow-[0_2px_8px_rgba(0,0,0,0.03)] flex items-center justify-between cursor-pointer active:scale-[0.99] hover:border-purple-200 transition-all"
+          className="bg-white dark:bg-[#180E30] rounded-2xl p-3.5 border border-gray-100 dark:border-white/10 shadow-[0_2px_8px_rgba(0,0,0,0.03)] flex items-center justify-between cursor-pointer active:scale-[0.99] hover:border-purple-200 dark:hover:border-purple-500/40 transition-all"
         >
           <div className="flex items-center gap-3.5">
             <div className="size-11 rounded-xl bg-gradient-to-br from-[#27084D] to-[#600C60] flex items-center justify-center text-white shadow-sm shrink-0">
               <Package className="size-5 text-white/90" />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-gray-900">Central Store</h3>
-              <p className="text-xs text-gray-400 font-normal mt-0.5">
+              <h3 className="text-sm font-bold text-gray-900 dark:text-white">Central Store</h3>
+              <p className="text-xs text-gray-400 dark:text-slate-400 font-normal mt-0.5">
                 13 item types · master inventory
               </p>
             </div>
           </div>
-          <ChevronRight className="size-4 text-gray-300 shrink-0" />
+          <ChevronRight className="size-4 text-gray-300 dark:text-gray-500 shrink-0" />
         </div>
 
         {/* 6 Parks Cards */}
@@ -133,15 +133,15 @@ export function MobileParksPage({ onParkSelect, onSelectInventory }: MobileParks
                 murabbiCount,
                 studentCount,
               })}
-              className="bg-white rounded-2xl p-3.5 border border-gray-100 shadow-[0_2px_8px_rgba(0,0,0,0.03)] flex items-center justify-between cursor-pointer active:scale-[0.99] hover:border-purple-200 transition-all"
+              className="bg-white dark:bg-[#180E30] rounded-2xl p-3.5 border border-gray-100 dark:border-white/10 shadow-[0_2px_8px_rgba(0,0,0,0.03)] flex items-center justify-between cursor-pointer active:scale-[0.99] hover:border-purple-200 dark:hover:border-purple-500/40 transition-all"
             >
               <div className="flex items-center gap-3.5 min-w-0">
                 <div className="size-11 rounded-xl bg-gradient-to-br from-[#27084D] to-[#600C60] flex items-center justify-center text-white font-bold text-sm shadow-sm shrink-0">
                   {initials}
                 </div>
                 <div className="min-w-0">
-                  <h3 className="text-sm font-bold text-gray-900 truncate">{park.name}</h3>
-                  <p className="text-xs text-gray-400 font-normal mt-0.5 truncate">
+                  <h3 className="text-sm font-bold text-gray-900 dark:text-white truncate">{park.name}</h3>
+                  <p className="text-xs text-gray-400 dark:text-slate-400 font-normal mt-0.5 truncate">
                     {murabbiCount} murabbis · {studentCount} students
                   </p>
                 </div>
@@ -150,14 +150,14 @@ export function MobileParksPage({ onParkSelect, onSelectInventory }: MobileParks
               <div className="flex items-center gap-1.5 shrink-0 ml-3">
                 <div className="text-right">
                   <div className="flex items-baseline justify-end leading-none">
-                    <span className="text-sm font-bold text-gray-900">{studentCount}</span>
-                    <span className="text-[11px] text-gray-400 font-normal ml-1">students</span>
+                    <span className="text-sm font-bold text-gray-900 dark:text-white">{studentCount}</span>
+                    <span className="text-[11px] text-gray-400 dark:text-slate-400 font-normal ml-1">students</span>
                   </div>
-                  <div className="text-[11px] text-gray-400 font-normal mt-1 leading-none">
+                  <div className="text-[11px] text-gray-400 dark:text-slate-400 font-normal mt-1 leading-none">
                     {presentToday} present
                   </div>
                 </div>
-                <ChevronRight className="size-4 text-gray-300 shrink-0 ml-0.5" />
+                <ChevronRight className="size-4 text-gray-300 dark:text-gray-500 shrink-0 ml-0.5" />
               </div>
             </div>
           );

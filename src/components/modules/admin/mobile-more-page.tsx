@@ -38,7 +38,11 @@ import {
   HelpCircle,
   Package,
   FileUp,
-LogOut } from "lucide-react";
+  Sun,
+  Moon,
+  Monitor,
+  LogOut,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -48,6 +52,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
+import { useTheme } from "@/components/providers/theme-provider";
 
 interface MobileMorePageProps {
   onNavigate: (screen: string) => void;
@@ -55,6 +60,7 @@ interface MobileMorePageProps {
 
 export function MobileMorePage({ onNavigate }: MobileMorePageProps) {
   const { data: session } = useSession();
+  const { theme, setTheme, resolvedTheme } = useTheme();
   const queryClient = useQueryClient();
   const user = session?.user as any;
   const email = user?.email || "admin@shabab.pk";
@@ -189,28 +195,37 @@ export function MobileMorePage({ onNavigate }: MobileMorePageProps) {
   };
 
   return (
-    <div className="w-full max-w-[460px] mx-auto flex flex-col min-h-screen w-full bg-slate-50 text-slate-900 pb-28 select-none">
+    <div className="w-full max-w-[460px] mx-auto flex flex-col min-h-screen w-full bg-slate-50 dark:bg-[#0c0817] text-slate-900 dark:text-slate-100 pb-28 select-none">
       {/* Header */}
-      <div className="flex items-center justify-between px-5 pt-6 pb-4 bg-white border-b border-slate-100">
-        <h1 className="text-2xl font-black text-[#1F0860] tracking-tight">More</h1>
-        <Badge
-          variant="secondary"
-          className="bg-emerald-50 text-emerald-700 border-emerald-200 font-bold text-xs px-3 py-1 rounded-full"
-        >
-          {displayRole}
-        </Badge>
+      <div className="flex items-center justify-between px-5 pt-6 pb-4 bg-white dark:bg-[#180E30] border-b border-slate-100 dark:border-white/10">
+        <h1 className="text-2xl font-black text-[#1F0860] dark:text-purple-200 tracking-tight">More</h1>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
+            className="size-8 rounded-full bg-slate-100 dark:bg-white/10 flex items-center justify-center text-slate-700 dark:text-purple-200 active:scale-95 transition-all"
+            title={resolvedTheme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+          >
+            {resolvedTheme === "dark" ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-purple-600" />}
+          </button>
+          <Badge
+            variant="secondary"
+            className="bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800 font-bold text-xs px-3 py-1 rounded-full"
+          >
+            {displayRole}
+          </Badge>
+        </div>
       </div>
 
       <div className="p-4 space-y-6">
         {/* Signed In Row */}
-        <div className="p-4 rounded-2xl bg-white border border-slate-100 shadow-sm flex items-center justify-between">
+        <div className="p-4 rounded-2xl bg-white dark:bg-[#180E30] border border-slate-100 dark:border-white/10 shadow-sm flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-purple-50 flex items-center justify-center shrink-0">
-              <Lock className="w-5 h-5 text-[#4B0A8F]" />
+            <div className="w-10 h-10 rounded-full bg-purple-50 dark:bg-white/10 flex items-center justify-center shrink-0">
+              <Lock className="w-5 h-5 text-[#4B0A8F] dark:text-purple-300" />
             </div>
             <div>
-              <p className="text-xs font-bold text-slate-900">Signed in</p>
-              <p className="text-[11px] text-slate-500 font-medium">
+              <p className="text-xs font-bold text-slate-900 dark:text-white">Signed in</p>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
                 {email} • {displayRole}
               </p>
             </div>
@@ -218,23 +233,74 @@ export function MobileMorePage({ onNavigate }: MobileMorePageProps) {
           <ChevronRight className="w-4 h-4 text-slate-400" />
         </div>
 
+        {/* APPEARANCE / THEME Section */}
+        <div className="space-y-2">
+          <h2 className="text-[11px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider px-2">
+            APPEARANCE & THEME
+          </h2>
+          <div className="rounded-2xl bg-white dark:bg-[#180E30] border border-slate-100 dark:border-white/10 p-3 shadow-sm">
+            <div className="grid grid-cols-3 gap-2 p-1 bg-slate-100 dark:bg-white/5 rounded-xl">
+              <button
+                onClick={() => setTheme("light")}
+                className={cn(
+                  "flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-bold transition-all",
+                  theme === "light"
+                    ? "bg-white dark:bg-[#251545] text-[#4B0A8F] dark:text-purple-200 shadow-sm"
+                    : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                )}
+              >
+                <Sun className="w-3.5 h-3.5 text-amber-500" />
+                <span>Light</span>
+              </button>
+              <button
+                onClick={() => setTheme("dark")}
+                className={cn(
+                  "flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-bold transition-all",
+                  theme === "dark"
+                    ? "bg-white dark:bg-[#251545] text-[#4B0A8F] dark:text-purple-200 shadow-sm"
+                    : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                )}
+              >
+                <Moon className="w-3.5 h-3.5 text-indigo-400" />
+                <span>Dark</span>
+              </button>
+              <button
+                onClick={() => setTheme("system")}
+                className={cn(
+                  "flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-bold transition-all",
+                  theme === "system"
+                    ? "bg-white dark:bg-[#251545] text-[#4B0A8F] dark:text-purple-200 shadow-sm"
+                    : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                )}
+              >
+                <Monitor className="w-3.5 h-3.5 text-sky-400" />
+                <span>System</span>
+              </button>
+            </div>
+            <p className="text-[11px] text-slate-400 dark:text-slate-400 mt-2 px-1 font-medium flex items-center justify-between">
+              <span>Theme Preference</span>
+              <span className="font-bold capitalize text-slate-700 dark:text-purple-200">{theme} {theme === "system" && `(${resolvedTheme})`}</span>
+            </p>
+          </div>
+        </div>
+
         {/* ACCESS Section */}
         <div className="space-y-2">
           <h2 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider px-2">
             ACCESS & SECURITY
           </h2>
-          <div className="rounded-2xl bg-white border border-slate-100 shadow-sm overflow-hidden flex flex-col">
+          <div className="rounded-2xl bg-white dark:bg-[#180E30] border border-slate-100 dark:border-white/10 shadow-sm overflow-hidden flex flex-col">
             <button
               onClick={() => setIsPermissionsOpen(true)}
-              className="w-full p-4 flex items-center justify-between hover:bg-slate-50 transition-colors border-b border-slate-100"
+              className="w-full p-4 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-white/5 transition-colors border-b border-slate-100 dark:border-white/10"
             >
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
-                  <Lock className="w-4 h-4 text-blue-600" />
+                <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-950/40 flex items-center justify-center shrink-0">
+                  <Lock className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                 </div>
                 <div className="text-left">
-                  <p className="text-sm font-bold text-slate-900">Permissions</p>
-                  <p className="text-xs text-slate-400">Manage app admins</p>
+                  <p className="text-sm font-bold text-slate-900 dark:text-white">Permissions</p>
+                  <p className="text-xs text-slate-400 dark:text-slate-400">Manage app admins</p>
                 </div>
               </div>
               <ChevronRight className="w-4 h-4 text-slate-400" />
@@ -269,7 +335,7 @@ export function MobileMorePage({ onNavigate }: MobileMorePageProps) {
           <h2 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider px-2">
             OPERATIONS & DESKS
           </h2>
-          <div className="rounded-2xl bg-white border border-slate-100 shadow-sm flex flex-col overflow-hidden">
+          <div className="rounded-2xl bg-white dark:bg-[#180E30] border border-slate-100 dark:border-white/10 shadow-sm flex flex-col overflow-hidden">
             <SettingRow
               icon={<UserPlus className="w-4 h-4 text-purple-600" />}
               iconBg="bg-purple-50"
@@ -370,7 +436,7 @@ export function MobileMorePage({ onNavigate }: MobileMorePageProps) {
           <h2 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider px-2">
             SETTINGS & TOOLS
           </h2>
-          <div className="rounded-2xl bg-white border border-slate-100 shadow-sm flex flex-col overflow-hidden">
+          <div className="rounded-2xl bg-white dark:bg-[#180E30] border border-slate-100 dark:border-white/10 shadow-sm flex flex-col overflow-hidden">
             <SettingRow
               icon={<BarChart2 className="w-4 h-4 text-emerald-600" />}
               iconBg="bg-emerald-50"
@@ -823,8 +889,8 @@ function SettingRow({
     <button
       onClick={onClick}
       className={cn(
-        "w-full p-4 flex items-center justify-between hover:bg-slate-50 transition-colors text-left",
-        !isLast && "border-b border-slate-100"
+        "w-full p-4 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-white/5 transition-colors text-left",
+        !isLast && "border-b border-slate-100 dark:border-white/10"
       )}
     >
       <div className="flex items-center gap-3">
@@ -832,8 +898,8 @@ function SettingRow({
           {icon}
         </div>
         <div>
-          <p className="text-sm font-bold text-slate-900">{title}</p>
-          <p className="text-xs text-slate-400">{subtitle}</p>
+          <p className="text-sm font-bold text-slate-900 dark:text-white">{title}</p>
+          <p className="text-xs text-slate-400 dark:text-slate-400">{subtitle}</p>
         </div>
       </div>
       <ChevronRight className="w-4 h-4 text-slate-400" />

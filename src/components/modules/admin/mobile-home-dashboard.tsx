@@ -3,12 +3,14 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
-import { Bell, MapPin, Users, CheckCircle2, Loader2, Calendar, TrendingUp } from "lucide-react";
+import { Bell, MapPin, Users, CheckCircle2, Loader2, Calendar, TrendingUp, Sun, Moon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTheme } from "@/components/providers/theme-provider";
 
 export function MobileHomeDashboard() {
   const { data: session } = useSession();
   const user = session?.user as any;
+  const { setTheme, resolvedTheme } = useTheme();
   const [viewMode, setViewMode] = useState<"today" | "trend">("today");
   const [audienceMode, setAudienceMode] = useState<"student" | "murabbi">("student");
 
@@ -38,10 +40,23 @@ export function MobileHomeDashboard() {
               </p>
             </div>
           </div>
-          <button className="size-10 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-white relative">
-            <Bell className="size-5" />
-            <span className="absolute top-2 right-2 size-2.5 bg-[#D90429] rounded-full border border-white"></span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
+              className="size-10 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-white active:scale-95 transition-transform"
+              title={resolvedTheme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+            >
+              {resolvedTheme === "dark" ? (
+                <Sun className="size-5 text-amber-300" />
+              ) : (
+                <Moon className="size-5 text-purple-200" />
+              )}
+            </button>
+            <button className="size-10 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-white relative">
+              <Bell className="size-5" />
+              <span className="absolute top-2 right-2 size-2.5 bg-[#D90429] rounded-full border border-white"></span>
+            </button>
+          </div>
         </div>
 
         {/* Batch Dropdown */}
