@@ -106,7 +106,7 @@ export async function GET(request: Request) {
       eventId: event.id,
       eventDate: event.eventDate,
       // An incomplete locked session pauses the streak instead of creating risk.
-      status: participantRecordMap.get(event.id) ?? "excused",
+      status: (participantRecordMap.get(event.id) ?? "excused") as "present" | "late" | "absent" | "excused",
     })), {
       warningConsecutiveWeeks: settings?.warningConsecutiveWeeks ?? 2,
       dropoutConsecutiveWeeks: settings?.dropoutConsecutiveWeeks ?? 3,

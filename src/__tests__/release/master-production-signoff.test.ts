@@ -23,12 +23,12 @@ function allMigrationDirs(base: string): string[] {
 describe("PROD-HANDOVER-001: Master Production Sign-Off", () => {
   /* ── 1. Dual Schema Validation ───────────────────────────────────── */
   describe("Dual schema validation", () => {
-    it("SQLite schema has 67 models", () => {
-      expect(modelNames(join(ROOT, "prisma/schema.prisma")).length).toBe(67);
+    it("SQLite schema has 72 models", () => {
+      expect(modelNames(join(ROOT, "prisma/schema.prisma")).length).toBe(72);
     });
 
-    it("PostgreSQL schema has 67 models", () => {
-      expect(modelNames(join(ROOT, "prisma/postgres/schema.prisma")).length).toBe(67);
+    it("PostgreSQL schema has 72 models", () => {
+      expect(modelNames(join(ROOT, "prisma/postgres/schema.prisma")).length).toBe(72);
     });
 
     it("all SQLite models match PostgreSQL models bidirectionally", () => {
@@ -37,12 +37,12 @@ describe("PROD-HANDOVER-001: Master Production Sign-Off", () => {
       expect(sqliteModels).toEqual(pgModels);
     });
 
-    it("PostgreSQL migrations chain complete (22 migrations)", () => {
-      expect(allMigrationDirs(PG_MIGRATIONS)).toHaveLength(22);
+    it("PostgreSQL migrations chain complete (24 migrations)", () => {
+      expect(allMigrationDirs(PG_MIGRATIONS)).toHaveLength(24);
     });
 
-    it("SQLite migrations chain complete (12 migrations)", () => {
-      expect(allMigrationDirs(SQLITE_MIGRATIONS)).toHaveLength(12);
+    it("SQLite migrations chain complete (13 migrations)", () => {
+      expect(allMigrationDirs(SQLITE_MIGRATIONS)).toHaveLength(13);
     });
 
     it("latest migration matches in both chains (mashwara module)", () => {

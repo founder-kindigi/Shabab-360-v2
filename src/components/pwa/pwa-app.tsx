@@ -3,30 +3,31 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSession, signOut } from "next-auth/react";
 import { motion, AnimatePresence } from "framer-motion";
+
+// Existing components
 import { MobileSplashPage } from "@/components/modules/auth/mobile-splash-page";
 import { MobileLoginPage } from "@/components/modules/auth/mobile-login-page";
-import { MobileAttendancePage } from "@/components/modules/park/mobile-attendance-page";
 import { MobileMurabbiDashboard } from "@/components/modules/murabbi/mobile-murabbi-dashboard";
 import { MobileParkDashboard } from "@/components/modules/park/mobile-park-dashboard";
 import { MobileCityHeadDashboard } from "@/components/modules/city-head/mobile-city-head-dashboard";
-import { MobileAdminDashboard } from "@/components/modules/admin/mobile-admin-dashboard";
 import { MobileStudentDashboard } from "@/components/modules/student/mobile-student-dashboard";
 import { MobileGuardianDashboard } from "@/components/modules/guardian/mobile-guardian-dashboard";
-import { MobileCallingPage } from "@/components/modules/admin/mobile-calling-page";
-import { MobileMashwaraPage } from "@/components/modules/admin/mobile-mashwara-page";
-import { MobileEventsPage } from "@/components/modules/admin/mobile-events-page";
-import { MobileContentPlannerPage } from "@/components/modules/content-planner/mobile-content-planner-page";
-import { MobileAdmissionsPage } from "@/components/modules/admin/mobile-admissions-page";
-import { MobileFeesPage } from "@/components/modules/admin/mobile-fees-page";
+
+// New components (to be implemented)
+import { MobileParksPage } from "@/components/modules/park/mobile-parks-page";
+import { MobileParkDetailPage } from "@/components/modules/park/mobile-park-detail-page";
+import { MobileInventoryPage } from "@/components/modules/park/mobile-inventory-page";
+import { MobileEvaluationPage } from "@/components/modules/park/mobile-evaluation-page";
+import { MobileInfoPage } from "@/components/modules/mobile-info-page";
+import { MobileMorePage } from "@/components/modules/admin/mobile-more-page";
+import { MobileAnalysisPage } from "@/components/modules/admin/mobile-analysis-page";
+import { MobileHomeDashboard } from "@/components/modules/admin/mobile-home-dashboard";
+
 import {
   Home,
-  CheckSquare,
-  PhoneCall,
-  CalendarCheck,
-  User,
-  BookOpen,
-  DollarSign,
-  LogOut,
+  Hexagon,
+  Info,
+  MoreHorizontal,
   Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -35,88 +36,29 @@ import { cn } from "@/lib/utils";
 type ScreenId =
   | "splash"
   | "login"
-  | "home"           // role-based dashboard
-  | "attendance"
-  | "calling"
-  | "mashwara"
-  | "events"
-  | "planner"
-  | "admissions"
-  | "fees"
-  | "profile";
+  | "home"
+  | "parks"
+  | "info"
+  | "more"
+  | "park-detail"
+  | "inventory"
+  | "evaluation"
+  | "analysis";
 
-// ─── Bottom nav tabs per role group ───────────────────────────────────────────
-const ADMIN_TABS = [
-  { id: "home" as ScreenId,       label: "Home",       icon: Home },
-  { id: "attendance" as ScreenId, label: "Attend",     icon: CheckSquare },
-  { id: "admissions" as ScreenId, label: "Admits",     icon: User },
-  { id: "fees" as ScreenId,       label: "Fees",       icon: DollarSign },
-  { id: "calling" as ScreenId,    label: "Calls",      icon: PhoneCall },
+export type ParkNav = {
+  parkId: string;
+  parkName: string;
+  murabbiCount: number;
+  studentCount: number;
+} | null;
+
+// ─── Universal Bottom Nav Tabs ──────────────────────────────────────────────────
+const APP_TABS = [
+  { id: "home" as ScreenId,  label: "Home",  icon: Home },
+  { id: "parks" as ScreenId, label: "Parks", icon: Hexagon },
+  { id: "info" as ScreenId,  label: "Info",  icon: Info },
+  { id: "more" as ScreenId,  label: "More",  icon: MoreHorizontal },
 ];
-
-const PARK_TABS = [
-  { id: "home" as ScreenId,       label: "Home",       icon: Home },
-  { id: "attendance" as ScreenId, label: "Attend",     icon: CheckSquare },
-  { id: "mashwara" as ScreenId,   label: "Mashwara",   icon: CalendarCheck },
-  { id: "planner" as ScreenId,    label: "Planner",    icon: BookOpen },
-  { id: "calling" as ScreenId,    label: "Calls",      icon: PhoneCall },
-];
-
-const MURABBI_TABS = [
-  { id: "home" as ScreenId,       label: "Home",       icon: Home },
-  { id: "attendance" as ScreenId, label: "Attend",     icon: CheckSquare },
-  { id: "mashwara" as ScreenId,   label: "Mashwara",   icon: CalendarCheck },
-  { id: "events" as ScreenId,     label: "Events",     icon: CalendarCheck },
-  { id: "planner" as ScreenId,    label: "Planner",    icon: BookOpen },
-];
-
-const STUDENT_TABS = [
-  { id: "home" as ScreenId,       label: "Home",       icon: Home },
-  { id: "attendance" as ScreenId, label: "Attend",     icon: CheckSquare },
-  { id: "events" as ScreenId,     label: "Events",     icon: CalendarCheck },
-];
-
-const GUARDIAN_TABS = [
-  { id: "home" as ScreenId,  label: "Home",   icon: Home },
-  { id: "events" as ScreenId, label: "Events", icon: CalendarCheck },
-];
-
-// ─── Role → home dashboard mapping ────────────────────────────────────────────
-function getHomeDashboard(role: string): ScreenId {
-  switch (role) {
-    case "murabbi":                        return "home";
-    case "park_lead":
-    case "park_admin":                     return "home";
-    case "city_head":                      return "home";
-    case "super_admin":
-    case "program_admin":                  return "home";
-    case "student":                        return "home";
-    case "guardian":                       return "home";
-    default:                               return "home";
-  }
-}
-
-const CITY_HEAD_TABS = [
-  { id: "home" as ScreenId,       label: "Home",       icon: Home },
-  { id: "attendance" as ScreenId, label: "Attend",     icon: CheckSquare },
-  { id: "admissions" as ScreenId, label: "Admits",     icon: User },
-  { id: "calling" as ScreenId,    label: "Calls",      icon: PhoneCall },
-  { id: "events" as ScreenId,     label: "Events",     icon: CalendarCheck },
-];
-
-function getTabsForRole(role: string) {
-  switch (role) {
-    case "super_admin":
-    case "program_admin": return ADMIN_TABS;
-    case "city_head":     return CITY_HEAD_TABS;
-    case "park_lead":
-    case "park_admin":    return PARK_TABS;
-    case "murabbi":       return MURABBI_TABS;
-    case "student":       return STUDENT_TABS;
-    case "guardian":      return GUARDIAN_TABS;
-    default:              return ADMIN_TABS;
-  }
-}
 
 function PwaLoadingScreen() {
   return (
@@ -136,10 +78,9 @@ export function PwaApp() {
   const user = session?.user as any;
   const role: string = user?.role ?? "";
 
-  const [screen, setScreen]           = useState<ScreenId>("splash");
-  const [rolePrefill, setRolePrefill] = useState("");
-  const [navTabs, setNavTabs]         = useState(ADMIN_TABS);
-  const sessionInitialized            = useRef(false);
+  const [screen, setScreen] = useState<ScreenId>("splash");
+  const [parkNav, setParkNav] = useState<ParkNav>(null);
+  const sessionInitialized = useRef(false);
 
   // Once session is known, decide initial screen
   useEffect(() => {
@@ -148,8 +89,6 @@ export function PwaApp() {
     sessionInitialized.current = true;
 
     if (session && user?.id && role) {
-      // Already logged in — go straight to home
-      setNavTabs(getTabsForRole(role));
       setScreen("home");
     } else {
       setScreen("splash");
@@ -159,177 +98,117 @@ export function PwaApp() {
   // After role changes (login success) navigate home
   useEffect(() => {
     if (role) {
-      setNavTabs(getTabsForRole(role));
       if (screen === "login" || screen === "splash") {
         setScreen("home");
       }
     }
-  }, [role]);
-
-  const handleLogout = useCallback(async () => {
-    await signOut({ redirect: false });
-    sessionInitialized.current = false;
-    setScreen("splash");
-  }, []);
+  }, [role, screen]);
 
   // ─── Loading state ───────────────────────────────────────────────────────
   if (status === "loading") return <PwaLoadingScreen />;
 
   // ─── Render the active screen ────────────────────────────────────────────
+  // ─── Render the active screen ────────────────────────────────────────────
   const renderScreen = () => {
     // AUTH SCREENS (no bottom nav)
     if (screen === "splash") {
       return (
-        <MobileSplashPage
-          onContinue={() => setScreen("login")}
-        />
+        <div className="min-h-screen w-full bg-[#f0f2f5] dark:bg-[#0c0817] flex justify-center">
+          <div className="w-full max-w-[460px] min-h-screen shadow-2xl relative flex flex-col border-x border-gray-200/80">
+            <MobileSplashPage onContinue={() => setScreen("login")} />
+          </div>
+        </div>
       );
     }
 
     if (screen === "login") {
       return (
-        <MobileLoginPage
-          onBackToSplash={() => setScreen("splash")}
-          onSuccess={() => setScreen("home")}
-        />
+        <div className="min-h-screen w-full bg-[#f0f2f5] dark:bg-[#0c0817] flex justify-center">
+          <div className="w-full max-w-[460px] min-h-screen shadow-2xl relative flex flex-col border-x border-gray-200/80">
+            <MobileLoginPage
+              onBackToSplash={() => setScreen("splash")}
+              onSuccess={() => setScreen("home")}
+            />
+          </div>
+        </div>
       );
     }
 
     // APP SCREENS (show bottom nav)
     return (
-      <div className="flex flex-col min-h-screen w-full bg-background text-foreground">
-        {/* Active Screen */}
-        <main className="flex-1 w-full pb-20">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={screen}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.2, ease: "easeOut" }}
-              className="w-full"
-            >
-              {/* HOME — role-specific dashboard */}
-              {screen === "home" && role === "murabbi"                          && <MobileMurabbiDashboard />}
-              {screen === "home" && (role === "park_lead" || role === "park_admin") && <MobileParkDashboard />}
-              {screen === "home" && role === "city_head"                        && <MobileCityHeadDashboard />}
-              {screen === "home" && (role === "super_admin" || role === "program_admin") && <MobileAdminDashboard />}
-              {screen === "home" && role === "student"                          && <MobileStudentDashboard />}
-              {screen === "home" && role === "guardian"                         && <MobileGuardianDashboard />}
+      <div className="min-h-screen w-full bg-[#f0f2f5] dark:bg-[#0c0817] flex justify-center selection:bg-purple-500 selection:text-white">
+        <div className="w-full max-w-[460px] min-h-screen bg-white dark:bg-[#120B24] shadow-2xl relative flex flex-col border-x border-gray-200/80 dark:border-white/10">
+          {/* Active Screen */}
+          <main className="flex-1 w-full pb-20 overflow-y-auto">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={screen}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.15, ease: "easeOut" }}
+                className="w-full"
+              >
+                {/* HOME — role-specific dashboard */}
+                {screen === "home" && role === "murabbi" && <MobileMurabbiDashboard />}
+                {screen === "home" && (role === "park_lead" || role === "park_admin") && <MobileParkDashboard />}
+                {screen === "home" && role === "city_head" && <MobileCityHeadDashboard />}
+                {screen === "home" && (role === "super_admin" || role === "program_admin") && <MobileHomeDashboard />}
+                {screen === "home" && role === "student" && <MobileStudentDashboard />}
+                {screen === "home" && role === "guardian" && <MobileGuardianDashboard />}
+                
+                {/* NEW SCREENS */}
+                {screen === "parks" && (
+                  <MobileParksPage 
+                    onParkSelect={(park) => { 
+                      setParkNav(park); 
+                      setScreen("park-detail"); 
+                    }}
+                    onSelectInventory={() => setScreen("inventory")}
+                  />
+                )}
+                {screen === "park-detail" && (
+                  <MobileParkDetailPage 
+                    parkNav={parkNav} 
+                    onBack={() => setScreen("parks")} 
+                  />
+                )}
+                {screen === "inventory" && <MobileInventoryPage onBack={() => setScreen("parks")} />}
+                {screen === "info" && <MobileInfoPage />}
+                {screen === "more" && <MobileMorePage onNavigate={(s: string) => setScreen(s as ScreenId)} />}
+                {screen === "analysis" && <MobileAnalysisPage onBack={() => setScreen("more")} />}
+              </motion.div>
+            </AnimatePresence>
+          </main>
 
-              {/* OTHER SCREENS */}
-              {screen === "attendance" && <MobileAttendancePage onBack={() => setScreen("home")} />}
-              {screen === "calling"    && <MobileCallingPage />}
-              {screen === "mashwara"   && <MobileMashwaraPage />}
-              {screen === "events"     && <MobileEventsPage />}
-              {screen === "planner"    && <MobileContentPlannerPage />}
-              {screen === "admissions" && <MobileAdmissionsPage />}
-              {screen === "fees"       && <MobileFeesPage />}
-
-              {/* PROFILE / LOGOUT */}
-              {screen === "profile" && (
-                <div className="flex flex-col min-h-screen w-full bg-background select-none">
-                  {/* Header gradient */}
-                  <div className="w-full bg-gradient-to-br from-[#1F0860] via-[#4B0A8F] to-[#D90429] pt-16 pb-20 px-6 flex flex-col items-center gap-4">
-                    {/* Avatar initials circle */}
-                    <div className="size-24 rounded-full bg-white/15 border-4 border-white/30 flex items-center justify-center shadow-2xl backdrop-blur-sm">
-                      <span className="text-3xl font-black text-white">
-                        {(user?.name ?? "U").split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()}
-                      </span>
-                    </div>
-                    <div className="text-center">
-                      <h2 className="text-xl font-extrabold text-white">{user?.name ?? "—"}</h2>
-                      <p className="text-sm text-purple-200 font-medium mt-0.5">{user?.email ?? ""}</p>
-                    </div>
-                  </div>
-
-                  {/* Info card */}
-                  <div className="-mt-8 mx-4 bg-card border border-border/80 rounded-3xl shadow-xl p-5 space-y-4">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Role</span>
-                      <span className="text-xs font-black bg-[#4B0A8F]/10 text-[#4B0A8F] dark:text-purple-300 px-3 py-1 rounded-full border border-[#4B0A8F]/20 uppercase tracking-wider">
-                        {role.replace(/_/g, " ")}
-                      </span>
-                    </div>
-                    <hr className="border-border/60" />
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Email</span>
-                      <span className="text-xs font-semibold text-foreground">{user?.email ?? "—"}</span>
-                    </div>
-                    <hr className="border-border/60" />
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">App</span>
-                      <span className="text-xs font-semibold text-foreground">Shabab 360 PWA</span>
-                    </div>
-                  </div>
-
-                  {/* Sign Out */}
-                  <div className="mx-4 mt-4">
-                    <button
-                      onClick={handleLogout}
-                      className="w-full flex items-center justify-center gap-2 h-14 rounded-2xl bg-rose-600 text-white font-extrabold text-sm shadow-xl shadow-rose-600/25 hover:bg-rose-700 active:scale-[0.98] transition-all"
-                    >
-                      <LogOut className="size-5" />
-                      Sign Out
-                    </button>
-                  </div>
-                </div>
-              )}
-            </motion.div>
-          </AnimatePresence>
-        </main>
-
-        {/* ─── Glassmorphic Bottom Navigation ────────────────────────────── */}
-        <nav className="fixed bottom-0 left-0 right-0 z-50 bg-card/85 backdrop-blur-xl border-t border-border/70 w-full shadow-2xl">
-          <div className="flex items-center justify-around px-1 py-1.5">
-            {navTabs.map((tab) => {
-              const Icon = tab.icon;
-              const isActive = screen === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setScreen(tab.id)}
-                  className={cn(
-                    "flex flex-col items-center gap-0.5 py-1.5 px-2 rounded-xl transition-all duration-200 relative min-w-0 flex-1",
-                    isActive
-                      ? "text-[#4B0A8F] dark:text-purple-300"
-                      : "text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  {isActive && (
-                    <motion.div
-                      layoutId="pwa-active-tab"
-                      className="absolute inset-0 bg-[#4B0A8F]/10 dark:bg-purple-400/15 rounded-2xl -z-10"
-                      transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                    />
-                  )}
-                  <Icon className={cn("size-5", isActive && "stroke-[2.5px]")} />
-                  <span className="text-[10px] font-bold tracking-tight">{tab.label}</span>
-                </button>
-              );
-            })}
-            {/* Profile / Logout always last */}
-            <button
-              onClick={() => setScreen("profile")}
-              className={cn(
-                "flex flex-col items-center gap-0.5 py-1.5 px-2 rounded-xl transition-all duration-200 relative min-w-0 flex-1",
-                screen === "profile"
-                  ? "text-[#4B0A8F] dark:text-purple-300"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              {screen === "profile" && (
-                <motion.div
-                  layoutId="pwa-active-tab"
-                  className="absolute inset-0 bg-[#4B0A8F]/10 dark:bg-purple-400/15 rounded-2xl -z-10"
-                  transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                />
-              )}
-              <User className={cn("size-5", screen === "profile" && "stroke-[2.5px]")} />
-              <span className="text-[10px] font-bold tracking-tight">Profile</span>
-            </button>
-          </div>
-        </nav>
+          {/* ─── Bottom Navigation ────────────────────────────── */}
+          <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[460px] bg-white/98 dark:bg-[#120B24]/98 backdrop-blur-md border-t border-gray-100 dark:border-white/10 z-40 px-2 py-1.5 shadow-md">
+            <div className="flex items-center justify-around w-full">
+              {APP_TABS.map((tab) => {
+                const Icon = tab.icon;
+                const isActive = screen === tab.id || 
+                                 (tab.id === "parks" && ["park-detail", "inventory", "evaluation"].includes(screen)) ||
+                                 (tab.id === "more" && ["analysis"].includes(screen));
+                
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setScreen(tab.id)}
+                    className={cn(
+                      "flex flex-col items-center gap-0.5 py-1 px-3 rounded-xl transition-all duration-200 relative min-w-0 flex-1",
+                      isActive
+                        ? "text-[#180A40] dark:text-purple-300 font-bold"
+                        : "text-gray-400 hover:text-gray-600 font-medium"
+                    )}
+                  >
+                    <Icon className={cn("size-5", isActive && "stroke-[2.5px] text-[#180A40] dark:text-purple-300")} />
+                    <span className="text-[10px] tracking-tight">{tab.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </nav>
+        </div>
       </div>
     );
   };

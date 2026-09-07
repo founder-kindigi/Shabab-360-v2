@@ -69,7 +69,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ eventI
               eventId: closedEvent.id,
               eventDate: closedEvent.eventDate,
               // Missing marks make the week incomplete; they must not trigger dropout.
-              status: recordMap.get(`${participant.id}:${closedEvent.id}`) ?? "excused",
+              status: (recordMap.get(`${participant.id}:${closedEvent.id}`) ?? "excused") as "present" | "late" | "absent" | "excused",
             })),
             {
               warningConsecutiveWeeks: settings?.warningConsecutiveWeeks ?? 2,

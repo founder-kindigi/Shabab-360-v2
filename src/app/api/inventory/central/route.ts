@@ -1,0 +1,62 @@
+import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { db } from "@/lib/db";
+
+type SessionUser = {
+  id?: string;
+  role?: string;
+};
+
+export async function GET(request: Request) {
+  const session = await getServerSession(authOptions);
+  const user = session?.user as SessionUser | undefined;
+
+  if (!session || !user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const allowedRoles = ["super_admin", "park_lead", "city_head"];
+  if (!user.role || !allowedRoles.includes(user.role)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  try {
+    const items = await db.procurementItem.findMany({
+      where: { isActive: true },
+      orderBy: { name: "asc" },
+    });
+
+    const parkStocksRaw = await db.parkStock.findMany({
+      include: {
+        park: { select: { id: true, name: true } },
+      },
+    });
+
+    // Group by park
+    const parkStocksMap = new Map<string, { parkId: string; parkName: string; items: any[] }>();
+    for (const ps of parkStocksRaw) {
+      if (!parkStocksMap.has(ps.parkId)) {
+        parkStocksMap.set(ps.parkId, {
+          parkId: ps.parkId,
+          parkName: ps.park.name,
+          items: [],
+        });
+      }
+      parkStocksMap.get(ps.parkId)!.items.push({
+        id: ps.id,
+        itemId: ps.itemId,
+        quantity: ps.quantity,
+        minThreshold: ps.minThreshold,
+        updatedAt: ps.updatedAt,
+      });
+    }
+
+    const parkStocks = Array.from(parkStocksMap.values());
+
+    return NextResponse.json({ items, parkStocks });
+  } catch (error) {
+    console.error("GET /api/inventory/central error:", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+}

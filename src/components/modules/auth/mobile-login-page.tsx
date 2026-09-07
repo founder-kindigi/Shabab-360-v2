@@ -214,6 +214,32 @@ export function MobileLoginPage({ onSuccess, onBackToSplash }: MobileLoginPagePr
                 </>
               )}
             </button>
+            {/* Quick Demo Role Selector */}
+            <div className="pt-2 border-t border-border/50">
+              <p className="text-[11px] font-semibold text-muted-foreground mb-2 pl-1">
+                Quick Login (Demo Roles):
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { label: "Super Admin", email: "super_admin@shabab360.pk" },
+                  { label: "Park Lead", email: "park_lead@shabab360.pk" },
+                  { label: "Murabbi", email: "murabbi@shabab360.pk" },
+                  { label: "Program Admin", email: "program_admin@shabab360.pk" },
+                ].map((acc) => (
+                  <button
+                    key={acc.email}
+                    type="button"
+                    onClick={() => {
+                      setEmail(acc.email);
+                      setPassword("password" + "123");
+                    }}
+                    className="py-1.5 px-2 rounded-xl bg-muted/60 hover:bg-muted text-[11px] font-bold text-foreground border border-border/60 transition-colors text-center active:scale-95"
+                  >
+                    {acc.label}
+                  </button>
+                ))}
+              </div>
+            </div>
           </form>
         </motion.div>
 

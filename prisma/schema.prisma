@@ -146,6 +146,8 @@ model Park {
   transfersTo           StockTransfer[]        @relation("StockTransferTo")
   stockAuditLogs        StockAuditLog[]
   staffAttendanceEvents StaffAttendanceEvent[]
+  lessons               ParkLesson[]
+  routineSlots          ParkRoutineSlot[]
 
   @@map("parks")
 }
@@ -518,6 +520,7 @@ model Participant {
   eventRegistrations EventRegistration[]
   pointTransactions PointTransaction[]
   unlockedBadges    StudentBadge[]
+  evaluations       StudentEvaluation[]
 
   @@index([groupId, state])
   @@map("participants")
@@ -1496,4 +1499,67 @@ model KnowledgeArticle {
 
   @@index([category, isPublished])
   @@map("knowledge_articles")
+}
+
+// ========== EVALUATIONS ==========
+
+model StudentEvaluation {
+  id             String   @id @default(cuid())
+  participantId  String
+  murabbiUserId  String
+  parkId         String
+  month          Int      // 1–12
+  year           Int
+  discipline     Int      // 0–10
+  farmabardari   Int      // 0–10
+  islah          Int      // 0–10
+  ibadah         Int      // 0–10
+  participation  Int      // 0–10
+  comment        String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  participant    Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+
+  @@unique([participantId, month, year])
+  @@index([parkId, month, year])
+  @@map("student_evaluations")
+}
+
+// ========== LESSONS ==========
+
+model ParkLesson {
+  id         String   @id @default(cuid())
+  parkId     String
+  title      String
+  type       String   // "Tarbiyah" | "Activity"
+  lessonDate DateTime
+  driveLink  String?
+  fileKey    String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  park       Park     @relation(fields: [parkId], references: [id], onDelete: Cascade)
+
+  @@index([parkId, lessonDate])
+  @@map("park_lessons")
+}
+
+// ========== PLANNER ==========
+
+model ParkRoutineSlot {
+  id        String @id @default(cuid())
+  parkId    String
+  timeStart String // e.g. "9:00"
+  timeEnd   String // e.g. "9:45"
+  activity  String
+  pdfLink   String?
+  sortOrder Int    @default(0)
+  isSpecialEvent Boolean @default(false)
+  createdAt DateTime @default(now())
+
+  park      Park   @relation(fields: [parkId], references: [id], onDelete: Cascade)
+
+  @@index([parkId])
+  @@map("park_routine_slots")
 }
