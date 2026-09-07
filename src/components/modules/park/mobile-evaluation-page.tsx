@@ -141,7 +141,7 @@ export function MobileEvaluationPage({ parkId, parkName, onBack }: MobileEvaluat
       : "Admin";
 
   return (
-    <div className="flex flex-col min-h-screen bg-white">
+    <div className="w-full max-w-[460px] mx-auto flex flex-col min-h-screen bg-white">
       {/* Sticky Top Header */}
       <div className="px-4 pt-4 pb-3 border-b border-slate-100 bg-white sticky top-0 z-20">
         <div className="flex items-center justify-between">

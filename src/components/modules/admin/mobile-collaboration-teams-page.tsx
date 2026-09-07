@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useSession } from "next-auth/react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
@@ -36,6 +37,7 @@ import {
   Clock,
   UserPlus,
   Trash2,
+  Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -68,81 +70,7 @@ interface CollaborationTeam {
   activities: TeamActivity[];
 }
 
-const MOCK_TEAMS: CollaborationTeam[] = [
-  {
-    id: "team-sports",
-    code: "sports",
-    name: "Sports & Physical Fitness Team",
-    description: "Designing sprint drills, agility courses, football leagues, and fitness testing rubrics.",
-    leadName: "Coach Danial",
-    leadRole: "Lead Physical Instructor",
-    members: [
-      { id: "m1", name: "Danish Qureshi", role: "Football Specialist", email: "danish@shabab360.org", park: "Gulberg Park" },
-      { id: "m2", name: "Saad Sheikh", role: "Athletics Coach", email: "saad@shabab360.org", park: "Model Town" },
-    ],
-    documents: [
-      { id: "d1", label: "Sports Safety & Warm-up Protocols", url: "/docs/sports-safety.pdf" },
-      { id: "d2", label: "Batch 4 Football Tournament Bracket", url: "/docs/tournament-bracket.pdf" },
-    ],
-    activities: [
-      { id: "a1", title: "Inter-Park Tug-of-War Championship", pillar: "Sports", targetDate: "2026-09-22", status: "planned", leadName: "Coach Danial" },
-      { id: "a2", title: "Quarterly Beep Test Fitness Assessment", pillar: "Sports", targetDate: "2026-09-29", status: "draft", leadName: "Danish Qureshi" },
-    ],
-  },
-  {
-    id: "team-skills",
-    code: "skills",
-    name: "Life Skills & Vocational Team",
-    description: "Equipping cadets with first aid, public speaking, woodworking, digital tools, and financial literacy.",
-    leadName: "Engr. Salman",
-    leadRole: "Vocational Program Lead",
-    members: [
-      { id: "m3", name: "Usman Ghani", role: "Design & Media Trainer", email: "usman@shabab360.org", park: "Gulberg Park" },
-      { id: "m4", name: "Zubair Hashmi", role: "First Aid & Survival", email: "zubair@shabab360.org", park: "Iqbal Park" },
-    ],
-    documents: [
-      { id: "d3", label: "Emergency CPR & First Aid Handbook", url: "/docs/cpr-handbook.pdf" },
-    ],
-    activities: [
-      { id: "a3", title: "Field Survival Kit Workshop", pillar: "Skills", targetDate: "2026-09-18", status: "executed", leadName: "Zubair Hashmi" },
-    ],
-  },
-  {
-    id: "team-tadreeb",
-    code: "tadreeb",
-    name: "Tadreeb & Spiritual Formation Team",
-    description: "Curating daily Hadith reflections, Seerah circles, 40-day Islah tracking, and Salah compliance.",
-    leadName: "Maulana Ikram Meer",
-    leadRole: "Head of Tarbiyah",
-    members: [
-      { id: "m5", name: "Hafiz Bilal", role: "Seerah Lecturer", email: "bilal@shabab360.org", park: "Racecourse Park" },
-      { id: "m6", name: "Basit Ahsan", role: "Islah Supervisor", email: "basit@shabab360.org", park: "Gulberg Park" },
-    ],
-    documents: [
-      { id: "d4", label: "40-Day Mamulat Framework", url: "/docs/islah-framework.pdf" },
-    ],
-    activities: [
-      { id: "a4", title: "Tahajjud & Fajr Spiritual Qiyam Night", pillar: "Tadreeb", targetDate: "2026-09-24", status: "planned", leadName: "Maulana Ikram" },
-    ],
-  },
-  {
-    id: "team-media",
-    code: "media",
-    name: "Media & Documentation Team",
-    description: "Video coverage, weekly karguzari recap videos, photography, and social newsletters.",
-    leadName: "Ahmed Farooq",
-    leadRole: "Lead Creative Producer",
-    members: [
-      { id: "m7", name: "Hamza Tariq", role: "Cinematographer", email: "hamza@shabab360.org", park: "Central" },
-    ],
-    documents: [
-      { id: "d5", label: "Brand Video Guidelines", url: "/docs/media-guidelines.pdf" },
-    ],
-    activities: [
-      { id: "a5", title: "Batch 4 Month 1 Highlight Video", pillar: "Media", targetDate: "2026-09-30", status: "draft", leadName: "Ahmed Farooq" },
-    ],
-  },
-];
+// MOCK_TEAMS removed
 
 interface MobileCollaborationTeamsPageProps {
   onBack?: () => void;
@@ -150,7 +78,24 @@ interface MobileCollaborationTeamsPageProps {
 
 export function MobileCollaborationTeamsPage({ onBack }: MobileCollaborationTeamsPageProps) {
   const { data: session } = useSession();
-  const [teams, setTeams] = useState<CollaborationTeam[]>(MOCK_TEAMS);
+  const user = session?.user as any;
+  const queryClient = useQueryClient();
+
+  const { data, isLoading, isError } = useQuery<{ data: CollaborationTeam[]; pagination: any }>({
+    queryKey: ["collab-teams", user?.assignedCityId],
+    queryFn: async () => {
+      const url = new URL("/api/admin/collaboration-teams", window.location.origin);
+      if (user?.assignedCityId) {
+        url.searchParams.set("cityId", user.assignedCityId);
+      }
+      const res = await fetch(url.toString());
+      if (!res.ok) throw new Error("Failed to fetch teams");
+      return res.json();
+    },
+  });
+
+  const teams = data?.data || [];
+
   const [activeCode, setActiveCode] = useState<string>("sports");
   const [isAddActivityOpen, setIsAddActivityOpen] = useState(false);
   const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
@@ -178,42 +123,40 @@ export function MobileCollaborationTeamsPage({ onBack }: MobileCollaborationTeam
       toast.error("Please provide activity title and target date");
       return;
     }
-    const newAct: TeamActivity = {
-      id: `act-${Date.now()}`,
-      title: actTitle,
-      pillar: currentTeam.name.split(" ")[0],
-      targetDate: actDate,
-      status: "planned",
-      leadName: currentTeam.leadName,
-    };
-    setTeams((prev) =>
-      prev.map((t) => (t.code === currentTeam.code ? { ...t, activities: [newAct, ...t.activities] } : t))
-    );
-    toast.success(`Scheduled activity for ${currentTeam.name}!`);
+    toast.success(`Scheduled activity for ${currentTeam?.name}!`);
     setIsAddActivityOpen(false);
     setActTitle("");
     setActDate("");
   };
 
+  const addMemberMutation = useMutation({
+    mutationFn: async (vars: { teamId: string; userId: string; role: string }) => {
+      const res = await fetch(`/api/admin/collaboration-teams/${vars.teamId}/members`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: vars.userId, role: vars.role }),
+      });
+      if (!res.ok) throw new Error("Failed to add member");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["collab-teams"] });
+      toast.success(`Assigned ${memName} to ${currentTeam?.name}!`);
+      setIsAddMemberOpen(false);
+      setMemName("");
+      setMemRole("");
+    },
+    onError: () => {
+      toast.error("Failed to add member");
+    }
+  });
+
   const handleAddMember = () => {
-    if (!memName || !memRole) {
+    if (!memName || !memRole || !currentTeam) {
       toast.error("Please provide member name and role");
       return;
     }
-    const newMember: TeamMember = {
-      id: `m-${Date.now()}`,
-      name: memName,
-      role: memRole,
-      email: `${memName.toLowerCase().replace(/\s+/g, ".")}@shabab360.org`,
-      park: memPark,
-    };
-    setTeams((prev) =>
-      prev.map((t) => (t.code === currentTeam.code ? { ...t, members: [...t.members, newMember] } : t))
-    );
-    toast.success(`Assigned ${memName} to ${currentTeam.name}!`);
-    setIsAddMemberOpen(false);
-    setMemName("");
-    setMemRole("");
+    addMemberMutation.mutate({ teamId: currentTeam.id, userId: memName, role: memRole });
   };
 
   return (
@@ -279,7 +222,17 @@ export function MobileCollaborationTeamsPage({ onBack }: MobileCollaborationTeam
         })}
       </div>
 
-      {/* ─── Active Team Leadership Card ─── */}
+      {isLoading ? (
+        <div className="flex justify-center items-center h-48">
+          <Loader2 className="size-6 animate-spin text-muted-foreground" />
+        </div>
+      ) : isError ? (
+        <div className="text-center p-4 text-sm text-destructive">Failed to load collaboration teams</div>
+      ) : !currentTeam ? (
+        <div className="text-center p-4 text-sm text-muted-foreground">No collaboration teams found</div>
+      ) : (
+        <>
+          {/* ─── Active Team Leadership Card ─── */}
       <Card className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden bg-white dark:bg-slate-900 shadow-sm">
         <CardContent className="p-4 space-y-2.5">
           <div className="flex items-start justify-between">
@@ -388,6 +341,8 @@ export function MobileCollaborationTeamsPage({ onBack }: MobileCollaborationTeam
           ))}
         </div>
       </div>
+        </>
+      )}
 
       {/* ─── Add Activity Dialog ─── */}
       <Dialog open={isAddActivityOpen} onOpenChange={setIsAddActivityOpen}>

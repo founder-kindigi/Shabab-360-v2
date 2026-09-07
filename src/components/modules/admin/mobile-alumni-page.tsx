@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useSession } from "next-auth/react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
@@ -37,6 +38,7 @@ import {
   Calendar,
   ExternalLink,
   Share2,
+  Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -53,68 +55,7 @@ export interface AlumniRecord {
   activeMenteeCount: number;
 }
 
-const MOCK_ALUMNI: AlumniRecord[] = [
-  {
-    id: "alum-1",
-    name: "Hamza Tariq",
-    phone: "+92 300 1234567",
-    batch: "Batch 1",
-    originalPark: "Gulberg Park",
-    currentStatus: "employed",
-    institutionOrCompany: "Systems Limited",
-    fieldOfStudyOrRole: "Associate Software Engineer",
-    willingToMentor: true,
-    activeMenteeCount: 3,
-  },
-  {
-    id: "alum-2",
-    name: "Zaid Bin Haris",
-    phone: "+92 321 9876543",
-    batch: "Batch 2",
-    originalPark: "Model Town Park",
-    currentStatus: "higher_ed",
-    institutionOrCompany: "FAST-NUCES Lahore",
-    fieldOfStudyOrRole: "BS Computer Science (Year 3)",
-    willingToMentor: true,
-    activeMenteeCount: 2,
-  },
-  {
-    id: "alum-3",
-    name: "Bilal Ahmed",
-    phone: "+92 333 4567890",
-    batch: "Batch 1",
-    originalPark: "Iqbal Park",
-    currentStatus: "entrepreneur",
-    institutionOrCompany: "Noor Fitness Studio",
-    fieldOfStudyOrRole: "Founder & Lead Trainer",
-    willingToMentor: false,
-    activeMenteeCount: 0,
-  },
-  {
-    id: "alum-4",
-    name: "Usman Ghani",
-    phone: "+92 302 3456789",
-    batch: "Batch 3",
-    originalPark: "Gulberg Park",
-    currentStatus: "freelance",
-    institutionOrCompany: "Upwork Global",
-    fieldOfStudyOrRole: "UI/UX & Digital Product Designer",
-    willingToMentor: true,
-    activeMenteeCount: 1,
-  },
-  {
-    id: "alum-5",
-    name: "Saad Qureshi",
-    phone: "+92 312 8765432",
-    batch: "Batch 2",
-    originalPark: "Racecourse Park",
-    currentStatus: "higher_ed",
-    institutionOrCompany: "King Edward Medical University",
-    fieldOfStudyOrRole: "MBBS (3rd Year)",
-    willingToMentor: true,
-    activeMenteeCount: 4,
-  },
-];
+// MOCK_ALUMNI removed
 
 interface MobileAlumniPageProps {
   onBack?: () => void;
@@ -122,7 +63,19 @@ interface MobileAlumniPageProps {
 
 export function MobileAlumniPage({ onBack }: MobileAlumniPageProps) {
   const { data: session } = useSession();
-  const [alumniList, setAlumniList] = useState<AlumniRecord[]>(MOCK_ALUMNI);
+  const queryClient = useQueryClient();
+  
+  const { data, isLoading, isError } = useQuery<{ success: boolean; data: AlumniRecord[] }>({
+    queryKey: ["alumni"],
+    queryFn: async () => {
+      const res = await fetch("/api/admin/alumni");
+      if (!res.ok) throw new Error("Failed to fetch alumni");
+      return res.json();
+    },
+  });
+  
+  const alumniList = data?.data || [];
+
   const [search, setSearch] = useState("");
   const [selectedBatch, setSelectedBatch] = useState("all");
   const [selectedStatus, setSelectedStatus] = useState("all");
@@ -152,13 +105,36 @@ export function MobileAlumniPage({ onBack }: MobileAlumniPageProps) {
     });
   }, [alumniList, search, selectedBatch, selectedStatus]);
 
+  const createAlumni = useMutation({
+    mutationFn: async (newEntry: Omit<AlumniRecord, "id" | "activeMenteeCount">) => {
+      const res = await fetch("/api/admin/alumni", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newEntry),
+      });
+      if (!res.ok) throw new Error("Failed to create alumni");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["alumni"] });
+      toast.success(`Added ${newName} to Alumni Directory!`);
+      setIsAddOpen(false);
+      setNewName("");
+      setNewPhone("");
+      setNewCompany("");
+      setNewRole("");
+    },
+    onError: () => {
+      toast.error("Failed to add alumni");
+    },
+  });
+
   const handleAddAlumni = () => {
     if (!newName || !newPhone) {
       toast.error("Please enter a name and phone number");
       return;
     }
-    const newEntry: AlumniRecord = {
-      id: `alum-${Date.now()}`,
+    createAlumni.mutate({
       name: newName,
       phone: newPhone,
       batch: newBatch,
@@ -167,15 +143,7 @@ export function MobileAlumniPage({ onBack }: MobileAlumniPageProps) {
       institutionOrCompany: newCompany || "Self-employed / Student",
       fieldOfStudyOrRole: newRole || "General",
       willingToMentor: newMentorCheck,
-      activeMenteeCount: 0,
-    };
-    setAlumniList((prev) => [newEntry, ...prev]);
-    toast.success(`Added ${newName} to Alumni Directory!`);
-    setIsAddOpen(false);
-    setNewName("");
-    setNewPhone("");
-    setNewCompany("");
-    setNewRole("");
+    });
   };
 
   const openWhatsApp = (phone: string, name: string) => {
@@ -223,7 +191,15 @@ export function MobileAlumniPage({ onBack }: MobileAlumniPageProps) {
         </Button>
       </div>
 
-      {/* ─── 4 Top KPI Cards ─── */}
+      {isLoading ? (
+        <div className="flex justify-center items-center h-48">
+          <Loader2 className="size-6 animate-spin text-muted-foreground" />
+        </div>
+      ) : isError ? (
+        <div className="text-center p-4 text-sm text-destructive">Failed to load alumni</div>
+      ) : (
+        <>
+          {/* ─── 4 Top KPI Cards ─── */}
       <div className="grid grid-cols-2 gap-2.5">
         <Card className="border border-slate-200 dark:border-slate-800 shadow-sm rounded-xl overflow-hidden">
           <CardContent className="p-3">
@@ -368,6 +344,8 @@ export function MobileAlumniPage({ onBack }: MobileAlumniPageProps) {
           );
         })}
       </div>
+        </>
+      )}
 
       {/* ─── Add Alumni Dialog ─── */}
       <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>

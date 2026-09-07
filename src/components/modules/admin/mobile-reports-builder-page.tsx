@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useMutation } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
@@ -150,6 +151,39 @@ export function MobileReportsBuilderPage({ onBack }: MobileReportsBuilderPagePro
       ...prev,
       [`${selectedDomain}-${key}`]: !prev[`${selectedDomain}-${key}`],
     }));
+  };
+
+  const reportMutation = useMutation({
+    mutationFn: async (payload: { domainId: string; columns: string[]; exportFormat: string }) => {
+      const res = await fetch("/api/admin/reports/custom", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error("Failed to generate report");
+      return res.json();
+    },
+    onSuccess: (data) => {
+      toast.success(
+        `Report generated! Columns: ${data.columnsCount} | At: ${new Date(data.generatedAt).toLocaleTimeString()}`
+      );
+    },
+    onError: () => {
+      toast.error("Failed to generate report on server. Falling back to CSV export.");
+      handleDownloadCsv();
+    },
+  });
+
+  const handleRunReport = () => {
+    const selectedColumns = domain.columns
+      .filter((c) => activeColumns[`${domain.id}-${c.key}`] !== false)
+      .map((c) => c.key);
+    
+    reportMutation.mutate({
+      domainId: domain.id,
+      columns: selectedColumns,
+      exportFormat: "json",
+    });
   };
 
   const handleDownloadCsv = () => {
@@ -315,16 +349,28 @@ export function MobileReportsBuilderPage({ onBack }: MobileReportsBuilderPagePro
         </CardContent>
       </Card>
 
-      {/* ─── Export Action Button ─── */}
-      <Button
-        size="lg"
-        disabled={isGenerating}
-        onClick={handleDownloadCsv}
-        className="w-full gap-2 bg-[#4B0A8F] hover:bg-[#3b0873] text-white font-bold rounded-2xl shadow-lg h-12"
-      >
-        <Download className="size-4" />
-        <span>{isGenerating ? "Compiling Dataset..." : "Generate & Download CSV Report"}</span>
-      </Button>
+      {/* ─── Export Action Buttons ─── */}
+      <div className="flex gap-2">
+        <Button
+          size="lg"
+          disabled={reportMutation.isPending}
+          onClick={handleRunReport}
+          className="flex-1 gap-2 bg-[#4B0A8F] hover:bg-[#3b0873] text-white font-bold rounded-2xl shadow-lg h-12"
+        >
+          <BarChart3 className="size-4" />
+          <span>{reportMutation.isPending ? "Generating..." : "Run Report"}</span>
+        </Button>
+        <Button
+          size="lg"
+          variant="outline"
+          disabled={isGenerating}
+          onClick={handleDownloadCsv}
+          className="gap-2 font-bold rounded-2xl h-12 text-[#4B0A8F] border-[#4B0A8F]"
+        >
+          <Download className="size-4" />
+          <span>CSV</span>
+        </Button>
+      </div>
 
       {/* ─── Share Dialog ─── */}
       <Dialog open={isShareOpen} onOpenChange={setIsShareOpen}>

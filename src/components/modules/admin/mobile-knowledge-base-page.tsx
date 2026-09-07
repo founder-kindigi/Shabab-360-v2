@@ -7,16 +7,12 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   BookOpen,
   FileText,
-  Download,
   Search,
   ArrowLeft,
   RefreshCw,
   Sparkles,
   ChevronRight,
-  ShieldCheck,
-  Tag,
   Eye,
-  Bookmark
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -28,73 +24,27 @@ interface MobileKnowledgeBasePageProps {
   onBack?: () => void;
 }
 
-const MOCK_RESOURCES = [
-  {
-    id: "r1",
-    title: "Lahore Batch 4 Complete Curriculum Guide",
-    description: "Detailed 8-week syllabus covering Sports, Life Skills, and Tarbiyah Ethics.",
-    category: "curriculum",
-    fileUrl: "/docs/lahore-batch-4-curriculum.pdf",
-    allowedRoles: "all",
-    fileSize: "2.4 MB",
-    fileType: "PDF",
-    createdAt: "2026-08-01",
-  },
-  {
-    id: "r2",
-    title: "Murabbi Field Operations & Attendance SOP",
-    description: "Standard operating procedures for marking group attendance and logging absence alerts.",
-    category: "policy",
-    fileUrl: "/docs/murabbi-sop.pdf",
-    allowedRoles: "murabbi,park_lead",
-    fileSize: "1.1 MB",
-    fileType: "PDF",
-    createdAt: "2026-08-02",
-  },
-  {
-    id: "r3",
-    title: "Sports Agility & Physical Fitness Manual",
-    description: "Drills, warm-up exercises, and safety protocols for sports leads.",
-    category: "activity_guide",
-    fileUrl: "/docs/sports-manual.pdf",
-    allowedRoles: "all",
-    fileSize: "3.8 MB",
-    fileType: "PDF",
-    createdAt: "2026-08-03",
-  },
-];
-
-const MOCK_ARTICLES = [
-  {
-    id: "k1",
-    title: "How to Conduct Effective Weekly Mashwara",
-    category: "operational_guide",
-    tags: "mashwara,leadership",
-    viewCount: 142,
-    content: "Step 1: Review Murabbi attendance log.\nStep 2: Log decisions categorized by collaboration teams.\nStep 3: Assign action items with clear due dates.",
-  },
-  {
-    id: "k2",
-    title: "Handling Student Absence & WhatsApp Outreach",
-    category: "best_practices",
-    tags: "attendance,parents",
-    viewCount: 98,
-    content: "When a student is marked absent for 2 consecutive sessions, trigger the automated Urdu WhatsApp template to notify the guardian immediately.",
-  },
+const CATEGORIES = [
+  { id: "all", label: "All Topics" },
+  { id: "best_practices", label: "Best Practices" },
+  { id: "operational_guide", label: "Operational Guides" },
+  { id: "faq", label: "FAQs" },
+  { id: "training", label: "Training" },
 ];
 
 export function MobileKnowledgeBasePage({ onBack }: MobileKnowledgeBasePageProps) {
   const { data: session } = useSession();
   const [search, setSearch] = useState("");
-  const [activeTab, setActiveTab] = useState<"resources" | "articles">("resources");
+  const [activeCategory, setActiveCategory] = useState("all");
   const [selectedArticle, setSelectedArticle] = useState<any | null>(null);
 
   // ─── Real DB Queries ───────────────────────────────────────────────────
-  const { data: resourcesData, isLoading } = useQuery({
-    queryKey: ["mobile-digital-resources"],
+  const { data: articlesData, isLoading } = useQuery({
+    queryKey: ["mobile-knowledge", activeCategory],
     queryFn: async () => {
-      const res = await fetch("/api/resources");
-      if (!res.ok) return null;
+      const url = activeCategory === "all" ? "/api/knowledge" : `/api/knowledge?category=${activeCategory}`;
+      const res = await fetch(url);
+      if (!res.ok) return [];
       return res.json();
     },
     retry: false,
@@ -102,15 +52,9 @@ export function MobileKnowledgeBasePage({ onBack }: MobileKnowledgeBasePageProps
     staleTime: 30000,
   });
 
-  const filteredResources = MOCK_RESOURCES.filter((r) => {
-    return (
-      !search ||
-      r.title.toLowerCase().includes(search.toLowerCase()) ||
-      r.description.toLowerCase().includes(search.toLowerCase())
-    );
-  });
+  const apiArticles: any[] = Array.isArray(articlesData) ? articlesData : [];
 
-  const filteredArticles = MOCK_ARTICLES.filter((a) => {
+  const filteredArticles = apiArticles.filter((a) => {
     return (
       !search ||
       a.title.toLowerCase().includes(search.toLowerCase()) ||
@@ -156,33 +100,8 @@ export function MobileKnowledgeBasePage({ onBack }: MobileKnowledgeBasePageProps
         </div>
       </div>
 
-      {/* ─── Mode Switcher & Search ──────────────────────────────────────── */}
+      {/* ─── Category Filter Pills & Search ──────────────────────────────────────── */}
       <div className="-mt-7 px-4 z-10 space-y-4">
-        <div className="flex items-center gap-2 p-1 rounded-2xl bg-card border border-slate-200 dark:border-slate-800 shadow-sm">
-          <button
-            onClick={() => setActiveTab("resources")}
-            className={cn(
-              "flex-1 py-2.5 rounded-xl text-xs font-extrabold transition-all flex items-center justify-center gap-1.5",
-              activeTab === "resources"
-                ? "bg-[#4B0A8F] text-white shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            <FileText className="size-4" /> Downloadable Files
-          </button>
-          <button
-            onClick={() => setActiveTab("articles")}
-            className={cn(
-              "flex-1 py-2.5 rounded-xl text-xs font-extrabold transition-all flex items-center justify-center gap-1.5",
-              activeTab === "articles"
-                ? "bg-[#4B0A8F] text-white shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            <BookOpen className="size-4" /> SOP Articles & FAQs
-          </button>
-        </div>
-
         {/* Search Input */}
         <div className="relative">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
@@ -194,85 +113,64 @@ export function MobileKnowledgeBasePage({ onBack }: MobileKnowledgeBasePageProps
           />
         </div>
 
+        <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide no-scrollbar -mx-4 px-4">
+          {CATEGORIES.map((cat) => (
+            <button
+              key={cat.id}
+              onClick={() => setActiveCategory(cat.id)}
+              className={cn(
+                "px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors border",
+                activeCategory === cat.id
+                  ? "bg-[#4B0A8F] text-white border-[#4B0A8F] shadow-sm"
+                  : "bg-white dark:bg-slate-900 text-muted-foreground border-slate-200 dark:border-slate-800 hover:bg-slate-50"
+              )}
+            >
+              {cat.label}
+            </button>
+          ))}
+        </div>
+
         {/* Content Section */}
-        {activeTab === "resources" ? (
-          <div className="space-y-3">
-            {filteredResources.map((res, idx) => (
-              <motion.div
-                key={res.id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: idx * 0.05 }}
-                className="p-4 rounded-3xl bg-card border border-slate-200 dark:border-slate-800 shadow-sm space-y-3"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <div className="size-10 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 flex items-center justify-center shrink-0">
-                      <FileText className="size-5" />
-                    </div>
-                    <div>
-                      <h3 className="text-xs font-bold text-slate-900 dark:text-slate-100 leading-snug">
-                        {res.title}
-                      </h3>
-                      <p className="text-[10px] text-muted-foreground font-medium line-clamp-1">
-                        {res.description}
-                      </p>
-                    </div>
-                  </div>
+        <div className="space-y-3">
+          {filteredArticles.length === 0 && !isLoading && (
+            <div className="text-center py-12 px-4 border border-dashed rounded-3xl bg-card border-slate-200 dark:border-slate-800 flex flex-col items-center">
+              <BookOpen className="size-8 text-slate-300 dark:text-slate-700 mb-3" />
+              <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">No articles found</p>
+              <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Try another category or term</p>
+            </div>
+          )}
 
-                  <Badge className="bg-purple-100 text-purple-700 dark:bg-purple-950/40 font-bold text-[10px] shrink-0 uppercase">
-                    {res.fileType}
+          {filteredArticles.map((art, idx) => (
+            <motion.div
+              key={art.id}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: idx * 0.05 }}
+              onClick={() => setSelectedArticle(art)}
+              className="p-4 rounded-3xl bg-card border border-slate-200 dark:border-slate-800 shadow-sm space-y-3 cursor-pointer hover:border-purple-300 transition-all active:scale-[0.99]"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="space-y-1">
+                  <Badge variant="outline" className="text-[10px] font-bold uppercase">
+                    {art.category?.replace(/_/g, " ") || "Article"}
                   </Badge>
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                    {art.title}
+                  </h3>
                 </div>
 
-                <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs font-bold">
-                  <span className="text-slate-500 font-medium text-[11px]">{res.fileSize}</span>
-
-                  <Button
-                    size="sm"
-                    onClick={() => toast.success(`Downloading ${res.title}...`)}
-                    className="h-8 px-3 text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl gap-1.5"
-                  >
-                    <Download className="size-3.5" /> Download
-                  </Button>
+                <div className="flex items-center gap-1 text-[11px] text-muted-foreground shrink-0 font-medium">
+                  <Eye className="size-3.5" /> {art.viewCount || 0}
                 </div>
-              </motion.div>
-            ))}
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {filteredArticles.map((art, idx) => (
-              <motion.div
-                key={art.id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: idx * 0.05 }}
-                onClick={() => setSelectedArticle(art)}
-                className="p-4 rounded-3xl bg-card border border-slate-200 dark:border-slate-800 shadow-sm space-y-3 cursor-pointer hover:border-purple-300 transition-all active:scale-[0.99]"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="space-y-1">
-                    <Badge variant="outline" className="text-[10px] font-bold uppercase">
-                      {art.category.replace(/_/g, " ")}
-                    </Badge>
-                    <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                      {art.title}
-                    </h3>
-                  </div>
+              </div>
 
-                  <div className="flex items-center gap-1 text-[11px] text-muted-foreground shrink-0 font-medium">
-                    <Eye className="size-3.5" /> {art.viewCount}
-                  </div>
-                </div>
-
-                <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs text-purple-600 font-bold">
-                  <span>Read Full Guide</span>
-                  <ChevronRight className="size-4" />
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        )}
+              <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs text-purple-600 font-bold">
+                <span>Read Full Guide</span>
+                <ChevronRight className="size-4" />
+              </div>
+            </motion.div>
+          ))}
+        </div>
       </div>
 
       {/* ─── Article Reader Drawer ──────────────────────────────────────── */}
@@ -293,9 +191,29 @@ export function MobileKnowledgeBasePage({ onBack }: MobileKnowledgeBasePageProps
               <div className="w-12 h-1.5 bg-slate-300 dark:bg-slate-700 rounded-full mx-auto mb-2" />
 
               <div className="space-y-1">
-                <Badge variant="outline" className="text-[10px] font-bold uppercase">
-                  {selectedArticle.category.replace(/_/g, " ")}
-                </Badge>
+                <div className="flex flex-wrap gap-2 mb-2">
+                  <Badge variant="outline" className="text-[10px] font-bold uppercase border-purple-200 text-purple-700 bg-purple-50">
+                    {selectedArticle.category?.replace(/_/g, " ") || "Article"}
+                  </Badge>
+                  {(() => {
+                    let tags: string[] = [];
+                    if (Array.isArray(selectedArticle.tags)) {
+                      tags = selectedArticle.tags;
+                    } else if (typeof selectedArticle.tags === "string") {
+                      try {
+                        const parsed = JSON.parse(selectedArticle.tags);
+                        tags = Array.isArray(parsed) ? parsed : [selectedArticle.tags];
+                      } catch {
+                        tags = selectedArticle.tags.split(",").map((t: string) => t.trim());
+                      }
+                    }
+                    return tags.map((t, i) => (
+                      <Badge key={i} variant="secondary" className="text-[10px] bg-slate-100 text-slate-600">
+                        {t}
+                      </Badge>
+                    ));
+                  })()}
+                </div>
                 <h2 className="text-lg font-black text-slate-900 dark:text-slate-100">
                   {selectedArticle.title}
                 </h2>

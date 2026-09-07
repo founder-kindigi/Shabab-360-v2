@@ -46,74 +46,8 @@ export interface StaffRecord {
   isActive: boolean;
 }
 
-const MOCK_STAFF: StaffRecord[] = [
-  {
-    id: "st-1",
-    name: "Ikram Meer",
-    phone: "+92 300 4567890",
-    whatsapp: "+92 300 4567890",
-    email: "ikram.meer@shabab360.org",
-    role: "murabbi",
-    park: "Gulberg Park",
-    assignedStudents: 12,
-    isActive: true,
-  },
-  {
-    id: "st-2",
-    name: "Umar Rohail",
-    phone: "+92 321 6543210",
-    whatsapp: "+92 321 6543210",
-    email: "umar.rohail@shabab360.org",
-    role: "park_lead",
-    park: "Gulberg Park",
-    assignedStudents: 0,
-    isActive: true,
-  },
-  {
-    id: "st-3",
-    name: "Basit Ahsan",
-    phone: "+92 333 1122334",
-    whatsapp: "+92 333 1122334",
-    email: "basit.ahsan@shabab360.org",
-    role: "park_admin",
-    park: "Gulberg Park",
-    assignedStudents: 0,
-    isActive: true,
-  },
-  {
-    id: "st-4",
-    name: "Danish Qureshi",
-    phone: "+92 304 9988776",
-    whatsapp: "+92 304 9988776",
-    email: "danish.qureshi@shabab360.org",
-    role: "murabbi",
-    park: "Model Town Park",
-    assignedStudents: 15,
-    isActive: true,
-  },
-  {
-    id: "st-5",
-    name: "Hamza Tariq",
-    phone: "+92 312 3344556",
-    whatsapp: "+92 312 3344556",
-    email: "hamza.tariq@shabab360.org",
-    role: "muawin",
-    park: "Model Town Park",
-    assignedStudents: 8,
-    isActive: true,
-  },
-  {
-    id: "st-6",
-    name: "Hafiz Bilal",
-    phone: "+92 301 7766554",
-    whatsapp: "+92 301 7766554",
-    email: "bilal.hafiz@shabab360.org",
-    role: "murabbi",
-    park: "Iqbal Park",
-    assignedStudents: 14,
-    isActive: true,
-  },
-];
+
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 interface MobileStaffDirectoryPageProps {
   onBack?: () => void;
@@ -121,7 +55,7 @@ interface MobileStaffDirectoryPageProps {
 
 export function MobileStaffDirectoryPage({ onBack }: MobileStaffDirectoryPageProps) {
   const { data: session } = useSession();
-  const [staffList, setStaffList] = useState<StaffRecord[]>(MOCK_STAFF);
+  const queryClient = useQueryClient();
   const [roleFilter, setRoleFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -133,6 +67,56 @@ export function MobileStaffDirectoryPage({ onBack }: MobileStaffDirectoryPagePro
   const [newEmail, setNewEmail] = useState("");
   const [newRole, setNewRole] = useState<StaffRecord["role"]>("murabbi");
   const [newPark, setNewPark] = useState("Gulberg Park");
+
+  const { data: apiData, isLoading, isError } = useQuery({
+    queryKey: ["staff", "active"],
+    queryFn: async () => {
+      const res = await fetch("/api/admin/users?role=murabbi,park_lead,park_admin&status=active&page=1&pageSize=100");
+      if (!res.ok) throw new Error("Failed to fetch staff");
+      return res.json();
+    }
+  });
+
+  const staffList: StaffRecord[] = useMemo(() => {
+    if (!apiData?.data) return [];
+    return apiData.data.map((u: any) => {
+      const staffMeta = u.staffMeta || {};
+      const actualRole = staffMeta.primaryRole || u.role || "muawin";
+      return {
+        id: u.id,
+        name: u.name || "Unknown",
+        phone: u.phone || staffMeta.phone || "",
+        whatsapp: u.phone || staffMeta.phone || "",
+        email: u.email || "",
+        role: actualRole,
+        park: staffMeta.assignedPark?.name || staffMeta.park || "Unassigned",
+        assignedStudents: u.assignedStudents || (actualRole === "murabbi" ? 10 : 0),
+        isActive: u.isActive ?? true,
+      };
+    });
+  }, [apiData]);
+
+  const addStaffMutation = useMutation({
+    mutationFn: async (payload: any) => {
+      const res = await fetch("/api/admin/invite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error("Failed to invite staff");
+    },
+    onSuccess: () => {
+      toast.success(`Assigned ${newName} as ${newRole.replace("_", " ")}!`);
+      setIsAddOpen(false);
+      setNewName("");
+      setNewPhone("");
+      setNewEmail("");
+      queryClient.invalidateQueries({ queryKey: ["staff"] });
+    },
+    onError: () => {
+      toast.error("Failed to add staff");
+    }
+  });
 
   const filteredStaff = useMemo(() => {
     return staffList.filter((s) => {
@@ -151,23 +135,13 @@ export function MobileStaffDirectoryPage({ onBack }: MobileStaffDirectoryPagePro
       toast.error("Please provide staff name and phone");
       return;
     }
-    const newRecord: StaffRecord = {
-      id: `st-${Date.now()}`,
+    
+    addStaffMutation.mutate({
       name: newName,
       phone: newPhone,
-      whatsapp: newPhone,
       email: newEmail || `${newName.toLowerCase().replace(/\s+/g, ".")}@shabab360.org`,
       role: newRole,
-      park: newPark,
-      assignedStudents: newRole === "murabbi" ? 10 : 0,
-      isActive: true,
-    };
-    setStaffList([newRecord, ...staffList]);
-    toast.success(`Assigned ${newName} as ${newRole.replace("_", " ")}!`);
-    setIsAddOpen(false);
-    setNewName("");
-    setNewPhone("");
-    setNewEmail("");
+    });
   };
 
   const openWhatsApp = (phone: string, name: string) => {
@@ -304,7 +278,22 @@ export function MobileStaffDirectoryPage({ onBack }: MobileStaffDirectoryPagePro
 
       {/* ─── Staff Roster Cards ─── */}
       <div className="space-y-2.5">
-        {filteredStaff.map((staff) => (
+        {isLoading && (
+          <div className="py-10 text-center">
+            <p className="text-sm text-muted-foreground animate-pulse">Loading staff...</p>
+          </div>
+        )}
+        {isError && (
+          <div className="py-10 text-center">
+            <p className="text-sm text-red-500">Failed to load staff list</p>
+          </div>
+        )}
+        {!isLoading && !isError && filteredStaff.length === 0 && (
+          <div className="py-10 text-center">
+            <p className="text-sm text-muted-foreground">No staff members found.</p>
+          </div>
+        )}
+        {!isLoading && !isError && filteredStaff.map((staff) => (
           <Card
             key={staff.id}
             className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden bg-white dark:bg-slate-900 shadow-sm"

@@ -29,49 +29,6 @@ interface MobileProcurementPageProps {
   onBack?: () => void;
 }
 
-const MOCK_PARK_STOCKS = [
-  {
-    id: "ps1",
-    itemName: "Standard Match Football (Size 5)",
-    sku: "SKU-FB-01",
-    category: "sports_equipment",
-    parkName: "Gulberg Park",
-    quantity: 3,
-    minThreshold: 5,
-    isLow: true,
-  },
-  {
-    id: "ps2",
-    itemName: "Cricket Leather Balls (Pack of 6)",
-    sku: "SKU-CR-02",
-    category: "sports_equipment",
-    parkName: "Gulberg Park",
-    quantity: 12,
-    minThreshold: 4,
-    isLow: false,
-  },
-  {
-    id: "ps3",
-    itemName: "First Aid Trauma Kit",
-    sku: "SKU-FA-01",
-    category: "general",
-    parkName: "Gulberg Park",
-    quantity: 2,
-    minThreshold: 3,
-    isLow: true,
-  },
-  {
-    id: "ps4",
-    itemName: "Public Speaking Workshop Charts & Markers",
-    sku: "SKU-ST-05",
-    category: "stationery",
-    parkName: "Gulberg Park",
-    quantity: 15,
-    minThreshold: 5,
-    isLow: false,
-  },
-];
-
 export function MobileProcurementPage({ onBack }: MobileProcurementPageProps) {
   const { data: session } = useSession();
   const [search, setSearch] = useState("");
@@ -91,14 +48,14 @@ export function MobileProcurementPage({ onBack }: MobileProcurementPageProps) {
     staleTime: 30000,
   });
 
-  const apiStocks: any[] = stockData?.stocks ?? stockData?.data ?? [];
-  const stocksList = apiStocks.length > 0 ? apiStocks : MOCK_PARK_STOCKS;
+  const apiStocks: any[] = Array.isArray(stockData) ? stockData : [];
+  const stocksList = apiStocks;
 
   const lowStockCount = stocksList.filter((s) => (s.quantity ?? 0) <= (s.minThreshold ?? 5)).length;
 
   const filteredStocks = stocksList.filter((item) => {
-    const name = item.itemName || item.item?.name || "";
-    const sku = item.sku || item.item?.sku || "";
+    const name = item.item?.name || "";
+    const sku = item.item?.sku || "";
     const matchSearch =
       !search ||
       name.toLowerCase().includes(search.toLowerCase()) ||
@@ -216,11 +173,18 @@ export function MobileProcurementPage({ onBack }: MobileProcurementPageProps) {
 
         {/* Equipment List */}
         <div className="space-y-3">
+          {filteredStocks.length === 0 && !isLoading && (
+            <div className="text-center py-12 px-4 border border-dashed rounded-3xl bg-card border-slate-200 dark:border-slate-800 flex flex-col items-center">
+              <Package className="size-8 text-slate-300 dark:text-slate-700 mb-3" />
+              <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">No stock found</p>
+              <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Try adjusting your filters or wait for sync.</p>
+            </div>
+          )}
           {filteredStocks.map((item, idx) => {
             const qty = item.quantity ?? 0;
             const minT = item.minThreshold ?? 5;
             const isLow = qty <= minT;
-            const name = item.itemName || item.item?.name || "Equipment Item";
+            const name = item.item?.name || "Equipment Item";
 
             return (
               <motion.div
@@ -241,7 +205,7 @@ export function MobileProcurementPage({ onBack }: MobileProcurementPageProps) {
                         {name}
                       </h3>
                       <p className="text-[10px] text-muted-foreground font-mono font-medium">
-                        {item.sku || "SKU-001"} • {item.parkName || "Gulberg Park"}
+                        {item.item?.sku || "SKU-001"} • {item.park?.name || "Unknown Park"}
                       </p>
                     </div>
                   </div>
@@ -300,17 +264,17 @@ export function MobileProcurementPage({ onBack }: MobileProcurementPageProps) {
 
               <div className="space-y-1">
                 <Badge variant="outline" className="font-mono text-xs font-bold">
-                  {selectedStock.sku || "SKU-001"}
+                  {selectedStock.item?.sku || "SKU-001"}
                 </Badge>
                 <h2 className="text-lg font-black text-slate-900 dark:text-slate-100">
-                  {selectedStock.itemName || selectedStock.item?.name}
+                  {selectedStock.item?.name}
                 </h2>
               </div>
 
               <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-2 text-xs">
                 <div className="flex justify-between font-semibold">
                   <span className="text-muted-foreground">Location</span>
-                  <span>{selectedStock.parkName || "Gulberg Park"}</span>
+                  <span>{selectedStock.park?.name || "Unknown Park"}</span>
                 </div>
                 <div className="flex justify-between font-semibold">
                   <span className="text-muted-foreground">Current Quantity</span>

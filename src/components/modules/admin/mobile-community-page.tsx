@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useSession } from "next-auth/react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
@@ -37,6 +38,7 @@ import {
   ArrowLeft,
   User,
   Flame,
+  Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -65,66 +67,7 @@ export interface CommunityPost {
   createdAt: string;
 }
 
-const MOCK_POSTS: CommunityPost[] = [
-  {
-    id: "post-1",
-    title: "Gulberg Park 100% Fajr Jama'at Karguzari",
-    content:
-      "Alhamdulillah, today all 12 cadets of Halqa 1 completed Fajr with Jama'at at the park mosque followed by 25 mins of Surah Yaseen tilawat and morning pushup drill!",
-    category: "karguzari",
-    authorName: "Ikram Meer",
-    authorRole: "Murabbi",
-    parkName: "Gulberg Park",
-    isPinned: true,
-    likeCount: 24,
-    comments: [
-      {
-        id: "c1",
-        authorName: "Umar Rohail",
-        authorRole: "Park Lead",
-        content: "MashAllah! Exemplary discipline. Keep it sustained for the 40-day challenge.",
-        createdAt: "2h ago",
-      },
-    ],
-    createdAt: "Today at 07:15 AM",
-  },
-  {
-    id: "post-2",
-    title: "How do you maintain high student energy during exercise drills?",
-    content:
-      "Looking for suggestions from other park trainers: our cadets get tired around the 45-minute mark. Any warm-up game or agility pacing techniques you recommend?",
-    category: "question",
-    authorName: "Danish Qureshi",
-    authorRole: "Sports Trainer",
-    parkName: "Model Town Park",
-    isPinned: false,
-    likeCount: 15,
-    comments: [
-      {
-        id: "c2",
-        authorName: "Basit Ahsan",
-        authorRole: "Murabbi",
-        content: "Introduce 2-minute interval tug-of-war or agility cones race. It turns fatigue into fun competition!",
-        createdAt: "1h ago",
-      },
-    ],
-    createdAt: "Yesterday at 05:40 PM",
-  },
-  {
-    id: "post-3",
-    title: "Hadith Reflection: The Strong Believer is Beloved to Allah",
-    content:
-      "المؤمن القوي خير وأحب إلى الله من المؤمن الضعيف • A reminder to all Shabab youth that physical conditioning and stamina are tools to worship Allah and protect the community.",
-    category: "inspiration",
-    authorName: "Hafiz Bilal",
-    authorRole: "Tadreeb Lead",
-    parkName: "Central Team",
-    isPinned: false,
-    likeCount: 38,
-    comments: [],
-    createdAt: "2 days ago",
-  },
-];
+// MOCK_POSTS removed
 
 interface MobileCommunityPageProps {
   onBack?: () => void;
@@ -132,7 +75,27 @@ interface MobileCommunityPageProps {
 
 export function MobileCommunityPage({ onBack }: MobileCommunityPageProps) {
   const { data: session } = useSession();
-  const [posts, setPosts] = useState<CommunityPost[]>(MOCK_POSTS);
+  const queryClient = useQueryClient();
+
+  const { data, isLoading, isError } = useQuery<{ success: boolean; data: CommunityPost[] }>({
+    queryKey: ["community-posts"],
+    queryFn: async () => {
+      const res = await fetch("/api/community/posts");
+      if (!res.ok) throw new Error("Failed to fetch posts");
+      return res.json();
+    },
+  });
+
+  // Local state for optimistic like counts
+  const [posts, setPosts] = useState<CommunityPost[]>([]);
+  
+  // Sync API data to local state when it loads (for local like toggling)
+  useMemo(() => {
+    if (data?.data) {
+      setPosts(data.data);
+    }
+  }, [data?.data]);
+
   const [categoryFilter, setCategoryFilter] = useState<PostCategory>("all");
   const [search, setSearch] = useState("");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -170,30 +133,39 @@ export function MobileCommunityPage({ onBack }: MobileCommunityPageProps) {
     );
   };
 
+  const createPost = useMutation({
+    mutationFn: async (newEntry: { title: string; content: string; category: string; tags: string[] }) => {
+      const res = await fetch("/api/community/posts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newEntry),
+      });
+      if (!res.ok) throw new Error("Failed to create post");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["community-posts"] });
+      toast.success("Community post shared successfully!");
+      setIsCreateOpen(false);
+      setNewTitle("");
+      setNewContent("");
+    },
+    onError: () => {
+      toast.error("Failed to share post");
+    },
+  });
+
   const handleCreatePost = () => {
     if (!newTitle || !newContent) {
       toast.error("Please fill in both title and content");
       return;
     }
-    const newPost: CommunityPost = {
-      id: `post-${Date.now()}`,
+    createPost.mutate({
       title: newTitle,
-      category: newCategory,
       content: newContent,
-      authorName: (session?.user as any)?.name || "Murabbi Lead",
-      authorRole: (session?.user as any)?.role === "super_admin" ? "HQ Admin" : "Murabbi",
-      parkName: "Gulberg Park",
-      isPinned: false,
-      likeCount: 1,
-      isLiked: true,
-      comments: [],
-      createdAt: "Just now",
-    };
-    setPosts([newPost, ...posts]);
-    toast.success("Community post shared successfully!");
-    setIsCreateOpen(false);
-    setNewTitle("");
-    setNewContent("");
+      category: newCategory,
+      tags: [],
+    });
   };
 
   const handleAddComment = () => {
@@ -304,7 +276,15 @@ export function MobileCommunityPage({ onBack }: MobileCommunityPageProps) {
         </div>
       </div>
 
-      {/* ─── Posts Feed ─── */}
+      {isLoading ? (
+        <div className="flex justify-center items-center h-48">
+          <Loader2 className="size-6 animate-spin text-muted-foreground" />
+        </div>
+      ) : isError ? (
+        <div className="text-center p-4 text-sm text-destructive">Failed to load community posts</div>
+      ) : (
+        <>
+          {/* ─── Posts Feed ─── */}
       <div className="space-y-3">
         {filteredPosts.map((post) => {
           const badge = categoryBadges[post.category];
@@ -386,6 +366,8 @@ export function MobileCommunityPage({ onBack }: MobileCommunityPageProps) {
           );
         })}
       </div>
+        </>
+      )}
 
       {/* ─── Create Post Dialog ─── */}
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>

@@ -47,44 +47,9 @@ export interface MobileNotificationItem {
   priority?: "normal" | "urgent";
 }
 
-const MOCK_NOTIFICATIONS: MobileNotificationItem[] = [
-  {
-    id: "notif-1",
-    title: "Gulberg Park Attendance Finalized",
-    description: "Murabbi Ikram marked all 12 cadets for Today's session. 11 Present, 1 Absent logged.",
-    type: "attendance",
-    timestamp: "15 mins ago",
-    isRead: false,
-    priority: "normal",
-  },
-  {
-    id: "notif-2",
-    title: "Urgent: Fee Challans Due in 3 Days",
-    description: "42 student fee challans remain unpaid for Batch 4 August dues. Guardian alerts sent via WhatsApp.",
-    type: "fees",
-    timestamp: "1 hour ago",
-    isRead: false,
-    priority: "urgent",
-  },
-  {
-    id: "notif-3",
-    title: "Central Shura Notice: Monthly Karguzari Meeting",
-    description: "All park leads and murabbis must attend Saturday 9:00 PM online zoom conference.",
-    type: "announcement",
-    timestamp: "3 hours ago",
-    isRead: true,
-    priority: "normal",
-  },
-  {
-    id: "notif-4",
-    title: "Offline Sync Engine: 128 Mutations Synced",
-    description: "Local Dexie cache reconciled successfully with cloud PostgreSQL database without conflicts.",
-    type: "system",
-    timestamp: "Yesterday",
-    isRead: true,
-    priority: "normal",
-  },
-];
+
+
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 interface MobileNotificationsPageProps {
   onBack?: () => void;
@@ -92,7 +57,7 @@ interface MobileNotificationsPageProps {
 
 export function MobileNotificationsPage({ onBack }: MobileNotificationsPageProps) {
   const { data: session } = useSession();
-  const [notifications, setNotifications] = useState<MobileNotificationItem[]>(MOCK_NOTIFICATIONS);
+  const queryClient = useQueryClient();
   const [activeFilter, setActiveFilter] = useState<NotificationType>("all");
   const [search, setSearch] = useState("");
   const [isBroadcastOpen, setIsBroadcastOpen] = useState(false);
@@ -101,6 +66,72 @@ export function MobileNotificationsPage({ onBack }: MobileNotificationsPageProps
   const [broadcastTitle, setBroadcastTitle] = useState("");
   const [broadcastMessage, setBroadcastMessage] = useState("");
   const [broadcastAudience, setBroadcastAudience] = useState("all");
+
+  const { data: apiNotifications = [], isLoading, isError } = useQuery({
+    queryKey: ["notifications"],
+    queryFn: async () => {
+      const res = await fetch("/api/notifications/feed");
+      if (!res.ok) throw new Error("Failed to fetch notifications");
+      const json = await res.json();
+      return json.data || [];
+    }
+  });
+
+  // Map API response to MobileNotificationItem
+  const notifications: MobileNotificationItem[] = useMemo(() => {
+    return apiNotifications.map((n: any) => ({
+      id: n.id,
+      title: n.title,
+      description: n.message,
+      type: n.category === "announcement" ? "announcement" : "system",
+      timestamp: new Date(n.createdAt).toLocaleString(),
+      isRead: n.read,
+      priority: n.priority || "normal",
+    }));
+  }, [apiNotifications]);
+
+  const markReadMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/notifications/${id}/read`, { method: "POST" });
+      if (!res.ok) throw new Error("Failed to mark as read");
+    },
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: ["notifications"] });
+      const previous = queryClient.getQueryData(["notifications"]);
+      queryClient.setQueryData(["notifications"], (old: any) =>
+        old ? old.map((n: any) => (n.id === id ? { ...n, read: true } : n)) : []
+      );
+      return { previous };
+    },
+    onError: (err, id, context) => {
+      queryClient.setQueryData(["notifications"], context?.previous);
+      toast.error("Failed to mark read");
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+    },
+  });
+
+  const broadcastMutation = useMutation({
+    mutationFn: async (payload: any) => {
+      const res = await fetch("/api/announcements", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error("Failed to broadcast");
+    },
+    onSuccess: () => {
+      toast.success(`Broadcasted announcement!`);
+      setIsBroadcastOpen(false);
+      setBroadcastTitle("");
+      setBroadcastMessage("");
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+    },
+    onError: () => {
+      toast.error("Failed to send broadcast");
+    }
+  });
 
   const unreadCount = useMemo(() => {
     return notifications.filter((n) => !n.isRead).length;
@@ -118,14 +149,18 @@ export function MobileNotificationsPage({ onBack }: MobileNotificationsPageProps
   }, [notifications, search, activeFilter]);
 
   const markAllAsRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+    // Optimistic clear locally for now
+    queryClient.setQueryData(["notifications"], (old: any) =>
+      old ? old.map((n: any) => ({ ...n, read: true })) : []
+    );
     toast.success("All notifications marked as read!");
   };
 
   const toggleRead = (id: string) => {
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, isRead: !n.isRead } : n))
-    );
+    const notification = notifications.find(n => n.id === id);
+    if (notification && !notification.isRead) {
+      markReadMutation.mutate(id);
+    }
   };
 
   const handleSendBroadcast = () => {
@@ -133,20 +168,12 @@ export function MobileNotificationsPage({ onBack }: MobileNotificationsPageProps
       toast.error("Please provide both title and message");
       return;
     }
-    const newNotice: MobileNotificationItem = {
-      id: `notif-${Date.now()}`,
+    broadcastMutation.mutate({
       title: broadcastTitle,
-      description: broadcastMessage,
-      type: "announcement",
-      timestamp: "Just now",
-      isRead: false,
-      priority: "normal",
-    };
-    setNotifications([newNotice, ...notifications]);
-    toast.success(`Broadcasted announcement to ${broadcastAudience}!`);
-    setIsBroadcastOpen(false);
-    setBroadcastTitle("");
-    setBroadcastMessage("");
+      content: broadcastMessage,
+      targetRoles: [broadcastAudience],
+      priority: "normal"
+    });
   };
 
   const typeIcons: Record<string, { icon: any; color: string; bg: string }> = {
@@ -250,7 +277,22 @@ export function MobileNotificationsPage({ onBack }: MobileNotificationsPageProps
 
       {/* ─── Notification Cards Feed ─── */}
       <div className="space-y-2.5">
-        {filteredNotifications.map((item) => {
+        {isLoading && (
+          <div className="py-10 text-center">
+            <p className="text-sm text-muted-foreground animate-pulse">Loading notifications...</p>
+          </div>
+        )}
+        {isError && (
+          <div className="py-10 text-center">
+            <p className="text-sm text-red-500">Failed to load notifications</p>
+          </div>
+        )}
+        {!isLoading && !isError && filteredNotifications.length === 0 && (
+          <div className="py-10 text-center">
+            <p className="text-sm text-muted-foreground">No notifications found.</p>
+          </div>
+        )}
+        {!isLoading && !isError && filteredNotifications.map((item) => {
           const style = typeIcons[item.type] || typeIcons.system;
           const Icon = style.icon;
 

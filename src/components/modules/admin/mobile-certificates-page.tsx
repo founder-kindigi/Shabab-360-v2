@@ -128,9 +128,52 @@ export function MobileCertificatesPage({ onBack }: MobileCertificatesPageProps) 
   const [newPark, setNewPark] = useState("Umme Hani Park");
   const [newPhone, setNewPhone] = useState("0300-1234567");
 
-  const [certsList, setCertsList] = useState(MOCK_CERTS_FALLBACK);
+  const { data: batchesData, isLoading: isBatchesLoading } = useQuery({
+    queryKey: ["admin-batches"],
+    queryFn: async () => {
+      const res = await fetch("/api/admin/batches");
+      if (!res.ok) return [];
+      return res.json();
+    },
+    retry: false,
+    enabled: !!session?.user,
+  });
 
-  const filteredCerts = certsList.filter((c) => {
+  const batches = Array.isArray(batchesData) ? batchesData : [];
+  const activeBatchId = batches.length > 0 ? batches[0].id : null;
+
+  const { data: certsData, isLoading: isCertsLoading } = useQuery({
+    queryKey: ["admin-certificates", activeBatchId],
+    queryFn: async () => {
+      if (!activeBatchId) return null;
+      const res = await fetch(`/api/admin/certificates/batch?batchId=${activeBatchId}`);
+      if (!res.ok) return null;
+      return res.json();
+    },
+    enabled: !!activeBatchId,
+    retry: false,
+  });
+
+  const apiCerts = certsData?.certificates || [];
+  
+  // Transform the API response to match our display component
+  const certsList = apiCerts.length > 0 
+    ? apiCerts.map((c: any, i: number) => ({
+        id: c.participantId || `cert-${i}`,
+        studentName: c.participant,
+        phone: "N/A", // Not provided by the batch API directly
+        certNumber: c.certificateNo,
+        type: "batch_graduation", // Simplification
+        title: "Executive Youth Tarbiyah Graduation",
+        batchName: c.batch,
+        park: c.park,
+        issueDate: c.completionDate,
+        attendanceRate: `${c.attendanceRate}%`,
+        status: "verified",
+      }))
+    : MOCK_CERTS_FALLBACK;
+
+  const filteredCerts = certsList.filter((c: any) => {
     const matchSearch =
       !searchQuery.trim() ||
       c.studentName.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -161,38 +204,50 @@ export function MobileCertificatesPage({ onBack }: MobileCertificatesPageProps) 
     window.open(`https://wa.me/${formattedPhone}?text=${encodeURIComponent(text)}`, "_blank");
   };
 
+  const issueMutation = useMutation({
+    mutationFn: async (payload: { participantIds: string[]; batchId: string; issuedBy: string }) => {
+      const res = await fetch("/api/admin/certificates/batch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error("Failed to issue certificate");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-certificates", activeBatchId] });
+      toast.success(`Certificate issued successfully!`);
+      setIsIssueOpen(false);
+      setNewStudentName("");
+    },
+    onError: () => {
+      toast.error("Failed to issue certificate on server.");
+    },
+  });
+
   const handleIssueSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newStudentName.trim()) {
       toast.error("Please enter student name");
       return;
     }
-    const newCert = {
-      id: `c-${Date.now()}`,
-      studentName: newStudentName.trim(),
-      phone: newPhone.trim(),
-      certNumber: `CERT-2026-LHR-${Math.floor(1000 + Math.random() * 9000)}`,
-      type: newType,
-      title:
-        newType === "batch_graduation"
-          ? "Executive Youth Tarbiyah Graduation"
-          : newType === "tarbiyah_excellence"
-          ? "Tarbiyah & Character Distinction"
-          : "Athletic Stamina & Sports Honor",
-      batchName: "Lahore Batch 4",
-      park: newPark,
-      issueDate: new Date().toISOString().slice(0, 10),
-      attendanceRate: "90%",
-      status: "verified",
-    };
-    setCertsList([newCert, ...certsList]);
-    toast.success(`Certificate ${newCert.certNumber} issued successfully!`);
-    setIsIssueOpen(false);
-    setNewStudentName("");
+    
+    // In a real app we'd select a participant from a list and get their ID.
+    // For this mock form, we just send a dummy ID or the name if the backend allows it.
+    if (!activeBatchId) {
+      toast.error("No active batch to issue against.");
+      return;
+    }
+    
+    issueMutation.mutate({
+      participantIds: [newStudentName.trim()], // Using name as ID placeholder for the demo
+      batchId: activeBatchId,
+      issuedBy: session?.user?.id || "system"
+    });
   };
 
   return (
-    <div className="flex flex-col min-h-screen w-full bg-slate-50 text-slate-900 pb-28 select-none">
+    <div className="w-full max-w-[460px] mx-auto min-h-screen bg-slate-50 text-slate-900 pb-28 select-none">
       {/* ─── Header matching docs/pwa screens style ───────────────────────── */}
       <div className="px-5 pt-6 pb-4 bg-white border-b border-slate-100 shadow-sm sticky top-0 z-20">
         <div className="flex items-center justify-between">
@@ -502,9 +557,10 @@ export function MobileCertificatesPage({ onBack }: MobileCertificatesPageProps) 
               </Button>
               <Button
                 type="submit"
+                disabled={issueMutation.isPending}
                 className="flex-1 bg-[#4B0A8F] hover:bg-[#3d0875] text-white rounded-xl h-11 text-xs font-bold"
               >
-                Issue Certificate
+                {issueMutation.isPending ? "Issuing..." : "Issue Certificate"}
               </Button>
             </div>
           </form>

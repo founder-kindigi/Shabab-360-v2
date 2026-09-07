@@ -44,56 +44,9 @@ export interface AuditEntry {
   newValues?: Record<string, any>;
 }
 
-const MOCK_AUDIT_LOGS: AuditEntry[] = [
-  {
-    id: "aud-1",
-    actorName: "Super Admin",
-    actorEmail: "admin@shabab360.org",
-    action: "override_grant",
-    entityType: "security",
-    entityId: "ov-884",
-    summary: "Granted temporary 'attendance.override' capability to Umar Rohail for Gulberg Park.",
-    timestamp: "10 mins ago",
-    oldValues: { capability: "none", status: "restricted" },
-    newValues: { capability: "attendance.override", expiresAt: "2026-12-31" },
-  },
-  {
-    id: "aud-2",
-    actorName: "Danish Qureshi",
-    actorEmail: "danish@shabab360.org",
-    action: "attendance_mark",
-    entityType: "attendance",
-    entityId: "evt-0907",
-    summary: "Marked attendance for 15 cadets in Halqa 2: 14 Present, 1 Absent with reason.",
-    timestamp: "45 mins ago",
-    oldValues: { markedCount: 0 },
-    newValues: { presentCount: 14, absentCount: 1 },
-  },
-  {
-    id: "aud-3",
-    actorName: "Basit Ahsan",
-    actorEmail: "basit@shabab360.org",
-    action: "create",
-    entityType: "fees",
-    entityId: "rec-2026-084",
-    summary: "Generated Fee Receipt REC-2026-084 for Muhammad Umair (PKR 1,500 Cash).",
-    timestamp: "2 hours ago",
-    oldValues: { status: "pending", dues: 1500 },
-    newValues: { status: "paid", amountPaid: 1500, receiptNumber: "REC-2026-084" },
-  },
-  {
-    id: "aud-4",
-    actorName: "Admissions Desk",
-    actorEmail: "admissions@shabab360.org",
-    action: "update",
-    entityType: "admissions",
-    entityId: "app-302",
-    summary: "Assigned recommended cohort 'Senior Cadet (Batch 4)' based on rubric score 275/300.",
-    timestamp: "Yesterday",
-    oldValues: { status: "under_review", cohort: null },
-    newValues: { status: "accepted", cohort: "Senior Cadet", score: 275 },
-  },
-];
+
+
+import { useQuery } from "@tanstack/react-query";
 
 interface MobileAuditLogPageProps {
   onBack?: () => void;
@@ -101,10 +54,49 @@ interface MobileAuditLogPageProps {
 
 export function MobileAuditLogPage({ onBack }: MobileAuditLogPageProps) {
   const { data: session } = useSession();
-  const [logs, setLogs] = useState<AuditEntry[]>(MOCK_AUDIT_LOGS);
   const [entityFilter, setEntityFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [selectedEntry, setSelectedEntry] = useState<AuditEntry | null>(null);
+
+  const { data: apiData, isLoading, isError } = useQuery({
+    queryKey: ["audit-log", entityFilter],
+    queryFn: async () => {
+      let url = "/api/admin/audit-log?page=1&pageSize=50";
+      if (entityFilter !== "all") {
+        url += `&entityType=${entityFilter}`;
+      }
+      const res = await fetch(url);
+      if (!res.ok) throw new Error("Failed to fetch audit log");
+      return res.json();
+    }
+  });
+
+  const logs: AuditEntry[] = useMemo(() => {
+    if (!apiData?.data) return [];
+    return apiData.data.map((log: any) => {
+      let oldVals, newVals;
+      try { oldVals = typeof log.oldValues === "string" ? JSON.parse(log.oldValues) : log.oldValues; } catch (e) {}
+      try { newVals = typeof log.newValues === "string" ? JSON.parse(log.newValues) : log.newValues; } catch (e) {}
+
+      let summary = `Action: ${log.action} on ${log.entityType}`;
+      if (log.action === "update") summary = `Updated ${log.entityType} ${log.entityId}`;
+      if (log.action === "create") summary = `Created new ${log.entityType} ${log.entityId}`;
+      if (log.action === "delete") summary = `Deleted ${log.entityType} ${log.entityId}`;
+
+      return {
+        id: log.id,
+        actorName: log.user?.name || "System",
+        actorEmail: log.user?.email || "",
+        action: log.action,
+        entityType: log.entityType,
+        entityId: log.entityId,
+        summary,
+        timestamp: new Date(log.createdAt).toLocaleString(),
+        oldValues: oldVals,
+        newValues: newVals,
+      };
+    });
+  }, [apiData]);
 
   const filteredLogs = useMemo(() => {
     return logs.filter((log) => {
@@ -113,10 +105,9 @@ export function MobileAuditLogPage({ onBack }: MobileAuditLogPageProps) {
         log.actorName.toLowerCase().includes(search.toLowerCase()) ||
         log.summary.toLowerCase().includes(search.toLowerCase()) ||
         log.entityId.toLowerCase().includes(search.toLowerCase());
-      const matchEntity = entityFilter === "all" || log.entityType === entityFilter;
-      return matchSearch && matchEntity;
+      return matchSearch;
     });
-  }, [logs, search, entityFilter]);
+  }, [logs, search]);
 
   const actionBadges: Record<string, { label: string; color: string }> = {
     create: { label: "CREATED", color: "bg-emerald-100 text-emerald-800 border-emerald-300" },
@@ -201,7 +192,22 @@ export function MobileAuditLogPage({ onBack }: MobileAuditLogPageProps) {
 
       {/* ─── Audit Events Timeline ─── */}
       <div className="space-y-2.5">
-        {filteredLogs.map((log) => {
+        {isLoading && (
+          <div className="py-10 text-center">
+            <p className="text-sm text-muted-foreground animate-pulse">Loading audit logs...</p>
+          </div>
+        )}
+        {isError && (
+          <div className="py-10 text-center">
+            <p className="text-sm text-red-500">Failed to load audit logs</p>
+          </div>
+        )}
+        {!isLoading && !isError && filteredLogs.length === 0 && (
+          <div className="py-10 text-center">
+            <p className="text-sm text-muted-foreground">No logs found.</p>
+          </div>
+        )}
+        {!isLoading && !isError && filteredLogs.map((log) => {
           const badge = actionBadges[log.action] || { label: log.action.toUpperCase(), color: "bg-slate-100 text-slate-800" };
 
           return (

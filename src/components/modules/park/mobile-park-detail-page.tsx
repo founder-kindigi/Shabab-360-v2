@@ -32,7 +32,7 @@ export function MobileParkDetailPage({ parkNav, onBack, onGoToEvaluation }: Mobi
   if (!parkNav) return null;
 
   return (
-    <div className="flex flex-col min-h-screen bg-white">
+    <div className="w-full max-w-[460px] mx-auto flex flex-col min-h-screen bg-white">
       {/* Header */}
       <div className="px-5 pt-5 pb-3 border-b border-gray-100 bg-white sticky top-0 z-10">
         <div className="flex items-center justify-between">

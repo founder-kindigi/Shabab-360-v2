@@ -98,7 +98,7 @@ function CentralStoreView({ onBack }: { onBack: () => void }) {
   const displayRole = userRole === "super_admin" ? "Main admin" : "Admin";
 
   return (
-    <div className="flex flex-col min-h-screen bg-slate-50">
+    <div className="w-full max-w-[460px] mx-auto flex flex-col min-h-screen bg-slate-50">
       {/* Sticky Header */}
       <div className="px-4 pt-4 pb-0 border-b border-slate-100 bg-white sticky top-0 z-20">
         <div className="flex items-center justify-between mb-3">
@@ -244,7 +244,7 @@ function ParkInventoryView({
   const filtered = localItems.filter((item) => filter === "All" || item.category === filter);
 
   return (
-    <div className="flex flex-col min-h-screen bg-slate-50 pb-28">
+    <div className="w-full max-w-[460px] mx-auto flex flex-col min-h-screen bg-slate-50 pb-28">
       {/* Header */}
       <div className="px-4 pt-4 pb-3 border-b border-slate-100 bg-white sticky top-0 z-20">
         <div className="flex items-center gap-2 mb-3">

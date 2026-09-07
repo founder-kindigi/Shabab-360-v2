@@ -74,7 +74,7 @@ export function MobileParksPage({ onParkSelect, onSelectInventory }: MobileParks
   };
 
   return (
-    <div className="flex flex-col min-h-screen w-full bg-[#f8f9fa] pb-28 relative font-sans select-none">
+    <div className="w-full max-w-[460px] mx-auto flex flex-col min-h-screen w-full bg-[#f8f9fa] pb-28 relative font-sans select-none">
       {/* ─── Header ──────────────────────────────────────────────────────── */}
       <div className="px-5 pt-8 pb-3 bg-white border-b border-gray-100">
         <div className="flex items-center justify-between">

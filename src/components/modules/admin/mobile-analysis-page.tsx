@@ -98,7 +98,7 @@ export function MobileAnalysisPage({ onBack }: MobileAnalysisPageProps) {
   const isEmpty = !isLoading && !isError && total === 0 && byPark.length === 0 && byMurabbi.length === 0;
 
   return (
-    <div className="flex flex-col min-h-screen w-full bg-background text-foreground pb-24 select-none">
+    <div className="w-full max-w-[460px] mx-auto flex flex-col min-h-screen w-full bg-background text-foreground pb-24 select-none">
       {/* Header */}
       <div className="flex items-center justify-between px-5 py-6">
         <div className="flex items-center gap-3">

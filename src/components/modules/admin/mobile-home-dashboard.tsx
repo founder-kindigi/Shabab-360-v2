@@ -22,7 +22,7 @@ export function MobileHomeDashboard() {
   });
 
   return (
-    <div className="flex flex-col min-h-screen w-full bg-background pb-24">
+    <div className="w-full max-w-[460px] mx-auto flex flex-col min-h-screen w-full bg-background pb-24">
       {/* ─── Header Section ───────────────────────────────────────────────── */}
       <div className="w-full bg-gradient-to-br from-[#1F0860] via-[#4B0A8F] to-[#D90429] pt-14 pb-8 rounded-b-[2.5rem] shadow-2xl relative z-10 px-6">
         {/* Top bar */}

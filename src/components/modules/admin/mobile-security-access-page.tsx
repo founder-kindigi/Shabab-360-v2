@@ -30,55 +30,59 @@ interface MobileSecurityAccessPageProps {
   onBack?: () => void;
 }
 
-const MOCK_OVERRIDES = [
-  {
-    id: "ov1",
-    userName: "Umar Rohail",
-    email: "umar.rohail@shabab360.org",
-    role: "park_lead",
-    overrideCapability: "attendance.override",
-    scopePark: "Gulberg Park",
-    grantedBy: "Super Admin",
-    expiresAt: "2026-12-31",
-    status: "active",
-  },
-  {
-    id: "ov2",
-    userName: "Basit Ahsan",
-    email: "basit.ahsan@shabab360.org",
-    role: "park_admin",
-    overrideCapability: "fees.record_payment",
-    scopePark: "Gulberg Park",
-    grantedBy: "Super Admin",
-    expiresAt: "2026-09-30",
-    status: "active",
-  },
-];
+
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 export function MobileSecurityAccessPage({ onBack }: MobileSecurityAccessPageProps) {
   const { data: session } = useSession();
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [selectedOverride, setSelectedOverride] = useState<any | null>(null);
+  const [authError, setAuthError] = useState(false);
 
   // ─── Real DB Query ─────────────────────────────────────────────────────
-  const { data: healthData, isLoading } = useQuery({
-    queryKey: ["mobile-system-health"],
+  const { data: accessData, isLoading, isError } = useQuery({
+    queryKey: ["role-overrides"],
     queryFn: async () => {
-      const res = await fetch("/api/admin/pilot/health");
-      if (!res.ok) return null;
+      const res = await fetch("/api/admin/access/role-overrides");
+      if (res.status === 401 || res.status === 403) {
+        setAuthError(true);
+        return null;
+      }
+      if (!res.ok) throw new Error("Failed to fetch overrides");
+      setAuthError(false);
       return res.json();
     },
     retry: false,
     enabled: !!session?.user,
-    staleTime: 30000,
   });
 
-  const filteredOverrides = MOCK_OVERRIDES.filter((o) => {
+  const revokeMutation = useMutation({
+    mutationFn: async (payload: any) => {
+      const res = await fetch("/api/admin/access/role-overrides", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error("Failed to revoke override");
+    },
+    onSuccess: () => {
+      toast.success("Override capability revoked");
+      setSelectedOverride(null);
+      queryClient.invalidateQueries({ queryKey: ["role-overrides"] });
+    },
+    onError: () => {
+      toast.error("Failed to revoke override");
+    }
+  });
+
+  const overrides = accessData?.overrides || [];
+
+  const filteredOverrides = overrides.filter((o: any) => {
     return (
       !search ||
-      o.userName.toLowerCase().includes(search.toLowerCase()) ||
-      o.email.toLowerCase().includes(search.toLowerCase()) ||
-      o.overrideCapability.toLowerCase().includes(search.toLowerCase())
+      o.role.toLowerCase().includes(search.toLowerCase()) ||
+      o.capability.toLowerCase().includes(search.toLowerCase())
     );
   });
 
@@ -129,7 +133,7 @@ export function MobileSecurityAccessPage({ onBack }: MobileSecurityAccessPagePro
             className="p-4 rounded-3xl bg-card border border-slate-200 dark:border-slate-800 shadow-md space-y-1"
           >
             <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Active Role Overrides</span>
-            <div className="text-lg font-black text-purple-600 dark:text-purple-400">{MOCK_OVERRIDES.length} active</div>
+            <div className="text-lg font-black text-purple-600 dark:text-purple-400">{overrides.length} active</div>
             <p className="text-[10px] text-muted-foreground font-medium">Scoped Permissions</p>
           </motion.div>
 
@@ -158,7 +162,24 @@ export function MobileSecurityAccessPage({ onBack }: MobileSecurityAccessPagePro
 
         {/* Overrides List */}
         <div className="space-y-3">
-          {filteredOverrides.map((ov, idx) => (
+          {authError && (
+            <div className="py-10 text-center bg-card rounded-3xl border border-slate-200 dark:border-slate-800">
+              <ShieldAlert className="size-8 mx-auto text-amber-500 mb-2" />
+              <h3 className="font-bold text-foreground">Insufficient Permissions</h3>
+              <p className="text-xs text-muted-foreground">You do not have access to manage security roles.</p>
+            </div>
+          )}
+          {!authError && isLoading && (
+            <div className="py-10 text-center">
+              <p className="text-sm text-muted-foreground animate-pulse">Loading roles...</p>
+            </div>
+          )}
+          {!authError && !isLoading && filteredOverrides.length === 0 && (
+            <div className="py-10 text-center">
+              <p className="text-sm text-muted-foreground">No overrides found.</p>
+            </div>
+          )}
+          {!authError && !isLoading && filteredOverrides.map((ov: any, idx: number) => (
             <motion.div
               key={ov.id}
               initial={{ opacity: 0, y: 10 }}
@@ -169,20 +190,20 @@ export function MobileSecurityAccessPage({ onBack }: MobileSecurityAccessPagePro
             >
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                    {ov.userName}
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 capitalize">
+                    {ov.role.replace("_", " ")}
                   </h3>
-                  <p className="text-[11px] text-muted-foreground font-medium">{ov.email}</p>
+                  <p className="text-[11px] text-muted-foreground font-medium">Effect: {ov.effect.toUpperCase()}</p>
                 </div>
 
-                <Badge className="bg-purple-100 text-purple-700 font-bold text-[10px] uppercase">
-                  {ov.role}
+                <Badge className={cn("font-bold text-[10px] uppercase", ov.effect === 'allow' ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700")}>
+                  {ov.effect}
                 </Badge>
               </div>
 
               <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs font-bold">
                 <span className="text-purple-600 dark:text-purple-400 font-mono text-[11px]">
-                  {ov.overrideCapability}
+                  {ov.capability}
                 </span>
 
                 <ChevronRight className="size-4 text-slate-400" />
@@ -211,42 +232,43 @@ export function MobileSecurityAccessPage({ onBack }: MobileSecurityAccessPagePro
 
               <div className="space-y-1">
                 <Badge variant="outline" className="font-mono text-xs font-bold">
-                  {selectedOverride.overrideCapability}
+                  {selectedOverride.capability}
                 </Badge>
-                <h2 className="text-lg font-black text-slate-900 dark:text-slate-100">
-                  {selectedOverride.userName}
+                <h2 className="text-lg font-black text-slate-900 dark:text-slate-100 capitalize">
+                  {selectedOverride.role.replace("_", " ")}
                 </h2>
               </div>
 
               <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-2 text-xs">
                 <div className="flex justify-between font-semibold">
-                  <span className="text-muted-foreground">Base Role</span>
-                  <span className="capitalize">{selectedOverride.role}</span>
+                  <span className="text-muted-foreground">Effect</span>
+                  <span className={cn("capitalize", selectedOverride.effect === 'allow' ? "text-emerald-600" : "text-red-600")}>{selectedOverride.effect}</span>
                 </div>
                 <div className="flex justify-between font-semibold">
-                  <span className="text-muted-foreground">Scope Location</span>
-                  <span>{selectedOverride.scopePark}</span>
+                  <span className="text-muted-foreground">Reason</span>
+                  <span>{selectedOverride.reason}</span>
                 </div>
                 <div className="flex justify-between font-semibold">
-                  <span className="text-muted-foreground">Granted By</span>
-                  <span>{selectedOverride.grantedBy}</span>
-                </div>
-                <div className="flex justify-between font-semibold">
-                  <span className="text-muted-foreground">Expiration Date</span>
-                  <span>{selectedOverride.expiresAt}</span>
+                  <span className="text-muted-foreground">Last Updated</span>
+                  <span>{new Date(selectedOverride.updatedAt).toLocaleString()}</span>
                 </div>
               </div>
 
               <div className="space-y-2 pt-2">
                 <Button
                   onClick={() => {
-                    toast.success(`Revoked override capability for ${selectedOverride.userName}`);
-                    setSelectedOverride(null);
+                    revokeMutation.mutate({
+                      role: selectedOverride.role,
+                      capability: selectedOverride.capability,
+                      effect: "deny",
+                      reason: "Revoked via mobile app",
+                    });
                   }}
                   variant="destructive"
                   className="w-full font-bold rounded-2xl h-12"
+                  disabled={revokeMutation.isPending}
                 >
-                  Revoke Override Capability
+                  {revokeMutation.isPending ? "Revoking..." : "Revoke Override Capability"}
                 </Button>
                 <Button
                   variant="outline"

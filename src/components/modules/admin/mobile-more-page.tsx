@@ -188,7 +188,7 @@ export function MobileMorePage({ onNavigate }: MobileMorePageProps) {
   };
 
   return (
-    <div className="flex flex-col min-h-screen w-full bg-slate-50 text-slate-900 pb-28 select-none">
+    <div className="w-full max-w-[460px] mx-auto flex flex-col min-h-screen w-full bg-slate-50 text-slate-900 pb-28 select-none">
       {/* Header */}
       <div className="flex items-center justify-between px-5 pt-6 pb-4 bg-white border-b border-slate-100">
         <h1 className="text-2xl font-black text-[#1F0860] tracking-tight">More</h1>

@@ -61,7 +61,7 @@ export function MobileStudentDashboard() {
   const studentName = p?.name || user?.name || "Student";
 
   return (
-    <div className="flex flex-col min-h-screen w-full bg-background text-foreground pb-24 select-none">
+    <div className="w-full max-w-[460px] mx-auto flex flex-col min-h-screen w-full bg-background text-foreground pb-24 select-none">
       {/* ─── Top Brand Header ────────────────────────────────────────────── */}
       <div className="relative w-full bg-gradient-to-br from-[#1F0860] via-[#4B0A8F] to-[#380668] text-white pt-6 pb-12 px-5 rounded-b-[2rem] shadow-xl">
         <div className="flex items-center justify-between mb-3">

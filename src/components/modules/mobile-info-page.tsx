@@ -4,7 +4,7 @@ import { Mail, Phone, ExternalLink, Shield } from "lucide-react";
 
 export function MobileInfoPage() {
   return (
-    <div className="flex flex-col min-h-screen w-full bg-background pb-24">
+    <div className="w-full max-w-[460px] mx-auto flex flex-col min-h-screen w-full bg-background pb-24">
       {/* ─── Header ──────────────────────────────────────────────────────── */}
       <div className="px-5 pt-14 pb-4">
         <h1 className="text-3xl font-extrabold text-foreground tracking-tight mb-8">Info</h1>

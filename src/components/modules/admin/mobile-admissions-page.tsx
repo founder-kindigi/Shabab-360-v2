@@ -308,7 +308,7 @@ export function MobileAdmissionsPage({ onBack }: MobileAdmissionsPageProps) {
   };
 
   return (
-    <div className="flex flex-col min-h-screen w-full bg-slate-50 text-slate-900 pb-28 select-none">
+    <div className="w-full max-w-[460px] mx-auto flex flex-col min-h-screen w-full bg-slate-50 text-slate-900 pb-28 select-none">
       {/* ─── Header matching docs/pwa screens style ───────────────────────── */}
       <div className="px-5 pt-6 pb-4 bg-white border-b border-slate-100 shadow-sm sticky top-0 z-20">
         <div className="flex items-center justify-between">

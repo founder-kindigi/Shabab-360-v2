@@ -60,6 +60,7 @@ import {
   ChevronRight,
   Shield,
   GraduationCap,
+  Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -80,84 +81,7 @@ export type GuidedCadet = {
   isInactive: boolean;
 };
 
-const MOCK_GUIDED_CADETS: GuidedCadet[] = [
-  {
-    id: "c-1",
-    name: "Muhammad Umair",
-    parkName: "Gulberg Park",
-    groupName: "Group 1 • Murabbi Ikram",
-    wakeupTime: "05:30 AM",
-    sleepTime: "10:30 PM",
-    lastLoggedDate: "11 Aug 2026",
-    jamaatCount: 5,
-    tilawatMins: 25,
-    streakDays: 42,
-    is40DayChampion: true,
-    hasUnreadLog: true,
-    isInactive: false,
-  },
-  {
-    id: "c-2",
-    name: "Muhammad Ahmad",
-    parkName: "Gulberg Park",
-    groupName: "Group 1 • Murabbi Ikram",
-    wakeupTime: "06:00 AM",
-    sleepTime: "11:00 PM",
-    lastLoggedDate: "11 Aug 2026",
-    jamaatCount: 4,
-    tilawatMins: 15,
-    streakDays: 14,
-    is40DayChampion: false,
-    hasUnreadLog: true,
-    isInactive: false,
-  },
-  {
-    id: "c-3",
-    name: "M. Abdullah Qureshi",
-    parkName: "Gulberg Park",
-    groupName: "Group 1 • Murabbi Ikram",
-    wakeupTime: "05:15 AM",
-    sleepTime: "10:00 PM",
-    lastLoggedDate: "11 Aug 2026",
-    jamaatCount: 5,
-    tilawatMins: 30,
-    streakDays: 40,
-    is40DayChampion: true,
-    hasUnreadLog: false,
-    isInactive: false,
-  },
-  {
-    id: "c-4",
-    name: "Muhammad Huzaifa Saif",
-    parkName: "Gulberg Park",
-    groupName: "Group 2 • Murabbi Hanzala",
-    wakeupTime: "05:45 AM",
-    sleepTime: "10:45 PM",
-    lastLoggedDate: "10 Aug 2026",
-    jamaatCount: 5,
-    tilawatMins: 20,
-    streakDays: 9,
-    is40DayChampion: false,
-    hasUnreadLog: false,
-    isInactive: false,
-  },
-  {
-    id: "c-5",
-    name: "Muhammad Yusha",
-    parkName: "Gulberg Park",
-    groupName: "Group 2 • Murabbi Hanzala",
-    wakeupTime: "07:30 AM",
-    sleepTime: "12:00 AM",
-    lastLoggedDate: "02 Aug 2026",
-    jamaatCount: 2,
-    tilawatMins: 0,
-    streakDays: 0,
-    is40DayChampion: false,
-    hasUnreadLog: false,
-    isInactive: true, // No logs for 7+ days
-  },
-];
-
+// MOCK_GUIDED_CADETS removed
 // ─── Routine Presets ───
 const ROUTINE_PRESETS = [
   {
@@ -231,22 +155,50 @@ export function IslahMamulatPage({ onBack }: IslahMamulatPageProps = {}) {
   const [selectedCadet, setSelectedCadet] = useState<GuidedCadet | null>(null);
   const [guidanceNote, setGuidanceNote] = useState("");
 
+  const { data: logsData, isLoading, isError } = useQuery({
+    queryKey: ["islah-daily-logs"],
+    queryFn: async () => {
+      const res = await fetch("/api/islah/daily-log");
+      if (!res.ok) throw new Error("Failed to fetch");
+      return res.json();
+    },
+  });
+
+  const guidedCadets: GuidedCadet[] = useMemo(() => {
+    if (!logsData?.data) return [];
+    return logsData.data.map((log: any) => ({
+      id: log.id,
+      name: log.userName,
+      parkName: log.parkName,
+      groupName: "Murabbi Guided Group",
+      wakeupTime: "05:30 AM",
+      sleepTime: "10:30 PM",
+      lastLoggedDate: log.date,
+      jamaatCount: [log.fajrJamaat, log.dhuhrJamaat, log.asrJamaat, log.maghribJamaat, log.ishaJamaat].filter(Boolean).length,
+      tilawatMins: log.quranTilawatMinutes,
+      streakDays: 0,
+      is40DayChampion: false,
+      hasUnreadLog: true,
+      isInactive: false,
+    }));
+  }, [logsData?.data]);
+
   // Filtered Guided Cadets for Murabbi Desk
   const filteredCadets = useMemo(() => {
-    return MOCK_GUIDED_CADETS.filter((cadet) => {
+    return guidedCadets.filter((cadet) => {
       const matchesSearch = cadet.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         cadet.groupName.toLowerCase().includes(searchQuery.toLowerCase());
       
       if (!matchesSearch) return false;
 
-      if (murabbiFilter === "today") return cadet.lastLoggedDate === "11 Aug 2026";
+      if (murabbiFilter === "today") return cadet.lastLoggedDate === new Date().toISOString().slice(0, 10);
       if (murabbiFilter === "streak7") return cadet.streakDays >= 7;
       if (murabbiFilter === "champions") return cadet.is40DayChampion;
       if (murabbiFilter === "inactive") return cadet.isInactive;
 
       return true;
     });
-  }, [murabbiFilter, searchQuery]);
+  }, [guidedCadets, murabbiFilter, searchQuery]);
 
   // Submit Log Mutation
   const logMutation = useMutation({
@@ -739,7 +691,7 @@ ${mutalaahMins > 0 ? `(✓) مطالعہ: ${mutalaahMins} منٹ` : "(✕) مط�
                     : "bg-slate-100 dark:bg-slate-800 text-muted-foreground hover:text-foreground"
                 )}
               >
-                All ({MOCK_GUIDED_CADETS.length})
+                All ({guidedCadets.length})
               </button>
 
               <button
@@ -807,78 +759,88 @@ ${mutalaahMins > 0 ? `(✓) مطالعہ: ${mutalaahMins} منٹ` : "(✕) مط�
             </div>
           </div>
 
-          {/* Guided Cadets Cards List */}
+          {/* Cadets List (Guided Cadets View) */}
           <div className="space-y-3">
-            {filteredCadets.map((cadet) => (
-              <Card
-                key={cadet.id}
-                className={cn(
-                  "border shadow-sm rounded-2xl overflow-hidden transition-all hover:border-purple-300 dark:hover:border-purple-800 bg-white dark:bg-slate-900",
-                  cadet.isInactive ? "border-red-200 dark:border-red-900/60 bg-red-50/20" : "border-slate-200 dark:border-slate-800"
-                )}
-              >
-                <CardContent className="p-5 space-y-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h4 className="font-bold text-base text-foreground">{cadet.name}</h4>
-                        {cadet.is40DayChampion && (
-                          <Badge className="bg-amber-600 text-white text-[9px] font-bold gap-1 px-1.5">
-                            <Crown className="size-3" /> 40-Day Champion
-                          </Badge>
-                        )}
-                        {cadet.isInactive && (
-                          <Badge className="bg-red-600 text-white text-[9px] font-bold gap-1 px-1.5">
-                            <UserX className="size-3" /> Inactive (7+ Days)
-                          </Badge>
-                        )}
+            {isLoading ? (
+              <div className="flex justify-center items-center h-48">
+                <Loader2 className="size-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : isError ? (
+              <div className="text-center p-4 text-sm text-destructive">Failed to load cadets</div>
+            ) : filteredCadets.length === 0 ? (
+              <div className="text-center p-4 text-sm text-muted-foreground">No cadets match the filter.</div>
+            ) : (
+              filteredCadets.map((cadet) => (
+                <Card
+                  key={cadet.id}
+                  className={cn(
+                    "border shadow-sm rounded-2xl overflow-hidden transition-all hover:border-purple-300 dark:hover:border-purple-800 bg-white dark:bg-slate-900",
+                    cadet.isInactive ? "border-red-200 dark:border-red-900/60 bg-red-50/20" : "border-slate-200 dark:border-slate-800"
+                  )}
+                >
+                  <CardContent className="p-5 space-y-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h4 className="font-bold text-base text-foreground">{cadet.name}</h4>
+                          {cadet.is40DayChampion && (
+                            <Badge className="bg-amber-600 text-white text-[9px] font-bold gap-1 px-1.5">
+                              <Crown className="size-3" /> 40-Day Champion
+                            </Badge>
+                          )}
+                          {cadet.isInactive && (
+                            <Badge className="bg-red-600 text-white text-[9px] font-bold gap-1 px-1.5">
+                              <UserX className="size-3" /> Inactive (7+ Days)
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {cadet.groupName} • {cadet.parkName}
+                        </p>
                       </div>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {cadet.groupName} • {cadet.parkName}
-                      </p>
+
+                      {cadet.hasUnreadLog && (
+                        <Badge className="bg-purple-600 text-white text-[10px] animate-pulse">
+                          Unread Log
+                        </Badge>
+                      )}
                     </div>
 
-                    {cadet.hasUnreadLog && (
-                      <Badge className="bg-purple-600 text-white text-[10px] animate-pulse">
-                        Unread Log
-                      </Badge>
-                    )}
-                  </div>
+                    <div className="grid grid-cols-2 gap-2 text-xs p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 font-medium">
+                      <div>
+                        <span className="text-muted-foreground block text-[10px]">Wakeup / Sleep</span>
+                        <span className="font-mono font-bold text-foreground">{cadet.wakeupTime} / {cadet.sleepTime}</span>
+                      </div>
 
-                  <div className="grid grid-cols-2 gap-2 text-xs p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 font-medium">
-                    <div>
-                      <span className="text-muted-foreground block text-[10px]">Wakeup / Sleep</span>
-                      <span className="font-mono font-bold text-foreground">{cadet.wakeupTime} / {cadet.sleepTime}</span>
+                      <div>
+                        <span className="text-muted-foreground block text-[10px]">Jama'at & Tilawat</span>
+                        <span className="font-bold text-emerald-600">{cadet.jamaatCount}/5 Jama'at • {cadet.tilawatMins}m</span>
+                      </div>
                     </div>
 
-                    <div>
-                      <span className="text-muted-foreground block text-[10px]">Jama'at & Tilawat</span>
-                      <span className="font-bold text-emerald-600">{cadet.jamaatCount}/5 Jama'at • {cadet.tilawatMins}m</span>
+                    <div className="flex items-center justify-between pt-1">
+                      <span className="text-xs font-mono font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                        <Flame className="size-3.5" /> Day {cadet.streakDays} Streak
+                      </span>
+
+                      <Button
+                        size="sm"
+                        onClick={() => setSelectedCadet(cadet)}
+                        className="gap-1.5 text-xs font-bold bg-[#4B0A8F] hover:bg-[#3b0873] text-white h-8"
+                      >
+                        <span>Inspect Log & Guidance</span>
+                        <ChevronRight className="size-3.5" />
+                      </Button>
                     </div>
-                  </div>
-
-                  <div className="flex items-center justify-between pt-1">
-                    <span className="text-xs font-mono font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1">
-                      <Flame className="size-3.5" /> Day {cadet.streakDays} Streak
-                    </span>
-
-                    <Button
-                      size="sm"
-                      onClick={() => setSelectedCadet(cadet)}
-                      className="gap-1.5 text-xs font-bold bg-[#4B0A8F] hover:bg-[#3b0873] text-white h-8"
-                    >
-                      <span>Inspect Log & Guidance</span>
-                      <ChevronRight className="size-3.5" />
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                  </CardContent>
+                </Card>
+              ))
+            )}
           </div>
         </div>
       )}
 
-      {/* ─── MURABBI INSPECTION & GUIDANCE MODAL ─── */}
+      {/* ─── Murabbi Inspection & Guidance Dialog ─── */}
       <Dialog open={!!selectedCadet} onOpenChange={() => setSelectedCadet(null)}>
         <DialogContent className="max-w-md rounded-2xl">
           <DialogHeader>

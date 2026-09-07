@@ -162,15 +162,34 @@ export function SyncConflictsPage({ onBack }: SyncConflictsPageProps = {}) {
     refreshData();
   }, []);
 
-  // Handlers
   const handleManualSync = async () => {
     setIsSyncing(true);
-    toast.info("Triggering batch sync with server...");
     try {
-      const res = await triggerOfflineBatchSync();
+      const pendingItems = await getPendingSyncItems();
+      if (!pendingItems || pendingItems.length === 0) {
+        toast.info("Nothing to sync");
+        setIsSyncing(false);
+        return;
+      }
+
+      toast.info(`Syncing ${pendingItems.length} items with server...`);
+      const res = await fetch("/api/sync/process", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mutations: pendingItems }),
+      });
+
+      if (!res.ok) throw new Error("Sync failed");
+      
+      const data = await res.json();
       toast.success(
-        `Sync completed! Processed: ${res.syncedCount} synced, ${res.conflictsCount} conflicts detected.`
+        `Sync completed! Processed: ${data.synced?.length || 0} synced, ${data.conflicts?.length || 0} conflicts detected.`
       );
+
+      if (data.conflicts && data.conflicts.length > 0) {
+        setConflictsList(data.conflicts);
+      }
+      
       await refreshData();
     } catch (err: any) {
       toast.error("Sync batch failed.");
@@ -513,11 +532,23 @@ export function SyncConflictsPage({ onBack }: SyncConflictsPageProps = {}) {
 
         {/* ─── TAB 2: CONFLICT RESOLUTION CENTER ─── */}
         <TabsContent value="conflicts" className="mt-4 space-y-4">
-          <div>
-            <h3 className="text-base font-semibold text-foreground">Data Conflict Resolution Center</h3>
-            <p className="text-xs text-muted-foreground">
-              Inspect side-by-side diffs where client offline writes clashed with server updates.
-            </p>
+          <div className="flex items-start justify-between">
+            <div>
+              <h3 className="text-base font-semibold text-foreground">Data Conflict Resolution Center</h3>
+              <p className="text-xs text-muted-foreground">
+                Inspect side-by-side diffs where client offline writes clashed with server updates.
+              </p>
+            </div>
+            {conflictsList.length > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setConflictsList([])}
+                className="h-8 text-xs bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800"
+              >
+                Resolve All
+              </Button>
+            )}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

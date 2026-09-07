@@ -31,7 +31,7 @@ export function MobileCityHeadDashboard() {
   const { data: adminDashData, isLoading } = useQuery({
     queryKey: ["city-head-dash-real"],
     queryFn: async () => {
-      const res = await fetch("/api/admin/dashboard");
+      const res = await fetch("/api/city-head/dashboard");
       if (!res.ok) return null;
       return res.json();
     },
@@ -55,7 +55,7 @@ export function MobileCityHeadDashboard() {
   const parksList: any[] = adminDashData?.cityParks ?? [];
 
   return (
-    <div className="flex flex-col min-h-screen w-full bg-background text-foreground pb-24 select-none">
+    <div className="w-full max-w-[460px] mx-auto flex flex-col min-h-screen w-full bg-background text-foreground pb-24 select-none">
       {/* ─── Top Brand Header ────────────────────────────────────────────── */}
       <div className="relative w-full bg-gradient-to-br from-[#1F0860] via-[#4B0A8F] to-[#380668] text-white pt-6 pb-12 px-5 rounded-b-[2rem] shadow-xl">
         <div className="flex items-center justify-between mb-3">
