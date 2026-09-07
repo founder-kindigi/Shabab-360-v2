@@ -18,6 +18,7 @@ import {
   AlertCircle,
   Database,
   Trash2,
+  PhoneCall,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -234,6 +235,13 @@ export function MobileMorePage({ onNavigate }: MobileMorePageProps) {
               title="Admissions Desk"
               subtitle="Intake applications, screening & cohorts"
               onClick={() => onNavigate("admissions")}
+            />
+            <SettingRow
+              icon={<PhoneCall className="w-4 h-4 text-amber-600" />}
+              iconBg="bg-amber-50"
+              title="Retention Calling"
+              subtitle="Outreach pipeline, WhatsApp & scripts"
+              onClick={() => onNavigate("calling")}
               isLast={true}
             />
           </div>
