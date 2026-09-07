@@ -25,6 +25,7 @@ import { MobileHomeDashboard } from "@/components/modules/admin/mobile-home-dash
 import { MobileAdmissionsPage } from "@/components/modules/admin/mobile-admissions-page";
 import { MobileCallingPage } from "@/components/modules/admin/mobile-calling-page";
 import { MobileMashwaraPage } from "@/components/modules/admin/mobile-mashwara-page";
+import { MobileFeesPage } from "@/components/modules/admin/mobile-fees-page";
 
 import {
   Home,
@@ -49,7 +50,8 @@ type ScreenId =
   | "analysis"
   | "admissions"
   | "calling"
-  | "mashwara";
+  | "mashwara"
+  | "fees";
 
 export type ParkNav = {
   parkId: string;
@@ -194,6 +196,7 @@ export function PwaApp() {
                 {screen === "admissions" && <MobileAdmissionsPage onBack={() => setScreen("more")} />}
                 {screen === "calling" && <MobileCallingPage onBack={() => setScreen("more")} />}
                 {screen === "mashwara" && <MobileMashwaraPage onBack={() => setScreen("more")} />}
+                {screen === "fees" && <MobileFeesPage onBack={() => setScreen("more")} />}
               </motion.div>
             </AnimatePresence>
           </main>
@@ -205,7 +208,7 @@ export function PwaApp() {
                 const Icon = tab.icon;
                 const isActive = screen === tab.id || 
                                  (tab.id === "parks" && ["park-detail", "inventory", "evaluation"].includes(screen)) ||
-                                 (tab.id === "more" && ["analysis", "admissions", "calling", "mashwara"].includes(screen));
+                                 (tab.id === "more" && ["analysis", "admissions", "calling", "mashwara", "fees"].includes(screen));
                 
                 return (
                   <button

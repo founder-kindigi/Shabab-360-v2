@@ -20,6 +20,7 @@ import {
   Trash2,
   PhoneCall,
   CalendarCheck,
+  CreditCard,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -250,6 +251,13 @@ export function MobileMorePage({ onNavigate }: MobileMorePageProps) {
               title="Weekly Mashwara"
               subtitle="Executive shura, decisions & minutes"
               onClick={() => onNavigate("mashwara")}
+            />
+            <SettingRow
+              icon={<CreditCard className="w-4 h-4 text-emerald-600" />}
+              iconBg="bg-emerald-50"
+              title="Fees & Accounts"
+              subtitle="Challans, collections, waivers & dues"
+              onClick={() => onNavigate("fees")}
               isLast={true}
             />
           </div>
