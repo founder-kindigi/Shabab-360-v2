@@ -24,6 +24,7 @@ import {
   Trophy,
   Award,
   BookOpen,
+  Heart,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -282,6 +283,20 @@ export function MobileMorePage({ onNavigate }: MobileMorePageProps) {
               title="Content Planner LMS"
               subtitle="Tarbiyah curriculum, sessions & blocks"
               onClick={() => onNavigate("content-planner")}
+            />
+            <SettingRow
+              icon={<Heart className="w-4 h-4 text-emerald-600" />}
+              iconBg="bg-emerald-50"
+              title="Islah-i-Mamulat"
+              subtitle="Spiritual habits, 40-day streak & logs"
+              onClick={() => onNavigate("islah")}
+            />
+            <SettingRow
+              icon={<Database className="w-4 h-4 text-indigo-600" />}
+              iconBg="bg-indigo-50"
+              title="Sync & Offline Cache"
+              subtitle="Queue mutations, conflicts & offline storage"
+              onClick={() => onNavigate("sync")}
               isLast={true}
             />
           </div>

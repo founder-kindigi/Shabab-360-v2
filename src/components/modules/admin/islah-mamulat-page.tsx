@@ -23,6 +23,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import {
+  ArrowLeft,
   Heart,
   BookOpen,
   CalendarCheck,
@@ -194,7 +195,11 @@ const ROUTINE_PRESETS = [
   },
 ];
 
-export function IslahMamulatPage() {
+interface IslahMamulatPageProps {
+  onBack?: () => void;
+}
+
+export function IslahMamulatPage({ onBack }: IslahMamulatPageProps = {}) {
   const { data: session } = useSession();
   const queryClient = useQueryClient();
 
@@ -329,129 +334,138 @@ ${mutalaahMins > 0 ? `(✓) مطالعہ: ${mutalaahMins} منٹ` : "(✕) مط�
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-1 pb-12 space-y-6">
-      {/* ─── PAGE HEADER & WORKSPACE ROLE SWITCHER ─── */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-gradient-to-r from-emerald-500/10 via-teal-500/5 to-transparent p-5 rounded-2xl border border-emerald-200/60 dark:border-emerald-900/40">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold tracking-tight text-foreground">
-              اصلاح و معمولات — Islah-i-Mamulat Studio
-            </h1>
-            <Badge className="bg-emerald-600 text-white font-bold">Al-Burhan Synced</Badge>
+    <div className="w-full max-w-[460px] mx-auto px-4 pt-4 pb-28 space-y-4">
+      {/* ─── PWA TOP BAR WITH BACK BUTTON ─── */}
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5">
+          {onBack && (
+            <button
+              onClick={onBack}
+              className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 flex items-center justify-center text-slate-700 dark:text-slate-200 transition-colors shrink-0"
+              aria-label="Back"
+            >
+              <ArrowLeft className="w-4 h-4" />
+            </button>
+          )}
+          <div>
+            <div className="flex items-center gap-1.5">
+              <h1 className="text-lg font-black text-[#1F0860] dark:text-purple-200 tracking-tight">
+                Islah-i-Mamulat
+              </h1>
+              <Badge className="bg-emerald-600 text-white text-[10px] px-1.5 py-0 h-4 font-bold">Synced</Badge>
+            </div>
+            <p className="text-[11px] text-muted-foreground line-clamp-1">Spiritual routine, prayers & 40-day streak</p>
           </div>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Spiritual Routine Tracker & Self-Reformation Studio • Daily Prayers, Wakeup/Sleep Times, 40-Day Champions & Murabbi Inspection.
-          </p>
         </div>
+      </div>
 
-        {/* Workspace Switcher */}
-        <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-700">
-          <button
-            type="button"
-            onClick={() => setWorkspaceRole("cadet")}
-            className={cn(
-              "px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-2 transition-all shadow-sm",
-              workspaceRole === "cadet"
-                ? "bg-emerald-600 text-white shadow-emerald-500/20"
-                : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            <GraduationCap className="size-4" />
-            <span>My Daily Mamulat (Cadet View)</span>
-          </button>
+      {/* Workspace Switcher */}
+      <div className="flex items-center bg-slate-100 dark:bg-slate-800/80 p-1 rounded-xl border border-slate-200/80 dark:border-slate-700">
+        <button
+          type="button"
+          onClick={() => setWorkspaceRole("cadet")}
+          className={cn(
+            "flex-1 py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-sm",
+            workspaceRole === "cadet"
+              ? "bg-emerald-600 text-white shadow-emerald-500/20"
+              : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          <GraduationCap className="size-3.5" />
+          <span>My Daily Log</span>
+        </button>
 
-          <button
-            type="button"
-            onClick={() => setWorkspaceRole("murabbi")}
-            className={cn(
-              "px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-2 transition-all",
-              workspaceRole === "murabbi"
-                ? "bg-[#4B0A8F] text-white shadow-purple-500/20"
-                : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            <Shield className="size-4" />
-            <span>Murabbi Guidance Desk</span>
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={() => setWorkspaceRole("murabbi")}
+          className={cn(
+            "flex-1 py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all",
+            workspaceRole === "murabbi"
+              ? "bg-[#4B0A8F] text-white shadow-purple-500/20"
+              : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          <Shield className="size-3.5" />
+          <span>Murabbi Desk</span>
+        </button>
       </div>
 
       {/* ─── WORKSPACE 1: CADET DAILY MAMULAT VIEW ─── */}
       {workspaceRole === "cadet" ? (
-        <div className="space-y-6">
-          {/* 4 KPI Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="space-y-4">
+          {/* 4 KPI Cards (2x2 grid for mobile) */}
+          <div className="grid grid-cols-2 gap-2.5">
             <Card className="border border-slate-200 dark:border-slate-800 shadow-sm rounded-xl overflow-hidden">
-              <CardContent className="p-5">
+              <CardContent className="p-3">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Daily Compliance Rate
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      Compliance
                     </p>
-                    <h3 className="text-2xl font-bold text-foreground mt-1">88% Fulfillment</h3>
-                    <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium mt-1">
-                      Jama'at & Quran Tilawat
+                    <h3 className="text-lg font-bold text-foreground mt-0.5">88%</h3>
+                    <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
+                      Jama'at & Quran
                     </p>
                   </div>
-                  <div className="size-12 rounded-xl bg-emerald-100 dark:bg-emerald-950/50 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
-                    <Heart className="size-6" />
+                  <div className="size-8 rounded-lg bg-emerald-100 dark:bg-emerald-950/50 flex items-center justify-center text-emerald-600">
+                    <Heart className="size-4" />
                   </div>
                 </div>
               </CardContent>
             </Card>
 
             <Card className="border border-slate-200 dark:border-slate-800 shadow-sm rounded-xl overflow-hidden">
-              <CardContent className="p-5">
+              <CardContent className="p-3">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      40-Day Champions Streak
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      40-Day Streak
                     </p>
-                    <h3 className="text-2xl font-bold text-amber-600 dark:text-amber-400 mt-1">Day {streakDays} / 40</h3>
-                    <p className="text-xs text-amber-600 font-medium mt-1 flex items-center gap-1">
-                      <Flame className="size-3 text-amber-500 fill-amber-500" /> Active 14-Day Streak
+                    <h3 className="text-lg font-bold text-amber-600 dark:text-amber-400 mt-0.5">Day {streakDays}</h3>
+                    <p className="text-[10px] text-amber-600 font-medium flex items-center gap-0.5">
+                      <Flame className="size-2.5 fill-amber-500 text-amber-500" /> Active
                     </p>
                   </div>
-                  <div className="size-12 rounded-xl bg-amber-100 dark:bg-amber-950/50 flex items-center justify-center text-amber-600 dark:text-amber-400">
-                    <Trophy className="size-6" />
+                  <div className="size-8 rounded-lg bg-amber-100 dark:bg-amber-950/50 flex items-center justify-center text-amber-600">
+                    <Trophy className="size-4" />
                   </div>
                 </div>
               </CardContent>
             </Card>
 
             <Card className="border border-slate-200 dark:border-slate-800 shadow-sm rounded-xl overflow-hidden">
-              <CardContent className="p-5">
+              <CardContent className="p-3">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Total Days Recorded
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      Recorded
                     </p>
-                    <h3 className="text-2xl font-bold text-foreground mt-1">42 Days</h3>
-                    <p className="text-xs text-purple-600 dark:text-purple-400 font-medium mt-1">
-                      Gulberg Park Cadets
+                    <h3 className="text-lg font-bold text-foreground mt-0.5">42 Days</h3>
+                    <p className="text-[10px] text-purple-600 font-medium">
+                      Gulberg Cadets
                     </p>
                   </div>
-                  <div className="size-12 rounded-xl bg-purple-100 dark:bg-purple-950/50 flex items-center justify-center text-purple-600 dark:text-purple-400">
-                    <CalendarCheck className="size-6" />
+                  <div className="size-8 rounded-lg bg-purple-100 dark:bg-purple-950/50 flex items-center justify-center text-purple-600">
+                    <CalendarCheck className="size-4" />
                   </div>
                 </div>
               </CardContent>
             </Card>
 
             <Card className="border border-slate-200 dark:border-slate-800 shadow-sm rounded-xl overflow-hidden">
-              <CardContent className="p-5">
+              <CardContent className="p-3">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Murabbi Verification
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      Verified
                     </p>
-                    <h3 className="text-2xl font-bold text-foreground mt-1">18 Verified</h3>
-                    <p className="text-xs text-blue-600 dark:text-blue-400 font-medium mt-1">
-                      Active Mentorship
+                    <h3 className="text-lg font-bold text-foreground mt-0.5">18 Done</h3>
+                    <p className="text-[10px] text-blue-600 font-medium">
+                      Mentorship
                     </p>
                   </div>
-                  <div className="size-12 rounded-xl bg-blue-100 dark:bg-blue-950/50 flex items-center justify-center text-blue-600 dark:text-blue-400">
-                    <Sparkles className="size-6" />
+                  <div className="size-8 rounded-lg bg-blue-100 dark:bg-blue-950/50 flex items-center justify-center text-blue-600">
+                    <Sparkles className="size-4" />
                   </div>
                 </div>
               </CardContent>
@@ -631,80 +645,80 @@ ${mutalaahMins > 0 ? `(✓) مطالعہ: ${mutalaahMins} منٹ` : "(✕) مط�
         </div>
       ) : (
         /* ─── WORKSPACE 2: MURABBI GUIDANCE DESK (MODELED AFTER ISLAHIMAMULAT.COM MURABBI DASHBOARD) ─── */
-        <div className="space-y-6">
-          {/* 4 Stat Summary Cards (Exact matching islahimamulat.com Murabbi Dashboard) */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="space-y-4">
+          {/* 4 Stat Summary Cards (2x2 grid for mobile) */}
+          <div className="grid grid-cols-2 gap-2.5">
             <Card className="border border-slate-200 dark:border-slate-800 shadow-sm rounded-xl overflow-hidden">
-              <CardContent className="p-5">
+              <CardContent className="p-3">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Total Guided Cadets
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      Guided Cadets
                     </p>
-                    <h3 className="text-2xl font-bold text-foreground mt-1">48 Cadets</h3>
-                    <p className="text-xs text-purple-600 font-medium mt-1">
-                      My Youth Groups
+                    <h3 className="text-lg font-bold text-foreground mt-0.5">48</h3>
+                    <p className="text-[10px] text-purple-600 font-medium">
+                      Youth Groups
                     </p>
                   </div>
-                  <div className="size-12 rounded-xl bg-purple-100 dark:bg-purple-950/50 flex items-center justify-center text-purple-600">
-                    <Users className="size-6" />
+                  <div className="size-8 rounded-lg bg-purple-100 dark:bg-purple-950/50 flex items-center justify-center text-purple-600">
+                    <Users className="size-4" />
                   </div>
                 </div>
               </CardContent>
             </Card>
 
             <Card className="border border-slate-200 dark:border-slate-800 shadow-sm rounded-xl overflow-hidden">
-              <CardContent className="p-5">
+              <CardContent className="p-3">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                       Logged Today
                     </p>
-                    <h3 className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">32 Cadets</h3>
-                    <p className="text-xs text-emerald-600 font-medium mt-1">
-                      67% Response Rate
+                    <h3 className="text-lg font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">32</h3>
+                    <p className="text-[10px] text-emerald-600 font-medium">
+                      67% Response
                     </p>
                   </div>
-                  <div className="size-12 rounded-xl bg-emerald-100 dark:bg-emerald-950/50 flex items-center justify-center text-emerald-600">
-                    <CalendarCheck className="size-6" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border border-slate-200 dark:border-slate-800 shadow-sm rounded-xl overflow-hidden">
-              <CardContent className="p-5">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      7-Day Streak Cadets
-                    </p>
-                    <h3 className="text-2xl font-bold text-blue-600 dark:text-blue-400 mt-1">28 Cadets</h3>
-                    <p className="text-xs text-blue-600 font-medium mt-1 flex items-center gap-1">
-                      <Flame className="size-3" /> Consistent Routine
-                    </p>
-                  </div>
-                  <div className="size-12 rounded-xl bg-blue-100 dark:bg-blue-950/50 flex items-center justify-center text-blue-600">
-                    <Flame className="size-6" />
+                  <div className="size-8 rounded-lg bg-emerald-100 dark:bg-emerald-950/50 flex items-center justify-center text-emerald-600">
+                    <CalendarCheck className="size-4" />
                   </div>
                 </div>
               </CardContent>
             </Card>
 
             <Card className="border border-slate-200 dark:border-slate-800 shadow-sm rounded-xl overflow-hidden">
-              <CardContent className="p-5">
+              <CardContent className="p-3">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      40-Day Champions
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      7-Day Streak
                     </p>
-                    <h3 className="text-2xl font-bold text-amber-600 dark:text-amber-400 mt-1">12 Cadets</h3>
-                    <p className="text-xs text-amber-600 font-medium mt-1 flex items-center gap-1">
-                      <Crown className="size-3" /> Top Spiritual Performers
+                    <h3 className="text-lg font-bold text-blue-600 dark:text-blue-400 mt-0.5">28</h3>
+                    <p className="text-[10px] text-blue-600 font-medium flex items-center gap-0.5">
+                      <Flame className="size-2.5" /> Consistent
                     </p>
                   </div>
-                  <div className="size-12 rounded-xl bg-amber-100 dark:bg-amber-950/50 flex items-center justify-center text-amber-600">
-                    <Crown className="size-6" />
+                  <div className="size-8 rounded-lg bg-blue-100 dark:bg-blue-950/50 flex items-center justify-center text-blue-600">
+                    <Flame className="size-4" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border border-slate-200 dark:border-slate-800 shadow-sm rounded-xl overflow-hidden">
+              <CardContent className="p-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      40-Day Champs
+                    </p>
+                    <h3 className="text-lg font-bold text-amber-600 dark:text-amber-400 mt-0.5">12</h3>
+                    <p className="text-[10px] text-amber-600 font-medium flex items-center gap-0.5">
+                      <Crown className="size-2.5" /> Top Performers
+                    </p>
+                  </div>
+                  <div className="size-8 rounded-lg bg-amber-100 dark:bg-amber-950/50 flex items-center justify-center text-amber-600">
+                    <Crown className="size-4" />
                   </div>
                 </div>
               </CardContent>
@@ -712,40 +726,40 @@ ${mutalaahMins > 0 ? `(✓) مطالعہ: ${mutalaahMins} منٹ` : "(✕) مط�
           </div>
 
           {/* Filter Bar & Search */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+          <div className="space-y-2 bg-white dark:bg-slate-900 p-3 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
             {/* Filter Pills */}
-            <div className="flex flex-wrap items-center gap-1.5">
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
               <button
                 type="button"
                 onClick={() => setMurabbiFilter("all")}
                 className={cn(
-                  "px-3 py-1.5 rounded-xl text-xs font-bold transition-all",
+                  "px-3 py-1 rounded-xl text-xs font-bold shrink-0 transition-all",
                   murabbiFilter === "all"
                     ? "bg-[#4B0A8F] text-white shadow-sm"
                     : "bg-slate-100 dark:bg-slate-800 text-muted-foreground hover:text-foreground"
                 )}
               >
-                All Cadets ({MOCK_GUIDED_CADETS.length})
+                All ({MOCK_GUIDED_CADETS.length})
               </button>
 
               <button
                 type="button"
                 onClick={() => setMurabbiFilter("today")}
                 className={cn(
-                  "px-3 py-1.5 rounded-xl text-xs font-bold transition-all",
+                  "px-3 py-1 rounded-xl text-xs font-bold shrink-0 transition-all",
                   murabbiFilter === "today"
                     ? "bg-emerald-600 text-white shadow-sm"
                     : "bg-slate-100 dark:bg-slate-800 text-muted-foreground hover:text-foreground"
                 )}
               >
-                Logged Today (3)
+                Today (3)
               </button>
 
               <button
                 type="button"
                 onClick={() => setMurabbiFilter("streak7")}
                 className={cn(
-                  "px-3 py-1.5 rounded-xl text-xs font-bold transition-all",
+                  "px-3 py-1 rounded-xl text-xs font-bold shrink-0 transition-all",
                   murabbiFilter === "streak7"
                     ? "bg-blue-600 text-white shadow-sm"
                     : "bg-slate-100 dark:bg-slate-800 text-muted-foreground hover:text-foreground"
@@ -758,34 +772,34 @@ ${mutalaahMins > 0 ? `(✓) مطالعہ: ${mutalaahMins} منٹ` : "(✕) مط�
                 type="button"
                 onClick={() => setMurabbiFilter("champions")}
                 className={cn(
-                  "px-3 py-1.5 rounded-xl text-xs font-bold transition-all",
+                  "px-3 py-1 rounded-xl text-xs font-bold shrink-0 transition-all",
                   murabbiFilter === "champions"
                     ? "bg-amber-600 text-white shadow-sm"
                     : "bg-slate-100 dark:bg-slate-800 text-muted-foreground hover:text-foreground"
                 )}
               >
-                40-Day Champions (2)
+                40-Day (2)
               </button>
 
               <button
                 type="button"
                 onClick={() => setMurabbiFilter("inactive")}
                 className={cn(
-                  "px-3 py-1.5 rounded-xl text-xs font-bold transition-all",
+                  "px-3 py-1 rounded-xl text-xs font-bold shrink-0 transition-all",
                   murabbiFilter === "inactive"
                     ? "bg-red-600 text-white shadow-sm"
                     : "bg-slate-100 dark:bg-slate-800 text-muted-foreground hover:text-foreground"
                 )}
               >
-                ⚠️ Inactive 7+ Days (1)
+                ⚠️ Inactive (1)
               </button>
             </div>
 
             {/* Search Input */}
-            <div className="relative min-w-[200px]">
+            <div className="relative w-full">
               <Search className="absolute left-3 top-2.5 size-3.5 text-muted-foreground" />
               <Input
-                placeholder="Search cadet name..."
+                placeholder="Search cadet or group..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-8 text-xs h-8 bg-slate-50 dark:bg-slate-800"
@@ -794,7 +808,7 @@ ${mutalaahMins > 0 ? `(✓) مطالعہ: ${mutalaahMins} منٹ` : "(✕) مط�
           </div>
 
           {/* Guided Cadets Cards List */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-3">
             {filteredCadets.map((cadet) => (
               <Card
                 key={cadet.id}

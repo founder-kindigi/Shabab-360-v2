@@ -34,6 +34,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import {
+  ArrowLeft,
   RefreshCw,
   Wifi,
   WifiOff,
@@ -113,7 +114,11 @@ const MOCK_CONFLICTS: SyncConflictItem[] = [
   },
 ];
 
-export function SyncConflictsPage() {
+interface SyncConflictsPageProps {
+  onBack?: () => void;
+}
+
+export function SyncConflictsPage({ onBack }: SyncConflictsPageProps = {}) {
   const { data: session } = useSession();
   const isOnline = useOnlineStatus();
 
@@ -207,137 +212,147 @@ export function SyncConflictsPage() {
   }, [selectedConflict]);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-1 pb-6 space-y-6">
-      {/* ─── Page Title & Actions ─── */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold tracking-tight text-foreground">
-              Offline Sync Conflict Engine & Queue Studio
-            </h1>
-            <Badge
-              className={cn(
-                "gap-1",
-                isOnline
-                  ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400"
-                  : "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400"
-              )}
+    <div className="w-full max-w-[460px] mx-auto px-4 pt-4 pb-28 space-y-4">
+      {/* ─── PWA TOP BAR WITH BACK BUTTON ─── */}
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5">
+          {onBack && (
+            <button
+              onClick={onBack}
+              className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 flex items-center justify-center text-slate-700 dark:text-slate-200 transition-colors shrink-0"
+              aria-label="Back"
             >
-              {isOnline ? <Wifi className="size-3" /> : <WifiOff className="size-3" />}
-              <span>{isOnline ? "Online (Connected)" : "Offline Mode"}</span>
-            </Badge>
+              <ArrowLeft className="w-4 h-4" />
+            </button>
+          )}
+          <div>
+            <div className="flex items-center gap-1.5">
+              <h1 className="text-lg font-black text-[#1F0860] dark:text-purple-200 tracking-tight">
+                Offline Sync & Cache
+              </h1>
+              <Badge
+                className={cn(
+                  "gap-1 text-[10px] px-1.5 py-0 h-4 font-bold",
+                  isOnline
+                    ? "bg-emerald-600 text-white"
+                    : "bg-amber-600 text-white"
+                )}
+              >
+                {isOnline ? <Wifi className="size-2.5" /> : <WifiOff className="size-2.5" />}
+                <span>{isOnline ? "Online" : "Offline"}</span>
+              </Badge>
+            </div>
+            <p className="text-[11px] text-muted-foreground line-clamp-1">IndexedDB mutation queue & conflict studio</p>
           </div>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            Monitor Dexie IndexedDB mutation queues, resolve data clashes, inspect side-by-side diffs, and manage sync retries.
-          </p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleRetryFailed}
-            className="gap-2 border-slate-300 dark:border-slate-700"
-          >
-            <RefreshCw className="size-4 text-purple-600 dark:text-purple-400" />
-            <span>Retry Failed</span>
-          </Button>
-
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleClearSynced}
-            className="gap-2 border-slate-300 dark:border-slate-700 text-muted-foreground"
-          >
-            <Trash2 className="size-4" />
-            <span>Clear Synced</span>
-          </Button>
-
-          <Button
-            size="sm"
-            disabled={isSyncing}
-            onClick={handleManualSync}
-            className="gap-2 bg-[#4B0A8F] hover:bg-[#3b0873] text-white shadow"
-          >
-            <Zap className={cn("size-4", isSyncing && "animate-spin")} />
-            <span>{isSyncing ? "Syncing Batch..." : "Sync Now"}</span>
-          </Button>
         </div>
       </div>
 
-      {/* ─── 4 Top KPI Cards ─── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Quick Actions Row */}
+      <div className="flex items-center gap-2">
+        <Button
+          size="sm"
+          disabled={isSyncing}
+          onClick={handleManualSync}
+          className="flex-1 gap-1.5 bg-[#4B0A8F] hover:bg-[#3b0873] text-white shadow text-xs font-bold h-8"
+        >
+          <Zap className={cn("size-3.5", isSyncing && "animate-spin")} />
+          <span>{isSyncing ? "Syncing..." : "Sync Now"}</span>
+        </Button>
+
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleRetryFailed}
+          className="gap-1.5 border-slate-300 dark:border-slate-700 text-xs font-semibold h-8"
+        >
+          <RefreshCw className="size-3 text-purple-600 dark:text-purple-400" />
+          <span>Retry</span>
+        </Button>
+
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleClearSynced}
+          className="gap-1.5 border-slate-300 dark:border-slate-700 text-muted-foreground text-xs h-8"
+        >
+          <Trash2 className="size-3" />
+          <span>Clear</span>
+        </Button>
+      </div>
+
+      {/* ─── 4 Top KPI Cards (2x2 grid for mobile) ─── */}
+      <div className="grid grid-cols-2 gap-2.5">
         <Card className="border border-slate-200 dark:border-slate-800 shadow-sm rounded-xl overflow-hidden relative">
-          <CardContent className="p-5">
+          <CardContent className="p-3">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Queued Mutations
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Queued
                 </p>
-                <h3 className="text-2xl font-bold text-foreground mt-1">{queueStats.pending} Pending</h3>
-                <p className="text-xs text-purple-600 dark:text-purple-400 font-medium mt-1">
-                  IndexedDB Local Queue
+                <h3 className="text-lg font-bold text-foreground mt-0.5">{queueStats.pending} Items</h3>
+                <p className="text-[10px] text-purple-600 dark:text-purple-400 font-medium">
+                  Local Queue
                 </p>
               </div>
-              <div className="size-12 rounded-xl bg-purple-100 dark:bg-purple-950/50 flex items-center justify-center text-purple-600 dark:text-purple-400">
-                <Database className="size-6" />
+              <div className="size-8 rounded-lg bg-purple-100 dark:bg-purple-950/50 flex items-center justify-center text-purple-600">
+                <Database className="size-4" />
               </div>
             </div>
           </CardContent>
         </Card>
 
         <Card className="border border-slate-200 dark:border-slate-800 shadow-sm rounded-xl overflow-hidden relative">
-          <CardContent className="p-5">
+          <CardContent className="p-3">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Synced Items
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Synced
                 </p>
-                <h3 className="text-2xl font-bold text-foreground mt-1">{queueStats.synced} Synced</h3>
-                <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium mt-1">
-                  Successfully Processed
+                <h3 className="text-lg font-bold text-foreground mt-0.5">{queueStats.synced} Items</h3>
+                <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
+                  Processed
                 </p>
               </div>
-              <div className="size-12 rounded-xl bg-emerald-100 dark:bg-emerald-950/50 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
-                <CheckCircle2 className="size-6" />
+              <div className="size-8 rounded-lg bg-emerald-100 dark:bg-emerald-950/50 flex items-center justify-center text-emerald-600">
+                <CheckCircle2 className="size-4" />
               </div>
             </div>
           </CardContent>
         </Card>
 
         <Card className="border border-slate-200 dark:border-slate-800 shadow-sm rounded-xl overflow-hidden relative">
-          <CardContent className="p-5">
+          <CardContent className="p-3">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Auto-Resolved Clashes
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Auto-Resolved
                 </p>
-                <h3 className="text-2xl font-bold text-foreground mt-1">18 Resolved</h3>
-                <p className="text-xs text-blue-600 dark:text-blue-400 font-medium mt-1">
-                  Timestamp Last-Write-Wins
+                <h3 className="text-lg font-bold text-foreground mt-0.5">18 Done</h3>
+                <p className="text-[10px] text-blue-600 dark:text-blue-400 font-medium">
+                  LWW Policy
                 </p>
               </div>
-              <div className="size-12 rounded-xl bg-blue-100 dark:bg-blue-950/50 flex items-center justify-center text-blue-600 dark:text-blue-400">
-                <ShieldCheck className="size-6" />
+              <div className="size-8 rounded-lg bg-blue-100 dark:bg-blue-950/50 flex items-center justify-center text-blue-600">
+                <ShieldCheck className="size-4" />
               </div>
             </div>
           </CardContent>
         </Card>
 
         <Card className="border border-slate-200 dark:border-slate-800 shadow-sm rounded-xl overflow-hidden relative">
-          <CardContent className="p-5">
+          <CardContent className="p-3">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Action Required
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Conflicts
                 </p>
-                <h3 className="text-2xl font-bold text-foreground mt-1">{conflictsList.length} Conflicts</h3>
-                <p className="text-xs text-amber-600 dark:text-amber-400 font-medium mt-1">
-                  Requires Manual Review
+                <h3 className="text-lg font-bold text-foreground mt-0.5">{conflictsList.length} Items</h3>
+                <p className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">
+                  Review
                 </p>
               </div>
-              <div className="size-12 rounded-xl bg-amber-100 dark:bg-amber-950/50 flex items-center justify-center text-amber-600 dark:text-amber-400">
-                <AlertTriangle className="size-6" />
+              <div className="size-8 rounded-lg bg-amber-100 dark:bg-amber-950/50 flex items-center justify-center text-amber-600">
+                <AlertTriangle className="size-4" />
               </div>
             </div>
           </CardContent>
@@ -346,7 +361,7 @@ export function SyncConflictsPage() {
 
       {/* ─── Navigation Tabs ─── */}
       <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val as any)} className="w-full">
-        <TabsList className="grid grid-cols-3 w-full max-w-md bg-muted/60 p-1 rounded-xl">
+        <TabsList className="grid grid-cols-3 w-full bg-muted/60 p-1 rounded-xl">
           <TabsTrigger value="queue" className="gap-2 text-xs font-medium rounded-lg">
             <Database className="size-3.5" />
             <span>Sync Queue ({queueStats.pending})</span>

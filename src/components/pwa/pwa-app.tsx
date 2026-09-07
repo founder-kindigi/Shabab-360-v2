@@ -29,6 +29,8 @@ import { MobileFeesPage } from "@/components/modules/admin/mobile-fees-page";
 import { MobileGamificationPage } from "@/components/modules/admin/mobile-gamification-page";
 import { MobileCertificatesPage } from "@/components/modules/admin/mobile-certificates-page";
 import { MobileContentPlannerPage } from "@/components/modules/content-planner/mobile-content-planner-page";
+import { IslahMamulatPage } from "@/components/modules/admin/islah-mamulat-page";
+import { SyncConflictsPage } from "@/components/modules/admin/sync-conflicts-page";
 
 import {
   Home,
@@ -57,7 +59,9 @@ type ScreenId =
   | "fees"
   | "gamification"
   | "certificates"
-  | "content-planner";
+  | "content-planner"
+  | "islah"
+  | "sync";
 
 export type ParkNav = {
   parkId: string;
@@ -206,6 +210,8 @@ export function PwaApp() {
                 {screen === "gamification" && <MobileGamificationPage onBack={() => setScreen("more")} />}
                 {screen === "certificates" && <MobileCertificatesPage onBack={() => setScreen("more")} />}
                 {screen === "content-planner" && <MobileContentPlannerPage onBack={() => setScreen("more")} />}
+                {screen === "islah" && <IslahMamulatPage onBack={() => setScreen("more")} />}
+                {screen === "sync" && <SyncConflictsPage onBack={() => setScreen("more")} />}
               </motion.div>
             </AnimatePresence>
           </main>
@@ -217,7 +223,7 @@ export function PwaApp() {
                 const Icon = tab.icon;
                 const isActive = screen === tab.id || 
                                  (tab.id === "parks" && ["park-detail", "inventory", "evaluation"].includes(screen)) ||
-                                 (tab.id === "more" && ["analysis", "admissions", "calling", "mashwara", "fees", "gamification", "certificates", "content-planner"].includes(screen));
+                                 (tab.id === "more" && ["analysis", "admissions", "calling", "mashwara", "fees", "gamification", "certificates", "content-planner", "islah", "sync"].includes(screen));
                 
                 return (
                   <button
