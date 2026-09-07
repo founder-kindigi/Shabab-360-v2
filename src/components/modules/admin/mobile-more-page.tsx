@@ -19,6 +19,7 @@ import {
   Database,
   Trash2,
   PhoneCall,
+  CalendarCheck,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -242,6 +243,13 @@ export function MobileMorePage({ onNavigate }: MobileMorePageProps) {
               title="Retention Calling"
               subtitle="Outreach pipeline, WhatsApp & scripts"
               onClick={() => onNavigate("calling")}
+            />
+            <SettingRow
+              icon={<CalendarCheck className="w-4 h-4 text-blue-600" />}
+              iconBg="bg-blue-50"
+              title="Weekly Mashwara"
+              subtitle="Executive shura, decisions & minutes"
+              onClick={() => onNavigate("mashwara")}
               isLast={true}
             />
           </div>

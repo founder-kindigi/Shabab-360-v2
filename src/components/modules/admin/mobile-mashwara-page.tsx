@@ -2,209 +2,310 @@
 
 import { useState } from "react";
 import { useSession } from "next-auth/react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import {
+  ArrowLeft,
+  Search,
   CalendarCheck,
+  Clock,
+  MapPin,
+  RefreshCw,
+  Plus,
+  CheckCircle2,
+  Calendar,
   Users,
   CheckSquare,
-  ArrowLeft,
-  Clock,
-  CheckCircle2,
-  AlertTriangle,
-  RefreshCw,
   FileText,
-  Search,
-  MapPin,
-  Sparkles,
   ChevronRight,
   ShieldCheck,
   Layers,
-  Filter
+  ChevronDown,
+  ChevronUp,
+  Sparkles,
 } from "lucide-react";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 
 interface MobileMashwaraPageProps {
   onBack?: () => void;
 }
 
-const MOCK_MOBILE_MEETINGS = [
+const STATUS_TABS = [
+  { id: "all", label: "All Sessions" },
+  { id: "scheduled", label: "Scheduled" },
+  { id: "completed", label: "Completed" },
+];
+
+const MOCK_MEETINGS_FALLBACK = [
   {
     id: "m1",
     title: "Lahore Weekly Leadership Mashwara #14",
     scheduledAt: "2026-08-08T17:00:00.000Z",
     location: "Gulberg Central Office / Conference Hall",
-    city: "Lahore",
+    city: { name: "Lahore" },
     status: "scheduled",
     decisionsCount: 5,
     actionItemsCount: 8,
-    karguzariSummary: "Discussion on Batch 4 attendance metrics, Murabbi team coordination, and upcoming Sports Gala.",
+    minutesSummary: "Discussion on Batch 4 attendance metrics, Murabbi team coordination, and upcoming Sports Gala.",
   },
   {
     id: "m2",
     title: "Gulshan Iqbal Park Lead Review #12",
     scheduledAt: "2026-08-01T16:00:00.000Z",
     location: "Gulshan Iqbal Park Desk",
-    city: "Lahore",
+    city: { name: "Lahore" },
     status: "completed",
     decisionsCount: 4,
     actionItemsCount: 6,
-    karguzariSummary: "Reviewed sports equipment allocations and Tadreeb curriculum progress for Senior cohort.",
+    minutesSummary: "Reviewed sports equipment allocations and Tadreeb curriculum progress for Senior cohort.",
   },
   {
     id: "m3",
     title: "Johar Town & Griffin Executive Mashwara",
     scheduledAt: "2026-07-25T17:30:00.000Z",
     location: "Johar Town Main Desk",
-    city: "Lahore",
+    city: { name: "Lahore" },
     status: "completed",
     decisionsCount: 6,
     actionItemsCount: 7,
-    karguzariSummary: "Evaluated admissions intake targets and calling workload dispatch for Round 2 follow-ups.",
+    minutesSummary: "Evaluated admissions intake targets and calling workload dispatch for Round 2 follow-ups.",
   },
 ];
 
 export function MobileMashwaraPage({ onBack }: MobileMashwaraPageProps) {
   const { data: session } = useSession();
+  const queryClient = useQueryClient();
+  const user = session?.user as any;
+  const userCityId = user?.assignedCityId || "city-lahore-01";
+
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [selectedMeeting, setSelectedMeeting] = useState<any | null>(null);
 
-  // ─── Real DB Queries ───────────────────────────────────────────────────
-  const { data: mashwaraData, isLoading } = useQuery({
-    queryKey: ["mashwara-list-mobile"],
+  // Sheets state
+  const [isScheduleOpen, setIsScheduleOpen] = useState(false);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
+
+  // New Meeting Form State
+  const [newTitle, setNewTitle] = useState("");
+  const [newDateTime, setNewDateTime] = useState("2026-09-12T17:00");
+  const [newLocation, setNewLocation] = useState("Central Office / Conference Hall");
+  const [newMinutes, setNewMinutes] = useState("");
+
+  // ─── Query Meetings ────────────────────────────────────────────────────
+  const { data: mashwaraData, isLoading, isFetching, refetch } = useQuery({
+    queryKey: ["mashwara-list-mobile", statusFilter],
     queryFn: async () => {
-      const res = await fetch("/api/admin/mashwara");
+      const url = new URL("/api/admin/mashwara", window.location.origin);
+      if (statusFilter !== "all") {
+        url.searchParams.set("status", statusFilter);
+      }
+      url.searchParams.set("pageSize", "50");
+      const res = await fetch(url.toString());
       if (!res.ok) return null;
       return res.json();
     },
-    retry: false,
-    enabled: !!session?.user,
-    staleTime: 30000,
+    staleTime: 15000,
   });
 
   const apiMeetings: any[] = mashwaraData?.data ?? mashwaraData?.meetings ?? [];
-  const displayMeetings = apiMeetings.length > 0 ? apiMeetings : MOCK_MOBILE_MEETINGS;
+  const displayMeetings = apiMeetings.length > 0 ? apiMeetings : MOCK_MEETINGS_FALLBACK;
 
   const filteredMeetings = displayMeetings.filter((m) => {
     const matchSearch =
-      !searchQuery ||
-      m.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      !searchQuery.trim() ||
+      m.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (m.location && m.location.toLowerCase().includes(searchQuery.toLowerCase()));
     const matchStatus = statusFilter === "all" || m.status === statusFilter;
     return matchSearch && matchStatus;
   });
 
+  // ─── Schedule Meeting Mutation ─────────────────────────────────────────
+  const scheduleMeetingMutation = useMutation({
+    mutationFn: async (payload: any) => {
+      const res = await fetch("/api/admin/mashwara", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Failed to schedule mashwara");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      toast.success("Mashwara session scheduled successfully!");
+      setIsScheduleOpen(false);
+      setNewTitle("");
+      setNewMinutes("");
+      queryClient.invalidateQueries({ queryKey: ["mashwara-list-mobile"] });
+    },
+    onError: (err: any) => {
+      toast.error(err.message || "Could not schedule meeting");
+    },
+  });
+
+  const handleScheduleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTitle.trim()) {
+      toast.error("Please enter a meeting title");
+      return;
+    }
+    scheduleMeetingMutation.mutate({
+      cityId: userCityId,
+      title: newTitle.trim(),
+      scheduledAt: new Date(newDateTime).toISOString(),
+      location: newLocation.trim(),
+      minutesSummary: newMinutes.trim() || undefined,
+    });
+  };
+
+  const handleOpenDetail = (meeting: any) => {
+    setSelectedMeeting(meeting);
+    setIsDetailOpen(true);
+  };
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case "completed":
+        return {
+          bg: "bg-emerald-50 text-emerald-700 border-emerald-200",
+          icon: CheckCircle2,
+          label: "Completed",
+        };
+      case "in_progress":
+        return {
+          bg: "bg-amber-50 text-amber-700 border-amber-200",
+          icon: Clock,
+          label: "In Progress",
+        };
+      default:
+        return {
+          bg: "bg-purple-50 text-[#4B0A8F] border-purple-200",
+          icon: Calendar,
+          label: "Scheduled",
+        };
+    }
+  };
+
   return (
-    <div className="flex flex-col min-h-screen w-full bg-slate-50 dark:bg-slate-950 text-foreground pb-28 select-none">
-      {/* ─── Top Brand Header ────────────────────────────────────────────── */}
-      <div className="relative w-full bg-gradient-to-br from-[#1F0860] via-[#4B0A8F] to-[#380668] text-white pt-6 pb-8 px-5 rounded-b-[2.5rem] shadow-xl overflow-hidden">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none" />
-        
-        <div className="relative z-10 flex items-center justify-between mb-4">
+    <div className="flex flex-col min-h-screen w-full bg-slate-50 text-slate-900 pb-28 select-none">
+      {/* ─── Header matching docs/pwa screens style ───────────────────────── */}
+      <div className="px-5 pt-6 pb-4 bg-white border-b border-slate-100 shadow-sm sticky top-0 z-20">
+        <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             {onBack && (
               <button
                 onClick={onBack}
-                className="size-9 rounded-2xl bg-white/10 active:scale-95 transition-transform flex items-center justify-center text-white backdrop-blur-md border border-white/15"
+                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-700 transition-colors"
+                aria-label="Back"
               >
-                <ArrowLeft className="size-5" />
+                <ArrowLeft className="w-4 h-4" />
               </button>
             )}
-            <div className="size-10 rounded-2xl bg-gradient-to-br from-[#D90429] via-[#4B0A8F] to-[#1F0860] border border-white/20 p-0.5 flex items-center justify-center overflow-hidden shrink-0 shadow-lg">
-              <img src="/shabab-logo.png" alt="Logo" className="size-full object-contain" />
-            </div>
             <div>
-              <h1 className="text-lg font-black text-white tracking-tight flex items-center gap-1.5">
-                هفتہ وار مشورہ
+              <h1 className="text-2xl font-black text-[#1F0860] tracking-tight flex items-center gap-1.5">
+                <span>Mashwara</span>
+                <span className="text-sm font-bold text-slate-400 font-sans">مشورہ</span>
               </h1>
-              <p className="text-[11px] text-purple-200 font-medium">Weekly Executive Consultation</p>
+              <p className="text-[11px] text-slate-500 font-medium">
+                {filteredMeetings.length} sessions • Weekly Executive Shura
+              </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-1.5 text-[10px] font-bold bg-white/10 px-3 py-1.5 rounded-full border border-white/15 backdrop-blur-md">
-            {isLoading ? (
-              <RefreshCw className="size-3 animate-spin text-purple-300" />
-            ) : (
-              <CalendarCheck className="size-3 text-emerald-400" />
-            )}
-            <span>{apiMeetings.length > 0 ? "DB Live" : "Demo Mode"}</span>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => refetch()}
+              className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 transition-colors"
+              title="Refresh"
+            >
+              <RefreshCw className={cn("w-3.5 h-3.5", isFetching && "animate-spin text-[#4B0A8F]")} />
+            </button>
+            <Button
+              onClick={() => setIsScheduleOpen(true)}
+              size="sm"
+              className="h-8 bg-[#4B0A8F] hover:bg-[#3d0875] text-white text-xs font-bold px-3 rounded-xl shadow-sm flex items-center gap-1.5"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>+ Schedule</span>
+            </Button>
           </div>
         </div>
 
-        {/* Mini Stats Bar */}
-        <div className="relative z-10 grid grid-cols-3 gap-2 mt-4 pt-4 border-t border-white/10">
-          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-2.5 text-center border border-white/10">
-            <span className="text-[10px] uppercase tracking-wider text-purple-200 font-bold block">Meetings</span>
-            <span className="text-base font-black text-white">{displayMeetings.length}</span>
-          </div>
-          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-2.5 text-center border border-white/10">
-            <span className="text-[10px] uppercase tracking-wider text-purple-200 font-bold block">Decisions</span>
-            <span className="text-base font-black text-emerald-300">
-              {displayMeetings.reduce((acc, m) => acc + (m.decisionsCount || m._count?.decisions || 0), 0)}
-            </span>
-          </div>
-          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-2.5 text-center border border-white/10">
-            <span className="text-[10px] uppercase tracking-wider text-purple-200 font-bold block">Action Items</span>
-            <span className="text-base font-black text-amber-300">
-              {displayMeetings.reduce((acc, m) => acc + (m.actionItemsCount || m._count?.actionItems || 0), 0)}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* ─── Search & Status Filters ────────────────────────────────────── */}
-      <div className="p-4 space-y-3">
-        <div className="relative">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-          <Input
+        {/* Search Bar */}
+        <div className="relative mt-3.5">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <input
+            type="text"
+            placeholder="Search Mashwara agenda, location, or notes..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search Mashwara meetings..."
-            className="pl-10 h-11 rounded-2xl bg-card border-slate-200 dark:border-slate-800 shadow-sm font-medium text-xs"
+            className="w-full h-10 pl-10 pr-4 rounded-xl bg-slate-100/90 border border-slate-200/80 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#4B0A8F] focus:bg-white transition-all"
           />
         </div>
 
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
-          {[
-            { id: "all", label: "All Sessions" },
-            { id: "scheduled", label: "Scheduled" },
-            { id: "completed", label: "Completed" },
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setStatusFilter(tab.id)}
-              className={cn(
-                "px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all border",
-                statusFilter === tab.id
-                  ? "bg-[#4B0A8F] text-white border-[#4B0A8F] shadow-md"
-                  : "bg-card text-muted-foreground border-slate-200 dark:border-slate-800 hover:border-purple-200"
-              )}
-            >
-              {tab.label}
-            </button>
-          ))}
+        {/* Filter Pills */}
+        <div className="flex items-center gap-1.5 mt-3 overflow-x-auto no-scrollbar pb-0.5">
+          {STATUS_TABS.map((t) => {
+            const isActive = statusFilter === t.id;
+            return (
+              <button
+                key={t.id}
+                onClick={() => setStatusFilter(t.id)}
+                className={cn(
+                  "px-3 py-1.5 rounded-full text-xs font-bold capitalize whitespace-nowrap transition-all",
+                  isActive
+                    ? "bg-[#1F0860] text-white shadow-sm"
+                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                )}
+              >
+                {t.label}
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      {/* ─── Meetings Roster List ───────────────────────────────────────── */}
-      <div className="px-4 space-y-3">
+      {/* ─── Sessions List ────────────────────────────────────────────────── */}
+      <div className="p-4 space-y-3">
         {isLoading ? (
-          <div className="text-center py-12 text-xs text-muted-foreground bg-card rounded-3xl border border-slate-200 dark:border-slate-800 p-6">
-            <RefreshCw className="size-6 animate-spin mx-auto mb-2 text-[#4B0A8F]" />
-            Loading Mashwara roster…
+          <div className="text-center py-16 text-xs text-slate-400">
+            <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-[#4B0A8F]" />
+            Loading Mashwara sessions…
           </div>
         ) : filteredMeetings.length === 0 ? (
-          <div className="text-center py-12 text-xs text-muted-foreground bg-card rounded-3xl border border-slate-200 dark:border-slate-800 p-6">
-            <CalendarCheck className="size-10 mx-auto mb-2 text-muted-foreground/40" />
-            <p className="font-bold text-slate-900 dark:text-slate-100 text-sm">No Mashwara Sessions Found</p>
-            <p className="mt-1 text-xs">No scheduled or completed meetings matching your filter.</p>
+          <div className="text-center py-12 px-6 rounded-2xl bg-white border border-slate-100 shadow-sm">
+            <CalendarCheck className="w-10 h-10 mx-auto mb-2 text-slate-300" />
+            <p className="font-bold text-slate-900 text-sm">No Mashwara sessions found</p>
+            <p className="text-xs text-slate-500 mt-1">
+              No sessions match the current status filter or search parameters.
+            </p>
           </div>
         ) : (
           filteredMeetings.map((meeting: any) => {
+            const badge = getStatusBadge(meeting.status);
+            const StatusIcon = badge.icon;
             const decisionsCount = meeting.decisionsCount ?? meeting._count?.decisions ?? 0;
             const actionItemsCount = meeting.actionItemsCount ?? meeting._count?.actionItems ?? 0;
             const dateStr = meeting.scheduledAt
@@ -215,58 +316,61 @@ export function MobileMashwaraPage({ onBack }: MobileMashwaraPageProps) {
                   hour: "2-digit",
                   minute: "2-digit",
                 })
-              : meeting.date ?? "Scheduled";
+              : "Upcoming Session";
 
             return (
               <motion.div
                 key={meeting.id}
-                initial={{ opacity: 0, y: 10 }}
+                initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
-                onClick={() => setSelectedMeeting(meeting)}
-                className="p-4 rounded-3xl bg-card border border-slate-200 dark:border-slate-800 shadow-sm space-y-3 cursor-pointer hover:border-purple-300 dark:hover:border-purple-900 transition-all active:scale-[0.99]"
+                onClick={() => handleOpenDetail(meeting)}
+                className="rounded-2xl bg-white border border-slate-100 shadow-sm p-4 space-y-3 cursor-pointer hover:border-purple-200 transition-all active:scale-[0.99]"
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 leading-tight">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-full bg-purple-50 text-[#4B0A8F] font-black text-sm flex items-center justify-center shrink-0 border border-purple-100">
+                      <CalendarCheck className="w-5 h-5 text-[#4B0A8F]" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-black text-slate-900 leading-tight">
                         {meeting.title}
                       </h3>
+                      <p className="text-xs text-slate-500 mt-0.5 font-medium flex items-center gap-1.5">
+                        <Clock className="w-3 h-3 text-[#4B0A8F]" />
+                        <span>{dateStr}</span>
+                      </p>
                     </div>
-                    <p className="text-xs text-muted-foreground flex items-center gap-1 font-medium">
-                      <Clock className="size-3 text-purple-600 shrink-0" />
-                      {dateStr}
-                    </p>
                   </div>
+
                   <Badge
-                    variant="secondary"
+                    variant="outline"
                     className={cn(
-                      "capitalize text-[10px] font-extrabold shrink-0 border",
-                      meeting.status === "completed"
-                        ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border-emerald-200"
-                        : "bg-purple-100 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 border-purple-200"
+                      "text-[10px] font-bold px-2 py-0.5 rounded-full capitalize shrink-0 border",
+                      badge.bg
                     )}
                   >
-                    {meeting.status}
+                    <StatusIcon className="w-3 h-3 mr-1 inline" />
+                    {badge.label}
                   </Badge>
                 </div>
 
                 {meeting.location && (
-                  <p className="text-xs text-slate-600 dark:text-slate-400 flex items-center gap-1">
-                    <MapPin className="size-3 text-slate-400 shrink-0" />
-                    {meeting.location}
+                  <p className="text-xs text-slate-500 flex items-center gap-1.5 pt-0.5">
+                    <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                    <span className="truncate">{meeting.location}</span>
                   </p>
                 )}
 
-                <div className="flex items-center justify-between text-xs pt-2.5 border-t border-slate-100 dark:border-slate-800/80">
-                  <div className="flex items-center gap-3">
-                    <span className="font-bold text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/50 px-2 py-0.5 rounded-lg border border-purple-100 dark:border-purple-900/30 text-[11px]">
+                <div className="flex items-center justify-between text-xs pt-2.5 border-t border-slate-100">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-[#4B0A8F] bg-purple-50 px-2 py-0.5 rounded-lg border border-purple-100 text-[10px]">
                       {decisionsCount} Decisions
                     </span>
-                    <span className="font-bold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/50 px-2 py-0.5 rounded-lg border border-amber-100 dark:border-amber-900/30 text-[11px]">
-                      {actionItemsCount} Action Items
+                    <span className="font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-100 text-[10px]">
+                      {actionItemsCount} Actions
                     </span>
                   </div>
-                  <ChevronRight className="size-4 text-slate-400" />
+                  <ChevronRight className="w-4 h-4 text-slate-400" />
                 </div>
               </motion.div>
             );
@@ -274,80 +378,156 @@ export function MobileMashwaraPage({ onBack }: MobileMashwaraPageProps) {
         )}
       </div>
 
-      {/* ─── Detail Drawer / Modal for Mobile Selection ───────────────────── */}
-      <AnimatePresence>
-        {selectedMeeting && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4"
-          >
-            <motion.div
-              initial={{ y: "100%" }}
-              animate={{ y: 0 }}
-              exit={{ y: "100%" }}
-              className="w-full max-w-lg bg-card rounded-t-[2.5rem] sm:rounded-3xl border border-slate-200 dark:border-slate-800 p-6 space-y-4 max-h-[85vh] overflow-y-auto"
-            >
-              <div className="w-12 h-1.5 bg-slate-300 dark:bg-slate-700 rounded-full mx-auto mb-2" />
+      {/* ─── Schedule Mashwara Bottom Sheet ───────────────────────────────── */}
+      <Sheet open={isScheduleOpen} onOpenChange={setIsScheduleOpen}>
+        <SheetContent side="bottom" className="rounded-t-3xl max-w-[460px] mx-auto p-6 max-h-[90vh] overflow-y-auto">
+          <SheetHeader className="text-left pb-4 border-b border-slate-100">
+            <SheetTitle className="text-lg font-black text-[#1F0860]">
+              Schedule Weekly Mashwara
+            </SheetTitle>
+            <p className="text-xs text-slate-500 font-medium">
+              Call an executive shura session for Murabbis and Park Leads
+            </p>
+          </SheetHeader>
 
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Badge className="bg-purple-100 text-purple-700 dark:bg-purple-900/50 font-bold">
-                    {selectedMeeting.status.toUpperCase()}
+          <form onSubmit={handleScheduleSubmit} className="space-y-4 py-4 text-xs">
+            <div className="space-y-1.5">
+              <Label className="font-bold text-slate-700">Mashwara Title *</Label>
+              <Input
+                placeholder="e.g. Weekly Leadership Mashwara #15"
+                value={newTitle}
+                onChange={(e) => setNewTitle(e.target.value)}
+                className="rounded-xl h-10 text-xs"
+                required
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="font-bold text-slate-700">Scheduled Date & Time *</Label>
+              <Input
+                type="datetime-local"
+                value={newDateTime}
+                onChange={(e) => setNewDateTime(e.target.value)}
+                className="rounded-xl h-10 text-xs"
+                required
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="font-bold text-slate-700">Location / Meeting Link</Label>
+              <Input
+                placeholder="e.g. Gulberg Central Office / Conference Hall"
+                value={newLocation}
+                onChange={(e) => setNewLocation(e.target.value)}
+                className="rounded-xl h-10 text-xs"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="font-bold text-slate-700">Initial Agenda & Topics</Label>
+              <Textarea
+                placeholder="Outline discussion items: attendance review, sports gala preparations, curriculum pacing..."
+                value={newMinutes}
+                onChange={(e) => setNewMinutes(e.target.value)}
+                className="rounded-xl text-xs resize-none"
+                rows={3}
+              />
+            </div>
+
+            <div className="flex items-center gap-3 pt-3">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsScheduleOpen(false)}
+                className="flex-1 rounded-xl h-11 text-xs font-bold"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={scheduleMeetingMutation.isPending}
+                className="flex-1 bg-[#4B0A8F] hover:bg-[#3d0875] text-white rounded-xl h-11 text-xs font-bold"
+              >
+                {scheduleMeetingMutation.isPending ? "Scheduling..." : "Schedule Session"}
+              </Button>
+            </div>
+          </form>
+        </SheetContent>
+      </Sheet>
+
+      {/* ─── Detail Bottom Sheet ──────────────────────────────────────────── */}
+      <Sheet open={isDetailOpen} onOpenChange={setIsDetailOpen}>
+        <SheetContent side="bottom" className="rounded-t-3xl max-w-[460px] mx-auto p-6 max-h-[90vh] overflow-y-auto">
+          {selectedMeeting && (
+            <div className="space-y-4">
+              <SheetHeader className="text-left pb-4 border-b border-slate-100">
+                <div className="flex items-center justify-between mb-1">
+                  <Badge className="bg-purple-50 text-[#4B0A8F] border border-purple-200 text-[10px] font-bold">
+                    {selectedMeeting.status?.toUpperCase() || "SCHEDULED"}
                   </Badge>
-                  <span className="text-xs text-muted-foreground font-medium">
-                    {selectedMeeting.city || "Lahore"} Scope
+                  <span className="text-[11px] text-slate-500 font-medium">
+                    {selectedMeeting.city?.name || "Lahore"} City Shura
                   </span>
                 </div>
-                <h2 className="text-lg font-black text-slate-900 dark:text-slate-100">
+                <SheetTitle className="text-base font-black text-[#1F0860]">
                   {selectedMeeting.title}
-                </h2>
-                <p className="text-xs text-muted-foreground flex items-center gap-1">
-                  <Clock className="size-3.5 text-purple-600" />
-                  {new Date(selectedMeeting.scheduledAt || Date.now()).toLocaleString()}
+                </SheetTitle>
+                <p className="text-xs text-slate-500 font-medium flex items-center gap-1 pt-1">
+                  <Clock className="w-3.5 h-3.5 text-[#4B0A8F]" />
+                  <span>{new Date(selectedMeeting.scheduledAt || Date.now()).toLocaleString()}</span>
                 </p>
-              </div>
+              </SheetHeader>
 
-              {selectedMeeting.karguzariSummary && (
-                <div className="p-4 bg-purple-50/50 dark:bg-purple-950/20 border border-purple-100 dark:border-purple-900/40 rounded-2xl space-y-1">
-                  <span className="text-[10px] uppercase font-bold text-purple-700 dark:text-purple-300 tracking-wider">
+              {selectedMeeting.location && (
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 flex items-center gap-2 text-xs text-slate-700">
+                  <MapPin className="w-4 h-4 text-slate-400 shrink-0" />
+                  <span>{selectedMeeting.location}</span>
+                </div>
+              )}
+
+              {selectedMeeting.minutesSummary && (
+                <div className="p-3.5 rounded-xl bg-purple-50/50 border border-purple-100 space-y-1 text-xs">
+                  <span className="text-[10px] uppercase font-bold text-[#4B0A8F] tracking-wider block">
                     Karguzari & Minutes Summary
                   </span>
-                  <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed font-medium">
-                    {selectedMeeting.karguzariSummary}
+                  <p className="text-slate-700 leading-relaxed font-medium text-[11px]">
+                    {selectedMeeting.minutesSummary}
                   </p>
                 </div>
               )}
 
-              <div className="grid grid-cols-2 gap-3 pt-2">
-                <div className="p-3 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 text-center">
-                  <span className="text-xs font-bold text-muted-foreground block">Decisions Logged</span>
-                  <span className="text-lg font-black text-purple-600">
+              <div className="grid grid-cols-2 gap-2.5 pt-1">
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 text-center">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                    Decisions Logged
+                  </span>
+                  <span className="text-lg font-black text-[#4B0A8F]">
                     {selectedMeeting.decisionsCount || selectedMeeting._count?.decisions || 0}
                   </span>
                 </div>
-                <div className="p-3 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 text-center">
-                  <span className="text-xs font-bold text-muted-foreground block">Action Items</span>
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 text-center">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                    Action Items
+                  </span>
                   <span className="text-lg font-black text-amber-600">
                     {selectedMeeting.actionItemsCount || selectedMeeting._count?.actionItems || 0}
                   </span>
                 </div>
               </div>
 
-              <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex gap-3">
+              <div className="pt-3 border-t border-slate-100 flex gap-2">
                 <Button
                   variant="outline"
-                  onClick={() => setSelectedMeeting(null)}
-                  className="flex-1 rounded-2xl font-bold h-12"
+                  onClick={() => setIsDetailOpen(false)}
+                  className="w-full rounded-xl font-bold h-11 text-xs"
                 >
                   Close
                 </Button>
               </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
