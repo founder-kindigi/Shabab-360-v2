@@ -565,7 +565,7 @@ export function MobileMorePage({ onNavigate }: MobileMorePageProps) {
           <div className="space-y-4 pb-6">
             <div className="flex justify-center py-2">
               <div className="w-20 h-20 bg-slate-50 border border-slate-200 rounded-2xl p-2 flex items-center justify-center shadow-inner">
-                <img src="/shabab-logo.png" alt="Logo" className="w-full h-full object-contain" />
+                <img src="/logo-color.png" alt="Logo" className="w-full h-full object-contain" />
               </div>
             </div>
 

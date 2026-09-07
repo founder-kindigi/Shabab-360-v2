@@ -12,7 +12,7 @@ export function MobileInfoPage() {
         {/* ─── Brand Card ────────────────────────────────────────────────── */}
         <div className="bg-gradient-to-br from-[#1F0860] via-[#4B0A8F] to-[#D90429] rounded-[2rem] p-8 text-center shadow-xl shadow-[#4B0A8F]/20 mb-6">
           <div className="size-20 bg-white rounded-3xl mx-auto flex items-center justify-center p-3 shadow-inner mb-6">
-            <img src="/shabab-logo.png" alt="Shabab 360 Logo" className="size-full object-contain" />
+            <img src="/logo-color.png" alt="Shabab 360 Logo" className="size-full object-contain" />
           </div>
           <h2 className="text-2xl font-black text-white mb-2">Shabab 360</h2>
           <p className="text-sm font-bold text-purple-200 uppercase tracking-widest">

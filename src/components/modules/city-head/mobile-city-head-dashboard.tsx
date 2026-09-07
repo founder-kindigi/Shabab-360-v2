@@ -61,7 +61,7 @@ export function MobileCityHeadDashboard() {
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <div className="size-9 rounded-xl bg-gradient-to-br from-[#D90429] via-[#4B0A8F] to-[#1F0860] border border-white/20 p-0.5 flex items-center justify-center overflow-hidden shrink-0 shadow-md">
-              <img src="/shabab-logo.png" alt="Logo" className="size-full object-contain" />
+              <img src="/logo-white.png" alt="Logo" className="size-full object-contain" />
             </div>
             <span className="text-xs font-bold text-purple-200 tracking-wider uppercase">City Head Portal</span>
           </div>

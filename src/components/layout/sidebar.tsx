@@ -333,7 +333,7 @@ function DesktopSidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
       {/* Header / Brand */}
       <div className="group/brand flex items-center justify-start px-4 h-14 border-b shrink-0 transition-shadow duration-500 hover:shadow-[0_0_20px_rgba(75,10,143,0.15)]">
         <div className="flex items-center justify-center size-9 rounded-xl overflow-hidden shrink-0 shadow-sm transition-transform duration-300 group-hover/brand:scale-105">
-          <img src="/shabab-logo.png" alt="Logo" className="size-full object-contain" />
+          <img src="/logo-color.png" alt="Logo" className="size-full object-contain" />
         </div>
       </div>
 
@@ -454,7 +454,7 @@ function MobileSidebar({
         <div className="group/brand flex items-center justify-between px-4 h-14 border-b transition-shadow duration-500 hover:shadow-[0_0_20px_rgba(75,10,143,0.15)]">
           <div className="flex items-center">
             <div className="flex items-center justify-center size-9 rounded-xl overflow-hidden shadow-sm transition-transform duration-300 group-hover/brand:scale-105">
-              <img src="/shabab-logo.png" alt="Logo" className="size-full object-contain" />
+              <img src="/logo-color.png" alt="Logo" className="size-full object-contain" />
             </div>
           </div>
           <Button

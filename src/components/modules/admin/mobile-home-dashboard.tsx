@@ -29,7 +29,7 @@ export function MobileHomeDashboard() {
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-3">
             <div className="size-12 rounded-xl bg-white/10 border border-white/20 p-2 shadow-inner backdrop-blur-sm">
-              <img src="/shabab-logo.png" alt="Shabab 360" className="size-full object-contain" />
+              <img src="/logo-white.png" alt="Shabab 360" className="size-full object-contain" />
             </div>
             <div>
               <h1 className="text-xl font-extrabold text-white tracking-tight leading-none">SHABAB</h1>

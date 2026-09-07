@@ -80,7 +80,7 @@ export function MobileEventsPage({ onBack }: MobileEventsPageProps) {
               </button>
             )}
             <div className="size-9 rounded-xl bg-gradient-to-br from-[#D90429] via-[#4B0A8F] to-[#1F0860] border border-white/20 p-0.5 flex items-center justify-center overflow-hidden shrink-0 shadow-md">
-              <img src="/shabab-logo.png" alt="Logo" className="size-full object-contain" />
+              <img src="/logo-white.png" alt="Logo" className="size-full object-contain" />
             </div>
             <div>
               <h1 className="text-base font-extrabold text-white">Youth Events & Camps</h1>

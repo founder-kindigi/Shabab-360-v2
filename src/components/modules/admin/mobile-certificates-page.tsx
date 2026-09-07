@@ -420,7 +420,7 @@ export function MobileCertificatesPage({ onBack }: MobileCertificatesPageProps) 
               {/* Certificate Diploma Card with Gold/Purple Border */}
               <div className="p-5 rounded-2xl bg-gradient-to-b from-amber-50/40 via-white to-amber-50/30 border-2 border-amber-300 text-center space-y-3 shadow-md relative overflow-hidden">
                 <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#D90429] via-[#4B0A8F] to-[#1F0860] mx-auto p-1 border border-white shadow flex items-center justify-center">
-                  <img src="/shabab-logo.png" alt="Emblem" className="w-8 h-8 object-contain" />
+                  <img src="/logo-white.png" alt="Emblem" className="w-8 h-8 object-contain" />
                 </div>
 
                 <div className="space-y-0.5">

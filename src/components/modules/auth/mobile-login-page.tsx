@@ -95,7 +95,7 @@ export function MobileLoginPage({ onSuccess, onBackToSplash }: MobileLoginPagePr
         <div className="flex items-center gap-3 mb-2">
           <div className="size-12 rounded-2xl bg-white/10 p-1.5 border border-white/20 shadow-md flex items-center justify-center overflow-hidden shrink-0 backdrop-blur-md">
             <img
-              src="/shabab-logo.png"
+              src="/logo-white.png"
               alt="Logo"
               className="size-full object-contain"
             />

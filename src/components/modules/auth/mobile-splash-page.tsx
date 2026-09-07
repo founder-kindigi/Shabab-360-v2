@@ -52,7 +52,7 @@ export function MobileSplashPage({ onContinue, onSelectRole }: MobileSplashPageP
           {/* Official Logo Container */}
           <div className="relative size-28 rounded-3xl bg-white/10 border-2 border-white/20 shadow-2xl p-2 flex items-center justify-center overflow-hidden backdrop-blur-md">
             <img
-              src="/shabab-logo.png"
+              src="/logo-white.png"
               alt="Logo"
               className="size-full object-contain drop-shadow-md"
             />

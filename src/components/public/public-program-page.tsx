@@ -179,7 +179,7 @@ export function PublicProgramPage() {
       <header className="sticky top-0 z-50 w-full bg-slate-950/80 backdrop-blur-xl border-b border-white/10 px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="size-10 rounded-2xl bg-gradient-to-br from-[#D90429] via-[#4B0A8F] to-[#1F0860] border border-white/20 p-0.5 flex items-center justify-center overflow-hidden shrink-0 shadow-lg">
-            <img src="/shabab-logo.png" alt="Logo" className="size-full object-contain" />
+            <img src="/logo-color.png" alt="Logo" className="size-full object-contain" />
           </div>
           <div>
             <h1 className="text-base font-black text-white tracking-tight flex items-center gap-2">
@@ -484,7 +484,7 @@ export function PublicProgramPage() {
       <footer className="py-12 border-t border-white/10 bg-slate-950 px-6 text-center space-y-4">
         <div className="flex items-center justify-center gap-3">
           <div className="size-8 rounded-xl bg-gradient-to-br from-[#D90429] via-[#4B0A8F] to-[#1F0860] border border-white/20 p-0.5 flex items-center justify-center overflow-hidden shrink-0">
-            <img src="/shabab-logo.png" alt="Logo" className="size-full object-contain" />
+            <img src="/logo-color.png" alt="Logo" className="size-full object-contain" />
           </div>
           <span className="text-base font-black text-white">شباب 360 - Shabab 360 Lahore</span>
         </div>
