@@ -34,34 +34,35 @@ export function MobileParkDetailPage({ parkNav, onBack, onGoToEvaluation }: Mobi
   return (
     <div className="flex flex-col min-h-screen bg-white">
       {/* Header */}
-      <div className="px-4 pt-4 pb-2 border-b bg-white sticky top-0 z-10">
-        <div className="flex items-center justify-between mb-2">
+      <div className="px-5 pt-5 pb-3 border-b border-gray-100 bg-white sticky top-0 z-10">
+        <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <button
               onClick={onBack}
-              className="p-1 -ml-1 text-gray-500 hover:text-gray-900 transition-colors"
+              aria-label="Back to parks"
+              className="p-1 -ml-1 text-gray-600 hover:text-gray-900 transition-colors"
             >
-              <ChevronLeft className="w-6 h-6" />
+              <ChevronLeft className="size-6" />
             </button>
-            <h1 className="text-xl font-bold text-[#1F0860]">{parkNav.parkName}</h1>
+            <h1 className="text-xl font-bold text-gray-900 tracking-tight">{parkNav.parkName}</h1>
           </div>
-          <Badge variant="secondary" className="bg-[#4B0A8F]/10 text-[#4B0A8F] hover:bg-[#4B0A8F]/20 font-semibold">
+          <span className="text-[11px] font-semibold text-[#15803d] bg-[#f0fdf4] border border-[#bbf7d0] px-2.5 py-0.5 rounded-full">
             Main admin
-          </Badge>
+          </span>
         </div>
-        <p className="text-sm text-gray-500 font-medium pl-8">
+        <p className="text-xs text-gray-400 font-medium pl-7 mt-0.5">
           {parkNav.murabbiCount} murabbis · {parkNav.studentCount} students
         </p>
 
-        {/* Pill Nav */}
-        <div className="flex gap-2 mt-4 overflow-x-auto pb-2 scrollbar-hide -mx-4 px-4">
+        {/* 5-Tab Pill Nav */}
+        <div className="flex gap-2 mt-4 overflow-x-auto pb-1 scrollbar-none">
           {TABS.map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
+              className={`px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${
                 activeTab === tab
-                  ? "bg-gradient-to-r from-[#1F0860] to-[#4B0A8F] text-white shadow-md"
+                  ? "bg-[#180A40] text-white shadow-sm"
                   : "bg-gray-100 text-gray-600 hover:bg-gray-200"
               }`}
             >

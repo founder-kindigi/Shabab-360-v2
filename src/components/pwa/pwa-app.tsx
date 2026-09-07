@@ -171,6 +171,14 @@ export function PwaApp() {
                   <MobileParkDetailPage 
                     parkNav={parkNav} 
                     onBack={() => setScreen("parks")} 
+                    onGoToEvaluation={() => setScreen("evaluation")}
+                  />
+                )}
+                {screen === "evaluation" && (
+                  <MobileEvaluationPage
+                    parkId={parkNav?.parkId || ""}
+                    parkName={parkNav?.parkName || "Park"}
+                    onBack={() => setScreen("park-detail")}
                   />
                 )}
                 {screen === "inventory" && <MobileInventoryPage onBack={() => setScreen("parks")} />}
