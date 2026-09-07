@@ -23,6 +23,7 @@ import {
   CreditCard,
   Trophy,
   Award,
+  BookOpen,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -274,6 +275,13 @@ export function MobileMorePage({ onNavigate }: MobileMorePageProps) {
               title="Certificates & Graduation"
               subtitle="Diplomas, cryptographic verification & shares"
               onClick={() => onNavigate("certificates")}
+            />
+            <SettingRow
+              icon={<BookOpen className="w-4 h-4 text-sky-600" />}
+              iconBg="bg-sky-50"
+              title="Content Planner LMS"
+              subtitle="Tarbiyah curriculum, sessions & blocks"
+              onClick={() => onNavigate("content-planner")}
               isLast={true}
             />
           </div>

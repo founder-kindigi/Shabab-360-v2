@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   AlertCircle,
+  ArrowLeft,
   BookOpen,
   ChevronDown,
   Dumbbell,
@@ -107,8 +108,12 @@ function formatSessionDate(value: string) {
   }
 }
 
+interface MobileContentPlannerPageProps {
+  onBack?: () => void;
+}
+
 /** Native PWA planner with safe mobile management controls gated strictly by server-provided canManage capability. */
-export function MobileContentPlannerPage() {
+export function MobileContentPlannerPage({ onBack }: MobileContentPlannerPageProps = {}) {
   const queryClient = useQueryClient();
 
   const [cityId, setCityId] = useState("");
@@ -423,7 +428,7 @@ export function MobileContentPlannerPage() {
 
   return (
     <main className="min-h-full bg-background px-4 pb-28 pt-5">
-      <PlannerHeading />
+      <PlannerHeading onBack={onBack} />
 
       {/* Plan Selector */}
       <section className="mt-4 rounded-3xl border bg-card p-4 shadow-sm">
@@ -909,12 +914,25 @@ export function MobileContentPlannerPage() {
   );
 }
 
-function PlannerHeading() {
+function PlannerHeading({ onBack }: { onBack?: () => void } = {}) {
   return (
-    <header>
-      <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">Today&apos;s curriculum</p>
-      <h1 className="mt-1 text-2xl font-extrabold tracking-tight">Content Planner</h1>
-      <p className="mt-1 text-sm text-muted-foreground">Open the plan, choose a class, and lead it with confidence.</p>
+    <header className="flex items-start justify-between">
+      <div className="flex items-center gap-3">
+        {onBack && (
+          <button
+            onClick={onBack}
+            className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-700 transition-colors shrink-0"
+            aria-label="Back"
+          >
+            <ArrowLeft className="w-4 h-4" />
+          </button>
+        )}
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">Today&apos;s curriculum</p>
+          <h1 className="mt-0.5 text-2xl font-black tracking-tight text-[#1F0860]">Content Planner</h1>
+          <p className="mt-0.5 text-xs text-muted-foreground font-medium">Open the plan, choose a class, and lead with confidence.</p>
+        </div>
+      </div>
     </header>
   );
 }

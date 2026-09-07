@@ -28,6 +28,7 @@ import { MobileMashwaraPage } from "@/components/modules/admin/mobile-mashwara-p
 import { MobileFeesPage } from "@/components/modules/admin/mobile-fees-page";
 import { MobileGamificationPage } from "@/components/modules/admin/mobile-gamification-page";
 import { MobileCertificatesPage } from "@/components/modules/admin/mobile-certificates-page";
+import { MobileContentPlannerPage } from "@/components/modules/content-planner/mobile-content-planner-page";
 
 import {
   Home,
@@ -55,7 +56,8 @@ type ScreenId =
   | "mashwara"
   | "fees"
   | "gamification"
-  | "certificates";
+  | "certificates"
+  | "content-planner";
 
 export type ParkNav = {
   parkId: string;
@@ -203,6 +205,7 @@ export function PwaApp() {
                 {screen === "fees" && <MobileFeesPage onBack={() => setScreen("more")} />}
                 {screen === "gamification" && <MobileGamificationPage onBack={() => setScreen("more")} />}
                 {screen === "certificates" && <MobileCertificatesPage onBack={() => setScreen("more")} />}
+                {screen === "content-planner" && <MobileContentPlannerPage onBack={() => setScreen("more")} />}
               </motion.div>
             </AnimatePresence>
           </main>
@@ -214,7 +217,7 @@ export function PwaApp() {
                 const Icon = tab.icon;
                 const isActive = screen === tab.id || 
                                  (tab.id === "parks" && ["park-detail", "inventory", "evaluation"].includes(screen)) ||
-                                 (tab.id === "more" && ["analysis", "admissions", "calling", "mashwara", "fees", "gamification", "certificates"].includes(screen));
+                                 (tab.id === "more" && ["analysis", "admissions", "calling", "mashwara", "fees", "gamification", "certificates", "content-planner"].includes(screen));
                 
                 return (
                   <button
