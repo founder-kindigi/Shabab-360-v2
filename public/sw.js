@@ -172,7 +172,7 @@ function isFontRequest(url, request) {
 function isLocalImage(url) {
   return (
     url.pathname.startsWith("/icons/") ||
-    url.pathname.startsWith("/logo.svg") ||
+    url.pathname.startsWith("/logo-color.png") || url.pathname.startsWith("/logo-white.png") ||
     url.pathname === "/favicon.ico"
   );
 }
