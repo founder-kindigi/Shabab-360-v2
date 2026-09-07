@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState } from "react";`nimport { signOut } from "next-auth/react";
 import { useSession } from "next-auth/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -37,7 +37,7 @@ import {
   HelpCircle,
   Package,
   FileUp,
-} from "lucide-react";
+, LogOut } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -453,8 +453,15 @@ export function MobileMorePage({ onNavigate }: MobileMorePageProps) {
               title="Reload from server"
               subtitle="Refresh latest data"
               onClick={handleReload}
-              isLast
-            />
+              />
+              <SettingRow
+                icon={<LogOut className="w-4 h-4 text-red-600" />}
+                iconBg="bg-red-50"
+                title="Sign out"
+                subtitle="End your session"
+                onClick={() => signOut({ callbackUrl: "/?logout=true" })}
+                isLast
+              />
           </div>
         </div>
       </div>
@@ -832,3 +839,4 @@ function SettingRow({
     </button>
   );
 }
+
