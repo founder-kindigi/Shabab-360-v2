@@ -7,6 +7,11 @@ Last consolidated: 2026-09-07. Verify changing facts against the checkout before
 ## Authority
 
 - Owner-approved decisions come first.
+- **Pre-Merge to `main` requirement**: All testing accommodations added on `v2` MUST be completely removed or strictly gated before merging into `main` for live production. This includes:
+  1. `src/components/pwa/pwa-app.tsx`: Remove the universal Preview Role bar and the `⚡ All Modules` launcher modal.
+  2. `src/components/modules/admin/mobile-more-page.tsx`: Restore strict role and capability gating so users only see their authorized operational desks.
+  3. `src/lib/auth/authorize.ts`: Revert `isHqAdmin` bypass in `requireRole`.
+  4. API endpoints (`/api/city-head/dashboard`, `/api/park/dashboard`, `/api/student/dashboard`, `/api/guardian/dashboard`): Remove simulation fallback queries (`if (!record && isHq) ...`).
 - Use `docs/CODEX_SHABAB360_MASTER_BLUEPRINT.md` for day-to-day planning.
 - Current code plus fresh tests, browser, database, or deployment evidence outranks older implementation claims.
 - `worklog.md` is historical evidence, not an always-loaded prompt.
