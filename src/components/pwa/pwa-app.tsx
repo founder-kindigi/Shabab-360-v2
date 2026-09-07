@@ -122,7 +122,10 @@ export function PwaApp() {
 
   const [screen, setScreen] = useState<ScreenId>("splash");
   const [parkNav, setParkNav] = useState<ParkNav>(null);
+  const [simulatedRole, setSimulatedRole] = useState<string | null>(null);
   const sessionInitialized = useRef(false);
+
+  const effectiveRole = simulatedRole || role || "super_admin";
 
   // Once session is known, decide initial screen
   useEffect(() => {
@@ -149,7 +152,6 @@ export function PwaApp() {
   // ─── Loading state ───────────────────────────────────────────────────────
   if (status === "loading") return <PwaLoadingScreen />;
 
-  // ─── Render the active screen ────────────────────────────────────────────
   // ─── Render the active screen ────────────────────────────────────────────
   const renderScreen = () => {
     // AUTH SCREENS (no bottom nav)
@@ -180,6 +182,59 @@ export function PwaApp() {
     return (
       <div className="min-h-screen w-full bg-[#f0f2f5] dark:bg-[#0c0817] flex justify-center selection:bg-purple-500 selection:text-white">
         <div className="w-full max-w-[460px] min-h-screen bg-white dark:bg-[#120B24] shadow-2xl relative flex flex-col border-x border-gray-200/80 dark:border-white/10">
+          {/* ─── Role Switcher Bar for Super Admin / Program Admin ──────────── */}
+          {(role === "super_admin" || role === "program_admin" || role === "") && (
+            <div className="bg-[#180A40] text-white px-3 py-2 border-b border-purple-500/20 z-30 sticky top-0 backdrop-blur-md">
+              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar scroll-smooth">
+                <span className="text-[10px] font-extrabold text-purple-300 uppercase tracking-wider shrink-0 mr-1">
+                  Preview Role:
+                </span>
+                {[
+                  { id: null, label: "HQ Admin" },
+                  { id: "city_head", label: "City Head" },
+                  { id: "park_lead", label: "Park Lead" },
+                  { id: "murabbi", label: "Murabbi" },
+                  { id: "student", label: "Student" },
+                  { id: "guardian", label: "Guardian" },
+                ].map((r) => {
+                  const isSelected = simulatedRole === r.id || (simulatedRole === null && r.id === null);
+                  return (
+                    <button
+                      key={r.label}
+                      onClick={() => {
+                        setSimulatedRole(r.id);
+                        if (screen !== "home") setScreen("home");
+                      }}
+                      className={cn(
+                        "px-2.5 py-1 rounded-full text-[11px] font-bold shrink-0 transition-all active:scale-95",
+                        isSelected
+                          ? "bg-gradient-to-r from-[#4B0A8F] to-[#D90429] text-white shadow-sm ring-1 ring-white/30"
+                          : "bg-white/10 hover:bg-white/20 text-purple-200"
+                      )}
+                    >
+                      {r.label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {simulatedRole && (
+                <div className="mt-1.5 pt-1.5 border-t border-white/10 flex items-center justify-between text-[11px] text-amber-300 font-medium">
+                  <span className="flex items-center gap-1.5">
+                    <span className="size-1.5 rounded-full bg-amber-400 animate-pulse" />
+                    Simulating <strong>{simulatedRole.replace("_", " ").toUpperCase()}</strong> view
+                  </span>
+                  <button
+                    onClick={() => setSimulatedRole(null)}
+                    className="text-[10px] font-bold underline text-amber-200 hover:text-white"
+                  >
+                    Reset to Admin
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Active Screen */}
           <main className="flex-1 w-full pb-20 overflow-y-auto">
             <AnimatePresence mode="wait">
@@ -192,12 +247,40 @@ export function PwaApp() {
                 className="w-full"
               >
                 {/* HOME — role-specific dashboard */}
-                {screen === "home" && role === "murabbi" && <MobileMurabbiDashboard />}
-                {screen === "home" && (role === "park_lead" || role === "park_admin") && <MobileParkDashboard />}
-                {screen === "home" && role === "city_head" && <MobileCityHeadDashboard />}
-                {screen === "home" && (role === "super_admin" || role === "program_admin") && <MobileHomeDashboard />}
-                {screen === "home" && role === "student" && <MobileStudentDashboard />}
-                {screen === "home" && role === "guardian" && <MobileGuardianDashboard />}
+                {screen === "home" && effectiveRole === "murabbi" && (
+                  <MobileMurabbiDashboard onNavigate={(s) => setScreen(s as ScreenId)} />
+                )}
+                {screen === "home" && (effectiveRole === "park_lead" || effectiveRole === "park_admin") && (
+                  <MobileParkDashboard
+                    onNavigate={(s) => setScreen(s as ScreenId)}
+                    onSelectPark={(park) => {
+                      setParkNav(park);
+                      setScreen("park-detail");
+                    }}
+                  />
+                )}
+                {screen === "home" && effectiveRole === "city_head" && (
+                  <MobileCityHeadDashboard
+                    onNavigate={(s) => setScreen(s as ScreenId)}
+                    onSelectPark={(park) => {
+                      setParkNav(park);
+                      setScreen("park-detail");
+                    }}
+                  />
+                )}
+                {screen === "home" && (effectiveRole === "super_admin" || effectiveRole === "program_admin") && (
+                  <MobileHomeDashboard />
+                )}
+                {screen === "home" && effectiveRole === "student" && (
+                  <MobileStudentDashboard onNavigate={(s) => setScreen(s as ScreenId)} />
+                )}
+                {screen === "home" && effectiveRole === "guardian" && (
+                  <MobileGuardianDashboard onNavigate={(s) => setScreen(s as ScreenId)} />
+                )}
+                {screen === "home" &&
+                  !["murabbi", "park_lead", "park_admin", "city_head", "super_admin", "program_admin", "student", "guardian"].includes(
+                    effectiveRole
+                  ) && <MobileHomeDashboard />}
                 
                 {/* NEW SCREENS */}
                 {screen === "parks" && (
