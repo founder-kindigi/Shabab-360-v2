@@ -314,25 +314,25 @@ function ParkInventoryView({
               <Plus className="w-4 h-4 mr-2" /> + Add local item
             </Button>
           </SheetTrigger>
-          <SheetContent side="bottom" className="rounded-t-3xl max-h-[85vh] overflow-y-auto max-w-[460px] mx-auto">
+          <SheetContent side="bottom" className="rounded-t-3xl max-h-[85vh] overflow-y-auto max-w-[460px] mx-auto p-6">
             <SheetHeader className="mb-4">
-              <SheetTitle className="text-left font-bold text-lg">Add Local Item</SheetTitle>
+              <SheetTitle className="text-left font-bold text-lg text-slate-900 dark:text-white">Add Local Item</SheetTitle>
             </SheetHeader>
             <div className="space-y-4">
               <div className="space-y-1.5">
-                <Label className="text-xs text-slate-500">Item name</Label>
+                <Label className="text-xs font-semibold text-slate-600 dark:text-slate-300">Item name</Label>
                 <Input
                   value={itemName}
                   onChange={(e) => setItemName(e.target.value)}
                   placeholder="E.g. Extra cones, First aid tape"
-                  className="h-11"
+                  className="h-11 rounded-xl bg-slate-50/50 dark:bg-white/5 border-slate-200 dark:border-white/10"
                 />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label className="text-xs text-slate-500">Category</Label>
+                  <Label className="text-xs font-semibold text-slate-600 dark:text-slate-300">Category</Label>
                   <Select value={category} onValueChange={setCategory}>
-                    <SelectTrigger className="h-11">
+                    <SelectTrigger className="h-11 rounded-xl bg-slate-50/50 dark:bg-white/5 border-slate-200 dark:border-white/10">
                       <SelectValue placeholder="Select" />
                     </SelectTrigger>
                     <SelectContent>
@@ -345,22 +345,22 @@ function ParkInventoryView({
                   </Select>
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs text-slate-500">Quantity</Label>
+                  <Label className="text-xs font-semibold text-slate-600 dark:text-slate-300">Quantity</Label>
                   <Input
                     type="number"
                     value={quantity}
                     onChange={(e) => setQuantity(e.target.value)}
-                    className="h-11"
+                    className="h-11 rounded-xl bg-slate-50/50 dark:bg-white/5 border-slate-200 dark:border-white/10"
                   />
                 </div>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs text-slate-500">Comment (optional)</Label>
+                <Label className="text-xs font-semibold text-slate-600 dark:text-slate-300">Comment (optional)</Label>
                 <Textarea
                   value={comment}
                   onChange={(e) => setComment(e.target.value)}
                   placeholder="Purchased from local market / temporary borrow..."
-                  className="resize-none rounded-xl text-sm"
+                  className="resize-none rounded-xl text-sm bg-slate-50/50 dark:bg-white/5 border-slate-200 dark:border-white/10"
                 />
               </div>
               <Button

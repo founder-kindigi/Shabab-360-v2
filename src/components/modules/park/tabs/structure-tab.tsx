@@ -238,23 +238,23 @@ export function StructureTab({ parkId, onSelectStudent }: StructureTabProps) {
       {/* Edit Murabbi Sheet */}
       {editingMurabbi && (
         <Sheet open={!!editingMurabbi} onOpenChange={(open) => !open && setEditingMurabbi(null)}>
-          <SheetContent side="bottom" className="rounded-t-3xl max-h-[90vh] overflow-y-auto max-w-[460px] mx-auto">
+          <SheetContent side="bottom" className="rounded-t-3xl max-h-[90vh] overflow-y-auto max-w-[460px] mx-auto p-6">
             <SheetHeader className="mb-4">
-              <SheetTitle className="text-left font-bold text-lg">Edit Murabbi</SheetTitle>
+              <SheetTitle className="text-left font-bold text-lg text-slate-900 dark:text-white">Edit Murabbi</SheetTitle>
             </SheetHeader>
             <div className="space-y-4">
               <div className="space-y-1.5">
-                <Label className="text-xs text-slate-500">Name</Label>
-                <Input defaultValue={editingMurabbi.name} />
+                <Label className="text-xs font-semibold text-slate-600 dark:text-slate-300">Name</Label>
+                <Input defaultValue={editingMurabbi.name} className="h-11 rounded-xl bg-slate-50/50 dark:bg-white/5 border-slate-200 dark:border-white/10" />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs text-slate-500">Email</Label>
-                <Input type="email" placeholder="murabbi@shabab.pk" />
+                <Label className="text-xs font-semibold text-slate-600 dark:text-slate-300">Email</Label>
+                <Input type="email" placeholder="murabbi@shabab.pk" className="h-11 rounded-xl bg-slate-50/50 dark:bg-white/5 border-slate-200 dark:border-white/10" />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs text-slate-500">Role</Label>
+                <Label className="text-xs font-semibold text-slate-600 dark:text-slate-300">Role</Label>
                 <Select defaultValue="Murabbi">
-                  <SelectTrigger className="h-11">
+                  <SelectTrigger className="h-11 rounded-xl bg-slate-50/50 dark:bg-white/5 border-slate-200 dark:border-white/10">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -266,9 +266,9 @@ export function StructureTab({ parkId, onSelectStudent }: StructureTabProps) {
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs text-slate-500">Assists</Label>
+                <Label className="text-xs font-semibold text-slate-600 dark:text-slate-300">Assists</Label>
                 <Select defaultValue="none">
-                  <SelectTrigger className="h-11">
+                  <SelectTrigger className="h-11 rounded-xl bg-slate-50/50 dark:bg-white/5 border-slate-200 dark:border-white/10">
                     <SelectValue placeholder="Select murabbi" />
                   </SelectTrigger>
                   <SelectContent>
@@ -282,20 +282,20 @@ export function StructureTab({ parkId, onSelectStudent }: StructureTabProps) {
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs text-slate-500">Contact</Label>
-                <Input defaultValue={editingMurabbi.phone} />
+                <Label className="text-xs font-semibold text-slate-600 dark:text-slate-300">Contact</Label>
+                <Input defaultValue={editingMurabbi.phone} className="h-11 rounded-xl bg-slate-50/50 dark:bg-white/5 border-slate-200 dark:border-white/10" />
               </div>
-              <div className="flex gap-3 pt-4">
+              <div className="flex gap-3 pt-3">
                 <Button
                   variant="outline"
                   onClick={() => setEditingMurabbi(null)}
-                  className="flex-1 text-red-600 border-red-200 hover:bg-red-50 h-11"
+                  className="flex-1 text-red-600 border-red-200 hover:bg-red-50 dark:hover:bg-red-950/20 h-11 rounded-xl font-semibold"
                 >
                   Delete
                 </Button>
                 <Button
                   onClick={() => setEditingMurabbi(null)}
-                  className="flex-1 bg-[#4B0A8F] hover:bg-[#3d0874] text-white h-11"
+                  className="flex-1 bg-[#4B0A8F] hover:bg-[#3d0874] text-white h-11 rounded-xl font-bold"
                 >
                   Save
                 </Button>
@@ -314,34 +314,34 @@ export function StructureTab({ parkId, onSelectStudent }: StructureTabProps) {
               <UserPlus className="w-4 h-4 mr-2" /> + Add murabbi
             </Button>
           </SheetTrigger>
-          <SheetContent side="bottom" className="rounded-t-3xl max-h-[90vh] overflow-y-auto max-w-[460px] mx-auto">
+          <SheetContent side="bottom" className="rounded-t-3xl max-h-[90vh] overflow-y-auto max-w-[460px] mx-auto p-6">
             <SheetHeader className="mb-4">
-              <SheetTitle className="text-left font-bold text-lg">Add Murabbi</SheetTitle>
+              <SheetTitle className="text-left font-bold text-lg text-slate-900 dark:text-white">Add Murabbi</SheetTitle>
             </SheetHeader>
             <div className="space-y-4">
               <div className="space-y-1.5">
-                <Label className="text-xs text-slate-500">Name</Label>
+                <Label className="text-xs font-semibold text-slate-600 dark:text-slate-300">Name</Label>
                 <Input
                   value={newMurabbiName}
                   onChange={(e) => setNewMurabbiName(e.target.value)}
                   placeholder="E.g. Hassan Safi"
-                  className="h-11"
+                  className="h-11 rounded-xl bg-slate-50/50 dark:bg-white/5 border-slate-200 dark:border-white/10"
                 />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs text-slate-500">Email</Label>
+                <Label className="text-xs font-semibold text-slate-600 dark:text-slate-300">Email</Label>
                 <Input
                   type="email"
                   value={newMurabbiEmail}
                   onChange={(e) => setNewMurabbiEmail(e.target.value)}
                   placeholder="hassan@shabab.pk"
-                  className="h-11"
+                  className="h-11 rounded-xl bg-slate-50/50 dark:bg-white/5 border-slate-200 dark:border-white/10"
                 />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs text-slate-500">Role</Label>
+                <Label className="text-xs font-semibold text-slate-600 dark:text-slate-300">Role</Label>
                 <Select value={newMurabbiRole} onValueChange={setNewMurabbiRole}>
-                  <SelectTrigger className="h-11">
+                  <SelectTrigger className="h-11 rounded-xl bg-slate-50/50 dark:bg-white/5 border-slate-200 dark:border-white/10">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -353,18 +353,18 @@ export function StructureTab({ parkId, onSelectStudent }: StructureTabProps) {
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs text-slate-500">Contact</Label>
+                <Label className="text-xs font-semibold text-slate-600 dark:text-slate-300">Contact</Label>
                 <Input
                   value={newMurabbiContact}
                   onChange={(e) => setNewMurabbiContact(e.target.value)}
                   placeholder="0300-1234567"
-                  className="h-11"
+                  className="h-11 rounded-xl bg-slate-50/50 dark:bg-white/5 border-slate-200 dark:border-white/10"
                 />
               </div>
               <Button
                 onClick={() => addMurabbiMutation.mutate()}
                 disabled={!newMurabbiName || !newMurabbiEmail || addMurabbiMutation.isPending}
-                className="w-full h-11 bg-[#4B0A8F] hover:bg-[#3d0874] text-white font-bold rounded-xl mt-2"
+                className="w-full h-11 bg-[#4B0A8F] hover:bg-[#3d0874] text-white font-bold rounded-xl mt-3"
               >
                 {addMurabbiMutation.isPending ? "Saving..." : "Save Murabbi"}
               </Button>
@@ -453,24 +453,24 @@ export function StructureTab({ parkId, onSelectStudent }: StructureTabProps) {
                     + Add student
                   </Button>
                 </SheetTrigger>
-                <SheetContent side="bottom" className="rounded-t-3xl max-h-[85vh] overflow-y-auto max-w-[460px] mx-auto">
+                <SheetContent side="bottom" className="rounded-t-3xl max-h-[85vh] overflow-y-auto max-w-[460px] mx-auto p-6">
                   <SheetHeader className="mb-4">
-                    <SheetTitle className="text-left font-bold text-lg">Add Student</SheetTitle>
+                    <SheetTitle className="text-left font-bold text-lg text-slate-900 dark:text-white">Add Student to Park</SheetTitle>
                   </SheetHeader>
                   <div className="space-y-4">
                     <div className="space-y-1.5">
-                      <Label className="text-xs text-slate-500">Student name</Label>
+                      <Label className="text-xs font-semibold text-slate-600 dark:text-slate-300">Student name</Label>
                       <Input
                         value={newStudentName}
                         onChange={(e) => setNewStudentName(e.target.value)}
                         placeholder="Full name"
-                        className="h-11"
+                        className="h-11 rounded-xl bg-slate-50/50 dark:bg-white/5 border-slate-200 dark:border-white/10"
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <Label className="text-xs text-slate-500">Murabbi (Group)</Label>
+                      <Label className="text-xs font-semibold text-slate-600 dark:text-slate-300">Murabbi (Group)</Label>
                       <Select value={newStudentGroupId} onValueChange={setNewStudentGroupId}>
-                        <SelectTrigger className="h-11">
+                        <SelectTrigger className="h-11 rounded-xl bg-slate-50/50 dark:bg-white/5 border-slate-200 dark:border-white/10">
                           <SelectValue placeholder="Assign group / murabbi" />
                         </SelectTrigger>
                         <SelectContent>
@@ -483,30 +483,30 @@ export function StructureTab({ parkId, onSelectStudent }: StructureTabProps) {
                       </Select>
                     </div>
                     <div className="space-y-1.5">
-                      <Label className="text-xs text-slate-500">School/class</Label>
+                      <Label className="text-xs font-semibold text-slate-600 dark:text-slate-300">School/class</Label>
                       <Input
                         value={newStudentClass}
                         onChange={(e) => setNewStudentClass(e.target.value)}
                         placeholder="Grade 9 / O-Levels"
-                        className="h-11"
+                        className="h-11 rounded-xl bg-slate-50/50 dark:bg-white/5 border-slate-200 dark:border-white/10"
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <Label className="text-xs text-slate-500">Guardian contact</Label>
+                      <Label className="text-xs font-semibold text-slate-600 dark:text-slate-300">Guardian contact</Label>
                       <Input
                         value={newStudentContact}
                         onChange={(e) => setNewStudentContact(e.target.value)}
                         placeholder="0300-1234567"
-                        className="h-11"
+                        className="h-11 rounded-xl bg-slate-50/50 dark:bg-white/5 border-slate-200 dark:border-white/10"
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <Label className="text-xs text-slate-500">Address</Label>
+                      <Label className="text-xs font-semibold text-slate-600 dark:text-slate-300">Address</Label>
                       <Input
                         value={newStudentAddress}
                         onChange={(e) => setNewStudentAddress(e.target.value)}
                         placeholder="Residential area / street"
-                        className="h-11"
+                        className="h-11 rounded-xl bg-slate-50/50 dark:bg-white/5 border-slate-200 dark:border-white/10"
                       />
                     </div>
                     <Button

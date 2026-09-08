@@ -249,9 +249,9 @@ export function MobileEvaluationPage({ parkId, parkName, onBack }: MobileEvaluat
       {/* Evaluation Bottom Sheet */}
       {activeStudent && (
         <Sheet open={!!activeStudent} onOpenChange={(open) => !open && setActiveStudent(null)}>
-          <SheetContent side="bottom" className="rounded-t-3xl max-h-[90vh] overflow-y-auto max-w-[460px] mx-auto">
+          <SheetContent side="bottom" className="rounded-t-3xl max-h-[90vh] overflow-y-auto max-w-[460px] mx-auto p-6">
             <SheetHeader className="mb-4">
-              <SheetTitle className="text-left text-[#1F0860] font-black text-xl">
+              <SheetTitle className="text-left text-[#1F0860] dark:text-purple-300 font-black text-xl">
                 Evaluate Student
               </SheetTitle>
             </SheetHeader>

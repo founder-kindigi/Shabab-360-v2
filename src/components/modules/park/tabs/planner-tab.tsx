@@ -170,47 +170,47 @@ export function PlannerTab({ parkId }: PlannerTabProps) {
               + Add routine slot
             </Button>
           </SheetTrigger>
-          <SheetContent side="bottom" className="rounded-t-3xl max-h-[85vh] overflow-y-auto max-w-[460px] mx-auto">
+          <SheetContent side="bottom" className="rounded-t-3xl max-h-[85vh] overflow-y-auto max-w-[460px] mx-auto p-6">
             <SheetHeader className="mb-4">
-              <SheetTitle className="text-left font-bold text-lg">Add Routine Slot</SheetTitle>
+              <SheetTitle className="text-left font-bold text-lg text-slate-900 dark:text-white">Add Routine Slot</SheetTitle>
             </SheetHeader>
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label className="text-xs text-slate-500">Time start</Label>
+                  <Label className="text-xs font-semibold text-slate-600 dark:text-slate-300">Time start</Label>
                   <Input
                     type="time"
                     value={timeStart}
                     onChange={(e) => setTimeStart(e.target.value)}
-                    className="h-11"
+                    className="h-11 rounded-xl bg-slate-50/50 dark:bg-white/5 border-slate-200 dark:border-white/10"
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs text-slate-500">Time end</Label>
+                  <Label className="text-xs font-semibold text-slate-600 dark:text-slate-300">Time end</Label>
                   <Input
                     type="time"
                     value={timeEnd}
                     onChange={(e) => setTimeEnd(e.target.value)}
-                    className="h-11"
+                    className="h-11 rounded-xl bg-slate-50/50 dark:bg-white/5 border-slate-200 dark:border-white/10"
                   />
                 </div>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs text-slate-500">Activity</Label>
+                <Label className="text-xs font-semibold text-slate-600 dark:text-slate-300">Activity</Label>
                 <Input
                   value={activity}
                   onChange={(e) => setActivity(e.target.value)}
                   placeholder="E.g. Tarbiyah, Football, Nazm"
-                  className="h-11"
+                  className="h-11 rounded-xl bg-slate-50/50 dark:bg-white/5 border-slate-200 dark:border-white/10"
                 />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs text-slate-500">PDF / Guide link (optional)</Label>
+                <Label className="text-xs font-semibold text-slate-600 dark:text-slate-300">PDF / Guide link (optional)</Label>
                 <Input
                   value={pdfLink}
                   onChange={(e) => setPdfLink(e.target.value)}
                   placeholder="https://..."
-                  className="h-11"
+                  className="h-11 rounded-xl bg-slate-50/50 dark:bg-white/5 border-slate-200 dark:border-white/10"
                 />
               </div>
               <Button
@@ -285,36 +285,36 @@ export function PlannerTab({ parkId }: PlannerTabProps) {
               + Add special event
             </Button>
           </SheetTrigger>
-          <SheetContent side="bottom" className="rounded-t-3xl max-h-[85vh] overflow-y-auto max-w-[460px] mx-auto">
+          <SheetContent side="bottom" className="rounded-t-3xl max-h-[85vh] overflow-y-auto max-w-[460px] mx-auto p-6">
             <SheetHeader className="mb-4">
-              <SheetTitle className="text-left font-bold text-lg">Add Special Event</SheetTitle>
+              <SheetTitle className="text-left font-bold text-lg text-slate-900 dark:text-white">Add Special Event</SheetTitle>
             </SheetHeader>
             <div className="space-y-4">
               <div className="space-y-1.5">
-                <Label className="text-xs text-slate-500">Event Title</Label>
+                <Label className="text-xs font-semibold text-slate-600 dark:text-slate-300">Event Title</Label>
                 <Input
                   value={eventTitle}
                   onChange={(e) => setEventTitle(e.target.value)}
                   placeholder="E.g. Summer Camp, Swimming Day"
-                  className="h-11"
+                  className="h-11 rounded-xl bg-slate-50/50 dark:bg-white/5 border-slate-200 dark:border-white/10"
                 />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs text-slate-500">Date / Timing</Label>
+                <Label className="text-xs font-semibold text-slate-600 dark:text-slate-300">Date / Timing</Label>
                 <Input
                   value={eventDate}
                   onChange={(e) => setEventDate(e.target.value)}
                   placeholder="E.g. Sunday 15 Sept (Full Day)"
-                  className="h-11"
+                  className="h-11 rounded-xl bg-slate-50/50 dark:bg-white/5 border-slate-200 dark:border-white/10"
                 />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs text-slate-500">Activity Details</Label>
+                <Label className="text-xs font-semibold text-slate-600 dark:text-slate-300">Activity Details</Label>
                 <Input
                   value={eventDetails}
                   onChange={(e) => setEventDetails(e.target.value)}
                   placeholder="Details, venue, instructions..."
-                  className="h-11"
+                  className="h-11 rounded-xl bg-slate-50/50 dark:bg-white/5 border-slate-200 dark:border-white/10"
                 />
               </div>
               <Button
