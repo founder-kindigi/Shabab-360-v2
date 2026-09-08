@@ -2,6 +2,13 @@
 
 Last consolidated: 2026-09-08. Verify changing facts against the checkout before relying on them.
 
+- On 2026-09-08, resolved modal and sheet spacing, padding, and input alignment issues across all mobile PWA modal sheets:
+  1. `src/components/ui/sheet.tsx`: Standardized `SheetContent` with default `p-6` padding, mobile drag handle pill for bottom sheets, and aligned `SheetPrimitive.Close` button to `top-5 right-5`. Cleaned `SheetHeader` and `SheetFooter` internal padding to eliminate double-padding misalignment with body form controls. Preserved custom scroll layouts via `p-0`.
+  2. `src/components/modules/park/tabs/structure-tab.tsx`: Updated Edit Murabbi, Add Murabbi, and Add Student sheets with `p-6` container padding, `h-11 rounded-xl` inputs, clear label typography, and properly spaced action buttons.
+  3. `src/components/modules/park/tabs/planner-tab.tsx`: Updated Add Routine Slot and Add Special Event sheets with `p-6` and `h-11 rounded-xl` inputs.
+  4. `src/components/modules/park/mobile-inventory-page.tsx` & `src/components/modules/park/mobile-evaluation-page.tsx`: Updated Add Local Item and Evaluation modals with `p-6` padding and clean typography.
+  5. Verified with 0 TypeScript errors (`tsc --noEmit`), 0 ESLint warnings (`npm run lint`), and 167/167 passing tests (`src/__tests__/release/`).
+  6. Successfully deployed to Vercel production (`https://shabab360.vercel.app`), commit `8b985d7`.
 - On 2026-09-08, enforced single active batch per city business rule and removed universal tester access in PWA:
   1. `src/app/api/admin/batches/route.ts` & `src/app/api/admin/batches/[id]/route.ts`: API strictly enforces that only one batch can be active (`isActive: true`) at a time per city. Creating or activating a batch when an active batch exists in the same city fails closed with HTTP 400 Bad Request. Unit tests updated with mock coverage (29/29 tests pass).
   2. `src/components/pwa/pwa-app.tsx`: Removed the universal "Preview Role:" switcher bar, `All Modules Launcher Dialog`, and `MODULE_GROUPS`. Screen navigation is strictly guarded by `ROLE_ALLOWED_SCREENS` based on the authenticated session role.
