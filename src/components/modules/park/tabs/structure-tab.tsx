@@ -13,6 +13,7 @@ import { Pencil, Users, UserPlus, Search, GraduationCap } from "lucide-react";
 
 interface StructureTabProps {
   parkId: string;
+  onSelectStudent?: (studentId: string, studentName?: string) => void;
 }
 
 interface MurabbiItem {
@@ -32,7 +33,7 @@ interface StudentItem {
   address?: string | null;
 }
 
-export function StructureTab({ parkId }: StructureTabProps) {
+export function StructureTab({ parkId, onSelectStudent }: StructureTabProps) {
   const queryClient = useQueryClient();
   const [studentSearch, setStudentSearch] = useState("");
   const [isAddMurabbiOpen, setIsAddMurabbiOpen] = useState(false);
@@ -406,18 +407,32 @@ export function StructureTab({ parkId }: StructureTabProps) {
                 </div>
               ) : (
                 filteredStudents.map((s) => (
-                  <div key={s.id} className="flex items-center gap-3 pt-3 first:pt-0">
-                    <Avatar className="w-9 h-9 border border-slate-100">
-                      <AvatarFallback className="bg-slate-100 text-slate-700 font-bold text-xs">
-                        {s.name.slice(0, 2).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-sm text-slate-900 truncate">{s.name}</p>
-                      <p className="text-xs text-slate-400 truncate">
-                        {s.murabbi} · {s.year}
-                      </p>
+                  <div
+                    key={s.id}
+                    onClick={() => {
+                      if (onSelectStudent) {
+                        setIsStudentsOpen(false);
+                        onSelectStudent(s.id, s.name);
+                      }
+                    }}
+                    className="flex items-center justify-between gap-3 p-2 rounded-xl hover:bg-purple-50/50 dark:hover:bg-white/5 cursor-pointer active:scale-[0.99] transition-all"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <Avatar className="w-9 h-9 border border-slate-100">
+                        <AvatarFallback className="bg-purple-100 text-[#4B0A8F] font-bold text-xs">
+                          {s.name.slice(0, 2).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-sm text-slate-900 truncate">{s.name}</p>
+                        <p className="text-xs text-slate-400 truncate">
+                          {s.murabbi} · {s.year}
+                        </p>
+                      </div>
                     </div>
+                    <span className="text-[11px] font-bold text-[#4B0A8F] bg-purple-50 border border-purple-200 px-2.5 py-1 rounded-full shrink-0">
+                      Profile →
+                    </span>
                   </div>
                 ))
               )}

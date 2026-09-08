@@ -23,6 +23,7 @@ import {
   Flame,
   Dumbbell,
   Compass,
+  User,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/components/providers/theme-provider";
@@ -132,14 +133,18 @@ export function MobileStudentDashboard({ onNavigate }: MobileStudentDashboardPro
 
         {/* Student Welcome & Scope */}
         <div className="flex items-center justify-between mb-5">
-          <div>
-            <h1 className="text-xl font-black text-white tracking-tight">Assalam-o-Alaikum</h1>
-            <p className="text-xs text-purple-200 font-medium mt-0.5">
-              {studentName} • {groupName}
+          <div className="min-w-0 pr-2">
+            <h1 className="text-xl font-black text-white tracking-tight truncate">Assalam-o-Alaikum</h1>
+            <p className="text-xs text-purple-200 font-medium mt-0.5 truncate">
+              {studentName} • {parkName}
             </p>
           </div>
-          <button className="flex items-center gap-1.5 bg-white/15 border border-white/20 px-3 py-1.5 rounded-full text-white text-xs font-bold backdrop-blur-md">
-            <span>{parkName}</span>
+          <button
+            onClick={() => handleNav("student-profile")}
+            className="flex items-center gap-1.5 bg-white/20 hover:bg-white/30 active:scale-95 transition-all border border-white/30 px-3.5 py-1.5 rounded-full text-white text-xs font-bold backdrop-blur-md shadow-sm shrink-0"
+          >
+            <User className="size-3.5 text-amber-300" />
+            <span>My Profile</span>
           </button>
         </div>
 
@@ -301,12 +306,22 @@ export function MobileStudentDashboard({ onNavigate }: MobileStudentDashboardPro
         </motion.div>
 
         {/* Student Quick Tools */}
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-4 gap-1.5">
+          <button
+            onClick={() => handleNav("student-profile")}
+            className="p-2.5 rounded-2xl bg-card border border-border/80 shadow-sm flex flex-col items-center text-center gap-1 active:scale-95 transition-all hover:bg-muted/40"
+          >
+            <div className="size-8 rounded-xl bg-purple-500/10 text-[#4B0A8F] dark:text-purple-300 flex items-center justify-center">
+              <User className="size-4" />
+            </div>
+            <span className="text-[10px] font-bold text-foreground leading-tight">Profile</span>
+          </button>
+
           <button
             onClick={() => handleNav("gamification")}
-            className="p-3 rounded-2xl bg-card border border-border/80 shadow-sm flex flex-col items-center text-center gap-1.5 active:scale-95 transition-all hover:bg-muted/40"
+            className="p-2.5 rounded-2xl bg-card border border-border/80 shadow-sm flex flex-col items-center text-center gap-1 active:scale-95 transition-all hover:bg-muted/40"
           >
-            <div className="size-9 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+            <div className="size-8 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center">
               <Award className="size-4" />
             </div>
             <span className="text-[10px] font-bold text-foreground leading-tight">Badges</span>
@@ -314,19 +329,19 @@ export function MobileStudentDashboard({ onNavigate }: MobileStudentDashboardPro
 
           <button
             onClick={() => handleNav("certificates")}
-            className="p-3 rounded-2xl bg-card border border-border/80 shadow-sm flex flex-col items-center text-center gap-1.5 active:scale-95 transition-all hover:bg-muted/40"
+            className="p-2.5 rounded-2xl bg-card border border-border/80 shadow-sm flex flex-col items-center text-center gap-1 active:scale-95 transition-all hover:bg-muted/40"
           >
-            <div className="size-9 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center">
+            <div className="size-8 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center">
               <GraduationCap className="size-4" />
             </div>
-            <span className="text-[10px] font-bold text-foreground leading-tight">Certificates</span>
+            <span className="text-[10px] font-bold text-foreground leading-tight">Diplomas</span>
           </button>
 
           <button
             onClick={() => handleNav("content-planner")}
-            className="p-3 rounded-2xl bg-card border border-border/80 shadow-sm flex flex-col items-center text-center gap-1.5 active:scale-95 transition-all hover:bg-muted/40"
+            className="p-2.5 rounded-2xl bg-card border border-border/80 shadow-sm flex flex-col items-center text-center gap-1 active:scale-95 transition-all hover:bg-muted/40"
           >
-            <div className="size-9 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+            <div className="size-8 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center">
               <Compass className="size-4" />
             </div>
             <span className="text-[10px] font-bold text-foreground leading-tight">Routine</span>

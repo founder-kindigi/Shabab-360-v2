@@ -15,9 +15,30 @@ export async function resolveActorCity(
   providedCityId?: string | null
 ): Promise<string | null> {
   if (isHqRole(user.role)) {
-    if (!providedCityId) return null;
-    const city = await db.city.findUnique({ where: { id: providedCityId }, select: { id: true } });
-    return city?.id ?? null;
+    if (providedCityId) {
+      const city = await db.city.findUnique({ where: { id: providedCityId }, select: { id: true } });
+      return city?.id ?? null;
+    }
+    const firstCity = await db.city.findFirst({ select: { id: true } });
+    return firstCity?.id ?? null;
+  }
+
+  // Student: derive city from own Participant record
+  if (user.role === "student") {
+    const participant = await db.participant.findFirst({
+      where: { userId: user.id! },
+      select: { group: { select: { batch: { select: { cityId: true } } } } },
+    });
+    return participant?.group?.batch?.cityId ?? null;
+  }
+
+  // Guardian: derive city from linked child
+  if (user.role === "guardian") {
+    const link = await db.guardianChild.findFirst({
+      where: { guardian: { userId: user.id! } },
+      select: { participant: { select: { group: { select: { batch: { select: { cityId: true } } } } } } },
+    });
+    return link?.participant?.group?.batch?.cityId ?? null;
   }
 
   // Scoped: derive from StaffMeta

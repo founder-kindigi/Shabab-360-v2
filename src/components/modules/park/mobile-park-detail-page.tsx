@@ -21,12 +21,18 @@ interface MobileParkDetailPageProps {
   parkNav: ParkNav;
   onBack: () => void;
   onGoToEvaluation?: () => void;
+  onSelectStudent?: (studentId: string, studentName?: string) => void;
 }
 
 const TABS = ["Dashboard", "Attendance", "Lessons", "Structure", "Planner"] as const;
 type TabType = typeof TABS[number];
 
-export function MobileParkDetailPage({ parkNav, onBack, onGoToEvaluation }: MobileParkDetailPageProps) {
+export function MobileParkDetailPage({
+  parkNav,
+  onBack,
+  onGoToEvaluation,
+  onSelectStudent,
+}: MobileParkDetailPageProps) {
   const [activeTab, setActiveTab] = useState<TabType>("Dashboard");
 
   if (!parkNav) return null;
@@ -82,7 +88,9 @@ export function MobileParkDetailPage({ parkNav, onBack, onGoToEvaluation }: Mobi
         )}
         {activeTab === "Attendance" && <AttendanceTab parkId={parkNav.parkId} />}
         {activeTab === "Lessons" && <LessonsTab parkId={parkNav.parkId} />}
-        {activeTab === "Structure" && <StructureTab parkId={parkNav.parkId} />}
+        {activeTab === "Structure" && (
+          <StructureTab parkId={parkNav.parkId} onSelectStudent={onSelectStudent} />
+        )}
         {activeTab === "Planner" && <PlannerTab parkId={parkNav.parkId} />}
       </div>
     </div>

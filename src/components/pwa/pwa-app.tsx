@@ -43,6 +43,7 @@ import { MobileReportsBuilderPage } from "@/components/modules/admin/mobile-repo
 import { MobileStaffDirectoryPage } from "@/components/modules/admin/mobile-staff-directory-page";
 import { MobileAuditLogPage } from "@/components/modules/admin/mobile-audit-log-page";
 import { MobileNotificationsPage } from "@/components/modules/admin/mobile-notifications-page";
+import { MobileStudentProfileView } from "@/components/modules/student/mobile-student-profile-view";
 import {
   Dialog,
   DialogContent,
@@ -79,6 +80,7 @@ import {
   HelpCircle,
   BarChart2,
   FileSpreadsheet,
+  UserCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -104,6 +106,7 @@ const MODULE_GROUPS = [
   {
     title: "Tarbiyah & Cadets",
     modules: [
+      { id: "student-profile", label: "Shabab Profile", desc: "Cadet 6-tab profile", icon: UserCheck, color: "text-purple-600", bg: "bg-purple-50 dark:bg-purple-950/40" },
       { id: "islah", label: "Islah-i-Mamulat", desc: "Fajr & Quran habits", icon: Heart, color: "text-emerald-600", bg: "bg-emerald-50 dark:bg-emerald-950/40" },
       { id: "content-planner", label: "Tarbiyah LMS", desc: "Curriculum planner", icon: BookOpen, color: "text-sky-600", bg: "bg-sky-50 dark:bg-sky-950/40" },
       { id: "gamification", label: "Badges & Points", desc: "Cadet ranks", icon: Trophy, color: "text-amber-600", bg: "bg-amber-50 dark:bg-amber-950/40" },
@@ -159,7 +162,8 @@ type ScreenId =
   | "custom-reports"
   | "staff-directory"
   | "audit-log"
-  | "notifications";
+  | "notifications"
+  | "student-profile";
 
 export type ParkNav = {
   parkId: string;
@@ -196,6 +200,8 @@ export function PwaApp() {
 
   const [screen, setScreen] = useState<ScreenId>("splash");
   const [parkNav, setParkNav] = useState<ParkNav>(null);
+  const [selectedParticipantId, setSelectedParticipantId] = useState<string | null>(null);
+  const [selectedParticipantName, setSelectedParticipantName] = useState<string | null>(null);
   const [simulatedRole, setSimulatedRole] = useState<string | null>(null);
   const [isModuleSheetOpen, setIsModuleSheetOpen] = useState(false);
   const sessionInitialized = useRef(false);
@@ -379,6 +385,31 @@ export function PwaApp() {
                     parkNav={parkNav} 
                     onBack={() => setScreen("parks")} 
                     onGoToEvaluation={() => setScreen("evaluation")}
+                    onSelectStudent={(studentId, studentName) => {
+                      setSelectedParticipantId(studentId);
+                      setSelectedParticipantName(studentName || null);
+                      setScreen("student-profile");
+                    }}
+                  />
+                )}
+                {screen === "student-profile" && (
+                  <MobileStudentProfileView
+                    participantId={selectedParticipantId}
+                    participantName={selectedParticipantName}
+                    effectiveRole={effectiveRole}
+                    onBack={() => {
+                      if (effectiveRole === "student") {
+                        setScreen("home");
+                      } else if (parkNav) {
+                        setScreen("park-detail");
+                      } else {
+                        setScreen("more");
+                      }
+                    }}
+                    onSelectParticipant={(id, name) => {
+                      setSelectedParticipantId(id);
+                      setSelectedParticipantName(name);
+                    }}
                   />
                 )}
                 {screen === "evaluation" && (
@@ -485,7 +516,8 @@ export function PwaApp() {
                                    "analysis", "admissions", "calling", "mashwara", "fees", "gamification", 
                                    "certificates", "content-planner", "islah", "sync",
                                    "events", "knowledge-base", "procurement", "security-access", "portal-import",
-                                   "alumni", "community", "teams", "custom-reports", "staff-directory", "audit-log", "notifications"
+                                   "alumni", "community", "teams", "custom-reports", "staff-directory", "audit-log", "notifications",
+                                   "student-profile"
                                  ].includes(screen));
                 
                 return (

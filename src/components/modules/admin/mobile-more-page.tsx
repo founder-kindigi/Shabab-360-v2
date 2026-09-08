@@ -42,6 +42,8 @@ import {
   Moon,
   Monitor,
   LogOut,
+  User,
+  UserCheck,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -516,6 +518,18 @@ export function MobileMorePage({ onNavigate, role: propRole }: MobileMorePagePro
                     <p className="text-[10px] text-slate-400 truncate">Lesson planner</p>
                   </div>
                 </button>
+                <button
+                  onClick={() => onNavigate("student-profile")}
+                  className="p-3 rounded-2xl bg-white dark:bg-[#180E30] border border-purple-200 dark:border-purple-900/50 shadow-sm flex items-center gap-2.5 text-left active:scale-[0.98] transition-all"
+                >
+                  <div className="w-8 h-8 rounded-xl bg-purple-50 dark:bg-purple-950/40 text-purple-600 flex items-center justify-center shrink-0">
+                    <User className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-slate-900 dark:text-white truncate">My Profile</p>
+                    <p className="text-[10px] text-slate-400 truncate">Tarbiyah record</p>
+                  </div>
+                </button>
               </>
             )}
 
@@ -762,6 +776,13 @@ export function MobileMorePage({ onNavigate, role: propRole }: MobileMorePagePro
               title="Islah-i-Mamulat"
               subtitle="Spiritual habits, 40-day streak & logs"
               onClick={() => onNavigate("islah")}
+            />
+            <SettingRow
+              icon={<UserCheck className="w-4 h-4 text-purple-600" />}
+              iconBg="bg-purple-50"
+              title="Shabab Cadet Profile"
+              subtitle="6-tab comprehensive Tarbiyah & development record"
+              onClick={() => onNavigate("student-profile")}
             />
             <SettingRow
               icon={<Database className="w-4 h-4 text-indigo-600" />}
