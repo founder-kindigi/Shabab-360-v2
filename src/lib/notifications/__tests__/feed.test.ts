@@ -8,7 +8,7 @@ import {
 
 describe("Notifications & Announcement Feed Helper", () => {
   const sampleFeed: NotificationFeedItem[] = [
-    { id: "n1", title: "Sunday Halqa Reminder", message: "Halqa starts at 9 AM", category: "halqa_reminder", priority: "normal", targetRole: "all", read: false, createdAt: "2026-08-05T00:00:00Z" },
+    { id: "n1", title: "Sunday Group Reminder", message: "Group starts at 9 AM", category: "group_reminder", priority: "normal", targetRole: "all", read: false, createdAt: "2026-08-05T00:00:00Z" },
     { id: "n2", title: "Emergency Meeting", message: "City Head emergency call", category: "announcement", priority: "urgent", targetRole: "city_head", read: false, createdAt: "2026-08-05T00:00:00Z" },
     { id: "n3", title: "Fee Collection Overdue", message: "Monthly fees overdue", category: "fee_due", priority: "high", targetRole: "guardian", read: true, createdAt: "2026-08-05T00:00:00Z" },
   ];

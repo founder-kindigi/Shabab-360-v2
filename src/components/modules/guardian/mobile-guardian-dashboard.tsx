@@ -117,7 +117,7 @@ export function MobileGuardianDashboard({ onNavigate }: MobileGuardianDashboardP
     {
       id: "part-1",
       name: "Muhammad Umair",
-      groupName: "Halqa Abu Bakr (RA)",
+      groupName: "Group Abu Bakr (RA)",
       parkName: "Gulberg Park",
       cityName: "Lahore",
       todayStatus: "Present",
@@ -128,7 +128,7 @@ export function MobileGuardianDashboard({ onNavigate }: MobileGuardianDashboardP
     {
       id: "part-2",
       name: "Abdullah Tariq",
-      groupName: "Halqa Abu Bakr (RA)",
+      groupName: "Group Abu Bakr (RA)",
       parkName: "Gulberg Park",
       cityName: "Lahore",
       todayStatus: "Absent",
@@ -303,7 +303,7 @@ export function MobileGuardianDashboard({ onNavigate }: MobileGuardianDashboardP
                         </span>
                       </div>
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        {child.parkName || "Gulberg Park"} • {child.groupName || "Halqa Abu Bakr"}
+                        {child.parkName || "Gulberg Park"} • {child.groupName || "Group Abu Bakr"}
                       </p>
                     </div>
 

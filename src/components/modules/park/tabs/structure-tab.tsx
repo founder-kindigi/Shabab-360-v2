@@ -468,7 +468,7 @@ export function StructureTab({ parkId, onSelectStudent }: StructureTabProps) {
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <Label className="text-xs text-slate-500">Murabbi (halqa)</Label>
+                      <Label className="text-xs text-slate-500">Murabbi (Group)</Label>
                       <Select value={newStudentGroupId} onValueChange={setNewStudentGroupId}>
                         <SelectTrigger className="h-11">
                           <SelectValue placeholder="Assign group / murabbi" />

@@ -409,7 +409,7 @@ export function MobileMorePage({ onNavigate, role: propRole }: MobileMorePagePro
                   </div>
                   <div className="min-w-0">
                     <p className="text-xs font-bold text-slate-900 dark:text-white truncate">Calling</p>
-                    <p className="text-[10px] text-slate-400 truncate">Cadet retention</p>
+                    <p className="text-[10px] text-slate-400 truncate">Shabab retention</p>
                   </div>
                 </button>
               </>
@@ -437,7 +437,7 @@ export function MobileMorePage({ onNavigate, role: propRole }: MobileMorePagePro
                     <PhoneCall className="w-4 h-4" />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-xs font-bold text-slate-900 dark:text-white truncate">Cadet Calling</p>
+                    <p className="text-xs font-bold text-slate-900 dark:text-white truncate">Shabab Calling</p>
                     <p className="text-[10px] text-slate-400 truncate">Check-in calls</p>
                   </div>
                 </button>
@@ -491,7 +491,7 @@ export function MobileMorePage({ onNavigate, role: propRole }: MobileMorePagePro
                   </div>
                   <div className="min-w-0">
                     <p className="text-xs font-bold text-slate-900 dark:text-white truncate">Badges & Points</p>
-                    <p className="text-[10px] text-slate-400 truncate">Cadet ranks</p>
+                    <p className="text-[10px] text-slate-400 truncate">Shabab ranks</p>
                   </div>
                 </button>
                 <button
@@ -780,7 +780,7 @@ export function MobileMorePage({ onNavigate, role: propRole }: MobileMorePagePro
             <SettingRow
               icon={<UserCheck className="w-4 h-4 text-purple-600" />}
               iconBg="bg-purple-50"
-              title="Shabab Cadet Profile"
+              title="Shabab Profile"
               subtitle="6-tab comprehensive Tarbiyah & development record"
               onClick={() => onNavigate("student-profile")}
             />

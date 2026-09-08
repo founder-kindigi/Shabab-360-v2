@@ -173,7 +173,7 @@ export function MobileCityHeadDashboard({ onNavigate, onSelectPark }: MobileCity
           <div className="bg-white/10 border border-white/20 rounded-2xl p-3 backdrop-blur-sm flex flex-col items-center justify-center text-center">
             <Users className="size-4 text-purple-200 mb-1" />
             <span className="text-xl font-black text-white">{totalStudents}</span>
-            <span className="text-[9px] font-bold text-purple-200 uppercase tracking-wider">Cadets</span>
+            <span className="text-[9px] font-bold text-purple-200 uppercase tracking-wider">Shabab</span>
           </div>
 
           <div className="bg-white/10 border border-white/20 rounded-2xl p-3 backdrop-blur-sm flex flex-col items-center justify-center text-center">
@@ -273,7 +273,7 @@ export function MobileCityHeadDashboard({ onNavigate, onSelectPark }: MobileCity
                         <span className={cn("size-2 rounded-full shrink-0", dotColor)} />
                       </div>
                       <p className="text-[11px] text-muted-foreground truncate">
-                        {park.murabbis} Murabbis • {park.students} Cadets
+                        {park.murabbis} Murabbis • {park.students} Shabab
                       </p>
                     </div>
                   </div>

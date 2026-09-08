@@ -32,10 +32,10 @@ export interface MobileParkDashboardProps {
 }
 
 const FALLBACK_GROUPS = [
-  { id: "grp-1", name: "Halqa Abu Bakr (RA)", murabbi: "Murabbi Usman", enrolled: 14, rate: 86 },
-  { id: "grp-2", name: "Halqa Umar Farooq (RA)", murabbi: "Murabbi Bilal", enrolled: 16, rate: 75 },
-  { id: "grp-3", name: "Halqa Usman Ghani (RA)", murabbi: "Murabbi Tariq", enrolled: 12, rate: 67 },
-  { id: "grp-4", name: "Halqa Ali Murtaza (RA)", murabbi: "Murabbi Hamza", enrolled: 12, rate: 83 },
+  { id: "grp-1", name: "Group Abu Bakr (RA)", murabbi: "Murabbi Usman", enrolled: 14, rate: 86 },
+  { id: "grp-2", name: "Group Umar Farooq (RA)", murabbi: "Murabbi Bilal", enrolled: 16, rate: 75 },
+  { id: "grp-3", name: "Group Usman Ghani (RA)", murabbi: "Murabbi Tariq", enrolled: 12, rate: 67 },
+  { id: "grp-4", name: "Group Ali Murtaza (RA)", murabbi: "Murabbi Hamza", enrolled: 12, rate: 83 },
 ];
 
 export function MobileParkDashboard({ onNavigate, onSelectPark }: MobileParkDashboardProps = {}) {
@@ -162,7 +162,7 @@ export function MobileParkDashboard({ onNavigate, onSelectPark }: MobileParkDash
           <div className="bg-white/10 border border-white/20 rounded-2xl p-3 backdrop-blur-sm flex flex-col items-center justify-center text-center">
             <Users className="size-4 text-purple-200 mb-1" />
             <span className="text-xl font-black text-white">{totalEnrolled}</span>
-            <span className="text-[9px] font-bold text-purple-200 uppercase tracking-wider">Cadets</span>
+            <span className="text-[9px] font-bold text-purple-200 uppercase tracking-wider">Shabab</span>
           </div>
 
           <div className="bg-white/10 border border-white/20 rounded-2xl p-3 backdrop-blur-sm flex flex-col items-center justify-center text-center">
@@ -259,18 +259,18 @@ export function MobileParkDashboard({ onNavigate, onSelectPark }: MobileParkDash
           </div>
         </div>
 
-        {/* ─── Halqas / Groups Breakdown ─────────────────────────────────── */}
+        {/* ─── Groups Breakdown ─────────────────────────────────── */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="text-xs font-bold text-foreground flex items-center gap-1.5 uppercase tracking-wider">
               <Layers className="size-4 text-[#4B0A8F] dark:text-purple-400" />
-              Halqas Breakdown ({groupBreakdown.length})
+              Groups Breakdown ({groupBreakdown.length})
             </h3>
             <button
               onClick={handleOpenParkDetail}
               className="text-xs font-bold text-[#4B0A8F] dark:text-purple-400 hover:underline"
             >
-              All Halqas →
+              All Groups →
             </button>
           </div>
 
@@ -290,7 +290,7 @@ export function MobileParkDashboard({ onNavigate, onSelectPark }: MobileParkDash
                     <div>
                       <h4 className="text-xs font-extrabold text-foreground">{group.name}</h4>
                       <p className="text-[11px] text-muted-foreground">
-                        {group.murabbi} • {group.enrolled} Cadets
+                        {group.murabbi} • {group.enrolled} Shabab
                       </p>
                     </div>
                     <span className="text-xs font-black text-[#4B0A8F] dark:text-purple-300 px-2 py-0.5 rounded-lg bg-purple-100 dark:bg-purple-950/60">

@@ -742,11 +742,11 @@ export function MobileAttendancePage({ onBack }: MobileAttendancePageProps) {
           </div>
         </div>
 
-        {/* ─── Workspace Switcher: Student Cadets vs Staff Roll-Call ──────── */}
+        {/* ─── Workspace Switcher: Shabab vs Staff Roll-Call ──────── */}
         <div className="mt-3 relative z-10 grid grid-cols-2 gap-1.5 p-1 bg-black/20 rounded-2xl border border-white/15">
           <button
             onClick={() => setActiveTab("students")}
-            aria-label="Student Cadets Roster"
+            aria-label="Shabab Roster"
             className={cn(
               "min-h-[44px] rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all active:scale-98",
               activeTab === "students"
@@ -755,7 +755,7 @@ export function MobileAttendancePage({ onBack }: MobileAttendancePageProps) {
             )}
           >
             <Users className="size-4" />
-            <span>Student Cadets {events.length > 0 && `(${liveSummary.total})`}</span>
+            <span>Shabab {events.length > 0 && `(${liveSummary.total})`}</span>
           </button>
 
           <button
@@ -789,7 +789,7 @@ export function MobileAttendancePage({ onBack }: MobileAttendancePageProps) {
           </div>
         )}
 
-        {/* ─── TAB 1: STUDENT CADETS ROSTER ──────────────────────────────── */}
+        {/* ─── TAB 1: SHABAB ROSTER ──────────────────────────────── */}
         {activeTab === "students" && (
           <>
             {/* ─── Unauthenticated State ───────────────────────────────────── */}

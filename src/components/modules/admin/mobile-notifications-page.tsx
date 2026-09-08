@@ -364,9 +364,9 @@ export function MobileNotificationsPage({ onBack }: MobileNotificationsPageProps
                 onChange={(e) => setBroadcastAudience(e.target.value)}
                 className="w-full h-8 text-xs border rounded-lg px-2 bg-background"
               >
-                <option value="all">Everyone (All Parks & Cadets)</option>
+                <option value="all">Everyone (All Parks & Shabab)</option>
                 <option value="murabbis">Murabbis & Park Leads Only</option>
-                <option value="students">Cadets & Students Only</option>
+                <option value="students">Shabab & Students Only</option>
               </select>
             </div>
 

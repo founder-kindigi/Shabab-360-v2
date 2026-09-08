@@ -196,7 +196,7 @@ export function AdminAttendanceEvents() {
         {
           eventDate: printReportData.date,
           eventTitle: printReportData.eventTitle,
-          participantName: "All Group Cadets",
+          participantName: "All Group Shabab",
           groupName: printReportData.groupName,
           batchName: "Lahore Batch 4",
           parkName: printReportData.parkName,
@@ -338,7 +338,7 @@ export function AdminAttendanceEvents() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Total Cadets Marked
+                  Total Shabab Marked
                 </p>
                 <h3 className="text-2xl font-bold text-foreground mt-1">{stats.totalMarked} Marked</h3>
                 <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium mt-1">

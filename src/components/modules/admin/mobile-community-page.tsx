@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
@@ -90,7 +90,7 @@ export function MobileCommunityPage({ onBack }: MobileCommunityPageProps) {
   const [posts, setPosts] = useState<CommunityPost[]>([]);
   
   // Sync API data to local state when it loads (for local like toggling)
-  useMemo(() => {
+  useEffect(() => {
     if (data?.data) {
       setPosts(data.data);
     }

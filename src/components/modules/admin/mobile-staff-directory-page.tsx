@@ -208,7 +208,7 @@ export function MobileStaffDirectoryPage({ onBack }: MobileStaffDirectoryPagePro
                 <h3 className="text-lg font-bold text-foreground mt-0.5">
                   {staffList.filter((s) => s.role === "murabbi").length} Leads
                 </h3>
-                <p className="text-[10px] text-purple-600 font-medium">Halqa Mentors</p>
+                <p className="text-[10px] text-purple-600 font-medium">Group Mentors</p>
               </div>
               <div className="size-8 rounded-lg bg-purple-100 dark:bg-purple-950/50 flex items-center justify-center text-purple-600">
                 <Users className="size-4" />
@@ -222,7 +222,7 @@ export function MobileStaffDirectoryPage({ onBack }: MobileStaffDirectoryPagePro
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  Cadets Covered
+                  Shabab Covered
                 </p>
                 <h3 className="text-lg font-bold text-emerald-600 mt-0.5">
                   {staffList.reduce((acc, s) => acc + s.assignedStudents, 0)} Students
@@ -317,7 +317,7 @@ export function MobileStaffDirectoryPage({ onBack }: MobileStaffDirectoryPagePro
 
                 {staff.assignedStudents > 0 && (
                   <Badge className="bg-purple-50 text-[#4B0A8F] dark:bg-purple-950/40 border border-purple-200 text-[10px] font-bold">
-                    {staff.assignedStudents} Cadets
+                    {staff.assignedStudents} Shabab
                   </Badge>
                 )}
               </div>
@@ -416,7 +416,7 @@ export function MobileStaffDirectoryPage({ onBack }: MobileStaffDirectoryPagePro
                   onChange={(e) => setNewRole(e.target.value as any)}
                   className="w-full h-8 text-xs border rounded-lg px-2 bg-background"
                 >
-                  <option value="murabbi">Murabbi (Halqa Mentor)</option>
+                  <option value="murabbi">Murabbi (Group Mentor)</option>
                   <option value="park_lead">Park Lead (Field Incharge)</option>
                   <option value="park_admin">Park Admin (Finance & Operations)</option>
                   <option value="muawin">Muawin (Assistant)</option>

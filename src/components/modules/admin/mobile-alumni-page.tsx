@@ -460,10 +460,10 @@ export function MobileAlumniPage({ onBack }: MobileAlumniPageProps) {
           <DialogHeader>
             <DialogTitle className="text-base font-bold flex items-center gap-2">
               <UserCheck className="size-5 text-emerald-600" />
-              Pair Cadet with Mentor: {selectedMentor?.name}
+              Pair Shabab with Mentor: {selectedMentor?.name}
             </DialogTitle>
             <DialogDescription className="text-xs">
-              Assign an active Shabab 360 cadet to receive career & spiritual guidance.
+              Assign an active Shabab member to receive career & spiritual guidance.
             </DialogDescription>
           </DialogHeader>
 
@@ -475,12 +475,12 @@ export function MobileAlumniPage({ onBack }: MobileAlumniPageProps) {
                   {selectedMentor.fieldOfStudyOrRole} at {selectedMentor.institutionOrCompany}
                 </p>
                 <Badge className="bg-emerald-100 text-emerald-700 text-[9px]">
-                  Currently Mentoring {selectedMentor.activeMenteeCount} Cadets
+                  Currently Mentoring {selectedMentor.activeMenteeCount} Shabab
                 </Badge>
               </div>
 
               <div className="space-y-1">
-                <Label className="text-xs font-bold">Select Cadet to Pair</Label>
+                <Label className="text-xs font-bold">Select Shabab to Pair</Label>
                 <select className="w-full h-8 text-xs border rounded-lg px-2 bg-background">
                   <option>Muhammad Umair (Gulberg Park • Year 2)</option>
                   <option>M Abdullah Qureshi (Gulberg Park • Year 1)</option>
@@ -497,7 +497,7 @@ export function MobileAlumniPage({ onBack }: MobileAlumniPageProps) {
             <Button
               size="sm"
               onClick={() => {
-                toast.success(`Successfully assigned cadet to ${selectedMentor?.name}!`);
+                toast.success(`Successfully assigned Shabab to ${selectedMentor?.name}!`);
                 setSelectedMentor(null);
               }}
               className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold"

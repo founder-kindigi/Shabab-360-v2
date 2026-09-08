@@ -5,6 +5,7 @@
 
 export type NotificationCategory =
   | "announcement"
+  | "group_reminder"
   | "halqa_reminder"
   | "fee_due"
   | "retention_alert"
@@ -47,11 +48,12 @@ export function getNotificationStyle(
         iconName: "Bell",
         label: "Announcement",
       };
+    case "group_reminder":
     case "halqa_reminder":
       return {
         badgeColor: "bg-sky-100 text-sky-800 dark:bg-sky-950/40 dark:text-sky-300 border-sky-300",
         iconName: "Calendar",
-        label: "Halqa Reminder",
+        label: "Group Reminder",
       };
     case "fee_due":
       return {

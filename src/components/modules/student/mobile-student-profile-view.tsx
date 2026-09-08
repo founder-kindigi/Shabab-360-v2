@@ -99,7 +99,7 @@ export function MobileStudentProfileView({
     canManageSensitive: ["super_admin", "program_admin"].includes(effectiveRole),
   };
 
-  // ─── IF NO PARTICIPANT SELECTED & NOT SELF-STUDENT: CADET SELECTOR ──────────
+  // ─── IF NO PARTICIPANT SELECTED & NOT SELF-STUDENT: SHABAB SELECTOR ──────────
   if (!targetParticipantId && !isStudentSelf) {
     return (
       <div className="w-full max-w-[460px] mx-auto min-h-screen bg-slate-50 dark:bg-[#0c0817] text-slate-900 dark:text-slate-100 pb-28 select-none flex flex-col">
@@ -116,10 +116,10 @@ export function MobileStudentProfileView({
               </button>
               <div>
                 <h1 className="text-xl font-black text-[#1F0860] dark:text-purple-200 tracking-tight">
-                  Shabab Cadet Profiles
+                  Shabab Profiles
                 </h1>
                 <p className="text-[11px] text-slate-400 font-medium">
-                  Select any of the 288 cadets to view 6-tab profile
+                  Select any of the 288 Shabab to view 6-tab profile
                 </p>
               </div>
             </div>
@@ -137,7 +137,7 @@ export function MobileStudentProfileView({
             <Input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search cadet by name or phone..."
+              placeholder="Search Shabab by name or phone..."
               className="pl-9 h-10 rounded-xl bg-slate-100 dark:bg-white/5 border-transparent text-sm"
             />
           </div>
@@ -172,16 +172,16 @@ export function MobileStudentProfileView({
           </div>
         </div>
 
-        {/* Cadets List */}
+        {/* Shabab List */}
         <div className="p-4 flex-1 space-y-2.5 overflow-y-auto">
           {isLoadingStudents ? (
             <div className="text-center py-12 text-slate-400 text-sm flex flex-col items-center gap-2">
               <div className="size-6 border-2 border-purple-600 border-t-transparent rounded-full animate-spin" />
-              <span>Loading cadets directory...</span>
+              <span>Loading Shabab directory...</span>
             </div>
           ) : filteredStudents.length === 0 ? (
             <div className="text-center py-12 text-slate-400 text-sm">
-              No cadets matching your search.
+              No Shabab matching your search.
             </div>
           ) : (
             filteredStudents.map((s) => (
@@ -205,7 +205,7 @@ export function MobileStudentProfileView({
                       {s.name}
                     </p>
                     <p className="text-[11px] text-slate-400 truncate">
-                      {s.group?.name || "Halqa"} • {s.group?.batch?.park?.name || "Lahore"}
+                      {s.group?.name || "Group"} • {s.group?.batch?.park?.name || "Lahore"}
                     </p>
                   </div>
                 </div>
@@ -223,7 +223,7 @@ export function MobileStudentProfileView({
     );
   }
 
-  // ─── CADET PROFILE VIEW (EXTENDED OR SELF) ─────────────────────────────────
+  // ─── SHABAB PROFILE VIEW (EXTENDED OR SELF) ─────────────────────────────────
   return (
     <div className="w-full max-w-[460px] mx-auto min-h-screen bg-slate-50 dark:bg-[#0c0817] text-slate-900 dark:text-slate-100 pb-28 select-none flex flex-col">
       {/* Top Header */}
@@ -250,7 +250,7 @@ export function MobileStudentProfileView({
                 {activeParticipantName || "Shabab Profile"}
               </h1>
               <p className="text-[11px] text-slate-400 font-medium truncate">
-                {isStudentSelf ? "Personal Cadet Record" : "Tarbiyah & Character Evaluation"}
+                {isStudentSelf ? "Personal Shabab Record" : "Tarbiyah & Character Evaluation"}
               </p>
             </div>
           </div>
@@ -266,14 +266,14 @@ export function MobileStudentProfileView({
                 }}
                 className="text-xs font-bold text-[#4B0A8F] dark:text-purple-300 hover:bg-purple-50 h-8 px-2"
               >
-                Change Cadet
+                Change Shabab
               </Button>
             )}
             <Badge
               variant="secondary"
               className="bg-purple-50 dark:bg-purple-950/40 text-[#4B0A8F] dark:text-purple-300 border-purple-200 dark:border-purple-800 font-bold text-xs"
             >
-              Cadet
+              Shabab
             </Badge>
           </div>
         </div>

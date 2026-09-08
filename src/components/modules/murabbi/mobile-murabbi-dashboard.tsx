@@ -30,12 +30,12 @@ export interface MobileMurabbiDashboardProps {
   onNavigate?: (screen: string) => void;
 }
 
-const FALLBACK_CADETS = [
-  { id: "cadet-1", name: "Muhammad Umair", rate: 92, phone: "923001234567", status: "present" },
-  { id: "cadet-2", name: "Abdullah Tariq", rate: 85, phone: "923217654321", status: "present" },
-  { id: "cadet-3", name: "Hamza Farooq", rate: 78, phone: "923339876543", status: "absent" },
-  { id: "cadet-4", name: "Zaid Bin Haris", rate: 95, phone: "923125554433", status: "present" },
-  { id: "cadet-5", name: "Usman Ali", rate: 70, phone: "923451122334", status: "absent" },
+const FALLBACK_SHABAB = [
+  { id: "shabab-1", name: "Muhammad Umair", rate: 92, phone: "923001234567", status: "present" },
+  { id: "shabab-2", name: "Abdullah Tariq", rate: 85, phone: "923217654321", status: "present" },
+  { id: "shabab-3", name: "Hamza Farooq", rate: 78, phone: "923339876543", status: "absent" },
+  { id: "shabab-4", name: "Zaid Bin Haris", rate: 95, phone: "923125554433", status: "present" },
+  { id: "shabab-5", name: "Usman Ali", rate: 70, phone: "923451122334", status: "absent" },
 ];
 
 export function MobileMurabbiDashboard({ onNavigate }: MobileMurabbiDashboardProps = {}) {
@@ -69,7 +69,7 @@ export function MobileMurabbiDashboard({ onNavigate }: MobileMurabbiDashboardPro
 
   const totalStudents = parkData?.recentSummary?.totalParticipants ?? 14;
   const firstGroup = parkData?.groupBreakdown?.[0];
-  const groupName = firstGroup?.name || "Halqa Abu Bakr (RA)";
+  const groupName = firstGroup?.name || "Group Abu Bakr (RA)";
   const parkName = parkData?.park?.name || "Gulberg Park";
   const cityName = parkData?.park?.cityName || "Lahore";
   const todayRate = parkData?.recentSummary?.last7DaysAttendanceRate ?? 82;
@@ -138,7 +138,7 @@ export function MobileMurabbiDashboard({ onNavigate }: MobileMurabbiDashboardPro
           <div className="bg-white/10 border border-white/20 rounded-2xl p-3 backdrop-blur-sm flex flex-col items-center justify-center text-center">
             <Users className="size-4 text-purple-200 mb-1" />
             <span className="text-xl font-black text-white">{totalStudents}</span>
-            <span className="text-[9px] font-bold text-purple-200 uppercase tracking-wider">Cadets</span>
+            <span className="text-[9px] font-bold text-purple-200 uppercase tracking-wider">Shabab</span>
           </div>
 
           <div className="bg-white/10 border border-white/20 rounded-2xl p-3 backdrop-blur-sm flex flex-col items-center justify-center text-center">
@@ -169,8 +169,8 @@ export function MobileMurabbiDashboard({ onNavigate }: MobileMurabbiDashboardPro
                 <CalendarCheck className="size-5" />
               </div>
               <div>
-                <h3 className="text-sm font-black text-foreground">Sunday Halqa Session</h3>
-                <p className="text-xs text-muted-foreground font-medium">Mark Today's Cadet Attendance</p>
+                <h3 className="text-sm font-black text-foreground">Sunday Group Session</h3>
+                <p className="text-xs text-muted-foreground font-medium">Mark Today's Shabab Attendance</p>
               </div>
             </div>
             <span className="text-[10px] font-extrabold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300">
@@ -182,7 +182,7 @@ export function MobileMurabbiDashboard({ onNavigate }: MobileMurabbiDashboardPro
             onClick={() => handleNav("parks")}
             className="w-full h-12 rounded-2xl bg-gradient-to-r from-[#4B0A8F] to-[#D90429] hover:opacity-95 text-white font-extrabold text-sm shadow-md shadow-purple-900/20 flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
           >
-            <span>Mark Halqa Attendance</span>
+            <span>Mark Group Attendance</span>
             <ArrowRight className="size-4" />
           </button>
         </motion.div>
@@ -235,12 +235,12 @@ export function MobileMurabbiDashboard({ onNavigate }: MobileMurabbiDashboardPro
           </div>
         </div>
 
-        {/* ─── Assigned Cadets Roster Preview ─────────────────────────────── */}
+        {/* ─── Assigned Shabab Roster Preview ─────────────────────────────── */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="text-xs font-bold text-foreground flex items-center gap-1.5 uppercase tracking-wider">
               <Users className="size-4 text-[#4B0A8F] dark:text-purple-400" />
-              Halqa Cadets ({FALLBACK_CADETS.length})
+              Group Shabab ({FALLBACK_SHABAB.length})
             </h3>
             <button
               onClick={() => handleNav("calling")}
@@ -251,9 +251,9 @@ export function MobileMurabbiDashboard({ onNavigate }: MobileMurabbiDashboardPro
           </div>
 
           <div className="space-y-2.5">
-            {FALLBACK_CADETS.map((cadet, index) => {
-              const isPresent = cadet.status === "present";
-              const initials = cadet.name
+            {FALLBACK_SHABAB.map((shabab, index) => {
+              const isPresent = shabab.status === "present";
+              const initials = shabab.name
                 .split(" ")
                 .map((n) => n[0])
                 .slice(0, 2)
@@ -261,7 +261,7 @@ export function MobileMurabbiDashboard({ onNavigate }: MobileMurabbiDashboardPro
 
               return (
                 <motion.div
-                  key={cadet.id}
+                  key={shabab.id}
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.04 }}
@@ -274,7 +274,7 @@ export function MobileMurabbiDashboard({ onNavigate }: MobileMurabbiDashboardPro
 
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
-                        <h4 className="text-xs font-extrabold text-foreground truncate">{cadet.name}</h4>
+                        <h4 className="text-xs font-extrabold text-foreground truncate">{shabab.name}</h4>
                         <span
                           className={cn(
                             "text-[9px] font-extrabold px-1.5 py-0.5 rounded-md uppercase",
@@ -287,25 +287,25 @@ export function MobileMurabbiDashboard({ onNavigate }: MobileMurabbiDashboardPro
                         </span>
                       </div>
                       <p className="text-[11px] text-muted-foreground truncate">
-                        30-Day Rate: <span className="font-bold text-foreground">{cadet.rate}%</span>
+                        30-Day Rate: <span className="font-bold text-foreground">{shabab.rate}%</span>
                       </p>
                     </div>
                   </div>
 
                   <div className="flex items-center gap-1.5 shrink-0">
                     <a
-                      href={`https://wa.me/${cadet.phone}`}
+                      href={`https://wa.me/${shabab.phone}`}
                       target="_blank"
                       rel="noreferrer"
                       className="size-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200/60 dark:border-emerald-800/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center active:scale-95 transition-transform"
-                      title="WhatsApp Cadet"
+                      title="WhatsApp Shabab"
                     >
                       <MessageCircle className="size-4" />
                     </a>
                     <a
-                      href={`tel:${cadet.phone}`}
+                      href={`tel:${shabab.phone}`}
                       className="size-8 rounded-xl bg-purple-50 dark:bg-purple-950/40 border border-purple-200/60 dark:border-purple-800/40 text-[#4B0A8F] dark:text-purple-300 flex items-center justify-center active:scale-95 transition-transform"
-                      title="Call Cadet"
+                      title="Call Shabab"
                     >
                       <PhoneCall className="size-4" />
                     </a>

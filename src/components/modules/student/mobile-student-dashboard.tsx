@@ -78,7 +78,7 @@ export function MobileStudentDashboard({ onNavigate }: MobileStudentDashboardPro
 
   const studentName = p?.name || user?.name || "Muhammad Umair";
   const parkName = p?.park || "Gulberg Park, Lahore";
-  const groupName = p?.group || "Halqa Abu Bakr (RA)";
+  const groupName = p?.group || "Group Abu Bakr (RA)";
   const attendanceRate = metrics?.rate30 ?? 92;
   const totalAttended = (metrics?.present30 ?? 11) + (metrics?.late30 ?? 0);
   const totalSessions = metrics?.totalEvents30 ?? 12;
@@ -100,11 +100,11 @@ export function MobileStudentDashboard({ onNavigate }: MobileStudentDashboardPro
                 <span className="text-base font-black tracking-tight leading-none text-white">SHABAB 360</span>
                 <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-amber-400/25 text-amber-200 border border-amber-300/30 flex items-center gap-1">
                   <Award className="size-3" />
-                  Cadet Rank 2
+                  Shabab Rank 2
                 </span>
               </div>
               <p className="text-[10px] text-purple-200 font-bold uppercase tracking-widest mt-1">
-                Cadet Training Portal
+                Shabab Training Portal
               </p>
             </div>
           </div>

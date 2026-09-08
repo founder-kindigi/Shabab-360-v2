@@ -64,8 +64,8 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-// ─── Guided Cadet Mock Dataset (Matching islahimamulat.com structure) ───
-export type GuidedCadet = {
+// ─── Guided Shabab Dataset (Matching islahimamulat.com structure) ───
+export type GuidedShabab = {
   id: string;
   name: string;
   parkName: string;
@@ -80,6 +80,7 @@ export type GuidedCadet = {
   hasUnreadLog: boolean;
   isInactive: boolean;
 };
+export type GuidedCadet = GuidedShabab;
 
 // MOCK_GUIDED_CADETS removed
 // ─── Routine Presets ───
@@ -87,7 +88,7 @@ const ROUTINE_PRESETS = [
   {
     id: "level-1",
     name: "Level 1: Beginner Youth Mamulat",
-    targetAudience: "New Admissions & Junior Cadets",
+    targetAudience: "New Admissions & Junior Shabab",
     description: "Core foundation routine focusing on 5 Fardh prayers in Jama'at and basic morning supplications.",
     dailyTilawat: "10-15 Minutes",
     dailyAzkar: "100x Astaghfirullah, 100x Darood Shareef",
@@ -98,7 +99,7 @@ const ROUTINE_PRESETS = [
   {
     id: "level-2",
     name: "Level 2: Intermediate Student Routine",
-    targetAudience: "Active Shabab Cadets & Group Members",
+    targetAudience: "Active Shabab & Group Members",
     description: "Standard daily routine including Morning/Evening Azkar, Quran Tilawat, and 15 mins religious book reading.",
     dailyTilawat: "20-30 Minutes (1 Ruku+)",
     dailyAzkar: "Masnoon Morning & Evening Supplications",
@@ -109,7 +110,7 @@ const ROUTINE_PRESETS = [
   {
     id: "level-3",
     name: "Level 3: Advanced Murabbi Routine",
-    targetAudience: "Murabbis, Park Leads & Senior Cadets",
+    targetAudience: "Murabbis, Park Leads & Senior Shabab",
     description: "Comprehensive spiritual regimen with Tahajjud, Surah Yaseen/Mulk daily, and 30 mins Seerah Mutala'ah.",
     dailyTilawat: "1 Juz / 30 Minutes + Surah Yaseen",
     dailyAzkar: "Full Masnoon Azkar + Tahajjud",
@@ -127,14 +128,14 @@ export function IslahMamulatPage({ onBack }: IslahMamulatPageProps = {}) {
   const { data: session } = useSession();
   const queryClient = useQueryClient();
 
-  // Workspace Switcher: "cadet" (Personal Daily Log) vs "murabbi" (Guided Cadets Desk)
-  const [workspaceRole, setWorkspaceRole] = useState<"cadet" | "murabbi">("cadet");
+  // Workspace Switcher: "shabab" (Personal Daily Log) vs "murabbi" (Guided Shabab Desk)
+  const [workspaceRole, setWorkspaceRole] = useState<"shabab" | "murabbi">("shabab");
 
   // Murabbi Filter Pill: "all" | "today" | "streak7" | "champions" | "inactive"
   const [murabbiFilter, setMurabbiFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Cadet Log State
+  // Shabab Log State
   const [wakeupTime, setWakeupTime] = useState("05:30 AM");
   const [sleepTime, setSleepTime] = useState("10:30 PM");
   const [fajr, setFajr] = useState(true);
@@ -152,7 +153,7 @@ export function IslahMamulatPage({ onBack }: IslahMamulatPageProps = {}) {
   const [streakDays, setStreakDays] = useState(14);
 
   // Murabbi Inspection Modal State
-  const [selectedCadet, setSelectedCadet] = useState<GuidedCadet | null>(null);
+  const [selectedShabab, setSelectedShabab] = useState<GuidedShabab | null>(null);
   const [guidanceNote, setGuidanceNote] = useState("");
 
   const { data: logsData, isLoading, isError } = useQuery({
@@ -164,9 +165,10 @@ export function IslahMamulatPage({ onBack }: IslahMamulatPageProps = {}) {
     },
   });
 
-  const guidedCadets: GuidedCadet[] = useMemo(() => {
-    if (!logsData?.data) return [];
-    return logsData.data.map((log: any) => ({
+  const logsList = logsData?.data;
+  const guidedShabab: GuidedShabab[] = useMemo(() => {
+    if (!logsList) return [];
+    return logsList.map((log: any) => ({
       id: log.id,
       name: log.userName,
       parkName: log.parkName,
@@ -181,24 +183,24 @@ export function IslahMamulatPage({ onBack }: IslahMamulatPageProps = {}) {
       hasUnreadLog: true,
       isInactive: false,
     }));
-  }, [logsData?.data]);
+  }, [logsList]);
 
-  // Filtered Guided Cadets for Murabbi Desk
-  const filteredCadets = useMemo(() => {
-    return guidedCadets.filter((cadet) => {
-      const matchesSearch = cadet.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        cadet.groupName.toLowerCase().includes(searchQuery.toLowerCase());
+  // Filtered Guided Shabab for Murabbi Desk
+  const filteredShabab = useMemo(() => {
+    return guidedShabab.filter((shabab) => {
+      const matchesSearch = shabab.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        shabab.groupName.toLowerCase().includes(searchQuery.toLowerCase());
       
       if (!matchesSearch) return false;
 
-      if (murabbiFilter === "today") return cadet.lastLoggedDate === new Date().toISOString().slice(0, 10);
-      if (murabbiFilter === "streak7") return cadet.streakDays >= 7;
-      if (murabbiFilter === "champions") return cadet.is40DayChampion;
-      if (murabbiFilter === "inactive") return cadet.isInactive;
+      if (murabbiFilter === "today") return shabab.lastLoggedDate === new Date().toISOString().slice(0, 10);
+      if (murabbiFilter === "streak7") return shabab.streakDays >= 7;
+      if (murabbiFilter === "champions") return shabab.is40DayChampion;
+      if (murabbiFilter === "inactive") return shabab.isInactive;
 
       return true;
     });
-  }, [guidedCadets, murabbiFilter, searchQuery]);
+  }, [guidedShabab, murabbiFilter, searchQuery]);
 
   // Submit Log Mutation
   const logMutation = useMutation({
@@ -278,10 +280,10 @@ ${mutalaahMins > 0 ? `(✓) مطالعہ: ${mutalaahMins} منٹ` : "(✕) مط�
     toast.success("Opening WhatsApp with your formatted Islah report!");
   };
 
-  const handleVerifyCadetLog = () => {
-    if (!selectedCadet) return;
-    toast.success(`Verified Islah log for ${selectedCadet.name}! Guidance note sent.`);
-    setSelectedCadet(null);
+  const handleVerifyShababLog = () => {
+    if (!selectedShabab) return;
+    toast.success(`Verified Islah log for ${selectedShabab.name}! Guidance note sent.`);
+    setSelectedShabab(null);
     setGuidanceNote("");
   };
 
@@ -315,10 +317,10 @@ ${mutalaahMins > 0 ? `(✓) مطالعہ: ${mutalaahMins} منٹ` : "(✕) مط�
       <div className="flex items-center bg-slate-100 dark:bg-slate-800/80 p-1 rounded-xl border border-slate-200/80 dark:border-slate-700">
         <button
           type="button"
-          onClick={() => setWorkspaceRole("cadet")}
+          onClick={() => setWorkspaceRole("shabab")}
           className={cn(
             "flex-1 py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-sm",
-            workspaceRole === "cadet"
+            workspaceRole === "shabab"
               ? "bg-emerald-600 text-white shadow-emerald-500/20"
               : "text-muted-foreground hover:text-foreground"
           )}
@@ -342,8 +344,8 @@ ${mutalaahMins > 0 ? `(✓) مطالعہ: ${mutalaahMins} منٹ` : "(✕) مط�
         </button>
       </div>
 
-      {/* ─── WORKSPACE 1: CADET DAILY MAMULAT VIEW ─── */}
-      {workspaceRole === "cadet" ? (
+      {/* ─── WORKSPACE 1: SHABAB DAILY MAMULAT VIEW ─── */}
+      {workspaceRole === "shabab" ? (
         <div className="space-y-4">
           {/* 4 KPI Cards (2x2 grid for mobile) */}
           <div className="grid grid-cols-2 gap-2.5">
@@ -394,7 +396,7 @@ ${mutalaahMins > 0 ? `(✓) مطالعہ: ${mutalaahMins} منٹ` : "(✕) مط�
                     </p>
                     <h3 className="text-lg font-bold text-foreground mt-0.5">42 Days</h3>
                     <p className="text-[10px] text-purple-600 font-medium">
-                      Gulberg Cadets
+                      Gulberg Shabab
                     </p>
                   </div>
                   <div className="size-8 rounded-lg bg-purple-100 dark:bg-purple-950/50 flex items-center justify-center text-purple-600">
@@ -605,7 +607,7 @@ ${mutalaahMins > 0 ? `(✓) مطالعہ: ${mutalaahMins} منٹ` : "(✕) مط�
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      Guided Cadets
+                      Guided Shabab
                     </p>
                     <h3 className="text-lg font-bold text-foreground mt-0.5">48</h3>
                     <p className="text-[10px] text-purple-600 font-medium">
@@ -691,7 +693,7 @@ ${mutalaahMins > 0 ? `(✓) مطالعہ: ${mutalaahMins} منٹ` : "(✕) مط�
                     : "bg-slate-100 dark:bg-slate-800 text-muted-foreground hover:text-foreground"
                 )}
               >
-                All ({guidedCadets.length})
+                All ({guidedShabab.length})
               </button>
 
               <button
@@ -751,7 +753,7 @@ ${mutalaahMins > 0 ? `(✓) مطالعہ: ${mutalaahMins} منٹ` : "(✕) مط�
             <div className="relative w-full">
               <Search className="absolute left-3 top-2.5 size-3.5 text-muted-foreground" />
               <Input
-                placeholder="Search cadet or group..."
+                placeholder="Search Shabab or group..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-8 text-xs h-8 bg-slate-50 dark:bg-slate-800"
@@ -759,47 +761,47 @@ ${mutalaahMins > 0 ? `(✓) مطالعہ: ${mutalaahMins} منٹ` : "(✕) مط�
             </div>
           </div>
 
-          {/* Cadets List (Guided Cadets View) */}
+          {/* Shabab List (Guided Shabab View) */}
           <div className="space-y-3">
             {isLoading ? (
               <div className="flex justify-center items-center h-48">
                 <Loader2 className="size-6 animate-spin text-muted-foreground" />
               </div>
             ) : isError ? (
-              <div className="text-center p-4 text-sm text-destructive">Failed to load cadets</div>
-            ) : filteredCadets.length === 0 ? (
-              <div className="text-center p-4 text-sm text-muted-foreground">No cadets match the filter.</div>
+              <div className="text-center p-4 text-sm text-destructive">Failed to load Shabab</div>
+            ) : filteredShabab.length === 0 ? (
+              <div className="text-center p-4 text-sm text-muted-foreground">No Shabab match the filter.</div>
             ) : (
-              filteredCadets.map((cadet) => (
+              filteredShabab.map((shabab) => (
                 <Card
-                  key={cadet.id}
+                  key={shabab.id}
                   className={cn(
                     "border shadow-sm rounded-2xl overflow-hidden transition-all hover:border-purple-300 dark:hover:border-purple-800 bg-white dark:bg-slate-900",
-                    cadet.isInactive ? "border-red-200 dark:border-red-900/60 bg-red-50/20" : "border-slate-200 dark:border-slate-800"
+                    shabab.isInactive ? "border-red-200 dark:border-red-900/60 bg-red-50/20" : "border-slate-200 dark:border-slate-800"
                   )}
                 >
                   <CardContent className="p-5 space-y-4">
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <div className="flex items-center gap-2">
-                          <h4 className="font-bold text-base text-foreground">{cadet.name}</h4>
-                          {cadet.is40DayChampion && (
+                          <h4 className="font-bold text-base text-foreground">{shabab.name}</h4>
+                          {shabab.is40DayChampion && (
                             <Badge className="bg-amber-600 text-white text-[9px] font-bold gap-1 px-1.5">
                               <Crown className="size-3" /> 40-Day Champion
                             </Badge>
                           )}
-                          {cadet.isInactive && (
+                          {shabab.isInactive && (
                             <Badge className="bg-red-600 text-white text-[9px] font-bold gap-1 px-1.5">
                               <UserX className="size-3" /> Inactive (7+ Days)
                             </Badge>
                           )}
                         </div>
                         <p className="text-xs text-muted-foreground mt-0.5">
-                          {cadet.groupName} • {cadet.parkName}
+                          {shabab.groupName} • {shabab.parkName}
                         </p>
                       </div>
 
-                      {cadet.hasUnreadLog && (
+                      {shabab.hasUnreadLog && (
                         <Badge className="bg-purple-600 text-white text-[10px] animate-pulse">
                           Unread Log
                         </Badge>
@@ -809,23 +811,23 @@ ${mutalaahMins > 0 ? `(✓) مطالعہ: ${mutalaahMins} منٹ` : "(✕) مط�
                     <div className="grid grid-cols-2 gap-2 text-xs p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 font-medium">
                       <div>
                         <span className="text-muted-foreground block text-[10px]">Wakeup / Sleep</span>
-                        <span className="font-mono font-bold text-foreground">{cadet.wakeupTime} / {cadet.sleepTime}</span>
+                        <span className="font-mono font-bold text-foreground">{shabab.wakeupTime} / {shabab.sleepTime}</span>
                       </div>
 
                       <div>
                         <span className="text-muted-foreground block text-[10px]">Jama'at & Tilawat</span>
-                        <span className="font-bold text-emerald-600">{cadet.jamaatCount}/5 Jama'at • {cadet.tilawatMins}m</span>
+                        <span className="font-bold text-emerald-600">{shabab.jamaatCount}/5 Jama'at • {shabab.tilawatMins}m</span>
                       </div>
                     </div>
 
                     <div className="flex items-center justify-between pt-1">
                       <span className="text-xs font-mono font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1">
-                        <Flame className="size-3.5" /> Day {cadet.streakDays} Streak
+                        <Flame className="size-3.5" /> Day {shabab.streakDays} Streak
                       </span>
 
                       <Button
                         size="sm"
-                        onClick={() => setSelectedCadet(cadet)}
+                        onClick={() => setSelectedShabab(shabab)}
                         className="gap-1.5 text-xs font-bold bg-[#4B0A8F] hover:bg-[#3b0873] text-white h-8"
                       >
                         <span>Inspect Log & Guidance</span>
@@ -841,24 +843,24 @@ ${mutalaahMins > 0 ? `(✓) مطالعہ: ${mutalaahMins} منٹ` : "(✕) مط�
       )}
 
       {/* ─── Murabbi Inspection & Guidance Dialog ─── */}
-      <Dialog open={!!selectedCadet} onOpenChange={() => setSelectedCadet(null)}>
+      <Dialog open={!!selectedShabab} onOpenChange={() => setSelectedShabab(null)}>
         <DialogContent className="max-w-md rounded-2xl">
           <DialogHeader>
             <DialogTitle className="text-base font-bold flex items-center gap-2">
               <ShieldCheck className="size-5 text-purple-600" />
-              Inspect Islah Log: {selectedCadet?.name}
+              Inspect Islah Log: {selectedShabab?.name}
             </DialogTitle>
             <DialogDescription className="text-xs">
               Review daily mamulat compliance and provide Murabbi guidance & encouragement notes.
             </DialogDescription>
           </DialogHeader>
 
-          {selectedCadet && (
+          {selectedShabab && (
             <div className="space-y-4 py-2 text-xs">
               <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800 space-y-1">
-                <p className="font-bold text-foreground">{selectedCadet.name} ({selectedCadet.groupName})</p>
+                <p className="font-bold text-foreground">{selectedShabab.name} ({selectedShabab.groupName})</p>
                 <p className="text-muted-foreground text-[11px]">
-                  Logged for {selectedCadet.lastLoggedDate} • Wakeup: {selectedCadet.wakeupTime} • Sleep: {selectedCadet.sleepTime}
+                  Logged for {selectedShabab.lastLoggedDate} • Wakeup: {selectedShabab.wakeupTime} • Sleep: {selectedShabab.sleepTime}
                 </p>
               </div>
 
@@ -875,10 +877,10 @@ ${mutalaahMins > 0 ? `(✓) مطالعہ: ${mutalaahMins} منٹ` : "(✕) مط�
           )}
 
           <DialogFooter className="gap-2">
-            <Button variant="outline" size="sm" onClick={() => setSelectedCadet(null)}>
+            <Button variant="outline" size="sm" onClick={() => setSelectedShabab(null)}>
               Cancel
             </Button>
-            <Button size="sm" onClick={handleVerifyCadetLog} className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold gap-1.5">
+            <Button size="sm" onClick={handleVerifyShababLog} className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold gap-1.5">
               <CheckCircle2 className="size-4" />
               <span>Verify & Send Note</span>
             </Button>

@@ -428,7 +428,7 @@ export function MobileGamificationPage({ onBack }: MobileGamificationPageProps) 
             <div className="space-y-1.5">
               <Label className="font-bold text-slate-700">Reason / Commendation</Label>
               <Textarea
-                placeholder="e.g. Led morning warmup, arrived early with entire halqa..."
+                placeholder="e.g. Led morning warmup, arrived early with entire group..."
                 value={awardReason}
                 onChange={(e) => setAwardReason(e.target.value)}
                 className="rounded-xl text-xs resize-none"

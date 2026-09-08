@@ -55,9 +55,9 @@ const REPORT_DOMAINS: DomainConfig[] = [
     icon: Users,
     color: "text-purple-600 bg-purple-50",
     columns: [
-      { key: "studentName", label: "Cadet Name", defaultChecked: true },
+      { key: "studentName", label: "Shabab Name", defaultChecked: true },
       { key: "park", label: "Park Base", defaultChecked: true },
-      { key: "murabbi", label: "Murabbi Halqa", defaultChecked: true },
+      { key: "murabbi", label: "Murabbi Group", defaultChecked: true },
       { key: "attendanceRate", label: "Attendance Rate (%)", defaultChecked: true },
       { key: "streakDays", label: "Streak Count", defaultChecked: true },
     ],
@@ -83,7 +83,7 @@ const REPORT_DOMAINS: DomainConfig[] = [
     icon: DollarSign,
     color: "text-emerald-600 bg-emerald-50",
     columns: [
-      { key: "studentName", label: "Cadet Name", defaultChecked: true },
+      { key: "studentName", label: "Shabab Name", defaultChecked: true },
       { key: "challanNo", label: "Challan #", defaultChecked: true },
       { key: "amount", label: "Amount (PKR)", defaultChecked: true },
       { key: "paymentStatus", label: "Status (Paid/Pending)", defaultChecked: true },
@@ -111,13 +111,13 @@ const REPORT_DOMAINS: DomainConfig[] = [
     icon: Heart,
     color: "text-red-600 bg-red-50",
     columns: [
-      { key: "cadetName", label: "Cadet Name", defaultChecked: true },
+      { key: "cadetName", label: "Shabab Name", defaultChecked: true },
       { key: "fajrJamaat", label: "Fajr Jama'at Compliance", defaultChecked: true },
       { key: "tilawatMinutes", label: "Daily Tilawat Minutes", defaultChecked: true },
       { key: "streakDays", label: "40-Day Challenge Day", defaultChecked: true },
       { key: "murabbiNote", label: "Murabbi Guidance Log", defaultChecked: true },
     ],
-    summaryKpi: { label: "40-Day Champions", value: "48 Cadets", sub: "Active Spiritual Regimen" },
+    summaryKpi: { label: "40-Day Champions", value: "48 Shabab", sub: "Active Spiritual Regimen" },
   },
 ];
 

@@ -104,12 +104,12 @@ const MODULE_GROUPS = [
     ],
   },
   {
-    title: "Tarbiyah & Cadets",
+    title: "Tarbiyah & Shabab",
     modules: [
-      { id: "student-profile", label: "Shabab Profile", desc: "Cadet 6-tab profile", icon: UserCheck, color: "text-purple-600", bg: "bg-purple-50 dark:bg-purple-950/40" },
+      { id: "student-profile", label: "Shabab Profile", desc: "Shabab 6-tab profile", icon: UserCheck, color: "text-purple-600", bg: "bg-purple-50 dark:bg-purple-950/40" },
       { id: "islah", label: "Islah-i-Mamulat", desc: "Fajr & Quran habits", icon: Heart, color: "text-emerald-600", bg: "bg-emerald-50 dark:bg-emerald-950/40" },
       { id: "content-planner", label: "Tarbiyah LMS", desc: "Curriculum planner", icon: BookOpen, color: "text-sky-600", bg: "bg-sky-50 dark:bg-sky-950/40" },
-      { id: "gamification", label: "Badges & Points", desc: "Cadet ranks", icon: Trophy, color: "text-amber-600", bg: "bg-amber-50 dark:bg-amber-950/40" },
+      { id: "gamification", label: "Badges & Points", desc: "Shabab ranks", icon: Trophy, color: "text-amber-600", bg: "bg-amber-50 dark:bg-amber-950/40" },
       { id: "certificates", label: "Certificates", desc: "Graduation awards", icon: Award, color: "text-purple-600", bg: "bg-purple-50 dark:bg-purple-950/40" },
       { id: "alumni", label: "Alumni Network", desc: "Graduates registry", icon: GraduationCap, color: "text-violet-600", bg: "bg-violet-50 dark:bg-violet-950/40" },
       { id: "community", label: "Community Hub", desc: "Brotherhood & news", icon: MessageSquare, color: "text-sky-600", bg: "bg-sky-50 dark:bg-sky-950/40" },
