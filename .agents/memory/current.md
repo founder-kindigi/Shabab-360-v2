@@ -2,6 +2,13 @@
 
 Last consolidated: 2026-09-08. Verify changing facts against the checkout before relying on them.
 
+- On 2026-09-08, resolved Shabab profile UI/UX defects, subject data disconnect, and mobile presentation across PWA:
+  1. `src/components/modules/student/mobile-student-profile-view.tsx`: Connected `participantId={targetParticipantId}` and `isSelf={isStudentSelf}` to `<SelfProfilePage />` so the selected Shabab is loaded rather than defaulting to the logged-in staff member. Set default view mode to `overview` with "Overview & Attendance" as the primary tab followed by "6-Tab Tarbiyah Profile". Adjusted container padding to `pb-36` to clear persistent bottom navigation.
+  2. `src/components/modules/student/student-profile-page.tsx`: Replaced broken negative-margin purple banner and sliced avatar with an integrated gradient Hero Card (`size-16 rounded-2xl` avatar with initials, active status ring, organization labels, 1-tap `Call Shabab` and `Call Guardian` actions, and inline edit modal). Replaced crushed 2-column layout with responsive, stacked full-width mobile cards (Personal Information, Guardian & Family Details, Organization Details, and Recent Attendance Log with color-coded status badges). Added 4-metric KPI stats bar (Rate %, Present, Absent, Total sessions) with gradient progress bar.
+  3. `src/app/api/admin/students/[id]/detail/route.ts`: Expanded capability check to authorize callers with `students.manage` or `students.profile.view` (e.g. Murabbis and Park Leads) with strict resource scope enforcement. Added `age` and `gradeClass` to response payload.
+  4. `src/lib/auth/authorize.ts` & `vitest.config.ts`: Re-exported `userHasCapability` and included `.test.tsx` files in vitest test runner.
+  5. Verified: 0 TypeScript errors (`tsc --noEmit`), 0 ESLint errors (`eslint .`), 16/16 student profile tests, 167/167 release tests, and 75/75 multi-role boundary tests. Next.js production build (152/152 routes) passed.
+  6. Successfully deployed to Vercel production (`https://shabab360.vercel.app`), verified live HTTP 200 OK. Commit `c378476`.
 - On 2026-09-08, fixed hidden bottom action buttons across park management and inventory screens:
   1. `src/components/modules/park/tabs/structure-tab.tsx`: Repositioned the action bar (`+ Add murabbi` and `Students` roster buttons) from `fixed bottom-0` to `fixed bottom-14` so it floats directly above the persistent 56px bottom navigation bar without overlapping. Increased scroll container padding to `pb-36` to prevent list items from being obstructed.
   2. `src/components/modules/park/tabs/attendance-tab.tsx`: Repositioned sticky footer (`Save attendance`) from `fixed bottom-0` to `fixed bottom-14` above the bottom navigation bar and updated container padding to `pb-36`.
