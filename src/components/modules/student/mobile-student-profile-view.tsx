@@ -50,7 +50,7 @@ export function MobileStudentProfileView({
   const [activeParticipantName, setActiveParticipantName] = useState<string | null>(
     initialParticipantName || null
   );
-  const [viewMode, setViewMode] = useState<"extended" | "overview">("extended");
+  const [viewMode, setViewMode] = useState<"extended" | "overview">("overview");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedParkFilter, setSelectedParkFilter] = useState("all");
 
@@ -102,7 +102,7 @@ export function MobileStudentProfileView({
   // ─── IF NO PARTICIPANT SELECTED & NOT SELF-STUDENT: SHABAB SELECTOR ──────────
   if (!targetParticipantId && !isStudentSelf) {
     return (
-      <div className="w-full max-w-[460px] mx-auto min-h-screen bg-slate-50 dark:bg-[#0c0817] text-slate-900 dark:text-slate-100 pb-28 select-none flex flex-col">
+      <div className="w-full max-w-[460px] mx-auto min-h-screen bg-slate-50 dark:bg-[#0c0817] text-slate-900 dark:text-slate-100 pb-36 select-none flex flex-col">
         {/* Header */}
         <div className="bg-white dark:bg-[#180E30] border-b border-slate-100 dark:border-white/10 px-5 pt-6 pb-4 sticky top-0 z-20">
           <div className="flex items-center justify-between mb-3">
@@ -225,7 +225,7 @@ export function MobileStudentProfileView({
 
   // ─── SHABAB PROFILE VIEW (EXTENDED OR SELF) ─────────────────────────────────
   return (
-    <div className="w-full max-w-[460px] mx-auto min-h-screen bg-slate-50 dark:bg-[#0c0817] text-slate-900 dark:text-slate-100 pb-28 select-none flex flex-col">
+    <div className="w-full max-w-[460px] mx-auto min-h-screen bg-slate-50 dark:bg-[#0c0817] text-slate-900 dark:text-slate-100 pb-36 select-none flex flex-col">
       {/* Top Header */}
       <div className="bg-white dark:bg-[#180E30] border-b border-slate-100 dark:border-white/10 px-5 pt-5 pb-3 sticky top-0 z-20">
         <div className="flex items-center justify-between mb-2">
@@ -281,18 +281,6 @@ export function MobileStudentProfileView({
         {/* View Mode Switcher Pills */}
         <div className="flex gap-2 pt-2">
           <button
-            onClick={() => setViewMode("extended")}
-            className={cn(
-              "flex-1 py-1.5 px-3 rounded-xl text-xs font-bold transition-all text-center flex items-center justify-center gap-1.5",
-              viewMode === "extended"
-                ? "bg-[#180A40] text-white shadow-sm"
-                : "bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-400 hover:bg-slate-200"
-            )}
-          >
-            <Sparkles className="size-3.5" />
-            <span>6-Tab Tarbiyah Profile</span>
-          </button>
-          <button
             onClick={() => setViewMode("overview")}
             className={cn(
               "flex-1 py-1.5 px-3 rounded-xl text-xs font-bold transition-all text-center flex items-center justify-center gap-1.5",
@@ -304,24 +292,37 @@ export function MobileStudentProfileView({
             <User className="size-3.5" />
             <span>Overview & Attendance</span>
           </button>
+          <button
+            onClick={() => setViewMode("extended")}
+            className={cn(
+              "flex-1 py-1.5 px-3 rounded-xl text-xs font-bold transition-all text-center flex items-center justify-center gap-1.5",
+              viewMode === "extended"
+                ? "bg-[#180A40] text-white shadow-sm"
+                : "bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-400 hover:bg-slate-200"
+            )}
+          >
+            <Sparkles className="size-3.5" />
+            <span>6-Tab Tarbiyah Profile</span>
+          </button>
         </div>
       </div>
 
       {/* Main Content Area */}
       <div className="flex-1 overflow-y-auto">
-        {viewMode === "extended" ? (
-          targetParticipantId ? (
-            <ExtendedProfilePage
-              participantId={targetParticipantId}
-              capabilities={capabilities}
-            />
-          ) : (
-            <div className="p-6 text-center text-slate-400 text-sm">
-              No participant ID found for extended profile.
-            </div>
-          )
+        {viewMode === "overview" ? (
+          <SelfProfilePage
+            participantId={targetParticipantId}
+            isSelf={isStudentSelf}
+          />
+        ) : targetParticipantId ? (
+          <ExtendedProfilePage
+            participantId={targetParticipantId}
+            capabilities={capabilities}
+          />
         ) : (
-          <SelfProfilePage />
+          <div className="p-6 text-center text-slate-400 text-sm">
+            No participant ID found for extended profile.
+          </div>
         )}
       </div>
     </div>

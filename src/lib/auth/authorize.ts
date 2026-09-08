@@ -22,6 +22,7 @@ export {
   canAccessResourceScope,
   isHqRole,
   isStaffRole,
+  userHasCapability,
 };
 export type { ResourceScope, SessionUser };
 

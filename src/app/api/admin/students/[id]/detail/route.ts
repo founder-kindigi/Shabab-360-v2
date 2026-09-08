@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth, requireCapability, requireResourceScope, requireRole } from "@/lib/auth/authorize";
+import { requireAuth, requireResourceScope, requireRole, userHasCapability } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
 import { moneyToNumber } from "@/lib/money";
 
@@ -19,8 +19,11 @@ export async function GET(
 
   const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
-  const capabilityAuth = await requireCapability("students.manage");
-  if (capabilityAuth instanceof NextResponse) return capabilityAuth;
+  const hasManage = await userHasCapability(auth.user, "students.manage");
+  const hasProfileView = await userHasCapability(auth.user, "students.profile.view");
+  if (!hasManage && !hasProfileView) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
 
   const { id } = await params;
 
@@ -193,6 +196,8 @@ export async function GET(
       name: participant.name,
       phone: participant.phone,
       dateOfBirth: participant.dateOfBirth?.toISOString() ?? null,
+      age: participant.age,
+      gradeClass: participant.gradeClass,
       gender: participant.gender,
       address: participant.address,
       state: participant.state,
