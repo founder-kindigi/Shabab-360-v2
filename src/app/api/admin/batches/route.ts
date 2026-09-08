@@ -148,6 +148,27 @@ export async function POST(request: NextRequest) {
   });
   if (scopeError) return scopeError;
 
+  // Enforce one active batch per city
+  const existingActiveBatch = await db.batch.findFirst({
+    where: {
+      isActive: true,
+      OR: [
+        { cityId: park.cityId },
+        { park: { cityId: park.cityId } },
+      ],
+    },
+    select: { id: true, name: true },
+  });
+
+  if (existingActiveBatch) {
+    return NextResponse.json(
+      {
+        error: `An active batch ("${existingActiveBatch.name}") already exists for this city. Please deactivate or conclude the existing batch before creating a new one.`,
+      },
+      { status: 400 }
+    );
+  }
+
   const batch = await db.batch.create({
     data: {
       name: parsed.data.name,

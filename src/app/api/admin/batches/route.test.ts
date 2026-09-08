@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   requireCapability: vi.fn(),
   parkFindUnique: vi.fn(),
   batchCreate: vi.fn(),
+  batchFindFirst: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/authorize", async (importOriginal) => {
@@ -19,7 +20,7 @@ vi.mock("@/lib/auth/authorize", async (importOriginal) => {
 vi.mock("@/lib/db", () => ({
   db: {
     park: { findUnique: mocks.parkFindUnique },
-    batch: { create: mocks.batchCreate },
+    batch: { create: mocks.batchCreate, findFirst: mocks.batchFindFirst },
   },
 }));
 vi.mock("@/lib/audit", () => ({ logAudit: vi.fn() }));
@@ -50,6 +51,30 @@ describe("POST /api/admin/batches dynamic authorization & real scope boundary", 
       startDate: new Date("2026-08-01"),
       endDate: null,
     });
+    mocks.batchFindFirst.mockResolvedValue(null);
+  });
+
+  it("denies creating a batch if an active batch already exists for the city -> 400", async () => {
+    mocks.requireAuth.mockResolvedValue({
+      user: { id: "city-head-1", role: "city_head", assignedCityId: "city-1" },
+    });
+    mocks.batchFindFirst.mockResolvedValue({
+      id: "batch-existing",
+      name: "Lahore Batch 4",
+    });
+
+    const response = await POST(
+      new NextRequest("http://localhost/api/admin/batches", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ name: "Lahore Batch 5", parkId: "park-1", startDate: "2026-08-01" }),
+      })
+    );
+
+    expect(response.status).toBe(400);
+    const body = await response.json();
+    expect(body.error).toContain('An active batch ("Lahore Batch 4") already exists for this city');
+    expect(mocks.batchCreate).not.toHaveBeenCalled();
   });
 
   it("stops on missing organisation.manage capability -> 403 and no write", async () => {

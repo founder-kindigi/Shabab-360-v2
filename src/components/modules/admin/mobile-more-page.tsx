@@ -67,7 +67,13 @@ export function MobileMorePage({ onNavigate, role: propRole }: MobileMorePagePro
   const queryClient = useQueryClient();
   const user = session?.user as any;
   const email = user?.email || "admin@shabab.pk";
-  const role = propRole || user?.role || "super_admin";
+  const role = propRole || user?.role || "student";
+  const isHq = role === "super_admin" || role === "program_admin";
+  const isCityHead = role === "city_head";
+  const isParkStaff = role === "park_lead" || role === "park_admin";
+  const isMurabbi = role === "murabbi";
+  const isStudent = role === "student";
+  const isGuardian = role === "guardian";
 
   // Sheet open states
   const [isPermissionsOpen, setIsPermissionsOpen] = useState(false);
@@ -641,51 +647,60 @@ export function MobileMorePage({ onNavigate, role: propRole }: MobileMorePagePro
           </div>
         </div>
 
-        {/* ACCESS Section */}
-        <div className="space-y-2">
-          <h2 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider px-2">
-            ACCESS & SECURITY
-          </h2>
-          <div className="rounded-2xl bg-white dark:bg-[#180E30] border border-slate-100 dark:border-white/10 shadow-sm overflow-hidden flex flex-col">
-            <button
-              onClick={() => setIsPermissionsOpen(true)}
-              className="w-full p-4 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-white/5 transition-colors border-b border-slate-100 dark:border-white/10"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-950/40 flex items-center justify-center shrink-0">
-                  <Lock className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                </div>
-                <div className="text-left">
-                  <p className="text-sm font-bold text-slate-900 dark:text-white">Permissions</p>
-                  <p className="text-xs text-slate-400 dark:text-slate-400">Manage app admins</p>
-                </div>
-              </div>
-              <ChevronRight className="w-4 h-4 text-slate-400" />
-            </button>
-            <SettingRow
-              icon={<ShieldCheck className="w-4 h-4 text-emerald-600" />}
-              iconBg="bg-emerald-50"
-              title="Security Access & Roles"
-              subtitle="Role RBAC matrix, tokens & capabilities"
-              onClick={() => onNavigate("security-access")}
-            />
-            <SettingRow
-              icon={<Contact className="w-4 h-4 text-indigo-600" />}
-              iconBg="bg-indigo-50"
-              title="Staff Directory"
-              subtitle="Murabbis, Park Leads, Admins & phone roster"
-              onClick={() => onNavigate("staff-directory")}
-            />
-            <SettingRow
-              icon={<History className="w-4 h-4 text-slate-600" />}
-              iconBg="bg-slate-100"
-              title="Audit Log Trail"
-              subtitle="Security events, mutations & tamper audit"
-              onClick={() => onNavigate("audit-log")}
-              isLast={true}
-            />
+        {/* ACCESS Section - Staff / Admins Only */}
+        {(isHq || isCityHead || isParkStaff) && (
+          <div className="space-y-2">
+            <h2 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider px-2">
+              ACCESS & SECURITY
+            </h2>
+            <div className="rounded-2xl bg-white dark:bg-[#180E30] border border-slate-100 dark:border-white/10 shadow-sm overflow-hidden flex flex-col">
+              {isHq && (
+                <>
+                  <button
+                    onClick={() => setIsPermissionsOpen(true)}
+                    className="w-full p-4 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-white/5 transition-colors border-b border-slate-100 dark:border-white/10"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-950/40 flex items-center justify-center shrink-0">
+                        <Lock className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                      </div>
+                      <div className="text-left">
+                        <p className="text-sm font-bold text-slate-900 dark:text-white">Permissions</p>
+                        <p className="text-xs text-slate-400 dark:text-slate-400">Manage app admins</p>
+                      </div>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-slate-400" />
+                  </button>
+                  <SettingRow
+                    icon={<ShieldCheck className="w-4 h-4 text-emerald-600" />}
+                    iconBg="bg-emerald-50"
+                    title="Security Access & Roles"
+                    subtitle="Role RBAC matrix, tokens & capabilities"
+                    onClick={() => onNavigate("security-access")}
+                  />
+                </>
+              )}
+              <SettingRow
+                icon={<Contact className="w-4 h-4 text-indigo-600" />}
+                iconBg="bg-indigo-50"
+                title="Staff Directory"
+                subtitle="Murabbis, Park Leads, Admins & phone roster"
+                onClick={() => onNavigate("staff-directory")}
+                isLast={!isHq}
+              />
+              {isHq && (
+                <SettingRow
+                  icon={<History className="w-4 h-4 text-slate-600" />}
+                  iconBg="bg-slate-100"
+                  title="Audit Log Trail"
+                  subtitle="Security events, mutations & tamper audit"
+                  onClick={() => onNavigate("audit-log")}
+                  isLast={true}
+                />
+              )}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* OPERATIONS & DESKS Section */}
         <div className="space-y-2">
@@ -693,27 +708,33 @@ export function MobileMorePage({ onNavigate, role: propRole }: MobileMorePagePro
             OPERATIONS & DESKS
           </h2>
           <div className="rounded-2xl bg-white dark:bg-[#180E30] border border-slate-100 dark:border-white/10 shadow-sm flex flex-col overflow-hidden">
-            <SettingRow
-              icon={<UserPlus className="w-4 h-4 text-purple-600" />}
-              iconBg="bg-purple-50"
-              title="Admissions Desk"
-              subtitle="Intake applications, screening & cohorts"
-              onClick={() => onNavigate("admissions")}
-            />
-            <SettingRow
-              icon={<PhoneCall className="w-4 h-4 text-amber-600" />}
-              iconBg="bg-amber-50"
-              title="Retention Calling"
-              subtitle="Outreach pipeline, WhatsApp & scripts"
-              onClick={() => onNavigate("calling")}
-            />
-            <SettingRow
-              icon={<CalendarCheck className="w-4 h-4 text-blue-600" />}
-              iconBg="bg-blue-50"
-              title="Weekly Mashwara"
-              subtitle="Executive shura, decisions & minutes"
-              onClick={() => onNavigate("mashwara")}
-            />
+            {(isHq || isCityHead || isParkStaff) && (
+              <SettingRow
+                icon={<UserPlus className="w-4 h-4 text-purple-600" />}
+                iconBg="bg-purple-50"
+                title="Admissions Desk"
+                subtitle="Intake applications, screening & cohorts"
+                onClick={() => onNavigate("admissions")}
+              />
+            )}
+            {(isHq || isCityHead || isParkStaff || isMurabbi) && (
+              <>
+                <SettingRow
+                  icon={<PhoneCall className="w-4 h-4 text-amber-600" />}
+                  iconBg="bg-amber-50"
+                  title="Retention Calling"
+                  subtitle="Outreach pipeline, WhatsApp & scripts"
+                  onClick={() => onNavigate("calling")}
+                />
+                <SettingRow
+                  icon={<CalendarCheck className="w-4 h-4 text-blue-600" />}
+                  iconBg="bg-blue-50"
+                  title="Weekly Mashwara"
+                  subtitle="Executive shura, decisions & minutes"
+                  onClick={() => onNavigate("mashwara")}
+                />
+              </>
+            )}
             <SettingRow
               icon={<Calendar className="w-4 h-4 text-rose-600" />}
               iconBg="bg-rose-50"
@@ -721,13 +742,15 @@ export function MobileMorePage({ onNavigate, role: propRole }: MobileMorePagePro
               subtitle="Special camps, sports days & park overrides"
               onClick={() => onNavigate("events")}
             />
-            <SettingRow
-              icon={<Users className="w-4 h-4 text-teal-600" />}
-              iconBg="bg-teal-50"
-              title="Collaboration Teams"
-              subtitle="Sports, Skills, Media & Tadreeb squads"
-              onClick={() => onNavigate("teams")}
-            />
+            {(isHq || isCityHead || isParkStaff || isMurabbi) && (
+              <SettingRow
+                icon={<Users className="w-4 h-4 text-teal-600" />}
+                iconBg="bg-teal-50"
+                title="Collaboration Teams"
+                subtitle="Sports, Skills, Media & Tadreeb squads"
+                onClick={() => onNavigate("teams")}
+              />
+            )}
             <SettingRow
               icon={<MessageSquare className="w-4 h-4 text-sky-600" />}
               iconBg="bg-sky-50"
@@ -735,63 +758,73 @@ export function MobileMorePage({ onNavigate, role: propRole }: MobileMorePagePro
               subtitle="Park stories, Q&A, likes & brotherhood"
               onClick={() => onNavigate("community")}
             />
-            <SettingRow
-              icon={<GraduationCap className="w-4 h-4 text-violet-600" />}
-              iconBg="bg-violet-50"
-              title="Alumni Network"
-              subtitle="Graduates, mentorship & career registry"
-              onClick={() => onNavigate("alumni")}
-            />
-            <SettingRow
-              icon={<CreditCard className="w-4 h-4 text-emerald-600" />}
-              iconBg="bg-emerald-50"
-              title="Fees & Accounts"
-              subtitle="Challans, collections, waivers & dues"
-              onClick={() => onNavigate("fees")}
-            />
-            <SettingRow
-              icon={<Trophy className="w-4 h-4 text-amber-600" />}
-              iconBg="bg-amber-50"
-              title="Gamification & Badges"
-              subtitle="Leaderboard, points, streaks & awards"
-              onClick={() => onNavigate("gamification")}
-            />
-            <SettingRow
-              icon={<Award className="w-4 h-4 text-purple-600" />}
-              iconBg="bg-purple-50"
-              title="Certificates & Graduation"
-              subtitle="Diplomas, cryptographic verification & shares"
-              onClick={() => onNavigate("certificates")}
-            />
-            <SettingRow
-              icon={<BookOpen className="w-4 h-4 text-sky-600" />}
-              iconBg="bg-sky-50"
-              title="Content Planner LMS"
-              subtitle="Tarbiyah curriculum, sessions & blocks"
-              onClick={() => onNavigate("content-planner")}
-            />
-            <SettingRow
-              icon={<Heart className="w-4 h-4 text-emerald-600" />}
-              iconBg="bg-emerald-50"
-              title="Islah-i-Mamulat"
-              subtitle="Spiritual habits, 40-day streak & logs"
-              onClick={() => onNavigate("islah")}
-            />
-            <SettingRow
-              icon={<UserCheck className="w-4 h-4 text-purple-600" />}
-              iconBg="bg-purple-50"
-              title="Shabab Profile"
-              subtitle="6-tab comprehensive Tarbiyah & development record"
-              onClick={() => onNavigate("student-profile")}
-            />
-            <SettingRow
-              icon={<Database className="w-4 h-4 text-indigo-600" />}
-              iconBg="bg-indigo-50"
-              title="Sync & Offline Cache"
-              subtitle="Queue mutations, conflicts & offline storage"
-              onClick={() => onNavigate("sync")}
-              isLast={true}
-            />
+            {(isHq || isCityHead) && (
+              <SettingRow
+                icon={<GraduationCap className="w-4 h-4 text-violet-600" />}
+                iconBg="bg-violet-50"
+                title="Alumni Network"
+                subtitle="Graduates, mentorship & career registry"
+                onClick={() => onNavigate("alumni")}
+              />
+            )}
+            {(isHq || isCityHead || isParkStaff || isGuardian) && (
+              <SettingRow
+                icon={<CreditCard className="w-4 h-4 text-emerald-600" />}
+                iconBg="bg-emerald-50"
+                title={isGuardian ? "Fee Receipts & Dues" : "Fees & Accounts"}
+                subtitle={isGuardian ? "View fee vouchers & payment history" : "Challans, collections, waivers & dues"}
+                onClick={() => onNavigate("fees")}
+              />
+            )}
+            {(isHq || isCityHead || isParkStaff || isMurabbi || isStudent) && (
+              <>
+                <SettingRow
+                  icon={<Trophy className="w-4 h-4 text-amber-600" />}
+                  iconBg="bg-amber-50"
+                  title="Gamification & Badges"
+                  subtitle="Leaderboard, points, streaks & awards"
+                  onClick={() => onNavigate("gamification")}
+                />
+                <SettingRow
+                  icon={<Award className="w-4 h-4 text-purple-600" />}
+                  iconBg="bg-purple-50"
+                  title="Certificates & Graduation"
+                  subtitle="Diplomas, cryptographic verification & shares"
+                  onClick={() => onNavigate("certificates")}
+                />
+                <SettingRow
+                  icon={<BookOpen className="w-4 h-4 text-sky-600" />}
+                  iconBg="bg-sky-50"
+                  title="Content Planner LMS"
+                  subtitle="Tarbiyah curriculum, sessions & blocks"
+                  onClick={() => onNavigate("content-planner")}
+                />
+                <SettingRow
+                  icon={<Heart className="w-4 h-4 text-emerald-600" />}
+                  iconBg="bg-emerald-50"
+                  title="Islah-i-Mamulat"
+                  subtitle="Spiritual habits, 40-day streak & logs"
+                  onClick={() => onNavigate("islah")}
+                />
+                <SettingRow
+                  icon={<UserCheck className="w-4 h-4 text-purple-600" />}
+                  iconBg="bg-purple-50"
+                  title={isStudent ? "My Shabab Profile" : "Shabab Profile"}
+                  subtitle="6-tab comprehensive Tarbiyah & development record"
+                  onClick={() => onNavigate("student-profile")}
+                />
+              </>
+            )}
+            {(isHq || isCityHead || isParkStaff || isMurabbi) && (
+              <SettingRow
+                icon={<Database className="w-4 h-4 text-indigo-600" />}
+                iconBg="bg-indigo-50"
+                title="Sync & Offline Cache"
+                subtitle="Queue mutations, conflicts & offline storage"
+                onClick={() => onNavigate("sync")}
+                isLast={true}
+              />
+            )}
           </div>
         </div>
 
@@ -801,27 +834,33 @@ export function MobileMorePage({ onNavigate, role: propRole }: MobileMorePagePro
             SETTINGS & TOOLS
           </h2>
           <div className="rounded-2xl bg-white dark:bg-[#180E30] border border-slate-100 dark:border-white/10 shadow-sm flex flex-col overflow-hidden">
-            <SettingRow
-              icon={<BarChart2 className="w-4 h-4 text-emerald-600" />}
-              iconBg="bg-emerald-50"
-              title="Analysis"
-              subtitle="Attendance by date, park & murabbi"
-              onClick={() => onNavigate("analysis")}
-            />
-            <SettingRow
-              icon={<FileText className="w-4 h-4 text-blue-600" />}
-              iconBg="bg-blue-50"
-              title="Custom Reports Builder"
-              subtitle="Multi-domain query, columns & CSV export"
-              onClick={() => onNavigate("custom-reports")}
-            />
-            <SettingRow
-              icon={<Package className="w-4 h-4 text-amber-600" />}
-              iconBg="bg-amber-50"
-              title="Procurement & Stock"
-              subtitle="Central inventory, requisitions & supplies"
-              onClick={() => onNavigate("procurement")}
-            />
+            {(isHq || isCityHead || isParkStaff) && (
+              <SettingRow
+                icon={<BarChart2 className="w-4 h-4 text-emerald-600" />}
+                iconBg="bg-emerald-50"
+                title="Analysis"
+                subtitle="Attendance by date, park & murabbi"
+                onClick={() => onNavigate("analysis")}
+              />
+            )}
+            {(isHq || isCityHead) && (
+              <SettingRow
+                icon={<FileText className="w-4 h-4 text-blue-600" />}
+                iconBg="bg-blue-50"
+                title="Custom Reports Builder"
+                subtitle="Multi-domain query, columns & CSV export"
+                onClick={() => onNavigate("custom-reports")}
+              />
+            )}
+            {(isHq || isCityHead || isParkStaff) && (
+              <SettingRow
+                icon={<Package className="w-4 h-4 text-amber-600" />}
+                iconBg="bg-amber-50"
+                title="Procurement & Stock"
+                subtitle="Central inventory, requisitions & supplies"
+                onClick={() => onNavigate("procurement")}
+              />
+            )}
             <SettingRow
               icon={<HelpCircle className="w-4 h-4 text-indigo-600" />}
               iconBg="bg-indigo-50"
@@ -829,70 +868,80 @@ export function MobileMorePage({ onNavigate, role: propRole }: MobileMorePagePro
               subtitle="Curriculum guides, policies & articles"
               onClick={() => onNavigate("knowledge-base")}
             />
-            <SettingRow
-              icon={<Megaphone className="w-4 h-4 text-rose-600" />}
-              iconBg="bg-rose-50"
-              title="Notifications Hub"
-              subtitle="Push alerts, broadcasts & targeted notices"
-              onClick={() => onNavigate("notifications")}
-            />
-            <SettingRow
-              icon={<FileUp className="w-4 h-4 text-teal-600" />}
-              iconBg="bg-teal-50"
-              title="Bulk Portal Import"
-              subtitle="Universal intake & student .xlsx parser"
-              onClick={() => onNavigate("portal-import")}
-            />
-            <SettingRow
-              icon={<Info className="w-4 h-4 text-sky-600" />}
-              iconBg="bg-sky-50"
-              title="Program details"
-              subtitle="Name and tagline"
-              onClick={() => setIsProgramDetailsOpen(true)}
-            />
-            <SettingRow
-              icon={<Bell className="w-4 h-4 text-amber-600" />}
-              iconBg="bg-amber-50"
-              title="Post a notice"
-              subtitle="Announcement for everyone"
-              onClick={() => setIsPostNoticeOpen(true)}
-            />
-            <SettingRow
-              icon={<Upload className="w-4 h-4 text-purple-600" />}
-              iconBg="bg-purple-50"
-              title="Import roster (.xlsx)"
-              subtitle="Upload the intake template"
-              onClick={() => setIsImportRosterOpen(true)}
-            />
-            <SettingRow
-              icon={<Download className="w-4 h-4 text-indigo-600" />}
-              iconBg="bg-indigo-50"
-              title="Download backup"
-              subtitle="Save all data as a file"
-              onClick={() => setIsBackupOpen(true)}
-            />
-            <SettingRow
-              icon={<Database className="w-4 h-4 text-orange-600" />}
-              iconBg="bg-orange-50"
-              title="Restore backup"
-              subtitle="Load data from a file"
-              onClick={() => setIsRestoreOpen(true)}
-            />
-            <SettingRow
-              icon={<RefreshCw className="w-4 h-4 text-rose-600" />}
-              iconBg="bg-rose-50"
-              title="Reload from server"
-              subtitle="Refresh latest data"
-              onClick={handleReload}
-              />
+            {(isHq || isCityHead) && (
+              <>
+                <SettingRow
+                  icon={<Megaphone className="w-4 h-4 text-rose-600" />}
+                  iconBg="bg-rose-50"
+                  title="Notifications Hub"
+                  subtitle="Push alerts, broadcasts & targeted notices"
+                  onClick={() => onNavigate("notifications")}
+                />
+                <SettingRow
+                  icon={<Bell className="w-4 h-4 text-amber-600" />}
+                  iconBg="bg-amber-50"
+                  title="Post a notice"
+                  subtitle="Announcement for everyone"
+                  onClick={() => setIsPostNoticeOpen(true)}
+                />
+              </>
+            )}
+            {isHq && (
+              <>
+                <SettingRow
+                  icon={<FileUp className="w-4 h-4 text-teal-600" />}
+                  iconBg="bg-teal-50"
+                  title="Bulk Portal Import"
+                  subtitle="Universal intake & student .xlsx parser"
+                  onClick={() => onNavigate("portal-import")}
+                />
+                <SettingRow
+                  icon={<Info className="w-4 h-4 text-sky-600" />}
+                  iconBg="bg-sky-50"
+                  title="Program details"
+                  subtitle="Name and tagline"
+                  onClick={() => setIsProgramDetailsOpen(true)}
+                />
+                <SettingRow
+                  icon={<Upload className="w-4 h-4 text-purple-600" />}
+                  iconBg="bg-purple-50"
+                  title="Import roster (.xlsx)"
+                  subtitle="Upload the intake template"
+                  onClick={() => setIsImportRosterOpen(true)}
+                />
+                <SettingRow
+                  icon={<Download className="w-4 h-4 text-indigo-600" />}
+                  iconBg="bg-indigo-50"
+                  title="Download backup"
+                  subtitle="Save all data as a file"
+                  onClick={() => setIsBackupOpen(true)}
+                />
+                <SettingRow
+                  icon={<Database className="w-4 h-4 text-orange-600" />}
+                  iconBg="bg-orange-50"
+                  title="Restore backup"
+                  subtitle="Load data from a file"
+                  onClick={() => setIsRestoreOpen(true)}
+                />
+              </>
+            )}
+            {!isStudent && !isGuardian && (
               <SettingRow
-                icon={<LogOut className="w-4 h-4 text-red-600" />}
-                iconBg="bg-red-50"
-                title="Sign out"
-                subtitle="End your session"
-                onClick={() => signOut({ callbackUrl: "/?logout=true" })}
-                isLast
+                icon={<RefreshCw className="w-4 h-4 text-rose-600" />}
+                iconBg="bg-rose-50"
+                title="Reload from server"
+                subtitle="Refresh latest data"
+                onClick={handleReload}
               />
+            )}
+            <SettingRow
+              icon={<LogOut className="w-4 h-4 text-red-600" />}
+              iconBg="bg-red-50"
+              title="Sign out"
+              subtitle="End your session"
+              onClick={() => signOut({ callbackUrl: "/?logout=true" })}
+              isLast
+            />
           </div>
         </div>
       </div>

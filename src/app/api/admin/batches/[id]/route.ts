@@ -101,6 +101,32 @@ export async function PATCH(
     data.endDate = data.endDate ? new Date(data.endDate) : null;
   }
 
+  // Enforce one active batch per city if reactivating
+  if (data.isActive === true && !existing.isActive) {
+    const targetCityId = existing.cityId ?? existing.park.cityId;
+    if (targetCityId) {
+      const activeBatch = await db.batch.findFirst({
+        where: {
+          id: { not: id },
+          isActive: true,
+          OR: [
+            { cityId: targetCityId },
+            { park: { cityId: targetCityId } },
+          ],
+        },
+        select: { id: true, name: true },
+      });
+      if (activeBatch) {
+        return NextResponse.json(
+          {
+            error: `An active batch ("${activeBatch.name}") already exists for this city. Please deactivate it first.`,
+          },
+          { status: 400 }
+        );
+      }
+    }
+  }
+
   const old = {
     name: existing.name,
     startDate: existing.startDate,

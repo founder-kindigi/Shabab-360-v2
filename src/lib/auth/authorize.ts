@@ -39,8 +39,7 @@ export async function requireRole(roles: (UserRole | StaffRole)[]): Promise<Next
 
   const userRole = (user.role || "").toLowerCase().trim();
   const normalizedAllowed = roles.map((r) => r.toLowerCase());
-  const isHqAdmin = userRole === "super_admin" || userRole === "program_admin";
-  if (!userRole || (!normalizedAllowed.includes(userRole) && !isHqAdmin)) {
+  if (!userRole || !normalizedAllowed.includes(userRole)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

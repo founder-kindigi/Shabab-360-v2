@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   requireCapability: vi.fn(),
   batchFindUnique: vi.fn(),
   batchUpdate: vi.fn(),
+  batchFindFirst: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/authorize", async (importOriginal) => {
@@ -17,7 +18,7 @@ vi.mock("@/lib/auth/authorize", async (importOriginal) => {
   };
 });
 vi.mock("@/lib/db", () => ({
-  db: { batch: { findUnique: mocks.batchFindUnique, update: mocks.batchUpdate } },
+  db: { batch: { findUnique: mocks.batchFindUnique, update: mocks.batchUpdate, findFirst: mocks.batchFindFirst } },
 }));
 vi.mock("@/lib/audit", () => ({ logAudit: vi.fn() }));
 
@@ -125,6 +126,35 @@ describe("PATCH & DELETE /api/admin/batches/[id] dynamic authorization & real sc
       return null;
     });
     mocks.batchUpdate.mockResolvedValue({ ...existingSameParkBatch });
+    mocks.batchFindFirst.mockResolvedValue(null);
+  });
+
+  it("denies reactivating a batch if another active batch already exists in the city -> 400", async () => {
+    mocks.requireAuth.mockResolvedValue({
+      user: { id: "city-head-1", role: "city_head", assignedCityId: "city-1" },
+    });
+    mocks.batchFindUnique.mockResolvedValue({
+      ...existingSameParkBatch,
+      isActive: false,
+    });
+    mocks.batchFindFirst.mockResolvedValue({
+      id: "batch-active-other",
+      name: "Lahore Batch 5",
+    });
+
+    const response = await PATCH(
+      new NextRequest("http://localhost/api/admin/batches/batch-1", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ isActive: true }),
+      }),
+      { params: Promise.resolve({ id: "batch-1" }) }
+    );
+
+    expect(response.status).toBe(400);
+    const body = await response.json();
+    expect(body.error).toContain('An active batch ("Lahore Batch 5") already exists for this city');
+    expect(mocks.batchUpdate).not.toHaveBeenCalled();
   });
 
   it("stops on missing organisation.manage capability -> 403 and no write", async () => {

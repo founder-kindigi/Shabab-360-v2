@@ -1,0 +1,1744 @@
+{
+  "auditedCommit": "d81df15",
+  "routeFiles": 192,
+  "handlers": 291,
+  "postgresModels": 72,
+  "postgresMigrationFiles": 24,
+  "missingMigrationTables": [
+    "fee_donations",
+    "financial_adjustments",
+    "procurement_items",
+    "park_stocks",
+    "stock_requests",
+    "purchase_orders",
+    "stock_transfers",
+    "stock_audit_logs",
+    "team_chat_messages",
+    "point_transactions",
+    "badges",
+    "student_badges",
+    "digital_resources",
+    "knowledge_articles"
+  ],
+  "clientDatasetImports": [
+    "src/components/modules/admin/fees-page.tsx",
+    "src/components/modules/admin/mobile-portal-import-page.tsx",
+    "src/components/modules/admin/portal-import-page.tsx"
+  ],
+  "clientBundleVerification": [
+    {
+      "file": ".next/static/chunks/3h7mh07l_5ves.js",
+      "matchingMobileRows": 759,
+      "matchingAddressRows": 727
+    }
+  ],
+  "bundledDatasetRows": 759,
+  "bundledDatasetFieldNames": [
+    "sr",
+    "registeredDate",
+    "name",
+    "email",
+    "cnic",
+    "mobile",
+    "whatsapp",
+    "eventName",
+    "callResponseStatus",
+    "callResponseText",
+    "paymentMethod",
+    "paymentOn",
+    "paymentAmount",
+    "dob",
+    "age",
+    "gender",
+    "isStudentAlburhan",
+    "batch",
+    "group",
+    "institutionType",
+    "interests",
+    "skills",
+    "country",
+    "province",
+    "district",
+    "city",
+    "address",
+    "status",
+    "remarks",
+    "applicantCallStatus",
+    "profession",
+    "sector",
+    "day",
+    "fromTime",
+    "toTime",
+    "isAlim",
+    "grade",
+    "fatherName",
+    "fatherOccupation",
+    "medicalIssue",
+    "affiliationAlburhan",
+    "phaseNumber",
+    "atfalAffiliation",
+    "currentEducationStatus",
+    "currentKhidmatStatus",
+    "responsibilityMajlis",
+    "otherMajlisResponsibility",
+    "studiedSeerahBefore",
+    "taughtSeerahBefore",
+    "studentPhone",
+    "studentWhatsapp",
+    "parentPhone",
+    "parentWhatsapp",
+    "mehramPhone",
+    "mehramWhatsapp",
+    "campus",
+    "availableTiming",
+    "pledgeOfAllegiance",
+    "murabiName",
+    "sendingRoutines",
+    "mamoolatLevel",
+    "otherMamoolat",
+    "currentStatus",
+    "shiftTime",
+    "studiedSeeratCircle",
+    "businesspersonType",
+    "educationLevel",
+    "highestQualification",
+    "eventLocation",
+    "park",
+    "rawFields"
+  ],
+  "serviceWorkerCallers": [],
+  "routeInventory": [
+    {
+      "file": "src/app/api/admin/access/role-overrides/route.ts",
+      "methods": [
+        "GET",
+        "PUT",
+        "DELETE"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/admin/access/users/[id]/overrides/route.ts",
+      "methods": [
+        "GET",
+        "PUT",
+        "DELETE"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/admin/admissions/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/admin/admissions/[id]/convert/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/admin/admissions/[id]/interviews/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/admin/admissions/[id]/route.ts",
+      "methods": [
+        "GET",
+        "PATCH",
+        "DELETE"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/admin/alumni/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "mentionsCapabilityGate": false,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/admin/alumni/[id]/route.ts",
+      "methods": [
+        "GET",
+        "PATCH",
+        "DELETE"
+      ],
+      "mentionsCapabilityGate": false,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/admin/attendance/import/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "mentionsCapabilityGate": false,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/admin/attendance-events/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/admin/attendance-events/[eventId]/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": true
+    },
+    {
+      "file": "src/app/api/admin/audit-log/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/admin/batches/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": true
+    },
+    {
+      "file": "src/app/api/admin/batches/[id]/attendance-schedule/route.ts",
+      "methods": [
+        "GET",
+        "PUT"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": true
+    },
+    {
+      "file": "src/app/api/admin/batches/[id]/route.ts",
+      "methods": [
+        "GET",
+        "PATCH",
+        "DELETE"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": true
+    },
+    {
+      "file": "src/app/api/admin/certificates/batch/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": true
+    },
+    {
+      "file": "src/app/api/admin/certificates/[participantId]/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": true
+    },
+    {
+      "file": "src/app/api/admin/cities/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/admin/cities/[id]/route.ts",
+      "methods": [
+        "GET",
+        "PATCH",
+        "DELETE"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/admin/collaboration-teams/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/admin/collaboration-teams/[teamId]/members/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/admin/collaboration-teams/[teamId]/members/[memberId]/route.ts",
+      "methods": [
+        "PATCH",
+        "DELETE"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/admin/collaboration-teams/[teamId]/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/admin/content-planner/blocks/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/admin/content-planner/blocks/[id]/route.ts",
+      "methods": [
+        "GET",
+        "PATCH",
+        "DELETE"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/admin/content-planner/plans/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/admin/content-planner/plans/[id]/route.ts",
+      "methods": [
+        "GET",
+        "PATCH",
+        "DELETE"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/admin/content-planner/sessions/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/admin/content-planner/sessions/[id]/route.ts",
+      "methods": [
+        "GET",
+        "PATCH",
+        "DELETE"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/admin/content-planner/ui-context/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/admin/dashboard/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/admin/events/planner-items/[id]/route.ts",
+      "methods": [
+        "PATCH"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": true
+    },
+    {
+      "file": "src/app/api/admin/events/responsibilities/[id]/revoke/route.ts",
+      "methods": [
+        "POST",
+        "PATCH"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": true
+    },
+    {
+      "file": "src/app/api/admin/events/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": true
+    },
+    {
+      "file": "src/app/api/admin/events/teams/memberships/[id]/route.ts",
+      "methods": [
+        "DELETE"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": true
+    },
+    {
+      "file": "src/app/api/admin/events/teams/[teamId]/memberships/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": true
+    },
+    {
+      "file": "src/app/api/admin/events/[id]/planner-items/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": true
+    },
+    {
+      "file": "src/app/api/admin/events/[id]/responsibilities/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": true
+    },
+    {
+      "file": "src/app/api/admin/events/[id]/route.ts",
+      "methods": [
+        "GET",
+        "PATCH",
+        "DELETE"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": true
+    },
+    {
+      "file": "src/app/api/admin/events/[id]/teams/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": true
+    },
+    {
+      "file": "src/app/api/admin/fees/batch-create/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/admin/fees/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/admin/fees/[id]/payments/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/admin/fees/[id]/remind/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/admin/fees/[id]/route.ts",
+      "methods": [
+        "GET",
+        "PATCH",
+        "DELETE"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/admin/fees/[id]/waiver/route.ts",
+      "methods": [
+        "POST",
+        "DELETE"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/admin/finance/adjustments/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": true
+    },
+    {
+      "file": "src/app/api/admin/finance/donations/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": true
+    },
+    {
+      "file": "src/app/api/admin/finance/reconciliation/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": true
+    },
+    {
+      "file": "src/app/api/admin/gamification/points/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": true
+    },
+    {
+      "file": "src/app/api/admin/groups/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/admin/groups/[id]/route.ts",
+      "methods": [
+        "GET",
+        "PATCH",
+        "DELETE"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": true
+    },
+    {
+      "file": "src/app/api/admin/guardians/batch/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/admin/guardians/invite/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/admin/guardians/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/admin/guardians/[id]/detail/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": true
+    },
+    {
+      "file": "src/app/api/admin/guardians/[id]/route.ts",
+      "methods": [
+        "GET",
+        "PATCH",
+        "DELETE"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/admin/home-analytics/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "mentionsCapabilityGate": false,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/admin/import/guardians/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/admin/import/participants/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": true
+    },
+    {
+      "file": "src/app/api/admin/import/portal-raw/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "mentionsCapabilityGate": false,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/admin/import/users/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/admin/invite/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/admin/knowledge/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/admin/mashwara/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/admin/mashwara/[id]/decisions/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/admin/mashwara/[id]/minutes/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "mentionsCapabilityGate": false,
+      "mentionsScopeGate": true
+    },
+    {
+      "file": "src/app/api/admin/mashwara/[id]/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/admin/mashwara/[id]/shares/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/admin/mashwara/[id]/shares/[shareId]/route.ts",
+      "methods": [
+        "DELETE"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/admin/murabbis/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "mentionsCapabilityGate": false,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/admin/murabbis/[id]/route.ts",
+      "methods": [
+        "GET",
+        "PATCH",
+        "DELETE"
+      ],
+      "mentionsCapabilityGate": false,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/admin/notifications/queue/route.ts",
+      "methods": [
+        "GET",
+        "PATCH"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/admin/operational-calendar/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": true
+    },
+    {
+      "file": "src/app/api/admin/parks/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/admin/parks/[id]/route.ts",
+      "methods": [
+        "GET",
+        "PATCH",
+        "DELETE"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/admin/payments/[id]/receipt/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": true
+    },
+    {
+      "file": "src/app/api/admin/people/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/admin/pilot/health/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/admin/pilot/provision/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/admin/pilot/verify-scopes/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": true
+    },
+    {
+      "file": "src/app/api/admin/procurement/audit/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": true
+    },
+    {
+      "file": "src/app/api/admin/procurement/items/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/admin/procurement/orders/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": true
+    },
+    {
+      "file": "src/app/api/admin/procurement/requests/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": true
+    },
+    {
+      "file": "src/app/api/admin/procurement/requests/[id]/route.ts",
+      "methods": [
+        "PATCH"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": true
+    },
+    {
+      "file": "src/app/api/admin/procurement/stock/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": true
+    },
+    {
+      "file": "src/app/api/admin/procurement/transfers/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": true
+    },
+    {
+      "file": "src/app/api/admin/reports/admissions/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/admin/reports/attendance/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/admin/reports/attendance-report/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/admin/reports/custom/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "mentionsCapabilityGate": false,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/admin/reports/export/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/admin/reports/fee-report/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/admin/reports/fees/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/admin/reports/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/admin/resources/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": true
+    },
+    {
+      "file": "src/app/api/admin/security/domain-allowlist/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/admin/settings/external-links/route.ts",
+      "methods": [
+        "GET",
+        "PUT"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/admin/students/batch/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/admin/students/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/admin/students/[id]/detail/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": true
+    },
+    {
+      "file": "src/app/api/admin/students/[id]/dropout/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": true
+    },
+    {
+      "file": "src/app/api/admin/students/[id]/points/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": true
+    },
+    {
+      "file": "src/app/api/admin/students/[id]/profile/route.ts",
+      "methods": [
+        "GET",
+        "PUT"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": true
+    },
+    {
+      "file": "src/app/api/admin/students/[id]/route.ts",
+      "methods": [
+        "PATCH",
+        "DELETE"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/admin/teams/members/[membershipId]/route.ts",
+      "methods": [
+        "DELETE"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": true
+    },
+    {
+      "file": "src/app/api/admin/teams/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": true
+    },
+    {
+      "file": "src/app/api/admin/teams/ui-context/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/admin/teams/[id]/activities/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": true
+    },
+    {
+      "file": "src/app/api/admin/teams/[id]/activities/[activityId]/route.ts",
+      "methods": [
+        "PATCH",
+        "DELETE"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": true
+    },
+    {
+      "file": "src/app/api/admin/teams/[id]/chat/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": true
+    },
+    {
+      "file": "src/app/api/admin/teams/[id]/documents/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": true
+    },
+    {
+      "file": "src/app/api/admin/teams/[id]/members/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": true
+    },
+    {
+      "file": "src/app/api/admin/teams/[id]/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": true
+    },
+    {
+      "file": "src/app/api/admin/users/batch/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/admin/users/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/admin/users/[id]/route.ts",
+      "methods": [
+        "PATCH",
+        "DELETE"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/announcements/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/announcements/[id]/route.ts",
+      "methods": [
+        "DELETE"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/auth/reset-password/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "mentionsCapabilityGate": false,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/auth/[...nextauth]/route.ts",
+      "methods": [],
+      "mentionsCapabilityGate": false,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/calling/assignments/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "mentionsCapabilityGate": false,
+      "mentionsScopeGate": true
+    },
+    {
+      "file": "src/app/api/calling/campaigns/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": true
+    },
+    {
+      "file": "src/app/api/calling/campaigns/[id]/leads/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/calling/campaigns/[id]/route.ts",
+      "methods": [
+        "GET",
+        "PATCH",
+        "DELETE"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": true
+    },
+    {
+      "file": "src/app/api/calling/export/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "mentionsCapabilityGate": false,
+      "mentionsScopeGate": true
+    },
+    {
+      "file": "src/app/api/calling/interactions/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "mentionsCapabilityGate": false,
+      "mentionsScopeGate": true
+    },
+    {
+      "file": "src/app/api/calling/templates/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": true
+    },
+    {
+      "file": "src/app/api/calling/templates/use/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/calling/templates/[id]/status/route.ts",
+      "methods": [
+        "PATCH"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": true
+    },
+    {
+      "file": "src/app/api/calling/workloads/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "mentionsCapabilityGate": false,
+      "mentionsScopeGate": true
+    },
+    {
+      "file": "src/app/api/city-head/dashboard/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/community/polls/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "mentionsCapabilityGate": false,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/community/posts/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "mentionsCapabilityGate": false,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/events/[id]/registrations/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": true
+    },
+    {
+      "file": "src/app/api/gamification/badges/check/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": true
+    },
+    {
+      "file": "src/app/api/gamification/badges/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/guardian/attendance-history/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/guardian/children/[participantId]/profile/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/guardian/consents/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "mentionsCapabilityGate": false,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/guardian/dashboard/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/guardian/emergency-info/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "mentionsCapabilityGate": false,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/guardian/fees/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/guardian/leave-requests/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "mentionsCapabilityGate": false,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/guardian/schedule/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/inventory/central/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "mentionsCapabilityGate": false,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/islah/daily-log/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "mentionsCapabilityGate": false,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/knowledge/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "mentionsCapabilityGate": false,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/me/profile/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/murabbi/dashboard/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/murabbi/groups/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/notifications/feed/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "mentionsCapabilityGate": false,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/notifications/history/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/notifications/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "mentionsCapabilityGate": false,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/notifications/[id]/read/route.ts",
+      "methods": [
+        "PATCH"
+      ],
+      "mentionsCapabilityGate": false,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/park/attendance/check-alerts/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": true
+    },
+    {
+      "file": "src/app/api/park/attendance/events/route.ts",
+      "methods": [
+        "POST",
+        "GET"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": true
+    },
+    {
+      "file": "src/app/api/park/attendance/parks/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "mentionsCapabilityGate": false,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/park/attendance/prepare/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": true
+    },
+    {
+      "file": "src/app/api/park/attendance/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": true
+    },
+    {
+      "file": "src/app/api/park/attendance/summaries/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": true
+    },
+    {
+      "file": "src/app/api/park/attendance/sync/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": true
+    },
+    {
+      "file": "src/app/api/park/attendance/warnings/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": true
+    },
+    {
+      "file": "src/app/api/park/attendance/[eventId]/close/route.ts",
+      "methods": [
+        "PATCH"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": true
+    },
+    {
+      "file": "src/app/api/park/attendance/[eventId]/records/[recordId]/route.ts",
+      "methods": [
+        "PATCH"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": true
+    },
+    {
+      "file": "src/app/api/park/attendance/[eventId]/reopen/route.ts",
+      "methods": [
+        "PATCH"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": true
+    },
+    {
+      "file": "src/app/api/park/attendance/[eventId]/reset/route.ts",
+      "methods": [
+        "DELETE"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": true
+    },
+    {
+      "file": "src/app/api/park/attendance/[eventId]/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": true
+    },
+    {
+      "file": "src/app/api/park/dashboard/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/park/evaluations/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "mentionsCapabilityGate": false,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/park/guardians/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/park/guardians/search/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/park/lessons/route.ts",
+      "methods": [
+        "GET",
+        "POST",
+        "DELETE"
+      ],
+      "mentionsCapabilityGate": false,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/park/participants/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/park/planner/route.ts",
+      "methods": [
+        "GET",
+        "POST",
+        "DELETE"
+      ],
+      "mentionsCapabilityGate": false,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/park/roster/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/park/schedule/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/park/staff-attendance/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": true
+    },
+    {
+      "file": "src/app/api/park/staff-attendance/[eventId]/close/route.ts",
+      "methods": [
+        "PATCH"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": true
+    },
+    {
+      "file": "src/app/api/park/staff-attendance/[eventId]/route.ts",
+      "methods": [
+        "GET",
+        "PATCH"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": true
+    },
+    {
+      "file": "src/app/api/park/structure/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "mentionsCapabilityGate": false,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/resources/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "mentionsCapabilityGate": false,
+      "mentionsScopeGate": true
+    },
+    {
+      "file": "src/app/api/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "mentionsCapabilityGate": false,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/student/attendance-history/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/student/dashboard/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/student/fees/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/student/schedule/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "mentionsCapabilityGate": true,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/sync/process/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "mentionsCapabilityGate": false,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/upload/avatar/route.ts",
+      "methods": [],
+      "mentionsCapabilityGate": false,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/upload/document/route.ts",
+      "methods": [],
+      "mentionsCapabilityGate": false,
+      "mentionsScopeGate": false
+    },
+    {
+      "file": "src/app/api/user/profile/route.ts",
+      "methods": [
+        "GET",
+        "PATCH"
+      ],
+      "mentionsCapabilityGate": false,
+      "mentionsScopeGate": false
+    }
+  ]
+}
