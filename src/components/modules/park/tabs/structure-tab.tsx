@@ -140,7 +140,7 @@ export function StructureTab({ parkId, onSelectStudent }: StructureTabProps) {
   );
 
   return (
-    <div className="space-y-6 pb-28">
+    <div className="space-y-6 pb-36">
       {/* Leadership Cards */}
       <div className="grid grid-cols-2 gap-3">
         <Card className="bg-slate-50 border-slate-100 rounded-2xl shadow-none">
@@ -305,12 +305,12 @@ export function StructureTab({ parkId, onSelectStudent }: StructureTabProps) {
         </Sheet>
       )}
 
-      {/* Bottom Centered Action Bar (Locked to max-w-[460px] frame on desktop) */}
-      <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[460px] bg-white border-t border-slate-100 p-4 flex items-center gap-3 shadow-[0_-4px_16px_rgba(0,0,0,0.06)] z-30">
+      {/* Bottom Centered Action Bar (Positioned directly above bottom nav bar) */}
+      <div className="fixed bottom-14 left-1/2 -translate-x-1/2 w-full max-w-[460px] bg-white/95 dark:bg-[#120B24]/95 backdrop-blur-md border-t border-slate-100 dark:border-white/10 p-3 flex items-center gap-3 shadow-[0_-4px_16px_rgba(0,0,0,0.06)] z-30">
         {/* Add Murabbi Button */}
         <Sheet open={isAddMurabbiOpen} onOpenChange={setIsAddMurabbiOpen}>
           <SheetTrigger asChild>
-            <Button className="flex-1 h-12 rounded-xl bg-gradient-to-r from-[#1F0860] via-[#4B0A8F] to-[#D90429] text-white font-bold text-sm shadow-md">
+            <Button className="flex-1 h-11 rounded-xl bg-gradient-to-r from-[#1F0860] via-[#4B0A8F] to-[#D90429] text-white font-bold text-sm shadow-md hover:opacity-95 active:scale-98 transition-all">
               <UserPlus className="w-4 h-4 mr-2" /> + Add murabbi
             </Button>
           </SheetTrigger>
@@ -377,9 +377,9 @@ export function StructureTab({ parkId, onSelectStudent }: StructureTabProps) {
           <SheetTrigger asChild>
             <Button
               variant="outline"
-              className="flex-1 h-12 rounded-xl text-[#4B0A8F] border-purple-200 bg-purple-50/50 hover:bg-purple-100 font-bold text-sm"
+              className="flex-1 h-11 rounded-xl text-[#4B0A8F] dark:text-purple-300 border-purple-200 dark:border-purple-500/30 bg-purple-50/50 dark:bg-purple-950/20 hover:bg-purple-100 dark:hover:bg-purple-900/30 font-bold text-sm active:scale-98 transition-all"
             >
-              <GraduationCap className="w-4 h-4 mr-2 text-[#4B0A8F]" /> Students ({students.length})
+              <GraduationCap className="w-4 h-4 mr-2 text-[#4B0A8F] dark:text-purple-300" /> Students ({students.length})
             </Button>
           </SheetTrigger>
           <SheetContent side="bottom" className="rounded-t-3xl h-[90vh] overflow-hidden flex flex-col max-w-[460px] mx-auto p-0">

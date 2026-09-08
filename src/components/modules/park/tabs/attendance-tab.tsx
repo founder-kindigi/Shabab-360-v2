@@ -94,7 +94,7 @@ export function AttendanceTab({ parkId }: AttendanceTabProps) {
   const murabbisPresentCount = Object.values(murabbiAtt).filter((m) => m === "P").length;
 
   return (
-    <div className="space-y-5 pb-28 select-none">
+    <div className="space-y-5 pb-36 select-none">
       {/* ─── Date Picker & Ratio Bar ──────────────────────────────────────── */}
       <div className="flex items-center justify-between py-2 border-b border-gray-100">
         <div className="flex items-center gap-2 text-gray-800">
@@ -215,9 +215,9 @@ export function AttendanceTab({ parkId }: AttendanceTabProps) {
         </div>
       ))}
 
-      {/* ─── Sticky Footer (Locked to Centered Container) ────────────────── */}
-      <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[460px] bg-white/98 backdrop-blur-md border-t border-gray-100 px-5 py-3 flex items-center justify-between z-30 shadow-lg">
-        <span className="text-xs text-gray-500 font-semibold">{savedMessage}</span>
+      {/* ─── Sticky Footer (Positioned directly above bottom nav bar) ────────────────── */}
+      <div className="fixed bottom-14 left-1/2 -translate-x-1/2 w-full max-w-[460px] bg-white/95 dark:bg-[#120B24]/95 backdrop-blur-md border-t border-gray-100 dark:border-white/10 px-5 py-3 flex items-center justify-between z-30 shadow-lg">
+        <span className="text-xs text-gray-500 dark:text-gray-400 font-semibold">{savedMessage}</span>
         <button
           type="button"
           onClick={handleSave}

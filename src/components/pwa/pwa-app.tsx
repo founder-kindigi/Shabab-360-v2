@@ -381,7 +381,7 @@ export function PwaApp() {
           </main>
 
           {/* ─── Bottom Navigation ────────────────────────────── */}
-          <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[460px] bg-white/98 dark:bg-[#120B24]/98 backdrop-blur-md border-t border-gray-100 dark:border-white/10 z-40 px-2 py-1.5 shadow-md">
+          <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[460px] h-14 bg-white/98 dark:bg-[#120B24]/98 backdrop-blur-md border-t border-gray-100 dark:border-white/10 z-40 px-2 shadow-md flex items-center">
             <div className="flex items-center justify-around w-full">
               {appTabs.map((tab) => {
                 const Icon = tab.icon;

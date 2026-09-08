@@ -244,7 +244,7 @@ function ParkInventoryView({
   const filtered = localItems.filter((item) => filter === "All" || item.category === filter);
 
   return (
-    <div className="w-full max-w-[460px] mx-auto flex flex-col min-h-screen bg-slate-50 pb-28">
+    <div className="w-full max-w-[460px] mx-auto flex flex-col min-h-screen bg-slate-50 pb-36">
       {/* Header */}
       <div className="px-4 pt-4 pb-3 border-b border-slate-100 bg-white sticky top-0 z-20">
         <div className="flex items-center gap-2 mb-3">
@@ -298,19 +298,19 @@ function ParkInventoryView({
         )}
       </div>
 
-      {/* Bottom Centered Action Bar (Frame-locked on desktop) */}
-      <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[460px] bg-white border-t border-slate-100 p-4 flex items-center gap-3 shadow-[0_-4px_16px_rgba(0,0,0,0.06)] z-30">
+      {/* Bottom Centered Action Bar (Positioned directly above bottom nav bar) */}
+      <div className="fixed bottom-14 left-1/2 -translate-x-1/2 w-full max-w-[460px] bg-white/95 dark:bg-[#120B24]/95 backdrop-blur-md border-t border-slate-100 dark:border-white/10 p-3 flex items-center gap-3 shadow-[0_-4px_16px_rgba(0,0,0,0.06)] z-30">
         <Button
           variant="outline"
           onClick={() => alert("Inventory exported as CSV.")}
-          className="h-12 px-4 rounded-xl border-slate-200 text-slate-700 hover:bg-slate-50"
+          className="h-11 px-4 rounded-xl border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/5 active:scale-98 transition-all"
         >
           <Download className="w-4 h-4" />
         </Button>
 
         <Sheet open={isAddLocalOpen} onOpenChange={setIsAddLocalOpen}>
           <SheetTrigger asChild>
-            <Button className="flex-1 h-12 rounded-xl bg-gradient-to-r from-[#1F0860] via-[#4B0A8F] to-[#D90429] text-white font-bold text-sm shadow-md">
+            <Button className="flex-1 h-11 rounded-xl bg-gradient-to-r from-[#1F0860] via-[#4B0A8F] to-[#D90429] text-white font-bold text-sm shadow-md hover:opacity-95 active:scale-98 transition-all">
               <Plus className="w-4 h-4 mr-2" /> + Add local item
             </Button>
           </SheetTrigger>
