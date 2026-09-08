@@ -2,6 +2,13 @@
 
 Last consolidated: 2026-09-08. Verify changing facts against the checkout before relying on them.
 
+- On 2026-09-08, fixed hidden bottom action buttons across park management and inventory screens:
+  1. `src/components/modules/park/tabs/structure-tab.tsx`: Repositioned the action bar (`+ Add murabbi` and `Students` roster buttons) from `fixed bottom-0` to `fixed bottom-14` so it floats directly above the persistent 56px bottom navigation bar without overlapping. Increased scroll container padding to `pb-36` to prevent list items from being obstructed.
+  2. `src/components/modules/park/tabs/attendance-tab.tsx`: Repositioned sticky footer (`Save attendance`) from `fixed bottom-0` to `fixed bottom-14` above the bottom navigation bar and updated container padding to `pb-36`.
+  3. `src/components/modules/park/mobile-inventory-page.tsx`: Repositioned bottom action bar (`Export CSV` and `+ Add local item`) from `fixed bottom-0` to `fixed bottom-14` and updated container padding to `pb-36`.
+  4. `src/components/pwa/pwa-app.tsx`: Set explicit `h-14` on the fixed bottom navigation bar for exact pixel alignment.
+  5. Verified with 0 TypeScript errors (`tsc --noEmit`), 0 ESLint errors (`npm run lint`), and 167/167 passing tests (`src/__tests__/release/`).
+  6. Successfully deployed to Vercel production (`https://shabab360.vercel.app`), verified live HTTP 200 OK. Commit `2a4d62f`.
 - On 2026-09-08, resolved modal and sheet spacing, padding, and input alignment issues across all mobile PWA modal sheets:
   1. `src/components/ui/sheet.tsx`: Standardized `SheetContent` with default `p-6` padding, mobile drag handle pill for bottom sheets, and aligned `SheetPrimitive.Close` button to `top-5 right-5`. Cleaned `SheetHeader` and `SheetFooter` internal padding to eliminate double-padding misalignment with body form controls. Preserved custom scroll layouts via `p-0`.
   2. `src/components/modules/park/tabs/structure-tab.tsx`: Updated Edit Murabbi, Add Murabbi, and Add Student sheets with `p-6` container padding, `h-11 rounded-xl` inputs, clear label typography, and properly spaced action buttons.
