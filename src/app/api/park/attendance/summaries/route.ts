@@ -1,3 +1,5 @@
+import { resolveRequestedHierarchy, hierarchyGroupWhere } from "@/lib/auth/hierarchy";
+import { eligibleForSession } from "@/lib/attendance/opportunities";
 import { NextResponse } from "next/server";
 import { subDays } from "date-fns";
 import { z } from "zod";
@@ -28,30 +30,16 @@ export async function GET(request: Request) {
   const parsed = querySchema.safeParse(Object.fromEntries(new URL(request.url).searchParams));
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
 
-  const needsStaffScopeLookup = !auth.user.assignedParkId
-    && !auth.user.assignedGroupId
-    && !parsed.data.parkId;
-  const staffMeta = needsStaffScopeLookup
-    ? await db.staffMeta.findUnique({
-        where: { userId: auth.user.id },
-        include: { assignedGroup: { include: { batch: true } } },
-      })
-    : null;
-  const parkId = auth.user.assignedParkId
-    ?? staffMeta?.assignedParkId
-    ?? staffMeta?.assignedGroup?.batch.parkId
-    ?? parsed.data.parkId;
-  if (!parkId) return NextResponse.json({ error: "parkId required" }, { status: 400 });
+  const scope = await resolveRequestedHierarchy(auth.user, { parkId: parsed.data.parkId });
+  if (scope instanceof NextResponse) return scope;
+  const parkId = scope.parkId;
+  if (!parkId) return NextResponse.json({ error: "Select an authorized park" }, { status: 400 });
   const park = await db.park.findUnique({ where: { id: parkId }, select: { id: true, name: true, cityId: true } });
   if (!park) return NextResponse.json({ error: "Park not found" }, { status: 404 });
-  const groupId = auth.user.assignedGroupId ?? staffMeta?.assignedGroupId ?? undefined;
-  const scopeError = requireResourceScope(auth.user, { cityId: park.cityId, parkId, groupId });
-  if (scopeError) return scopeError;
-
-  const to = parsed.data.to ? new Date(`${parsed.data.to}T23:59:59.999Z`) : new Date();
-  const from = parsed.data.from ? new Date(`${parsed.data.from}T00:00:00.000Z`) : subDays(to, 89);
+  const to = parsed.data.to ? new Date(`${parsed.data.to}T23:59:59.999+05:00`) : new Date();
+  const from = parsed.data.from ? new Date(`${parsed.data.from}T00:00:00.000+05:00`) : subDays(to, 89);
   const groups = await db.group.findMany({
-    where: { isActive: true, ...(groupId ? { id: groupId } : { parkId }) },
+    where: { isActive: true, ...hierarchyGroupWhere(scope) },
     select: {
       id: true,
       name: true,
@@ -59,7 +47,7 @@ export async function GET(request: Request) {
       murabbis: { where: { isActive: true }, select: { id: true, user: { select: { name: true } } } },
       participants: {
         where: { state: { in: ["active", "dropout"] } },
-        select: { id: true, name: true, state: true, dropoutAt: true, dropoutSource: true },
+        select: { id: true, name: true, state: true, joinedAt: true, dropoutAt: true, dropoutSource: true },
       },
     },
     orderBy: { name: "asc" },
@@ -93,9 +81,9 @@ export async function GET(request: Request) {
   for (const record of records) recordsByParticipant.set(record.participantId, [...(recordsByParticipant.get(record.participantId) ?? []), record]);
 
   const students = groups.flatMap((group) => group.participants.map((participant) => {
-    const participantRecords = recordsByParticipant.get(participant.id) ?? [];
+    const participantRecords = (recordsByParticipant.get(participant.id) ?? []).filter(record => (eventsByGroup.get(group.id) ?? []).some(event => event.id === record.eventId && eligibleForSession(participant, event.eventDate)));
     const expectedEvents = (eventsByGroup.get(group.id) ?? []).filter((event) =>
-      !participant.dropoutAt || event.eventDate < participant.dropoutAt);
+      eligibleForSession(participant, event.eventDate));
     const present = participantRecords.filter((record) => record.status === "present").length;
     const late = participantRecords.filter((record) => record.status === "late").length;
     const absent = participantRecords.filter((record) => record.status === "absent").length;

@@ -6,7 +6,7 @@ vi.mock("next-auth", () => ({ getServerSession: mocks.getServerSession }));
 vi.mock("@/lib/auth", () => ({ authOptions: {} }));
 vi.mock("@/lib/auth/capability-access", () => ({ userHasCapability: mocks.userHasCapability }));
 
-import { requireAuth, requireCapability, requireRole } from "./authorize";
+import { requireAuth, requireCapability, requireRole, resolveRequestedCityScope } from "./authorize";
 
 describe("authorization guards", () => {
   beforeEach(() => {
@@ -82,5 +82,19 @@ describe("authorization guards", () => {
 
     expect(mocks.getServerSession).not.toHaveBeenCalled();
     expect(mocks.userHasCapability).toHaveBeenCalledWith(user, "dashboard.view");
+  });
+
+  it("does not let a scoped actor replace their assigned city with a query filter", async () => {
+    const denied = resolveRequestedCityScope(
+      { id: "city-head", role: "city_head", assignedCityId: "city-own" },
+      "city-foreign"
+    );
+    expect(denied).toBeInstanceOf(Response);
+    expect((denied as Response).status).toBe(403);
+
+    expect(resolveRequestedCityScope(
+      { id: "city-head", role: "city_head", assignedCityId: "city-own" },
+      null
+    )).toEqual({ cityId: "city-own" });
   });
 });

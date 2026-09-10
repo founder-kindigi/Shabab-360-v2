@@ -6,6 +6,7 @@ import { GET as getStudentPoints } from "../../students/[id]/points/route";
 const mocks = vi.hoisted(() => ({
   requireAuth: vi.fn(),
   requireCapability: vi.fn(),
+  requireResourceScope: vi.fn(),
   resolveActorCity: vi.fn(),
   logAudit: vi.fn(),
   db: {
@@ -17,7 +18,10 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@/lib/auth/authorize", () => ({
   requireAuth: mocks.requireAuth,
   requireCapability: mocks.requireCapability,
+  requireResourceScope: mocks.requireResourceScope,
   resolveActorCity: mocks.resolveActorCity,
+  isHqRole: (role: string) => ["super_admin", "program_admin"].includes(role),
+  isStaffRole: (role: string) => ["super_admin", "program_admin", "city_head", "park_admin", "park_lead", "murabbi"].includes(role),
 }));
 
 vi.mock("@/lib/audit", () => ({
@@ -33,11 +37,12 @@ describe("V3-601 Gamification Engine & Student Points Ledger API", () => {
     vi.resetAllMocks();
     mocks.requireAuth.mockResolvedValue({ user: { id: "usr_murabbi", role: "murabbi" } });
     mocks.requireCapability.mockResolvedValue(null);
+    mocks.requireResourceScope.mockReturnValue(null);
     mocks.resolveActorCity.mockResolvedValue(null);
   });
 
   describe("POST /api/admin/gamification/points", () => {
-    it("awards points to student cleanly and logs audit", async () => {
+    it("does not expose a point-award write until an approved policy exists", async () => {
       mocks.db.participant.findUnique.mockResolvedValue({
         id: "std_1",
         name: "Ali Ahmed",
@@ -64,18 +69,12 @@ describe("V3-601 Gamification Engine & Student Points Ledger API", () => {
       });
 
       const res = await postPoints(req);
-      expect(res.status).toBe(201);
-
-      const data = await res.json();
-      expect(data.points).toBe(50);
-      expect(mocks.logAudit).toHaveBeenCalledWith(
-        expect.objectContaining({
-          action: "gamification.points.award",
-        })
-      );
+      expect(res.status).toBe(503);
+      expect(mocks.db.pointTransaction.create).not.toHaveBeenCalled();
+      expect(mocks.logAudit).not.toHaveBeenCalled();
     });
 
-    it("rejects zero point awards", async () => {
+    it("does not parse or write a zero-point request while awards are unavailable", async () => {
       const req = new NextRequest("http://localhost/api/admin/gamification/points", {
         method: "POST",
         body: JSON.stringify({
@@ -87,7 +86,19 @@ describe("V3-601 Gamification Engine & Student Points Ledger API", () => {
       });
 
       const res = await postPoints(req);
-      expect(res.status).toBe(400);
+      expect(res.status).toBe(503);
+      expect(mocks.db.pointTransaction.create).not.toHaveBeenCalled();
+    });
+
+    it("does not let a student use the default students.manage capability to award points", async () => {
+      mocks.requireAuth.mockResolvedValue({ user: { id: "student-1", role: "student" } });
+      const res = await postPoints(new NextRequest("http://localhost/api/admin/gamification/points", {
+        method: "POST",
+        body: JSON.stringify({ studentId: "student-2", points: 50, category: "manual_bonus", reason: "Synthetic attempt" }),
+      }));
+
+      expect(res.status).toBe(503);
+      expect(mocks.db.pointTransaction.create).not.toHaveBeenCalled();
     });
   });
 

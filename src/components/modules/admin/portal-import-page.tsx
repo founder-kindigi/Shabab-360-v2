@@ -48,7 +48,6 @@ import {
   HeartPulse,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import rawDatasetJson from "@/lib/import-framework/portal-raw-dataset.json";
 
 export interface ParsedPortalRecord {
   sr: string;
@@ -127,8 +126,10 @@ export interface ParsedPortalRecord {
 export function PortalImportPage() {
   const { data: session } = useSession();
 
-  const [activeFileName, setActiveFileName] = useState<string>("RegistrationRequests-06-08-2026.xls");
-  const [records, setRecords] = useState<ParsedPortalRecord[]>(rawDatasetJson as unknown as ParsedPortalRecord[]);
+  const [activeFileName, setActiveFileName] = useState<string>("No workbook loaded");
+  // Registration data must never enter a client bundle. A future server-side
+  // parser will supply authorized, minimal previews after validation.
+  const [records] = useState<ParsedPortalRecord[]>([]);
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -168,18 +169,10 @@ export function PortalImportPage() {
   const handleExecutePipeline = async () => {
     setIsExecuting(true);
     try {
-      const res = await fetch("/api/admin/import/portal-raw", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode: "full_sync" }),
-      });
-      if (!res.ok) throw new Error("Synchronization failed");
-      toast.success("Full Downstream Pipeline Synchronization Complete!", {
-        description: `Successfully processed ${records.length} records across Admissions, Calling, Fees & Park Attendance.`,
-      });
+      throw new Error("Server-side import is not available");
     } catch (err: any) {
-      toast.success("Pipeline Synchronization Simulated Success!", {
-        description: `All ${records.length} portal records synced to Admissions, Calling Desk, Fees Desk, and Park Roster.`,
+      toast.error("Pipeline synchronization is unavailable", {
+        description: "No records were changed. Import persistence is still being implemented.",
       });
     } finally {
       setIsExecuting(false);
@@ -188,14 +181,9 @@ export function PortalImportPage() {
 
   // Export full 69-column dataset as JSON/CSV
   const handleExportJSON = () => {
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(records, null, 2));
-    const downloadAnchor = document.createElement("a");
-    downloadAnchor.setAttribute("href", dataStr);
-    downloadAnchor.setAttribute("download", "Portal_Raw_69_Columns_Full_Dataset.json");
-    document.body.appendChild(downloadAnchor);
-    downloadAnchor.click();
-    downloadAnchor.remove();
-    toast.success("Exported 759 records with full 69 columns as JSON!");
+    toast.error("Raw registration export is unavailable", {
+      description: "Private registration data cannot be exported from the browser.",
+    });
   };
 
   return (

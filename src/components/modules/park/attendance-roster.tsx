@@ -88,7 +88,7 @@ type EventInfo = {
   batchName: string;
   parkName: string;
   eventDate: string;
-  isClosed: boolean;
+  isClosed: boolean; resetVersion: number;
   closedAt: string | null;
   closedByName: string | null;
 };
@@ -343,31 +343,17 @@ export function AttendanceRoster() {
       participantIds: string[];
       status: AttendanceStatus;
     }) => {
-      const now = new Date().toISOString();
-      const mutations = params.participantIds.map((pid) => ({
-        mutationId: uuidv4(),
-        eventId: selectedEventId,
-        participantId: pid,
-        status: params.status,
-        markedAt: now,
-      }));
-
-      const res = await fetch("/api/park/attendance/sync", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mutations }),
-      });
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: "Batch sync failed" }));
-        throw new Error(err.error || "Batch sync failed");
+      let queued = false;
+      for (const participantId of params.participantIds) {
+        const result = await markAttendance({ eventId: selectedEventId!, participantId, status: params.status, expectedResetVersion: data?.event.resetVersion ?? 0, expectedVersion: data?.roster.find(r => r.participantId === participantId)?.markedAt ?? null });
+        if (!result.success) throw new Error(result.error || "Some marks remain unacknowledged; review the queue");
+        queued ||= Boolean(result.queued);
       }
-
-      return res.json();
+      return { queued };
     },
     onSuccess: (_data, variables) => {
       toast.success(
-        `Marked ${variables.participantIds.length} as ${variables.status}`
+        _data.queued ? `Queued ${variables.participantIds.length} marks on this device` : `Marked ${variables.participantIds.length} as ${variables.status}`
       );
       queryClient.invalidateQueries({
         queryKey: ["attendance-roster", selectedEventId],
@@ -390,7 +376,7 @@ export function AttendanceRoster() {
   const resetMutation = useMutation({
     mutationFn: () =>
       fetch(`/api/park/attendance/${selectedEventId}/reset`, {
-        method: "DELETE",
+        method: "DELETE", headers: { "If-Match": String(data?.event.resetVersion ?? 0) },
       }).then((r) => {
         if (!r.ok) return r.json().then((e) => { throw new Error(e.error || "Reset failed"); });
         return r.json();
@@ -475,6 +461,7 @@ export function AttendanceRoster() {
           eventId: selectedEventId,
           participantId,
           status,
+          expectedResetVersion: data?.event.resetVersion ?? 0, expectedVersion: data.roster.find(r => r.participantId === participantId)?.markedAt ?? null,
         });
         if (!result.success) {
           setLocalStatusMap((previous) => {

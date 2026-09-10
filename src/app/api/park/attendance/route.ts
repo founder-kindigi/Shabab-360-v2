@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { ATTENDANCE_ROLES, requireAuth, requireCapability, requireResourceScope } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
+import { requireResolvedGroupScope, groupParkWhere, groupResourceScope, groupHierarchyInclude } from "@/lib/auth/hierarchy";
 import { logAudit } from "@/lib/audit";
 import { todayPKT, formatPKT, fromPKT } from "@/lib/timezone";
 import { parseISO, isValid } from "date-fns";
@@ -45,12 +46,14 @@ export async function GET(req: Request) {
 
       const group = await db.group.findUnique({
         where: { id: user.assignedGroupId! },
-        select: { batch: { select: { parkId: true } } },
+        include: groupHierarchyInclude,
       });
       if (!group) {
         return NextResponse.json({ error: "Assigned group not found" }, { status: 403 });
       }
-      parkId = group.batch.parkId;
+      const scope = groupResourceScope(group);
+      if (!scope || (query.data.parkId && query.data.parkId !== scope.parkId)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      parkId = scope.parkId;
       groupIds = [user.assignedGroupId!];
     } else {
       if (!parkId) return NextResponse.json({ error: "parkId required" }, { status: 400 });
@@ -64,7 +67,7 @@ export async function GET(req: Request) {
       if (scopeError) return scopeError;
 
       const groups = await db.group.findMany({
-        where: { batch: { parkId, isActive: true }, isActive: true },
+        where: { ...groupParkWhere(parkId), batch: { isActive: true }, isActive: true },
         select: { id: true },
       });
       groupIds = groups.map((group) => group.id);
@@ -127,16 +130,14 @@ export async function POST(req: Request) {
     // Scope check: verify group belongs to user's scope
     const group = await db.group.findUnique({
       where: { id: groupId },
-      include: { batch: { include: { park: true } } },
+      include: groupHierarchyInclude,
     });
 
     if (!group) {
       return NextResponse.json({ error: "Group not found" }, { status: 404 });
     }
 
-    const scopeError = requireResourceScope(
-      user,
-      { cityId: group.batch.park.cityId, parkId: group.batch.parkId, groupId },
+    const scopeError = requireResolvedGroupScope(user, group,
       ATTENDANCE_ROLES
     );
     if (scopeError) return scopeError;

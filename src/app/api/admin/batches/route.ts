@@ -5,7 +5,7 @@ import {
   requireResourceScope,
 } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
-import { logAudit } from "@/lib/audit";
+import { logAudit, createAuditLogData } from "@/lib/audit";
 import {
   optionalIdentifier,
   queryParamsToObject,
@@ -169,7 +169,9 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const batch = await db.batch.create({
+  try {
+  const batch = await db.$transaction(async tx => {
+    const batch = await tx.batch.create({
     data: {
       name: parsed.data.name,
       parkId: parsed.data.parkId,
@@ -181,13 +183,19 @@ export async function POST(request: NextRequest) {
     },
   });
 
-  await logAudit({
+  await tx.auditLog.create({ data: createAuditLogData({
     userId: user.id,
     action: "create",
     entityType: "batch",
     entityId: batch.id,
     newValues: parsed.data,
-  });
+  }) });
 
+    return batch;
+  });
   return NextResponse.json(batch, { status: 201 });
+  } catch (error) {
+    if ((error as { code?: string }).code === "P2002") return NextResponse.json({ error: "An active batch already exists for this city" }, { status: 409 });
+    return NextResponse.json({ error: "Batch could not be saved" }, { status: 503 });
+  }
 }

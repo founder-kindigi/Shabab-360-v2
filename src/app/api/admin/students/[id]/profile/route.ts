@@ -119,47 +119,49 @@ export async function PUT(
     if (sensitiveAuth instanceof NextResponse) return sensitiveAuth;
   }
 
-  // Upsert — create on first write, update existing
-  const existing = await db.studentExtendedProfile.findUnique({ where: { participantId } });
-
-  const profile = await db.studentExtendedProfile.upsert({
-    where: { participantId },
-    create: {
-      participantId,
-      ...parsed.data,
-    },
-    update: parsed.data,
-  });
-
-  // Audit
-  if (existing) {
-    const auditData = createAuditLogData({
-      userId: user.id,
-      action: "student_profile.update",
-      entityType: "StudentExtendedProfile",
-      entityId: profile.id,
-      oldValues: redactProfileSensitiveValues(existing as unknown as Record<string, unknown>),
-      newValues: redactProfileSensitiveValues(parsed.data as unknown as Record<string, unknown>),
-    });
-    await db.auditLog.create({ data: auditData });
-  } else {
-    const auditData = createAuditLogData({
-      userId: user.id,
-      action: "student_profile.create",
-      entityType: "StudentExtendedProfile",
-      entityId: profile.id,
-      newValues: redactProfileSensitiveValues(profile as unknown as Record<string, unknown>),
-    });
-    await db.auditLog.create({ data: auditData });
+  const expectedVersion = _req.headers.get("if-match");
+  if (!expectedVersion) return NextResponse.json({ error: "Reload the profile before saving" }, { status: 428 });
+  if (expectedVersion !== "new" && !Number.isFinite(Date.parse(expectedVersion))) {
+    return NextResponse.json({ error: "Invalid profile version" }, { status: 400 });
   }
+  if (Object.keys(parsed.data).length === 0) return NextResponse.json({ error: "No changed fields" }, { status: 400 });
+
+  try {
+    // Resolve the response projection before committing; permission storage failure
+    // must not turn a successful save into an apparent failed request.
+    const sensitiveViewAuth = await requireCapability("students.profile.sensitive.view");
+    const callerCanViewSensitive = !(sensitiveViewAuth instanceof NextResponse);
+    const saved = await db.$transaction(async (tx) => {
+      const existing = await tx.studentExtendedProfile.findUnique({ where: { participantId } });
+      if ((existing?.updatedAt.toISOString() ?? "new") !== expectedVersion) return null;
+      const profile = existing
+        ? await tx.studentExtendedProfile.update({
+            where: { participantId, updatedAt: existing.updatedAt },
+            data: { ...parsed.data, updatedAt: new Date(Math.max(Date.now(), existing.updatedAt.getTime() + 1)) },
+          })
+        : await tx.studentExtendedProfile.create({ data: { participantId, ...parsed.data } });
+      // Only changed fields are audited; free-text wellbeing values remain redacted.
+      const previous = existing ? Object.fromEntries(Object.keys(parsed.data).map(key => [key, (existing as unknown as Record<string, unknown>)[key]])) : undefined;
+      await tx.auditLog.create({ data: createAuditLogData({
+        userId: user.id, action: existing ? "student_profile.update" : "student_profile.create",
+        entityType: "StudentExtendedProfile", entityId: profile.id,
+        oldValues: redactProfileSensitiveValues(previous),
+        newValues: redactProfileSensitiveValues(parsed.data),
+      }) });
+      return { profile, existed: Boolean(existing) };
+    });
+    if (!saved) return NextResponse.json({ error: "Profile changed. Reload and apply your changes again." }, { status: 409 });
+    const { profile, existed } = saved;
 
   // Determine response projection: sensitive fields only if caller has sensitive.view
-  const sensitiveViewAuth = await requireCapability("students.profile.sensitive.view");
-  const callerCanViewSensitive = !(sensitiveViewAuth instanceof NextResponse);
-
   const result = callerCanViewSensitive
     ? { ...profile }
     : stripSensitiveFields({ ...profile } as unknown as Record<string, unknown>);
 
-  return NextResponse.json(result, { status: existing ? 200 : 201 });
+  return NextResponse.json(result, { status: existed ? 200 : 201 });
+  } catch (error) {
+    const code = (error as { code?: string }).code;
+    if (code === "P2002" || code === "P2025") return NextResponse.json({ error: "Profile changed. Reload before saving." }, { status: 409 });
+    return NextResponse.json({ error: "Profile could not be saved" }, { status: 503 });
+  }
 }

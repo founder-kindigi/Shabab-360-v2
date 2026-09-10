@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { requireCapability } from "@/lib/auth/authorize";
+import { resolveCityParkScope } from "@/lib/auth/hierarchy";
 
 type SessionUser = {
   id?: string;
@@ -9,18 +11,10 @@ type SessionUser = {
 };
 
 export async function GET(request: Request) {
-  const session = await getServerSession(authOptions);
-  const user = session?.user as SessionUser | undefined;
-
-  if (!session || !user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const allowedRoles = ["super_admin", "program_admin", "city_head", "park_admin", "park_lead", "murabbi"];
-  if (!user.role || !allowedRoles.includes(user.role)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-
+  const auth = await requireCapability("organisation.view");
+  if (auth instanceof NextResponse) return auth;
+  const scope = await resolveCityParkScope(auth.user);
+  if (scope instanceof NextResponse) return scope;
   try {
     const items = await db.procurementItem.findMany({
       where: { isActive: true },
@@ -28,6 +22,7 @@ export async function GET(request: Request) {
     });
 
     const parkStocksRaw = await db.parkStock.findMany({
+      where: { ...(scope.parkId ? { parkId: scope.parkId } : {}), ...(scope.cityId ? { park: { cityId: scope.cityId } } : {}) },
       include: {
         park: { select: { id: true, name: true } },
       },

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, requireResourceScope, requireRole, userHasCapability } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
+import { requireResolvedGroupScope, groupResourceScope } from "@/lib/auth/hierarchy";
 import { moneyToNumber } from "@/lib/money";
 
 export async function GET(
@@ -33,6 +34,7 @@ export async function GET(
     include: {
       group: {
         include: {
+          park: { include: { city: true } },
           batch: {
             include: {
               park: {
@@ -61,11 +63,7 @@ export async function GET(
     return NextResponse.json({ error: "Participant not found" }, { status: 404 });
   }
 
-  const scopeError = requireResourceScope(auth.user, {
-    cityId: participant.group.batch.park.cityId,
-    parkId: participant.group.batch.parkId,
-    groupId: participant.groupId,
-  });
+  const scopeError = requireResolvedGroupScope(auth.user, { ...participant.group, id: participant.groupId });
   if (scopeError) return scopeError;
 
   // ─── Attendance Summary ──────────────────────────────────────────────
@@ -190,6 +188,7 @@ export async function GET(
       : "System",
   }));
 
+  const actualPark = participant.group.parkId ? participant.group.park! : participant.group.batch.park;
   return NextResponse.json({
     participant: {
       id: participant.id,
@@ -209,11 +208,11 @@ export async function GET(
           id: participant.group.batch.id,
           name: participant.group.batch.name,
           park: {
-            id: participant.group.batch.park.id,
-            name: participant.group.batch.park.name,
+            id: actualPark.id,
+            name: actualPark.name,
             city: {
-              id: participant.group.batch.park.city.id,
-              name: participant.group.batch.park.city.name,
+              id: actualPark.city.id,
+              name: actualPark.city.name,
             },
           },
         },

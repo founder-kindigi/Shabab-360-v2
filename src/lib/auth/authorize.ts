@@ -100,6 +100,30 @@ export function requireResourceScope(
 }
 
 /**
+ * Resolve a requested city filter without allowing it to replace a scoped
+ * actor's assignment. Headquarters may intentionally select a city; scoped
+ * staff always receive their assigned city or a denial when it is missing.
+ */
+export function resolveRequestedCityScope(
+  user: SessionUser,
+  requestedCityId?: string | null
+): { cityId: string | null } | NextResponse {
+  if (isHqRole(user.role)) return { cityId: requestedCityId || null };
+  // City-only callers must never treat a narrower assignment as city authority.
+  // Park/group consumers use resolveRequestedHierarchy instead.
+  if (user.role !== "city_head") {
+    return NextResponse.json({ error: "This operation requires city-level scope" }, { status: 403 });
+  }
+  if (!user.assignedCityId) {
+    return NextResponse.json({ error: "City scope is required" }, { status: 403 });
+  }
+  if (requestedCityId && requestedCityId !== user.assignedCityId) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  return { cityId: user.assignedCityId };
+}
+
+/**
  * Check if the user's assigned city matches the required cityId.
  */
 export function requireCityScope(user: SessionUser, cityId: string): boolean {

@@ -1,0 +1,6 @@
+{
+  "provider": "sqlite",
+  "generatedFrom": "prisma/schema.prisma",
+  "disposableDirectory": "D:\\iBuild\\Shabab-360-v2\\.next\\astra-disposable-7jvbSu",
+  "auditSink": "mocked; audit atomicity not verified"
+}

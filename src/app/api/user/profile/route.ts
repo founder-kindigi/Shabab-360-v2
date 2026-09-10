@@ -48,6 +48,7 @@ export async function GET() {
     include: {
       group: {
         include: {
+          park: { include: { city: true } },
           batch: {
             include: {
               park: {
@@ -82,6 +83,7 @@ export async function GET() {
     participant: participant
       ? {
           id: participant.id,
+          cityId: (participant.group.parkId ? participant.group.park : participant.group.batch.park)?.cityId ?? null,
           name: participant.name,
           phone: participant.phone,
           dateOfBirth: participant.dateOfBirth
@@ -95,8 +97,8 @@ export async function GET() {
           joinedAt: formatPKT(new Date(participant.joinedAt)),
           group: participant.group?.name || null,
           batch: participant.group?.batch.name || null,
-          park: participant.group?.batch.park.name || null,
-          city: participant.group?.batch.park.city?.name || null,
+          park: (participant.group.parkId ? participant.group.park : participant.group.batch.park)?.name || null,
+          city: (participant.group.parkId ? participant.group.park : participant.group.batch.park)?.city?.name || null,
         }
       : null,
     attendanceSummary,

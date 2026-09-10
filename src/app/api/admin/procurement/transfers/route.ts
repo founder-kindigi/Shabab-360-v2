@@ -1,112 +1,47 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth, requireCapability, resolveActorCity } from "@/lib/auth/authorize";
+import { requireAuth, requireCapability } from "@/lib/auth/authorize";
+import { resolveCityParkScope } from "@/lib/auth/hierarchy";
 import { db } from "@/lib/db";
-import { logAudit } from "@/lib/audit";
+import { createAuditLogData } from "@/lib/audit";
+import { receiptIdentity, readOperationReceipt, writeOperationReceipt } from "@/lib/api/operation-receipt";
 import { z } from "zod";
-
 const createTransferSchema = z.object({
-  fromParkId: z.string().min(1, "Source park ID is required"),
-  toParkId: z.string().min(1, "Target park ID is required"),
-  itemId: z.string().min(1, "Item ID is required"),
-  quantity: z.number().int().positive("Transfer quantity must be positive"),
-  reason: z.string().trim().max(500).optional(),
-});
-
+  fromParkId: z.string().min(1).max(128), toParkId: z.string().min(1).max(128), itemId: z.string().min(1).max(128),
+  quantity: z.number().int().min(1).max(1000000), reason: z.string().trim().max(500).optional(),
+}).strict();
 export async function POST(request: NextRequest) {
-  const auth = await requireAuth();
-  if (auth instanceof NextResponse) return auth;
-  const { user } = auth;
-
-  const capAuth = await requireCapability("organisation.manage");
-  if (capAuth instanceof NextResponse) return capAuth;
-
-  let body: unknown;
+  const auth = await requireAuth(); if (auth instanceof NextResponse) return auth;
+  const capability = await requireCapability("organisation.manage"); if (capability instanceof NextResponse) return capability;
+  const parsed = createTransferSchema.safeParse(await request.json().catch(() => null));
+  if (!parsed.success) return NextResponse.json({ error: "Invalid transfer" }, { status: 400 });
+  const key = request.headers.get("idempotency-key");
+  if (!key || !/^[a-zA-Z0-9_-]{16,100}$/.test(key)) return NextResponse.json({ error: "A stable Idempotency-Key is required for transfer retries" }, { status: 400 });
+  const { fromParkId, toParkId, itemId, quantity, reason } = parsed.data;
+  if (fromParkId === toParkId) return NextResponse.json({ error: "Source and target parks must differ" }, { status: 400 });
+  const identity = receiptIdentity("stock.transfer", auth.user.id!, key, [fromParkId, toParkId, itemId, quantity, reason ?? null]);
   try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
-  }
-
-  const parsed = createTransferSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten().fieldErrors }, { status: 400 });
-  }
-
-  if (parsed.data.fromParkId === parsed.data.toParkId) {
-    return NextResponse.json({ error: "Source and target parks must be different" }, { status: 400 });
-  }
-
-  const fromPark = await db.park.findUnique({ where: { id: parsed.data.fromParkId } });
-  const toPark = await db.park.findUnique({ where: { id: parsed.data.toParkId } });
-
-  if (!fromPark || !toPark) {
-    return NextResponse.json({ error: "One or both specified parks were not found" }, { status: 404 });
-  }
-
-  const actorCity = await resolveActorCity();
-  if (actorCity && (fromPark.cityId !== actorCity || toPark.cityId !== actorCity)) {
-    return NextResponse.json({ error: "Forbidden: Cannot transfer stock outside assigned city scope" }, { status: 403 });
-  }
-
-  const sourceStock = await db.parkStock.findUnique({
-    where: { parkId_itemId: { parkId: parsed.data.fromParkId, itemId: parsed.data.itemId } },
-  });
-
-  if (!sourceStock || sourceStock.quantity < parsed.data.quantity) {
-    return NextResponse.json({ error: `Insufficient stock in source park. Current available: ${sourceStock?.quantity || 0}` }, { status: 400 });
-  }
-
-  const transfer = await db.$transaction(async (tx) => {
-    // Decrement source park stock
-    await tx.parkStock.update({
-      where: { parkId_itemId: { parkId: parsed.data.fromParkId, itemId: parsed.data.itemId } },
-      data: { quantity: { decrement: parsed.data.quantity } },
+    const result = await db.$transaction(async tx => {
+      // Lock both park rows in stable order, including the case of an empty target stock row.
+      for (const parkId of [fromParkId, toParkId].sort()) {
+        const scope = await resolveCityParkScope(auth.user, { parkId }, tx);
+        if (scope instanceof NextResponse) return scope;
+        const locked = await tx.park.updateMany({ where: { id: parkId, isActive: true }, data: { isActive: true } });
+        if (locked.count !== 1) return NextResponse.json({ error: "Park unavailable" }, { status: 409 });
+      }
+      const receipt = await readOperationReceipt(tx, identity); if (receipt) return receipt;
+      const item = await tx.procurementItem.findUnique({ where: { id: itemId } });
+      if (!item || !item.isActive) return NextResponse.json({ error: "Item unavailable" }, { status: 404 });
+      const decremented = await tx.parkStock.updateMany({ where: { parkId: fromParkId, itemId, quantity: { gte: quantity } }, data: { quantity: { decrement: quantity } } });
+      if (decremented.count !== 1) throw new Error("INSUFFICIENT_STOCK");
+      await tx.parkStock.upsert({ where: { parkId_itemId: { parkId: toParkId, itemId } }, create: { parkId: toParkId, itemId, quantity, minThreshold: 5 }, update: { quantity: { increment: quantity } } });
+      const transfer = await tx.stockTransfer.create({ data: { fromParkId, toParkId, itemId, quantity, reason: reason || null, transferredBy: auth.user.id! }, include: { fromPark: { select: { id: true, name: true } }, toPark: { select: { id: true, name: true } }, item: { select: { id: true, sku: true, name: true } } } });
+      await tx.auditLog.create({ data: createAuditLogData({ userId: auth.user.id, action: "procurement.stock.transfer", entityType: "stock_transfer", entityId: transfer.id, newValues: { fromParkId, toParkId, itemId, quantity } }) });
+      await writeOperationReceipt(tx, identity, transfer); return transfer;
     });
-
-    // Increment target park stock
-    await tx.parkStock.upsert({
-      where: { parkId_itemId: { parkId: parsed.data.toParkId, itemId: parsed.data.itemId } },
-      create: {
-        parkId: parsed.data.toParkId,
-        itemId: parsed.data.itemId,
-        quantity: parsed.data.quantity,
-        minThreshold: 5,
-      },
-      update: {
-        quantity: { increment: parsed.data.quantity },
-      },
-    });
-
-    // Create audit transfer log
-    return tx.stockTransfer.create({
-      data: {
-        fromParkId: parsed.data.fromParkId,
-        toParkId: parsed.data.toParkId,
-        itemId: parsed.data.itemId,
-        quantity: parsed.data.quantity,
-        reason: parsed.data.reason || null,
-        transferredBy: user.id!,
-      },
-      include: {
-        fromPark: { select: { id: true, name: true } },
-        toPark: { select: { id: true, name: true } },
-        item: { select: { id: true, sku: true, name: true } },
-      },
-    });
-  });
-
-  logAudit({
-    userId: user.id!,
-    action: "procurement.stock.transfer",
-    entityType: "stock_transfer",
-    entityId: transfer.id,
-    newValues: {
-      fromParkId: transfer.fromParkId,
-      toParkId: transfer.toParkId,
-      itemId: transfer.itemId,
-      quantity: transfer.quantity,
-    },
-  });
-
-  return NextResponse.json(transfer, { status: 201 });
+    return result instanceof NextResponse ? result : NextResponse.json(result, { status: 201 });
+  } catch (error) {
+    if (error instanceof Error && error.message === "INSUFFICIENT_STOCK") return NextResponse.json({ error: "Insufficient stock in source park" }, { status: 409 });
+    if (error instanceof Error && error.message === "IDEMPOTENCY_CONFLICT") return NextResponse.json({ error: "Idempotency key already used for different transfer details" }, { status: 409 });
+    return NextResponse.json({ error: "Transfer was not acknowledged. Retry with the same idempotency key." }, { status: 503 });
+  }
 }

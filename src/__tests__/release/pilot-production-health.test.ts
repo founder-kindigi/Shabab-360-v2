@@ -32,12 +32,12 @@ function allMigrations(base: string): string[] {
 describe("PILOT-PROD-001: Pilot Production Health", () => {
   /* ── 1. Schema health ────────────────────────────────────────────── */
   describe("Schema health", () => {
-    it("SQLITE schema has 72 models", () => {
-      expect(modelNames(SQLITE_SCHEMA).length).toBe(72);
+    it("SQLITE schema has 74 models", () => {
+      expect(modelNames(SQLITE_SCHEMA).length).toBe(74);
     });
 
-    it("POSTGRES schema has 72 models", () => {
-      expect(modelNames(PG_SCHEMA).length).toBe(72);
+    it("POSTGRES schema has 74 models", () => {
+      expect(modelNames(PG_SCHEMA).length).toBe(74);
     });
 
     it("all models present in both schemas", () => {
@@ -64,12 +64,12 @@ describe("PILOT-PROD-001: Pilot Production Health", () => {
 
   /* ── 2. Migration health ─────────────────────────────────────────── */
   describe("Migration health", () => {
-    it("POSTGRES has 24 migration folders", () => {
-      expect(allMigrations(PG_MIGRATIONS)).toHaveLength(24);
+    it("POSTGRES has 31 migration folders", () => {
+      expect(allMigrations(PG_MIGRATIONS)).toHaveLength(31);
     });
 
-    it("SQLITE has 13 migration folders", () => {
-      expect(allMigrations(SQLITE_MIGRATIONS)).toHaveLength(13);
+    it("SQLITE has 17 migration folders", () => {
+      expect(allMigrations(SQLITE_MIGRATIONS)).toHaveLength(17);
     });
 
     it("both chains contain mashwara and login_attempts migrations", () => {
@@ -94,6 +94,11 @@ describe("PILOT-PROD-001: Pilot Production Health", () => {
         expect(sql).not.toMatch(/^\s*DROP\s+INDEX\b/im);
         for (const match of sql.matchAll(/^\s*DROP\s+TABLE\s+"([^"]+)"\s*;/gim)) {
           const table = match[1];
+          if (table === "_batch_scope_preflight") {
+            expect(sql).toContain('CREATE TABLE "_batch_scope_preflight" ("valid" INTEGER NOT NULL CHECK ("valid" = 1))');
+            expect(sql).not.toMatch(/INSERT INTO "_batch_scope_preflight"[\s\S]*SELECT \*/);
+            continue; // A same-migration assertion table contains no application rows.
+          }
           const replacement = `new_${table}`;
           expect(sql).toContain(`CREATE TABLE "${replacement}"`);
           expect(sql).toContain(`INSERT INTO "${replacement}"`);
@@ -206,7 +211,11 @@ describe("PILOT-PROD-001: Pilot Production Health", () => {
 
     it("auth.ts has role resolution (StaffMeta, Guardian, Participant)", () => {
       const auth = readFileSync(join(ROOT, "src/lib/auth.ts"), "utf-8");
-      expect(auth).toMatch(/staffMeta|StaffMeta/);
+      expect(auth).toContain("resolveActiveIdentity");
+      const identity = readFileSync(join(ROOT, "src/lib/auth/identity.ts"), "utf-8");
+      expect(identity).toMatch(/staffMeta/);
+      expect(identity).toMatch(/guardian/);
+      expect(identity).toMatch(/participant/);
     });
   });
 

@@ -9,19 +9,22 @@ const mocks = vi.hoisted(() => ({
   resolveActorCity: vi.fn(),
   logAudit: vi.fn(),
   db: {
-    park: { findUnique: vi.fn() },
+    park: { findUnique: vi.fn(), updateMany: vi.fn() },
     procurementItem: { findUnique: vi.fn(), findMany: vi.fn(), create: vi.fn() },
-    parkStock: { findMany: vi.fn(), upsert: vi.fn() },
+    parkStock: { findMany: vi.fn(), create: vi.fn(), findUnique: vi.fn() },
+    auditLog: { create: vi.fn() }, $transaction: vi.fn(),
   },
 }));
 
-vi.mock("@/lib/auth/authorize", () => ({
+vi.mock("@/lib/auth/authorize", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@/lib/auth/authorize")>(),
   requireAuth: mocks.requireAuth,
   requireCapability: mocks.requireCapability,
   resolveActorCity: mocks.resolveActorCity,
 }));
 
-vi.mock("@/lib/audit", () => ({
+vi.mock("@/lib/audit", async (original) => ({
+  ...await original<typeof import("@/lib/audit")>(),
   logAudit: mocks.logAudit,
 }));
 
@@ -32,6 +35,8 @@ vi.mock("@/lib/db", () => ({
 describe("V3-502 Procurement Catalogue & Park Stock API", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    mocks.db.$transaction.mockImplementation(async run => run(mocks.db));
+    mocks.db.park.updateMany.mockResolvedValue({ count: 1 });
     mocks.requireAuth.mockResolvedValue({ user: { id: "usr_admin", role: "super_admin" } });
     mocks.requireCapability.mockResolvedValue(null);
     mocks.resolveActorCity.mockResolvedValue(null);
@@ -50,7 +55,7 @@ describe("V3-502 Procurement Catalogue & Park Stock API", () => {
       });
 
       const req = new NextRequest("http://localhost/api/admin/procurement/items", {
-        method: "POST",
+        method: "POST", headers: { "If-Match": "new" },
         body: JSON.stringify({
           sku: "SP-BALL-01",
           name: "Football (Size 5)",
@@ -76,7 +81,7 @@ describe("V3-502 Procurement Catalogue & Park Stock API", () => {
       mocks.db.procurementItem.findUnique.mockResolvedValue({ id: "item_existing" });
 
       const req = new NextRequest("http://localhost/api/admin/procurement/items", {
-        method: "POST",
+        method: "POST", headers: { "If-Match": "new" },
         body: JSON.stringify({
           sku: "SP-BALL-01",
           name: "Football (Size 5)",
@@ -94,8 +99,8 @@ describe("V3-502 Procurement Catalogue & Park Stock API", () => {
   describe("GET & POST /api/admin/procurement/stock", () => {
     it("sets park stock balance and safety thresholds cleanly", async () => {
       mocks.db.park.findUnique.mockResolvedValue({ id: "park_1", cityId: "city_lahore" });
-      mocks.db.procurementItem.findUnique.mockResolvedValue({ id: "item_1" });
-      mocks.db.parkStock.upsert.mockResolvedValue({
+      mocks.db.procurementItem.findUnique.mockResolvedValue({ id: "item_1", isActive: true });
+      mocks.db.parkStock.create.mockResolvedValue({
         id: "stock_1",
         parkId: "park_1",
         itemId: "item_1",
@@ -104,7 +109,7 @@ describe("V3-502 Procurement Catalogue & Park Stock API", () => {
       });
 
       const req = new NextRequest("http://localhost/api/admin/procurement/stock", {
-        method: "POST",
+        method: "POST", headers: { "If-Match": "new" },
         body: JSON.stringify({
           parkId: "park_1",
           itemId: "item_1",
@@ -118,7 +123,7 @@ describe("V3-502 Procurement Catalogue & Park Stock API", () => {
 
       const data = await res.json();
       expect(data.quantity).toBe(20);
-      expect(mocks.logAudit).toHaveBeenCalledWith(
+      expect(mocks.db.auditLog.create.mock.calls[0][0].data).toEqual(
         expect.objectContaining({
           action: "procurement.stock.update",
         })

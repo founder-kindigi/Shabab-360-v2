@@ -1,0 +1,727 @@
+{
+  "recordedAt": "2026-09-10T05:50:40.340Z",
+  "branch": "v2",
+  "base": "a25260321abe28673db4337bdc2074b55ee0d836",
+  "candidateManifestSha256": "0ca436290e09a6bfe7e84edbf1ce78bd08e9b0f04a02c3960dcc74b7909bbc3f",
+  "files": [
+    {
+      "path": "next.config.ts",
+      "sha256": "d99fcb4d7a446c9a44928e61fda8db40dc15e174a8bfcceb9f8016d717471481"
+    },
+    {
+      "path": "prisma/migrations/20260909010000_login_throttle/migration.sql",
+      "sha256": "d2f96aeac6624aa108776a3b071415dcaffced901db9bd630db45356f702de2b"
+    },
+    {
+      "path": "prisma/migrations/20260909020000_operation_receipts/migration.sql",
+      "sha256": "540ebf95da7c8cdccfd018a409e0f3994c8493739a05386d131bccf0218a9e41"
+    },
+    {
+      "path": "prisma/migrations/20260909040000_active_city_batch/migration.sql",
+      "sha256": "bddd41e80b6b52c03b02ad5ca43f0e7fc5d868afedd9da2aa93d9ac8511b4bf5"
+    },
+    {
+      "path": "prisma/migrations/20260909070000_attendance_reset_version/migration.sql",
+      "sha256": "70412fedd02a9c30cf85a66494ae539ea713fa5fc1ef57c6de1c7fa677859e25"
+    },
+    {
+      "path": "prisma/postgres/migrations/20260909010000_login_throttle/migration.sql",
+      "sha256": "d2f96aeac6624aa108776a3b071415dcaffced901db9bd630db45356f702de2b"
+    },
+    {
+      "path": "prisma/postgres/migrations/20260909020000_operation_receipts/migration.sql",
+      "sha256": "908ce659e416c848829380385ace1ecf5acebf07bdbc04f19c9748f8c45f67a7"
+    },
+    {
+      "path": "prisma/postgres/migrations/20260909030000_restore_modeled_tables/migration.sql",
+      "sha256": "b9e19bfaac8fd66aafd3b718c585a8e86f6f17f8f6da87f90a825ec65ec14af8"
+    },
+    {
+      "path": "prisma/postgres/migrations/20260909040000_active_city_batch/migration.sql",
+      "sha256": "fa5b30dfa5aa4c61b421a800212587957c6c2074588d0a3f7c84284682eebba2"
+    },
+    {
+      "path": "prisma/postgres/migrations/20260909050000_align_modeled_constraints/migration.sql",
+      "sha256": "ea339e68d0e9f14d9233fb5254967440b88a161f169df766c8d5b72602a1aad1"
+    },
+    {
+      "path": "prisma/postgres/migrations/20260909060000_align_modeled_indexes/migration.sql",
+      "sha256": "41f624f6019469b0f7f900319e1f190639b60fa7698abd127ab26fa34b73b273"
+    },
+    {
+      "path": "prisma/postgres/migrations/20260909070000_attendance_reset_version/migration.sql",
+      "sha256": "70412fedd02a9c30cf85a66494ae539ea713fa5fc1ef57c6de1c7fa677859e25"
+    },
+    {
+      "path": "prisma/postgres/schema.prisma",
+      "sha256": "bdbd9b29efe93cb86a15c2ee9b03756e14b162379d2d45a1419bb8b4ec134df6"
+    },
+    {
+      "path": "prisma/schema.prisma",
+      "sha256": "d41ec08f774ff480f152e0dfa76d18a62351edce1cb6b9ce1b78e31d6411e992"
+    },
+    {
+      "path": "src/__tests__/api/student-profile/save-regressions.test.ts",
+      "sha256": "6c5b47f7dc24abdcfd09442675f353058d85f0c543d9bc43c6a58b36cac7c39e"
+    },
+    {
+      "path": "src/__tests__/api/v2-calling-boundaries.test.ts",
+      "sha256": "825c88f5cae1764b306d03c150cca1f12834ac6a66a77bb3d48deb4e2482ea66"
+    },
+    {
+      "path": "src/__tests__/api/v2-deletion-regressions.test.ts",
+      "sha256": "87b93990c2753eec9d28a017f8c39c354d9a5a12875cd732009d30d91763372d"
+    },
+    {
+      "path": "src/__tests__/api/v2-editor-recovery.test.tsx",
+      "sha256": "2e73a773cd7cc145bebe044ace80b732210854b63e0f9b4941d6f2c1dcec5200"
+    },
+    {
+      "path": "src/__tests__/api/v2-park-boundaries.test.ts",
+      "sha256": "d022d159c3c7b00a0540d4bf7a27a717ada4ddc2cedd70cad25c4de42785b75a"
+    },
+    {
+      "path": "src/__tests__/api/v2-unavailable-workflows.test.ts",
+      "sha256": "e9adb916614afeec9cfd36a0fe50b4482d8b27fba168a73348443dd86177150d"
+    },
+    {
+      "path": "src/__tests__/release/master-production-signoff.test.ts",
+      "sha256": "a66921bed3d8572c5147023ddbc6dd62666a495b86ff221a1cb520e306c8a066"
+    },
+    {
+      "path": "src/__tests__/release/pilot-production-health.test.ts",
+      "sha256": "4824a365d1a43f1b8d1f9469d8a0a1f31630bdf422408423472c5e33e3f9e5fd"
+    },
+    {
+      "path": "src/__tests__/release/production-build.test.ts",
+      "sha256": "d62decf39edf5a992f49295e06a8e4df7add325a24c8be22d5c15440f08d222e"
+    },
+    {
+      "path": "src/__tests__/release/staging-smoke.test.ts",
+      "sha256": "a9fdced9987ead87291ade954fe36516781b8d81e0def174240e173fdcf887a6"
+    },
+    {
+      "path": "src/__tests__/release/v3-final-handover.test.ts",
+      "sha256": "6f35a6839b99868cb5006e0610115241c3d81053fcd9a60086a30be2cb81c9fd"
+    },
+    {
+      "path": "src/__tests__/uat/multi-role-boundary.test.ts",
+      "sha256": "94076ae0952d4f86934bad734ca12e892071e299e54b9c4166314966b9d3339b"
+    },
+    {
+      "path": "src/app/api/admin/admissions/[id]/route.test.ts",
+      "sha256": "d9b206959bff19d2311bd7b0c508857e9e12503f8fc2878c9e03c8e717a23871"
+    },
+    {
+      "path": "src/app/api/admin/admissions/[id]/route.ts",
+      "sha256": "73e436a536da88e01922ddbad1eddc10e6fcbc34a468c1b1e2abc9653ef93c1b"
+    },
+    {
+      "path": "src/app/api/admin/admissions/route.test.ts",
+      "sha256": "0a5cbf691f75e6dc167b7888b49b3cd5db902e84cd0809248dcfd8f39ebf842a"
+    },
+    {
+      "path": "src/app/api/admin/admissions/route.ts",
+      "sha256": "ba345cc4088210abee44f7408549ce5bba3d72a14c9931c386d2cdf9e23000b2"
+    },
+    {
+      "path": "src/app/api/admin/attendance/import/route.test.ts",
+      "sha256": "5d977f40c0fe71b134020bf3328dc88667088b0e426234d7cc788f75e1e91ea6"
+    },
+    {
+      "path": "src/app/api/admin/attendance/import/route.ts",
+      "sha256": "bcd82e508eff6b68aaadaa1fcc8cf7db53b044ba6264b29dd04ba0246865950c"
+    },
+    {
+      "path": "src/app/api/admin/batches/[id]/route.test.ts",
+      "sha256": "73d78417eb816ccb68218807cd0d0630d903e4fb3a412f78c79b7ae111321466"
+    },
+    {
+      "path": "src/app/api/admin/batches/[id]/route.ts",
+      "sha256": "dce154a33119099fa0002884a1f51dddd681d534eb1b832af2b8b46d6e95b1f5"
+    },
+    {
+      "path": "src/app/api/admin/batches/route.test.ts",
+      "sha256": "7bb198574a119d87987061bb699754fc3b13dc8c756c4b973d972a05f03fe172"
+    },
+    {
+      "path": "src/app/api/admin/batches/route.ts",
+      "sha256": "2c44459ce45e4318712bdd6459a4f872715cb076ca097360e7943810a7b370ef"
+    },
+    {
+      "path": "src/app/api/admin/certificates/[participantId]/route.ts",
+      "sha256": "8241772391e9f6f556c5583994e9decb07060918d91405d9f1b0f33aeb2cac06"
+    },
+    {
+      "path": "src/app/api/admin/certificates/batch/route.ts",
+      "sha256": "fcde77977144bedde4991c33976461c92da6358669eac174bdd1851484bbed6b"
+    },
+    {
+      "path": "src/app/api/admin/certificates/routes.test.ts",
+      "sha256": "87f2e395d0d3bf0825089b5516189cd4a88b860b28bde9ba509209624613264f"
+    },
+    {
+      "path": "src/app/api/admin/cities/route.ts",
+      "sha256": "67b3c6fe227684adc85824436f0a8645ea0ae20841d152dc73bb9c6de5104d80"
+    },
+    {
+      "path": "src/app/api/admin/fees/[id]/payments/route.test.ts",
+      "sha256": "d9df63159ccf5c38407183460b25bcd9f2bd2706be72c68c40b65789f14f3dbd"
+    },
+    {
+      "path": "src/app/api/admin/fees/[id]/payments/route.ts",
+      "sha256": "e09c07c263a2bb83c6fb63fc59d3f2b170e368cf658a365e894e6e57da6ea637"
+    },
+    {
+      "path": "src/app/api/admin/fees/route.test.ts",
+      "sha256": "48f6ab6077042a43e31d5b372917c8c4ff5d9a9a10102c389cb102c4b743bc07"
+    },
+    {
+      "path": "src/app/api/admin/fees/route.ts",
+      "sha256": "aea186e773060a445252b5f367babdaad10f167d77e4a93e3f6d204cac419631"
+    },
+    {
+      "path": "src/app/api/admin/finance/__tests__/donations.test.ts",
+      "sha256": "1d99e13a2ed7fe13e1792f6e0f672c3aabf0e4165ebd4ec432fdef1f7115123b"
+    },
+    {
+      "path": "src/app/api/admin/finance/__tests__/reconciliation.test.ts",
+      "sha256": "76cb29b82714bbc5bfb081b21e55b9310735a1c3b78a776b6b06c1cf7fd58cdd"
+    },
+    {
+      "path": "src/app/api/admin/finance/adjustments/route.ts",
+      "sha256": "e88538aaabf8637a43dda8a4118c742c709f0ba272da097e9bd1586aea3b5b10"
+    },
+    {
+      "path": "src/app/api/admin/finance/donations/route.ts",
+      "sha256": "d7d3aa1df86c9babb9a2a74f3ffaac0a34f54650803595e5d064f06a06a65f6e"
+    },
+    {
+      "path": "src/app/api/admin/finance/reconciliation/route.ts",
+      "sha256": "7b6547bcf980d5074f70f9be3142ac52e41218f6020884d08fc20625897fa932"
+    },
+    {
+      "path": "src/app/api/admin/gamification/__tests__/points.test.ts",
+      "sha256": "058597febad7cfc0fb381f9f189b0e40106e3c4ddda193492ef81e1eb0c8fe9e"
+    },
+    {
+      "path": "src/app/api/admin/gamification/points/route.ts",
+      "sha256": "abbac932b068d99dc5396a0384596f336eb05262ada5d3f42eb98a5fd91b8aa6"
+    },
+    {
+      "path": "src/app/api/admin/home-analytics/route.ts",
+      "sha256": "f3f4f54f6b3a83b57f8809fb2537175d48600c0a77eb402148e92671a03fb75c"
+    },
+    {
+      "path": "src/app/api/admin/import/portal-raw/route.ts",
+      "sha256": "4420186953906cdb81de14ac6afa63367867e212683e4eb275606b57149a5c69"
+    },
+    {
+      "path": "src/app/api/admin/mashwara/[id]/minutes/route.ts",
+      "sha256": "b523a025b8aaac6f27421c92f494dbc1020d64c28d6d5ff4428ba824d1ab232f"
+    },
+    {
+      "path": "src/app/api/admin/procurement/__tests__/items.test.ts",
+      "sha256": "6c9844f3aaa20c872384bf1f06068754b6dcff9d98e7c0718d5aec1acca9c690"
+    },
+    {
+      "path": "src/app/api/admin/procurement/__tests__/requests.test.ts",
+      "sha256": "9d436f372b00d42f919e0900f4313b9b1b86dfb6ff44c25c7cdad8d1e021ed02"
+    },
+    {
+      "path": "src/app/api/admin/procurement/audit/route.ts",
+      "sha256": "959f272b8465fe59258522e79d101dc035fc33742f9410c80580a18de2d27f76"
+    },
+    {
+      "path": "src/app/api/admin/procurement/orders/route.ts",
+      "sha256": "55ef669e18f5b3db4248275da016562b7f3355fe7aa7ffd8847f53675222751d"
+    },
+    {
+      "path": "src/app/api/admin/procurement/requests/[id]/route.ts",
+      "sha256": "862d9b226810275d06f79ca49f3ed1dcc12881517869ddac6653f78db51e6c5a"
+    },
+    {
+      "path": "src/app/api/admin/procurement/requests/route.ts",
+      "sha256": "fe9e3680191a74eb9fadca502e0764a518efde5c42c3d647c91da89305a36da6"
+    },
+    {
+      "path": "src/app/api/admin/procurement/stock/route.ts",
+      "sha256": "e975547e28831fb896b4f2dc9004dd56de7469ea902b6f8078ba47af2a441ab8"
+    },
+    {
+      "path": "src/app/api/admin/procurement/transfers/route.ts",
+      "sha256": "2e0c6231a1d05308549fde634d6a5a50b86e10212d6831c5a7d0b58f112e3e9c"
+    },
+    {
+      "path": "src/app/api/admin/students/[id]/detail/route.test.ts",
+      "sha256": "fa3e3e4b291c28ccb2852295171594be90059dab424b813a37b77f17447ea0af"
+    },
+    {
+      "path": "src/app/api/admin/students/[id]/detail/route.ts",
+      "sha256": "52f68560b20403235f9dd964ff4352ca6916f26b3feacba7379ccff289b478f1"
+    },
+    {
+      "path": "src/app/api/admin/students/[id]/profile-context/route.ts",
+      "sha256": "4e4a09d253bc3ddcd2f189cb15ddf84455f31ded82c4fa6c518c5f7b468aeb6d"
+    },
+    {
+      "path": "src/app/api/admin/students/[id]/profile/route.ts",
+      "sha256": "29384f28e35961bb15a67a02162162dd2567f8721a9f1f901b078796dcf9fc14"
+    },
+    {
+      "path": "src/app/api/admin/students/route.ts",
+      "sha256": "b4d339d95128ee930d384c36d560442d1a6cfde94d358bc2ab7f45bb8a46bd30"
+    },
+    {
+      "path": "src/app/api/announcements/route.ts",
+      "sha256": "bbb12202ac9d6a37ceed6bd7636c3c641612943b64543cd7915f00994c41b425"
+    },
+    {
+      "path": "src/app/api/auth/capabilities/route.ts",
+      "sha256": "b25ce1075649d91937f7f655942e38f85c648f12576ca7d66b86e326e348ef81"
+    },
+    {
+      "path": "src/app/api/calling/assignments/route.ts",
+      "sha256": "66d1b7ab8e236d921136ef0617553d066183b0a1e24b16143ade73db864e0cd7"
+    },
+    {
+      "path": "src/app/api/calling/campaigns/[id]/leads/route.ts",
+      "sha256": "678aaeda99fcff0c00f42b4cb46c24d7216cf817e6c2e2abf57db39b3936a4e4"
+    },
+    {
+      "path": "src/app/api/calling/campaigns/[id]/route.ts",
+      "sha256": "ea03c5327f114978b756c0e09ca1c64cf712ad60513594981721890039af5acb"
+    },
+    {
+      "path": "src/app/api/calling/export/route.ts",
+      "sha256": "fd542edecb31455ca9516b4374ac0c27355372829090e89de458c6c95095c44a"
+    },
+    {
+      "path": "src/app/api/calling/interactions/route.ts",
+      "sha256": "ab49a27ca4e237f2f938dcbda3bb78841f3b7a5bc4294a31b235f6d15f9aeec1"
+    },
+    {
+      "path": "src/app/api/community/polls/route.ts",
+      "sha256": "4184e825f21184f52b76fd2a8a131a82081d03156d536b1b460233bbdadb0f44"
+    },
+    {
+      "path": "src/app/api/community/posts/route.ts",
+      "sha256": "3aa84fa3cd8f2c28b345cfd17ba0b3de4f45c77e2f80ad3f5c8469036e5601c9"
+    },
+    {
+      "path": "src/app/api/guardian/consents/route.ts",
+      "sha256": "e129aad4d5284473abba29fff0a28271c34c32b8b7c3922c8b4d4c90430d7d1b"
+    },
+    {
+      "path": "src/app/api/guardian/emergency-info/route.ts",
+      "sha256": "8bcb064f02129fee0b3f410ba729357f8304e779cff3cde2ed32eec4768b518b"
+    },
+    {
+      "path": "src/app/api/guardian/leave-requests/route.ts",
+      "sha256": "6d469e4ca8a600744be7a8980ee742558f208e98bcd011eb8ba2d5ec118f2351"
+    },
+    {
+      "path": "src/app/api/inventory/central/route.ts",
+      "sha256": "fede5bb0e31c0da1746eba6b25ddcc0f95deafa3e23fb41e324e6ceb20c1cea5"
+    },
+    {
+      "path": "src/app/api/islah/daily-log/route.ts",
+      "sha256": "591e92dd411ba1a8eb17c32d0d65eaee6edce25098be12672900de831b1b9d66"
+    },
+    {
+      "path": "src/app/api/park/attendance/[eventId]/close/route.ts",
+      "sha256": "88ab0ea56964ae3dbec396a5e331ba377279fe94ae3d6bb0ebdc7e246c4fa2a9"
+    },
+    {
+      "path": "src/app/api/park/attendance/[eventId]/records/[recordId]/route.test.ts",
+      "sha256": "4be66c779599e63a33c9dfa2a980a1ba342fc723db4c533e0740c0a5aff39213"
+    },
+    {
+      "path": "src/app/api/park/attendance/[eventId]/records/[recordId]/route.ts",
+      "sha256": "3dae34d682fbe23b67b5918da253d6981c6b17f319530e2b6e45288f4d39eff5"
+    },
+    {
+      "path": "src/app/api/park/attendance/[eventId]/reopen/route.ts",
+      "sha256": "47076930f13ef45b30b34c14d621e1a764f3d51a292a00cf81101a33b2824d01"
+    },
+    {
+      "path": "src/app/api/park/attendance/[eventId]/reset/route.test.ts",
+      "sha256": "3dbd842b41f8313ad7db2ef21ed85071ffc5ff5cb124ae30abf9ce4cd55453d3"
+    },
+    {
+      "path": "src/app/api/park/attendance/[eventId]/reset/route.ts",
+      "sha256": "f0ad6144c6d8ab436903ab699f146f6917ddd3eeaa4bafc009fb6a5fabe3a980"
+    },
+    {
+      "path": "src/app/api/park/attendance/[eventId]/route.test.ts",
+      "sha256": "e37e1438fdd1d3a9b48b9c6667b366cc71e337d4dc513206032647455a115968"
+    },
+    {
+      "path": "src/app/api/park/attendance/[eventId]/route.ts",
+      "sha256": "5f5255e1ed5d95a38d5159e0f02eaee9b9c329cc68c5115101e0a32975fd3aac"
+    },
+    {
+      "path": "src/app/api/park/attendance/check-alerts/route.ts",
+      "sha256": "1b58695f10407793f4686a67e3da3d68f03fd2f96510d6b0e5e685c0a79373ea"
+    },
+    {
+      "path": "src/app/api/park/attendance/events/route.ts",
+      "sha256": "5cd4665c1b4060750c0e6e8c268f75804d32a9592a786840ceda3c1ff949f66d"
+    },
+    {
+      "path": "src/app/api/park/attendance/parks/route.ts",
+      "sha256": "f0cea721ba7fe38242d5d9a12d53388e3346e128e046afe7dfc7674f5942aa69"
+    },
+    {
+      "path": "src/app/api/park/attendance/prepare/route.ts",
+      "sha256": "c95a81d20c1da6c79a3c13f0b6b185f1bff48d0eda5340ec16d2e1d3bf846c13"
+    },
+    {
+      "path": "src/app/api/park/attendance/route.ts",
+      "sha256": "449c5d9d69c938649e9914888dafe083d2bd66f4d97b3a573e932b05c446848e"
+    },
+    {
+      "path": "src/app/api/park/attendance/summaries/route.test.ts",
+      "sha256": "d8e99bbf2d1e6ef39ec5c4a939ee8f442da6b9f79a054b573ff6ca5af09d5560"
+    },
+    {
+      "path": "src/app/api/park/attendance/summaries/route.ts",
+      "sha256": "81ceb592b18958404a83181d9a1b60523a23a96d995fb92763ab1f3567833875"
+    },
+    {
+      "path": "src/app/api/park/attendance/sync/route.test.ts",
+      "sha256": "53b11c8d150d215dca14ba508ad1124a93dc7592b1b5d59fa7c96f0d922eeb3d"
+    },
+    {
+      "path": "src/app/api/park/attendance/sync/route.ts",
+      "sha256": "167e4700f9e4352963f3637c58c8374efc0324506218331923c61f797cdeebef"
+    },
+    {
+      "path": "src/app/api/park/attendance/warnings/route.ts",
+      "sha256": "aaef9cb1f157a9c489a3e86516732c6f948898a0248db3e569522584f9008233"
+    },
+    {
+      "path": "src/app/api/park/dashboard/route.test.ts",
+      "sha256": "ed26ff9da32880403c3d0cb3bb59c7be3ef65e2d2530d8d052ba8da7caba7a4f"
+    },
+    {
+      "path": "src/app/api/park/dashboard/route.ts",
+      "sha256": "b1b01a4371f73d7c2ca9fe0f7cb8b3f9ed305cea5a4b9b34c20a1ffc37307224"
+    },
+    {
+      "path": "src/app/api/park/evaluations/route.ts",
+      "sha256": "5153c727eded83e054ac1949d0a39b62b086fd3ca51387f4fb241ad62ee5f2ff"
+    },
+    {
+      "path": "src/app/api/park/lessons/route.ts",
+      "sha256": "deb0226fbca2cf34056041f8b443454b726e4b025d4d1cee52820fa848fe836e"
+    },
+    {
+      "path": "src/app/api/park/planner/route.ts",
+      "sha256": "66044d1b448c384f4b5218c6119adfc9414b6922aa057b33ef65a2965d7bcdaf"
+    },
+    {
+      "path": "src/app/api/park/structure/route.test.ts",
+      "sha256": "94d60856c24ccbda20d09bc74e2fda0fdd3bd166e8b57265b04af779dfb18dd7"
+    },
+    {
+      "path": "src/app/api/park/structure/route.ts",
+      "sha256": "93ec9e6466ae146845eb0b1dae08af58d29588c52226a601e5da6d93ef5b4ab3"
+    },
+    {
+      "path": "src/app/api/resources/__tests__/library.test.ts",
+      "sha256": "3ab0b9f40786aa21c2ef737114387ef257efad6ce4dcf7b5569aa9cdbd867337"
+    },
+    {
+      "path": "src/app/api/resources/route.ts",
+      "sha256": "f8661ea0fdef669a51692c24c867d15eda955f243cf10495e3b8085b25a38341"
+    },
+    {
+      "path": "src/app/api/sync/process/route.ts",
+      "sha256": "51865e7e9714de3e99f64ce0bbb2e6082351fe6fd50c47ad5cda60fbd465d4b6"
+    },
+    {
+      "path": "src/app/api/user/profile/route.ts",
+      "sha256": "285d10dd099d176e0f5cd80f7d334159d43d502efdfe9bb001fba647a9ac0624"
+    },
+    {
+      "path": "src/app/globals.css",
+      "sha256": "ffcc214bc4f97af9c13562db187c3895ae4f17eca6eba4a1c6252cb40ae8990d"
+    },
+    {
+      "path": "src/components/modules/admin/certificates-page.tsx",
+      "sha256": "d62133e6224925b03b468d54ed45c8705b4862f442ad24c4b366fb5d55938e38"
+    },
+    {
+      "path": "src/components/modules/admin/client-data-boundary.test.ts",
+      "sha256": "6a4f9b0294d50081c4457cd1dfc3ec8cb01591ca02854db058fdfe4bd065e65c"
+    },
+    {
+      "path": "src/components/modules/admin/community-page.tsx",
+      "sha256": "3896fa24ff3f942d110a7d030afa41d0d4641dd79aab28ad5c9ad1294b489437"
+    },
+    {
+      "path": "src/components/modules/admin/custom-report-builder-page.tsx",
+      "sha256": "19e305f5b6bdbf77b9699611c83039411e4f5481fc7b91c8aa7cafdae1b275c4"
+    },
+    {
+      "path": "src/components/modules/admin/fees-page.tsx",
+      "sha256": "9549a3689a8e224f74fdf4f077c6b9f2d7372c819cb806fa597dc400222e94af"
+    },
+    {
+      "path": "src/components/modules/admin/islah-mamulat-page.tsx",
+      "sha256": "8b67ab05fe825bde5b856569907a29e390cc3660eba6dbef122cd96b1c45aed9"
+    },
+    {
+      "path": "src/components/modules/admin/mobile-analysis-page.tsx",
+      "sha256": "467aabbd7cdd3069a2f88ed9f185f6f8b7adbf3d74c25732ca6938d08f51ba3d"
+    },
+    {
+      "path": "src/components/modules/admin/mobile-calling-page.tsx",
+      "sha256": "ad2f3cb795799c4c1aba3ae073e9d247ee65a7bcae63362a74ebe9a6541025f1"
+    },
+    {
+      "path": "src/components/modules/admin/mobile-certificates-page.tsx",
+      "sha256": "78a0eba8b8e826aa59253bb8affd4cdbfd1ec0217e7ffdd2949ea94cbbe277ae"
+    },
+    {
+      "path": "src/components/modules/admin/mobile-community-page.tsx",
+      "sha256": "e6baf161f072f03809d30690c71c47734453889dc36f12b19023427e790b37e4"
+    },
+    {
+      "path": "src/components/modules/admin/mobile-fees-page.tsx",
+      "sha256": "eb02549c8adbe39954a27d1193e1888712071978b419962d7e85784d811d4639"
+    },
+    {
+      "path": "src/components/modules/admin/mobile-more-page.tsx",
+      "sha256": "43d636ecb35a88dda1959941f2181bc7b44919ed91e8c3a51962239bc33e8ee2"
+    },
+    {
+      "path": "src/components/modules/admin/mobile-portal-import-page.tsx",
+      "sha256": "a523a857690806e667d8acf28fc82180a29b275254e5c56161ee740d123d696f"
+    },
+    {
+      "path": "src/components/modules/admin/mobile-procurement-page.tsx",
+      "sha256": "8f6be908a8e7f6f15a2fc375e4cbd0b4980895f49f23aaae46539d9c5b57e471"
+    },
+    {
+      "path": "src/components/modules/admin/mobile-reports-builder-page.tsx",
+      "sha256": "cd1576397c4b0078c1d4104b8a9bf5abd2784be0e47bc6d037edd471c613ea86"
+    },
+    {
+      "path": "src/components/modules/admin/portal-import-page.tsx",
+      "sha256": "bf0586466a465edc63d41b158f7fca3916a5912534bea59322374312ddd3395a"
+    },
+    {
+      "path": "src/components/modules/admin/procurement-page.tsx",
+      "sha256": "80022d4cb9abf56232dcda8ae10c70fec26017f3c4ae3b8c69914eb8e941730b"
+    },
+    {
+      "path": "src/components/modules/admin/settings-page.tsx",
+      "sha256": "6b7c1d8cbdfdfc304e1d71a81871d1b990a02ba59701d516234cf4beb81e50d1"
+    },
+    {
+      "path": "src/components/modules/admin/sync-conflicts-page.tsx",
+      "sha256": "b89240d31e4802c24b2ce5895f5b512970e2bf005a9c39d4d219d9c1dc6e11f3"
+    },
+    {
+      "path": "src/components/modules/guardian/guardian-dashboard.tsx",
+      "sha256": "5dfe23e8517ab1024ee542e1776c14b0ab2cfaa0d77f33ef436347583aaaa798"
+    },
+    {
+      "path": "src/components/modules/guardian/mobile-guardian-dashboard.tsx",
+      "sha256": "5ff152297ca0ad7e917b22902b51321aa99369ecdddcf5f76a6cfdfb0250cc6f"
+    },
+    {
+      "path": "src/components/modules/park/attendance-roster.tsx",
+      "sha256": "96b5637360d8fb0949bbd571c9851ed0989f19cd8b732fd37be86bb9e75ad271"
+    },
+    {
+      "path": "src/components/modules/park/mobile-attendance-page.tsx",
+      "sha256": "887e052a9b25f8be999ea361051b04f071c39673217ceeb318d7c1eb5e97099c"
+    },
+    {
+      "path": "src/components/modules/park/tabs/attendance-tab.tsx",
+      "sha256": "9703fafa39e451d8e19059c7eeefe0dd7f5a57f96bc612073d54edf77869f067"
+    },
+    {
+      "path": "src/components/modules/student-profile/profile-page.tsx",
+      "sha256": "0f2bfcb312d21ef68b1766ba2ed09e6346f58cb492a47e8a13312d68afb4dded"
+    },
+    {
+      "path": "src/components/modules/student/mobile-student-profile-view.tsx",
+      "sha256": "c4660a2d14cedaeec17b29618bbc109510492aa06a01641c814ac7078949ea66"
+    },
+    {
+      "path": "src/components/providers/app-providers.tsx",
+      "sha256": "a9c1ea089a2d2b6729f8f4a9bad9728923bc86ffe7685a07734140179f8a144f"
+    },
+    {
+      "path": "src/components/pwa/pwa-app.tsx",
+      "sha256": "e420f384f7a6a8705665e157631ac637f7d5dce793ab4910ae9baeceecbefc86"
+    },
+    {
+      "path": "src/components/ui/unavailable-workflow.tsx",
+      "sha256": "87cf91fefa57ac22741f7949f170042d8e54930a3cf2ca00ffe5a3fbd8f79644"
+    },
+    {
+      "path": "src/hooks/use-attendance-sync.ts",
+      "sha256": "e8e7e74edfcf37a888ae7f46242a681f6ec2af27a28d23b561524f5e788d62e1"
+    },
+    {
+      "path": "src/hooks/use-effective-capabilities.ts",
+      "sha256": "4ec9a5b28ea98dc78254c2357470dedbae9c1605f6b677fee6df67f064790d12"
+    },
+    {
+      "path": "src/lib/admissions/access.ts",
+      "sha256": "10c31a38665026ce66bf6bc2c930aa8c4860f04bc15f893fd1e9f7399241e369"
+    },
+    {
+      "path": "src/lib/api/operation-receipt.ts",
+      "sha256": "adc8a4ddceeb97dd185e44f7abbbe5ec7d1a536b617dc45f8e268dff6b0e1b4f"
+    },
+    {
+      "path": "src/lib/api/unavailable.ts",
+      "sha256": "962df7a5ab0f03e2ae2b131e01fc5e8100ad887252d819c215af6d11b6a59222"
+    },
+    {
+      "path": "src/lib/attendance/apply-mutation.ts",
+      "sha256": "f52dabc4e01039d2dd0eeac5b1e08aaed13ec0e0f45b9f66ca212230db4b0e4f"
+    },
+    {
+      "path": "src/lib/attendance/opportunities.test.ts",
+      "sha256": "55551809cd0ab0809c2983c8d195a875745e23290463fdb5508e91a3ce1c144f"
+    },
+    {
+      "path": "src/lib/attendance/opportunities.ts",
+      "sha256": "107d113930553109799446028ee58e91a20501af4e0692b6c01be50c8f641936"
+    },
+    {
+      "path": "src/lib/attendance/schemas.ts",
+      "sha256": "62fed9dfa1fa4db81b23e07a393bd92855f584c63993e29ea3e76ce2fe6fbf43"
+    },
+    {
+      "path": "src/lib/auth.test.ts",
+      "sha256": "0a44de7c622d73489df8eaf894704ea1806542ac9e61fee3015a7549ecedf44d"
+    },
+    {
+      "path": "src/lib/auth.ts",
+      "sha256": "288f0f2a7f680c0323540e19dd9c4ba34fd4171c975b280d816ddf96ad7c2c8b"
+    },
+    {
+      "path": "src/lib/auth/audience.ts",
+      "sha256": "e555064fc9976d48cd4b7df50500eafc5cc945392266175c798d16cb39672fb6"
+    },
+    {
+      "path": "src/lib/auth/authorize.test.ts",
+      "sha256": "683dc9cdc0708a4c659da910b22aa4f10133e09c21a574186f8e9aacd6d42d8f"
+    },
+    {
+      "path": "src/lib/auth/authorize.ts",
+      "sha256": "0bf6cf040d43bdbd839a9eeef6f72beacfef97ecbc126b6cacecdc98ccab2930"
+    },
+    {
+      "path": "src/lib/auth/hierarchy.test.ts",
+      "sha256": "267ac2de7f369b42c50d9341d1edf1d05f4616a60fc98c372683edbbe137c4ff"
+    },
+    {
+      "path": "src/lib/auth/hierarchy.ts",
+      "sha256": "77b301ad034b3581447a3b233a2799fa9fef7a0f43d071cddf19b5a2fc05e174"
+    },
+    {
+      "path": "src/lib/auth/identity.ts",
+      "sha256": "33f277f9a9d5c97e1a037916602455b41b73a6340d2471617448c8c97a0d177f"
+    },
+    {
+      "path": "src/lib/auth/login-throttle.ts",
+      "sha256": "b843d24a0298b156932f853f6972b6235c2dd56a6db37dce4091fa2c3cb8e0b5"
+    },
+    {
+      "path": "src/lib/auth/mashwara-scope.ts",
+      "sha256": "17f218c7f81b1f0b99c259859dbb6372d9d901dc997c3d5af26cdedb37e3d5a4"
+    },
+    {
+      "path": "src/lib/auth/screen-access.ts",
+      "sha256": "937584421a3a91401ef6901a840f690eaca6cff75b49bc21e01422223ba2ddaf"
+    },
+    {
+      "path": "src/lib/calling/assignment-access.ts",
+      "sha256": "715961ea06a44712edbffd79c6e2f6780fc07a1a4b2836bdf182bf424d1bb9e2"
+    },
+    {
+      "path": "src/lib/calling/poc-auth.ts",
+      "sha256": "961cb5ac6e3600ca3a7d996aa1d7e532d43039a3e868d5c13267c80c8d82bda7"
+    },
+    {
+      "path": "src/lib/calling/portal-store.ts",
+      "sha256": "7178f7583eb1bbf154d04667cbcd8ba59c0bdc21c0d2799afc618cacc05cd6d2"
+    },
+    {
+      "path": "src/lib/mashwara/export-minutes.ts",
+      "sha256": "5d95ad731e7ddb3a42a84b05282c728fdc122cc01aed9ec07afddb448db9e116"
+    },
+    {
+      "path": "src/lib/mashwara/export-security.test.ts",
+      "sha256": "85c8b4f558496974e83be55bc0baa6c9d9fb711e076cea310d1052c8da5ecf89"
+    },
+    {
+      "path": "src/lib/offline/conflict-engine.ts",
+      "sha256": "4091573ac7a3f26ef523c2db6348f2afa1427fd06aa776b020e3a44027a13649"
+    },
+    {
+      "path": "src/lib/offline/db.ts",
+      "sha256": "1c083fc6ce7e3d4152abe91b7ba305987d7f38fc6af53dc3d932646fbf24667f"
+    },
+    {
+      "path": "src/lib/offline/sync-attendance.test.ts",
+      "sha256": "c338ba4c29a175afb90cca02fd2ff9eaff98cacba65ff7cba17eec210fd23f36"
+    },
+    {
+      "path": "src/lib/offline/sync-attendance.ts",
+      "sha256": "f5f32c64d5deac9e18adfcc5939aedbf16e0ad8d3363b72b40a6b40208023c86"
+    },
+    {
+      "path": "src/lib/student-profile/scope-boundary.test.ts",
+      "sha256": "28bfe8052454b3aa2720ce660cc1668f25d799da3bd87d0f9e048e6c4be5117b"
+    },
+    {
+      "path": "src/lib/student-profile/scope.ts",
+      "sha256": "8f691d1ebfaceaf92b8224270dfd8b3434300861655277663e9cbf0ade1bc2e5"
+    },
+    {
+      "path": "src/lib/student-profile/zod.ts",
+      "sha256": "8a65c3256da615a3ce669734b5b910c5e779b9b8890870c0869bead04518fbf2"
+    },
+    {
+      "path": "src/lib/validations/calling.ts",
+      "sha256": "3227db037bf05416f43b1e9f831074958556e8ed809e212b9e761dc115a8d5f9"
+    }
+  ],
+  "builds": [
+    {
+      "provider": "sqlite",
+      "directory": "D:\\iBuild\\Shabab-360-v2\\.next\\astra-build-sqlite-jZXjxE",
+      "sourceCopiedAt": "2026-09-10T05:30:51.078Z",
+      "exitCode": 0,
+      "differences": [
+        {
+          "path": "src/app/api/park/planner/route.ts",
+          "whitespaceOnly": true
+        }
+      ]
+    },
+    {
+      "provider": "postgres",
+      "directory": "D:\\iBuild\\Shabab-360-v2\\.next\\astra-build-postgres-1YRZeR",
+      "sourceCopiedAt": "2026-09-10T05:31:07.873Z",
+      "exitCode": 0,
+      "differences": [
+        {
+          "path": "src/app/api/park/planner/route.ts",
+          "whitespaceOnly": true
+        }
+      ]
+    }
+  ],
+  "limitations": "Manifest includes all changed application/schema/config/test files, including pre-existing candidate work; it does not assign authorship. Original Astra review manifest remains separate and unchanged. Build differences list any later source edits explicitly."
+}

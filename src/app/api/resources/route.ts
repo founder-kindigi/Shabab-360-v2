@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, resolveActorCity } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
+import { visibleCities } from "@/lib/auth/audience";
 import { Prisma } from "@prisma/client";
 
 export async function GET(request: NextRequest) {
@@ -8,17 +9,18 @@ export async function GET(request: NextRequest) {
   if (auth instanceof NextResponse) return auth;
   const { user } = auth;
 
-  const actorCity = await resolveActorCity();
+  const audience = await visibleCities(user);
+  if (audience instanceof NextResponse) return audience;
   const url = new URL(request.url);
   const categoryFilter = url.searchParams.get("category");
 
   const where: Prisma.DigitalResourceWhereInput = {};
   if (categoryFilter) where.category = categoryFilter;
 
-  if (actorCity) {
+  if (!audience.unrestricted) {
     where.OR = [
       { targetCityId: null },
-      { targetCityId: actorCity },
+      { targetCityId: { in: audience.cityIds } },
     ];
   }
 

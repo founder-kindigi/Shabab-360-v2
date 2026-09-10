@@ -1,330 +1,47 @@
 "use client";
-
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
-import {
-  ChevronLeft,
-  User,
-  Search,
-  GraduationCap,
-  Sparkles,
-  BookOpen,
-  CalendarCheck,
-  Award,
-  Users,
-  Building2,
-  Phone,
-  ShieldCheck,
-  CheckCircle2,
-} from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
+import { useEffectiveCapabilities } from "@/hooks/use-effective-capabilities";
 import { StudentProfilePage as ExtendedProfilePage } from "@/components/modules/student-profile/profile-page";
 import { StudentProfilePage as SelfProfilePage } from "@/components/modules/student/student-profile-page";
-import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
-interface MobileStudentProfileViewProps {
-  participantId?: string | null;
-  participantName?: string | null;
-  effectiveRole: string;
-  onBack: () => void;
-  onSelectParticipant?: (id: string, name: string) => void;
-}
+interface Props { participantId?: string | null; participantName?: string | null; effectiveRole: string; onBack: () => void; onSelectParticipant?: (id: string, name: string) => void }
+type Entry = { id: string; name: string; group: { name: string; batch: { park: { id: string; name: string; city: { id: string } } } } };
+async function readJson(url: string) { const response = await fetch(url, { cache: "no-store" }); if (!response.ok) throw new Error("Could not load profiles in your scope"); return response.json(); }
 
-export function MobileStudentProfileView({
-  participantId: initialParticipantId,
-  participantName: initialParticipantName,
-  effectiveRole,
-  onBack,
-  onSelectParticipant,
-}: MobileStudentProfileViewProps) {
+export function MobileStudentProfileView({ participantId, participantName, effectiveRole, onBack, onSelectParticipant }: Props) {
   const { data: session } = useSession();
-  const user = session?.user as any;
-
-  const [activeParticipantId, setActiveParticipantId] = useState<string | null>(
-    initialParticipantId || null
-  );
-  const [activeParticipantName, setActiveParticipantName] = useState<string | null>(
-    initialParticipantName || null
-  );
-  const [viewMode, setViewMode] = useState<"extended" | "overview">("overview");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedParkFilter, setSelectedParkFilter] = useState("all");
-
-  // Determine effective participant ID for students
-  const isStudentSelf = effectiveRole === "student";
-  const targetParticipantId = activeParticipantId || (isStudentSelf ? user?.participantId || "" : "");
-
-  // Query for student directory list when no participant is selected yet
-  const { data: studentsData, isLoading: isLoadingStudents } = useQuery({
-    queryKey: ["all-students-directory", selectedParkFilter, searchQuery],
-    queryFn: async () => {
-      const params = new URLSearchParams({ pageSize: "100" });
-      if (searchQuery.trim()) params.set("search", searchQuery.trim());
-      const res = await fetch(`/api/admin/students?${params}`);
-      if (!res.ok) return null;
-      return res.json() as Promise<{
-        students: Array<{
-          id: string;
-          name: string;
-          phone: string | null;
-          state: string;
-          group?: {
-            name: string;
-            batch?: {
-              park?: { id: string; name: string };
-            };
-          };
-        }>;
-      }>;
-    },
-    enabled: !targetParticipantId && !isStudentSelf,
-    staleTime: 60000,
+  const access = useEffectiveCapabilities();
+  const [selectedId, setSelectedId] = useState(participantId ?? "");
+  const [view, setView] = useState<"overview" | "extended">("overview");
+  const [search, setSearch] = useState("");
+  const [parkId, setParkId] = useState("");
+  const [page, setPage] = useState(1);
+  const isSelf = effectiveRole === "student";
+  const isStaff = ["super_admin", "program_admin", "city_head", "park_lead", "park_admin", "murabbi"].includes(effectiveRole);
+  const self = useQuery({ queryKey: ["profile-self-identity", session?.user?.id], queryFn: () => readJson("/api/user/profile"), enabled: isSelf && Boolean(session?.user?.id) });
+  const targetId = isSelf ? self.data?.participant?.id ?? "" : selectedId;
+  const context = useQuery<{ id: string; name: string; cityId: string }>({ queryKey: ["profile-context", session?.user?.id, targetId], queryFn: () => readJson('/api/admin/students/' + targetId + '/profile-context'), enabled: Boolean(targetId && access.has("students.profile.view")) });
+  const parks = useQuery<Array<{ id: string; name: string }>>({ queryKey: ["profile-parks", session?.user?.id], queryFn: () => readJson("/api/park/attendance/parks"), enabled: isStaff && !targetId && access.has("students.profile.view") });
+  const directory = useQuery<{ data: Entry[]; pagination: { totalItems: number; totalPages: number } }>({
+    queryKey: ["profile-directory", session?.user?.id, search, parkId, page],
+    queryFn: () => readJson('/api/admin/students?' + new URLSearchParams({ search, parkId, page: String(page), pageSize: "20" })),
+    enabled: isStaff && !targetId && access.has("students.profile.view"),
   });
-
-  const studentsList = studentsData?.students || [];
-  const filteredStudents = selectedParkFilter === "all"
-    ? studentsList
-    : studentsList.filter((s) =>
-        s.group?.batch?.park?.name?.toLowerCase().includes(selectedParkFilter.toLowerCase())
-      );
-
-  const capabilities = {
-    canView: true,
-    canManage: ["super_admin", "program_admin", "city_head", "park_lead", "murabbi"].includes(effectiveRole),
-    canViewSensitive: true,
-    canManageSensitive: ["super_admin", "program_admin"].includes(effectiveRole),
-  };
-
-  // ─── IF NO PARTICIPANT SELECTED & NOT SELF-STUDENT: SHABAB SELECTOR ──────────
-  if (!targetParticipantId && !isStudentSelf) {
-    return (
-      <div className="w-full max-w-[460px] mx-auto min-h-screen bg-slate-50 dark:bg-[#0c0817] text-slate-900 dark:text-slate-100 pb-36 select-none flex flex-col">
-        {/* Header */}
-        <div className="bg-white dark:bg-[#180E30] border-b border-slate-100 dark:border-white/10 px-5 pt-6 pb-4 sticky top-0 z-20">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <button
-                onClick={onBack}
-                className="p-1 -ml-1 text-slate-600 dark:text-slate-300 hover:text-slate-900 transition-colors"
-                aria-label="Back"
-              >
-                <ChevronLeft className="size-6" />
-              </button>
-              <div>
-                <h1 className="text-xl font-black text-[#1F0860] dark:text-purple-200 tracking-tight">
-                  Shabab Profiles
-                </h1>
-                <p className="text-[11px] text-slate-400 font-medium">
-                  Select any of the 288 Shabab to view 6-tab profile
-                </p>
-              </div>
-            </div>
-            <Badge
-              variant="secondary"
-              className="bg-purple-50 dark:bg-purple-950/40 text-[#4B0A8F] dark:text-purple-300 border-purple-200 dark:border-purple-800 font-bold text-xs"
-            >
-              Tarbiyah Desk
-            </Badge>
-          </div>
-
-          {/* Search bar */}
-          <div className="relative">
-            <Search className="size-4 absolute left-3 top-3 text-slate-400" />
-            <Input
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search Shabab by name or phone..."
-              className="pl-9 h-10 rounded-xl bg-slate-100 dark:bg-white/5 border-transparent text-sm"
-            />
-          </div>
-
-          {/* Park Filter Pills */}
-          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-2 pb-1">
-            {[
-              { id: "all", label: "All Parks" },
-              { id: "gulberg", label: "Gulberg" },
-              { id: "gulshan iqbal", label: "Gulshan Iqbal" },
-              { id: "griffin", label: "Griffin" },
-              { id: "johar", label: "Johar Town" },
-              { id: "ravi", label: "Gulshan Ravi" },
-              { id: "state life", label: "State Life" },
-            ].map((p) => {
-              const isSelected = selectedParkFilter === p.id;
-              return (
-                <button
-                  key={p.id}
-                  onClick={() => setSelectedParkFilter(p.id)}
-                  className={cn(
-                    "px-2.5 py-1 rounded-full text-[11px] font-bold shrink-0 transition-all active:scale-95",
-                    isSelected
-                      ? "bg-[#4B0A8F] text-white shadow-sm"
-                      : "bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-400 hover:bg-slate-200"
-                  )}
-                >
-                  {p.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Shabab List */}
-        <div className="p-4 flex-1 space-y-2.5 overflow-y-auto">
-          {isLoadingStudents ? (
-            <div className="text-center py-12 text-slate-400 text-sm flex flex-col items-center gap-2">
-              <div className="size-6 border-2 border-purple-600 border-t-transparent rounded-full animate-spin" />
-              <span>Loading Shabab directory...</span>
-            </div>
-          ) : filteredStudents.length === 0 ? (
-            <div className="text-center py-12 text-slate-400 text-sm">
-              No Shabab matching your search.
-            </div>
-          ) : (
-            filteredStudents.map((s) => (
-              <div
-                key={s.id}
-                onClick={() => {
-                  setActiveParticipantId(s.id);
-                  setActiveParticipantName(s.name);
-                  if (onSelectParticipant) onSelectParticipant(s.id, s.name);
-                }}
-                className="p-3 rounded-2xl bg-white dark:bg-[#180E30] border border-slate-100 dark:border-white/10 shadow-sm flex items-center justify-between gap-3 cursor-pointer hover:border-purple-300 dark:hover:border-purple-800 active:scale-[0.99] transition-all"
-              >
-                <div className="flex items-center gap-3 min-w-0">
-                  <Avatar className="size-10 border border-slate-100 dark:border-white/10 shrink-0">
-                    <AvatarFallback className="bg-purple-100 dark:bg-purple-950/60 text-[#4B0A8F] dark:text-purple-300 font-bold text-xs">
-                      {s.name.slice(0, 2).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="min-w-0">
-                    <p className="text-sm font-bold text-slate-900 dark:text-white truncate">
-                      {s.name}
-                    </p>
-                    <p className="text-[11px] text-slate-400 truncate">
-                      {s.group?.name || "Group"} • {s.group?.batch?.park?.name || "Lahore"}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <span className="text-[11px] font-bold text-[#4B0A8F] dark:text-purple-300 px-2.5 py-1 rounded-full bg-purple-50 dark:bg-purple-950/50 border border-purple-200 dark:border-purple-800">
-                    Open Profile →
-                  </span>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  // ─── SHABAB PROFILE VIEW (EXTENDED OR SELF) ─────────────────────────────────
-  return (
-    <div className="w-full max-w-[460px] mx-auto min-h-screen bg-slate-50 dark:bg-[#0c0817] text-slate-900 dark:text-slate-100 pb-36 select-none flex flex-col">
-      {/* Top Header */}
-      <div className="bg-white dark:bg-[#180E30] border-b border-slate-100 dark:border-white/10 px-5 pt-5 pb-3 sticky top-0 z-20">
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => {
-                if (activeParticipantId && !initialParticipantId && !isStudentSelf) {
-                  // If picked from directory, return to directory
-                  setActiveParticipantId(null);
-                  setActiveParticipantName(null);
-                } else {
-                  onBack();
-                }
-              }}
-              className="p-1 -ml-1 text-slate-600 dark:text-slate-300 hover:text-slate-900 transition-colors"
-              aria-label="Back"
-            >
-              <ChevronLeft className="size-6" />
-            </button>
-            <div className="min-w-0">
-              <h1 className="text-lg font-black text-[#1F0860] dark:text-purple-200 tracking-tight truncate">
-                {activeParticipantName || "Shabab Profile"}
-              </h1>
-              <p className="text-[11px] text-slate-400 font-medium truncate">
-                {isStudentSelf ? "Personal Shabab Record" : "Tarbiyah & Character Evaluation"}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-1.5">
-            {!isStudentSelf && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  setActiveParticipantId(null);
-                  setActiveParticipantName(null);
-                }}
-                className="text-xs font-bold text-[#4B0A8F] dark:text-purple-300 hover:bg-purple-50 h-8 px-2"
-              >
-                Change Shabab
-              </Button>
-            )}
-            <Badge
-              variant="secondary"
-              className="bg-purple-50 dark:bg-purple-950/40 text-[#4B0A8F] dark:text-purple-300 border-purple-200 dark:border-purple-800 font-bold text-xs"
-            >
-              Shabab
-            </Badge>
-          </div>
-        </div>
-
-        {/* View Mode Switcher Pills */}
-        <div className="flex gap-2 pt-2">
-          <button
-            onClick={() => setViewMode("overview")}
-            className={cn(
-              "flex-1 py-1.5 px-3 rounded-xl text-xs font-bold transition-all text-center flex items-center justify-center gap-1.5",
-              viewMode === "overview"
-                ? "bg-[#180A40] text-white shadow-sm"
-                : "bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-400 hover:bg-slate-200"
-            )}
-          >
-            <User className="size-3.5" />
-            <span>Overview & Attendance</span>
-          </button>
-          <button
-            onClick={() => setViewMode("extended")}
-            className={cn(
-              "flex-1 py-1.5 px-3 rounded-xl text-xs font-bold transition-all text-center flex items-center justify-center gap-1.5",
-              viewMode === "extended"
-                ? "bg-[#180A40] text-white shadow-sm"
-                : "bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-400 hover:bg-slate-200"
-            )}
-          >
-            <Sparkles className="size-3.5" />
-            <span>6-Tab Tarbiyah Profile</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Main Content Area */}
-      <div className="flex-1 overflow-y-auto">
-        {viewMode === "overview" ? (
-          <SelfProfilePage
-            participantId={targetParticipantId}
-            isSelf={isStudentSelf}
-          />
-        ) : targetParticipantId ? (
-          <ExtendedProfilePage
-            participantId={targetParticipantId}
-            capabilities={capabilities}
-          />
-        ) : (
-          <div className="p-6 text-center text-slate-400 text-sm">
-            No participant ID found for extended profile.
-          </div>
-        )}
-      </div>
-    </div>
-  );
+  const capabilities = { canView: access.has("students.profile.view"), canManage: access.has("students.profile.manage"), canViewSensitive: access.has("students.profile.sensitive.view"), canManageSensitive: access.has("students.profile.sensitive.manage") };
+  return <section className="max-w-xl mx-auto min-h-screen p-4 pb-28 space-y-4">
+    <div className="flex items-center gap-3"><Button variant="ghost" onClick={() => selectedId && !participantId && !isSelf ? setSelectedId("") : onBack()}>Back</Button><h1 className="text-xl font-bold">{context.data?.name ?? participantName ?? "Shabab profiles"}</h1></div>
+    {access.isLoading ? <p>Loading permissions…</p> : !capabilities.canView ? <p role="alert">Profile access is unavailable.</p> : targetId ? <>
+      <div className="flex gap-2"><Button variant={view === "overview" ? "default" : "outline"} onClick={() => setView("overview")}>Overview</Button><Button variant={view === "extended" ? "default" : "outline"} onClick={() => setView("extended")}>Extended profile</Button></div>
+      {context.isError ? <p role="alert">Profile could not be loaded. <button onClick={() => context.refetch()}>Retry</button></p> : !context.data ? <p>Loading profile…</p> : view === "extended" ? <ExtendedProfilePage key={session?.user?.id + targetId} participantId={targetId} cityId={context.data.cityId} capabilities={capabilities} /> : <SelfProfilePage participantId={targetId} isSelf={isSelf} />}
+    </> : isSelf ? <p>{self.isError ? "Your linked profile could not be loaded." : self.isLoading ? "Loading your profile…" : "No participant profile is linked to this account."}</p> : !isStaff ? <p>Select a linked child from your dashboard.</p> : <>
+      <Input aria-label="Search profiles" value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} placeholder="Search by name or phone" maxLength={100} />
+      <select aria-label="Filter by park" className="w-full border rounded p-2" value={parkId} onChange={e => { setParkId(e.target.value); setPage(1); }}><option value="">All authorized parks</option>{parks.data?.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
+      {directory.isLoading ? <p>Loading profiles…</p> : directory.isError ? <p role="alert">Profiles could not be loaded. <button onClick={() => directory.refetch()}>Retry</button></p> : !directory.data?.data.length ? <p>No profiles match this search.</p> : directory.data.data.map(p => <button key={p.id} className="block w-full text-left border rounded-xl p-3" onClick={() => { setSelectedId(p.id); onSelectParticipant?.(p.id, p.name); }}><strong>{p.name}</strong><span className="block text-sm text-muted-foreground">{p.group.name} · {p.group.batch.park.name}</span></button>)}
+      <div className="flex justify-between items-center"><Button variant="outline" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>Previous</Button><span>Page {page} of {Math.max(1, directory.data?.pagination.totalPages ?? 1)}</span><Button variant="outline" disabled={page >= (directory.data?.pagination.totalPages ?? 1)} onClick={() => setPage(p => p + 1)}>Next</Button></div>
+    </>}
+  </section>;
 }

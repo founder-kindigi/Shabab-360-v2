@@ -2,6 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { execFileSync } from 'node:child_process';
 const root = fileURLToPath(new URL('../../../', import.meta.url));
 const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
 const walk = (dir) => fs.readdirSync(path.join(root, dir), { withFileTypes: true }).flatMap((entry) => {
@@ -42,7 +43,8 @@ const clientBundleVerification = fs.existsSync(path.join(root, '.next/static/chu
     }];
   }) : [];
 const result = {
-  auditedCommit: 'd81df15',
+  auditedCommit: execFileSync('git', ['rev-parse', '--short', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(),
+  compiledAssetNote: 'Existing local build assets were inspected; their source commit is not inferred from current HEAD.',
   routeFiles: routes.length,
   handlers: routeInventory.reduce((sum, route) => sum + route.methods.length, 0),
   postgresModels: mappedTables.length,

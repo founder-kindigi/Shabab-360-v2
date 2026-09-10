@@ -3,11 +3,13 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { requireCapability } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
+import { groupParkWhere, groupResourceScope, groupHierarchyInclude } from "@/lib/auth/hierarchy";
 import { todayPKT, endOfTodayPKT, formatPKT } from "@/lib/timezone";
 
 type SessionUser = {
   id?: string;
   role?: string;
+  mustResetPwd?: boolean;
   name?: string | null;
   assignedCityId?: string | null;
   assignedParkId?: string | null;
@@ -28,6 +30,9 @@ export async function GET() {
   }
   const capabilityAuth = await requireCapability("dashboard.view");
   if (capabilityAuth instanceof NextResponse) return capabilityAuth;
+  if (user.mustResetPwd || (user.role === "city_head" && !user.assignedCityId) || (["park_admin", "park_lead"].includes(user.role) && !user.assignedParkId) || (user.role === "murabbi" && !user.assignedGroupId)) {
+    return NextResponse.json({ error: "Required assignment or password reset is missing" }, { status: 403 });
+  }
 
   try {
     let parkId = user.assignedParkId;
@@ -37,12 +42,14 @@ export async function GET() {
       // Murabbi: get park from their group
       const group = await db.group.findUnique({
         where: { id: user.assignedGroupId },
-        include: { batch: { include: { park: { include: { city: true } } } } },
+        include: groupHierarchyInclude,
       });
       if (!group) {
         return NextResponse.json({ error: "Group not found" }, { status: 404 });
       }
-      parkId = group.batch.parkId;
+      const scope = groupResourceScope(group);
+      if (!scope) return NextResponse.json({ error: "Invalid group hierarchy" }, { status: 403 });
+      parkId = scope.parkId;
       groupIds = [group.id];
     } else if (user.assignedParkId) {
       // Park admin/lead: get all groups in their park
@@ -52,7 +59,7 @@ export async function GET() {
       });
       const batchIds = batches.map((b) => b.id);
       const groups = await db.group.findMany({
-        where: { batchId: { in: batchIds }, isActive: true },
+        where: { ...groupParkWhere(user.assignedParkId), batch: { isActive: true }, isActive: true },
         select: { id: true },
       });
       groupIds = groups.map((g) => g.id);
@@ -65,7 +72,7 @@ export async function GET() {
         parkId = firstPark.id;
         const batches = await db.batch.findMany({ where: { parkId, isActive: true }, select: { id: true } });
         const batchIds = batches.map((b) => b.id);
-        const groups = await db.group.findMany({ where: { batchId: { in: batchIds }, isActive: true }, select: { id: true } });
+        const groups = await db.group.findMany({ where: { ...groupParkWhere(parkId), batch: { isActive: true }, isActive: true }, select: { id: true } });
         groupIds = groups.map((g) => g.id);
       }
     }

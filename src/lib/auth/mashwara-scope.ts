@@ -1,61 +1,18 @@
 import { db } from "@/lib/db";
-import type { SessionUser } from "@/lib/auth/scope";
-
-async function resolveStaffCityId(
-  staffMetaId: string
-): Promise<string | null> {
-  const staff = await db.staffMeta.findUnique({
-    where: { id: staffMetaId },
-    select: {
-      assignedCityId: true,
-      assignedPark: { select: { cityId: true } },
-      assignedGroup: {
-        select: {
-          park: { select: { cityId: true } },
-          batch: { select: { cityId: true, park: { select: { cityId: true } } } },
-        },
-      },
-    },
-  });
-  if (!staff) return null;
-
-  return (
-    staff.assignedCityId ??
-    staff.assignedPark?.cityId ??
-    staff.assignedGroup?.park?.cityId ??
-    staff.assignedGroup?.batch.cityId ??
-    staff.assignedGroup?.batch.park.cityId ??
-    null
-  );
-}
-
-export async function resolveMashwaraAccess(
-  user: SessionUser,
-  meeting: { id: string; cityId: string }
-): Promise<boolean> {
-  const isHq = user.role === "super_admin" || user.role === "program_admin";
-  if (isHq) return true;
-
-  if (user.id) {
-    if (user.assignedCityId && user.assignedCityId === meeting.cityId) return true;
-
-    const staffMeta = await db.staffMeta.findFirst({
-      where: { userId: user.id, isActive: true },
-      select: { id: true },
-    });
-    if (!staffMeta) return false;
-
-    const staffCityId = await resolveStaffCityId(staffMeta.id);
-    if (staffCityId && staffCityId === meeting.cityId) return true;
-
-    const share = await db.mashwaraMeetingShare.findUnique({
-      where: {
-        meetingId_staffMetaId: { meetingId: meeting.id, staffMetaId: staffMeta.id },
-      },
-      select: { isRevoked: true },
-    });
-    if (share && !share.isRevoked) return true;
-  }
-
-  return false;
+import { NextResponse } from "next/server";
+import { isHqRole, type SessionUser } from "@/lib/auth/scope";
+import { resolveRequestedHierarchy } from "@/lib/auth/hierarchy";
+export async function resolveMashwaraAccess(user: SessionUser, meeting: { id: string; cityId: string }): Promise<boolean> {
+  if (!user.id || user.mustResetPwd) return false;
+  if (isHqRole(user.role)) return true;
+  const staff = await db.staffMeta.findFirst({ where: { userId: user.id, isActive: true } });
+  if (!staff) return false;
+  const scope = await resolveRequestedHierarchy({ id: user.id, role: staff.role, assignedCityId: staff.assignedCityId, assignedParkId: staff.assignedParkId, assignedGroupId: staff.assignedGroupId });
+  if (scope instanceof NextResponse) return false;
+  const share = await db.mashwaraMeetingShare.findUnique({ where: { meetingId_staffMetaId: { meetingId: meeting.id, staffMetaId: staff.id } } });
+  if (share && !share.isRevoked && !share.revokedAt) return true;
+  if (scope.cityId !== meeting.cityId) return false;
+  if (staff.role === "city_head") return true;
+  // Membership of an unrelated city team does not grant access to meeting minutes.
+  return Boolean(await db.mashwaraAttendee.findUnique({ where: { meetingId_staffMetaId: { meetingId: meeting.id, staffMetaId: staff.id } } }));
 }

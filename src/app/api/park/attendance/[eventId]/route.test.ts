@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   staffMetaFindUnique: vi.fn(),
   attendanceRecordFindUnique: vi.fn(),
   attendanceRecordCreate: vi.fn(),
+  transaction: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/authorize", () => ({
@@ -24,6 +25,7 @@ vi.mock("@/lib/attendance-alerts", () => ({
 }));
 vi.mock("@/lib/db", () => ({
   db: {
+    $transaction: mocks.transaction,
     attendanceEvent: { findUnique: mocks.eventFindUnique },
     participant: { findFirst: mocks.participantFindFirst },
     staffMeta: { findUnique: mocks.staffMetaFindUnique },
@@ -33,16 +35,16 @@ vi.mock("@/lib/db", () => ({
     },
   },
 }));
-vi.mock("@/lib/audit", () => ({ logAudit: vi.fn() }));
+vi.mock("@/lib/audit", async (original) => ({ ...await original<typeof import("@/lib/audit")>(), logAudit: vi.fn() }));
 
 import { POST } from "./route";
 
 const event = {
-  id: "event-1",
+  id: "ckccccccccccccccccccccccc",
   groupId: "group-1",
   eventDate: new Date("2026-08-16T00:00:00.000Z"),
-  isClosed: false,
-  group: { batch: { parkId: "park-1", park: { cityId: "city-1" } } },
+  isClosed: false, resetVersion: 0,
+  group: { id: "group-1", parkId: "park-1", park: { id: "park-1", cityId: "city-1" }, batch: { parkId: "park-1", park: { cityId: "city-1" } } },
 };
 const PARTICIPANT_ID = "ckaaaaaaaaaaaaaaaaaaaaaaa";
 const OTHER_PARTICIPANT_ID = "ckbbbbbbbbbbbbbbbbbbbbbbb";
@@ -51,13 +53,15 @@ function request(body: Record<string, unknown>) {
   return new Request("http://localhost/api/park/attendance/event-1", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify(body),
+    body: JSON.stringify({ mutationId: "one", expectedResetVersion: 0, expectedVersion: null, ...body }),
   });
 }
 
 describe("POST /api/park/attendance/[eventId]", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
+    mocks.staffMetaFindUnique.mockResolvedValue({ id: "staff-1", role: "murabbi", assignedGroupId: "group-1", isActive: true });
+    mocks.transaction.mockImplementation(async run => run({ staffMeta: { findUnique: mocks.staffMetaFindUnique }, attendanceEvent: { findUnique: mocks.eventFindUnique, updateMany: async () => ({ count: 1 }) }, participant: { findFirst: mocks.participantFindFirst }, attendanceRecord: { findUnique: mocks.attendanceRecordFindUnique, create: mocks.attendanceRecordCreate }, auditLog: { create: vi.fn() }, $queryRaw: async () => [], $executeRaw: vi.fn() }));
     mocks.requireAuth.mockResolvedValue({
       user: { id: "staff-user-1", role: "murabbi", assignedGroupId: "group-1" },
     });
@@ -68,7 +72,7 @@ describe("POST /api/park/attendance/[eventId]", () => {
 
   it("rejects unknown attendance states before fetching the event", async () => {
     const response = await POST(request({ participantId: PARTICIPANT_ID, status: "missing" }), {
-      params: Promise.resolve({ eventId: "event-1" }),
+      params: Promise.resolve({ eventId: "ckccccccccccccccccccccccc" }),
     });
 
     expect(response.status).toBe(400);
@@ -82,7 +86,7 @@ describe("POST /api/park/attendance/[eventId]", () => {
         status: "present",
         markedAt: "not-a-date",
       }),
-      { params: Promise.resolve({ eventId: "event-1" }) }
+      { params: Promise.resolve({ eventId: "ckccccccccccccccccccccccc" }) }
     );
 
     expect(response.status).toBe(400);
@@ -95,7 +99,7 @@ describe("POST /api/park/attendance/[eventId]", () => {
     );
 
     const response = await POST(request({ participantId: PARTICIPANT_ID, status: "present" }), {
-      params: Promise.resolve({ eventId: "event-1" }),
+      params: Promise.resolve({ eventId: "ckccccccccccccccccccccccc" }),
     });
 
     expect(response.status).toBe(403);
@@ -108,7 +112,7 @@ describe("POST /api/park/attendance/[eventId]", () => {
     );
 
     const response = await POST(request({ participantId: PARTICIPANT_ID, status: "present" }), {
-      params: Promise.resolve({ eventId: "event-1" }),
+      params: Promise.resolve({ eventId: "ckccccccccccccccccccccccc" }),
     });
 
     expect(response.status).toBe(403);
@@ -119,11 +123,11 @@ describe("POST /api/park/attendance/[eventId]", () => {
     mocks.participantFindFirst.mockResolvedValue(null);
 
     const response = await POST(request({ participantId: OTHER_PARTICIPANT_ID, status: "present" }), {
-      params: Promise.resolve({ eventId: "event-1" }),
+      params: Promise.resolve({ eventId: "ckccccccccccccccccccccccc" }),
     });
 
     expect(response.status).toBe(409);
-    await expect(response.json()).resolves.toEqual({ error: "Participant not in this group" });
+    await expect(response.json()).resolves.toMatchObject({ code: "PARTICIPANT_SCOPE_CHANGED" });
     expect(mocks.participantFindFirst).toHaveBeenCalledWith({
       where: { id: OTHER_PARTICIPANT_ID, groupId: "group-1" },
     });
@@ -132,20 +136,20 @@ describe("POST /api/park/attendance/[eventId]", () => {
   it("rejects attendance on or after a participant dropout date", async () => {
     mocks.participantFindFirst.mockResolvedValue({
       id: PARTICIPANT_ID,
-      state: "dropout",
+      joinedAt: new Date("2026-01-01"), state: "dropout",
       dropoutAt: new Date("2026-08-01T00:00:00.000Z"),
     });
     const response = await POST(request({ participantId: PARTICIPANT_ID, status: "present" }), {
-      params: Promise.resolve({ eventId: "event-1" }),
+      params: Promise.resolve({ eventId: "ckccccccccccccccccccccccc" }),
     });
     expect(response.status).toBe(409);
-    await expect(response.json()).resolves.toEqual({ error: "Attendance is discontinued for this participant" });
+    await expect(response.json()).resolves.toMatchObject({ code: "ATTENDANCE_DISCONTINUED" });
     expect(mocks.attendanceRecordCreate).not.toHaveBeenCalled();
   });
 
   it("evaluates absence alerts in-process after a successful attendance record", async () => {
-    mocks.participantFindFirst.mockResolvedValue({ id: PARTICIPANT_ID, state: "active", dropoutAt: null });
-    mocks.staffMetaFindUnique.mockResolvedValue({ id: "staff-1", user: { name: "Murabbi" } });
+    mocks.participantFindFirst.mockResolvedValue({ id: PARTICIPANT_ID, joinedAt: new Date("2026-01-01"), state: "active", dropoutAt: null });
+    mocks.staffMetaFindUnique.mockResolvedValue({ id: "staff-1", role: "murabbi", assignedGroupId: "group-1", isActive: true });
     mocks.attendanceRecordFindUnique.mockResolvedValue(null);
     mocks.attendanceRecordCreate.mockResolvedValue({
       id: "record-1",
@@ -154,10 +158,10 @@ describe("POST /api/park/attendance/[eventId]", () => {
     });
 
     const response = await POST(request({ participantId: PARTICIPANT_ID, status: "absent" }), {
-      params: Promise.resolve({ eventId: "event-1" }),
+      params: Promise.resolve({ eventId: "ckccccccccccccccccccccccc" }),
     });
 
     expect(response.status).toBe(200);
-    expect(mocks.checkAttendanceAlerts).toHaveBeenCalledWith(PARTICIPANT_ID, "event-1");
+    expect(mocks.checkAttendanceAlerts).toHaveBeenCalledWith(PARTICIPANT_ID, "ckccccccccccccccccccccccc");
   });
 });

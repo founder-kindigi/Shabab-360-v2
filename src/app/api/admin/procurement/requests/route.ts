@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth, requireCapability, resolveActorCity } from "@/lib/auth/authorize";
+import { isHqRole, requireAuth, requireCapability, requireResourceScope } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
-import { logAudit } from "@/lib/audit";
+import { createAuditLogData } from "@/lib/audit";
 import { z } from "zod";
 import { Prisma } from "@prisma/client";
 
 const createRequestSchema = z.object({
   parkId: z.string().min(1, "Park ID is required"),
   itemId: z.string().min(1, "Item ID is required"),
-  quantity: z.number().int().positive("Quantity must be positive"),
+  quantity: z.number().int().positive("Quantity must be positive").max(1000000),
   reason: z.string().trim().min(5, "Reason must be at least 5 characters").max(500),
 });
 
@@ -20,7 +20,6 @@ export async function GET(request: NextRequest) {
   const capAuth = await requireCapability("organisation.view");
   if (capAuth instanceof NextResponse) return capAuth;
 
-  const actorCity = await resolveActorCity();
   const url = new URL(request.url);
   const parkIdFilter = url.searchParams.get("parkId");
   const statusFilter = url.searchParams.get("status");
@@ -33,14 +32,17 @@ export async function GET(request: NextRequest) {
     if (!park) {
       return NextResponse.json({ error: "Park not found" }, { status: 404 });
     }
-    if (actorCity && park.cityId !== actorCity) {
-      return NextResponse.json({ error: "Forbidden: Cannot view requests outside city scope" }, { status: 403 });
-    }
+    const scopeError = requireResourceScope(user, { cityId: park.cityId, parkId: park.id });
+    if (scopeError) return scopeError;
     where.parkId = parkIdFilter;
-  } else if (actorCity) {
-    where.park = { cityId: actorCity };
-  } else if (!["super_admin", "program_admin"].includes(user.role || "")) {
-    return NextResponse.json({ error: "Park or city context is required" }, { status: 400 });
+  } else if (!isHqRole(user.role)) {
+    if (user.role === "city_head" && user.assignedCityId) {
+      where.park = { cityId: user.assignedCityId };
+    } else if (["park_admin", "park_lead"].includes(user.role || "") && user.assignedParkId) {
+      where.parkId = user.assignedParkId;
+    } else {
+      return NextResponse.json({ error: "A resolved park or city scope is required" }, { status: 403 });
+    }
   }
 
   const requests = await db.stockRequest.findMany({
@@ -81,17 +83,17 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Park not found" }, { status: 404 });
   }
 
-  const actorCity = await resolveActorCity();
-  if (actorCity && park.cityId !== actorCity) {
-    return NextResponse.json({ error: "Forbidden: Cannot submit request for park outside city scope" }, { status: 403 });
-  }
+  const scopeError = requireResourceScope(user, { cityId: park.cityId, parkId: park.id });
+  if (scopeError) return scopeError;
 
   const item = await db.procurementItem.findUnique({ where: { id: parsed.data.itemId } });
   if (!item) {
     return NextResponse.json({ error: "Procurement item not found" }, { status: 404 });
   }
 
-  const stockRequest = await db.stockRequest.create({
+  try {
+  const stockRequest = await db.$transaction(async tx => {
+    const stockRequest = await tx.stockRequest.create({
     data: {
       parkId: parsed.data.parkId,
       itemId: parsed.data.itemId,
@@ -106,7 +108,9 @@ export async function POST(request: NextRequest) {
     },
   });
 
-  logAudit({
+
+
+    await tx.auditLog.create({ data: createAuditLogData({
     userId: user.id!,
     action: "procurement.request.create",
     entityType: "stock_request",
@@ -117,7 +121,10 @@ export async function POST(request: NextRequest) {
       quantity: stockRequest.quantity,
       reason: stockRequest.reason,
     },
+    }) });
+    return stockRequest;
   });
 
   return NextResponse.json(stockRequest, { status: 201 });
+  } catch { return NextResponse.json({ error: "Operation could not be saved" }, { status: 503 }); }
 }

@@ -1,3 +1,4 @@
+import { resolveRequestedHierarchy, groupParkWhere } from "@/lib/auth/hierarchy";
 import { NextRequest, NextResponse } from "next/server";
 import { requireRole, requireAuth, requireCapability } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
@@ -33,9 +34,9 @@ const studentListQuerySchema = paginatedQuerySchema().extend({
 });
 
 export async function GET(request: NextRequest) {
-  const authError = await requireRole(["super_admin", "program_admin"]);
-  if (authError) return authError;
-  const capabilityAuth = await requireCapability("students.manage");
+  const auth = await requireAuth();
+  if (auth instanceof NextResponse) return auth;
+  const capabilityAuth = await requireCapability("students.profile.view");
   if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
   const { searchParams } = new URL(request.url);
@@ -45,26 +46,15 @@ export async function GET(request: NextRequest) {
   }
   const { search, cityId, parkId, groupId, state, gender, page, pageSize, sort, order } = query.data;
 
-  // Build where clause
+  const scope = await resolveRequestedHierarchy(auth.user, { cityId, parkId, groupId });
+  if (scope instanceof NextResponse) return scope;
   const where: any = {};
-
-  if (search) {
-    where.OR = [
-      { name: { contains: search } },
-      { phone: { contains: search } },
-    ];
-  }
-
-  if (cityId || parkId || groupId) {
-    where.group = {};
-    if (groupId) {
-      where.group.id = groupId;
-    } else if (parkId) {
-      where.group.batch = { parkId };
-    } else if (cityId) {
-      where.group.batch = { park: { cityId } };
-    }
-  }
+  if (search) where.OR = [{ name: { contains: search } }, { phone: { contains: search } }];
+  where.group = {
+    ...(scope.groupId ? { id: scope.groupId } : {}),
+    ...(scope.parkId ? groupParkWhere(scope.parkId) : {}),
+    ...(scope.cityId ? { AND: [{ OR: [{ park: { cityId: scope.cityId } }, { parkId: null, batch: { park: { cityId: scope.cityId } } }] }] } : {}),
+  };
 
   if (state && state !== "all") {
     where.state = state;
@@ -86,6 +76,7 @@ export async function GET(request: NextRequest) {
       include: {
         group: {
           include: {
+            park: { include: { city: { select: { id: true, name: true } } } },
             batch: {
               include: {
                 park: {
@@ -119,6 +110,7 @@ export async function GET(request: NextRequest) {
   ]);
 
   const data = students.map((s) => {
+    const actualPark = s.group.parkId ? s.group.park! : s.group.batch.park;
     const totalEvents = s.attendanceRecords.length;
     const presentCount = s.attendanceRecords.filter(
       (r) => r.status === "present"
@@ -144,9 +136,9 @@ export async function GET(request: NextRequest) {
           id: s.group.batch.id,
           name: s.group.batch.name,
           park: {
-            id: s.group.batch.park.id,
-            name: s.group.batch.park.name,
-            city: s.group.batch.park.city,
+            id: actualPark.id,
+            name: actualPark.name,
+            city: actualPark.city,
           },
         },
       },

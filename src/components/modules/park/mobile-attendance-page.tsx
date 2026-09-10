@@ -1,4 +1,6 @@
 "use client";
+import { useAttendanceSync } from "@/hooks/use-attendance-sync";
+import { OfflineQueuePanel } from "./offline-queue-panel";
 
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { useSession, signIn } from "next-auth/react";
@@ -46,7 +48,7 @@ export interface AttendanceEventSummary {
   groupId: string;
   groupName: string;
   eventDate: string;
-  isClosed: boolean;
+  isClosed: boolean; resetVersion: number;
   participantCount: number;
   markedCount: number;
   presentCount: number;
@@ -82,13 +84,15 @@ export interface StaffRosterMember {
 }
 
 export interface MobileAttendancePageProps {
+  parkId?: string;
   onBack?: () => void;
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
-export function MobileAttendancePage({ onBack }: MobileAttendancePageProps) {
+export function MobileAttendancePage({ onBack, parkId }: MobileAttendancePageProps) {
   const queryClient = useQueryClient();
+  const { markAttendance } = useAttendanceSync();
   const isOnline = useOnlineStatus();
   const sessionResult = useSession();
   const session = sessionResult?.data;
@@ -131,8 +135,8 @@ export function MobileAttendancePage({ onBack }: MobileAttendancePageProps) {
     staleTime: 5 * 60 * 1000,
   });
 
-  const effectiveParkId = assignedParkId || selectedParkId || (parksData && parksData.length > 0 ? parksData[0].id : "");
-  const requiresParkSelection = sessionStatus === "authenticated" && !assignedParkId && !isMurabbi;
+  const effectiveParkId = parkId || assignedParkId || selectedParkId || (parksData && parksData.length > 0 ? parksData[0].id : "");
+  const requiresParkSelection = sessionStatus === "authenticated" && !parkId && !assignedParkId && !isMurabbi;
 
   // Automatically select first park if none selected
   useEffect(() => {
@@ -202,7 +206,7 @@ export function MobileAttendancePage({ onBack }: MobileAttendancePageProps) {
       batchName: string;
       parkName: string;
       eventDate: string;
-      isClosed: boolean;
+      isClosed: boolean; resetVersion: number;
       closedAt: string | null;
       closedByName: string | null;
     };
@@ -244,7 +248,7 @@ export function MobileAttendancePage({ onBack }: MobileAttendancePageProps) {
     isLoading: isStaffLoading,
     refetch: refetchStaffSummary,
   } = useQuery<{
-    event: { id: string; isClosed: boolean; _count: { records: number } } | null;
+    event: { id: string; isClosed: boolean; resetVersion: number; _count: { records: number } } | null;
     park: { id: string; name: string };
     date: string;
   } | null>({
@@ -285,21 +289,14 @@ export function MobileAttendancePage({ onBack }: MobileAttendancePageProps) {
   // Single status mark
   const markSingleMutation = useMutation({
     mutationFn: async ({ participantId, status }: { participantId: string; status: AttendanceStatus }) => {
-      const res = await fetch(`/api/park/attendance/${effectiveEventId}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          participantId,
-          status,
-          mutationId: uuidv4(),
-          markedAt: new Date().toISOString(),
-        }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || "Failed to mark attendance");
-      return data;
+      const result = await markAttendance({ eventId: effectiveEventId!, participantId, status, expectedResetVersion: rosterData?.event.resetVersion ?? 0, expectedVersion: rosterData?.roster.find(r => r.participantId === participantId)?.markedAt ?? null });
+      if (!result.success) throw new Error(result.error);
+      if (result.queued) toast.info("Saved on this device; waiting to sync");
+      else await refetchRoster();
+      return result;
     },
-    onSuccess: () => {
+    onSuccess: (result, vars) => {
+      if (!result.queued) setLocalStatusMap(previous => { const next = new Map(previous); next.delete(vars.participantId); return next; });
       queryClient.invalidateQueries({ queryKey: ["mobile-attendance-sessions", selectedDate, effectiveParkId] });
     },
     onError: (err: Error, vars) => {
@@ -316,26 +313,17 @@ export function MobileAttendancePage({ onBack }: MobileAttendancePageProps) {
   // Batch sync mutation (used for bulk present / absent)
   const batchSyncMutation = useMutation({
     mutationFn: async ({ participantIds, status }: { participantIds: string[]; status: AttendanceStatus }) => {
-      const now = new Date().toISOString();
-      const mutations = participantIds.map((pid) => ({
-        mutationId: uuidv4(),
-        eventId: effectiveEventId!,
-        participantId: pid,
-        status,
-        markedAt: now,
-      }));
-
-      const res = await fetch("/api/park/attendance/sync", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mutations }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || "Batch sync failed");
-      return data;
+      let queued = false;
+      for (const participantId of participantIds) {
+        const result = await markAttendance({ eventId: effectiveEventId!, participantId, status, expectedResetVersion: rosterData?.event.resetVersion ?? 0, expectedVersion: rosterData?.roster.find(r => r.participantId === participantId)?.markedAt ?? null });
+        if (!result.success) throw new Error(result.error || "Some marks remain unacknowledged; review the queue");
+        queued ||= Boolean(result.queued);
+      }
+      return { queued };
     },
     onSuccess: (_data, vars) => {
-      toast.success(`Marked ${vars.participantIds.length} student(s) as ${vars.status}`);
+      if (!_data.queued) setLocalStatusMap(previous => { const next = new Map(previous); vars.participantIds.forEach(id => next.delete(id)); return next; });
+      toast.success(_data.queued ? `Queued ${vars.participantIds.length} marks on this device` : `Marked ${vars.participantIds.length} student(s) as ${vars.status}`);
       queryClient.invalidateQueries({ queryKey: ["mobile-attendance-roster", effectiveEventId] });
       queryClient.invalidateQueries({ queryKey: ["mobile-attendance-sessions", selectedDate, effectiveParkId] });
     },
@@ -352,7 +340,7 @@ export function MobileAttendancePage({ onBack }: MobileAttendancePageProps) {
   // Reset all mutation
   const resetMutation = useMutation({
     mutationFn: async () => {
-      const res = await fetch(`/api/park/attendance/${effectiveEventId}/reset`, { method: "DELETE" });
+      const res = await fetch(`/api/park/attendance/${effectiveEventId}/reset`, { method: "DELETE", headers: { "If-Match": String(rosterData?.event.resetVersion ?? 0) } });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "Failed to reset attendance");
       return data;
@@ -621,6 +609,7 @@ export function MobileAttendancePage({ onBack }: MobileAttendancePageProps) {
 
   return (
     <div className="flex flex-col min-h-screen w-full bg-background text-foreground pb-28 select-none">
+      <OfflineQueuePanel />
       {/* ─── Top Brand Header ────────────────────────────────────────────── */}
       <div className="relative w-full bg-gradient-to-br from-[#D90429] via-[#4B0A8F] to-[#1F0860] text-white pt-5 pb-8 px-4 rounded-b-[2rem] shadow-xl overflow-hidden">
         <div className="absolute top-[-20%] right-[-10%] size-60 rounded-full bg-white/10 blur-2xl pointer-events-none" />

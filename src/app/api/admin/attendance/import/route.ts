@@ -1,3 +1,5 @@
+import { requireCapability } from "@/lib/auth/authorize";
+import { resolveRequestedHierarchy } from "@/lib/auth/hierarchy";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import ExcelJS from "exceljs";
@@ -39,6 +41,11 @@ export async function POST(req: Request) {
   }
 
   const isDryRun = queryResult.data.dryRun ?? false;
+  const cap = await requireCapability("attendance.correct");
+  if (cap instanceof NextResponse) return cap;
+  const scope = await resolveRequestedHierarchy(user);
+  if (scope instanceof NextResponse) return scope;
+  if (!isDryRun) return NextResponse.json({ error: "Attendance workbook commit is currently unavailable. Use dryRun=true for a parse-only preview; no records are imported.", code: "WORKFLOW_UNAVAILABLE" }, { status: 503 });
 
   try {
     const formData = await req.formData();
@@ -58,12 +65,14 @@ export async function POST(req: Request) {
       );
     }
 
+    if (file.size > 5 * 1024 * 1024) return NextResponse.json({ error: "Workbook exceeds 5 MB" }, { status: 413 });
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(buffer as any);
 
+    if (workbook.worksheets.length > 20 || workbook.worksheets.some(sheet => sheet.rowCount > 5000 || sheet.columnCount > 400)) return NextResponse.json({ error: "Workbook dimensions exceed preview limits" }, { status: 400 });
     const parkSheets = ["Gulberg", "Gulshan_Iqbal", "Griffin", "Johar_Town", "Gulshan_Ravi", "State_Life"];
 
     let totalStudentsProcessed = 0;
@@ -165,40 +174,12 @@ export async function POST(req: Request) {
       lateCount,
       leaveCount,
       parkSummaries,
-      sampleStudents: parsedStudents.slice(0, 15),
+      previewOnly: true,
     };
 
-    if (isDryRun) {
-      return NextResponse.json({
-        dryRun: true,
-        report,
-      });
-    }
+    return NextResponse.json({ dryRun: true, report });
 
-    // Full Import: Ensure Lahore City & Parks exist
-    let city = await db.city.findFirst({ where: { name: { contains: "Lahore" } } });
-    if (!city) {
-      city = await db.city.findFirst();
-    }
 
-    if (!city) {
-      return NextResponse.json({ error: "No city found to attach attendance import" }, { status: 400 });
-    }
-
-    await logAudit({
-      userId: user.id!,
-      action: "attendance.import",
-      entityType: "AttendanceImport",
-      entityId: city.id,
-      newValues: { fileName: file.name, totalStudentsProcessed },
-    });
-
-    return NextResponse.json({
-      success: true,
-      dryRun: false,
-      importedCount: totalStudentsProcessed,
-      report,
-    });
   } catch (error) {
     console.error("Attendance import error:", error);
     return NextResponse.json(

@@ -5,7 +5,7 @@ import {
   requireResourceScope,
 } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
-import { logAudit } from "@/lib/audit";
+import { logAudit, createAuditLogData } from "@/lib/audit";
 import { z } from "zod";
 
 const updateSchema = z.object({
@@ -134,18 +134,26 @@ export async function PATCH(
     isActive: existing.isActive,
   };
 
-  const updated = await db.batch.update({ where: { id }, data });
+  try {
+  const updated = await db.$transaction(async tx => {
+    const updated = await tx.batch.update({ where: { id }, data });
 
-  await logAudit({
+  await tx.auditLog.create({ data: createAuditLogData({
     userId: user.id,
     action: "update",
     entityType: "batch",
     entityId: id,
     oldValues: old,
     newValues: parsed.data,
-  });
+  }) });
 
+    return updated;
+  });
   return NextResponse.json(updated);
+  } catch (error) {
+    if ((error as { code?: string }).code === "P2002") return NextResponse.json({ error: "An active batch already exists for this city" }, { status: 409 });
+    return NextResponse.json({ error: "Batch could not be saved" }, { status: 503 });
+  }
 }
 
 export async function DELETE(

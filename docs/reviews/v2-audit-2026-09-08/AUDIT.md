@@ -1,10 +1,10 @@
 # v2 deep audit — 2026-09-08
 
-**Audited branch/commit:** `v2` / `d81df15`. Initial working tree was clean.
+**Audited branch/commits:** `v2`, initially `d81df15`, reconciled against `a252603` after concurrent v2 commits. Initial working tree was clean. Source line numbers are navigational references from inspection and may shift between those commits.
 
-**Assessment:** v2 is not ready for release or merging into `main`. This audit records **28 defect groups and one previously documented release gate**. The most urgent findings are personal registration data in browser JavaScript and an API that lets scoped staff modify other accounts while exposing password hashes. Several important operational flows are still demonstrations that report successful saves without durable writes.
+**Assessment:** v2 is not ready for release or merging into `main`. This audit records **30 defect groups and one partially resolved release gate** (A00–A30). The most urgent findings are personal registration data in browser JavaScript and an API that lets scoped staff modify other accounts while exposing password hashes. Several important operational flows are still demonstrations that report successful saves without durable writes.
 
-No application source, database records, migrations, deployment, or project memory was changed. This folder contains the audit and isolated evidence only. This is a code and local verification audit, not a claim that every workflow has passed browser UAT or that the current public deployment was penetration-tested.
+This audit changed no application source, database records, migrations, deployment, or project memory. Other work updated v2 and committed the initial audit artifacts during inspection; those application changes and deployments were not performed or independently deployment-verified by this audit. This folder contains the audit and isolated evidence only. This is a code and local verification audit, not a claim that every workflow has passed browser UAT or that the current public deployment was penetration-tested.
 
 ## Evidence and limits
 
@@ -15,7 +15,10 @@ No application source, database records, migrations, deployment, or project memo
 | Baseline `npm run lint` | Failed: 8 errors in three existing CJS scripts |
 | Baseline `npm test -- --reporter=json` | 173 files; 1,225/1,227 tests passed; two failed tests |
 | Isolated rerun of the two failing files | 24/25 tests passed. Calling-import CLI failure did not reproduce. Park-dashboard expectation still fails |
-| Audit reproductions | 31/31 passed across three files. These deliberately assert the **current defective behavior**, not the desired security contract |
+| Latest `npm run typecheck` on `a252603` | Passed |
+| Latest `npm run lint` on `a252603` | Passed with zero errors and six unused-disable warnings after concurrent lint configuration changes |
+| Latest full suite on `a252603` | 174 files, 1,229/1,232 tests passed. Park-dashboard denial test still fails; two profile-detail tests lack the newly imported `userHasCapability` mock. Calling-import tests pass. Run used `--maxWorkers=2 --no-file-parallelism` |
+| Audit reproductions on `a252603` | 33/33 passed across three files. These deliberately assert the **current defective behavior**, not the desired security contract |
 | SQLite production build | Attempted with synthetic configuration; failed fetching Geist and Geist Mono from Google Fonts. No successful production build claimed |
 | Standard PostgreSQL generation/build path | Generation stopped on Windows `EPERM` renaming the loaded Prisma engine DLL; build could not proceed through that path |
 | Isolated PostgreSQL typecheck | Passed using a separately generated client in `.next/audit-postgres/client` and the audit TypeScript configuration |
@@ -158,17 +161,18 @@ Severity: **P0** immediate privacy/account-integrity containment; **P1** securit
 - **Impact:** A fresh environment or disaster restore using migrations cannot reproduce current schema even though both Prisma files contain 72 models. Existing deployed tables may have been created separately; that was not verified here.
 - **Fix/acceptance:** Reconcile schema vs actual approved staging state, add forward migrations, and replay the entire chain in a fresh disposable PostgreSQL database. Compare tables, columns, constraints, enums, and indexes—not model counts. Document data preservation and rollback/forward-recovery before deployment.
 
-### A20 — P2 — Verification baseline is not green and overstates coverage
+### A20 — P2 — Verification baseline has failures and incomplete workflow coverage
 
-- **Evidence:** Lint errors: `scripts/generate-lahore-manifest.cjs` (5), `seed-content-plan.cjs` (2), `update-content-plans.cjs` (1). Park-dashboard test expects City Head denial; current preview code admits City Head and its test mock lacks the resulting lookup, producing 500. The calling-import CLI test passed on isolated retry. `src/__tests__/uat/multi-role-boundary.test.ts` mainly exercises helpers, and parts of `release/p0-staging-uat.test.ts` assert local arithmetic/schema existence rather than actual workflows.
+- **Evidence:** Initial lint had eight `no-require-imports` errors in three CJS scripts. Concurrent commit `aca9b06` globally disabled that rule; those errors are no longer an open lint finding. Park-dashboard test expects City Head denial; the route admits City Head and its test mock lacks the resulting lookup, producing 500. The initial calling-import CLI failure passed on isolated retry. `src/__tests__/uat/multi-role-boundary.test.ts` mainly exercises helpers, and parts of `release/p0-staging-uat.test.ts` assert local arithmetic/schema existence rather than actual workflows. Latest rerun results are recorded separately below.
+- **Latest rerun:** 1,229/1,232 tests pass across 174 files. Two profile-detail tests additionally fail because their authorization mock does not export `userHasCapability`, now used by the handler. This is a test-contract regression, not evidence that the production export is missing. The actual module exports it.
 - **Impact:** Historical green counts are not evidence that new routes enforce the helpers or new screens persist data. The failing dashboard test requires a policy-aligned implementation/test decision, not merely changing an expected status to 500.
 - **Fix/acceptance:** Restore lint and deterministic tests, resolve the preview policy explicitly, and build route-level denial plus UI/API persistence coverage for the findings. Keep unit/helper checks distinct from browser/staging UAT in documentation.
 
-### A21 — Known release gate — Universal testing accommodations are still enabled
+### A21 — Partially resolved release gate — Dashboard fallbacks remain after preview removal
 
-- **Evidence:** `pwa-app.tsx:268`, `mobile-more-page.tsx`, `authorize.ts:44`, and dashboard fallback routes. `.agents/memory/current.md` already requires removal/strict gating before merging to main.
-- **Impact:** Role preview and all-module navigation are visible to all logged-in roles; HQ fallback behavior and role shortcuts remain. This is an intentional v2 testing arrangement, not a newly discovered requirement. Preview alone does not change the server session into the simulated role.
-- **Fix/acceptance:** Decide a strictly controlled non-live test mode or remove the accommodations, restore real capability-driven menus, and ensure normal builds fail closed. Include City Head with missing scope: park-dashboard fallback currently chooses a first active park when its city assignment is absent.
+- **Resolved in concurrent work:** `aca9b06` removed the PWA role preview, all-modules launcher, and `requireRole` HQ bypass, and added role-based navigation gates. Those original findings are closed by source inspection.
+- **Remaining evidence/impact:** `src/app/api/park/dashboard/route.ts:59–70` still selects the first active park for a City Head without a city assignment. Missing scope can therefore select another city's data. PWA menus use fixed role arrays rather than effective capability overrides; a grant/revocation can disagree with visible actions. This audit has not browser-tested the new navigation.
+- **Fix/acceptance:** Fail closed for missing required city/park/group assignments, use scoped real data, and derive menus from effective capabilities. Verify normal City Head dashboard policy through route and browser tests.
 
 ### A22 — P1 — Printable Mashwara minutes embed unescaped stored HTML
 
@@ -203,11 +207,12 @@ Severity: **P0** immediate privacy/account-integrity containment; **P1** securit
 - **Impact:** The client receives failure after data has changed, with no matching required audit evidence. A retry is ambiguous and concurrent updates can produce inaccurate before-state audit entries.
 - **Fix/acceptance:** Transactional profile-and-audit persistence with controlled error responses and a reviewed concurrency policy. Test audit failure, rollback, and concurrent edits, including sensitive fields.
 
-### A27 — P2 — Latest Shabab profile integration breaks self access and subsequent edits
+### A27 — P2 — Extended self profile and nullable edit submissions remain broken
 
-- **Evidence:** `mobile-student-profile-view.tsx:59` expects `session.user.participantId`, which NextAuth never supplies. Dashboard navigation passes only a screen ID, leaving the default extended view at “No participant ID found.” The selector fetches only 100 records, filters parks locally without sending the park filter, and has no pagination. `student-profile/profile-page.tsx:211` copies the full nullable server record into the edit draft; `student-profile/zod.ts` accepts optional strings but rejects null.
+- **Reconciliation:** `c378476` changed the default view to Overview and passed the selected participant into that overview, fixing the initial default/selected-subject problem. That issue is not reported as open.
+- **Remaining evidence:** `src/components/modules/student/mobile-student-profile-view.tsx:63` still expects `session.user.participantId`, which NextAuth never supplies. Student dashboard navigation passes only a screen ID, so selecting the Extended view still lacks a participant ID. The selector fetches only 100 records, filters parks locally without sending the park filter, and has no pagination. `student-profile/profile-page.tsx:211` copies the full nullable server record into the edit draft; `student-profile/zod.ts` accepts optional strings but rejects null.
 - **Reproduction:** An edited school combined with an unchanged null college fails the update schema, while the school-only patch succeeds.
-- **Additional issue:** Mobile edit/sensitive controls are hardcoded from preview role rather than resolved capabilities. A Park Lead/Murabbi may see an Edit action that the server correctly denies by default; a granted Park Admin may not see it.
+- **Additional issue:** Mobile edit/sensitive controls are hardcoded from the role rather than resolved capabilities. A Park Lead/Murabbi may see an Edit action that the server correctly denies by default; a granted Park Admin may not see it.
 - **Fix/acceptance:** Resolve the current participant through an authorized self endpoint, use paginated server-filtered selectors and effective capability data, and submit intentional changed fields with explicit null/clear semantics. Test student self access, guardians' linked children, more than 100 participants, secondary-city HQ navigation, and editing an existing sparse profile.
 
 ### A28 — P1 — Attendance still authorizes by batch anchor instead of group park
@@ -217,6 +222,19 @@ Severity: **P0** immediate privacy/account-integrity containment; **P1** securit
 - **Impact:** Wrong-park authorization and incomplete/wrong rosters appear as soon as a batch spans multiple parks. This is an existing supported configuration, not a speculative new model.
 - **Fix/acceptance:** Centralize group resource resolution around `Group.parkId` with a documented transitional fallback only for null legacy values. Test one city-owned batch spanning two parks and prove both own-park success and anchor-park denial across attendance, profiles, certificates, and reports.
 
+### A29 — P1 — Default student permissions allow awarding points to other students
+
+- **Evidence:** `src/lib/auth/capabilities.ts:180` gives students `students.manage` by default. `src/app/api/admin/gamification/points/route.ts` uses that capability for awards, with only the nullable actor-city comparison described in A05. It does not require an authorized awarding staff role or enforce participant ownership. Signed integer points have no business upper/lower bound.
+- **Reproduction:** Using the actual default capability resolver with a synthetic student session, an award of 99,999 points to a foreign student returned 201 and called `pointTransaction.create`. No production points were changed.
+- **Fix/acceptance:** Separate staff award permission from self-profile access, resolve target participant scope, bound points under the approved policy, and persist audit atomically. Test self/foreign award denial for family users and own/foreign scope for authorized staff.
+
+### A30 — P1 — One active batch per city is not enforced under concurrency
+
+- **Evidence:** The new `admin/batches/route.ts` creation gate reads `findFirst` and then creates outside a transaction. Reactivation in `[id]/route.ts` follows the same check-before-write pattern. Both schemas have only a non-unique city/activity index; checked-in PostgreSQL migrations contain no corresponding active-city uniqueness constraint.
+- **Reproduction:** Two synthetic concurrent POST requests were held until both existence checks saw no active batch. Both returned 201 and created a batch for the same city. This is a deterministic handler interleaving test, not a real PostgreSQL load test.
+- **Impact:** Simultaneous operators or retried requests can violate the newly approved city invariant, making the reported strict enforcement incomplete.
+- **Fix/acceptance:** Enforce active-city uniqueness at the database boundary or serialize by city with an appropriate transaction/retry policy, covering legacy nullable city rows. Test concurrent create/reactivate against disposable PostgreSQL; exactly one operation should succeed and the other should receive a controlled conflict.
+
 ## Proposed fix sequence
 
 No fixes are included in this audit. The following packages are ready to turn into small implementation tasks; the blueprint remains the planning authority.
@@ -224,9 +242,9 @@ No fixes are included in this audit. The following packages are ready to turn in
 | Order | Package | Findings | Required exit evidence |
 | --- | --- | --- | --- |
 | 1 | Contain public data and account mutations | A00, A01 | Clean client bundle; no hash projection; unauthorized provisioning/reassignment denied; real invite/reset flow |
-| 2 | Restore server authorization and session boundaries | A02–A08, A21, A22, A24, A28 | Actual handler tests for roles, capabilities, own/foreign/missing scope and reset state; safe HTML export; preview isolated |
+| 2 | Restore server authorization and session boundaries | A02–A08, A21, A22, A24, A28, A29 | Actual handler tests for roles, capabilities, own/foreign/missing scope and reset state; safe HTML export; capability-aware menus |
 | 3 | Make operational saves truthful | A09–A15, A23, A27 | Every visible save either persists and survives reload or is explicitly disabled; desktop/PWA contracts exercised |
-| 4 | Protect transactions, inventory and offline replay | A16–A18, A25, A26 | Concurrent database tests, exact balances, no lost/replayed changes, actor-owned queues, transactional audit |
+| 4 | Protect transactions, inventory and offline replay | A16–A18, A25, A26, A30 | Concurrent database tests, exact balances, no lost/replayed changes, actor-owned queues, transactional audit, active-city batch invariant |
 | 5 | Make schema delivery reproducible | A19 | Fresh PostgreSQL migration replay, schema diff, controlled-data reconciliation, backup/restore and recovery evidence |
 | 6 | Re-establish release evidence | A20 and all packages | Clean lint/typecheck/relevant tests and both builds; role-based browser/staging UAT; accurate memory and release checklist |
 
@@ -240,6 +258,7 @@ High-risk changes must state data/security impact and recovery. Schema changes s
 
 - `baseline-summary.json`: full-suite counts and original failures, with unnecessary output omitted.
 - `baseline-rerun.json`: isolated rerun of the two previously failing files.
+- `latest-suite-results.json`: full-suite evidence after reconciliation against `a252603`, including three failed assertions.
 - `static-inventory.json`: route inventory, table/migration gaps, client import paths and compiled-data verification counts. Authorization search markers are inventory aids, not proof of enforcement.
 - `routes.test.ts`, `auth.test.ts`, `exports.test.ts`, `reproduction-results.json`: synthetic defect characterizations. Keep outside the normal test suite; replace these expectations with desired-behavior regressions as fixes land.
 - Build/generation/typecheck logs: preserve the distinction between passed checks and environment-blocked checks.
@@ -251,4 +270,4 @@ npx vitest run --config docs/reviews/v2-audit-2026-09-08/vitest.config.mts
 
 The PostgreSQL typecheck configuration expects a client generated to `.next/audit-postgres/client` from a copy of `prisma/postgres/schema.prisma` with only generator output redirected. It uses synthetic connection variables and does not query a database. No generated client should be manually edited or committed.
 
-The current assessment is **do not release**. Start with public-data/account containment, then server boundaries, then persistence. Passing the 31 characterization tests confirms these bugs exist; it does not approve release.
+The current assessment is **do not release**. Start with public-data/account containment, then server boundaries, then persistence. Passing the 33 characterization tests confirms these bugs exist; it does not approve release.

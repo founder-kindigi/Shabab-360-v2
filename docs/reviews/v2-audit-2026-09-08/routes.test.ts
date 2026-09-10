@@ -12,7 +12,7 @@ const m = vi.hoisted(() => {
     callInteraction: model(), parkStock: model(), financialAdjustment: model(),
     purchaseOrder: model(), procurementItem: model(), receiptSequence: model(),
     stockTransfer: model(), attendanceEvent: model(), attendanceRecord: model(),
-    studentExtendedProfile: model(), auditLog: model(), announcement: model(), digitalResource: model(), $transaction: vi.fn(),
+    studentExtendedProfile: model(), auditLog: model(), announcement: model(), digitalResource: model(), pointTransaction: model(), $transaction: vi.fn(),
   };
   return { db, session: vi.fn(), capability: vi.fn(), audit: vi.fn(), verifyCalling: vi.fn(), portalWrite: vi.fn() };
 });
@@ -52,6 +52,9 @@ import * as profile from '@/app/api/admin/students/[id]/profile/route';
 import * as realSync from '@/app/api/park/attendance/sync/route';
 import { syncAttendanceRequestSchema } from '@/lib/attendance/schemas';
 import { updateProfileSchema } from '@/lib/student-profile/zod';
+import { roleHasDefaultCapability } from '@/lib/auth/capabilities';
+import * as points from '@/app/api/admin/gamification/points/route';
+import * as batches from '@/app/api/admin/batches/route';
 
 const req = (path: string, body?: unknown) => new NextRequest(`http://localhost:3000${path}`, body === undefined ? {} : { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
 const actor = (role: string, extras = {}) => m.session.mockResolvedValue({ user: { id: 'audit-actor', role, ...extras } });
@@ -65,6 +68,35 @@ beforeEach(() => {
 });
 
 describe('Confirmed v2 route defects (synthetic characterization)', () => {
+  it('A29: a student with the default capability can award points to a foreign student', async () => {
+    actor('student');
+    expect(roleHasDefaultCapability('student', 'students.manage')).toBe(true);
+    m.capability.mockImplementation(async (_user, capability) => roleHasDefaultCapability('student', capability));
+    m.db.participant.findUnique.mockResolvedValue({ id: 'foreign-student', group: { park: { cityId: 'foreign-city' } } });
+    m.db.pointTransaction.create.mockResolvedValue({ id: 'points-a', studentId: 'foreign-student', points: 99999 });
+    const response = await points.POST(req('/api/admin/gamification/points', { studentId: 'foreign-student', points: 99999, category: 'manual_bonus', reason: 'Synthetic audit award' }));
+    expect(response.status).toBe(201);
+    expect(m.db.pointTransaction.create.mock.calls[0][0].data).toMatchObject({ studentId: 'foreign-student', points: 99999, awardedBy: 'audit-actor' });
+  });
+
+  it('A30: concurrent creates both pass the one-active-batch-per-city check', async () => {
+    actor('super_admin');
+    m.db.park.findUnique.mockResolvedValue({ id: 'park-a', cityId: 'city-a', city: { id: 'city-a' } });
+    let releaseReads: () => void = () => {};
+    const bothRead = new Promise<void>((resolve) => { releaseReads = resolve; });
+    let readCount = 0;
+    m.db.batch.findFirst.mockImplementation(async () => {
+      if (++readCount === 2) releaseReads();
+      await bothRead;
+      return null;
+    });
+    m.db.batch.create.mockImplementation(async ({ data }) => ({ id: `batch-${data.name}`, ...data }));
+    const responses = await Promise.all(['First batch', 'Second batch'].map((name) => batches.POST(req('/api/admin/batches', { name, parkId: 'park-a', startDate: '2026-09-08' }))));
+    expect(responses.map((response) => response.status)).toEqual([201, 201]);
+    expect(m.db.batch.create).toHaveBeenCalledTimes(2);
+    expect(m.db.$transaction).not.toHaveBeenCalled();
+  });
+
   it('A27: a loaded nullable profile cannot be submitted unchanged with one edit', () => {
     expect(updateProfileSchema.safeParse({ school: 'Edited school', college: null }).success).toBe(false);
     expect(updateProfileSchema.safeParse({ school: 'Edited school' }).success).toBe(true);

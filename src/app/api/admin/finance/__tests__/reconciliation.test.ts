@@ -7,13 +7,15 @@ import { GET as getReconciliation } from "../reconciliation/route";
 const mocks = vi.hoisted(() => ({
   requireAuth: vi.fn(),
   requireCapability: vi.fn(),
-  resolveActorCity: vi.fn(),
+  resolveRequestedCityScope: vi.fn(),
+  requireResourceScope: vi.fn(),
   logAudit: vi.fn(),
   db: {
+    auditLog: { create: vi.fn() }, $queryRaw: vi.fn(), $executeRaw: vi.fn(),
     city: { findUnique: vi.fn() },
-    park: { findUnique: vi.fn() },
+    park: { findUnique: vi.fn(), updateMany: vi.fn() },
     procurementItem: { findUnique: vi.fn() },
-    parkStock: { findUnique: vi.fn(), update: vi.fn(), upsert: vi.fn() },
+    parkStock: { findUnique: vi.fn(), updateMany: vi.fn(), upsert: vi.fn() },
     stockTransfer: { create: vi.fn() },
     stockAuditLog: { create: vi.fn() },
     payment: { findMany: vi.fn() },
@@ -27,10 +29,12 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@/lib/auth/authorize", () => ({
   requireAuth: mocks.requireAuth,
   requireCapability: mocks.requireCapability,
-  resolveActorCity: mocks.resolveActorCity,
+  resolveRequestedCityScope: mocks.resolveRequestedCityScope,
+  requireResourceScope: mocks.requireResourceScope,
 }));
 
-vi.mock("@/lib/audit", () => ({
+vi.mock("@/lib/audit", async (original) => ({
+  ...await original<typeof import("@/lib/audit")>(),
   logAudit: mocks.logAudit,
 }));
 
@@ -41,9 +45,13 @@ vi.mock("@/lib/db", () => ({
 describe("V3-504 Inter-Park Transfers, Physical Audits & Reconciled Financial Reporting", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    mocks.db.$queryRaw.mockResolvedValue([]);
+    mocks.db.park.updateMany.mockResolvedValue({ count: 1 });
+    mocks.db.procurementItem.findUnique.mockResolvedValue({ id: "item_1", isActive: true });
     mocks.requireAuth.mockResolvedValue({ user: { id: "usr_admin", role: "super_admin" } });
     mocks.requireCapability.mockResolvedValue(null);
-    mocks.resolveActorCity.mockResolvedValue(null);
+    mocks.resolveRequestedCityScope.mockImplementation((_user, requestedCityId) => ({ cityId: requestedCityId || null }));
+    mocks.requireResourceScope.mockReturnValue(null);
   });
 
   describe("POST /api/admin/procurement/transfers", () => {
@@ -52,14 +60,8 @@ describe("V3-504 Inter-Park Transfers, Physical Audits & Reconciled Financial Re
         .mockResolvedValueOnce({ id: "park_1", cityId: "city_lahore" })
         .mockResolvedValueOnce({ id: "park_2", cityId: "city_lahore" });
 
-      mocks.db.parkStock.findUnique.mockResolvedValue({
-        id: "stock_1",
-        parkId: "park_1",
-        itemId: "item_1",
-        quantity: 15,
-      });
-
       mocks.db.$transaction.mockImplementation(async (cb: any) => cb(mocks.db));
+      mocks.db.parkStock.updateMany.mockResolvedValue({ count: 1 });
       mocks.db.stockTransfer.create.mockResolvedValue({
         id: "trans_1",
         fromParkId: "park_1",
@@ -69,7 +71,7 @@ describe("V3-504 Inter-Park Transfers, Physical Audits & Reconciled Financial Re
       });
 
       const req = new NextRequest("http://localhost/api/admin/procurement/transfers", {
-        method: "POST",
+        method: "POST", headers: { "Idempotency-Key": "synthetic-transfer-key-1" },
         body: JSON.stringify({
           fromParkId: "park_1",
           toParkId: "park_2",
@@ -82,9 +84,9 @@ describe("V3-504 Inter-Park Transfers, Physical Audits & Reconciled Financial Re
       const res = await postTransfer(req);
       expect(res.status).toBe(201);
 
-      expect(mocks.db.parkStock.update).toHaveBeenCalledWith(
+      expect(mocks.db.parkStock.updateMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { parkId_itemId: { parkId: "park_1", itemId: "item_1" } },
+          where: expect.objectContaining({ parkId: "park_1", itemId: "item_1", quantity: { gte: 5 } }),
           data: { quantity: { decrement: 5 } },
         })
       );
@@ -96,20 +98,16 @@ describe("V3-504 Inter-Park Transfers, Physical Audits & Reconciled Financial Re
       );
     });
 
-    it("rejects transfer when source park has insufficient stock", async () => {
+    it("rejects transfer when the conditional source decrement loses a stock race", async () => {
       mocks.db.park.findUnique
         .mockResolvedValueOnce({ id: "park_1", cityId: "city_lahore" })
         .mockResolvedValueOnce({ id: "park_2", cityId: "city_lahore" });
 
-      mocks.db.parkStock.findUnique.mockResolvedValue({
-        id: "stock_1",
-        parkId: "park_1",
-        itemId: "item_1",
-        quantity: 2, // only 2 available
-      });
+      mocks.db.$transaction.mockImplementation(async (cb: any) => cb(mocks.db));
+      mocks.db.parkStock.updateMany.mockResolvedValue({ count: 0 });
 
       const req = new NextRequest("http://localhost/api/admin/procurement/transfers", {
-        method: "POST",
+        method: "POST", headers: { "Idempotency-Key": "synthetic-transfer-key-1" },
         body: JSON.stringify({
           fromParkId: "park_1",
           toParkId: "park_2",
@@ -119,7 +117,7 @@ describe("V3-504 Inter-Park Transfers, Physical Audits & Reconciled Financial Re
       });
 
       const res = await postTransfer(req);
-      expect(res.status).toBe(400);
+      expect(res.status).toBe(409);
 
       const data = await res.json();
       expect(data.error).toContain("Insufficient stock");
@@ -144,7 +142,7 @@ describe("V3-504 Inter-Park Transfers, Physical Audits & Reconciled Financial Re
       });
 
       const req = new NextRequest("http://localhost/api/admin/procurement/audit", {
-        method: "POST",
+        method: "POST", headers: { "Idempotency-Key": "synthetic-transfer-key-1" },
         body: JSON.stringify({
           parkId: "park_1",
           itemId: "item_1",

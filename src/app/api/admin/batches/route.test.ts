@@ -18,12 +18,12 @@ vi.mock("@/lib/auth/authorize", async (importOriginal) => {
   };
 });
 vi.mock("@/lib/db", () => ({
-  db: {
+  db: { $transaction: async (run: any) => run({ batch: { create: mocks.batchCreate }, auditLog: { create: vi.fn() } }),
     park: { findUnique: mocks.parkFindUnique },
     batch: { create: mocks.batchCreate, findFirst: mocks.batchFindFirst },
   },
 }));
-vi.mock("@/lib/audit", () => ({ logAudit: vi.fn() }));
+vi.mock("@/lib/audit", async (original) => ({ ...await original<typeof import("@/lib/audit")>(), logAudit: vi.fn() }));
 
 import { POST } from "./route";
 

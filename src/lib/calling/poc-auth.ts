@@ -18,7 +18,7 @@ export async function verifyCallingManagerOrPoc(
   // Check management capability first
   const sessionUser = { ...user, role: user.role ?? undefined };
   const canManagePoc = await userHasCapability(sessionUser, "calling.poc.manage");
-  if (canManagePoc) {
+  if (canManagePoc && ["super_admin", "program_admin", "city_head"].includes(user.role || "")) {
     const resolved = await resolveActorCity(user, campaign.cityId, prisma);
     if (resolved.error) {
       return { error: resolved.error, status: resolved.status, campaign: null };
@@ -34,6 +34,9 @@ export async function verifyCallingManagerOrPoc(
   if (!staffMeta || !staffMeta.isActive) {
     return { error: "Forbidden: insufficient calling permissions", status: 403, campaign: null };
   }
+
+  const actorCity = await resolveActorCity(user, campaign.cityId, prisma);
+  if (actorCity.error) return { error: actorCity.error, status: actorCity.status, campaign: null };
 
   const now = new Date();
   const pocAssignment = await prisma.callingPOCAssignment.findFirst({

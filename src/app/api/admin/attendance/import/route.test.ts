@@ -5,6 +5,7 @@ vi.mock("@/lib/auth/authorize", () => ({
   requireAuth: vi.fn().mockResolvedValue({
     user: { id: "user-1", role: "super_admin" },
   }),
+  requireCapability: vi.fn().mockResolvedValue(null),
   isHqRole: vi.fn().mockReturnValue(true),
 }));
 

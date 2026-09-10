@@ -1,6 +1,8 @@
+import { eligibleForSession } from "@/lib/attendance/opportunities";
 import { NextRequest, NextResponse } from "next/server";
 import { requireCapability, requireResourceScope, requireRole } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
+import { requireResolvedGroupScope, resolveRequestedHierarchy } from "@/lib/auth/hierarchy";
 import { formatPKT } from "@/lib/timezone";
 import {
   optionalIdentifier,
@@ -50,6 +52,7 @@ export async function GET(request: NextRequest) {
       groups: {
         where: { isActive: true },
         include: {
+          park: { include: { city: true } },
           participants: {
             where: { state: { in: ["active", "graduated"] } },
             orderBy: { name: "asc" },
@@ -63,11 +66,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Batch not found" }, { status: 404 });
   }
 
-  const scopeError = requireResourceScope(user, {
-    cityId: batch.park.city.id,
-    parkId: batch.park.id,
-  });
-  if (scopeError) return scopeError;
+  const scope = await resolveRequestedHierarchy(user, { cityId: batch.cityId ?? batch.park.cityId });
+  if (scope instanceof NextResponse) return scope;
+  const authorizedGroups = batch.groups.filter((group) => !requireResolvedGroupScope(user, { ...group, batch }));
 
   // Collect all group IDs and participant IDs
   const allParticipants: Array<{
@@ -76,10 +77,14 @@ export async function GET(request: NextRequest) {
     groupId: string;
     groupName: string;
     joinedAt: Date;
+    state: string;
+    dropoutAt: Date | null;
+    parkName: string;
+    cityName: string;
   }> = [];
 
   const groupIds: string[] = [];
-  for (const group of batch.groups) {
+  for (const group of authorizedGroups) {
     groupIds.push(group.id);
     for (const p of group.participants) {
       allParticipants.push({
@@ -88,14 +93,18 @@ export async function GET(request: NextRequest) {
         groupId: group.id,
         groupName: group.name,
         joinedAt: p.joinedAt,
+        state: p.state,
+        dropoutAt: p.dropoutAt,
+        parkName: (group.parkId ? group.park : batch.park)!.name,
+        cityName: (group.parkId ? group.park : batch.park)!.city.name,
       });
     }
   }
 
   // Batch-fetch attendance events and records
   const attendanceEvents = await db.attendanceEvent.findMany({
-    where: { groupId: { in: groupIds } },
-    select: { id: true, groupId: true },
+    where: { groupId: { in: groupIds }, eventDate: { lte: new Date() } },
+    select: { id: true, groupId: true, eventDate: true },
   });
 
   const eventIds = attendanceEvents.map((e) => e.id);
@@ -107,14 +116,6 @@ export async function GET(request: NextRequest) {
     select: { eventId: true, participantId: true },
   });
 
-  // Group events by group
-  const eventsByGroup = new Map<string, string[]>();
-  for (const e of attendanceEvents) {
-    const list = eventsByGroup.get(e.groupId) || [];
-    list.push(e.id);
-    eventsByGroup.set(e.groupId, list);
-  }
-
   // Group present records by participant
   const presentByParticipant = new Map<string, Set<string>>();
   for (const r of attendanceRecords) {
@@ -123,15 +124,12 @@ export async function GET(request: NextRequest) {
     presentByParticipant.set(r.participantId, set);
   }
 
-  const year = new Date().getFullYear();
-  const batchCode = batch.name.replace(/\s+/g, "").toUpperCase().slice(0, 6);
-
   const completionDate = batch.endDate
     ? formatPKT(new Date(batch.endDate))
-    : formatPKT(new Date());
+    : null;
 
   const certificates = allParticipants.map((p) => {
-    const groupEvents = eventsByGroup.get(p.groupId) || [];
+    const groupEvents = attendanceEvents.filter(event => event.groupId === p.groupId && eligibleForSession(p, event.eventDate)).map(event => event.id);
     const totalEvents = groupEvents.length;
     const presentEvents = presentByParticipant.get(p.id);
     const presentCount = presentEvents
@@ -140,10 +138,8 @@ export async function GET(request: NextRequest) {
     const attendanceRate =
       totalEvents > 0
         ? Math.round((presentCount / totalEvents) * 100 * 10) / 10
-        : 0;
+        : null;
 
-    const participantSuffix = p.id.slice(-6).toUpperCase();
-    const certificateNo = `SHABAB-${year}-${batchCode}-${participantSuffix}`;
 
     return {
       participantId: p.id,
@@ -152,20 +148,21 @@ export async function GET(request: NextRequest) {
       batch: batch.name,
       batchStartDate: formatPKT(new Date(batch.startDate)),
       batchEndDate: batch.endDate ? formatPKT(new Date(batch.endDate)) : null,
-      park: batch.park.name,
-      city: batch.park.city.name,
+      park: p.parkName,
+      city: p.cityName,
       joinDate: formatPKT(new Date(p.joinedAt)),
       completionDate,
       attendanceRate,
       totalEvents,
-      certificateNo,
+      certificateNo: null,
+    previewOnly: true,
     };
   });
 
   return NextResponse.json({
     batchId: batch.id,
     batch: batch.name,
-    park: batch.park.name,
+    parks: [...new Set(certificates.map(c => c.park))],
     city: batch.park.city.name,
     totalParticipants: certificates.length,
     certificates,

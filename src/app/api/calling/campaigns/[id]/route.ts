@@ -1,9 +1,9 @@
+import { z } from "zod";
 import { NextRequest, NextResponse } from "next/server";
 import { requireCapability } from "@/lib/auth/authorize";
 import { verifyCallingManagerOrPoc } from "@/lib/calling/poc-auth";
 import { db } from "@/lib/db";
-import { logAudit } from "@/lib/audit";
-import rawDataset from "@/lib/import-framework/portal-raw-dataset.json";
+import { logAudit, createAuditLogData } from "@/lib/audit";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -18,7 +18,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
   try {
     const verified = await verifyCallingManagerOrPoc(user as { id: string; role?: string | null }, id);
-    if (!verified.error && verified.campaign) {
+    if (verified.error || !verified.campaign) return NextResponse.json({ error: verified.error || "Forbidden" }, { status: verified.status || 403 });
+    if (verified.campaign) {
       const campaign = await db.callingCampaign.findUnique({
         where: { id },
         include: {
@@ -45,79 +46,34 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         return NextResponse.json(campaign);
       }
     }
-  } catch (err) {
-    console.warn("Calling campaign detail DB error, returning portal export fallback:", err);
+  } catch {
+    return NextResponse.json({ error: "Calling campaign data is temporarily unavailable" }, { status: 503 });
   }
 
-  // Fallback to Lahore Batch 4 portal campaign detail
-  return NextResponse.json({
-    id,
-    name: "Lahore Batch 4 Portal Registration Outreach Drive",
-    description: `Calling campaign for ${rawDataset.length} portal registration leads across Lahore parks.`,
-    status: "active",
-    startDate: "2026-05-01T00:00:00.000Z",
-    endDate: "2026-08-31T23:59:59.000Z",
-    city: { id: "city-lahore-01", name: "Lahore", code: "LHR" },
-    pocAssignments: [],
-    templates: [],
-    externalCallers: [],
-  });
+  return NextResponse.json({ error: "Calling campaign not found" }, { status: 404 });
 }
 
+const patchSchema = z.object({ name: z.string().trim().min(2).max(200).optional(), description: z.string().max(2000).nullable().optional(), status: z.enum(["draft", "active", "paused", "completed", "archived"]).optional(), startDate: z.string().datetime().optional(), endDate: z.string().datetime().optional() }).strict().refine(value => Object.keys(value).length > 0);
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
-  const auth = await requireCapability("calling.poc.manage");
-  if (auth instanceof NextResponse) return auth;
-  const user = auth.user;
-
+  const auth = await requireCapability("calling.poc.manage"); if (auth instanceof NextResponse) return auth;
+  const parsed = patchSchema.safeParse(await request.json().catch(() => null)); if (!parsed.success) return NextResponse.json({ error: "Invalid campaign update" }, { status: 400 });
   const { id } = await params;
-
-  let body: any;
   try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
-  }
-
-  const updateData: any = {};
-  if (typeof body.name === "string") updateData.name = body.name.trim();
-  if (typeof body.description === "string" || body.description === null) updateData.description = body.description;
-  if (["draft", "active", "paused", "completed", "archived"].includes(body.status)) updateData.status = body.status;
-  if (body.startDate) updateData.startDate = new Date(body.startDate);
-  if (body.endDate) updateData.endDate = new Date(body.endDate);
-
-  try {
-    const verified = await verifyCallingManagerOrPoc(user as { id: string; role?: string | null }, id);
-    if (!verified.error && verified.campaign) {
-      const updated = await db.callingCampaign.update({
-        where: { id },
-        data: updateData,
-      });
-
-      await logAudit({
-        userId: user.id,
-        action: "calling.campaign.update",
-        entityType: "CallingCampaign",
-        entityId: id,
-        oldValues: { name: verified.campaign.name, status: verified.campaign.status },
-        newValues: { name: updated.name, status: updated.status },
-      });
-
+    return await db.$transaction(async tx => {
+      const verified = await verifyCallingManagerOrPoc(auth.user as { id: string; role?: string }, id, tx);
+      if (verified.error || !verified.campaign) return NextResponse.json({ error: verified.error || "Forbidden" }, { status: verified.status || 403 });
+      if (!verified.isManager) return NextResponse.json({ error: "Campaign changes require management authority" }, { status: 403 });
+      const startDate = parsed.data.startDate ? new Date(parsed.data.startDate) : verified.campaign.startDate;
+      const endDate = parsed.data.endDate ? new Date(parsed.data.endDate) : verified.campaign.endDate;
+      if (endDate < startDate) return NextResponse.json({ error: "Campaign end must follow start" }, { status: 400 });
+      const updated = await tx.callingCampaign.update({ where: { id, updatedAt: verified.campaign.updatedAt }, data: { ...parsed.data, startDate, endDate } });
+      await tx.auditLog.create({ data: createAuditLogData({ userId: auth.user.id, action: "calling.campaign.update", entityType: "CallingCampaign", entityId: id, oldValues: { status: verified.campaign.status }, newValues: { fields: Object.keys(parsed.data), status: updated.status } }) });
       return NextResponse.json(updated);
-    }
-  } catch (err) {
-    console.warn("Calling campaign PATCH DB warning, returning updated virtual campaign:", err);
+    });
+  } catch (error) {
+    if ((error as { code?: string }).code === "P2025") return NextResponse.json({ error: "Campaign changed during editing" }, { status: 409 });
+    return NextResponse.json({ error: "Calling campaign data is temporarily unavailable" }, { status: 503 });
   }
-
-  return NextResponse.json({
-    id,
-    name: body.name || "Lahore Batch 4 Portal Registration Outreach Drive",
-    description: body.description !== undefined ? body.description : `Calling campaign for ${rawDataset.length} portal registration leads.`,
-    status: body.status || "active",
-    startDate: body.startDate || "2026-05-01T00:00:00.000Z",
-    endDate: body.endDate || "2026-08-31T23:59:59.000Z",
-    city: { id: "city-lahore-01", name: "Lahore", code: "LHR" },
-    updatedAt: new Date().toISOString(),
-  });
 }
 
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
@@ -128,20 +84,22 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
   const { id } = await params;
 
   try {
-    const existing = await db.callingCampaign.findUnique({ where: { id } });
-    if (existing) {
-      await db.callingCampaign.delete({ where: { id } });
-      await logAudit({
+    return await db.$transaction(async (tx) => {
+      const verified = await verifyCallingManagerOrPoc(user as { id: string; role?: string }, id, tx);
+      if (verified.error || !verified.campaign) return NextResponse.json({ error: verified.error || "Forbidden" }, { status: verified.status || 403 });
+      if (!verified.isManager) return NextResponse.json({ error: "Campaign deletion requires management authority" }, { status: 403 });
+      await tx.callingCampaign.delete({ where: { id } });
+      await tx.auditLog.create({ data: createAuditLogData({
         userId: user.id,
         action: "calling.campaign.delete",
         entityType: "CallingCampaign",
         entityId: id,
         reason: "Campaign deleted by admin",
-      });
-    }
-  } catch (err) {
-    console.warn("Calling campaign DELETE DB warning, returning delete success:", err);
+      }) });
+      return NextResponse.json({ success: true });
+    });
+  } catch {
+    return NextResponse.json({ error: "Calling campaign data is temporarily unavailable" }, { status: 503 });
   }
 
-  return NextResponse.json({ success: true, message: `Campaign ${id} deleted successfully` });
 }

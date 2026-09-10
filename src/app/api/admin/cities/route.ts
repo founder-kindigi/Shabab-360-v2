@@ -15,10 +15,6 @@ const createSchema = z.object({
     ),
 });
 
-const defaultCities = [
-  { id: "city-lahore-01", name: "Lahore", code: "LHR", _count: { parks: 6 } },
-];
-
 export async function GET() {
   const authError = await requireRole(["super_admin", "program_admin"]);
   if (authError) return authError;
@@ -42,14 +38,10 @@ export async function GET() {
       },
     });
 
-    if (cities.length > 0) {
-      return NextResponse.json({ data: cities });
-    }
-  } catch (err) {
-    console.warn("Cities DB query error, returning default cities:", err);
+    return NextResponse.json({ data: cities });
+  } catch {
+    return NextResponse.json({ error: "Cities could not be loaded" }, { status: 503 });
   }
-
-  return NextResponse.json({ data: defaultCities });
 }
 
 export async function POST(request: NextRequest) {

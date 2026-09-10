@@ -1,3 +1,4 @@
+import { requireResolvedGroupScope, groupResourceScope } from "@/lib/auth/hierarchy";
 import { NextResponse } from "next/server";
 import { createAuditLogData } from "@/lib/audit";
 import { requireAuth, requireCapability, requireResourceScope } from "@/lib/auth/authorize";
@@ -22,14 +23,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ ev
   const { eventId } = await params;
   const event = await db.attendanceEvent.findUnique({
     where: { id: eventId },
-    include: { group: { include: { batch: { include: { park: true } } } } },
+    include: { group: { include: { park: true, batch: { include: { park: true } } } } },
   });
   if (!event) return NextResponse.json({ error: "Event not found" }, { status: 404 });
-  const scopeError = requireResourceScope(auth.user, {
-    cityId: event.group.batch.cityId ?? event.group.batch.park.cityId,
-    parkId: event.group.batch.parkId,
-    groupId: event.groupId,
-  }, EVENT_SUPERVISOR_ROLES);
+  const scopeError = requireResolvedGroupScope(auth.user, { ...event.group, id: event.groupId }, EVENT_SUPERVISOR_ROLES);
   if (scopeError) return scopeError;
   if (!event.isClosed) {
     return NextResponse.json({ error: "Attendance is already open" }, { status: 409 });

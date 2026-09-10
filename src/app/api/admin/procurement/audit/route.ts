@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth, requireCapability, resolveActorCity } from "@/lib/auth/authorize";
+import { requireAuth, requireCapability, requireResourceScope } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
 import { z } from "zod";
@@ -36,10 +36,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Park not found" }, { status: 404 });
   }
 
-  const actorCity = await resolveActorCity();
-  if (actorCity && park.cityId !== actorCity) {
-    return NextResponse.json({ error: "Forbidden: Cannot record physical audit outside city scope" }, { status: 403 });
-  }
+  const scope = await requireResourceScope(user, { cityId: park.cityId, parkId: park.id });
+  if (scope instanceof NextResponse) return scope;
 
   const item = await db.procurementItem.findUnique({ where: { id: parsed.data.itemId } });
   if (!item) {

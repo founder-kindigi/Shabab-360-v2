@@ -16,7 +16,7 @@ vi.mock("@/lib/auth/authorize", () => ({
   requireResourceScope: mocks.requireResourceScope,
 }));
 vi.mock("@/lib/db", () => ({
-  db: {
+  db: { $transaction: async (run: any) => run({ attendanceEvent: { findUnique: async () => ({ id: "event-2", groupId: "group-2", group: { parkId: "park-2", park: { cityId: "city-2" }, batch: {} } }) }, staffMeta: { findUnique: mocks.staffMetaFindUnique } }),
     attendanceRecord: {
       findUnique: mocks.recordFindUnique,
       update: mocks.recordUpdate,
@@ -31,6 +31,7 @@ import { PATCH } from "./route";
 describe("PATCH /api/park/attendance/[eventId]/records/[recordId]", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.staffMetaFindUnique.mockResolvedValue({ id: "staff", role: "park_admin", assignedParkId: "park-1", isActive: true });
     mocks.requireAuth.mockResolvedValue({
       user: { id: "park-admin", role: "park_admin", assignedParkId: "park-1" },
     });
@@ -47,10 +48,10 @@ describe("PATCH /api/park/attendance/[eventId]/records/[recordId]", () => {
     );
   });
 
-  it("denies a cross-park attendance edit before resolving staff metadata or writing", async () => {
+  it("denies a cross-park attendance edit before writing records", async () => {
     const response = await PATCH(new NextRequest("http://localhost/api/park/attendance/event-2/records/record-2", {
       method: "PATCH",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", "If-Match": "2026-09-01T00:00:00.000Z" },
       body: JSON.stringify({ status: "absent", editReason: "Correcting an earlier marking" }),
     }), { params: Promise.resolve({ eventId: "event-2", recordId: "record-2" }) });
 
@@ -60,13 +61,13 @@ describe("PATCH /api/park/attendance/[eventId]/records/[recordId]", () => {
       { cityId: "city-2", parkId: "park-2", groupId: "group-2" },
       ["super_admin", "program_admin", "city_head", "park_lead"]
     );
-    expect(mocks.staffMetaFindUnique).not.toHaveBeenCalled();
+    expect(mocks.recordFindUnique).not.toHaveBeenCalled();
     expect(mocks.recordUpdate).not.toHaveBeenCalled();
   });
 
   it("denies a missing correction capability before reading the record", async () => {
     mocks.requireCapability.mockResolvedValue(NextResponse.json({ error: "Forbidden" }, { status: 403 }));
-    const response = await PATCH(new NextRequest("http://localhost/api/park/attendance/event-2/records/record-2", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ status: "absent", editReason: "Correcting an earlier marking" }) }), { params: Promise.resolve({ eventId: "event-2", recordId: "record-2" }) });
+    const response = await PATCH(new NextRequest("http://localhost/api/park/attendance/event-2/records/record-2", { method: "PATCH", headers: { "content-type": "application/json", "If-Match": "2026-09-01T00:00:00.000Z" }, body: JSON.stringify({ status: "absent", editReason: "Correcting an earlier marking" }) }), { params: Promise.resolve({ eventId: "event-2", recordId: "record-2" }) });
     expect(response.status).toBe(403);
     expect(mocks.recordFindUnique).not.toHaveBeenCalled();
   });
@@ -75,7 +76,7 @@ describe("PATCH /api/park/attendance/[eventId]/records/[recordId]", () => {
     const response = await PATCH(
       new NextRequest("http://localhost/api/park/attendance/event-2/records/record-2", {
         method: "PATCH",
-        headers: { "content-type": "application/json" },
+        headers: { "content-type": "application/json", "If-Match": "2026-09-01T00:00:00.000Z" },
         body: JSON.stringify({ status: "absent", editReason: "a".repeat(2001) }),
       }),
       { params: Promise.resolve({ eventId: "event-2", recordId: "record-2" }) }

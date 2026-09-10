@@ -18,9 +18,9 @@ vi.mock("@/lib/auth/authorize", async (importOriginal) => {
   };
 });
 vi.mock("@/lib/db", () => ({
-  db: { batch: { findUnique: mocks.batchFindUnique, update: mocks.batchUpdate, findFirst: mocks.batchFindFirst } },
+  db: { $transaction: async (run: any) => run({ batch: { update: mocks.batchUpdate }, auditLog: { create: vi.fn() } }), batch: { findUnique: mocks.batchFindUnique, update: mocks.batchUpdate, findFirst: mocks.batchFindFirst } },
 }));
-vi.mock("@/lib/audit", () => ({ logAudit: vi.fn() }));
+vi.mock("@/lib/audit", async (original) => ({ ...await original<typeof import("@/lib/audit")>(), logAudit: vi.fn() }));
 
 import { DELETE, GET, PATCH } from "./route";
 

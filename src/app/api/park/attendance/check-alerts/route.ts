@@ -1,3 +1,4 @@
+import { requireResolvedGroupScope, resolveRequestedHierarchy, hierarchyGroupWhere } from "@/lib/auth/hierarchy";
 import { NextResponse } from "next/server";
 import { ATTENDANCE_ROLES, requireAuth, requireCapability, requireResourceScope } from "@/lib/auth/authorize";
 import { AttendanceAlertError, checkAttendanceAlerts } from "@/lib/attendance-alerts";
@@ -24,17 +25,13 @@ export async function POST(req: Request) {
 
     const event = await db.attendanceEvent.findUnique({
       where: { id: eventId },
-      include: { group: { include: { batch: { include: { park: true } } } } },
+      include: { group: { include: { park: true, batch: { include: { park: true } } } } },
     });
     if (!event) {
       return NextResponse.json({ error: "Event not found" }, { status: 404 });
     }
 
-    const scopeError = requireResourceScope(
-      auth.user,
-      { cityId: event.group.batch.park.cityId, parkId: event.group.batch.parkId, groupId: event.groupId },
-      ATTENDANCE_ROLES
-    );
+    const scopeError = requireResolvedGroupScope(auth.user, event.group, ATTENDANCE_ROLES);
     if (scopeError) return scopeError;
 
     const result = await checkAttendanceAlerts(participantId, eventId);

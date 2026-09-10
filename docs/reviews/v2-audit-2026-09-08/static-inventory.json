@@ -1,5 +1,6 @@
 {
-  "auditedCommit": "d81df15",
+  "auditedCommit": "a252603",
+  "compiledAssetNote": "Existing local build assets were inspected; their source commit is not inferred from current HEAD.",
   "routeFiles": 192,
   "handlers": 291,
   "postgresModels": 72,

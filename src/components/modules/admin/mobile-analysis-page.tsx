@@ -69,7 +69,7 @@ export function MobileAnalysisPage({ onBack }: MobileAnalysisPageProps) {
   const dateLabel = formatDateLabel(dateRange.from, dateRange.to);
 
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ["admin-analysis", dateRange.from, dateRange.to],
+    queryKey: ["admin-analysis", user?.id, dateRange.from, dateRange.to],
     queryFn: async () => {
       const res = await fetch(`/api/admin/home-analytics?from=${dateRange.from}&to=${dateRange.to}`);
       if (!res.ok) throw new Error("Failed to fetch analysis");
@@ -82,16 +82,15 @@ export function MobileAnalysisPage({ onBack }: MobileAnalysisPageProps) {
   const todayAtt = data?.attendance || data?.todayAttendance || { present: 0, absent: 0, late: 0, total: 0 };
   const total = todayAtt.total ?? 0;
   const present = todayAtt.present ?? 0;
-  const absent = (todayAtt.absent ?? 0) + (todayAtt.late ?? 0); // combining late with absent or treating separately. Let's just use absent if available, else total - present
-  const computedAbsent = todayAtt.absent !== undefined ? todayAtt.absent : Math.max(0, total - present);
-  const overall = total > 0 ? Math.round((present / total) * 100) : null;
+  const computedAbsent = todayAtt.absent ?? 0;
+  const overall = todayAtt.rate ?? null;
   
   const byPark = data?.byPark || [];
   const byMurabbi = data?.byMurabbi || [];
   
   const sortedMurabbis = [...byMurabbi].sort((a, b) => {
-    const aRate = a.total > 0 ? a.present / a.total : 0;
-    const bRate = b.total > 0 ? b.present / b.total : 0;
+    const aRate = a.rate ?? 0;
+    const bRate = b.rate ?? 0;
     return murabbiSortInvert ? aRate - bRate : bRate - aRate;
   });
 
@@ -173,6 +172,9 @@ export function MobileAnalysisPage({ onBack }: MobileAnalysisPageProps) {
         <div className="grid grid-cols-3 gap-2.5">
           <StatCard title="Present" value={present} isLoading={isLoading} />
           <StatCard title="Absent" value={computedAbsent} isLoading={isLoading} />
+          <StatCard title="Late" value={todayAtt.late ?? 0} isLoading={isLoading} />
+          <StatCard title="Excused" value={todayAtt.excused ?? 0} isLoading={isLoading} />
+          <StatCard title="Unmarked" value={todayAtt.unmarked ?? 0} isLoading={isLoading} />
           <StatCard 
             title="Overall" 
             value={overall !== null ? `${overall}%` : "–"} 
@@ -216,12 +218,12 @@ export function MobileAnalysisPage({ onBack }: MobileAnalysisPageProps) {
                         <div key={i} className="p-3.5 rounded-2xl bg-card border border-border/50 shadow-sm space-y-2">
                           <div className="flex items-center justify-between">
                             <span className="text-xs font-bold text-foreground">{p.name || `Park ${i+1}`}</span>
-                            <span className="text-[10px] font-semibold text-muted-foreground">{p.present ?? 0}/{p.total ?? 0} present-marks</span>
+                            <span className="text-[10px] font-semibold text-muted-foreground">{p.attended ?? 0}/{p.total ?? 0} attended opportunities</span>
                           </div>
                           <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
                             <div 
                               className="h-full bg-emerald-500 rounded-full" 
-                              style={{ width: `${(p.total > 0 ? (p.present / p.total) : 0) * 100}%` }}
+                              style={{ width: `${p.rate ?? 0}%` }}
                             />
                           </div>
                         </div>
@@ -274,7 +276,7 @@ export function MobileAnalysisPage({ onBack }: MobileAnalysisPageProps) {
                             )}
                           >
                             <span className="text-xs font-bold text-foreground">{m.name || `Murabbi ${i+1}`}</span>
-                            <span className="text-[10px] font-semibold text-muted-foreground">{m.present ?? 0}/{m.total ?? 0} present-marks</span>
+                            <span className="text-[10px] font-semibold text-muted-foreground">{m.attended ?? 0}/{m.total ?? 0} attended opportunities</span>
                           </div>
                         ))}
                       </div>

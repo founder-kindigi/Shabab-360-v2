@@ -48,7 +48,7 @@ describe("DELETE /api/park/attendance/[eventId]/reset", () => {
 
   it("denies a cross-park reset before it counts or deletes attendance records", async () => {
     const response = await DELETE(new Request("http://localhost/api/park/attendance/event-2/reset", {
-      method: "DELETE",
+      method: "DELETE", headers: { "If-Match": "0" },
     }), { params: Promise.resolve({ eventId: "event-2" }) });
 
     expect(response.status).toBe(403);
@@ -63,7 +63,7 @@ describe("DELETE /api/park/attendance/[eventId]/reset", () => {
 
   it("denies a missing correction capability before reading the event", async () => {
     mocks.requireCapability.mockResolvedValue(NextResponse.json({ error: "Forbidden" }, { status: 403 }));
-    const response = await DELETE(new Request("http://localhost/api/park/attendance/event-2/reset", { method: "DELETE" }), { params: Promise.resolve({ eventId: "event-2" }) });
+    const response = await DELETE(new Request("http://localhost/api/park/attendance/event-2/reset", { method: "DELETE", headers: { "If-Match": "0" } }), { params: Promise.resolve({ eventId: "event-2" }) });
     expect(response.status).toBe(403);
     expect(mocks.eventFindUnique).not.toHaveBeenCalled();
   });

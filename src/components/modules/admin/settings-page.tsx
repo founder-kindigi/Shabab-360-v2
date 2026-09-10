@@ -610,7 +610,7 @@ function NotificationPreferencesSection() {
   function updatePref(key: PrefKey, value: boolean) {
     const prefs = getStoredPrefs();
     prefs[key] = value;
-    localStorage.setItem("shabab360-notif-prefs", JSON.stringify(prefs));
+    // Delivery preferences are gated until the server supports persistence.
 
     if (key === "email") setEmailNotifs(value);
     else if (key === "inApp") setInAppNotifs(value);
@@ -619,7 +619,7 @@ function NotificationPreferencesSection() {
     else if (key === "fees") setFeeReminders(value);
     else if (key === "announcements") setAnnouncementAlerts(value);
 
-    toast.success(t("settings.saved"));
+    toast.info("Notification delivery preferences are currently unavailable.");
   }
 
   const toggleItems = [
@@ -638,7 +638,7 @@ function NotificationPreferencesSection() {
         <div>
           <h2 className="text-lg font-semibold">{t("settings.notificationPreferences")}</h2>
           <p className="text-xs text-muted-foreground">
-            {t("settings.controlNotifications")}
+            Notification delivery settings are currently unavailable.
           </p>
         </div>
       </div>
@@ -659,6 +659,7 @@ function NotificationPreferencesSection() {
               </div>
             </div>
             <Switch
+              disabled
               checked={item.checked}
               onCheckedChange={(v) => updatePref(item.key, v)}
             />
@@ -673,28 +674,7 @@ function DangerZoneSection() {
   const { t } = useTranslation();
 
   function handleExportData() {
-    try {
-      const data: Record<string, unknown> = {};
-      // Gather all localStorage data related to the app
-      const keys = Object.keys(localStorage).filter((k) => k.startsWith("shabab360-"));
-      for (const key of keys) {
-        try {
-          data[key] = JSON.parse(localStorage.getItem(key) || "");
-        } catch {
-          data[key] = localStorage.getItem(key);
-        }
-      }
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "shabab360-my-data.json";
-      a.click();
-      URL.revokeObjectURL(url);
-      toast.success(t("settings.dataExported"));
-    } catch {
-      toast.error(t("settings.exportFailed"));
-    }
+    toast.info("Account data export and database backup are currently unavailable.");
   }
 
   function handleClearLocalData() {
@@ -749,13 +729,14 @@ function DangerZoneSection() {
           <div>
             <p className="text-sm font-medium">{t("settings.exportData")}</p>
             <p className="text-xs text-muted-foreground">
-              {t("settings.exportMyDataDesc")}
+              Account export and database backup are currently unavailable.
             </p>
           </div>
           <Button
             variant="outline"
             size="sm"
             onClick={handleExportData}
+            disabled
           >
             <Download className="size-4 mr-1.5" />
             {t("settings.exportDataBtn")}

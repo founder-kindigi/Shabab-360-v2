@@ -8,7 +8,7 @@ const mocks = vi.hoisted(() => ({
   transaction: vi.fn(),
 }));
 
-vi.mock("@/lib/auth/authorize", () => ({ requireAuth: mocks.requireAuth, requireCapability: mocks.requireCapability }));
+vi.mock("@/lib/auth/authorize", async (original) => ({ ...await original<typeof import("@/lib/auth/authorize")>(), requireAuth: mocks.requireAuth, requireCapability: mocks.requireCapability }));
 vi.mock("@/lib/db", () => ({ db: { $transaction: mocks.transaction } }));
 vi.mock("@/lib/audit", () => ({ logAudit: vi.fn() }));
 
@@ -17,7 +17,7 @@ import { POST } from "./route";
 function request(body: Record<string, unknown>) {
   return new NextRequest("http://localhost/api/admin/fees/fee-1/payments", {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", "Idempotency-Key": "synthetic-payment-key-1" },
     body: JSON.stringify(body),
   });
 }
@@ -48,7 +48,9 @@ describe("POST /api/admin/fees/[id]/payments", () => {
 
   it("rejects a participant outside the fee event batch", async () => {
     const transaction = {
+      $queryRaw: async () => [],
       feeEvent: {
+        updateMany: async () => ({ count: 1 }),
         findUnique: vi.fn().mockResolvedValue({
           batchId: "batch-1",
           amount: 100,
@@ -69,18 +71,18 @@ describe("POST /api/admin/fees/[id]/payments", () => {
     await expect(response.json()).resolves.toEqual({
       error: { amount: ["Participant is not active in this fee event's batch"] },
     });
-    expect(transaction.participant.findFirst).toHaveBeenCalledWith({
-      where: {
+    expect(transaction.participant.findFirst.mock.calls[0][0].where).toEqual({
         id: "participant-other-batch",
         state: "active",
         group: { batchId: "batch-1" },
-      },
     });
   });
 
   it("rejects an amount that exceeds the participant's remaining balance", async () => {
     const transaction = {
+      $queryRaw: async () => [],
       feeEvent: {
+        updateMany: async () => ({ count: 1 }),
         findUnique: vi.fn().mockResolvedValue({
           batchId: "batch-1",
           amount: 100,
@@ -88,7 +90,7 @@ describe("POST /api/admin/fees/[id]/payments", () => {
           batch: { name: "Batch 1", park: { name: "Park 1" } },
         }),
       },
-      participant: { findFirst: vi.fn().mockResolvedValue({ id: "participant-1" }) },
+      participant: { findFirst: vi.fn().mockResolvedValue({ id: "participant-1", group: { id: "group-1", parkId: "park-1", park: { id: "park-1", cityId: "city-1" }, batch: { id: "batch-1" } } }) },
       payment: { aggregate: vi.fn().mockResolvedValue({ _sum: { amount: 95 } }) },
     };
     mocks.transaction.mockImplementation(async (callback) => callback(transaction));

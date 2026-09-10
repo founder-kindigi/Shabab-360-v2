@@ -12,20 +12,22 @@ const mocks = vi.hoisted(() => ({
   logAudit: vi.fn(),
 }));
 
-vi.mock("@/lib/auth/authorize", () => ({
+vi.mock("@/lib/auth/authorize", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@/lib/auth/authorize")>(),
   requireRole: mocks.requireRole,
   requireAuth: mocks.requireAuth,
   requireCapability: mocks.requireCapability,
 }));
 vi.mock("@/lib/db", () => ({
   db: {
+    $transaction: async (run: any) => run({ admissionApplication: { findUnique: mocks.findFirst, create: mocks.create }, auditLog: { create: mocks.logAudit } }),
     admissionApplication: {
       findFirst: mocks.findFirst,
       create: mocks.create,
     },
   },
 }));
-vi.mock("@/lib/audit", () => ({ logAudit: mocks.logAudit }));
+vi.mock("@/lib/audit", async (importOriginal) => ({ ...await importOriginal<typeof import("@/lib/audit")>(), logAudit: mocks.logAudit }));
 
 import { POST } from "./route";
 
@@ -49,7 +51,7 @@ describe("POST /api/admin/admissions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.requireRole.mockResolvedValue(null);
-    mocks.requireAuth.mockResolvedValue({ user: { id: "admin-1" } });
+    mocks.requireAuth.mockResolvedValue({ user: { id: "admin-1", role: "super_admin" } });
     mocks.requireCapability.mockResolvedValue(null);
     mocks.findFirst.mockResolvedValue(null);
     mocks.create.mockImplementation(async ({ data }) => ({ id: "application-1", ...data }));

@@ -61,59 +61,9 @@ export function buildSideBySideDiff(
  * Trigger full offline sync batch process.
  * Locks pending items, posts batch to /api/sync/process, handles server response, and updates IndexedDB.
  */
-export async function triggerOfflineBatchSync(): Promise<{
-  syncedCount: number;
-  failedCount: number;
-  conflictsCount: number;
-}> {
-  const pendingItems = await getPendingSyncItems();
-  if (pendingItems.length === 0) {
-    return { syncedCount: 0, failedCount: 0, conflictsCount: 0 };
-  }
-
-  const mutationIds = pendingItems.map((item) => item.mutationId);
-  await markAsSyncing(mutationIds);
-
-  try {
-    const res = await fetch("/api/sync/process", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ mutations: pendingItems }),
-    });
-
-    if (!res.ok) {
-      const errText = await res.text();
-      await markAsFailed(mutationIds.map((id) => ({ mutationId: id, error: errText })));
-      return { syncedCount: 0, failedCount: mutationIds.length, conflictsCount: 0 };
-    }
-
-    const payload = await res.json();
-    const { syncedIds = [], failedResults = [], conflicts = [] } = payload;
-
-    // Update synced items
-    if (syncedIds.length > 0) {
-      await markAsSynced(syncedIds);
-    }
-
-    // Update failed items
-    if (failedResults.length > 0) {
-      await markAsFailed(failedResults);
-    }
-
-    // Store conflicts in Dexie IndexedDB
-    for (const conflict of conflicts) {
-      await storeConflict(conflict);
-    }
-
-    return {
-      syncedCount: syncedIds.length,
-      failedCount: failedResults.length,
-      conflictsCount: conflicts.length,
-    };
-  } catch (err: any) {
-    await markAsFailed(
-      mutationIds.map((id) => ({ mutationId: id, error: err.message || "Network sync failure" }))
-    );
-    return { syncedCount: 0, failedCount: mutationIds.length, conflictsCount: 0 };
-  }
+export async function triggerOfflineBatchSync(ownerId?: string): Promise<{ syncedCount: number; failedCount: number; conflictsCount: number }> {
+  if (!ownerId) return { syncedCount: 0, failedCount: 0, conflictsCount: 0 };
+  const { drainAttendanceQueue } = await import("./sync-attendance");
+  const result = await drainAttendanceQueue(ownerId);
+  return { syncedCount: result.processed, failedCount: result.failed, conflictsCount: 0 };
 }

@@ -23,6 +23,7 @@ vi.mock("@/lib/auth/authorize", () => ({
 }));
 vi.mock("@/lib/db", () => ({
   db: {
+    park: { findUnique: async ({ where }: any) => ({ id: where.id, cityId: "city-1" }) },
     feeEvent: mocks.feeEvent,
     payment: mocks.payment,
     group: mocks.group,
@@ -90,12 +91,12 @@ describe("GET /api/admin/fees", () => {
     expect(mocks.feeEvent.findMany.mock.calls[0][0].select.payments).toBeUndefined();
     expect(mocks.feeEvent.groupBy).toHaveBeenCalledWith({
       by: ["batchId"],
-      where: { isActive: true },
+      where: { isActive: true, batch: { groups: { some: {} } } },
       _count: { _all: true },
-      _sum: { amount: true },
+      _sum: { amount: true, discountAmount: true },
     });
     expect(mocks.payment.aggregate).toHaveBeenCalledWith({
-      where: { feeEvent: { is: { isActive: true } } },
+      where: { feeEvent: { is: { isActive: true, batch: { groups: { some: {} } } } }, participant: { group: {} } },
       _sum: { amount: true },
     });
   });
@@ -133,8 +134,8 @@ describe("GET /api/admin/fees", () => {
       totalCollected: 350,
       collectionRate: 35,
     });
-    expect(mocks.feeEvent.groupBy.mock.calls[0][0].where).toEqual({});
-    expect(mocks.payment.aggregate.mock.calls[0][0].where).toEqual({ feeEvent: { is: {} } });
+    expect(mocks.feeEvent.groupBy.mock.calls[0][0].where).toEqual({ batch: { groups: { some: {} } } });
+    expect(mocks.payment.aggregate.mock.calls[0][0].where).toEqual({ feeEvent: { is: { batch: { groups: { some: {} } } } }, participant: { group: {} } });
   });
 
   it("validates pagination before issuing database queries", async () => {
@@ -150,7 +151,7 @@ describe("GET /api/admin/fees", () => {
 
     expect(mocks.feeEvent.findMany.mock.calls[0][0].where).toEqual({
       isActive: true,
-      batch: { park: { cityId: "city-1", id: "park-1" } },
+      batch: { groups: { some: { OR: [{ parkId: "park-1" }, { parkId: null, batch: { parkId: "park-1" } }], AND: [{ OR: [{ park: { cityId: "city-1" } }, { parkId: null, batch: { park: { cityId: "city-1" } } }] }] } } },
     });
   });
 });

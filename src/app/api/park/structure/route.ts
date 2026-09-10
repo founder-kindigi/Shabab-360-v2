@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { requireAuth, requireCapability } from "@/lib/auth/authorize";
+import { resolveRequestedHierarchy, groupParkWhere } from "@/lib/auth/hierarchy";
+import { createAuditLogData } from "@/lib/audit";
 import { z } from "zod";
 
 type SessionUser = {
@@ -14,29 +17,17 @@ const ALLOWED_ROLES = ["super_admin", "program_admin", "city_head", "park_admin"
 const addStudentSchema = z.object({
   action: z.literal("add_student"),
   parkId: z.string().min(1),
-  name: z.string().min(1),
-  groupId: z.string().optional(),
+  name: z.string().trim().min(1).max(150),
+  groupId: z.string().trim().min(1).max(200),
   schoolClass: z.string().optional(),
-  guardianContact: z.string().optional(),
-  address: z.string().optional(),
-});
-
-const addMurabbiSchema = z.object({
-  action: z.literal("add_murabbi"),
-  parkId: z.string().min(1),
-  name: z.string().min(1),
-  email: z.string().email(),
-  role: z.enum(["Murabbi", "Muawin", "Head Murabbi", "Park Admin"]).default("Murabbi"),
-  phone: z.string().optional(),
+  guardianContact: z.string().max(30).optional(),
+  address: z.string().max(500).optional(),
 });
 
 export async function GET(request: Request) {
-  const session = await getServerSession(authOptions);
-  const user = session?.user as SessionUser | undefined;
-
-  if (!session || !user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const auth = await requireAuth();
+  if (auth instanceof NextResponse) return auth;
+  const { user } = auth;
 
   if (!user.role || !ALLOWED_ROLES.includes(user.role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -50,42 +41,14 @@ export async function GET(request: Request) {
   }
 
   try {
-    const park = await db.park.findUnique({
-      where: { id: parkId },
-      include: {
-        batches: {
-          include: {
-            groups: {
-              include: {
-                participants: {
-                  where: { state: "active" },
-                  select: {
-                    id: true,
-                    name: true,
-                    phone: true,
-                    address: true,
-                    groupId: true,
-                  },
-                },
-                murabbis: {
-                  include: {
-                    user: {
-                      select: { id: true, name: true, email: true, phone: true },
-                    },
-                  },
-                },
-              },
-            },
-          },
-        },
-        parkStaff: {
-          include: {
-            user: {
-              select: { id: true, name: true, email: true, phone: true },
-            },
-          },
-        },
-      },
+    const capability = await requireCapability("organisation.view", user);
+    if (capability instanceof NextResponse) return capability;
+    const scope = await resolveRequestedHierarchy(user, { parkId });
+    if (scope instanceof NextResponse) return scope;
+    const park = await db.park.findUnique({ where: { id: parkId }, include: { parkStaff: { where: { isActive: true }, include: { user: { select: { id: true, name: true, phone: true } } } } } });
+    const scopedGroups = await db.group.findMany({
+      where: { ...groupParkWhere(parkId), ...(scope.groupId ? { id: scope.groupId } : {}), isActive: true, batch: { isActive: true } },
+      include: { batch: { select: { name: true } }, participants: { where: { state: "active" }, select: { id: true, name: true, phone: true, groupId: true } }, murabbis: { where: { isActive: true }, include: { user: { select: { id: true, name: true, phone: true } } } } },
     });
 
     if (!park) {
@@ -106,28 +69,29 @@ export async function GET(request: Request) {
 
     const murabbiMap = new Map<string, { id: string; name: string; studentsCount: number; phone: string }>();
 
-    // Check park staff
-    let headMurabbi = { name: "Ahmed Khan", studentsCount: 0, phone: "0300-1234567" };
-    let parkAdmin = { name: "Salman Ali", studentsCount: 0, phone: "0300-7654321" };
+    // Do not fabricate staff identities when a park has no assignment.
+    let headMurabbi = { name: "Unassigned", studentsCount: 0, phone: "" };
+    let parkAdmin = { name: "Unassigned", studentsCount: 0, phone: "" };
 
     for (const staff of park.parkStaff) {
       if (staff.role === "head_murabbi" || staff.role === "park_lead") {
         headMurabbi = {
-          name: staff.user?.name || "Ahmed Khan",
+          name: staff.user?.name || "Unassigned",
           studentsCount: 0,
-          phone: staff.user?.phone || "0300-1234567",
+          phone: staff.user?.phone || "",
         };
       } else if (staff.role === "park_admin") {
         parkAdmin = {
-          name: staff.user?.name || "Salman Ali",
+          name: staff.user?.name || "Unassigned",
           studentsCount: 0,
-          phone: staff.user?.phone || "0300-7654321",
+          phone: staff.user?.phone || "",
         };
       }
     }
 
-    for (const batch of park.batches) {
-      for (const group of batch.groups) {
+    for (const group of scopedGroups) {
+      const batch = group.batch;
+      {
         groups.push({ id: group.id, name: group.name });
         const murabbiName = group.murabbis[0]?.user?.name || group.name;
 
@@ -143,7 +107,7 @@ export async function GET(request: Request) {
                 id: u.id,
                 name: u.name || "Murabbi",
                 studentsCount: group.participants.length,
-                phone: u.phone || "0300-0000000",
+                phone: u.phone || "",
               });
             }
           }
@@ -158,24 +122,13 @@ export async function GET(request: Request) {
             year: batch.name.includes("Batch") ? batch.name : "1st Year",
             groupId: group.id,
             phone: p.phone,
-            address: p.address,
+
           });
         }
       }
     }
 
-    // Default sample murabbis if database has none assigned to groups
-    let murabbis = Array.from(murabbiMap.values());
-    if (murabbis.length === 0) {
-      murabbis = [
-        { id: "m1", name: "Hassan Safi", studentsCount: 12, phone: "0300-2345678" },
-        { id: "m2", name: "Zaid Omar", studentsCount: 10, phone: "0300-3456789" },
-        { id: "m3", name: "Bilal Tariq", studentsCount: 11, phone: "0300-4567890" },
-        { id: "m4", name: "Usman Ghani", studentsCount: 12, phone: "0300-5678901" },
-        { id: "m5", name: "Hamza Farooq", studentsCount: 12, phone: "0300-6789012" },
-        { id: "m6", name: "Abdullah Malik", studentsCount: 12, phone: "0300-7890123" },
-      ];
-    }
+    const murabbis = Array.from(murabbiMap.values());
 
     return NextResponse.json({
       headMurabbi,
@@ -193,19 +146,17 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const session = await getServerSession(authOptions);
-  const user = session?.user as SessionUser | undefined;
-
-  if (!session || !user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const auth = await requireAuth();
+  if (auth instanceof NextResponse) return auth;
+  const { user } = auth;
 
   if (!user.role || !ALLOWED_ROLES.includes(user.role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   try {
-    const body = await request.json();
+    const body = await request.json().catch(() => null);
+    if (!body || typeof body !== "object") return NextResponse.json({ error: "Invalid body" }, { status: 400 });
 
     if (body.action === "add_student") {
       const parsed = addStudentSchema.safeParse(body);
@@ -213,19 +164,13 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
       }
 
-      // If groupId is not specified, find first group in park
-      let targetGroupId = parsed.data.groupId;
-      if (!targetGroupId) {
-        const group = await db.group.findFirst({
-          where: { batch: { parkId: parsed.data.parkId } },
-        });
-        if (!group) {
-          return NextResponse.json({ error: "No group found in park to assign student" }, { status: 400 });
-        }
-        targetGroupId = group.id;
-      }
-
-      const participant = await db.participant.create({
+      const capability = await requireCapability("students.manage", user);
+      if (capability instanceof NextResponse) return capability;
+      const targetGroupId = parsed.data.groupId;
+      return await db.$transaction(async (tx) => {
+      const scope = await resolveRequestedHierarchy(user, { parkId: parsed.data.parkId, groupId: targetGroupId }, tx);
+      if (scope instanceof NextResponse) return scope;
+      const participant = await tx.participant.create({
         data: {
           name: parsed.data.name,
           groupId: targetGroupId,
@@ -235,52 +180,16 @@ export async function POST(request: Request) {
         },
       });
 
+      await tx.auditLog.create({ data: createAuditLogData({ userId: user.id, action: "student.create", entityType: "Participant", entityId: participant.id, newValues: { groupId: targetGroupId } }) });
       return NextResponse.json({ success: true, participant }, { status: 201 });
+      });
     }
 
     if (body.action === "add_murabbi") {
-      const parsed = addMurabbiSchema.safeParse(body);
-      if (!parsed.success) {
-        return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
-      }
-
-      // Create or find User
-      let targetUser = await db.user.findUnique({
-        where: { email: parsed.data.email },
-      });
-
-      if (!targetUser) {
-        targetUser = await db.user.create({
-          data: {
-            email: parsed.data.email,
-            name: parsed.data.name,
-            phone: parsed.data.phone || null,
-            passwordHash: "$2a$12$placeholderHashForStaff1234567890",
-            mustResetPwd: true,
-          },
-        });
-      }
-
-      // Create or update StaffMeta
-      const mappedRole = parsed.data.role === "Head Murabbi" ? "head_murabbi"
-        : parsed.data.role === "Park Admin" ? "park_admin"
-        : parsed.data.role === "Muawin" ? "muawin"
-        : "murabbi";
-
-      await db.staffMeta.upsert({
-        where: { userId: targetUser.id },
-        update: {
-          role: mappedRole,
-          assignedParkId: parsed.data.parkId,
-        },
-        create: {
-          userId: targetUser.id,
-          role: mappedRole,
-          assignedParkId: parsed.data.parkId,
-        },
-      });
-
-      return NextResponse.json({ success: true, user: targetUser }, { status: 201 });
+      return NextResponse.json(
+        { error: "Staff provisioning is unavailable from Park Structure. Use authorized access provisioning." },
+        { status: 503 }
+      );
     }
 
     return NextResponse.json({ error: "Invalid action" }, { status: 400 });

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth, requireCapability, resolveActorCity } from "@/lib/auth/authorize";
+import { requireAuth, requireCapability, requireResourceScope } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
-import { logAudit } from "@/lib/audit";
+import { createAuditLogData } from "@/lib/audit";
 import { z } from "zod";
 
 const updateRequestSchema = z.object({
@@ -30,10 +30,8 @@ export async function PATCH(
     return NextResponse.json({ error: "Stock request not found" }, { status: 404 });
   }
 
-  const actorCity = await resolveActorCity();
-  if (actorCity && existing.park.cityId !== actorCity) {
-    return NextResponse.json({ error: "Forbidden: Cannot update request outside city scope" }, { status: 403 });
-  }
+  const scope = await requireResourceScope(user, { cityId: existing.park.cityId, parkId: existing.park.id });
+  if (scope instanceof NextResponse) return scope;
 
   let body: unknown;
   try {
@@ -47,9 +45,17 @@ export async function PATCH(
     return NextResponse.json({ error: parsed.error.flatten().fieldErrors }, { status: 400 });
   }
 
+  const allowedTransitions: Record<string, string[]> = {
+    pending: ["approved", "rejected"],
+  };
+  if (!allowedTransitions[existing.status]?.includes(parsed.data.status)) {
+    return NextResponse.json({ error: "This stock-request status transition is not allowed" }, { status: 409 });
+  }
+
+  try {
   const updated = await db.$transaction(async (tx) => {
     const req = await tx.stockRequest.update({
-      where: { id },
+      where: { id, status: "pending", updatedAt: existing.updatedAt },
       data: {
         status: parsed.data.status,
         notes: parsed.data.notes || existing.notes,
@@ -62,33 +68,16 @@ export async function PATCH(
       },
     });
 
-    // If status transitioned to "fulfilled", atomically increment park stock!
-    if (parsed.data.status === "fulfilled" && existing.status !== "fulfilled") {
-      await tx.parkStock.upsert({
-        where: { parkId_itemId: { parkId: existing.parkId, itemId: existing.itemId } },
-        create: {
-          parkId: existing.parkId,
-          itemId: existing.itemId,
-          quantity: existing.quantity,
-          minThreshold: 5,
-        },
-        update: {
-          quantity: { increment: existing.quantity },
-        },
-      });
-    }
-
+    await tx.auditLog.create({ data: createAuditLogData({
+      userId: user.id, action: "procurement.request.update_status", entityType: "stock_request", entityId: req.id,
+      oldValues: { status: existing.status }, newValues: { status: req.status },
+    }) });
     return req;
   });
 
-  logAudit({
-    userId: user.id!,
-    action: "procurement.request.update_status",
-    entityType: "stock_request",
-    entityId: updated.id,
-    oldValues: { status: existing.status },
-    newValues: { status: updated.status, notes: updated.notes },
-  });
-
   return NextResponse.json(updated);
+  } catch (error) {
+    if ((error as { code?: string }).code === "P2025") return NextResponse.json({ error: "Request was already reviewed" }, { status: 409 });
+    return NextResponse.json({ error: "Request could not be updated" }, { status: 503 });
+  }
 }

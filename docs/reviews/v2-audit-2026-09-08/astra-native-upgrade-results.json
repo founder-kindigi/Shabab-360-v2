@@ -1,0 +1,22 @@
+{
+  "directory": "D:\\iBuild\\Shabab-360-v2\\.next\\astra-native-upgrade-agU0uH",
+  "schemaName": "astra_native_upgrade_agU0uH",
+  "baselineMigrations": 24,
+  "finalMigrations": 31,
+  "checks": [
+    {
+      "name": "Synthetic participant, attendance, exact-money payment and batch values survive forward upgrade",
+      "passed": true,
+      "snapshotSha256": "8c33826d1b4fcfbbf7773712ec4feea679572703d29a09a82f77ab9692c212c1"
+    },
+    {
+      "name": "Legacy batch city backfills correctly and existing event receives reset generation zero",
+      "passed": true
+    },
+    {
+      "name": "All 31 native PostgreSQL migrations applied",
+      "passed": true
+    }
+  ],
+  "passed": true
+}

@@ -7,8 +7,10 @@ const mocks = vi.hoisted(() => ({
   requireAuth: vi.fn(),
   requireCapability: vi.fn(),
   resolveActorCity: vi.fn(),
+  resolveRequestedCityScope: vi.fn(),
   logAudit: vi.fn(),
   db: {
+    auditLog: { create: vi.fn() },
     city: { findUnique: vi.fn() },
     park: { findUnique: vi.fn() },
     feeDonation: { findMany: vi.fn(), create: vi.fn() },
@@ -22,10 +24,11 @@ vi.mock("@/lib/auth/authorize", () => ({
   requireAuth: mocks.requireAuth,
   requireCapability: mocks.requireCapability,
   resolveActorCity: mocks.resolveActorCity,
+  resolveRequestedCityScope: mocks.resolveRequestedCityScope,
 }));
 
-vi.mock("@/lib/audit", () => ({
-  logAudit: mocks.logAudit,
+vi.mock("@/lib/audit", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@/lib/audit")>(), logAudit: mocks.logAudit,
 }));
 
 vi.mock("@/lib/db", () => ({
@@ -35,9 +38,11 @@ vi.mock("@/lib/db", () => ({
 describe("V3-501 Finance Operations — Donations & Adjustments API", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    mocks.db.$transaction.mockImplementation(async (run) => run(mocks.db));
     mocks.requireAuth.mockResolvedValue({ user: { id: "usr_admin", role: "super_admin" } });
     mocks.requireCapability.mockResolvedValue(null);
     mocks.resolveActorCity.mockResolvedValue(null);
+    mocks.resolveRequestedCityScope.mockImplementation((_user, requestedCityId) => ({ cityId: requestedCityId || null }));
   });
 
   describe("GET & POST /api/admin/finance/donations", () => {
@@ -49,7 +54,7 @@ describe("V3-501 Finance Operations — Donations & Adjustments API", () => {
     });
 
     it("returns 403 when user is restricted to a different city scope", async () => {
-      mocks.resolveActorCity.mockResolvedValue("city_lahore");
+      mocks.requireAuth.mockResolvedValue({ user: { id: "city-head", role: "city_head", assignedCityId: "city_lahore" } });
       mocks.db.city.findUnique.mockResolvedValue({ id: "city_karachi" });
 
       const req = new NextRequest("http://localhost/api/admin/finance/donations", {
@@ -96,7 +101,7 @@ describe("V3-501 Finance Operations — Donations & Adjustments API", () => {
 
       const data = await res.json();
       expect(data.receiptNo).toBe("DON-2026-0001");
-      expect(mocks.logAudit).toHaveBeenCalledWith(
+      expect(mocks.db.auditLog.create.mock.calls[0][0].data).toEqual(
         expect.objectContaining({
           action: "financial.donation.create",
           entityId: "don_1",
@@ -133,7 +138,7 @@ describe("V3-501 Finance Operations — Donations & Adjustments API", () => {
 
       const data = await res.json();
       expect(data.id).toBe("adj_1");
-      expect(mocks.logAudit).toHaveBeenCalledWith(
+      expect(mocks.db.auditLog.create.mock.calls[0][0].data).toEqual(
         expect.objectContaining({
           action: "financial.adjustment.create",
         })

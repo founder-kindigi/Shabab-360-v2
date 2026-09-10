@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   resolveActorCity: vi.fn(),
   logAudit: vi.fn(),
   db: {
+    group: { findUnique: vi.fn() },
     city: { findUnique: vi.fn() },
     digitalResource: { findMany: vi.fn(), create: vi.fn() },
   },
@@ -31,9 +32,10 @@ vi.mock("@/lib/db", () => ({
 describe("V3-603 Digital Resource Library API", () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    mocks.requireAuth.mockResolvedValue({ user: { id: "usr_murabbi", role: "murabbi" } });
+    mocks.requireAuth.mockResolvedValue({ user: { id: "usr_murabbi", role: "murabbi", assignedGroupId: "group-1" } });
     mocks.requireCapability.mockResolvedValue(null);
     mocks.resolveActorCity.mockResolvedValue("city_lahore");
+    mocks.db.group.findUnique.mockResolvedValue({ id: "group-1", parkId: "park-1", park: { id: "park-1", cityId: "city_lahore" }, batch: { cityId: "city_lahore" } });
   });
 
   describe("GET /api/resources", () => {

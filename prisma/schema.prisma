@@ -9,6 +9,16 @@ datasource db {
 
 // ========== AUTH & USERS ==========
 
+// Hashed account keys; shared atomic login throttling without identifying request logs.
+model LoginAttemptWindow {
+  key String @id
+  attempts Int
+  resetAt BigInt
+
+  @@index([resetAt])
+  @@map("login_attempt_windows")
+}
+
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
@@ -152,6 +162,8 @@ model Park {
   @@map("parks")
 }
 
+// One active batch per effective city is enforced by provider migrations
+// (partial unique index plus legacy-null normalization triggers).
 model Batch {
   id        String    @id @default(cuid())
   name      String
@@ -578,6 +590,7 @@ model AttendanceEvent {
   groupId   String
   title     String
   eventDate DateTime
+  resetVersion Int @default(0)
   isClosed  Boolean   @default(false)
   closedAt  DateTime?
   closedBy  String?
@@ -1562,4 +1575,13 @@ model ParkRoutineSlot {
 
   @@index([parkId])
   @@map("park_routine_slots")
+}
+
+// Durable, actor-bound acknowledgements for retried writes. No personal payload is stored.
+model OperationReceipt {
+  id String @id
+  requestHash String
+  resultJson String
+  createdAt DateTime @default(now())
+  @@map("operation_receipts")
 }

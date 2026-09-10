@@ -1,17 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth, requireCapability, resolveActorCity } from "@/lib/auth/authorize";
+import { isHqRole, requireAuth, requireCapability, requireResourceScope, resolveRequestedCityScope } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
-import { logAudit } from "@/lib/audit";
+import { resolveCityParkScope } from "@/lib/auth/hierarchy";
+import { createAuditLogData } from "@/lib/audit";
 import { toCents } from "@/lib/money";
 import { z } from "zod";
 import { Prisma } from "@prisma/client";
 
 const createPOSchema = z.object({
-  cityId: z.string().min(1, "City ID is required"),
-  parkId: z.string().optional(),
+  cityId: z.string().min(1, "City ID is required").max(128),
+  parkId: z.string().max(128).optional(),
   itemId: z.string().min(1, "Item ID is required"),
-  quantity: z.number().int().positive("Quantity must be positive"),
-  unitCost: z.number().finite().positive("Unit cost must be positive").refine(
+  quantity: z.number().int().positive("Quantity must be positive").max(1000000),
+  unitCost: z.number().finite().positive("Unit cost must be positive").max(1000000).refine(
     (val) => toCents(val) !== null,
     "Unit cost can have at most two decimal places"
   ),
@@ -39,13 +40,19 @@ export async function GET(request: NextRequest) {
   const capAuth = await requireCapability("organisation.view");
   if (capAuth instanceof NextResponse) return capAuth;
 
-  const actorCity = await resolveActorCity();
   const url = new URL(request.url);
-  const cityIdFilter = url.searchParams.get("cityId") || actorCity;
-  const parkIdFilter = url.searchParams.get("parkId");
+  const cityScope = await resolveCityParkScope(user, { cityId: url.searchParams.get("cityId"), parkId: url.searchParams.get("parkId") });
+  if (cityScope instanceof NextResponse) return cityScope;
+  const cityIdFilter = cityScope.cityId;
+  const parkIdFilter = cityScope.parkId;
 
-  if (!cityIdFilter && !["super_admin", "program_admin"].includes(user.role || "")) {
-    return NextResponse.json({ error: "City context is required" }, { status: 400 });
+  if (parkIdFilter) {
+    const park = await db.park.findUnique({ where: { id: parkIdFilter } });
+    if (!park) return NextResponse.json({ error: "Park not found" }, { status: 404 });
+    const scope = await requireResourceScope(user, { cityId: park.cityId, parkId: park.id });
+    if (scope instanceof NextResponse) return scope;
+  } else if (!cityIdFilter && !isHqRole(user.role)) {
+    return NextResponse.json({ error: "A resolved city or park scope is required" }, { status: 403 });
   }
 
   const where: any = {};
@@ -86,10 +93,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: parsed.error.flatten().fieldErrors }, { status: 400 });
   }
 
-  const actorCity = await resolveActorCity();
-  if (actorCity && actorCity !== parsed.data.cityId) {
-    return NextResponse.json({ error: "Forbidden: Cannot issue purchase order for outside city scope" }, { status: 403 });
-  }
+  const cityScope = await resolveCityParkScope(user, { cityId: parsed.data.cityId, parkId: parsed.data.parkId });
+  if (cityScope instanceof NextResponse) return cityScope;
+  if (cityScope.parkId && parsed.data.parkId !== cityScope.parkId) return NextResponse.json({ error: "An explicit authorized park is required" }, { status: 403 });
 
   const cityExists = await db.city.findUnique({ where: { id: parsed.data.cityId } });
   if (!cityExists) {
@@ -101,6 +107,8 @@ export async function POST(request: NextRequest) {
     if (!parkExists || parkExists.cityId !== parsed.data.cityId) {
       return NextResponse.json({ error: "Park not found or does not belong to specified city" }, { status: 400 });
     }
+    const scope = await requireResourceScope(user, { cityId: cityExists.id, parkId: parkExists.id });
+    if (scope instanceof NextResponse) return scope;
   }
 
   const item = await db.procurementItem.findUnique({ where: { id: parsed.data.itemId } });
@@ -110,6 +118,7 @@ export async function POST(request: NextRequest) {
 
   const totalCost = Number((parsed.data.quantity * parsed.data.unitCost).toFixed(2));
 
+  try {
   const po = await db.$transaction(async (tx) => {
     const poNumber = await generatePONumber(tx);
     const order = await tx.purchaseOrder.create({
@@ -132,40 +141,26 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // If assigned directly to a park, auto-increment park stock balance!
-    if (parsed.data.parkId) {
-      await tx.parkStock.upsert({
-        where: { parkId_itemId: { parkId: parsed.data.parkId, itemId: parsed.data.itemId } },
-        create: {
-          parkId: parsed.data.parkId,
-          itemId: parsed.data.itemId,
-          quantity: parsed.data.quantity,
-          minThreshold: 5,
-        },
-        update: {
-          quantity: { increment: parsed.data.quantity },
-        },
-      });
-    }
-
-    return order;
-  });
-
-  logAudit({
+    await tx.auditLog.create({ data: createAuditLogData({
     userId: user.id!,
     action: "procurement.order.issue",
     entityType: "purchase_order",
-    entityId: po.id,
+    entityId: order.id,
     newValues: {
-      poNumber: po.poNumber,
-      cityId: po.cityId,
-      parkId: po.parkId,
-      itemId: po.itemId,
-      quantity: po.quantity,
-      totalCost: po.totalCost,
-      supplierName: po.supplierName,
+      poNumber: order.poNumber,
+      cityId: order.cityId,
+      parkId: order.parkId,
+      itemId: order.itemId,
+      quantity: order.quantity,
+      totalCost: order.totalCost,
+      supplierName: order.supplierName,
     },
+    }) });
+    return order;
   });
 
+
+
   return NextResponse.json(po, { status: 201 });
+  } catch { return NextResponse.json({ error: "Operation could not be saved" }, { status: 503 }); }
 }

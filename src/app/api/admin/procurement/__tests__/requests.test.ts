@@ -7,9 +7,12 @@ import { GET as getOrders, POST as postOrder } from "../orders/route";
 const mocks = vi.hoisted(() => ({
   requireAuth: vi.fn(),
   requireCapability: vi.fn(),
-  resolveActorCity: vi.fn(),
+  resolveRequestedCityScope: vi.fn(),
+  requireResourceScope: vi.fn(),
+  isHqRole: vi.fn(),
   logAudit: vi.fn(),
   db: {
+    auditLog: { create: vi.fn() },
     city: { findUnique: vi.fn() },
     park: { findUnique: vi.fn() },
     procurementItem: { findUnique: vi.fn() },
@@ -24,11 +27,13 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@/lib/auth/authorize", () => ({
   requireAuth: mocks.requireAuth,
   requireCapability: mocks.requireCapability,
-  resolveActorCity: mocks.resolveActorCity,
+  resolveRequestedCityScope: mocks.resolveRequestedCityScope,
+  requireResourceScope: mocks.requireResourceScope,
+  isHqRole: mocks.isHqRole,
 }));
 
-vi.mock("@/lib/audit", () => ({
-  logAudit: mocks.logAudit,
+vi.mock("@/lib/audit", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@/lib/audit")>(), logAudit: mocks.logAudit,
 }));
 
 vi.mock("@/lib/db", () => ({
@@ -38,9 +43,12 @@ vi.mock("@/lib/db", () => ({
 describe("V3-503 Stock Requests & Purchase Orders API", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    mocks.db.$transaction.mockImplementation(async (run) => run(mocks.db));
     mocks.requireAuth.mockResolvedValue({ user: { id: "usr_admin", role: "super_admin" } });
     mocks.requireCapability.mockResolvedValue(null);
-    mocks.resolveActorCity.mockResolvedValue(null);
+    mocks.resolveRequestedCityScope.mockImplementation((_user, requestedCityId) => ({ cityId: requestedCityId || null }));
+    mocks.requireResourceScope.mockReturnValue(null);
+    mocks.isHqRole.mockReturnValue(true);
   });
 
   describe("GET & POST /api/admin/procurement/requests", () => {
@@ -71,21 +79,21 @@ describe("V3-503 Stock Requests & Purchase Orders API", () => {
 
       const data = await res.json();
       expect(data.status).toBe("pending");
-      expect(mocks.logAudit).toHaveBeenCalledWith(
+      expect(mocks.db.auditLog.create.mock.calls[0][0].data).toEqual(
         expect.objectContaining({
           action: "procurement.request.create",
         })
       );
     });
 
-    it("fulfills stock request and increments park stock atomically", async () => {
+    it("rejects fulfillment until an approved receipt workflow exists", async () => {
       mocks.db.stockRequest.findUnique.mockResolvedValue({
         id: "req_1",
         parkId: "park_1",
         itemId: "item_1",
         quantity: 10,
         status: "pending",
-        park: { cityId: "city_lahore" },
+        park: { id: "park_1", cityId: "city_lahore" },
       });
       mocks.db.$transaction.mockImplementation(async (cb: any) => cb(mocks.db));
       mocks.db.stockRequest.update.mockResolvedValue({
@@ -103,14 +111,9 @@ describe("V3-503 Stock Requests & Purchase Orders API", () => {
       });
 
       const res = await patchRequest(req, { params: Promise.resolve({ id: "req_1" }) });
-      expect(res.status).toBe(200);
-
-      expect(mocks.db.parkStock.upsert).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: { parkId_itemId: { parkId: "park_1", itemId: "item_1" } },
-          update: { quantity: { increment: 10 } },
-        })
-      );
+      expect(res.status).toBe(409);
+      expect(mocks.db.stockRequest.update).not.toHaveBeenCalled();
+      expect(mocks.db.parkStock.upsert).not.toHaveBeenCalled();
     });
   });
 
@@ -149,7 +152,7 @@ describe("V3-503 Stock Requests & Purchase Orders API", () => {
 
       const data = await res.json();
       expect(data.poNumber).toBe("PO-2026-0001");
-      expect(mocks.db.parkStock.upsert).toHaveBeenCalled();
+      expect(mocks.db.parkStock.upsert).not.toHaveBeenCalled();
     });
   });
 });

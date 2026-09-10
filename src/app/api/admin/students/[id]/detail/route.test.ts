@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   requireRole: vi.fn(),
   requireAuth: vi.fn(),
   requireCapability: vi.fn(),
+  userHasCapability: vi.fn(),
   requireResourceScope: vi.fn(),
   participantFindUnique: vi.fn(),
   attendanceRecordFindMany: vi.fn(),
@@ -18,6 +19,7 @@ vi.mock("@/lib/auth/authorize", () => ({
   requireAuth: mocks.requireAuth,
   requireCapability: mocks.requireCapability,
   requireResourceScope: mocks.requireResourceScope,
+  userHasCapability: mocks.userHasCapability,
 }));
 vi.mock("@/lib/db", () => ({
   db: {
@@ -39,6 +41,7 @@ describe("GET /api/admin/students/[id]/detail", () => {
       user: { id: "murabbi", role: "murabbi", assignedGroupId: "group-1" },
     });
     mocks.requireCapability.mockResolvedValue(null);
+    mocks.userHasCapability.mockResolvedValue(true);
     mocks.participantFindUnique.mockResolvedValue({
       id: "student-2",
       groupId: "group-2",
@@ -64,7 +67,7 @@ describe("GET /api/admin/students/[id]/detail", () => {
   });
 
   it("denies student management before loading personal history", async () => {
-    mocks.requireCapability.mockResolvedValue(NextResponse.json({ error: "Forbidden" }, { status: 403 }));
+    mocks.userHasCapability.mockResolvedValue(false);
     const response = await GET(new NextRequest("http://localhost/api/admin/students/student-2/detail"), {
       params: Promise.resolve({ id: "student-2" }),
     });

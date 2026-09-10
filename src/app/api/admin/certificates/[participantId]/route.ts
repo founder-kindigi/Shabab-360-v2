@@ -1,6 +1,8 @@
+import { eligibleForSession } from "@/lib/attendance/opportunities";
 import { NextRequest, NextResponse } from "next/server";
 import { requireCapability, requireResourceScope, requireRole } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
+import { requireResolvedGroupScope, groupResourceScope } from "@/lib/auth/hierarchy";
 import { formatPKT } from "@/lib/timezone";
 
 const ADMIN_ROLES = [
@@ -30,6 +32,7 @@ export async function GET(
     include: {
       group: {
         include: {
+          park: { include: { city: true } },
           batch: {
             include: {
               park: {
@@ -50,26 +53,23 @@ export async function GET(
   }
 
   const batch = participant.group.batch;
-  const scopeError = requireResourceScope(user, {
-    cityId: batch.park.city.id,
-    parkId: batch.park.id,
-    groupId: participant.groupId,
-  });
+  const scopeError = requireResolvedGroupScope(user, { ...participant.group, id: participant.groupId });
   if (scopeError) return scopeError;
 
   // Fetch attendance events for the group
   const attendanceEvents = await db.attendanceEvent.findMany({
-    where: { groupId: participant.groupId },
-    select: { id: true },
+    where: { groupId: participant.groupId, eventDate: { lte: new Date() } },
+    select: { id: true, eventDate: true },
   });
 
-  const totalEvents = attendanceEvents.length;
+  const eligibleEvents = attendanceEvents.filter(event => eligibleForSession(participant, event.eventDate));
+  const totalEvents = eligibleEvents.length;
 
   // Fetch attendance records for this participant
   const presentCount = await db.attendanceRecord.count({
     where: {
       participantId,
-      eventId: { in: attendanceEvents.map((e) => e.id) },
+      eventId: { in: eligibleEvents.map((e) => e.id) },
       status: { in: ["present", "late"] },
     },
   });
@@ -77,19 +77,12 @@ export async function GET(
   const attendanceRate =
     totalEvents > 0
       ? Math.round((presentCount / totalEvents) * 100 * 10) / 10
-      : 0;
+      : null;
 
   // Completion date = batch end date or today
   const completionDate = batch.endDate
     ? formatPKT(new Date(batch.endDate))
-    : formatPKT(new Date());
-
-  // Generate certificate number: SHABAB-{YEAR}-{BATCH_CODE}-{PARTICIPANT_IDX}
-  const year = new Date().getFullYear();
-  const batchCode = batch.name.replace(/\s+/g, "").toUpperCase().slice(0, 6);
-  // Use last 6 chars of participant ID for uniqueness
-  const participantSuffix = participantId.slice(-6).toUpperCase();
-  const certificateNo = `SHABAB-${year}-${batchCode}-${participantSuffix}`;
+    : null;
 
   return NextResponse.json({
     participant: participant.name,
@@ -99,12 +92,13 @@ export async function GET(
     batch: batch.name,
     batchStartDate: formatPKT(new Date(batch.startDate)),
     batchEndDate: batch.endDate ? formatPKT(new Date(batch.endDate)) : null,
-    park: batch.park.name,
-    city: batch.park.city.name,
+    park: (participant.group.parkId ? participant.group.park : batch.park)?.name,
+    city: (participant.group.parkId ? participant.group.park : batch.park)?.city.name,
     joinDate: formatPKT(new Date(participant.joinedAt)),
     completionDate,
     attendanceRate,
     totalEvents,
-    certificateNo,
+    certificateNo: null,
+    previewOnly: true,
   });
 }

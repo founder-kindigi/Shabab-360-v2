@@ -1,3 +1,4 @@
+import { requireResolvedGroupScope, resolveRequestedHierarchy, hierarchyGroupWhere } from "@/lib/auth/hierarchy";
 import { NextResponse } from "next/server";
 import { ATTENDANCE_ROLES, requireAuth, requireCapability, requireResourceScope } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
@@ -28,18 +29,14 @@ export async function POST(req: Request) {
     // Scope check
     const group = await db.group.findUnique({
       where: { id: groupId },
-      include: { batch: { include: { park: true } } },
+      include: { park: true, batch: { include: { park: true } } },
     });
 
     if (!group) {
       return NextResponse.json({ error: "Group not found" }, { status: 404 });
     }
 
-    const scopeError = requireResourceScope(
-      user,
-      { parkId: group.batch.parkId, groupId },
-      ATTENDANCE_ROLES
-    );
+    const scopeError = requireResolvedGroupScope(user, group, ATTENDANCE_ROLES);
     if (scopeError) return scopeError;
 
     // Determine event date
@@ -99,33 +96,10 @@ export async function GET() {
   if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
   try {
-    if (user.role === "murabbi") {
-      const scopeError = requireResourceScope(
-        user,
-        { groupId: user.assignedGroupId },
-        ATTENDANCE_ROLES
-      );
-      if (scopeError) return scopeError;
-
-      const groups = await db.group.findMany({
-        where: { id: user.assignedGroupId!, isActive: true },
-        select: { id: true, name: true, batchId: true, batch: { select: { name: true } } },
-      });
-      return NextResponse.json({ groups });
-    } else {
-      const scopeError = requireResourceScope(user, { parkId: user.assignedParkId }, ATTENDANCE_ROLES);
-      if (scopeError) return scopeError;
-
-      const batches = await db.batch.findMany({
-        where: { parkId: user.assignedParkId!, isActive: true },
-        select: { id: true },
-      });
-      const groups = await db.group.findMany({
-        where: { batchId: { in: batches.map((b) => b.id) }, isActive: true },
-        select: { id: true, name: true, batchId: true, batch: { select: { name: true } } },
-      });
-      return NextResponse.json({ groups });
-    }
+    const scope = await resolveRequestedHierarchy(user);
+    if (scope instanceof NextResponse) return scope;
+    const groups = await db.group.findMany({ where: { ...hierarchyGroupWhere(scope), isActive: true }, select: { id: true, name: true, batchId: true, batch: { select: { name: true } } } });
+    return NextResponse.json({ groups });
   } catch (error) {
     console.error("List groups error:", error);
     return NextResponse.json(

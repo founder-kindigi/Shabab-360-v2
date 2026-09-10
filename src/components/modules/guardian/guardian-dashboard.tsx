@@ -87,10 +87,10 @@ export function GuardianDashboard() {
   const [emergencyContact, setEmergencyContact] = useState("Tariq Ahmed Qureshi");
   const [emergencyPhone, setEmergencyPhone] = useState("923001234567");
   const [relationship, setRelationship] = useState("Father");
-  const [bloodGroup, setBloodGroup] = useState("B+");
-  const [allergies, setAllergies] = useState("No known allergies");
-  const [dietary, setDietary] = useState("Standard Halal Diet");
-  const [medicalNotes, setMedicalNotes] = useState("Wears prescription glasses.");
+  const [bloodGroup, setBloodGroup] = useState("");
+  const [allergies, setAllergies] = useState("");
+  const [dietary, setDietary] = useState("");
+  const [medicalNotes, setMedicalNotes] = useState("");
 
   // ─── Fetch Guardian Real Dashboard Data ───
   const { data: dashData, isLoading: isDashLoading } = useQuery({
@@ -198,32 +198,7 @@ export function GuardianDashboard() {
   });
 
   // Children Roster (real DB data or fallback)
-  const childrenList = dashData?.children || [
-    {
-      id: "part-1",
-      name: "Muhammad Umair",
-      groupName: "Group 1 (Murabbi: Ikram)",
-      parkName: "Gulberg Park",
-      cityName: "Lahore",
-      todayStatus: "Present",
-      attendance: { rate30: 92, rate7: 100, last5: [] },
-      fees: { outstanding: 0, totalPaid: 1500 },
-      murabbiName: "Ikram Meer",
-      murabbiPhone: "923364543324",
-    },
-    {
-      id: "part-2",
-      name: "M Abdullah Qureshi",
-      groupName: "Group 1 (Murabbi: Ikram)",
-      parkName: "Gulberg Park",
-      cityName: "Lahore",
-      todayStatus: "Absent",
-      attendance: { rate30: 84, rate7: 80, last5: [] },
-      fees: { outstanding: 1500, totalPaid: 0 },
-      murabbiName: "Ikram Meer",
-      murabbiPhone: "923364543324",
-    },
-  ];
+  const childrenList: any[] = dashData?.children ?? [];
 
   const leaveList = leaveData || [];
   const consentList = consentData || [];
@@ -232,7 +207,7 @@ export function GuardianDashboard() {
   const handleOpenConsentModal = (consent: any) => {
     setSelectedConsent(consent);
     setConsentStatus("approved");
-    setIsConsentModalOpen(true);
+    toast.info("Consent actions are currently unavailable");
   };
 
   return (
@@ -247,7 +222,7 @@ export function GuardianDashboard() {
             <Badge className="bg-[#4B0A8F] text-white">Family Portal</Badge>
           </div>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Interactive Parent Portal • Real-Time Attendance, Leave Requests, Digital Consents & Medical Safety.
+            Linked-child attendance. Leave requests, digital consent and medical updates are currently unavailable.
           </p>
         </div>
 
@@ -255,7 +230,7 @@ export function GuardianDashboard() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setIsLeaveModalOpen(true)}
+            onClick={() => toast.info("Leave requests are currently unavailable")}
             className="gap-2 border-slate-300 dark:border-slate-700"
           >
             <Calendar className="size-4 text-purple-600 dark:text-purple-400" />
@@ -274,7 +249,7 @@ export function GuardianDashboard() {
 
           <Button
             size="sm"
-            onClick={() => setIsMedicalModalOpen(true)}
+            onClick={() => toast.info("Emergency profile editing is currently unavailable")}
             className="gap-2 bg-[#4B0A8F] hover:bg-[#3b0873] text-white shadow"
           >
             <Stethoscope className="size-4" />
@@ -467,7 +442,7 @@ export function GuardianDashboard() {
                         size="sm"
                         onClick={() => {
                           setLeaveChildId(child.id);
-                          setIsLeaveModalOpen(true);
+                          toast.info("Leave requests are currently unavailable");
                         }}
                         className="flex-1 text-xs h-8 border-slate-300 dark:border-slate-700 gap-1.5"
                       >
@@ -508,7 +483,7 @@ export function GuardianDashboard() {
               </p>
             </div>
             <Button
-              onClick={() => setIsLeaveModalOpen(true)}
+              onClick={() => toast.info("Leave requests are currently unavailable")}
               className="bg-[#4B0A8F] hover:bg-[#3b0873] text-white gap-2 text-xs"
             >
               <Plus className="size-3.5" />
@@ -647,7 +622,7 @@ export function GuardianDashboard() {
               </p>
             </div>
             <Button
-              onClick={() => setIsMedicalModalOpen(true)}
+              onClick={() => toast.info("Emergency profile editing is currently unavailable")}
               className="bg-[#4B0A8F] hover:bg-[#3b0873] text-white gap-2 text-xs"
             >
               <Stethoscope className="size-3.5" />
@@ -657,16 +632,7 @@ export function GuardianDashboard() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {childrenList.map((child: any) => {
-              const profile = medicalProfiles[child.id] || {
-                primaryEmergencyContactName: "Tariq Ahmed Qureshi",
-                primaryEmergencyPhone: "923001234567",
-                relationshipToChild: "Father",
-                bloodGroup: "B+",
-                allergies: "No known allergies",
-                dietaryRestrictions: "Standard Halal Diet",
-                medicalNotes: "Wears prescription glasses.",
-                lastUpdated: "2026-08-05",
-              };
+              const profile = medicalProfiles[child.id] || { primaryEmergencyContactName: "Unavailable", primaryEmergencyPhone: "", relationshipToChild: "", bloodGroup: "Unknown", allergies: "Unknown", dietaryRestrictions: "Unknown", medicalNotes: null, lastUpdated: null };
 
               return (
                 <Card key={child.id} className="border border-slate-200 dark:border-slate-800 shadow-sm rounded-xl">
@@ -677,7 +643,7 @@ export function GuardianDashboard() {
                         <CardTitle className="text-base font-bold text-foreground">{child.name}</CardTitle>
                       </div>
                       <Badge variant="outline" className="text-[10px]">
-                        Updated: {profile.lastUpdated || "2026-08-05"}
+                        Updated: {profile.lastUpdated || "Not recorded"}
                       </Badge>
                     </div>
                   </CardHeader>
@@ -693,7 +659,7 @@ export function GuardianDashboard() {
                       <div className="bg-slate-50 dark:bg-slate-900 p-2.5 rounded-lg border border-slate-200/80 dark:border-slate-800">
                         <p className="text-[11px] text-muted-foreground">Blood Group</p>
                         <p className="text-base font-extrabold text-rose-600 dark:text-rose-400 mt-0.5">
-                          {profile.bloodGroup || "B+"}
+                          {profile.bloodGroup || "Unknown"}
                         </p>
                       </div>
                     </div>

@@ -1,0 +1,7 @@
+{
+  "provider": "sqlite",
+  "disposableDirectory": "D:\\iBuild\\Shabab-360-v2\\.next\\astra-corrections-db-ca3pRw",
+  "generatedFrom": "prisma/schema.prisma",
+  "source": "schema diff from empty plus active batch migration; full migration-chain replay separate",
+  "audit": "real rows, with a failure trigger for rollback verification"
+}

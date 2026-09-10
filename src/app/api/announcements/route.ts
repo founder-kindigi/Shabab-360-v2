@@ -48,6 +48,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(queryValidationError(parsedQuery.error), { status: 400 });
   }
   const { role: roleFilter, search, priority } = parsedQuery.data;
+  if (!VALID_ROLES.includes(user.role as any)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const now = new Date();
   const thirtyDaysAgo = subDays(now, 30);
@@ -62,7 +63,8 @@ export async function GET(request: NextRequest) {
           { expiresAt: { gt: now } },
         ],
       },
-      ...(roleFilter ? [{ targetRoles: { contains: roleFilter } }] : []),
+      { targetRoles: { contains: JSON.stringify(user.role) } },
+      ...(roleFilter ? [{ targetRoles: { contains: JSON.stringify(roleFilter) } }] : []),
       ...(priority ? [{ priority }] : []),
       ...(search
         ? [{ OR: [
@@ -101,7 +103,10 @@ export async function GET(request: NextRequest) {
 
   // Priority sort weight: urgent=0, normal=1, low=2
   const priorityWeight: Record<string, number> = { urgent: 0, normal: 1, low: 2 };
-  const sorted = [...announcements].sort((a, b) => {
+  const sorted = announcements.filter((announcement) => {
+    try { const roles = JSON.parse(announcement.targetRoles); return Array.isArray(roles) && roles.includes(user.role) && (!roleFilter || roles.includes(roleFilter)); }
+    catch { return false; }
+  }).sort((a, b) => {
     const wA = priorityWeight[a.priority] ?? 1;
     const wB = priorityWeight[b.priority] ?? 1;
     if (wA !== wB) return wA - wB;

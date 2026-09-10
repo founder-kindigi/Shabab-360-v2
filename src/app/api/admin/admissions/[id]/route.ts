@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireRole, requireCapability } from "@/lib/auth/authorize";
+import { requireRole, requireAuth, requireCapability, requireResourceScope } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
+import { admissionAccess } from "@/lib/admissions/access";
 import { z } from "zod";
-import { logAudit } from "@/lib/audit";
+import { createAuditLogData } from "@/lib/audit";
 import { admissionAdditionalFieldsShape } from "@/lib/admissions/validation";
-import rawDataset from "@/lib/import-framework/portal-raw-dataset.json";
 
 const VALID_STATUSES = ["submitted", "screening", "interview_scheduled", "interviewed", "accepted", "rejected", "enrolled"] as const;
 
@@ -12,33 +12,13 @@ const updateAdditionalFieldsSchema = z
   .object({
     ...admissionAdditionalFieldsShape,
     status: z.enum(VALID_STATUSES).optional(),
-    notes: z.string().trim().optional(),
+    notes: z.string().trim().max(2000).optional(),
     preferredParkId: z.string().optional(),
   })
   .strict()
   .refine((data) => Object.values(data).some((value) => value !== undefined), {
     message: "At least one field is required",
   });
-
-function parseRawDateToIso(rawDate?: string): string {
-  if (!rawDate) return new Date().toISOString();
-  try {
-    const parts = rawDate.split(" ");
-    if (parts[0] && parts[0].includes("/")) {
-      const [d, m, y] = parts[0].split("/");
-      const time = parts[1] || "00:00:00";
-      if (d && m && y) {
-        const iso = `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}T${time}.000Z`;
-        const dt = new Date(iso);
-        if (!isNaN(dt.getTime())) return dt.toISOString();
-      }
-    }
-    const fallback = new Date(rawDate);
-    return isNaN(fallback.getTime()) ? new Date().toISOString() : fallback.toISOString();
-  } catch {
-    return new Date().toISOString();
-  }
-}
 
 export async function GET(
   _request: NextRequest,
@@ -49,6 +29,8 @@ export async function GET(
 
   const capabilityAuth = await requireCapability("admissions.manage");
   if (capabilityAuth instanceof NextResponse) return capabilityAuth;
+  const auth = await requireAuth();
+  if (auth instanceof NextResponse) return auth;
 
   const { id } = await params;
 
@@ -82,54 +64,12 @@ export async function GET(
     });
 
     if (application) {
+      const denied = await admissionAccess(auth.user, application);
+      if (denied) return denied;
       return NextResponse.json(application);
     }
-  } catch (err) {
-    console.warn("Admissions detail DB query warning, checking raw portal dataset:", err);
-  }
-
-  // Find in raw 759 portal export dataset
-  const r = rawDataset.find(
-    (item) =>
-      `portal-app-${item.sr}` === id ||
-      `APP-PORTAL-${String(item.sr).padStart(4, "0")}` === id ||
-      item.sr === id
-  );
-
-  if (r) {
-    const isApproved = r.status === "Approved";
-    return NextResponse.json({
-      id: `portal-app-${r.sr}`,
-      trackingCode: `APP-PORTAL-${String(r.sr).padStart(4, "0")}`,
-      applicantName: r.name,
-      applicantDOB: r.age ? `2011-01-01` : null,
-      gender: "Male",
-      guardianName: r.fatherName || `${r.name}'s Guardian`,
-      guardianPhone: r.mobile,
-      guardianRelation: "Father",
-      cityId: "city-lahore-01",
-      city: { id: "city-lahore-01", name: "Lahore" },
-      preferredParkId: "park-gulberg-01",
-      preferredPark: { id: "park-gulberg-01", name: r.park || "Gulberg Park", cityId: "city-lahore-01" },
-      status: isApproved ? "accepted" : r.status === "Rejected" ? "rejected" : "submitted",
-      notes: r.remarks ? `Portal Import: ${r.remarks}` : "Raw Portal Export Registration",
-      emergencyContact: r.fatherName || `${r.name}'s Father`,
-      emergencyPhone: r.whatsapp || r.mobile,
-      previousEducation: r.grade || "N/A",
-      reference: r.interests || "Portal Raw Import",
-      createdAt: parseRawDateToIso(r.registeredDate),
-      updatedAt: new Date().toISOString(),
-      interviews: isApproved ? [{
-        id: `intv-${r.sr}`,
-        scheduledAt: new Date().toISOString(),
-        conductedBy: "Murabbi Lead",
-        score1: 4, score2: 4, score3: 5, totalScore: 13,
-        recommendCohort: "Cohort A - Advanced Sports & Leadership",
-        notes: `Pre-approved Token: ${r.remarks || 'Standard approval'}`,
-        status: "completed"
-      }] : [],
-      convertedParticipant: null,
-    });
+  } catch {
+    return NextResponse.json({ error: "Admissions are temporarily unavailable" }, { status: 503 });
   }
 
   return NextResponse.json({ error: "Application not found" }, { status: 404 });
@@ -144,6 +84,8 @@ export async function PATCH(
 
   const capabilityAuth = await requireCapability("admissions.manage");
   if (capabilityAuth instanceof NextResponse) return capabilityAuth;
+  const auth = await requireAuth();
+  if (auth instanceof NextResponse) return auth;
 
   const { id } = await params;
 
@@ -167,23 +109,28 @@ export async function PATCH(
   );
 
   try {
-    const existing = await db.admissionApplication.findUnique({ where: { id } });
-    if (existing) {
-      const updated = await db.admissionApplication.update({
-        where: { id },
-        data: updateData,
-      });
+    return await db.$transaction(async (tx) => {
+      const existing = await tx.admissionApplication.findUnique({ where: { id } });
+      if (!existing) return NextResponse.json({ error: "Application not found" }, { status: 404 });
+      const denied = await admissionAccess(auth.user, existing, tx);
+      if (denied) return denied;
+      const target = { cityId: existing.cityId, preferredParkId: parsed.data.preferredParkId ?? existing.preferredParkId };
+      const targetDenied = await admissionAccess(auth.user, target, tx);
+      if (targetDenied) return targetDenied;
+      const nextStatus = parsed.data.status;
+      if (nextStatus && nextStatus !== existing.status) {
+        const allowed: Record<string, string[]> = { submitted: ["screening", "rejected"], screening: ["rejected"], interview_scheduled: ["rejected"], interviewed: ["accepted", "rejected"], accepted: [], rejected: ["screening"], enrolled: [] };
+        if (!allowed[existing.status]?.includes(nextStatus)) return NextResponse.json({ error: "Use the supported interview or enrollment workflow for this transition" }, { status: 409 });
+      }
+      const updated = await tx.admissionApplication.update({ where: { id, updatedAt: existing.updatedAt }, data: updateData });
+      await tx.auditLog.create({ data: createAuditLogData({ userId: auth.user.id, action: "admission.update", entityType: "AdmissionApplication", entityId: id, newValues: { fields: Object.keys(updateData), status: nextStatus } }) });
       return NextResponse.json(updated);
-    }
-  } catch (err) {
-    console.warn("PATCH admissions DB error, returning updated virtual application:", err);
+    });
+  } catch {
+    return NextResponse.json({ error: "Admissions are temporarily unavailable" }, { status: 503 });
   }
 
-  return NextResponse.json({
-    id,
-    ...updateData,
-    updatedAt: new Date().toISOString(),
-  });
+  return NextResponse.json({ error: "Application not found" }, { status: 404 });
 }
 
 export async function DELETE(
@@ -193,16 +140,26 @@ export async function DELETE(
   const authError = await requireRole(["super_admin", "program_admin", "city_head"]);
   if (authError) return authError;
 
+  const auth = await requireCapability("admissions.manage");
+  if (auth instanceof NextResponse) return auth;
+
   const { id } = await params;
 
   try {
-    const existing = await db.admissionApplication.findUnique({ where: { id } });
-    if (existing) {
-      await db.admissionApplication.delete({ where: { id } });
-    }
-  } catch (err) {
-    console.warn("DELETE admissions DB error, returning delete success:", err);
+    return await db.$transaction(async (tx) => {
+      const existing = await tx.admissionApplication.findUnique({ where: { id } });
+      if (!existing) return NextResponse.json({ error: "Application not found" }, { status: 404 });
+      const denied = requireResourceScope(auth.user, { cityId: existing.cityId, parkId: existing.preferredParkId }, ["super_admin", "program_admin", "city_head"]);
+      if (denied) return denied;
+      if (existing.convertedParticipantId || existing.status === "enrolled") {
+        return NextResponse.json({ error: "Enrolled applications cannot be deleted" }, { status: 409 });
+      }
+      await tx.admissionApplication.delete({ where: { id } });
+      await tx.auditLog.create({ data: createAuditLogData({ userId: auth.user.id, action: "admission.delete", entityType: "AdmissionApplication", entityId: id }) });
+      return NextResponse.json({ success: true });
+    });
+  } catch {
+    return NextResponse.json({ error: "Admissions are temporarily unavailable" }, { status: 503 });
   }
 
-  return NextResponse.json({ success: true, message: `Application ${id} deleted successfully` });
 }

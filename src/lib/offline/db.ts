@@ -4,6 +4,9 @@ export type AttendanceStatus = "present" | "absent" | "late" | "excused";
 
 export interface OfflineQueueItem {
   mutationId: string;
+  ownerId?: string | null;
+  expectedVersion?: string | null;
+  expectedResetVersion?: number;
   eventId: string;
   participantId: string;
   status: AttendanceStatus;
@@ -45,6 +48,26 @@ export class ShababOfflineDB extends Dexie {
       queue: "mutationId, eventId, participantId, state, queuedAt",
       conflicts: "id, mutationId, entityType, entityId, status, detectedAt",
     });
+    this.version(3).stores({
+      queue: "mutationId, ownerId, eventId, participantId, state, queuedAt",
+      conflicts: "id, mutationId, entityType, entityId, status, detectedAt",
+    }).upgrade(async tx => {
+      await tx.table("queue").toCollection().modify(item => {
+        if (!item.ownerId || !("expectedVersion" in item)) {
+          item.ownerId = null; item.state = "failed"; item.retryable = false;
+          item.errorCode = "LEGACY_OWNER_UNKNOWN";
+          item.lastError = "Legacy mark retained for manual review; its account and base version cannot be verified.";
+        }
+      });
+    });
+    this.version(4).stores({ queue: "mutationId, ownerId, eventId, participantId, state, queuedAt", conflicts: "id, mutationId, entityType, entityId, status, detectedAt" }).upgrade(async tx => {
+      await tx.table("queue").toCollection().modify(item => {
+        if (item.state !== "synced" && !Number.isInteger(item.expectedResetVersion)) {
+          item.state = "failed"; item.retryable = false; item.errorCode = "LEGACY_RESET_VERSION_UNKNOWN";
+          item.lastError = "Legacy mark retained for review. Reload the session to verify whether it was reset.";
+        }
+      });
+    });
   }
 }
 
@@ -74,22 +97,16 @@ export function coalesceAttendanceItems<T extends Pick<OfflineQueueItem, "eventI
  */
 export async function queueAttendanceMark(params: {
   mutationId: string;
+  ownerId: string;
+  expectedVersion: string | null;
+  expectedResetVersion: number;
   eventId: string;
   participantId: string;
   status: AttendanceStatus;
   markedAt: string;
 }): Promise<void> {
+  if (!params.ownerId || !("expectedVersion" in params) || !Number.isInteger(params.expectedResetVersion)) throw new Error("Account and base version required");
   await offlineDB.transaction("rw", offlineDB.queue, async () => {
-    const replaceable = await offlineDB.queue
-      .where("eventId")
-      .equals(params.eventId)
-      .filter((item) =>
-        item.participantId === params.participantId &&
-        (item.state === "pending" || item.state === "failed")
-      )
-      .primaryKeys();
-    if (replaceable.length > 0) await offlineDB.queue.bulkDelete(replaceable);
-
     await offlineDB.queue.add({
       ...params,
       queuedAt: new Date().toISOString(),
@@ -106,14 +123,14 @@ export async function queueAttendanceMark(params: {
 /**
  * Get all items that need syncing (pending + failed within retry limit).
  */
-export async function getPendingSyncItems(): Promise<OfflineQueueItem[]> {
+export async function getPendingSyncItems(ownerId?: string, excluded: ReadonlySet<string> = new Set()): Promise<OfflineQueueItem[]> {
+  if (!ownerId) return [];
   const items = await offlineDB.queue
-    .where("state")
-    .equals("pending")
-    .filter((item) => item.retryCount < MAX_RETRIES)
-    .limit(200)
+    .orderBy("queuedAt")
+    .filter((item) => item.state === "pending" && item.ownerId === ownerId && !excluded.has(item.mutationId) && item.retryCount < MAX_RETRIES)
+    .limit(50)
     .toArray();
-  return coalesceAttendanceItems(items);
+  return orderSyncItems(items);
 }
 
 /**
@@ -165,10 +182,11 @@ export async function markAsFailed(
 /**
  * Reset all failed items back to pending for retry.
  */
-export async function retryAllFailed(): Promise<void> {
+export async function retryAllFailed(ownerId?: string): Promise<void> {
   await offlineDB.queue
     .where("state")
     .equals("failed")
+    .filter(item => Boolean(ownerId) && item.ownerId === ownerId && item.retryable === true)
     .modify({
       state: "pending",
       retryCount: 0,
@@ -178,18 +196,18 @@ export async function retryAllFailed(): Promise<void> {
     });
 }
 
-export async function discardFailed(mutationId: string): Promise<void> {
+export async function discardFailed(mutationId: string, ownerId?: string): Promise<void> {
   const item = await offlineDB.queue.get(mutationId);
-  if (item?.state === "failed") await offlineDB.queue.delete(mutationId);
+  if (ownerId && item?.ownerId === ownerId && item.state === "failed") await offlineDB.queue.delete(mutationId);
 }
 
 /** Returns interrupted sync attempts to the queue after a browser/network crash. */
-export async function recoverStuckSyncing(maxAgeMs = STUCK_SYNC_AGE_MS): Promise<number> {
+export async function recoverStuckSyncing(maxAgeMs = STUCK_SYNC_AGE_MS, ownerId?: string): Promise<number> {
   const cutoff = new Date(Date.now() - maxAgeMs).toISOString();
   const stuck = await offlineDB.queue
     .where("state")
     .equals("syncing")
-    .filter((item) => item.queuedAt < cutoff)
+    .filter((item) => Boolean(ownerId) && item.ownerId === ownerId && item.queuedAt < cutoff)
     .toArray();
   if (stuck.length === 0) return 0;
   await offlineDB.queue.bulkUpdate(stuck.map((item) => ({
@@ -207,17 +225,17 @@ export async function recoverStuckSyncing(maxAgeMs = STUCK_SYNC_AGE_MS): Promise
 /**
  * Get counts by state.
  */
-export async function getQueueCounts(): Promise<{
+export async function getQueueCounts(ownerId?: string): Promise<{
   pending: number;
   syncing: number;
   synced: number;
   failed: number;
 }> {
   const [pending, syncing, synced, failed] = await Promise.all([
-    offlineDB.queue.where("state").equals("pending").count(),
-    offlineDB.queue.where("state").equals("syncing").count(),
-    offlineDB.queue.where("state").equals("synced").count(),
-    offlineDB.queue.where("state").equals("failed").count(),
+    offlineDB.queue.where("state").equals("pending").filter(item => Boolean(ownerId) && item.ownerId === ownerId).count(),
+    offlineDB.queue.where("state").equals("syncing").filter(item => Boolean(ownerId) && item.ownerId === ownerId).count(),
+    offlineDB.queue.where("state").equals("synced").filter(item => Boolean(ownerId) && item.ownerId === ownerId).count(),
+    offlineDB.queue.where("state").equals("failed").filter(item => Boolean(ownerId) && item.ownerId === ownerId).count(),
   ]);
   return { pending, syncing, synced, failed };
 }
@@ -225,14 +243,14 @@ export async function getQueueCounts(): Promise<{
 /**
  * Clear successfully synced items.
  */
-export async function clearSyncedItems(): Promise<void> {
-  await offlineDB.queue.where("state").equals("synced").delete();
+export async function clearSyncedItems(ownerId?: string): Promise<void> {
+  await offlineDB.queue.where("state").equals("synced").filter(item => Boolean(ownerId) && item.ownerId === ownerId).delete();
 }
 
 /**
  * Get detailed queue statistics including oldest queued item timestamp.
  */
-export async function getOfflineQueueStats(): Promise<{
+export async function getOfflineQueueStats(ownerId?: string): Promise<{
   pending: number;
   syncing: number;
   synced: number;
@@ -240,8 +258,8 @@ export async function getOfflineQueueStats(): Promise<{
   oldestQueuedAt: string | null;
 }> {
   const [counts, oldestItem] = await Promise.all([
-    getQueueCounts(),
-    offlineDB.queue.orderBy("queuedAt").first(),
+    getQueueCounts(ownerId),
+    offlineDB.queue.orderBy("queuedAt").filter(item => Boolean(ownerId) && item.ownerId === ownerId).first(),
   ]);
 
   return {

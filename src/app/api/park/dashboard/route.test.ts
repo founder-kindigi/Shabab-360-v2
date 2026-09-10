@@ -7,7 +7,7 @@ const mocks = vi.hoisted(() => ({
   db: {
     group: { findUnique: vi.fn(), findMany: vi.fn() },
     batch: { findMany: vi.fn() },
-    park: { findUnique: vi.fn() },
+    park: { findUnique: vi.fn(), findFirst: vi.fn() },
     attendanceEvent: { findMany: vi.fn(), groupBy: vi.fn() },
     participant: { groupBy: vi.fn(), findMany: vi.fn() },
     staffMeta: { findMany: vi.fn() },
@@ -50,7 +50,7 @@ describe("GET /api/park/dashboard", () => {
 
   it("denies unauthorized roles", async () => {
     mocks.getServerSession.mockResolvedValue({
-      user: { id: "user-1", role: "city_head", assignedCityId: "city-1" },
+      user: { id: "user-1", role: "viewer", assignedCityId: "city-1" },
     });
 
     const response = await GET();
@@ -60,11 +60,19 @@ describe("GET /api/park/dashboard", () => {
     expect(data.error).toBe("Forbidden");
   });
 
-  it("includes active events with 0 marked attendance in needsAttention warnings", async () => {
+  it("denies a City Head without city assignment before selecting a park", async () => {
+    mocks.getServerSession.mockResolvedValue({ user: { id: "city-head", role: "city_head" } });
+    mocks.requireCapability.mockResolvedValue(null);
+    expect((await GET()).status).toBe(403);
+    expect(mocks.db.park.findFirst).not.toHaveBeenCalled();
+  });
+
+  it.each(["park_lead", "city_head"])("%s gets own-scope events with 0 marks in needsAttention", async (role) => {
     mocks.getServerSession.mockResolvedValue({
-      user: { id: "pl-1", role: "park_lead", assignedParkId: "park-1" },
+      user: { id: "pl-1", role, ...(role === "city_head" ? { assignedCityId: "city-1" } : { assignedParkId: "park-1" }) },
     });
     mocks.requireCapability.mockResolvedValue(null);
+    mocks.db.park.findFirst.mockResolvedValue({ id: "park-1", cityId: "city-1" });
 
     mocks.db.batch.findMany.mockResolvedValue([{ id: "b-1" }]);
     mocks.db.group.findMany.mockResolvedValue([{ id: "g-1", name: "Group 1", batchId: "b-1" }]);
@@ -99,6 +107,7 @@ describe("GET /api/park/dashboard", () => {
     const data = await response.json();
 
     expect(response.status).toBe(200);
+    if (role === "city_head") expect(mocks.db.park.findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: { cityId: "city-1", isActive: true } }));
     const lowAtt = data.needsAttention.find((item: any) => item.type === "low_attendance");
     expect(lowAtt).toBeDefined();
     expect(lowAtt.groupName).toBe("Group 1");

@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth/authorize";
+import { requireCapability } from "@/lib/auth/authorize";
 import { resolveActorCity } from "@/lib/auth/events-scope";
 import { db } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
 
 export async function GET(request: NextRequest) {
-  const auth = await requireAuth();
+  const auth = await requireCapability("calling.export.manage");
   if (auth instanceof NextResponse) return auth;
   const user = auth.user;
+  if (!["super_admin", "program_admin", "city_head"].includes(user.role || "")) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const url = new URL(request.url);
   const requestedCityId = url.searchParams.get("cityId") || undefined;
@@ -26,6 +27,7 @@ export async function GET(request: NextRequest) {
   const assignments = await db.callingAssignment.findMany({
     where: {
       campaign: { cityId, ...(campaignId ? { id: campaignId } : {}) },
+      application: { cityId },
       isActive: true,
     },
     include: {
@@ -62,15 +64,8 @@ export async function GET(request: NextRequest) {
       ? a.externalCaller.user.email
       : "";
 
-    return [
-      `"${a.campaign.name}"`,
-      `"${a.application.applicantName}"`,
-      `"${a.application.guardianPhone}"`,
-      `"${a.application.guardianName || ""}"`,
-      `"${a.status}"`,
-      `"${callerName}"`,
-      `"${callerEmail}"`,
-    ].join(",");
+    return [a.campaign.name, a.application.applicantName, a.application.guardianPhone, a.application.guardianName, a.status, callerName, callerEmail]
+      .map((value) => { const text = String(value ?? ""); return `"${(/^[=+@\-\t\r]/.test(text) ? "'" : "") + text.replace(/"/g, '""')}"`; }).join(",");
   });
 
   const csvContent = csvHeader + csvRows.join("\n");
@@ -87,6 +82,7 @@ export async function GET(request: NextRequest) {
     status: 200,
     headers: {
       "Content-Type": "text/csv; charset=utf-8",
+      "Cache-Control": "private, no-store",
       "Content-Disposition": `attachment; filename="calling-export-${cityId}-${Date.now()}.csv"`,
     },
   });

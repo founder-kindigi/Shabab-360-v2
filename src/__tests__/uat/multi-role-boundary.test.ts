@@ -15,6 +15,7 @@ vi.mock("@/lib/auth/capability-access", () => ({
 }));
 vi.mock("@/lib/db", () => ({
   db: {
+    park: { findUnique: async () => ({ id: "park-foreign", cityId: "city-foreign", isActive: true }) },
     staffMeta: { findFirst: mocks.staffMetaFindFirst, findUnique: mocks.staffMetaFindFirst },
     mashwaraMeetingShare: { findUnique: mocks.mashwaraShareFindUnique },
   },
@@ -376,21 +377,12 @@ describe("UAT-002: Multi-Role Boundary Verification", () => {
       expect(result).toBe(true);
     });
 
-    it("resolves active share for cross-city actor", async () => {
-      mocks.staffMetaFindFirst
-        .mockResolvedValueOnce({ id: "staff-1" })
-        .mockResolvedValueOnce({
-          id: "staff-1",
-          assignedCityId: null,
-          assignedPark: null,
-          assignedGroup: null,
-        });
-      mocks.mashwaraShareFindUnique.mockResolvedValue({ isRevoked: false });
-
+    it("resolves active share for a fully assigned cross-city actor", async () => {
+      mocks.staffMetaFindFirst.mockReset();
+      mocks.staffMetaFindFirst.mockResolvedValue({ id: "staff-1", role: "park_admin", assignedParkId: "park-foreign", assignedCityId: "city-foreign", isActive: true });
+      mocks.mashwaraShareFindUnique.mockResolvedValue({ isRevoked: false, revokedAt: null });
       const { resolveMashwaraAccess } = await import("@/lib/auth/mashwara-scope");
-      const user = makeUser("park_admin", { assignedParkId: null, id: "user-park" });
-      const result = await resolveMashwaraAccess(user, { id: "meeting-shared", cityId: "city-lhr" });
-      expect(result).toBe(true);
+      expect(await resolveMashwaraAccess(makeUser("park_admin", { assignedParkId: "park-foreign" }), { id: "meeting-shared", cityId: "city-lhr" })).toBe(true);
     });
 
     it("rejects when share is revoked", async () => {

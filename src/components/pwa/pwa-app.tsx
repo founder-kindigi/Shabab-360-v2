@@ -53,6 +53,10 @@ import {
   MessageSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ResetPasswordPage } from "@/components/modules/auth/reset-password-page";
+import { useQueryClient } from "@tanstack/react-query";
+import { useEffectiveCapabilities } from "@/hooks/use-effective-capabilities";
+import { canOpenScreen } from "@/lib/auth/screen-access";
 
 export const ROLE_ALLOWED_SCREENS: Record<string, string[]> = {
   super_admin: [
@@ -177,43 +181,47 @@ export function PwaApp() {
   const [parkNav, setParkNav] = useState<ParkNav>(null);
   const [selectedParticipantId, setSelectedParticipantId] = useState<string | null>(null);
   const [selectedParticipantName, setSelectedParticipantName] = useState<string | null>(null);
-  const sessionInitialized = useRef(false);
+  const previousIdentity = useRef<string | null>(null);
+  const queryClient = useQueryClient();
+  const capabilities = useEffectiveCapabilities();
 
   const effectiveRole = role || "student";
 
   const navigateTo = useCallback((target: ScreenId) => {
-    const allowed = ROLE_ALLOWED_SCREENS[effectiveRole] || ["home", "info", "more"];
-    if (allowed.includes(target)) {
+    if (canOpenScreen(target, effectiveRole, capabilities.has)) {
+      if (target === "student-profile") {
+        setSelectedParticipantId(null);
+        setSelectedParticipantName(null);
+        setParkNav(null);
+      }
       setScreen(target);
     } else {
       setScreen("home");
     }
-  }, [effectiveRole]);
+  }, [effectiveRole, capabilities]);
 
-  // Once session is known, decide initial screen
   useEffect(() => {
     if (status === "loading") return;
-    if (sessionInitialized.current) return;
-    sessionInitialized.current = true;
-
-    if (session && user?.id && role) {
-      setScreen("home");
-    } else {
-      setScreen("splash");
+    const identity = user?.id && role ? JSON.stringify([user.id, role, user.assignedCityId, user.assignedParkId, user.assignedGroupId, user.tokenVersion, user.mustResetPwd]) : null;
+    if (previousIdentity.current !== identity) {
+      void queryClient.cancelQueries();
+      queryClient.clear();
+      setParkNav(null);
+      setSelectedParticipantId(null);
+      setSelectedParticipantName(null);
+      setScreen(identity ? "home" : "login");
+      previousIdentity.current = identity;
     }
-  }, [status, session, user, role]);
-
-  // After role changes (login success) navigate home
-  useEffect(() => {
-    if (role) {
-      if (screen === "login" || screen === "splash") {
-        setScreen("home");
-      }
-    }
-  }, [role, screen]);
+    if (!identity && screen !== "splash") setScreen("login");
+  }, [status, user?.id, user?.assignedCityId, user?.assignedParkId, user?.assignedGroupId, user?.tokenVersion, user?.mustResetPwd, role, queryClient, screen]);
 
   // ─── Loading state ───────────────────────────────────────────────────────
   if (status === "loading") return <PwaLoadingScreen />;
+  if (!user?.id || !role) return screen === "splash"
+    ? <MobileSplashPage onContinue={() => setScreen("login")} />
+    : <MobileLoginPage onBackToSplash={() => setScreen("splash")} onSuccess={() => setScreen("home")} />;
+  if (user.mustResetPwd) return <ResetPasswordPage />;
+  if (!canOpenScreen(screen, role, capabilities.has)) return <div className="p-6"><p>This screen is unavailable for your current permissions.</p><button onClick={() => setScreen("home")}>Return home</button></div>;
 
   const isStudentOrGuardian = effectiveRole === "student" || effectiveRole === "guardian";
   const appTabs = isStudentOrGuardian
@@ -268,11 +276,11 @@ export function PwaApp() {
               >
                 {/* HOME — role-specific dashboard */}
                 {screen === "home" && effectiveRole === "murabbi" && (
-                  <MobileMurabbiDashboard onNavigate={(s) => setScreen(s as ScreenId)} />
+                  <MobileMurabbiDashboard onNavigate={(s) => navigateTo(s as ScreenId)} />
                 )}
                 {screen === "home" && (effectiveRole === "park_lead" || effectiveRole === "park_admin") && (
                   <MobileParkDashboard
-                    onNavigate={(s) => setScreen(s as ScreenId)}
+                    onNavigate={(s) => navigateTo(s as ScreenId)}
                     onSelectPark={(park) => {
                       setParkNav(park);
                       setScreen("park-detail");
@@ -281,7 +289,7 @@ export function PwaApp() {
                 )}
                 {screen === "home" && effectiveRole === "city_head" && (
                   <MobileCityHeadDashboard
-                    onNavigate={(s) => setScreen(s as ScreenId)}
+                    onNavigate={(s) => navigateTo(s as ScreenId)}
                     onSelectPark={(park) => {
                       setParkNav(park);
                       setScreen("park-detail");
@@ -292,10 +300,10 @@ export function PwaApp() {
                   <MobileHomeDashboard />
                 )}
                 {screen === "home" && effectiveRole === "student" && (
-                  <MobileStudentDashboard onNavigate={(s) => setScreen(s as ScreenId)} />
+                  <MobileStudentDashboard onNavigate={(s) => navigateTo(s as ScreenId)} />
                 )}
                 {screen === "home" && effectiveRole === "guardian" && (
-                  <MobileGuardianDashboard onNavigate={(s) => setScreen(s as ScreenId)} />
+                  <MobileGuardianDashboard onNavigate={(s) => navigateTo(s as ScreenId)} />
                 )}
                 {screen === "home" &&
                   !["murabbi", "park_lead", "park_admin", "city_head", "super_admin", "program_admin", "student", "guardian"].includes(
@@ -330,6 +338,8 @@ export function PwaApp() {
                     participantName={selectedParticipantName}
                     effectiveRole={effectiveRole}
                     onBack={() => {
+                      setSelectedParticipantId(null);
+                      setSelectedParticipantName(null);
                       if (effectiveRole === "student") {
                         setScreen("home");
                       } else if (parkNav) {
@@ -383,7 +393,7 @@ export function PwaApp() {
           {/* ─── Bottom Navigation ────────────────────────────── */}
           <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[460px] h-14 bg-white/98 dark:bg-[#120B24]/98 backdrop-blur-md border-t border-gray-100 dark:border-white/10 z-40 px-2 shadow-md flex items-center">
             <div className="flex items-center justify-around w-full">
-              {appTabs.map((tab) => {
+              {appTabs.filter((tab) => canOpenScreen(tab.id, role, capabilities.has)).map((tab) => {
                 const Icon = tab.icon;
                 const isActive = screen === tab.id || 
                                  (tab.id === "parks" && ["park-detail", "inventory", "evaluation"].includes(screen)) ||

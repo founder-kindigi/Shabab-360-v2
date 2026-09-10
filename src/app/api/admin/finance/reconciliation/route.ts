@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth, requireCapability, resolveActorCity } from "@/lib/auth/authorize";
+import { requireAuth, requireCapability, resolveRequestedCityScope } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
+import { resolveCityParkScope } from "@/lib/auth/hierarchy";
 import { fromCents, moneyToNumber, roundToCents, toCents } from "@/lib/money";
 
 export async function GET(request: NextRequest) {
@@ -11,19 +12,20 @@ export async function GET(request: NextRequest) {
   const capAuth = await requireCapability("fees.manage");
   if (capAuth instanceof NextResponse) return capAuth;
 
-  const actorCity = await resolveActorCity();
   const url = new URL(request.url);
-  const cityIdFilter = url.searchParams.get("cityId") || actorCity;
-  const parkIdFilter = url.searchParams.get("parkId");
-
-  if (!cityIdFilter && !["super_admin", "program_admin"].includes(user.role || "")) {
-    return NextResponse.json({ error: "City context is required" }, { status: 400 });
-  }
+  const cityScope = await resolveCityParkScope(user, { cityId: url.searchParams.get("cityId"), parkId: url.searchParams.get("parkId") });
+  if (cityScope instanceof NextResponse) return cityScope;
+  const cityIdFilter = cityScope.cityId;
+  const parkIdFilter = cityScope.parkId;
 
   // 1. Fee Payments Total
   const paymentsWhere: any = {};
-  if (cityIdFilter) paymentsWhere.feeEvent = { batch: { park: { cityId: cityIdFilter } } };
-  if (parkIdFilter) paymentsWhere.feeEvent = { batch: { parkId: parkIdFilter } };
+  paymentsWhere.participant = { group: {
+    AND: [
+      ...(cityIdFilter ? [{ OR: [{ park: { cityId: cityIdFilter } }, { parkId: null, batch: { park: { cityId: cityIdFilter } } }] }] : []),
+      ...(parkIdFilter ? [{ OR: [{ parkId: parkIdFilter }, { parkId: null, batch: { parkId: parkIdFilter } }] }] : []),
+    ],
+  } };
 
   const payments = await db.payment.findMany({
     where: paymentsWhere,

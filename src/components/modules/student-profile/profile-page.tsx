@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
-import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -107,6 +107,7 @@ export function StudentProfilePage({
   const [editMode, setEditMode] = useState(false);
   const [showSensitive, setShowSensitive] = useState(false);
   const [draft, setDraft] = useState<ProfileData>({});
+  const [editBase, setEditBase] = useState<ProfileData>({});
   const [dropoutReason, setDropoutReason] = useState("");
 
   const canEdit = capabilities.canManage;
@@ -138,7 +139,7 @@ export function StudentProfilePage({
       return data;
     },
     enabled: capabilities.canView,
-    placeholderData: keepPreviousData,
+
   });
 
   useEffect(() => {
@@ -159,7 +160,7 @@ export function StudentProfilePage({
       if (cityId) params.set("cityId", cityId);
       const res = await fetch(`/api/admin/students/${participantId}/profile?${params}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "If-Match": editBase.updatedAt || "new" },
         body: JSON.stringify(data),
       });
       if (!res.ok) {
@@ -208,7 +209,8 @@ export function StudentProfilePage({
   };
 
   const handleStartEditing = () => {
-    setDraft((profile ?? {}) as ProfileData);
+    setEditBase({ ...profile });
+    setDraft({});
     setEditMode(true);
   };
 
@@ -262,7 +264,7 @@ export function StudentProfilePage({
     personality: ["leadershipSkills", "personalityResponsibility", "communicationSkills", "teamworkSkills", "problemSolvingSkills", "creativity", "criticalThinking", "adaptability", "initiative", "selfMotivation", "integrity", "empathy", "reading", "learningInterest"],
   };
 
-  const displayData = editMode ? draft : (profile as unknown as ProfileData) || {};
+  const displayData = editMode ? { ...editBase, ...draft } : profile || {};
 
   return (
     <div className="space-y-4 p-4">

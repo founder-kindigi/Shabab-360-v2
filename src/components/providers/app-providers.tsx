@@ -33,7 +33,7 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <SessionProvider>
+      <SessionProvider refetchInterval={30} refetchWhenOffline={false}>
         <ThemeProvider
           attribute="class"
           defaultTheme="system"

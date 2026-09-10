@@ -1,3 +1,4 @@
+import { requireResolvedGroupScope, resolveRequestedHierarchy, hierarchyGroupWhere } from "@/lib/auth/hierarchy";
 import { NextResponse } from "next/server";
 import { ATTENDANCE_ROLES, requireAuth, requireCapability, requireResourceScope } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
@@ -36,6 +37,7 @@ export async function GET(req: Request) {
     const group = await db.group.findUnique({
       where: { id: groupId },
       include: {
+        park: true,
         batch: {
           include: {
             park: true,
@@ -49,11 +51,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "Group not found" }, { status: 404 });
     }
 
-    const scopeError = requireResourceScope(
-      user,
-      { cityId: group.batch.park.cityId, parkId: group.batch.parkId, groupId },
-      ATTENDANCE_ROLES
-    );
+    const scopeError = requireResolvedGroupScope(user, group, ATTENDANCE_ROLES);
     if (scopeError) return scopeError;
 
     // Get batch settings for thresholds

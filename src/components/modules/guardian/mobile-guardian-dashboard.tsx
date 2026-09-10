@@ -113,30 +113,7 @@ export function MobileGuardianDashboard({ onNavigate }: MobileGuardianDashboardP
     },
   });
 
-  const childrenList: any[] = guardianDashData?.children ?? [
-    {
-      id: "part-1",
-      name: "Muhammad Umair",
-      groupName: "Group Abu Bakr (RA)",
-      parkName: "Gulberg Park",
-      cityName: "Lahore",
-      todayStatus: "Present",
-      attendance: { rate30: 92 },
-      fees: { outstanding: 0 },
-      murabbiPhone: "923001234567",
-    },
-    {
-      id: "part-2",
-      name: "Abdullah Tariq",
-      groupName: "Group Abu Bakr (RA)",
-      parkName: "Gulberg Park",
-      cityName: "Lahore",
-      todayStatus: "Absent",
-      attendance: { rate30: 85 },
-      fees: { outstanding: 1500 },
-      murabbiPhone: "923217654321",
-    },
-  ];
+  const childrenList: any[] = guardianDashData?.children ?? [];
 
   const leaveList = leaveData || [];
 
@@ -145,7 +122,7 @@ export function MobileGuardianDashboard({ onNavigate }: MobileGuardianDashboardP
         childrenList.reduce((acc, c) => acc + (c.attendance?.rate30 || c.rate || 0), 0) /
           childrenList.length
       )
-    : 88;
+    : 0;
 
   const totalOutstanding = childrenList.reduce((acc, c) => acc + (c.fees?.outstanding || 0), 0);
 
@@ -203,7 +180,7 @@ export function MobileGuardianDashboard({ onNavigate }: MobileGuardianDashboardP
             </p>
           </div>
           <button
-            onClick={() => setIsLeaveModalOpen(true)}
+            onClick={() => toast.info("Leave requests are currently unavailable")}
             className="flex items-center gap-1.5 bg-white/15 border border-white/20 px-3 py-1.5 rounded-full text-white text-xs font-bold backdrop-blur-md active:scale-95 transition-transform"
           >
             <Calendar className="size-3.5 text-purple-200" />
@@ -240,7 +217,7 @@ export function MobileGuardianDashboard({ onNavigate }: MobileGuardianDashboardP
         {/* Quick Guardian Actions */}
         <div className="grid grid-cols-2 gap-3">
           <button
-            onClick={() => setIsLeaveModalOpen(true)}
+            onClick={() => toast.info("Leave requests are currently unavailable")}
             className="p-3.5 rounded-2xl bg-card border border-border/80 shadow-sm flex items-center gap-3 active:scale-95 transition-all hover:bg-muted/40"
           >
             <div className="size-9 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">

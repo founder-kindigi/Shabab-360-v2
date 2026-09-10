@@ -5,6 +5,7 @@ import { attendanceDateStart, isBatchClassDate } from "@/lib/attendance/schedule
 import { prepareAttendanceSessionsSchema } from "@/lib/attendance/schemas";
 import { listAttendanceSessions } from "@/lib/attendance/session-list";
 import { db } from "@/lib/db";
+import { groupParkWhere, groupResourceScope, groupHierarchyInclude } from "@/lib/auth/hierarchy";
 
 export async function POST(request: Request) {
   const auth = await requireCapability("attendance.mark");
@@ -26,10 +27,12 @@ export async function POST(request: Request) {
     if (scopeError) return scopeError;
     const assignedGroup = await db.group.findUnique({
       where: { id: assignedGroupId! },
-      select: { batch: { select: { parkId: true } } },
+      include: groupHierarchyInclude,
     });
     if (!assignedGroup) return NextResponse.json({ error: "Assigned group not found" }, { status: 403 });
-    parkId = assignedGroup.batch.parkId;
+    const scope = groupResourceScope(assignedGroup);
+    if (!scope || (parsed.data.parkId && parsed.data.parkId !== scope.parkId)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    parkId = scope.parkId;
   }
 
   if (!parkId) return NextResponse.json({ error: "parkId required" }, { status: 400 });
@@ -55,7 +58,8 @@ export async function POST(request: Request) {
     where: {
       isActive: true,
       ...(assignedGroupId ? { id: assignedGroupId } : {}),
-      batch: { parkId, isActive: true },
+      ...groupParkWhere(parkId),
+      batch: { isActive: true },
     },
     select: {
       id: true,

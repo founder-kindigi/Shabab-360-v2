@@ -52,7 +52,10 @@ export const syncMutationSchema = z.object({
   participantId: attendanceIdentifierSchema,
   status: attendanceStatusSchema,
   markedAt: isoDateTimeSchema.optional(),
-});
+  ownerId: z.string().min(1).max(128),
+  expectedVersion: z.string().datetime().nullable(),
+  expectedResetVersion: z.number().int().nonnegative(),
+}).strict();
 
 export const syncAttendanceRequestSchema = z.object({
   mutations: z.array(syncMutationSchema).min(1).max(50),

@@ -56,7 +56,8 @@ describe("attendance operational summaries", () => {
 
   it("fails closed for a foreign park scope", async () => {
     mocks.requireResourceScope.mockReturnValue(NextResponse.json({ error: "Forbidden" }, { status: 403 }));
-    expect((await GET(request())).status).toBe(403);
+    mocks.parkFindUnique.mockImplementation(async ({ where }) => ({ id: where.id, cityId: "city-1" }));
+    expect((await GET(request("?parkId=ckhhhhhhhhhhhhhhhhhhhhhhh"))).status).toBe(403);
     expect(mocks.groupFindMany).not.toHaveBeenCalled();
   });
 
@@ -66,7 +67,7 @@ describe("attendance operational summaries", () => {
       name: "Group 1",
       batch: { name: "Batch 4", settings: { warningConsecutiveWeeks: 2, dropoutConsecutiveWeeks: 3 } },
       murabbis: [{ id: "staff-1", user: { name: "Murabbi One" } }],
-      participants: [{ id: "student-1", name: "Student One", state: "active", dropoutAt: null, dropoutSource: null }],
+      participants: [{ id: "student-1", name: "Student One", joinedAt: new Date("2026-01-01"), state: "active", dropoutAt: null, dropoutSource: null }],
     }]);
     mocks.eventFindMany.mockResolvedValue([
       { id: "event-1", groupId: "group-1", eventDate: new Date("2026-08-01") },

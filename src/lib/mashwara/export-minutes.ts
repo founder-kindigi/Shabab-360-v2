@@ -27,6 +27,10 @@ export interface ExportMinutesOptions {
   lang?: 'en' | 'ur';
 }
 
+export function escapeMinutesText(value: unknown): string {
+  return String(value ?? "").replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]!);
+}
+
 export function generateMashwaraMinutes(
   meeting: MashwaraMeetingData,
   options: ExportMinutesOptions = { format: 'html', lang: 'en' }
@@ -95,12 +99,14 @@ export function generateMashwaraMinutes(
     return { content: md, mimeType: 'text/markdown', isRTL };
   }
 
+  // Every stored value in this template is a text node; no stored HTML/URLs render.
+  const text = escapeMinutesText;
   // Default HTML printable layout
   let html = `<!DOCTYPE html>
 <html lang="${isUrdu ? 'ur' : 'en'}" dir="${isRTL ? 'rtl' : 'ltr'}">
 <head>
   <meta charset="utf-8">
-  <title>${meeting.title} - Minutes</title>
+  <title>${text(meeting.title)} - Minutes</title>
   <style>
     body { font-family: ${isUrdu ? "'Jameel Noori Nastaleeq', 'Noto Naskh Arabic', sans-serif" : "Inter, system-ui, sans-serif"}; padding: 24px; color: #1e293b; max-width: 800px; margin: 0 auto; line-height: 1.6; }
     h1 { color: #0f172a; border-bottom: 2px solid #3b82f6; padding-bottom: 8px; font-size: 24px; }
@@ -118,9 +124,9 @@ export function generateMashwaraMinutes(
 <body>
   <h1>${labels.header}</h1>
   <div class="meta-box">
-    <div><strong>${labels.meetingTitle}:</strong> ${meeting.title}</div>
-    <div><strong>${labels.date}:</strong> ${meetingDateStr}</div>
-    ${meeting.cityName ? `<div><strong>${labels.city}:</strong> ${meeting.cityName}</div>` : ''}
+    <div><strong>${labels.meetingTitle}:</strong> ${text(meeting.title)}</div>
+    <div><strong>${labels.date}:</strong> ${text(meetingDateStr)}</div>
+    ${meeting.cityName ? `<div><strong>${labels.city}:</strong> ${text(meeting.cityName)}</div>` : ''}
   </div>
 
   <h2>${labels.attendees}</h2>
@@ -130,7 +136,7 @@ export function generateMashwaraMinutes(
       ${meeting.attendees
         .map(
           (a) => `<tr>
-            <td>${a.name}</td>
+            <td>${text(a.name)}</td>
             <td><span class="badge ${a.isPresent ? 'badge-present' : 'badge-absent'}">${a.isPresent ? labels.present : labels.absent}</span></td>
           </tr>`
         )
@@ -141,7 +147,7 @@ export function generateMashwaraMinutes(
   <h2>${labels.decisions}</h2>
   <ol>
     ${meeting.decisions
-      .map((d) => `<li><strong>${d.title}</strong>${d.details ? `<br><small>${d.details}</small>` : ''}</li>`)
+      .map((d) => `<li><strong>${text(d.title)}</strong>${d.details ? `<br><small>${text(d.details)}</small>` : ''}</li>`)
       .join('')}
   </ol>
 
@@ -158,9 +164,9 @@ export function generateMashwaraMinutes(
       ${meeting.actionItems
         .map(
           (item) => `<tr>
-            <td>${item.title}</td>
-            <td>${item.assigneeName || item.teamName || 'Unassigned'}</td>
-            <td>${item.status}</td>
+            <td>${text(item.title)}</td>
+            <td>${text(item.assigneeName || item.teamName || 'Unassigned')}</td>
+            <td>${text(item.status)}</td>
           </tr>`
         )
         .join('')}

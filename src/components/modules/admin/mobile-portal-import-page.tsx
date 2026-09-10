@@ -26,7 +26,6 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import rawDatasetJson from "@/lib/import-framework/portal-raw-dataset.json";
 
 interface MobilePortalImportPageProps {
   onBack?: () => void;
@@ -34,8 +33,10 @@ interface MobilePortalImportPageProps {
 
 export function MobilePortalImportPage({ onBack }: MobilePortalImportPageProps) {
   const { data: session } = useSession();
-  const [activeFileName, setActiveFileName] = useState("RegistrationRequests-06-08-2026.xls");
-  const [records, setRecords] = useState(rawDatasetJson);
+  const [activeFileName, setActiveFileName] = useState("No workbook loaded");
+  // Raw registration workbooks are server-only. This desk is intentionally
+  // empty until the bounded, authorized import workflow is completed.
+  const [records] = useState<any[]>([]);
 
   const [search, setSearch] = useState("");
   const [selectedRecord, setSelectedRecord] = useState<any | null>(null);
@@ -59,34 +60,16 @@ export function MobilePortalImportPage({ onBack }: MobilePortalImportPageProps) 
 
     setIsUploading(true);
     setActiveFileName(file.name);
-
-    setTimeout(() => {
-      setIsUploading(false);
-      toast.success(`Uploaded ${file.name}`, {
-        description: `Successfully loaded raw workbook. Ready for downstream execution.`,
-      });
-    }, 1000);
+    setIsUploading(false);
+    toast.error("Workbook import is not available yet", {
+      description: "Uploads are not parsed or stored in the browser. Use the approved import workflow when it is available.",
+    });
   };
 
   const handleExecutePipeline = async () => {
-    setIsExecuting(true);
-    try {
-      const res = await fetch("/api/admin/import/portal-raw", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode: "full_sync" }),
-      });
-      if (!res.ok) throw new Error("Sync failed");
-      toast.success("Mobile Full Pipeline Sync Complete!", {
-        description: `Synced ${records.length} portal records to Admissions, Calling, Fees & Park Attendance.`,
-      });
-    } catch {
-      toast.success("Mobile Pipeline Sync Simulated Success!", {
-        description: `All ${records.length} records updated across Admissions, Calling, Fees & Park Attendance.`,
-      });
-    } finally {
-      setIsExecuting(false);
-    }
+    toast.error("Pipeline synchronization is not available", {
+      description: "No records were changed. This action will be enabled only after validated, scoped import persistence is implemented.",
+    });
   };
 
   return (
@@ -104,7 +87,7 @@ export function MobilePortalImportPage({ onBack }: MobilePortalImportPageProps) 
               Portal Import Desk
             </h1>
             <p className="text-xs text-muted-foreground font-medium">
-              69-Column Workbook Extract (759)
+              Validated workbook import is pending
             </p>
           </div>
         </div>
@@ -116,7 +99,7 @@ export function MobilePortalImportPage({ onBack }: MobilePortalImportPageProps) 
           <Badge className="bg-white/20 text-white font-mono text-[10px] backdrop-blur-md border-0">
             {activeFileName}
           </Badge>
-          <span className="text-[10px] font-bold text-purple-200">69 Columns Preserved</span>
+            <span className="text-[10px] font-bold text-purple-200">Server-side import required</span>
         </div>
 
         <div className="grid grid-cols-2 gap-3 pt-1">
@@ -141,7 +124,7 @@ export function MobilePortalImportPage({ onBack }: MobilePortalImportPageProps) 
             ) : (
               <Sparkles className="size-4 mr-2 text-amber-500 fill-amber-500" />
             )}
-            Sync All 759 Records
+            Import unavailable
           </Button>
         </div>
       </div>
@@ -161,7 +144,7 @@ export function MobilePortalImportPage({ onBack }: MobilePortalImportPageProps) 
       <div className="space-y-3">
         <div className="flex items-center justify-between text-xs font-bold text-slate-500">
           <span>Parsed Candidates ({filteredRecords.length})</span>
-          <span>Showing 759 Total</span>
+          <span>No workbook loaded</span>
         </div>
 
         <div className="space-y-2">

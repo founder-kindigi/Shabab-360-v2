@@ -1,80 +1,27 @@
 import { NextResponse } from "next/server";
-import { requireAuth, requireCapability, requireResourceScope } from "@/lib/auth/authorize";
+import { requireAuth, requireCapability } from "@/lib/auth/authorize";
+import { requireResolvedGroupScope, groupHierarchyInclude } from "@/lib/auth/hierarchy";
+import { createAuditLogData } from "@/lib/audit";
 import { db } from "@/lib/db";
-import { logAudit } from "@/lib/audit";
-
-const EVENT_SUPERVISOR_ROLES = ["super_admin", "program_admin", "city_head", "park_lead"] as const;
-
-export async function DELETE(
-  _req: Request,
-  { params }: { params: Promise<{ eventId: string }> }
-) {
+const ROLES = ["super_admin", "program_admin", "city_head", "park_lead"] as const;
+export async function DELETE(req: Request, { params }: { params: Promise<{ eventId: string }> }) {
+  const auth = await requireAuth(); if (auth instanceof NextResponse) return auth;
+  const capability = await requireCapability("attendance.correct"); if (capability instanceof NextResponse) return capability;
+  const version = req.headers.get("If-Match");
+  if (version === null) return NextResponse.json({ error: "Reload the roster before resetting it" }, { status: 428 });
+  if (!/^[0-9]{1,9}$/.test(version)) return NextResponse.json({ error: "Invalid reset version" }, { status: 400 });
   const { eventId } = await params;
-  const auth = await requireAuth();
-  if (auth instanceof NextResponse) return auth;
-  const { user } = auth;
-  const capabilityAuth = await requireCapability("attendance.correct");
-  if (capabilityAuth instanceof NextResponse) return capabilityAuth;
-
   try {
-    // Fetch event for scope check
-    const event = await db.attendanceEvent.findUnique({
-      where: { id: eventId },
-      include: { group: { include: { batch: { include: { park: true } } } } },
+    const event = await db.attendanceEvent.findUnique({ where: { id: eventId }, include: { group: { include: groupHierarchyInclude } } });
+    if (!event) return NextResponse.json({ error: "Event not found" }, { status: 404 });
+    const denied = requireResolvedGroupScope(auth.user, { ...event.group, id: event.groupId }, ROLES); if (denied) return denied;
+    return await db.$transaction(async tx => {
+      // Updating the event takes the same lock as every mark/correction/close operation.
+      const changed = await tx.attendanceEvent.updateMany({ where: { id: eventId, isClosed: false, resetVersion: Number(version) }, data: { resetVersion: { increment: 1 } } });
+      if (changed.count !== 1) return NextResponse.json({ error: "Session closed or reset since it was loaded. Reload before resetting." }, { status: 409 });
+      const result = await tx.attendanceRecord.deleteMany({ where: { eventId } });
+      await tx.auditLog.create({ data: createAuditLogData({ userId: auth.user.id, action: "attendance_reset", entityType: "attendance_events", entityId: eventId, newValues: { deletedCount: result.count, resetVersion: Number(version) + 1 } }) });
+      return NextResponse.json({ deleted: result.count, resetVersion: Number(version) + 1, message: "Attendance reset. Older queued marks require review." });
     });
-
-    if (!event) {
-      return NextResponse.json({ error: "Event not found" }, { status: 404 });
-    }
-
-    if (event.isClosed) {
-      return NextResponse.json(
-        { error: "Cannot reset a closed event" },
-        { status: 400 }
-      );
-    }
-
-    // Scope check
-    const scopeError = requireResourceScope(
-      user,
-      { cityId: event.group.batch.park.cityId, parkId: event.group.batch.parkId, groupId: event.groupId },
-      EVENT_SUPERVISOR_ROLES
-    );
-    if (scopeError) return scopeError;
-
-    // Count records before deletion for audit
-    const count = await db.attendanceRecord.count({
-      where: { eventId },
-    });
-
-    if (count === 0) {
-      return NextResponse.json({ deleted: 0, message: "No records to reset" });
-    }
-
-    // Delete all records for this event
-    const result = await db.attendanceRecord.deleteMany({
-      where: { eventId },
-    });
-
-    await logAudit({
-      userId: user.id,
-      action: "attendance_reset",
-      entityType: "attendance_records",
-      newValues: {
-        eventId,
-        deletedCount: result.count,
-      },
-    });
-
-    return NextResponse.json({
-      deleted: result.count,
-      message: `Cleared ${result.count} attendance record(s)`,
-    });
-  } catch (error) {
-    console.error("Reset attendance error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
-  }
+  } catch { return NextResponse.json({ error: "Reset was not acknowledged. Reload before retrying." }, { status: 503 }); }
 }

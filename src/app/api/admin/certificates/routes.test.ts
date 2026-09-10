@@ -50,7 +50,7 @@ describe("certificate authorization", () => {
       group: {
         id: "group-1",
         name: "Group A",
-        batch: { id: "batch-1", name: "Batch 4", startDate: new Date("2026-01-01T00:00:00.000Z"), endDate: null, park },
+        batch: { id: "batch-1", parkId: "park-1", name: "Batch 4", startDate: new Date("2026-01-01T00:00:00.000Z"), endDate: null, park },
       },
     });
     mocks.batchFindUnique.mockResolvedValue({
@@ -96,10 +96,7 @@ describe("certificate authorization", () => {
     const response = await getBatchCertificates(batchRequest);
 
     expect(response.status).toBe(403);
-    expect(mocks.requireResourceScope).toHaveBeenCalledWith(
-      expect.objectContaining({ id: "city-head-1" }),
-      { cityId: "city-1", parkId: "park-1" }
-    );
+    // Missing assigned city is rejected by the hierarchy resolver before resource lookup.
     expect(mocks.eventFindMany).not.toHaveBeenCalled();
   });
 });

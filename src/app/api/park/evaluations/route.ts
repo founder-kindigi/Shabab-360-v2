@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { requireCapability } from "@/lib/auth/authorize";
+import { resolveRequestedHierarchy, groupHierarchyInclude, groupResourceScope, groupParkWhere } from "@/lib/auth/hierarchy";
+import { createAuditLogData } from "@/lib/audit";
 import { z } from "zod";
 
 type SessionUser = {
@@ -13,8 +16,8 @@ type SessionUser = {
 };
 
 const evaluationSchema = z.object({
-  participantId: z.string().min(1),
-  parkId: z.string().min(1),
+  participantId: z.string().trim().min(1).max(128),
+  parkId: z.string().trim().min(1).max(128),
   month: z.number().int().min(1).max(12),
   year: z.number().int().min(2000).max(2100),
   discipline: z.number().int().min(0).max(10),
@@ -22,16 +25,13 @@ const evaluationSchema = z.object({
   islah: z.number().int().min(0).max(10),
   ibadah: z.number().int().min(0).max(10),
   participation: z.number().int().min(0).max(10),
-  comment: z.string().min(10, "Comment must be at least 10 characters"),
+  comment: z.string().trim().min(10, "Comment must be at least 10 characters").max(2000),
 });
 
 export async function GET(request: Request) {
-  const session = await getServerSession(authOptions);
-  const user = session?.user as SessionUser | undefined;
-
-  if (!session || !user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const auth = await requireCapability("students.manage");
+  if (auth instanceof NextResponse) return auth;
+  const { user } = auth;
 
   const allowedRoles = ["super_admin", "program_admin", "city_head", "park_admin", "park_lead", "murabbi"];
   if (!user.role || !allowedRoles.includes(user.role)) {
@@ -40,23 +40,18 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url);
   const parkId = searchParams.get("parkId");
-  const month = parseInt(searchParams.get("month") || "0", 10);
-  const year = parseInt(searchParams.get("year") || "0", 10);
+  const month = Number(searchParams.get("month") || "0");
+  const year = Number(searchParams.get("year") || "0");
 
-  if (!parkId || !month || !year) {
+  if (!parkId || month < 1 || month > 12 || year < 2000 || year > 2100 || !Number.isInteger(month) || !Number.isInteger(year)) {
     return NextResponse.json({ error: "Missing required query parameters" }, { status: 400 });
   }
 
   try {
-    const batches = await db.batch.findMany({
-      where: { parkId, isActive: true },
-      select: { id: true },
-    });
-    
-    const batchIds = batches.map(b => b.id);
-    
+    const scope = await resolveRequestedHierarchy(user, { parkId });
+    if (scope instanceof NextResponse) return scope;
     const groups = await db.group.findMany({
-      where: { batchId: { in: batchIds }, isActive: true },
+      where: { ...groupParkWhere(parkId), ...(scope.groupId ? { id: scope.groupId } : {}), batch: { isActive: true }, isActive: true },
       select: { id: true },
     });
     
@@ -65,7 +60,8 @@ export async function GET(request: Request) {
     // Get participants with their evaluation for this month
     const participants = await db.participant.findMany({
       where: { groupId: { in: groupIds }, state: "active" },
-      include: {
+      select: {
+        id: true, name: true, groupId: true,
         group: { select: { name: true } },
         evaluations: {
           where: { month, year },
@@ -81,12 +77,9 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const session = await getServerSession(authOptions);
-  const user = session?.user as SessionUser | undefined;
-
-  if (!session || !user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const auth = await requireCapability("students.manage");
+  if (auth instanceof NextResponse) return auth;
+  const { user } = auth;
 
   const allowedRoles = ["super_admin", "program_admin", "city_head", "park_admin", "park_lead", "murabbi"];
   if (!user.role || !allowedRoles.includes(user.role)) {
@@ -94,7 +87,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const body = await request.json();
+    const body = await request.json().catch(() => null);
     const result = evaluationSchema.safeParse(body);
 
     if (!result.success) {
@@ -103,7 +96,14 @@ export async function POST(request: Request) {
 
     const data = result.data;
 
-    const evaluation = await db.studentEvaluation.upsert({
+    return await db.$transaction(async (tx) => {
+    const participant = await tx.participant.findUnique({ where: { id: data.participantId }, include: { group: { include: groupHierarchyInclude } } });
+    if (!participant) return NextResponse.json({ error: "Participant not found" }, { status: 404 });
+    const linked = groupResourceScope(participant.group);
+    if (!linked || linked.parkId !== data.parkId) return NextResponse.json({ error: "Participant does not belong to the selected park" }, { status: 403 });
+    const scope = await resolveRequestedHierarchy(user, linked, tx);
+    if (scope instanceof NextResponse) return scope;
+    const evaluation = await tx.studentEvaluation.upsert({
       where: {
         participantId_month_year: {
           participantId: data.participantId,
@@ -121,7 +121,7 @@ export async function POST(request: Request) {
       },
       create: {
         participantId: data.participantId,
-        murabbiUserId: user.id,
+        murabbiUserId: user.id!,
         parkId: data.parkId,
         month: data.month,
         year: data.year,
@@ -134,7 +134,9 @@ export async function POST(request: Request) {
       },
     });
 
+    await tx.auditLog.create({ data: createAuditLogData({ userId: user.id, action: "student.evaluation.save", entityType: "StudentEvaluation", entityId: evaluation.id, newValues: { participantId: data.participantId, month: data.month, year: data.year } }) });
     return NextResponse.json({ evaluation }, { status: 201 });
+    });
   } catch (error) {
     console.error("POST /api/park/evaluations error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
