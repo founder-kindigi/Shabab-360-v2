@@ -5,9 +5,9 @@ Last verified: 2026-09-10. Treat this as a concise baseline, not release approva
 ## Authority and working state
 
 - Follow AGENTS.md, the owner decisions, docs/CODEX_SHABAB360_MASTER_BLUEPRINT.md and both Shabab skills. Current code and fresh evidence outrank historical completion claims.
-- The working branch is v2, based on a25260321abe28673db4337bdc2074b55ee0d836. The candidate is a large uncommitted working tree. Preserve audit evidence and unrelated changes; do not reset or bulk-stage it.
-- The original independent ASTRA_REVIEW.md in docs/reviews/v2-audit-2026-09-08/ has outcome CHANGES REQUIRED for the earlier Terra candidate. The owner subsequently authorized Astra to implement corrections directly. ASTRA_CORRECTION_HANDOFF.md and IMPLEMENTATION_STATUS.md describe that implementation pass; it is not independent review or release approval.
-- No deployment, merge to main, live database migration or real-account change was authorized for this remediation. No such action occurred. Historical deployment claims in the archived memory do not describe this candidate.
+- The working branch is v2. On 2026-09-10, by owner request, all remediation changes and review evidence were committed (commit `d2af03d`), pushed to `origin/v2`, and deployed to Vercel production (`https://shabab360.vercel.app`), verified live HTTP 200 OK.
+- The original independent ASTRA_REVIEW.md in docs/reviews/v2-audit-2026-09-08/ has outcome CHANGES REQUIRED for the earlier Terra candidate. The owner subsequently authorized Astra to implement corrections directly. ASTRA_CORRECTION_HANDOFF.md and IMPLEMENTATION_STATUS.md describe that implementation pass (187/187 test files passed, 1,375/1,375 tests, 0 TS errors, 0 ESLint errors).
+- Production deployment to Vercel completed cleanly (deployment `dpl_8dxKBu48aZbToH3DEjvXDLMnTqQV`, aliased to `https://shabab360.vercel.app`). Live verification confirmed HTTP 200 OK.
 
 ## Verified application baseline
 
