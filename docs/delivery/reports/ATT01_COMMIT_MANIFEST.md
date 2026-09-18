@@ -163,6 +163,12 @@ Validation: 9 files / 117 tests passed; scoped ESLint clean;
   `ATT01_POSTGRES_MIGRATION_PREFLIGHT.md`, `ATT01_PILOT_RUNBOOK_DRAFT.md`,
   `ATT01_RELEASE_PREPARATION_HANDOFF.md`) and this manifest: committed separately
   below.
+- `docs/delivery/ATT01_PILOT_AND_ITERATION_PLAN.md` (the release-gates authority,
+  read as input) is preserved uncommitted: it carries intentional markdown
+  hard-break trailing spaces on its header lines, so staging it fails
+  `git diff --check`. It needs either an owner-approved whitespace normalisation
+  or acceptance of the flagged lines before it can be committed. Since whitespace
+  was not corrected to keep the file exactly as found, it is not committed here.
 
 ## 5. Validation commands and results
 
@@ -202,10 +208,31 @@ Baseline limitations recorded, not hidden:
 | `803321e` | feat(auth): add guarded local city head provisioner | 3 |
 | `636a774` | fix(attendance): enforce the batch calendar on marking and correction | 7 |
 | `0424ae9` | fix(auth): close City Head cross-city scope gaps | 20 |
+| `38e5953` | docs(att01): record release-preparation evidence and commit manifest | 5 |
+| _this final commit_ | docs(att01): finalize the ATT01 commit manifest | 1 |
 
-After these commits: 129 tracked modifications and 399 untracked paths remain in
-the working tree, preserved exactly as found (no `reset`, `restore`, `clean`,
-stash or force operation was used).
+The final commit cannot name its own hash; it is the `HEAD` commit
+(`git log -1 --format=%H`) subject to this manifest.
+
+Seven commits, 88 files (`git diff --name-only 401ff32..HEAD` = 88). None was
+pushed, and no history was rewritten.
+
+After these commits: **129 tracked modifications and 395 untracked paths** remain
+in the working tree, preserved exactly as found.
+
+### Command disclosure
+
+`git restore --staged docs/delivery/ATT01_PILOT_AND_ITERATION_PLAN.md` was used
+once to unstage that one file after it failed the staged whitespace check. It
+touched only the index: the file's working-tree content is byte-unchanged and it
+is untracked again (`??`), exactly as before staging. No `git reset`,
+`git restore <path>` (working tree), `git clean`, stash, rebase or force
+operation was used, and no working-tree change was discarded.
+
+`git commit --amend -F <msg>` was used twice on the final documentation commit
+only (to fold in the manifest corrections after staging). Both were local and
+unpushed; no earlier commit, and none of the five code commits, was amended or
+rewritten.
 
 ## 7. Confirmation
 
