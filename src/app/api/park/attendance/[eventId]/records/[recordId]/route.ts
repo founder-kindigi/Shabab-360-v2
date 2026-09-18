@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, requireCapability } from "@/lib/auth/authorize";
-import { requireResolvedGroupScope, groupHierarchyInclude } from "@/lib/auth/hierarchy";
+import { requireResolvedGroupScope } from "@/lib/auth/hierarchy";
 import { createAuditLogData } from "@/lib/audit";
 import { db } from "@/lib/db";
+import { isBatchClassDate } from "@/lib/attendance/schedule";
+import { formatPKT } from "@/lib/timezone";
 import { editAttendanceRecordSchema } from "@/lib/attendance/schemas";
 import type { SessionUser } from "@/lib/auth/scope";
 const EDIT_ROLES = ["super_admin", "program_admin", "city_head", "park_lead"] as const;
@@ -17,12 +19,44 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ ev
   const { eventId, recordId } = await params;
   try {
     return await db.$transaction(async tx => {
-      const event = await tx.attendanceEvent.findUnique({ where: { id: eventId }, include: { group: { include: groupHierarchyInclude } } });
+      const event = await tx.attendanceEvent.findUnique({
+        where: { id: eventId },
+        include: {
+          group: {
+            include: {
+              park: true,
+              batch: {
+                include: {
+                  park: true,
+                  settings: { select: { classWeekdays: true } },
+                  extraClassDates: { select: { classDate: true } },
+                },
+              },
+            },
+          },
+        },
+      });
       if (!event) return NextResponse.json({ error: "Event not found" }, { status: 404 });
       const staff = await tx.staffMeta.findUnique({ where: { userId: auth.user.id } });
       if (!staff?.isActive) return NextResponse.json({ error: "Active staff assignment required" }, { status: 403 });
       const actor = { ...auth.user, role: staff.role as SessionUser["role"], assignedCityId: staff.assignedCityId, assignedParkId: staff.assignedParkId, assignedGroupId: staff.assignedGroupId };
       const denied = requireResolvedGroupScope(actor, { ...event.group, id: event.groupId }, EDIT_ROLES); if (denied) return denied;
+      // The batch calendar is enforced on corrections too: only an active group
+      // inside an active batch on a scheduled class date in that batch's range is
+      // correctable. This fails closed before the row lock, version check or any
+      // audit write.
+      const group = event.group;
+      if (!group?.isActive) return NextResponse.json({ error: "This group is not active", code: "GROUP_INACTIVE" }, { status: 409 });
+      const batch = group.batch;
+      if (!batch?.isActive) return NextResponse.json({ error: "The group's batch is not active", code: "BATCH_INACTIVE" }, { status: 409 });
+      const scheduled = isBatchClassDate({
+        date: formatPKT(event.eventDate, "yyyy-MM-dd"),
+        startDate: batch.startDate,
+        endDate: batch.endDate,
+        classWeekdays: batch.settings?.classWeekdays,
+        extraClassDates: batch.extraClassDates.map((item) => item.classDate),
+      });
+      if (!scheduled) return NextResponse.json({ error: "This session date is not a scheduled class date in the active batch range", code: "SESSION_NOT_SCHEDULED" }, { status: 409 });
       // All record writers serialize against the event, including privileged corrections.
       await tx.attendanceEvent.update({ where: { id: eventId }, data: { updatedAt: new Date() } });
       const record = await tx.attendanceRecord.findUnique({ where: { id: recordId } });

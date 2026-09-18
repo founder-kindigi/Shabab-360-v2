@@ -13,6 +13,7 @@ import {
 } from "@/lib/api/query-params";
 import { z } from "zod";
 import { createAttendanceEventSchema } from "@/lib/attendance/schemas";
+import { isBatchClassDate } from "@/lib/attendance/schedule";
 import { listAttendanceSessions } from "@/lib/attendance/session-list";
 
 const listQuerySchema = z.object({
@@ -37,6 +38,12 @@ export async function GET(req: Request) {
 
     let groupIds: string[];
     if (user.role === "murabbi") {
+      // Explicit denial for an unassigned Murabbi: no group context, no data.
+      // This check must happen before any DB lookup so the denial is clear and
+      // cannot be bypassed by a future change to canAccessResourceScope.
+      if (!user.assignedGroupId) {
+        return NextResponse.json({ error: "Murabbi has no assigned group" }, { status: 403 });
+      }
       const scopeError = requireResourceScope(
         user,
         { groupId: user.assignedGroupId },
@@ -45,7 +52,7 @@ export async function GET(req: Request) {
       if (scopeError) return scopeError;
 
       const group = await db.group.findUnique({
-        where: { id: user.assignedGroupId! },
+        where: { id: user.assignedGroupId },
         include: groupHierarchyInclude,
       });
       if (!group) {
@@ -54,7 +61,7 @@ export async function GET(req: Request) {
       const scope = groupResourceScope(group);
       if (!scope || (query.data.parkId && query.data.parkId !== scope.parkId)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       parkId = scope.parkId;
-      groupIds = [user.assignedGroupId!];
+      groupIds = [user.assignedGroupId];
     } else {
       if (!parkId) return NextResponse.json({ error: "parkId required" }, { status: 400 });
       const park = await db.park.findUnique({
@@ -115,6 +122,11 @@ export async function POST(req: Request) {
   const capabilityAuth = await requireCapability("attendance.mark");
   if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
+  if (user.role === "murabbi" && !user.assignedGroupId) {
+    // Deliberate denial before any data lookup, matching the list route.
+    return NextResponse.json({ error: "Murabbi has no assigned group" }, { status: 403 });
+  }
+
   try {
     const parsedBody = createAttendanceEventSchema.safeParse(
       await req.json().catch(() => null)
@@ -127,9 +139,9 @@ export async function POST(req: Request) {
     }
     const { groupId, title, eventDate } = parsedBody.data;
 
-    // Scope check: verify group belongs to user's scope
+    // Scope check: the group must exist, be active, and belong to user's scope.
     const group = await db.group.findUnique({
-      where: { id: groupId },
+      where: { id: groupId, isActive: true },
       include: groupHierarchyInclude,
     });
 
@@ -137,14 +149,44 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Group not found" }, { status: 404 });
     }
 
-    const scopeError = requireResolvedGroupScope(user, group,
-      ATTENDANCE_ROLES
-    );
+    const scopeError = requireResolvedGroupScope(user, group, ATTENDANCE_ROLES);
     if (scopeError) return scopeError;
 
-    // Check if event already exists for this group+date
     const parsedDate = eventDate ? parseISO(eventDate) : null;
     const date = parsedDate ? fromPKT(parsedDate) : todayPKT();
+
+    // Owner-approved batch calendar policy: a session may only be created for a
+    // scheduled class date inside the active batch's inclusive range.
+    const batch = await db.batch.findUnique({
+      where: { id: group.batchId, isActive: true },
+      select: {
+        startDate: true,
+        endDate: true,
+        settings: { select: { classWeekdays: true } },
+        extraClassDates: {
+          where: { classDate: { gte: date, lt: new Date(date.getTime() + 24 * 60 * 60 * 1000) } },
+          select: { classDate: true },
+        },
+      },
+    });
+    if (!batch) {
+      return NextResponse.json({ error: "Active batch not found for this group" }, { status: 404 });
+    }
+    const scheduled = isBatchClassDate({
+      date: formatPKT(date, "yyyy-MM-dd"),
+      startDate: batch.startDate,
+      endDate: batch.endDate,
+      classWeekdays: batch.settings?.classWeekdays,
+      extraClassDates: batch.extraClassDates.map((item) => item.classDate),
+    });
+    if (!scheduled) {
+      return NextResponse.json(
+        { error: "Attendance can only be created for a scheduled class date inside the active batch range" },
+        { status: 400 }
+      );
+    }
+
+    // Check if event already exists for this group+date
     const existingEvent = await db.attendanceEvent.findFirst({
       where: {
         groupId,

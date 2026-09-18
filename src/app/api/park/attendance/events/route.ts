@@ -2,10 +2,11 @@ import { requireResolvedGroupScope, resolveRequestedHierarchy, hierarchyGroupWhe
 import { NextResponse } from "next/server";
 import { ATTENDANCE_ROLES, requireAuth, requireCapability, requireResourceScope } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
-import { todayPKT, fromPKT } from "@/lib/timezone";
+import { todayPKT, fromPKT, formatPKT } from "@/lib/timezone";
 import { logAudit } from "@/lib/audit";
 import { parseISO } from "date-fns";
 import { createAttendanceEventSchema } from "@/lib/attendance/schemas";
+import { isBatchClassDate } from "@/lib/attendance/schedule";
 
 export async function POST(req: Request) {
   const auth = await requireAuth();
@@ -13,6 +14,11 @@ export async function POST(req: Request) {
   const { user } = auth;
   const capabilityAuth = await requireCapability("attendance.mark");
   if (capabilityAuth instanceof NextResponse) return capabilityAuth;
+
+  if (user.role === "murabbi" && !user.assignedGroupId) {
+    // Deliberate denial before any data lookup, matching the list route.
+    return NextResponse.json({ error: "Murabbi has no assigned group" }, { status: 403 });
+  }
 
   try {
     const parsedBody = createAttendanceEventSchema.safeParse(
@@ -26,9 +32,9 @@ export async function POST(req: Request) {
     }
     const { groupId, title, eventDate } = parsedBody.data;
 
-    // Scope check
+    // Scope check: the group must exist, be active, and belong to user's scope.
     const group = await db.group.findUnique({
-      where: { id: groupId },
+      where: { id: groupId, isActive: true },
       include: { park: true, batch: { include: { park: true } } },
     });
 
@@ -43,6 +49,37 @@ export async function POST(req: Request) {
     const parsedDate = eventDate ? parseISO(eventDate) : null;
     const date = parsedDate ? fromPKT(parsedDate) : todayPKT();
     const dayAfter = new Date(date.getTime() + 24 * 60 * 60 * 1000);
+
+    // Owner-approved batch calendar policy: a session may only be created for a
+    // scheduled class date inside the active batch's inclusive range.
+    const batch = await db.batch.findUnique({
+      where: { id: group.batchId, isActive: true },
+      select: {
+        startDate: true,
+        endDate: true,
+        settings: { select: { classWeekdays: true } },
+        extraClassDates: {
+          where: { classDate: { gte: date, lt: dayAfter } },
+          select: { classDate: true },
+        },
+      },
+    });
+    if (!batch) {
+      return NextResponse.json({ error: "Active batch not found for this group" }, { status: 404 });
+    }
+    const scheduled = isBatchClassDate({
+      date: formatPKT(date, "yyyy-MM-dd"),
+      startDate: batch.startDate,
+      endDate: batch.endDate,
+      classWeekdays: batch.settings?.classWeekdays,
+      extraClassDates: batch.extraClassDates.map((item) => item.classDate),
+    });
+    if (!scheduled) {
+      return NextResponse.json(
+        { error: "Attendance can only be created for a scheduled class date inside the active batch range" },
+        { status: 400 }
+      );
+    }
 
     // Check for existing event
     const existing = await db.attendanceEvent.findFirst({

@@ -1,11 +1,13 @@
 import { checkAttendanceAlerts } from "@/lib/attendance-alerts";
 import { eligibleForSession } from "./opportunities";
+import { isBatchClassDate } from "./schedule";
 import { createHash } from "node:crypto";
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { createAuditLogData } from "@/lib/audit";
-import { groupHierarchyInclude, requireResolvedGroupScope } from "@/lib/auth/hierarchy";
+import { requireResolvedGroupScope } from "@/lib/auth/hierarchy";
 import { ATTENDANCE_ROLES } from "@/lib/auth/authorize";
+import { formatPKT } from "@/lib/timezone";
 import type { SessionUser } from "@/lib/auth/scope";
 import { syncMutationSchema } from "./schemas";
 import type { z } from "zod";
@@ -27,7 +29,23 @@ export async function applyAttendanceMutation(user: SessionUser, mutation: Atten
     const result = await db.$transaction(async tx => {
       const staff = await tx.staffMeta.findUnique({ where: { userId: user.id } });
       if (!staff?.isActive) return fail("FORBIDDEN", "An active staff assignment is required");
-      const event = await tx.attendanceEvent.findUnique({ where: { id: mutation.eventId }, include: { group: { include: groupHierarchyInclude } } });
+      const event = await tx.attendanceEvent.findUnique({
+        where: { id: mutation.eventId },
+        include: {
+          group: {
+            include: {
+              park: true,
+              batch: {
+                include: {
+                  park: true,
+                  settings: { select: { classWeekdays: true } },
+                  extraClassDates: { select: { classDate: true } },
+                },
+              },
+            },
+          },
+        },
+      });
       if (!event) return fail("EVENT_NOT_FOUND", "Event not found");
       const actor = { ...user, role: staff.role as SessionUser["role"], assignedCityId: staff.assignedCityId, assignedParkId: staff.assignedParkId, assignedGroupId: staff.assignedGroupId };
       if (requireResolvedGroupScope(actor, { ...event.group, id: event.groupId }, ATTENDANCE_ROLES) instanceof NextResponse) return fail("FORBIDDEN", "Forbidden");
@@ -36,6 +54,23 @@ export async function applyAttendanceMutation(user: SessionUser, mutation: Atten
       const receipts = await tx.$queryRaw<Array<{ requestHash: string; resultJson: string }>>`SELECT "requestHash", "resultJson" FROM "operation_receipts" WHERE "id" = ${receiptId}`;
       if (receipts[0]) return receipts[0].requestHash === requestHash ? JSON.parse(receipts[0].resultJson) : fail("MUTATION_REUSED", "Mutation identifier was already used for different content");
       if (open.count !== 1) return fail("EVENT_LOCKED", "Attendance is locked");
+      // Owner-approved batch calendar policy: enforce it on the mark itself, so a
+      // legacy or manually-created invalid-date session is not markable online or
+      // through offline sync. Only an active group inside an active batch on a
+      // scheduled class date inside the batch range is markable. Failures are
+      // non-retryable.
+      const group = event.group;
+      if (!group?.isActive) return fail("GROUP_INACTIVE", "This group is not active");
+      const batch = group.batch;
+      if (!batch?.isActive) return fail("BATCH_INACTIVE", "The group's batch is not active");
+      const scheduled = isBatchClassDate({
+        date: formatPKT(event.eventDate, "yyyy-MM-dd"),
+        startDate: batch.startDate,
+        endDate: batch.endDate,
+        classWeekdays: batch.settings?.classWeekdays,
+        extraClassDates: batch.extraClassDates.map((item) => item.classDate),
+      });
+      if (!scheduled) return fail("SESSION_NOT_SCHEDULED", "This session date is not a scheduled class date in the active batch range");
       const currentEvent = await tx.attendanceEvent.findUnique({ where: { id: event.id }, select: { resetVersion: true } });
       if (currentEvent?.resetVersion !== mutation.expectedResetVersion) return fail("EVENT_RESET", "This session was reset. Reload and review the mark before submitting again.");
       const participant = await tx.participant.findFirst({ where: { id: mutation.participantId, groupId: event.groupId } });
