@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth, requireCapability } from "@/lib/auth/authorize";
+import { requireAuth, requireCapability, resolveRequestedCityScope } from "@/lib/auth/authorize";
+import { groupHierarchyInclude, groupResourceScope, hierarchyGroupWhere } from "@/lib/auth/hierarchy";
 import { db } from "@/lib/db";
 import { parseISO } from "date-fns";
 import {
@@ -41,20 +42,39 @@ export async function GET(request: NextRequest) {
   }
   const { cityId, parkId, groupId, from, to } = query.data;
 
-  // Build event where clause
+  // HQ may select any city (unscoped means all cities); a City Head is pinned
+  // to their assigned city and every other role is denied.
+  const scope = resolveRequestedCityScope(user, cityId);
+  if (scope instanceof NextResponse) return scope;
+
+  // Build event where clause. Requested ids may only narrow the resolved city
+  // scope: a park or group outside it is denied rather than filtered silently.
   const eventWhere: Record<string, unknown> = {};
   if (from) eventWhere.eventDate = { ...(eventWhere.eventDate as object || {}), gte: parseISO(from) };
   if (to) eventWhere.eventDate = { ...(eventWhere.eventDate as object || {}), lte: parseISO(to) };
 
-  // Scope filtering
   if (groupId) {
+    const group = await db.group.findUnique({ where: { id: groupId }, include: groupHierarchyInclude });
+    const groupScope = groupResourceScope(group);
+    if (!groupScope) return NextResponse.json({ error: "Group not found" }, { status: 404 });
+    if (scope.cityId && groupScope.cityId !== scope.cityId) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
     eventWhere.groupId = groupId;
   } else if (parkId) {
-    eventWhere.group = { batch: { parkId } };
-  } else if (cityId) {
-    eventWhere.group = { batch: { park: { cityId } } };
-  } else if (user.role === "city_head" && user.assignedCityId) {
-    eventWhere.group = { batch: { park: { cityId: user.assignedCityId } } };
+    const park = await db.park.findUnique({ where: { id: parkId }, select: { id: true, cityId: true } });
+    if (!park) return NextResponse.json({ error: "Park not found" }, { status: 404 });
+    if (scope.cityId && park.cityId !== scope.cityId) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    // A group's own park is authoritative; the batch park is only a fallback
+    // for a legacy null group park, so a group parked outside the requested
+    // park is never included through its batch park.
+    eventWhere.group = hierarchyGroupWhere({ kind: "park", cityId: null, parkId: park.id, groupId: null });
+  } else if (scope.cityId) {
+    // Same authoritative rule at city level: the group's own park city wins,
+    // and the batch park city only applies when the group park is unset.
+    eventWhere.group = hierarchyGroupWhere({ kind: "city", cityId: scope.cityId, parkId: null, groupId: null });
   }
 
   const [totalEvents, totalRecords, statusCounts, groupCount] = await Promise.all([

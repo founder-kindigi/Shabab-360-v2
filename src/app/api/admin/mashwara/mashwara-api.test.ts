@@ -152,6 +152,39 @@ describe("GET /api/admin/mashwara", () => {
     expect(response.status).toBe(400);
     expect(mocks.meetingFindMany).not.toHaveBeenCalled();
   });
+
+  it("denies a city_head with no city assignment instead of listing every city", async () => {
+    const unassignedCityHead = { id: "city-head-none", role: "city_head", assignedCityId: null };
+    mocks.requireAuth.mockResolvedValue({ user: unassignedCityHead });
+    mocks.requireCapability.mockResolvedValue({ user: unassignedCityHead });
+
+    const response = await listGET(req("http://localhost/api/admin/mashwara"));
+
+    expect(response.status).toBe(403);
+    expect((await response.json()).error).toBe("City scope is required");
+    expect(mocks.meetingFindMany).not.toHaveBeenCalled();
+  });
+
+  it("denies a city_head requesting another city", async () => {
+    mocks.requireAuth.mockResolvedValue({ user: cityHeadUser });
+    mocks.requireCapability.mockResolvedValue({ user: cityHeadUser });
+
+    const response = await listGET(req("http://localhost/api/admin/mashwara?cityId=city-khi"));
+
+    expect(response.status).toBe(403);
+    expect(mocks.meetingFindMany).not.toHaveBeenCalled();
+  });
+
+  it("denies a non-HQ caller without a city assignment", async () => {
+    const parkLead = { id: "park-lead", role: "park_lead", assignedCityId: null, assignedParkId: "park-lhr" };
+    mocks.requireAuth.mockResolvedValue({ user: parkLead });
+    mocks.requireCapability.mockResolvedValue({ user: parkLead });
+
+    const response = await listGET(req("http://localhost/api/admin/mashwara"));
+
+    expect(response.status).toBe(403);
+    expect(mocks.meetingFindMany).not.toHaveBeenCalled();
+  });
 });
 
 describe("POST /api/admin/mashwara", () => {

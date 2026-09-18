@@ -40,6 +40,17 @@ export async function GET(request: NextRequest) {
   const user = auth.user;
   const isHq = user.role === "super_admin" || user.role === "program_admin";
 
+  // A non-HQ caller is pinned to their assigned city and fails closed without
+  // one. A requested city may only confirm, never widen, that scope.
+  if (!isHq) {
+    if (!user.assignedCityId) {
+      return NextResponse.json({ error: "City scope is required" }, { status: 403 });
+    }
+    if (cityId && cityId !== user.assignedCityId) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+  }
+
   const where: Record<string, unknown> = {};
   if (!isHq && user.assignedCityId) {
     where.cityId = user.assignedCityId;

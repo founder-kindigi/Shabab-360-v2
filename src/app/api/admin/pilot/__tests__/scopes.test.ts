@@ -58,4 +58,18 @@ describe("V3-702 Multi-City Scoped Security & Isolation Engine API", () => {
     expect(data.verificationChecks.sameCityAccess).toBe(true);
     expect(data.verificationChecks.crossCityAccessDenied).toBe(true);
   });
+
+  it("returns a stable product-facing role label beside the internal role name", async () => {
+    mocks.requireAuth.mockResolvedValue({
+      user: { id: "usr_program_head", role: "program_admin", assignedCityId: null },
+    });
+    mocks.resolveActorCity.mockResolvedValue(null);
+
+    const req = new NextRequest("http://localhost/api/admin/pilot/verify-scopes");
+    const res = await verifyScopes(req);
+    const data = await res.json();
+
+    expect(data.actor.role).toBe("program_admin");
+    expect(data.actor.roleLabel).toBe("Program Head");
+  });
 });

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, requireCapability, resolveActorCity, requireCityScope, requireParkScope, requireGroupScope } from "@/lib/auth/authorize";
 import { canAccessResourceScope, isHqRole } from "@/lib/auth/scope";
+import { productRoleLabel } from "@/lib/auth/role-labels";
 
 export async function GET(request: NextRequest) {
   const auth = await requireAuth();
@@ -32,6 +33,8 @@ export async function GET(request: NextRequest) {
     actor: {
       id: user.id,
       role: user.role,
+      // Stable product-facing label. Internal role names stay unchanged.
+      roleLabel: productRoleLabel(user.role),
       assignedCityId: user.assignedCityId || null,
       assignedParkId: user.assignedParkId || null,
       assignedGroupId: user.assignedGroupId || null,

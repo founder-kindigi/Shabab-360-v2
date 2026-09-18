@@ -16,6 +16,57 @@ type SessionUser = {
   name?: string | null;
 };
 
+const STATUS_NAMES = ["present", "late", "absent", "excused"] as const;
+type StatusName = (typeof STATUS_NAMES)[number];
+
+function isStatusName(value: string): value is StatusName {
+  return (STATUS_NAMES as readonly string[]).includes(value);
+}
+
+export interface StatusTotals {
+  present: number;
+  late: number;
+  absent: number;
+  excused: number;
+  /** Present plus late. */
+  attended: number;
+  /** Every recognized persisted mark. */
+  marked: number;
+  /** Participant-session opportunities for the events supplied. */
+  eligible: number;
+  /** Attended over eligible, or null when the scope has no eligible mark. */
+  rate: number | null;
+}
+
+/**
+ * Aggregates persisted marks for the supplied events. `eligible` uses the same
+ * active-participant counts the endpoint already reports, so a returned rate is
+ * always attended over eligible opportunities and is null rather than a guessed
+ * zero when nothing was eligible.
+ */
+function statusTotals(
+  events: Array<{ groupId: string; records: Array<{ status: string }> }>,
+  participantCountMap: Map<string | null, number>
+): StatusTotals {
+  const totals: Record<StatusName, number> = { present: 0, late: 0, absent: 0, excused: 0 };
+  let eligible = 0;
+  for (const event of events) {
+    for (const record of event.records) {
+      if (isStatusName(record.status)) totals[record.status]++;
+    }
+    eligible += participantCountMap.get(event.groupId) ?? 0;
+  }
+  const attended = totals.present + totals.late;
+  const marked = attended + totals.absent + totals.excused;
+  return {
+    ...totals,
+    attended,
+    marked,
+    eligible,
+    rate: eligible > 0 ? Math.round((attended / eligible) * 100) : null,
+  };
+}
+
 export async function GET() {
   const session = await getServerSession(authOptions);
   const user = session?.user as SessionUser | undefined;
@@ -67,17 +118,31 @@ export async function GET() {
 
     const parkIds = parks.map((p) => p.id);
 
-    // Get counts
-    const [batchCount, groupCount, totalParticipants, totalStaff] = await Promise.all([
-      db.batch.count({
+    // Authoritative group scope for this city: a group's own park always wins,
+    // and the batch park is only a fallback for a legacy null group park. This
+    // mirrors groupParkWhere so a group whose own park sits outside the city can
+    // never be counted into that city's metrics.
+    const cityGroupWhere = {
+      OR: [
+        { parkId: { in: parkIds } },
+        { parkId: null, batch: { parkId: { in: parkIds } } },
+      ],
+    };
+
+    // Get counts. The active batches are read with their names so the client can
+    // label the batch truthfully instead of assuming one.
+    const [cityBatches, groupCount, totalParticipants, totalStaff] = await Promise.all([
+      db.batch.findMany({
         where: { parkId: { in: parkIds }, isActive: true },
+        select: { id: true, name: true },
+        orderBy: { name: "asc" },
       }),
       db.group.count({
-        where: { batch: { parkId: { in: parkIds } }, isActive: true },
+        where: { ...cityGroupWhere, isActive: true },
       }),
       db.participant.count({
         where: {
-          group: { batch: { parkId: { in: parkIds } } },
+          group: cityGroupWhere,
           state: "active",
         },
       }),
@@ -85,6 +150,7 @@ export async function GET() {
         where: { assignedCityId: cityId, isActive: true },
       }),
     ]);
+    const batchCount = cityBatches.length;
 
     // Today's date range in PKT
     const todayStart = todayPKT();
@@ -92,7 +158,7 @@ export async function GET() {
 
     // Get all group IDs in the city for event queries
     const groupsInCity = await db.group.findMany({
-      where: { batch: { parkId: { in: parkIds } }, isActive: true },
+      where: { ...cityGroupWhere, isActive: true },
       select: { id: true, name: true, batchId: true },
     });
     const groupIds = groupsInCity.map((g) => g.id);
@@ -181,13 +247,14 @@ export async function GET() {
         eventDate: { gte: sevenDaysAgo, lte: todayEnd },
         isClosed: true,
       },
-      include: {
-        _count: { select: { records: true } },
+      select: {
+        groupId: true,
+        records: { select: { status: true } },
       },
     });
 
     const totalMarksLast7Days = last7DaysEvents.reduce(
-      (sum, e) => sum + e._count.records,
+      (sum, e) => sum + e.records.length,
       0
     );
     const totalCapacityLast7Days = last7DaysEvents.reduce((sum, e) => {
@@ -197,6 +264,8 @@ export async function GET() {
       totalCapacityLast7Days > 0
         ? Math.round((totalMarksLast7Days / totalCapacityLast7Days) * 100)
         : 0;
+    // Truthful attendance aggregate for the same city-scoped 7-day window.
+    const attendance7Day = statusTotals(last7DaysEvents, participantCountMap);
 
     // Today's attendance rate
     let todayAttendanceRate = 0;
@@ -260,7 +329,10 @@ export async function GET() {
 
         const parkGroupIds = (
           await db.group.findMany({
-            where: { batchId: { in: parkBatchIds }, isActive: true },
+            where: {
+              OR: [{ parkId: park.id }, { parkId: null, batchId: { in: parkBatchIds } }],
+              isActive: true,
+            },
             select: { id: true },
           })
         ).map((g) => g.id);
@@ -276,11 +348,11 @@ export async function GET() {
             eventDate: { gte: sevenDaysAgo, lte: todayEnd },
             isClosed: true,
           },
-          include: { _count: { select: { records: true } } },
+          select: { groupId: true, records: { select: { status: true } } },
         });
 
         const parkMarks = parkLast7Events.reduce(
-          (s, e) => s + e._count.records,
+          (s, e) => s + e.records.length,
           0
         );
         const parkCapacity = parkLast7Events.reduce((s, e) => {
@@ -292,12 +364,21 @@ export async function GET() {
         const parkRate =
           parkCapacity > 0 ? Math.round((parkMarks / parkCapacity) * 100) : 0;
 
+        // Active murabbis linked to this park's groups, plus the truthful
+        // attendance aggregate for the same park-scoped 7-day window.
+        const murabbiCount = await db.staffMeta.count({
+          where: { assignedGroupId: { in: parkGroupIds }, isActive: true },
+        });
+        const attendance = statusTotals(parkLast7Events, participantCountMap);
+
         return {
           id: park.id,
           name: park.name,
           participants: parkParticipants,
           groups: parkGroupIds.length,
           sevenDayRate: parkRate,
+          murabbiCount,
+          attendance,
         };
       })
     );
@@ -400,6 +481,10 @@ export async function GET() {
         attendanceRate7Day: cityAttendanceRate7Day,
         todayAttendanceRate,
       },
+      // Active batches in this city, so the client never assumes a batch name.
+      batches: cityBatches.map((batch) => ({ id: batch.id, name: batch.name })),
+      // Truthful 7-day attendance for this city: attended over eligible marks.
+      attendance7Day,
       todayDate: formatPKT(new Date(), "yyyy-MM-dd"),
       todayEvents: todayEventsList,
       parkBreakdown,

@@ -291,7 +291,12 @@ export async function GET(request: NextRequest) {
   }
 
   // City-scoped
-  if (user.role === "city_head" && user.assignedCityId) {
+  if (user.role === "city_head") {
+    if (!user.assignedCityId) {
+      // Missing city assignment denies rather than falling through to a
+      // cross-city or empty response.
+      return NextResponse.json({ error: "No city assigned" }, { status: 403 });
+    }
     const [city, parks, batches, groups, participants, attendanceEvents, staff] =
       await Promise.all([
         db.city.findUnique({

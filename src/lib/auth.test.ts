@@ -48,8 +48,36 @@ describe("exact login identity and fresh session authority", () => {
   mocks.staff.mockResolvedValue({ role: "city_head", isActive: true });
   expect(await jwt({ id: "user-1", tokenVersion: 2 })).toEqual({});
  });
+ it("issues a City Head token scoped to the assigned city only", async () => {
+  mocks.staff.mockResolvedValue({ role: "city_head", isActive: true, assignedCityId: "city-lahore", assignedParkId: null, assignedGroupId: null, assignedCity: { id: "city-lahore", isActive: true } });
+  const token = await jwt({ id: "user-1", tokenVersion: 2 });
+  expect(token).toMatchObject({ role: "city_head", assignedCityId: "city-lahore", assignedParkId: null, assignedGroupId: null, mustResetPwd: false });
+ });
+ it("denies a City Head whose assigned city is missing or inactive", async () => {
+  mocks.staff.mockResolvedValue({ role: "city_head", isActive: true, assignedCityId: "city-lahore", assignedCity: { id: "city-lahore", isActive: false } });
+  expect(await jwt({ id: "user-1", tokenVersion: 2 })).toEqual({});
+ });
+ it("authenticates a provisioned City Head by exact normalized email and keeps the forced reset", async () => {
+  mocks.user.mockResolvedValue({ id: "user-1", email: "arslanakram@shabab360.com", isActive: true, passwordHash: "synthetic", tokenVersion: 0, mustResetPwd: true });
+  mocks.staff.mockResolvedValue({ role: "city_head", isActive: true, assignedCityId: "city-lahore", assignedParkId: null, assignedGroupId: null, assignedCity: { id: "city-lahore", isActive: true } });
+  expect(await login({ email: "  ArslanAkram@Shabab360.com ", password: "correct" })).toMatchObject({ id: "user-1", role: "city_head", mustResetPwd: true, assignedCityId: "city-lahore" });
+  expect(mocks.user).toHaveBeenCalledWith({ where: { email: "arslanakram@shabab360.com" } });
+  expect(await jwt({ id: "user-1", tokenVersion: 0 })).toMatchObject({ role: "city_head", assignedCityId: "city-lahore", mustResetPwd: true });
+ });
  it("invalidates on identity storage failure", async () => {
   mocks.user.mockRejectedValue(new Error("offline"));
   expect(await jwt({ id: "user-1", tokenVersion: 2 })).toEqual({});
+ });
+});
+describe("session role label", () => {
+ const session = (token: any) => authOptions.callbacks!.session!({ session: { user: {} }, token } as never);
+ it("exposes a stable product label beside the unchanged internal role name", async () => {
+  const result: any = await session({ id: "user-1", role: "program_admin" });
+  expect(result.user.role).toBe("program_admin");
+  expect(result.user.roleLabel).toBe("Program Head");
+ });
+ it("carries no label when the token has no known role", async () => {
+  const result: any = await session({ id: "user-1" });
+  expect(result.user.roleLabel).toBeNull();
  });
 });

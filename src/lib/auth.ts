@@ -3,6 +3,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import { db } from "@/lib/db";
 import bcrypt from "bcryptjs";
 import { resolveActiveIdentity } from "@/lib/auth/identity";
+import { productRoleLabel } from "@/lib/auth/role-labels";
 import { consumeLoginAttempt } from "@/lib/auth/login-throttle";
 import { z } from "zod";
 
@@ -23,6 +24,7 @@ declare module "next-auth" {
       email: string;
       name?: string | null;
       role?: string;
+      roleLabel?: string | null;
       mustResetPwd?: boolean;
       tokenVersion?: number;
       assignedCityId?: string | null;
@@ -91,6 +93,7 @@ export const authOptions: NextAuthOptions = {
       if (session.user) {
         session.user.id = token.id!;
         session.user.role = token.role;
+        session.user.roleLabel = productRoleLabel(token.role);
         session.user.mustResetPwd = token.mustResetPwd;
         session.user.tokenVersion = token.tokenVersion;
         session.user.assignedCityId = token.assignedCityId;

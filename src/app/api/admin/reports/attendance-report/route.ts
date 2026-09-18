@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAuth, requireCapability } from "@/lib/auth/authorize";
+import { groupHierarchyInclude, groupParkWhere, groupResourceScope, hierarchyGroupWhere } from "@/lib/auth/hierarchy";
 import { db } from "@/lib/db";
 import { formatPKT } from "@/lib/timezone";
 import { parseISO, subDays } from "date-fns";
@@ -64,10 +65,34 @@ export async function GET(req: Request) {
     const { cityId, parkId, groupId, from, to } = query.data;
 
     /* ---- Scope filtering ---- */
+    // Scoped actors are pinned to their own assignment and fail closed when it
+    // is missing; a request value may only narrow, never widen, that scope.
+    // HQ may select a city or park explicitly.
     const parkWhere: Record<string, unknown> = {};
     if (user.role === "city_head") {
-      parkWhere.cityId = user.assignedCityId;
+      if (!user.assignedCityId) {
+        return NextResponse.json({ error: "City scope is required" }, { status: 403 });
+      }
+      if (cityId && cityId !== user.assignedCityId) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+      if (parkId) {
+        const park = await db.park.findUnique({ where: { id: parkId }, select: { id: true, cityId: true } });
+        if (!park) return NextResponse.json({ error: "Park not found" }, { status: 404 });
+        if (park.cityId !== user.assignedCityId) {
+          return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
+        parkWhere.id = park.id;
+      } else {
+        parkWhere.cityId = user.assignedCityId;
+      }
     } else if (user.role === "park_admin" || user.role === "park_lead") {
+      if (!user.assignedParkId) {
+        return NextResponse.json({ error: "Park scope is required" }, { status: 403 });
+      }
+      if (parkId && parkId !== user.assignedParkId) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
       parkWhere.id = user.assignedParkId;
     } else if (cityId) {
       parkWhere.cityId = cityId;
@@ -75,16 +100,31 @@ export async function GET(req: Request) {
       parkWhere.id = parkId;
     }
 
-    const batchWhere: Record<string, unknown> = {};
-    if (Object.keys(parkWhere).length > 0) {
-      batchWhere.park = parkWhere;
-    }
+    // Authoritative group scope: a group's own park is primary and the batch
+    // park is a fallback only for a legacy null group park. Scoping through
+    // Group.batch.parkId would wrongly include a group whose own park sits
+    // outside the resolved park or city.
+    const groupWhere: Record<string, unknown> =
+      typeof parkWhere.id === "string"
+        ? groupParkWhere(parkWhere.id)
+        : typeof parkWhere.cityId === "string"
+          ? hierarchyGroupWhere({ kind: "city", cityId: parkWhere.cityId, parkId: null, groupId: null })
+          : {};
 
-    const groupWhere: Record<string, unknown> = {};
-    if (Object.keys(batchWhere).length > 0) {
-      groupWhere.batch = batchWhere;
-    }
     if (groupId) {
+      // A scoped actor may only target a group inside the scope already
+      // resolved above, so a foreign group id never leaks its name or rows.
+      if (user.role !== "super_admin" && user.role !== "program_admin") {
+        const group = await db.group.findUnique({ where: { id: groupId }, include: groupHierarchyInclude });
+        const resolved = groupResourceScope(group);
+        if (!resolved) return NextResponse.json({ error: "Group not found" }, { status: 404 });
+        if (typeof parkWhere.id === "string" && resolved.parkId !== parkWhere.id) {
+          return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
+        if (typeof parkWhere.cityId === "string" && resolved.cityId !== parkWhere.cityId) {
+          return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
+      }
       groupWhere.id = groupId;
     }
 
@@ -118,6 +158,11 @@ export async function GET(req: Request) {
           include: {
             group: {
               include: {
+                park: {
+                  include: {
+                    city: true,
+                  },
+                },
                 batch: {
                   include: {
                     park: {
@@ -150,18 +195,24 @@ export async function GET(req: Request) {
     const markerMap = new Map(markers.map((m) => [m.id, m.user.name]));
 
     /* ---- Build flat rows ---- */
-    const rows = records.map((r) => ({
-      eventDate: formatPKT(r.event.eventDate, "dd MMM yyyy"),
-      eventTitle: r.event.title,
-      participantName: r.participant.name,
-      groupName: r.event.group.name,
-      batchName: r.event.group.batch.name,
-      parkName: r.event.group.batch.park.name,
-      cityName: r.event.group.batch.park.city?.name || "Unknown",
-      status: r.status,
-      markedByName: r.markedBy ? markerMap.get(r.markedBy) || null : null,
-      markedAt: formatPKT(r.markedAt, "dd MMM yyyy hh:mm a"),
-    }));
+    const rows = records.map((r) => {
+      // Report the group's authoritative park, matching the scope filter, so a
+      // mismatched batch park never leaks another city's name into the rows.
+      const group = r.event.group;
+      const park = group.park ?? group.batch.park;
+      return {
+        eventDate: formatPKT(r.event.eventDate, "dd MMM yyyy"),
+        eventTitle: r.event.title,
+        participantName: r.participant.name,
+        groupName: group.name,
+        batchName: group.batch.name,
+        parkName: park?.name ?? "Unassigned",
+        cityName: park?.city?.name || "Unknown",
+        status: r.status,
+        markedByName: r.markedBy ? markerMap.get(r.markedBy) || null : null,
+        markedAt: formatPKT(r.markedAt, "dd MMM yyyy hh:mm a"),
+      };
+    });
 
     /* ---- Summary stats ---- */
     const uniqueEventIds = new Set(records.map((r) => r.eventId));
@@ -187,24 +238,29 @@ export async function GET(req: Request) {
         : 0;
 
     /* ---- Scope labels ---- */
+    // Label the scope the query actually ran with, so a scoped actor is never
+    // shown another city's or park's name echoed back from the request.
+    const effectiveParkId = typeof parkWhere.id === "string" ? parkWhere.id : parkId;
+    const effectiveCityId = typeof parkWhere.cityId === "string" ? parkWhere.cityId : cityId;
     let scopeLabel = "All";
-    if (parkId) {
+    if (effectiveParkId) {
       const park = await db.park.findUnique({
-        where: { id: parkId },
+        where: { id: effectiveParkId },
         include: { city: true },
       });
       scopeLabel = park ? `${park.name}, ${park.city.name}` : scopeLabel;
-    } else if (cityId) {
-      const city = await db.city.findUnique({ where: { id: cityId } });
+    } else if (effectiveCityId) {
+      const city = await db.city.findUnique({ where: { id: effectiveCityId } });
       scopeLabel = city?.name || scopeLabel;
     } else if (groupId) {
       const group = await db.group.findUnique({
         where: { id: groupId },
-        include: { batch: { include: { park: { include: { city: true } } } } },
+        include: { park: { include: { city: true } }, batch: { include: { park: { include: { city: true } } } } },
       });
-      scopeLabel = group
-        ? `${group.name} — ${group.batch.park.name}, ${group.batch.park.city.name}`
-        : scopeLabel;
+      const groupPark = group ? group.park ?? group.batch.park : null;
+      if (group && groupPark) {
+        scopeLabel = `${group.name} — ${groupPark.name}, ${groupPark.city?.name || "Unknown"}`;
+      }
     }
 
     return NextResponse.json({
