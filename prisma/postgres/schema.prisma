@@ -262,6 +262,7 @@ model StaffMeta {
   assignedCityId  String?
   assignedParkId  String?
   assignedGroupId String?
+  assistsMurabbiId String?
   isActive        Boolean  @default(true)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -270,6 +271,8 @@ model StaffMeta {
   assignedCity              City?                 @relation("CityHeadAssignment", fields: [assignedCityId], references: [id], onDelete: SetNull)
   assignedPark              Park?                 @relation("ParkStaffAssignment", fields: [assignedParkId], references: [id], onDelete: SetNull)
   assignedGroup             Group?                @relation("MurabbiAssignment", fields: [assignedGroupId], references: [id], onDelete: SetNull)
+  assistsMurabbi            StaffMeta?            @relation("MuawinAssistance", fields: [assistsMurabbiId], references: [id], onDelete: SetNull)
+  muawinAssistants          StaffMeta[]           @relation("MuawinAssistance")
   teamMemberships           StaffTeamMembership[]
   assignedActivityPlans     ActivityPlanItem[]    @relation("ActivityAssignee")
   eventTeamMemberships      EventTeamMembership[]
@@ -285,6 +288,7 @@ model StaffMeta {
   createdTeamDocumentLinks  TeamDocumentLink[] @relation("TeamDocumentLinkCreator")
   staffAttendanceRecords    StaffAttendanceRecord[]
 
+  @@index([assistsMurabbiId])
   @@map("staff_meta")
 }
 
@@ -559,7 +563,7 @@ model Participant {
   gradeClass  String?
   gender      String?
   address     String?
-  groupId     String
+  groupId     String?
   state       ParticipantState @default(active)
   dropoutAt   DateTime?
   dropoutReason String?
@@ -570,7 +574,7 @@ model Participant {
   updatedAt   DateTime         @updatedAt
 
   user              User?                 @relation(fields: [userId], references: [id], onDelete: SetNull)
-  group             Group                 @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  group             Group?                @relation(fields: [groupId], references: [id], onDelete: SetNull)
   guardianLinks     GuardianChild[]
   attendanceRecords AttendanceRecord[]
   payments          Payment[]

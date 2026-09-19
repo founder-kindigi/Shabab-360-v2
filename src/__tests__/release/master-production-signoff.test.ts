@@ -37,12 +37,12 @@ describe("PROD-HANDOVER-001: Master Production Sign-Off", () => {
       expect(sqliteModels).toEqual(pgModels);
     });
 
-    it("PostgreSQL migrations chain complete (31 migrations)", () => {
-      expect(allMigrationDirs(PG_MIGRATIONS)).toHaveLength(31);
+    it("PostgreSQL migrations chain complete (32 migrations)", () => {
+      expect(allMigrationDirs(PG_MIGRATIONS)).toHaveLength(32);
     });
 
-    it("SQLite migrations chain complete (17 migrations)", () => {
-      expect(allMigrationDirs(SQLITE_MIGRATIONS)).toHaveLength(17);
+    it("SQLite migrations chain complete (18 migrations)", () => {
+      expect(allMigrationDirs(SQLITE_MIGRATIONS)).toHaveLength(18);
     });
 
     it("latest migration matches in both chains (mashwara module)", () => {

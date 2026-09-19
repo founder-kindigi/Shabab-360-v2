@@ -64,12 +64,12 @@ describe("PILOT-PROD-001: Pilot Production Health", () => {
 
   /* ── 2. Migration health ─────────────────────────────────────────── */
   describe("Migration health", () => {
-    it("POSTGRES has 31 migration folders", () => {
-      expect(allMigrations(PG_MIGRATIONS)).toHaveLength(31);
+    it("POSTGRES has 32 migration folders", () => {
+      expect(allMigrations(PG_MIGRATIONS)).toHaveLength(32);
     });
 
-    it("SQLITE has 17 migration folders", () => {
-      expect(allMigrations(SQLITE_MIGRATIONS)).toHaveLength(17);
+    it("SQLITE has 18 migration folders", () => {
+      expect(allMigrations(SQLITE_MIGRATIONS)).toHaveLength(18);
     });
 
     it("both chains contain mashwara and login_attempts migrations", () => {
