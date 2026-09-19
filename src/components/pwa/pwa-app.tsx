@@ -5,6 +5,8 @@ import { useSession, signOut } from "next-auth/react";
 import { motion, AnimatePresence } from "framer-motion";
 
 // Existing components
+import { MobileMuawinDashboard } from "@/components/modules/muawin/mobile-muawin-dashboard";
+import { MobileAttendancePage } from "@/components/modules/park/mobile-attendance-page";
 import { MobileSplashPage } from "@/components/modules/auth/mobile-splash-page";
 import { MobileLoginPage } from "@/components/modules/auth/mobile-login-page";
 import { MobileMurabbiDashboard } from "@/components/modules/murabbi/mobile-murabbi-dashboard";
@@ -15,6 +17,8 @@ import { MobileGuardianDashboard } from "@/components/modules/guardian/mobile-gu
 
 // New components (to be implemented)
 import { MobileParksPage } from "@/components/modules/park/mobile-parks-page";
+import { MobileScopedParksPage } from "@/components/modules/park/mobile-scoped-parks-page";
+import { MobileParkWorkspace } from "@/components/modules/park/mobile-park-workspace";
 import { MobileParkDetailPage } from "@/components/modules/park/mobile-park-detail-page";
 import { MobileInventoryPage } from "@/components/modules/park/mobile-inventory-page";
 import { MobileEvaluationPage } from "@/components/modules/park/mobile-evaluation-page";
@@ -116,8 +120,10 @@ type ScreenId =
   | "home"
   | "parks"
   | "info"
+    | "attendance"
   | "more"
   | "park-detail"
+  | "park-workspace"
   | "inventory"
   | "evaluation"
   | "analysis"
@@ -147,8 +153,9 @@ type ScreenId =
 export type ParkNav = {
   parkId: string;
   parkName: string;
-  murabbiCount: number;
-  studentCount: number;
+  /** Null when the source endpoint does not return a real count. */
+  murabbiCount: number | null;
+  studentCount: number | null;
 } | null;
 
 // ─── Universal Bottom Nav Tabs ──────────────────────────────────────────────────
@@ -179,6 +186,9 @@ export function PwaApp() {
 
   const [screen, setScreen] = useState<ScreenId>("splash");
   const [parkNav, setParkNav] = useState<ParkNav>(null);
+  // Where the attendance screen returns to. PwaApp owns this so a Park Lead
+  // workspace round-trip stays coherent.
+  const [attendanceReturn, setAttendanceReturn] = useState<ScreenId>("home");
   const [selectedParticipantId, setSelectedParticipantId] = useState<string | null>(null);
   const [selectedParticipantName, setSelectedParticipantName] = useState<string | null>(null);
   const previousIdentity = useRef<string | null>(null);
@@ -186,6 +196,13 @@ export function PwaApp() {
   const capabilities = useEffectiveCapabilities();
 
   const effectiveRole = role || "student";
+
+  /** Single entry point for opening the attendance screen with an explicit park. */
+  const openAttendance = useCallback((park: ParkNav, returnTo: ScreenId) => {
+    if (park?.parkId) setParkNav(park);
+    setAttendanceReturn(returnTo);
+    setScreen("attendance");
+  }, []);
 
   const navigateTo = useCallback((target: ScreenId) => {
     if (canOpenScreen(target, effectiveRole, capabilities.has)) {
@@ -275,16 +292,19 @@ export function PwaApp() {
                 className="w-full"
               >
                 {/* HOME — role-specific dashboard */}
-                {screen === "home" && effectiveRole === "murabbi" && (
-                  <MobileMurabbiDashboard onNavigate={(s) => navigateTo(s as ScreenId)} />
+                {screen === "home" && effectiveRole === "muawin" && (
+                    <MobileMuawinDashboard />
+                  )}
+                  {screen === "home" && effectiveRole === "murabbi" && (
+                  <MobileMurabbiDashboard
+                    onNavigate={(s) => navigateTo(s as ScreenId)}
+                    onOpenAttendance={(park) => openAttendance(park, "home")}
+                  />
                 )}
                 {screen === "home" && (effectiveRole === "park_lead" || effectiveRole === "park_admin") && (
                   <MobileParkDashboard
                     onNavigate={(s) => navigateTo(s as ScreenId)}
-                    onSelectPark={(park) => {
-                      setParkNav(park);
-                      setScreen("park-detail");
-                    }}
+                    onOpenAttendance={(park) => openAttendance(park, "home")}
                   />
                 )}
                 {screen === "home" && effectiveRole === "city_head" && (
@@ -306,30 +326,51 @@ export function PwaApp() {
                   <MobileGuardianDashboard onNavigate={(s) => navigateTo(s as ScreenId)} />
                 )}
                 {screen === "home" &&
-                  !["murabbi", "park_lead", "park_admin", "city_head", "super_admin", "program_admin", "student", "guardian"].includes(
+                  !["murabbi", "muawin", "park_lead", "park_admin", "city_head", "super_admin", "program_admin", "student", "guardian"].includes(
                     effectiveRole
                   ) && <MobileHomeDashboard />}
-                
+
                 {/* NEW SCREENS */}
-                {screen === "parks" && (
-                  <MobileParksPage 
-                    onParkSelect={(park) => { 
-                      setParkNav(park); 
-                      setScreen("park-detail"); 
+                {screen === "attendance" && (
+                    <MobileAttendancePage
+                       parkId={parkNav?.parkId || ""}
+                       onBack={() => navigateTo(attendanceReturn)}
+                    />
+                  )}
+                  {screen === "parks" && (effectiveRole === "park_lead" || effectiveRole === "park_admin") && (
+                  <MobileScopedParksPage
+                    onParkSelect={(park) => {
+                      setParkNav(park);
+                      setScreen("park-workspace");
+                    }}
+                  />
+                )}
+                  {screen === "parks" && effectiveRole !== "park_lead" && effectiveRole !== "park_admin" && (
+                  <MobileParksPage
+                    onParkSelect={(park) => {
+                      setParkNav(park);
+                      setScreen("park-detail");
                     }}
                     onSelectInventory={() => setScreen("inventory")}
                   />
                 )}
                 {screen === "park-detail" && (
-                  <MobileParkDetailPage 
-                    parkNav={parkNav} 
-                    onBack={() => setScreen("parks")} 
+                  <MobileParkDetailPage
+                    parkNav={parkNav}
+                    onBack={() => setScreen("parks")}
                     onGoToEvaluation={() => setScreen("evaluation")}
                     onSelectStudent={(studentId, studentName) => {
                       setSelectedParticipantId(studentId);
                       setSelectedParticipantName(studentName || null);
                       setScreen("student-profile");
                     }}
+                  />
+                )}
+                {screen === "park-workspace" && (effectiveRole === "park_lead" || effectiveRole === "park_admin") && (
+                  <MobileParkWorkspace
+                    parkNav={parkNav}
+                    onBack={() => setScreen("parks")}
+                    onOpenAttendance={(park) => openAttendance(park, "park-workspace")}
                   />
                 )}
                 {screen === "student-profile" && (
@@ -395,16 +436,16 @@ export function PwaApp() {
             <div className="flex items-center justify-around w-full">
               {appTabs.filter((tab) => canOpenScreen(tab.id, role, capabilities.has)).map((tab) => {
                 const Icon = tab.icon;
-                const isActive = screen === tab.id || 
-                                 (tab.id === "parks" && ["park-detail", "inventory", "evaluation"].includes(screen)) ||
+                const isActive = screen === tab.id ||
+                                 (tab.id === "parks" && ["park-detail", "park-workspace", "inventory", "evaluation"].includes(screen)) ||
                                  (tab.id === "more" && [
-                                   "analysis", "admissions", "calling", "mashwara", "fees", "gamification", 
+                                   "analysis", "admissions", "calling", "mashwara", "fees", "gamification",
                                    "certificates", "content-planner", "islah", "sync",
                                    "events", "knowledge-base", "procurement", "security-access", "portal-import",
                                    "alumni", "teams", "custom-reports", "staff-directory", "audit-log", "notifications",
                                    "student-profile"
                                  ].includes(screen));
-                
+
                 return (
                   <button
                     key={tab.id}
