@@ -1,5 +1,11 @@
 # ATT01 attendance pilot runbook — DRAFT (not executed)
 
+> **Superseded for rollout purposes.** This draft records the Phase D preparation
+> work and is retained for history. The current, authoritative rollout procedure —
+> with the ordered owner gates, provisioning checklist and stop conditions — is
+> `docs/delivery/runbooks/ATT01_PRODUCTION_ROLLOUT_RUNBOOK.md`. Follow that one; do
+> not execute this draft.
+
 Date: 2026-09-18. Task: ATT01 release preparation, Phase D (release gate 4).
 Status: **drafted, unauthorized, unexecuted.** This runbook has not been run
 against production, PostgreSQL or any operational system.
