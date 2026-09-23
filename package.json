@@ -26,6 +26,7 @@
     "db:reconcile:sqlite-to-postgres": "node scripts/reconcile-sqlite-to-postgres.cjs",
     "att01:postgres:import": "node scripts/att01-postgres-import.ts",
     "att01:postgres:reconcile": "node scripts/att01-postgres-reconcile.ts",
+    "att01:postgres:access": "node scripts/att01-postgres-access.ts",
     "seed": "bun run prisma/seed.ts"
   },
   "dependencies": {

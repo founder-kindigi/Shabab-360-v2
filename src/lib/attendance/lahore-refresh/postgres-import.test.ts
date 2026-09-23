@@ -8,15 +8,13 @@
  * ever used, and no name, phone or connection string is asserted on beyond
  * checking that it is absent.
  */
-import { execFileSync } from "node:child_process";
-import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { loadRefreshManifest } from "./load";
 import { assertPostgresImportAuthorized, readExpectedPostgresMigrations, summarizeTargetDiagnostics } from "./postgres-cli";
 import { parsePostgresImportArgs } from "./postgres-cli";
 import { runPostgresImport } from "./postgres-import";
-import { createPgQueryPort, type PostgresQueryPort } from "./postgres-port";
+import type { PostgresQueryPort } from "./postgres-port";
 import {
   buildPostgresReconciliationReport,
   formatReconciliationSummary,
@@ -24,72 +22,38 @@ import {
   readPostgresReconciliationSnapshot,
 } from "./postgres-reconcile";
 import { assertPostgresTargetReady, inspectPostgresTarget } from "./postgres-target";
+import {
+  applyMigrations,
+  createDisposablePostgresHarness,
+  disposableAdminUrl,
+  withPort,
+  type DisposablePostgresHarness,
+} from "./postgres-test-support";
 import { APPROVED_TOTALS } from "./reconcile";
 import { buildSyntheticRefreshManifest } from "./test-support";
 
-const ADMIN_URL = process.env.ATT01_TEST_POSTGRES_URL ?? "";
+const ADMIN_URL = disposableAdminUrl();
 const APPROVED_WORKBOOK = process.env.ATT01_APPROVED_WORKBOOK ?? "docs/sheets/Shabab_Batch_4_Attendance.xlsx";
 
-function urlFor(database: string): string {
-  const url = new URL(ADMIN_URL);
-  url.pathname = `/${database}`;
-  return url.toString();
-}
-
-async function admin<T>(run: (port: PostgresQueryPort) => Promise<T>): Promise<T> {
-  const port = createPgQueryPort(ADMIN_URL);
-  try {
-    return await run(port);
-  } finally {
-    await port.close();
-  }
-}
-
-async function withPort<T>(url: string, run: (port: PostgresQueryPort) => Promise<T>): Promise<T> {
-  const port = createPgQueryPort(url);
-  try {
-    return await run(port);
-  } finally {
-    await port.close();
-  }
-}
-
-function migrate(databaseUrl: string): void {
-  try {
-    execFileSync(
-      process.execPath,
-      ["node_modules/prisma/build/index.js", "migrate", "deploy", "--schema", "prisma/postgres/schema.prisma"],
-      { env: { ...process.env, DATABASE_URL: databaseUrl, DIRECT_URL: databaseUrl }, stdio: "pipe" }
-    );
-  } catch (error) {
-    const detail = error instanceof Error && "stderr" in error ? String((error as { stderr?: unknown }).stderr) : "";
-    throw new Error(`prisma migrate deploy failed against the disposable database: ${detail.slice(0, 400)}`);
-  }
-}
-
 describe.skipIf(!ADMIN_URL)("ATT01 PostgreSQL import and reconciliation (disposable PostgreSQL)", () => {
-  const created: string[] = [];
-  let template = "";
+  let harness: DisposablePostgresHarness | undefined;
 
   beforeAll(async () => {
-    template = `att01_it_tpl_${randomUUID().replace(/-/g, "").slice(0, 12)}`;
-    await admin((port) => port.execute(`CREATE DATABASE "${template}"`));
-    migrate(urlFor(template));
+    harness = await createDisposablePostgresHarness({
+      label: "imp",
+      prepare: async (databaseUrl) => {
+        applyMigrations(databaseUrl);
+      },
+    });
   }, 300000);
 
   afterAll(async () => {
-    await admin(async (port) => {
-      for (const database of [...created, template]) {
-        await port.execute(`DROP DATABASE IF EXISTS "${database}" WITH (FORCE)`);
-      }
-    });
+    await harness?.destroy();
   }, 120000);
 
   async function freshDatabase(): Promise<string> {
-    const database = `att01_it_${randomUUID().replace(/-/g, "").slice(0, 16)}`;
-    await admin((port) => port.execute(`CREATE DATABASE "${database}" TEMPLATE "${template}"`));
-    created.push(database);
-    return urlFor(database);
+    if (!harness) throw new Error("the disposable PostgreSQL harness was not created");
+    return harness.createDatabase();
   }
 
   async function expectEmpty(port: PostgresQueryPort): Promise<void> {
