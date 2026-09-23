@@ -245,8 +245,22 @@ function compareAggregates(
   return { workbook, database, equal: JSON.stringify(workbook) === JSON.stringify(database) };
 }
 
+export interface CompareOptions {
+  /**
+   * False only when the target policy intentionally creates no staff rows, as the
+   * PostgreSQL fresh-seed import does not create users or staff placeholders. The
+   * staff totals are still reported, but they do not make the comparison unequal.
+   */
+  readonly staffIsRelevant?: boolean;
+}
+
 /** Compares the workbook snapshot against the database snapshot, category by category. */
-export function compareSnapshots(workbook: ReconciliationSnapshot, database: ReconciliationSnapshot): ReconciliationComparison {
+export function compareSnapshots(
+  workbook: ReconciliationSnapshot,
+  database: ReconciliationSnapshot,
+  options: CompareOptions = {}
+): ReconciliationComparison {
+  const staffIsRelevant = options.staffIsRelevant ?? true;
   const mismatches: Mismatch[] = [];
 
   const aggregates = compareAggregates(workbook.aggregates, database.aggregates);
@@ -327,7 +341,7 @@ export function compareSnapshots(workbook: ReconciliationSnapshot, database: Rec
     database: database.staff,
     equal: JSON.stringify(workbook.staff) === JSON.stringify(database.staff),
   };
-  if (!staff.equal) {
+  if (staffIsRelevant && !staff.equal) {
     mismatches.push({ category: "staff_state", detail: "staff placeholder/provisioning totals differ" });
   }
 
@@ -336,7 +350,7 @@ export function compareSnapshots(workbook: ReconciliationSnapshot, database: Rec
     keys.every((comparison) => comparison.equal) &&
     statusTotals.equal &&
     lifecycle.equal &&
-    staff.equal;
+    (!staffIsRelevant || staff.equal);
 
   return {
     ok,
@@ -450,10 +464,11 @@ export interface ReconciliationReport extends ReconciliationComparison {
 export function buildReconciliationReport(
   workbook: ReconciliationSnapshot,
   database: ReconciliationSnapshot,
-  evidence: PostImportEvidence
+  evidence: PostImportEvidence,
+  options: CompareOptions = {}
 ): ReconciliationReport {
   return {
-    ...compareSnapshots(workbook, database),
+    ...compareSnapshots(workbook, database, options),
     postImport: { evidence, classification: classifyPostImport(evidence, workbook, database) },
   };
 }

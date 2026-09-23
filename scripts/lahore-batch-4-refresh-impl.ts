@@ -12,14 +12,12 @@
  */
 import fs from "node:fs";
 import path from "node:path";
-import ExcelJS from "exceljs";
 import { LAHORE_REFRESH } from "../src/lib/attendance/lahore-refresh/constants";
-import { PARK_SHEETS, readParkSheet } from "../src/lib/attendance/lahore-refresh/workbook";
-import { buildDryRunSummary, buildRefreshManifest } from "../src/lib/attendance/lahore-refresh/manifest";
-import { RefreshRefusedError, parseRefreshArgs, planBackup, resolveExecutableTarget, type RefreshOptions } from "../src/lib/attendance/lahore-refresh/guards";
-import { buildSqliteRefreshPorts } from "../src/lib/attendance/lahore-refresh/sqlite-driver";
+import { RefreshRefusedError, parseRefreshArgs, planBackup, resolveExecutableTarget } from "../src/lib/attendance/lahore-refresh/guards";
+import { loadRefreshManifest } from "../src/lib/attendance/lahore-refresh/load";
+import { buildDryRunSummary } from "../src/lib/attendance/lahore-refresh/manifest";
 import { runLahoreRefresh } from "../src/lib/attendance/lahore-refresh/run";
-import type { RefreshManifest, SheetLike } from "../src/lib/attendance/lahore-refresh/types";
+import { buildSqliteRefreshPorts } from "../src/lib/attendance/lahore-refresh/sqlite-driver";
 
 const WRITE_CAPABILITIES = { sqliteBackup: true, postgresFullDump: false } as const;
 
@@ -35,36 +33,16 @@ const HELP = `Lahore Batch 4 refresh (dry run by default)
   --postgres-url <url>             required for --target postgres
   --backup-dir <dir>               required for writes; verified pre-reset backup`;
 
-async function loadParksFromWorkbook(input: string) {
-  const workbook = new ExcelJS.Workbook();
-  await workbook.xlsx.readFile(path.resolve(input));
-  return PARK_SHEETS.map(([sheetName, parkName]) => {
-    const sheet = workbook.getWorksheet(sheetName);
-    if (!sheet) throw new RefreshRefusedError(`Required sheet is missing: ${sheetName}`);
-    return readParkSheet(sheet as unknown as SheetLike, sheetName, parkName, 2026);
-  });
-}
-
-async function loadRefreshManifest(options: RefreshOptions): Promise<RefreshManifest> {
-  const parks = await loadParksFromWorkbook(options.input);
-  const manifest = buildRefreshManifest(parks, { attendanceThrough: options.attendanceThrough });
-  if (manifest.counts.parks !== LAHORE_REFRESH.expectedParks || manifest.counts.groups !== LAHORE_REFRESH.expectedGroups) {
-    throw new RefreshRefusedError(
-      `Workbook shape mismatch: expected ${LAHORE_REFRESH.expectedParks} parks / ${LAHORE_REFRESH.expectedGroups} groups, parsed ${manifest.counts.parks} / ${manifest.counts.groups}`
-    );
-  }
-  return manifest;
-}
-
 export async function runLahoreRefreshCli(argv: readonly string[]): Promise<void> {
   if (argv.includes("--help")) {
     console.log(HELP);
     return;
   }
   const options = parseRefreshArgs(argv);
+  const loadManifest = () => loadRefreshManifest(options.input, options.attendanceThrough);
 
   if (!options.execute) {
-    const manifest = await loadRefreshManifest(options);
+    const manifest = await loadManifest();
     const summary = buildDryRunSummary(manifest);
     if (options.outputDir) {
       fs.mkdirSync(path.resolve(options.outputDir), { recursive: true });
@@ -82,7 +60,7 @@ export async function runLahoreRefreshCli(argv: readonly string[]): Promise<void
     throw new RefreshRefusedError("PostgreSQL execution requires an approved verified full-dump mechanism and is not wired in this pass");
   }
 
-  const ports = buildSqliteRefreshPorts({ path: target.path, backupDir: target.backupDir }, () => loadRefreshManifest(options));
+  const ports = buildSqliteRefreshPorts({ path: target.path, backupDir: target.backupDir }, loadManifest);
   const summary = await runLahoreRefresh({ options, capabilities: WRITE_CAPABILITIES }, ports);
   console.log(JSON.stringify(summary, null, 2));
 }
