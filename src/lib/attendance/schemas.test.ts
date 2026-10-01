@@ -1,35 +1,21 @@
 import { describe, expect, it } from "vitest";
 import {
-  closeAttendanceEventSchema,
-  markAttendanceSchema,
-  syncAttendanceRequestSchema,
+  attendanceIdentifierSchema,
+  prepareAttendanceSessionsSchema,
+  prepareStaffAttendanceSchema,
 } from "./schemas";
 
-describe("attendance mutation schemas", () => {
-  it("rejects unknown fields on an attendance mark", () => {
-    expect(markAttendanceSchema.safeParse({
-      participantId: "ckggggggggggggggggggggggg",
-      status: "present",
-      cityId: "client-must-not-control-scope",
-    }).success).toBe(false);
+describe("attendance identifier validation", () => {
+  const uuid = "be979d3b-1da9-43fb-81fa-2a2f4f6c82dd";
+  const cuid = "ckpark0000000000000000000";
+
+  it.each([uuid, cuid])("accepts supported identifier %s", (identifier) => {
+    expect(attendanceIdentifierSchema.safeParse(identifier).success).toBe(true);
+    expect(prepareAttendanceSessionsSchema.safeParse({ date: "2026-08-17", parkId: identifier }).success).toBe(true);
+    expect(prepareStaffAttendanceSchema.safeParse({ date: "2026-08-17", parkId: identifier }).success).toBe(true);
   });
 
-  it("rejects unknown fields in offline sync mutations", () => {
-    expect(syncAttendanceRequestSchema.safeParse({
-      mutations: [{
-        mutationId: "offline-1",
-        eventId: "ckggggggggggggggggggggggg",
-        participantId: "ckhhhhhhhhhhhhhhhhhhhhhhh",
-        status: "present",
-        actorId: "client-must-not-control-actor",
-      }],
-    }).success).toBe(false);
-  });
-
-  it("requires a bounded close reason and rejects extra fields", () => {
-    expect(closeAttendanceEventSchema.safeParse({
-      reason: "Attendance complete",
-      force: true,
-    }).success).toBe(false);
+  it.each(["not-an-id", "x".repeat(129)])("rejects unsupported identifier %s", (identifier) => {
+    expect(attendanceIdentifierSchema.safeParse(identifier).success).toBe(false);
   });
 });

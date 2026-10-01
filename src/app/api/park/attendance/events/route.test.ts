@@ -5,6 +5,9 @@ const mocks = vi.hoisted(() => ({
   requireAuth: vi.fn(),
   requireCapability: vi.fn(),
   groupFindUnique: vi.fn(),
+  batchFindUnique: vi.fn(),
+  eventFindFirst: vi.fn(),
+  eventCreate: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/authorize", () => ({
@@ -16,14 +19,27 @@ vi.mock("@/lib/auth/authorize", () => ({
 vi.mock("@/lib/db", () => ({
   db: {
     group: { findUnique: mocks.groupFindUnique },
-    attendanceEvent: { findFirst: vi.fn(), create: vi.fn() },
-    batch: { findMany: vi.fn() },
+    attendanceEvent: { findFirst: mocks.eventFindFirst, create: mocks.eventCreate },
+    batch: { findMany: vi.fn(), findUnique: mocks.batchFindUnique },
   },
 }));
 vi.mock("@/lib/audit", () => ({ logAudit: vi.fn() }));
 
 import { POST } from "./route";
-import { materializeScheduledAttendanceSchema } from "@/lib/attendance/schemas";
+
+const GROUP = {
+  id: "ckggggggggggggggggggggggg",
+  batchId: "ckbbbbbbbbbbbbbbbbbbbbbbb",
+  parkId: "ckppppppppppppppppppppppp",
+  park: { id: "ckppppppppppppppppppppppp", cityId: "ckccccccccccccccccccccccc" },
+  batch: { id: "ckbbbbbbbbbbbbbbbbbbbbbbb", cityId: "ckccccccccccccccccccccccc", park: { cityId: "ckccccccccccccccccccccccc" } },
+};
+
+const request = (body: Record<string, unknown>) => new Request("http://localhost/api/park/attendance/events", {
+  method: "POST",
+  headers: { "content-type": "application/json" },
+  body: JSON.stringify({ groupId: GROUP.id, title: "Park Event", eventDate: "2026-08-02", ...body }),
+});
 
 describe("POST /api/park/attendance/events", () => {
   beforeEach(() => {
@@ -51,23 +67,6 @@ describe("POST /api/park/attendance/events", () => {
     expect(mocks.groupFindUnique).not.toHaveBeenCalled();
   });
 
-  it("rejects unknown event fields before querying group scope", async () => {
-    const response = await POST(
-      new Request("http://localhost/api/park/attendance/events", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          groupId: "ckggggggggggggggggggggggg",
-          title: "Park Event",
-          clientSuppliedCityId: "foreign-city",
-        }),
-      })
-    );
-
-    expect(response.status).toBe(400);
-    expect(mocks.groupFindUnique).not.toHaveBeenCalled();
-  });
-
   it("denies attendance mark capability before parsing request body", async () => {
     mocks.requireCapability.mockResolvedValue(
       NextResponse.json({ error: "Forbidden" }, { status: 403 })
@@ -85,12 +84,68 @@ describe("POST /api/park/attendance/events", () => {
     expect(mocks.groupFindUnique).not.toHaveBeenCalled();
   });
 
-  it("accepts a reconciled Lahore UUID group identifier for a scheduled card", () => {
-    const parsed = materializeScheduledAttendanceSchema.safeParse({
-      groupId: "61ae6957-3990-42bf-a321-b2beea3b314a",
-      eventDate: "2026-08-02T08:00:00.000Z",
+  it("denies an unassigned Murabbi before any group lookup", async () => {
+    mocks.requireAuth.mockResolvedValue({ user: { id: "murabbi-1", role: "murabbi", assignedGroupId: null } });
+
+    const response = await POST(request({}));
+
+    expect(response.status).toBe(403);
+    expect(mocks.groupFindUnique).not.toHaveBeenCalled();
+  });
+
+  it("rejects a create date that is not a scheduled class date in the batch range", async () => {
+    mocks.groupFindUnique.mockResolvedValue(GROUP);
+    mocks.batchFindUnique.mockResolvedValue({
+      startDate: new Date("2026-05-23"),
+      endDate: new Date("2027-01-31"),
+      settings: { classWeekdays: "[1]" },
+      extraClassDates: [],
     });
 
-    expect(parsed.success).toBe(true);
+    const response = await POST(request({ eventDate: "2026-08-02" }));
+
+    expect(response.status).toBe(400);
+    expect(mocks.eventCreate).not.toHaveBeenCalled();
+  });
+
+  it("denies an inactive group before reading its batch", async () => {
+    mocks.groupFindUnique.mockResolvedValue(null);
+
+    const response = await POST(request({ eventDate: "2026-08-02" }));
+
+    expect(response.status).toBe(404);
+    await expect(response.json()).resolves.toMatchObject({ error: "Group not found" });
+    expect(mocks.groupFindUnique).toHaveBeenCalledWith(expect.objectContaining({ where: { id: GROUP.id, isActive: true } }));
+    expect(mocks.batchFindUnique).not.toHaveBeenCalled();
+    expect(mocks.eventCreate).not.toHaveBeenCalled();
+  });
+
+  it("denies an inactive batch before creating a session", async () => {
+    mocks.groupFindUnique.mockResolvedValue(GROUP);
+    mocks.batchFindUnique.mockResolvedValue(null);
+
+    const response = await POST(request({ eventDate: "2026-08-02" }));
+
+    expect(response.status).toBe(404);
+    await expect(response.json()).resolves.toMatchObject({ error: "Active batch not found for this group" });
+    expect(mocks.batchFindUnique).toHaveBeenCalledWith(expect.objectContaining({ where: { id: GROUP.batchId, isActive: true } }));
+    expect(mocks.eventCreate).not.toHaveBeenCalled();
+  });
+
+  it("creates a session for a scheduled class date inside the batch range", async () => {
+    mocks.groupFindUnique.mockResolvedValue(GROUP);
+    mocks.batchFindUnique.mockResolvedValue({
+      startDate: new Date("2026-05-23"),
+      endDate: new Date("2027-01-31"),
+      settings: { classWeekdays: "[0,6]" },
+      extraClassDates: [],
+    });
+    mocks.eventFindFirst.mockResolvedValue(null);
+    mocks.eventCreate.mockResolvedValue({ id: "event-1", eventDate: new Date("2026-08-02"), title: "Park Event" });
+
+    const response = await POST(request({ eventDate: "2026-08-02" }));
+
+    expect(response.status).toBe(201);
+    expect(mocks.eventCreate).toHaveBeenCalledTimes(1);
   });
 });

@@ -433,7 +433,8 @@ describe("Calling Import Preparation — PKG-03 Test Suite", () => {
           );
           expect.unreachable("Should have failed due to missing --campaignId");
         } catch (err: unknown) {
-          const errorOutput = String((err as { stderr?: Buffer }).stderr || "");
+          const execErr = err as { stderr?: Buffer; stdout?: Buffer };
+          const errorOutput = String(execErr.stderr || "") + "\n" + String(execErr.stdout || "");
           expect(errorOutput).toContain("Dry-run calling import failed");
         }
       },
@@ -450,7 +451,8 @@ describe("Calling Import Preparation — PKG-03 Test Suite", () => {
           );
           expect.unreachable("Should have failed due to missing --file without --synthetic");
         } catch (err: unknown) {
-          const errorOutput = String((err as { stderr?: Buffer }).stderr || "");
+          const execErr = err as { stderr?: Buffer; stdout?: Buffer };
+          const errorOutput = String(execErr.stderr || "") + "\n" + String(execErr.stdout || "");
           expect(errorOutput).toContain("Dry-run calling import failed");
         }
       },
@@ -471,7 +473,8 @@ describe("Calling Import Preparation — PKG-03 Test Suite", () => {
           );
           expect.unreachable("Should have failed due to missing DATABASE_URL for operational run");
         } catch (err: unknown) {
-          const errorOutput = String((err as { stderr?: Buffer }).stderr || "");
+          const execErr = err as { stderr?: Buffer; stdout?: Buffer };
+          const errorOutput = String(execErr.stderr || "") + "\n" + String(execErr.stdout || "");
           expect(errorOutput).toContain("Dry-run calling import failed");
         }
       },
@@ -493,7 +496,8 @@ describe("Calling Import Preparation — PKG-03 Test Suite", () => {
           );
           expect.unreachable("Should have failed due to invalid DATABASE_URL");
         } catch (err: unknown) {
-          const errorOutput = String((err as { stderr?: Buffer }).stderr || "");
+          const execErr = err as { stderr?: Buffer; stdout?: Buffer };
+          const errorOutput = String(execErr.stderr || "") + "\n" + String(execErr.stdout || "");
           expect(errorOutput).toContain("Dry-run calling import failed");
         }
       },
@@ -511,7 +515,8 @@ describe("Calling Import Preparation — PKG-03 Test Suite", () => {
           );
           expect.unreachable("Should have failed due to combining --synthetic and --file");
         } catch (err: unknown) {
-          const errorOutput = String((err as { stderr?: Buffer }).stderr || "");
+          const execErr = err as { stderr?: Buffer; stdout?: Buffer };
+          const errorOutput = String(execErr.stderr || "") + "\n" + String(execErr.stdout || "");
           expect(errorOutput).toContain("Dry-run calling import failed");
         }
       },

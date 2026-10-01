@@ -1,0 +1,51 @@
+{
+  "startedAt": "2026-09-10T05:47:12.999Z",
+  "directory": "D:\\iBuild\\Shabab-360-v2\\.next\\astra-browser-check-g7GT4w",
+  "limits": "Real isolated Edge with actual source queue/export modules. HTTP sync acknowledgements are controlled synthetic fixtures. Does not establish authenticated server or PostgreSQL concurrency acceptance.",
+  "files": [
+    {
+      "path": "src/lib/offline/db.ts",
+      "sha256": "1c083fc6ce7e3d4152abe91b7ba305987d7f38fc6af53dc3d932646fbf24667f"
+    },
+    {
+      "path": "src/lib/offline/sync-attendance.ts",
+      "sha256": "f5f32c64d5deac9e18adfcc5939aedbf16e0ad8d3363b72b40a6b40208023c86"
+    },
+    {
+      "path": "src/lib/mashwara/export-minutes.ts",
+      "sha256": "5d95ad731e7ddb3a42a84b05282c728fdc122cc01aed9ec07afddb448db9e116"
+    }
+  ],
+  "tests": [
+    {
+      "name": "225 IndexedDB marks drain in chronological 50/50/50/50/25 batches without touching another owner",
+      "passed": true
+    },
+    {
+      "name": "Malformed acknowledgements retain every mark for retry",
+      "passed": true
+    },
+    {
+      "name": "Version conflicts remain unresolved while independent marks drain",
+      "passed": true
+    },
+    {
+      "name": "Two browser tabs share the Web Lock and do not double-send marks",
+      "passed": true
+    },
+    {
+      "name": "Account change during an in-flight batch stops subsequent sends and preserves the rest",
+      "passed": true
+    },
+    {
+      "name": "Legacy version-2 IndexedDB marks survive migration in nonretryable quarantine",
+      "passed": true
+    },
+    {
+      "name": "Stored minutes payloads render as text without script, image, or event-handler execution",
+      "passed": true
+    }
+  ],
+  "browser": "152.0.4191.66",
+  "finishedAt": "2026-09-10T05:47:17.573Z"
+}

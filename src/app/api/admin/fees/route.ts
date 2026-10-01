@@ -1,3 +1,4 @@
+import { resolveRequestedHierarchy, hierarchyGroupWhere } from "@/lib/auth/hierarchy";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, requireCapability } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
@@ -54,9 +55,6 @@ export async function GET(request: NextRequest) {
   const capabilityAuth = await requireCapability("fees.manage");
   if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
-  if (!["super_admin", "program_admin"].includes(user.role || "")) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
 
   const { searchParams } = new URL(request.url);
   const parsedQuery = listSchema.safeParse(queryParamsToObject(searchParams));
@@ -65,7 +63,11 @@ export async function GET(request: NextRequest) {
   }
 
   const { page, pageSize: limit } = parsedQuery.data;
-  const feeEventWhere = buildFeeEventWhere(parsedQuery.data);
+  const scope = await resolveRequestedHierarchy(user, { cityId: parsedQuery.data.cityId, parkId: parsedQuery.data.parkId });
+  if (scope instanceof NextResponse) return scope;
+  const groupWhere = hierarchyGroupWhere(scope);
+  const feeEventWhere = buildFeeEventWhere({ ...parsedQuery.data, cityId: undefined, parkId: undefined });
+  feeEventWhere.batch = { groups: { some: groupWhere } };
 
   // Keep page data bounded and let the database aggregate all matching totals.
   const [feeEvents, feeEventSummary, paymentSummary] = await Promise.all([
@@ -80,6 +82,7 @@ export async function GET(request: NextRequest) {
         title: true,
         feeType: true,
         amount: true,
+        discountAmount: true,
         dueDate: true,
         isActive: true,
         createdAt: true,
@@ -103,10 +106,10 @@ export async function GET(request: NextRequest) {
       by: ["batchId"],
       where: feeEventWhere,
       _count: { _all: true },
-      _sum: { amount: true },
+      _sum: { amount: true, discountAmount: true },
     }),
     db.payment.aggregate({
-      where: { feeEvent: { is: feeEventWhere } },
+      where: { feeEvent: { is: feeEventWhere }, participant: { group: groupWhere } },
       _sum: { amount: true },
     }),
   ]);
@@ -122,7 +125,7 @@ export async function GET(request: NextRequest) {
   const [batchParticipantCounts, pagePaymentTotals] = await Promise.all([
     batchIds.length > 0
       ? db.group.findMany({
-          where: { batchId: { in: batchIds }, isActive: true },
+          where: { batchId: { in: batchIds }, isActive: true, ...groupWhere },
           select: {
             batchId: true,
             _count: { select: { participants: { where: { state: "active" } } } },
@@ -132,7 +135,7 @@ export async function GET(request: NextRequest) {
     feeEventIds.length > 0
       ? db.payment.groupBy({
           by: ["feeEventId"],
-          where: { feeEventId: { in: feeEventIds } },
+          where: { feeEventId: { in: feeEventIds }, participant: { group: groupWhere } },
           _count: { _all: true },
           _sum: { amount: true },
         })
@@ -158,7 +161,8 @@ export async function GET(request: NextRequest) {
     const totalPaid = paymentTotal?.totalPaid || 0;
     const totalParticipants = participantCountMap[fe.batchId] || 0;
     const amount = moneyToNumber(fe.amount);
-    const totalExpected = amount * totalParticipants;
+    const effectiveAmount = Math.max(0, amount - moneyToNumber(fe.discountAmount));
+    const totalExpected = effectiveAmount * totalParticipants;
     const paidCount = paymentTotal?.paidCount || 0;
     const rate = totalExpected > 0 ? (totalPaid / totalExpected) * 100 : 0;
 
@@ -205,7 +209,7 @@ export async function GET(request: NextRequest) {
   let summaryTotalExpected = 0;
   for (const summary of feeEventSummary) {
     summaryTotalExpected +=
-      moneyToNumber(summary._sum.amount) * (participantCountMap[summary.batchId] || 0);
+      Math.max(0, moneyToNumber(summary._sum.amount) - moneyToNumber(summary._sum.discountAmount)) * (participantCountMap[summary.batchId] || 0);
   }
   const summaryTotalCollected = moneyToNumber(paymentSummary._sum.amount);
 

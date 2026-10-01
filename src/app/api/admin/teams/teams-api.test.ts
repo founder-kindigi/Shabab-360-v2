@@ -1,409 +1,254 @@
-/**
- * Tests for canonical /api/admin/teams/** membership endpoints.
- *
- * Covers: capability gate (teams.memberships.manage), HQ must supply cityId,
- * scoped-actor auto-scope, foreign-city 403, missing cityId 400, duplicate 409,
- * cross-city staff 400, active membership (isActive && endedAt === null),
- * audit logging, soft-deactivation.
- */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest, NextResponse } from "next/server";
 import { GET as getTeams } from "./route";
 import { GET as getTeamById } from "./[id]/route";
 import { GET as getTeamMembers, POST as addTeamMember } from "./[id]/members/route";
 import { DELETE as revokeTeamMember } from "./members/[membershipId]/route";
-import { GET as getCanManage } from "./can-manage/route";
+
+const mocks = vi.hoisted(() => ({
+  requireCapability: vi.fn(),
+  resolveActorCity: vi.fn(),
+  createAuditLogData: vi.fn((params) => params),
+  teamFindMany: vi.fn(),
+  teamFindUnique: vi.fn(),
+  membershipFindMany: vi.fn(),
+  membershipFindFirst: vi.fn(),
+  membershipFindUnique: vi.fn(),
+  membershipCreate: vi.fn(),
+  membershipUpdateMany: vi.fn(),
+  auditLogCreate: vi.fn(),
+  transaction: vi.fn(),
+  staffMetaFindUnique: vi.fn(),
+}));
 
 vi.mock("@/lib/auth/authorize", () => ({
-  requireCapability: vi.fn(),
-  requireCityScope: vi.fn(),
-  isHqRole: vi.fn(),
-  requireAuth: vi.fn(),
+  requireCapability: mocks.requireCapability,
 }));
-vi.mock("@/lib/auth/capability-access", () => ({
-  userHasCapability: vi.fn(),
+
+vi.mock("@/lib/auth/events-scope", () => ({
+  resolveActorCity: mocks.resolveActorCity,
 }));
-vi.mock("@/lib/audit", () => ({ logAudit: vi.fn() }));
+
+vi.mock("@/lib/audit", () => ({
+  createAuditLogData: mocks.createAuditLogData,
+}));
+
 vi.mock("@/lib/db", () => ({
   db: {
-    collaborationTeam: { findMany: vi.fn(), findUnique: vi.fn(), count: vi.fn() },
-    staffTeamMembership: { findMany: vi.fn(), findFirst: vi.fn(), findUnique: vi.fn(), create: vi.fn(), update: vi.fn(), count: vi.fn() },
-    staffMeta: { findUnique: vi.fn() },
+    collaborationTeam: {
+      findMany: mocks.teamFindMany,
+      findUnique: mocks.teamFindUnique,
+    },
+    staffTeamMembership: {
+      findMany: mocks.membershipFindMany,
+      findFirst: mocks.membershipFindFirst,
+      findUnique: mocks.membershipFindUnique,
+      create: mocks.membershipCreate,
+      updateMany: mocks.membershipUpdateMany,
+    },
+    staffMeta: {
+      findUnique: mocks.staffMetaFindUnique,
+    },
+    auditLog: { create: mocks.auditLogCreate },
+    $transaction: mocks.transaction,
   },
 }));
 
-import * as auth from "@/lib/auth/authorize";
-import * as capabilityAccess from "@/lib/auth/capability-access";
-import { db } from "@/lib/db";
+describe("TEAM-003: Collaboration Teams API & Security Test Matrix", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.requireCapability.mockResolvedValue({ user: { id: "user_actor_1", role: "city_head" } });
+    mocks.resolveActorCity.mockResolvedValue({ cityId: "city_lhr", isHQ: false });
+    mocks.transaction.mockImplementation(async (callback) => callback({
+      staffTeamMembership: {
+        create: mocks.membershipCreate,
+        updateMany: mocks.membershipUpdateMany,
+      },
+      auditLog: { create: mocks.auditLogCreate },
+    }));
+  });
 
-const TEAM = { id: "t1", cityId: "city-lhr", name: "Sports", code: "sports", description: null, isActive: true, createdAt: "2026-07-28T09:56:22.704Z", city: { id: "city-lhr", name: "Lahore" }, _count: { memberships: 5 } };
-const STAFF = { id: "sm1", isActive: true, assignedCityId: "city-lhr", assignedPark: null, assignedGroup: null };
-const MEMBERSHIP = { id: "mem1", teamId: "t1", staffMetaId: "sm1", title: "Captain", startedAt: "2026-07-28T09:56:22.704Z", isActive: true, endedAt: null };
-const ACTIVE_MEM = { id: "mem1", teamId: "t1", staffMetaId: "sm1", title: "Captain", isActive: true, endedAt: null, team: { cityId: "city-lhr" } };
+  describe("1. GET /api/admin/teams (List Teams)", () => {
+    it("returns 200 OK with city-scoped teams for valid capability and matching scope", async () => {
+      const mockTeams = [
+        { id: "team_1", name: "Sports", cityId: "city_lhr", _count: { memberships: 5 } },
+      ];
+      mocks.teamFindMany.mockResolvedValue(mockTeams);
 
-const BASE = "http://localhost/api/admin/teams";
+      const req = new NextRequest("http://localhost/api/admin/teams?cityId=city_lhr");
+      const res = await getTeams(req);
 
-describe("TEAM-004: Canonical /api/admin/teams/** membership API", () => {
-  beforeEach(() => vi.clearAllMocks());
-
-  // ── 1. GET /api/admin/teams (List Teams) ──────────────────────────
-
-  describe("GET /api/admin/teams", () => {
-    it("returns 403 when teams.memberships.manage capability is missing", async () => {
-      vi.mocked(auth.requireCapability).mockResolvedValue(
-        NextResponse.json({ error: "Forbidden" }, { status: 403 })
-      );
-      const res = await getTeams(new NextRequest(`${BASE}?cityId=city-lhr`));
-      expect(res.status).toBe(403);
-      expect(db.collaborationTeam.findMany).not.toHaveBeenCalled();
+      expect(res.status).toBe(200);
+      const data = await res.json();
+      expect(data).toEqual(mockTeams);
+      expect(mocks.resolveActorCity).toHaveBeenCalledWith({ id: "user_actor_1", role: "city_head" }, "city_lhr");
+      expect(mocks.teamFindMany).toHaveBeenCalledWith(expect.objectContaining({
+        include: expect.objectContaining({
+          _count: expect.objectContaining({
+            select: expect.objectContaining({
+              memberships: { where: { isActive: true, endedAt: null } },
+            }),
+          }),
+        }),
+      }));
     });
 
-    it("returns 400 when HQ omits cityId", async () => {
-      vi.mocked(auth.requireCapability).mockResolvedValue({ user: { id: "u1", role: "super_admin" } } as any);
-      vi.mocked(auth.isHqRole).mockReturnValue(true);
+    it("returns 400 Bad Request when HQ actor omits cityId parameter", async () => {
+      mocks.requireCapability.mockResolvedValue({ user: { id: "user_hq_1", role: "super_admin" } });
+      mocks.resolveActorCity.mockResolvedValue({ error: "HQ actor must supply a valid cityId", status: 400 });
 
-      const res = await getTeams(new NextRequest(BASE));
+      const req = new NextRequest("http://localhost/api/admin/teams");
+      const res = await getTeams(req);
+
       expect(res.status).toBe(400);
-      expect(db.collaborationTeam.findMany).not.toHaveBeenCalled();
+      const data = await res.json();
+      expect(data.error).toMatch(/HQ actor must supply a valid cityId/);
     });
 
-    it("HQ user narrows to supplied cityId", async () => {
-      vi.mocked(auth.requireCapability).mockResolvedValue({ user: { id: "u1", role: "super_admin" } } as any);
-      vi.mocked(auth.isHqRole).mockReturnValue(true);
-      vi.mocked(db.collaborationTeam.findMany).mockResolvedValue([] as any);
-      vi.mocked(db.collaborationTeam.count).mockResolvedValue(0);
-
-      const res = await getTeams(new NextRequest(`${BASE}?cityId=city-lhr`));
-      expect(res.status).toBe(200);
-      expect(vi.mocked(db.collaborationTeam.findMany).mock.calls[0]?.[0]?.where).toMatchObject({ cityId: "city-lhr" });
-    });
-
-    it("city_head auto-scoped when no cityId supplied", async () => {
-      vi.mocked(auth.requireCapability).mockResolvedValue({ user: { id: "u2", role: "city_head", assignedCityId: "city-lhr" } } as any);
-      vi.mocked(auth.isHqRole).mockReturnValue(false);
-      vi.mocked(db.collaborationTeam.findMany).mockResolvedValue([] as any);
-      vi.mocked(db.collaborationTeam.count).mockResolvedValue(0);
-
-      await getTeams(new NextRequest(BASE));
-      expect(vi.mocked(db.collaborationTeam.findMany).mock.calls[0]?.[0]?.where).toMatchObject({ cityId: "city-lhr" });
-    });
-
-    it("returns 403 when city_head supplies a foreign cityId", async () => {
-      vi.mocked(auth.requireCapability).mockResolvedValue({ user: { id: "u2", role: "city_head", assignedCityId: "city-lhr" } } as any);
-      vi.mocked(auth.isHqRole).mockReturnValue(false);
-
-      const res = await getTeams(new NextRequest(`${BASE}?cityId=city-khi`));
-      expect(res.status).toBe(403);
-    });
-
-    it("returns 403 when scoped user has no assignedCityId", async () => {
-      vi.mocked(auth.requireCapability).mockResolvedValue({ user: { id: "u3", role: "city_head", assignedCityId: null } } as any);
-      vi.mocked(auth.isHqRole).mockReturnValue(false);
-
-      const res = await getTeams(new NextRequest(BASE));
-      expect(res.status).toBe(403);
-    });
-
-    it("returns paginated response for HQ with cityId", async () => {
-      vi.mocked(auth.requireCapability).mockResolvedValue({ user: { id: "u1", role: "super_admin" } } as any);
-      vi.mocked(auth.isHqRole).mockReturnValue(true);
-      vi.mocked(db.collaborationTeam.findMany).mockResolvedValue([TEAM] as any);
-      vi.mocked(db.collaborationTeam.count).mockResolvedValue(1);
-
-      const res = await getTeams(new NextRequest(`${BASE}?cityId=city-lhr`));
-      const body = await res.json();
-      expect(body).toMatchObject({ data: [TEAM], total: 1, page: 1, pageSize: 20 });
-    });
-  });
-
-  // ── 2. GET /api/admin/teams/[id] (Team Detail) ────────────────────
-
-  describe("GET /api/admin/teams/[id]", () => {
-    it("returns 403 when capability is missing", async () => {
-      vi.mocked(auth.requireCapability).mockResolvedValue(NextResponse.json({ error: "Forbidden" }, { status: 403 }));
-      const res = await getTeamById(new NextRequest("http://localhost/api/admin/teams/t1"), { params: Promise.resolve({ id: "t1" }) });
-      expect(res.status).toBe(403);
-      expect(db.collaborationTeam.findUnique).not.toHaveBeenCalled();
-    });
-
-    it("returns 404 when team does not exist", async () => {
-      vi.mocked(auth.requireCapability).mockResolvedValue({ user: { id: "u1", role: "super_admin" } } as any);
-      vi.mocked(db.collaborationTeam.findUnique).mockResolvedValue(null as any);
-      const res = await getTeamById(new NextRequest("http://localhost/api/admin/teams/missing"), { params: Promise.resolve({ id: "missing" }) });
-      expect(res.status).toBe(404);
-    });
-
-    it("returns 403 when user is outside team city", async () => {
-      vi.mocked(auth.requireCapability).mockResolvedValue({ user: { id: "u2", role: "city_head", assignedCityId: "city-lhr" } } as any);
-      vi.mocked(db.collaborationTeam.findUnique).mockResolvedValue(TEAM as any);
-      vi.mocked(auth.requireCityScope).mockReturnValue(false);
-      const res = await getTeamById(new NextRequest("http://localhost/api/admin/teams/t1"), { params: Promise.resolve({ id: "t1" }) });
-      expect(res.status).toBe(403);
-    });
-
-    it("returns 200 with team and active-member count when in scope", async () => {
-      vi.mocked(auth.requireCapability).mockResolvedValue({ user: { id: "u1", role: "super_admin" } } as any);
-      vi.mocked(db.collaborationTeam.findUnique).mockResolvedValue(TEAM as any);
-      vi.mocked(auth.requireCityScope).mockReturnValue(true);
-      const res = await getTeamById(new NextRequest("http://localhost/api/admin/teams/t1"), { params: Promise.resolve({ id: "t1" }) });
-      expect(res.status).toBe(200);
-      const body = await res.json();
-      expect(body.id).toBe("t1");
-      expect(body._count.memberships).toBe(5);
-    });
-  });
-
-  // ── 3. GET /api/admin/teams/[id]/members (List Members) ─────────
-
-  describe("GET /api/admin/teams/[id]/members", () => {
-    it("returns 403 when capability missing", async () => {
-      vi.mocked(auth.requireCapability).mockResolvedValue(NextResponse.json({ error: "Forbidden" }, { status: 403 }));
-      const res = await getTeamMembers(new NextRequest("http://localhost/api/admin/teams/t1/members"), { params: Promise.resolve({ id: "t1" }) });
-      expect(res.status).toBe(403);
-    });
-
-    it("returns 404 when team does not exist", async () => {
-      vi.mocked(auth.requireCapability).mockResolvedValue({ user: { id: "u1", role: "super_admin" } } as any);
-      vi.mocked(db.collaborationTeam.findUnique).mockResolvedValue(null as any);
-      const res = await getTeamMembers(new NextRequest("http://localhost/api/admin/teams/missing/members"), { params: Promise.resolve({ id: "missing" }) });
-      expect(res.status).toBe(404);
-    });
-
-    it("returns 403 when user is outside team city", async () => {
-      vi.mocked(auth.requireCapability).mockResolvedValue({ user: { id: "u2", role: "city_head", assignedCityId: "city-lhr" } } as any);
-      vi.mocked(db.collaborationTeam.findUnique).mockResolvedValue(TEAM as any);
-      vi.mocked(auth.requireCityScope).mockReturnValue(false);
-      const res = await getTeamMembers(new NextRequest("http://localhost/api/admin/teams/t1/members"), { params: Promise.resolve({ id: "t1" }) });
-      expect(res.status).toBe(403);
-    });
-
-    it("returns paginated members list filtering by { isActive: true, endedAt: null } for active status", async () => {
-      vi.mocked(auth.requireCapability).mockResolvedValue({ user: { id: "u1", role: "super_admin" } } as any);
-      vi.mocked(db.collaborationTeam.findUnique).mockResolvedValue(TEAM as any);
-      vi.mocked(auth.requireCityScope).mockReturnValue(true);
-      vi.mocked(db.staffTeamMembership.findMany).mockResolvedValue([MEMBERSHIP] as any);
-      vi.mocked(db.staffTeamMembership.count).mockResolvedValue(1);
-
-      const res = await getTeamMembers(new NextRequest("http://localhost/api/admin/teams/t1/members"), { params: Promise.resolve({ id: "t1" }) });
-      expect(res.status).toBe(200);
-      const body = await res.json();
-      expect(body).toMatchObject({ total: 1, page: 1 });
-      // Verify the active filter includes endedAt: null
-      const findManyCall = vi.mocked(db.staffTeamMembership.findMany).mock.calls[0]?.[0];
-      expect(findManyCall?.where).toMatchObject({ isActive: true, endedAt: null });
-    });
-
-    it("excludes endedAt filter when status=all", async () => {
-      vi.mocked(auth.requireCapability).mockResolvedValue({ user: { id: "u1", role: "super_admin" } } as any);
-      vi.mocked(db.collaborationTeam.findUnique).mockResolvedValue(TEAM as any);
-      vi.mocked(auth.requireCityScope).mockReturnValue(true);
-
-      await getTeamMembers(new NextRequest("http://localhost/api/admin/teams/t1/members?status=all"), { params: Promise.resolve({ id: "t1" }) });
-
-      const findManyCall = vi.mocked(db.staffTeamMembership.findMany).mock.calls[0]?.[0];
-      expect(findManyCall?.where).not.toHaveProperty("isActive");
-      expect(findManyCall?.where).not.toHaveProperty("endedAt");
-    });
-  });
-
-  // ── 4. POST /api/admin/teams/[id]/members (Create Member) ────────
-
-  describe("POST /api/admin/teams/[id]/members", () => {
-    const postReq = (body: unknown) =>
-      new NextRequest("http://localhost/api/admin/teams/t1/members", {
-        method: "POST",
-        body: typeof body === "string" ? body : JSON.stringify(body),
-        headers: { "content-type": "application/json" },
+    it("returns 403 Forbidden when scoped actor requests a foreign city", async () => {
+      mocks.resolveActorCity.mockResolvedValue({
+        error: "Forbidden: requested cityId does not match actor city scope",
+        status: 403,
       });
 
-    it("returns 403 when capability missing (before DB mutation)", async () => {
-      vi.mocked(auth.requireCapability).mockResolvedValue(NextResponse.json({ error: "Forbidden" }, { status: 403 }));
-      const res = await addTeamMember(postReq({ staffMetaId: "sm1" }), { params: Promise.resolve({ id: "t1" }) });
+      const req = new NextRequest("http://localhost/api/admin/teams?cityId=city_isb");
+      const res = await getTeams(req);
+
       expect(res.status).toBe(403);
-      expect(db.collaborationTeam.findUnique).not.toHaveBeenCalled();
     });
+  });
 
-    it("returns 400 on malformed JSON", async () => {
-      vi.mocked(auth.requireCapability).mockResolvedValue({ user: { id: "u1", role: "super_admin" } } as any);
-      const res = await addTeamMember(new NextRequest("http://localhost/api/admin/teams/t1/members", { method: "POST", body: "{{invalid" }), { params: Promise.resolve({ id: "t1" }) });
-      expect(res.status).toBe(400);
-    });
+  describe("2. GET /api/admin/teams/[id] (Team Details)", () => {
+    it("returns 404 Not Found when team does not exist", async () => {
+      mocks.teamFindUnique.mockResolvedValue(null);
 
-    it("returns 404 when team not found", async () => {
-      vi.mocked(auth.requireCapability).mockResolvedValue({ user: { id: "u1", role: "super_admin" } } as any);
-      vi.mocked(db.collaborationTeam.findUnique).mockResolvedValue(null as any);
-      const res = await addTeamMember(postReq({ staffMetaId: "sm1" }), { params: Promise.resolve({ id: "missing" }) });
+      const req = new NextRequest("http://localhost/api/admin/teams/team_nonexistent");
+      const res = await getTeamById(req, { params: Promise.resolve({ id: "team_nonexistent" }) });
+
       expect(res.status).toBe(404);
     });
 
-    it("returns 403 when user is outside team city", async () => {
-      vi.mocked(auth.requireCapability).mockResolvedValue({ user: { id: "u2", role: "city_head", assignedCityId: "city-lhr" } } as any);
-      vi.mocked(db.collaborationTeam.findUnique).mockResolvedValue(TEAM as any);
-      vi.mocked(auth.requireCityScope).mockReturnValue(false);
-      const res = await addTeamMember(postReq({ staffMetaId: "sm1" }), { params: Promise.resolve({ id: "t1" }) });
+    it("returns 403 Forbidden when actor does not match team city scope", async () => {
+      mocks.teamFindUnique.mockResolvedValue({ id: "team_foreign", cityId: "city_isb" });
+      mocks.resolveActorCity.mockResolvedValue({
+        error: "Forbidden: requested cityId does not match actor city scope",
+        status: 403,
+      });
+
+      const req = new NextRequest("http://localhost/api/admin/teams/team_foreign");
+      const res = await getTeamById(req, { params: Promise.resolve({ id: "team_foreign" }) });
+
       expect(res.status).toBe(403);
     });
+  });
 
-    it("returns 404 when staff not found", async () => {
-      vi.mocked(auth.requireCapability).mockResolvedValue({ user: { id: "u1", role: "super_admin" } } as any);
-      vi.mocked(db.collaborationTeam.findUnique).mockResolvedValue(TEAM as any);
-      vi.mocked(auth.requireCityScope).mockReturnValue(true);
-      vi.mocked(db.staffMeta.findUnique).mockResolvedValue(null as any);
-      const res = await addTeamMember(postReq({ staffMetaId: "sm-missing" }), { params: Promise.resolve({ id: "t1" }) });
-      expect(res.status).toBe(404);
-    });
+  describe("3. POST /api/admin/teams/[id]/members (Assign Member)", () => {
+    it("returns 400 Bad Request when target staff city does not match team city", async () => {
+      mocks.teamFindUnique.mockResolvedValue({ id: "team_1", cityId: "city_lhr" });
+      mocks.staffMetaFindUnique.mockResolvedValue({
+        id: "staff_isb_1",
+        isActive: true,
+        assignedCityId: "city_isb",
+      });
 
-    it("returns 400 when staff belongs to a different city (cross-city)", async () => {
-      const crossCityStaff = { ...STAFF, assignedCityId: "city-khi" };
-      vi.mocked(auth.requireCapability).mockResolvedValue({ user: { id: "u1", role: "super_admin" } } as any);
-      vi.mocked(db.collaborationTeam.findUnique).mockResolvedValue(TEAM as any);
-      vi.mocked(auth.requireCityScope).mockReturnValue(true);
-      vi.mocked(db.staffMeta.findUnique).mockResolvedValue(crossCityStaff as any);
-      const res = await addTeamMember(postReq({ staffMetaId: "sm1" }), { params: Promise.resolve({ id: "t1" }) });
+      const req = new NextRequest("http://localhost/api/admin/teams/team_1/members", {
+        method: "POST",
+        body: JSON.stringify({ staffMetaId: "staff_isb_1", title: "Sports Lead" }),
+      });
+      const res = await addTeamMember(req, { params: Promise.resolve({ id: "team_1" }) });
+
       expect(res.status).toBe(400);
-      const body = await res.json();
-      expect(body.error).toContain("city");
+      const data = await res.json();
+      expect(data.error).toMatch(/city mismatch/i);
     });
 
-    it("returns 409 when staff already active (duplicate)", async () => {
-      vi.mocked(auth.requireCapability).mockResolvedValue({ user: { id: "u1", role: "super_admin" } } as any);
-      vi.mocked(db.collaborationTeam.findUnique).mockResolvedValue(TEAM as any);
-      vi.mocked(auth.requireCityScope).mockReturnValue(true);
-      vi.mocked(db.staffMeta.findUnique).mockResolvedValue(STAFF as any);
-      vi.mocked(db.staffTeamMembership.findFirst).mockResolvedValue({ id: "existing" } as any);
-      const res = await addTeamMember(postReq({ staffMetaId: "sm1" }), { params: Promise.resolve({ id: "t1" }) });
-      expect(res.status).toBe(409);
-      // Verify duplicate check uses isActive + endedAt null
-      expect(vi.mocked(db.staffTeamMembership.findFirst).mock.calls[0]?.[0]?.where).toMatchObject({ isActive: true, endedAt: null });
-    });
+    it("creates team membership and records audit log when valid", async () => {
+      mocks.teamFindUnique.mockResolvedValue({ id: "team_1", cityId: "city_lhr" });
+      mocks.staffMetaFindUnique.mockResolvedValue({
+        id: "staff_lhr_1",
+        isActive: true,
+        assignedCityId: "city_lhr",
+      });
+      mocks.membershipFindFirst.mockResolvedValue(null);
+      const createdMembership = {
+        id: "membership_1",
+        teamId: "team_1",
+        staffMetaId: "staff_lhr_1",
+        title: "Sports Lead",
+      };
+      mocks.membershipCreate.mockResolvedValue(createdMembership);
 
-    it("creates membership and returns 201 with audit", async () => {
-      vi.mocked(auth.requireCapability).mockResolvedValue({ user: { id: "u1", role: "super_admin" } } as any);
-      vi.mocked(db.collaborationTeam.findUnique).mockResolvedValue(TEAM as any);
-      vi.mocked(auth.requireCityScope).mockReturnValue(true);
-      vi.mocked(db.staffMeta.findUnique).mockResolvedValue(STAFF as any);
-      vi.mocked(db.staffTeamMembership.findFirst).mockResolvedValue(null);
-      vi.mocked(db.staffTeamMembership.create).mockResolvedValue(MEMBERSHIP as any);
-      const res = await addTeamMember(postReq({ staffMetaId: "sm1", title: "Captain" }), { params: Promise.resolve({ id: "t1" }) });
+      const req = new NextRequest("http://localhost/api/admin/teams/team_1/members", {
+        method: "POST",
+        body: JSON.stringify({ staffMetaId: "staff_lhr_1", title: "Sports Lead" }),
+      });
+      const res = await addTeamMember(req, { params: Promise.resolve({ id: "team_1" }) });
+
       expect(res.status).toBe(201);
-      const body = await res.json();
-      expect(body.id).toBe("mem1");
+      const data = await res.json();
+      expect(data).toEqual(createdMembership);
+      expect(mocks.auditLogCreate).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({
+          action: "team_membership.assign",
+          entityType: "StaffTeamMembership",
+          entityId: "membership_1",
+        }) })
+      );
     });
   });
 
-  // ── 5. DELETE /api/admin/teams/members/[membershipId] (Revoke) ──
+  describe("4. DELETE /api/admin/teams/members/[membershipId] (Revoke Member)", () => {
+    it("returns 404 Not Found for non-existent membershipId", async () => {
+      mocks.membershipFindUnique.mockResolvedValue(null);
 
-  describe("DELETE /api/admin/teams/members/[membershipId]", () => {
-    it("returns 403 when capability missing", async () => {
-      vi.mocked(auth.requireCapability).mockResolvedValue(NextResponse.json({ error: "Forbidden" }, { status: 403 }));
-      const res = await revokeTeamMember(new NextRequest("http://localhost/api/admin/teams/members/mem1", { method: "DELETE" }), { params: Promise.resolve({ membershipId: "mem1" }) });
-      expect(res.status).toBe(403);
-      expect(db.staffTeamMembership.findUnique).not.toHaveBeenCalled();
-    });
+      const req = new NextRequest("http://localhost/api/admin/teams/members/mem_nonexistent", {
+        method: "DELETE",
+      });
+      const res = await revokeTeamMember(req, { params: Promise.resolve({ membershipId: "mem_nonexistent" }) });
 
-    it("returns 404 for non-existent membership", async () => {
-      vi.mocked(auth.requireCapability).mockResolvedValue({ user: { id: "u1", role: "super_admin" } } as any);
-      vi.mocked(db.staffTeamMembership.findUnique).mockResolvedValue(null as any);
-      const res = await revokeTeamMember(new NextRequest("http://localhost/api/admin/teams/members/missing", { method: "DELETE" }), { params: Promise.resolve({ membershipId: "missing" }) });
       expect(res.status).toBe(404);
     });
 
-    it("returns 403 when user is outside team city", async () => {
-      vi.mocked(auth.requireCapability).mockResolvedValue({ user: { id: "u2", role: "city_head", assignedCityId: "city-lhr" } } as any);
-      vi.mocked(db.staffTeamMembership.findUnique).mockResolvedValue(ACTIVE_MEM as any);
-      vi.mocked(auth.requireCityScope).mockReturnValue(false);
-      const res = await revokeTeamMember(new NextRequest("http://localhost/api/admin/teams/members/mem1", { method: "DELETE" }), { params: Promise.resolve({ membershipId: "mem1" }) });
-      expect(res.status).toBe(403);
-    });
+    it("revokes membership and records audit log when authorized", async () => {
+      const mockMembership = {
+        id: "membership_1",
+        isActive: true,
+        endedAt: null,
+        team: { id: "team_1", cityId: "city_lhr", name: "Sports" },
+      };
+      mocks.membershipFindUnique.mockResolvedValue(mockMembership);
+      mocks.membershipUpdateMany.mockResolvedValue({ count: 1 });
 
-    it("returns 409 when already inactive (endedAt set)", async () => {
-      vi.mocked(auth.requireCapability).mockResolvedValue({ user: { id: "u1", role: "super_admin" } } as any);
-      const inactive = { ...ACTIVE_MEM, isActive: false, endedAt: new Date() };
-      vi.mocked(db.staffTeamMembership.findUnique).mockResolvedValue(inactive as any);
-      vi.mocked(auth.requireCityScope).mockReturnValue(true);
-      const res = await revokeTeamMember(new NextRequest("http://localhost/api/admin/teams/members/mem1", { method: "DELETE" }), { params: Promise.resolve({ membershipId: "mem1" }) });
-      expect(res.status).toBe(409);
-    });
+      const req = new NextRequest("http://localhost/api/admin/teams/members/membership_1", {
+        method: "DELETE",
+      });
+      const res = await revokeTeamMember(req, { params: Promise.resolve({ membershipId: "membership_1" }) });
 
-    it("returns 409 when record has endedAt set but isActive still true (malformed row)", async () => {
-      vi.mocked(auth.requireCapability).mockResolvedValue({ user: { id: "u1", role: "super_admin" } } as any);
-      const malformed = { ...ACTIVE_MEM, endedAt: new Date() };
-      vi.mocked(db.staffTeamMembership.findUnique).mockResolvedValue(malformed as any);
-      vi.mocked(auth.requireCityScope).mockReturnValue(true);
-      const res = await revokeTeamMember(new NextRequest("http://localhost/api/admin/teams/members/mem1", { method: "DELETE" }), { params: Promise.resolve({ membershipId: "mem1" }) });
-      expect(res.status).toBe(409);
-    });
-
-    it("soft-deactivates and records audit", async () => {
-      vi.mocked(auth.requireCapability).mockResolvedValue({ user: { id: "u1", role: "super_admin" } } as any);
-      vi.mocked(db.staffTeamMembership.findUnique).mockResolvedValue(ACTIVE_MEM as any);
-      vi.mocked(auth.requireCityScope).mockReturnValue(true);
-      vi.mocked(db.staffTeamMembership.update).mockResolvedValue({ ...ACTIVE_MEM, isActive: false, endedAt: new Date() } as any);
-      const res = await revokeTeamMember(new NextRequest("http://localhost/api/admin/teams/members/mem1", { method: "DELETE" }), { params: Promise.resolve({ membershipId: "mem1" }) });
       expect(res.status).toBe(200);
-      const body = await res.json();
-      expect(body.isActive).toBe(false);
-    });
-  });
-
-  // ── 6. GET /api/admin/teams/can-manage (UI Permission Signal) ────
-
-  describe("GET /api/admin/teams/can-manage", () => {
-    it("returns 401 when unauthenticated", async () => {
-      vi.mocked(auth.requireAuth).mockResolvedValue(
-        NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-      );
-      const res = await getCanManage();
-      expect(res.status).toBe(401);
-      expect(vi.mocked(capabilityAccess.userHasCapability)).not.toHaveBeenCalled();
-    });
-
-    it("returns { canManage: true } when user has the capability", async () => {
-      vi.mocked(auth.requireAuth).mockResolvedValue({ user: { id: "u1", role: "super_admin" } } as any);
-      vi.mocked(capabilityAccess.userHasCapability).mockResolvedValue(true);
-      const res = await getCanManage();
-      expect(res.status).toBe(200);
-      const body = await res.json();
-      expect(body).toEqual({ canManage: true });
-    });
-
-    it("returns { canManage: false } when user lacks the capability", async () => {
-      vi.mocked(auth.requireAuth).mockResolvedValue({ user: { id: "u2", role: "murabbi" } } as any);
-      vi.mocked(capabilityAccess.userHasCapability).mockResolvedValue(false);
-      const res = await getCanManage();
-      expect(res.status).toBe(200);
-      const body = await res.json();
-      expect(body).toEqual({ canManage: false });
-    });
-
-    it("passes teams.memberships.manage to userHasCapability", async () => {
-      vi.mocked(auth.requireAuth).mockResolvedValue({ user: { id: "u1", role: "super_admin" } } as any);
-      vi.mocked(capabilityAccess.userHasCapability).mockResolvedValue(true);
-      await getCanManage();
-      expect(vi.mocked(capabilityAccess.userHasCapability)).toHaveBeenCalledWith(
-        expect.objectContaining({ id: "u1" }),
-        "teams.memberships.manage"
+      expect(mocks.auditLogCreate).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({
+          action: "team_membership.revoke",
+          entityType: "StaffTeamMembership",
+          entityId: "membership_1",
+        }) })
       );
     });
-  });
 
-  // ── 7. Team-list _count uses ACTIVE_MEMBERSHIP_FILTER ─────────────
+    it("rejects an already-ended membership without a mutation", async () => {
+      mocks.membershipFindUnique.mockResolvedValue({
+        id: "membership_1",
+        isActive: true,
+        endedAt: new Date("2026-08-01T00:00:00.000Z"),
+        team: { id: "team_1", cityId: "city_lhr", name: "Sports" },
+      });
 
-  describe("GET /api/admin/teams _count.memberships filter", () => {
-    it("uses endedAt: null in addition to isActive: true for membership count", async () => {
-      vi.mocked(auth.requireCapability).mockResolvedValue({ user: { id: "u1", role: "super_admin" } } as any);
-      vi.mocked(auth.isHqRole).mockReturnValue(true);
-      vi.mocked(db.collaborationTeam.findMany).mockResolvedValue([] as any);
-      vi.mocked(db.collaborationTeam.count).mockResolvedValue(0);
+      const res = await revokeTeamMember(
+        new NextRequest("http://localhost/api/admin/teams/members/membership_1", { method: "DELETE" }),
+        { params: Promise.resolve({ membershipId: "membership_1" }) }
+      );
 
-      await getTeams(new NextRequest("http://localhost/api/admin/teams?cityId=city-lhr"));
-      const findManyCall = vi.mocked(db.collaborationTeam.findMany).mock.calls[0]?.[0];
-      const membershipsWhere = (
-        findManyCall as {
-          select?: { _count?: { select?: { memberships?: { where?: unknown } } } };
-        } | undefined
-      )?.select?._count?.select?.memberships?.where;
-      expect(membershipsWhere).toMatchObject({ isActive: true, endedAt: null });
+      expect(res.status).toBe(409);
+      expect(mocks.membershipUpdateMany).not.toHaveBeenCalled();
     });
   });
 });

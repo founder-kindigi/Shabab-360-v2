@@ -1,0 +1,26 @@
+{
+  "commit": "d81df15",
+  "branch": "v2",
+  "totalFiles": 173,
+  "passedFiles": 171,
+  "failedFiles": 2,
+  "totalTests": 1227,
+  "passedTests": 1225,
+  "failedTests": 2,
+  "failures": [
+    {
+      "file": "D:/iBuild/Shabab-360-v2/src/lib/calling-import/__tests__/calling-import.test.ts",
+      "messages": [
+        "Error: STACK_TRACE_ERROR\n    at task (file:///D:/iBuild/Shabab-360-v2/node_modules/@vitest/runner/dist/chunk-hooks.js:638:27)\n    at Object.<anonymous> (file:///D:/iBuild/Shabab-360-v2/node_modules/@vitest/runner/dist/chunk-hooks.js:662:16)\n    at Object.<anonymous> (file:///D:/iBuild/Shabab-360-v2/node_modules/@vitest/runner/dist/chunk-hooks.js:458:28)\n    at chain (file:///D:/iBuild/Shabab-360-v2/node_modules/@vitest/runner/dist/chunk-hooks.js:369:14)\n    at D:\\iBuild\\Shabab-360-v2\\src\\lib\\calling-import\\__tests__\\calling-import.test.ts:395:5\n    at file:///D:/iBuild/Shabab-360-v2/node_modules/@vitest/runner/dist/chunk-hooks.js:734:40\n    at runWithSuite (file:///D:/iBuild/Shabab-360-v2/node_modules/@vitest/runner/dist/chunk-hooks.js:1849:8)\n    at Object.collect (file:///D:/iBuild/Shabab-360-v2/node_modules/@vitest/runner/dist/chunk-hooks.js:734:10)\n    at Object.collect (file:///D:/iBuild/Shabab-360-v2/node_modules/@vitest/runner/dist/chunk-hooks.js:738:54)\n    at processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at Object.collect (file:///D:/iBuild/Shabab-360-v2/node_modules/@vitest/runner/dist/chunk-hooks.js:738:46)\n    at collectTests (file:///D:/iBuild/Shabab-360-v2/node_modules/@vitest/runner/dist/chunk-hooks.js:1179:25)\n    at startTests (file:///D:/iBuild/Shabab-360-v2/node_modules/@vitest/runner/dist/chunk-hooks.js:1817:17)\n    at file:///D:/iBuild/Shabab-360-v2/node_modules/vitest/dist/chunks/runBaseTests.9Ij9_de-.js:117:26\n    at withEnv (file:///D:/iBuild/Shabab-360-v2/node_modules/vitest/dist/chunks/runBaseTests.9Ij9_de-.js:84:3)"
+      ],
+      "name": "Calling Import Preparation — PKG-03 Test Suite CLI Operational Safety & Fail-Closed Tests fails safely when --campaignId is missing"
+    },
+    {
+      "file": "D:/iBuild/Shabab-360-v2/src/app/api/park/dashboard/route.test.ts",
+      "messages": [
+        "AssertionError: expected 500 to be 403 // Object.is equality\n    at D:\\iBuild\\Shabab-360-v2\\src\\app\\api\\park\\dashboard\\route.test.ts:59:29\n    at processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at file:///D:/iBuild/Shabab-360-v2/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20"
+      ],
+      "name": "GET /api/park/dashboard denies unauthorized roles"
+    }
+  ]
+}

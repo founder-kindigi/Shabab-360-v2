@@ -43,9 +43,36 @@ export function endOfTodayPKT(): Date {
 }
 
 /**
- * Format a date for display in PKT.
+ * Format a date for display in PKT with full fallback safety.
  */
-export function formatPKT(date: Date, pattern: string = "dd MMM yyyy"): string {
-  const zoned = toZonedTime(date, PKT);
-  return format(zoned, pattern, { timeZone: PKT });
+export function formatPKT(date?: Date | string | number | null, pattern: string = "dd MMM yyyy"): string {
+  if (!date) return "—";
+  let d: Date;
+  if (typeof date === "string" || typeof date === "number") {
+    // If DD/MM/YYYY format string
+    if (typeof date === "string" && date.includes("/")) {
+      const parts = date.split(" ");
+      const dateParts = parts[0].split("/");
+      if (dateParts.length === 3) {
+        const [day, month, year] = dateParts;
+        const time = parts[1] || "00:00:00";
+        d = new Date(`${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}T${time}`);
+      } else {
+        d = new Date(date);
+      }
+    } else {
+      d = new Date(date);
+    }
+  } else {
+    d = date;
+  }
+
+  if (isNaN(d.getTime())) return "—";
+
+  try {
+    const zoned = toZonedTime(d, PKT);
+    return format(zoned, pattern, { timeZone: PKT });
+  } catch {
+    return "—";
+  }
 }

@@ -29,7 +29,7 @@ const feeReportQuerySchema = z
   );
 
 export async function GET(request: NextRequest) {
-  const authError = await requireRole(["super_admin", "program_admin"]);
+  const authError = await requireRole(["super_admin", "program_admin", "city_head", "park_admin", "park_lead", "murabbi"]);
   if (authError) return authError;
   const capabilityAuth = await requireCapability("reports.view");
   if (capabilityAuth instanceof NextResponse) return capabilityAuth;

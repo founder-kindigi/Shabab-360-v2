@@ -92,14 +92,16 @@ async function buildTodayAttendance(
 }
 
 export async function GET(request: NextRequest) {
+  try {
   const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
   const { user } = auth;
-  const capabilityAuth = await requireCapability("dashboard.view");
+  const capabilityAuth = await requireCapability("dashboard.view", auth.user);
   if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
   // Get user's scope
-  const isHQ = ["super_admin", "program_admin"].includes(user.role || "");
+  const userRole = (user.role || "").toLowerCase().trim();
+  const isHQ = ["super_admin", "program_admin"].includes(userRole);
 
   if (isHQ) {
     const [cities, parks, batches, groups, participants, staff] = await Promise.all([
@@ -294,9 +296,18 @@ export async function GET(request: NextRequest) {
   }
 
   // City-scoped
-  if (user.role === "city_head" && user.assignedCityId) {
-    const [parks, batches, groups, participants, attendanceEvents] =
+  if (user.role === "city_head") {
+    if (!user.assignedCityId) {
+      // Missing city assignment denies rather than falling through to a
+      // cross-city or empty response.
+      return NextResponse.json({ error: "No city assigned" }, { status: 403 });
+    }
+    const [city, parks, batches, groups, participants, attendanceEvents, staff] =
       await Promise.all([
+        db.city.findUnique({
+          where: { id: user.assignedCityId },
+          select: { id: true, name: true, code: true },
+        }),
         db.park.count({
           where: { cityId: user.assignedCityId, isActive: true },
         }),
@@ -318,6 +329,9 @@ export async function GET(request: NextRequest) {
           where: {
             group: { batch: { park: { cityId: user.assignedCityId } } },
           },
+        }),
+        db.staffMeta.count({
+          where: { assignedCityId: user.assignedCityId, isActive: true },
         }),
       ]);
 
@@ -369,10 +383,12 @@ export async function GET(request: NextRequest) {
     ]);
 
     return NextResponse.json({
+      city: city ? { name: city.name, code: city.code } : null,
       parks,
       batches,
       groups,
       participants,
+      staff,
       attendanceEvents,
       recentActivity,
       cityParks: await db.park.findMany({
@@ -478,4 +494,8 @@ export async function GET(request: NextRequest) {
   }
 
   return NextResponse.json({});
+  } catch (error) {
+    console.error(JSON.stringify({ level: "error", event: "dashboard_failed", errorType: error instanceof Error ? error.name : "Unknown", timestamp: new Date().toISOString() }));
+    return NextResponse.json({ error: "Failed to load dashboard data" }, { status: 500 });
+  }
 }

@@ -1,0 +1,92 @@
+{
+  "recordedAt": "2026-09-10T05:52:24.099Z",
+  "candidateManifestSha256": "0ca436290e09a6bfe7e84edbf1ce78bd08e9b0f04a02c3960dcc74b7909bbc3f",
+  "standardSuite": {
+    "success": true,
+    "passed": 1375,
+    "total": 1375,
+    "files": 187
+  },
+  "browserChecks": [
+    {
+      "artifact": "astra-pwa-session-results.json",
+      "passed": 11,
+      "total": 11,
+      "startedAt": "2026-09-10T05:47:58.614Z",
+      "finishedAt": "2026-09-10T05:50:19.513Z"
+    },
+    {
+      "artifact": "astra-browser-corrections-results.json",
+      "passed": 7,
+      "total": 7,
+      "startedAt": "2026-09-10T05:47:12.999Z",
+      "finishedAt": "2026-09-10T05:47:17.573Z"
+    }
+  ],
+  "databases": [
+    {
+      "artifact": "astra-sqlite-db-acceptance.json",
+      "success": true,
+      "passed": 21,
+      "total": 21
+    },
+    {
+      "artifact": "astra-native-postgres-db-acceptance.json",
+      "success": true,
+      "passed": 21,
+      "total": 21
+    }
+  ],
+  "builds": [
+    {
+      "provider": "sqlite",
+      "directory": "D:\\iBuild\\Shabab-360-v2\\.next\\astra-build-sqlite-jZXjxE",
+      "sourceCopiedAt": "2026-09-10T05:30:51.078Z",
+      "exitCode": 0,
+      "differences": [
+        {
+          "path": "src/app/api/park/planner/route.ts",
+          "whitespaceOnly": true
+        }
+      ]
+    },
+    {
+      "provider": "postgres",
+      "directory": "D:\\iBuild\\Shabab-360-v2\\.next\\astra-build-postgres-1YRZeR",
+      "sourceCopiedAt": "2026-09-10T05:31:07.873Z",
+      "exitCode": 0,
+      "differences": [
+        {
+          "path": "src/app/api/park/planner/route.ts",
+          "whitespaceOnly": true
+        }
+      ]
+    }
+  ],
+  "bundleScans": [
+    {
+      "provider": "sqlite",
+      "identifiers": 689,
+      "jsAssets": 388,
+      "sourceMaps": 0,
+      "matches": 0
+    },
+    {
+      "provider": "postgres",
+      "identifiers": 689,
+      "jsAssets": 388,
+      "sourceMaps": 0,
+      "matches": 0
+    }
+  ],
+  "gitDiffCheck": {
+    "exitCode": 0
+  },
+  "disposableDatabaseStopped": {
+    "stopped": true,
+    "preservedData": true,
+    "endpoint": "127.0.0.1:54391",
+    "checkedAt": "2026-09-10T05:51:14Z"
+  },
+  "limits": "Implementation verification, not independent review or release approval. See ASTRA_CORRECTION_HANDOFF.md and IMPLEMENTATION_STATUS.md for gated workflows, original evidence, verification limits and recovery."
+}

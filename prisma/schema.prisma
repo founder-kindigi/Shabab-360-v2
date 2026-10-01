@@ -9,6 +9,16 @@ datasource db {
 
 // ========== AUTH & USERS ==========
 
+// Hashed account keys; shared atomic login throttling without identifying request logs.
+model LoginAttemptWindow {
+  key String @id
+  attempts Int
+  resetAt BigInt
+
+  @@index([resetAt])
+  @@map("login_attempt_windows")
+}
+
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
@@ -21,18 +31,17 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  staffMeta              StaffMeta?
-  guardian               Guardian?
-  participant            Participant?
-  auditLogs              AuditLog[]
-  announcements          Announcement[]
-  notifications          Notification[]
-  capabilityOverrides    UserCapabilityOverride[]
+  staffMeta           StaffMeta?
+  guardian            Guardian?
+  participant         Participant?
+  auditLogs           AuditLog[]
+  announcements       Announcement[]
+  notifications       Notification[]
+  capabilityOverrides UserCapabilityOverride[]
   externalSupportCallers ExternalSupportCaller[]
   callingTemplateUses    CallingTemplateUse[]
   callInteractions       CallInteraction[]
   mashwaraMeetings       MashwaraMeeting[]
-  mediaBriefsCreated     MediaBrief[]             @relation("MediaBriefCreator")
 
   @@map("users")
 }
@@ -76,16 +85,16 @@ model RoleCapabilityOverride {
 // without losing the original operational reason. Expired or inactive records
 // do not affect effective access.
 model UserCapabilityOverride {
-  id         String    @id @default(cuid())
+  id         String   @id @default(cuid())
   userId     String
   capability String
   effect     String
   reason     String
   expiresAt  DateTime?
-  isActive   Boolean   @default(true)
+  isActive   Boolean  @default(true)
   revokedAt  DateTime?
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -114,7 +123,11 @@ model City {
   callingCampaigns      CallingCampaign[]
   callingTemplates      CallingTemplate[]
   mashwaraMeetings      MashwaraMeeting[]
-  mediaBriefs           MediaBrief[]
+  feeDonations          FeeDonation[]
+  financialAdjustments  FinancialAdjustment[]
+  purchaseOrders        PurchaseOrder[]
+  digitalResources      DigitalResource[]
+  operationalOffDates   OperationalOffDate[]
 
   @@map("cities")
 }
@@ -134,10 +147,23 @@ model Park {
   contentPlans          ContentPlan[]
   parkStaff             StaffMeta[]            @relation("ParkStaffAssignment")
   admissionApplications AdmissionApplication[]
+  feeDonations          FeeDonation[]
+  financialAdjustments  FinancialAdjustment[]
+  parkStocks            ParkStock[]
+  stockRequests         StockRequest[]
+  purchaseOrders        PurchaseOrder[]
+  transfersFrom         StockTransfer[]        @relation("StockTransferFrom")
+  transfersTo           StockTransfer[]        @relation("StockTransferTo")
+  stockAuditLogs        StockAuditLog[]
+  staffAttendanceEvents StaffAttendanceEvent[]
+  lessons               ParkLesson[]
+  routineSlots          ParkRoutineSlot[]
 
   @@map("parks")
 }
 
+// One active batch per effective city is enforced by provider migrations
+// (partial unique index plus legacy-null normalization triggers).
 model Batch {
   id        String    @id @default(cuid())
   name      String
@@ -149,13 +175,13 @@ model Batch {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
-  park         Park           @relation(fields: [parkId], references: [id], onDelete: Cascade)
-  city         City?          @relation(fields: [cityId], references: [id], onDelete: Cascade)
-  groups       Group[]
-  settings     BatchSettings?
-  feeEvents    FeeEvent[]
-  eventFeeSchedules EventFeeSchedule[]
+  park      Park           @relation(fields: [parkId], references: [id], onDelete: Cascade)
+  city      City?          @relation(fields: [cityId], references: [id], onDelete: Cascade)
+  groups    Group[]
+  settings  BatchSettings?
+  feeEvents FeeEvent[]
   contentPlans ContentPlan[]
+  extraClassDates BatchClassDate[]
 
   @@index([cityId, isActive])
   @@map("batches")
@@ -175,7 +201,6 @@ model Group {
   participants     Participant[]
   murabbis         StaffMeta[]       @relation("MurabbiAssignment")
   attendanceEvents AttendanceEvent[]
-  rosterSnapshots  AttendanceRosterSnapshot[]
 
   @@index([batchId, isActive])
   @@index([parkId, batchId, isActive])
@@ -191,29 +216,33 @@ model StaffMeta {
   assignedCityId  String?
   assignedParkId  String?
   assignedGroupId String?
+  assistsMurabbiId String?
   isActive        Boolean  @default(true)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  user                      User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  assignedCity              City?                  @relation("CityHeadAssignment", fields: [assignedCityId], references: [id], onDelete: SetNull)
-  assignedPark              Park?                  @relation("ParkStaffAssignment", fields: [assignedParkId], references: [id], onDelete: SetNull)
-  assignedGroup             Group?                 @relation("MurabbiAssignment", fields: [assignedGroupId], references: [id], onDelete: SetNull)
-  teamMemberships           StaffTeamMembership[]
-  assignedActivityPlans     ActivityPlanItem[]     @relation("ActivityAssignee")
+  user          User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assignedCity  City?  @relation("CityHeadAssignment", fields: [assignedCityId], references: [id], onDelete: SetNull)
+  assignedPark  Park?  @relation("ParkStaffAssignment", fields: [assignedParkId], references: [id], onDelete: SetNull)
+  assignedGroup Group? @relation("MurabbiAssignment", fields: [assignedGroupId], references: [id], onDelete: SetNull)
+  assistsMurabbi StaffMeta? @relation("MuawinAssistance", fields: [assistsMurabbiId], references: [id], onDelete: SetNull)
+  muawinAssistants StaffMeta[] @relation("MuawinAssistance")
+  teamMemberships StaffTeamMembership[]
+  assignedActivityPlans ActivityPlanItem[] @relation("ActivityAssignee")
   eventTeamMemberships      EventTeamMembership[]
   eventResponsibilities     EventResponsibility[]
-  assignedEventPlannerItems EventPlannerItem[]     @relation("EventPlannerAssignee")
+  assignedEventPlannerItems EventPlannerItem[]    @relation("EventPlannerAssignee")
   callingAssignments        CallingAssignment[]
   mashwaraAttendees         MashwaraAttendee[]
   mashwaraDecisions         MashwaraDecision[]
   mashwaraActionItems       MashwaraActionItem[]
   mashwaraShares            MashwaraMeetingShare[] @relation("MashwaraShareRecipient")
   mashwaraGrants            MashwaraMeetingShare[] @relation("MashwaraShareGranter")
-  mediaAssignments          MediaBrief[]           @relation("MediaAssignee")
-  mediaApprovals            MediaBrief[]           @relation("MediaApprover")
+  chatMessages              TeamChatMessage[]
+  createdTeamDocumentLinks  TeamDocumentLink[] @relation("TeamDocumentLinkCreator")
   staffAttendanceRecords    StaffAttendanceRecord[]
 
+  @@index([assistsMurabbiId])
   @@map("staff_meta")
 }
 
@@ -228,13 +257,14 @@ model CollaborationTeam {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  city                     City                  @relation(fields: [cityId], references: [id], onDelete: Cascade)
-  memberships              StaffTeamMembership[]
-  contentBlocks            ContentPlanBlock[]
-  activityPlans            ActivityPlanItem[]
-  mashwaraDecisionTargets  MashwaraDecision[]    @relation("MashwaraDecisionTargetTeam")
-  mashwaraActionItemsTeams MashwaraActionItem[]  @relation("MashwaraActionItemTeam")
-  mediaBriefs              MediaBrief[]
+  city        City                  @relation(fields: [cityId], references: [id], onDelete: Cascade)
+  memberships StaffTeamMembership[]
+  contentBlocks ContentPlanBlock[]
+  activityPlans ActivityPlanItem[]
+  chatMessages  TeamChatMessage[]
+  documentLinks TeamDocumentLink[]
+  mashwaraDecisionTargets  MashwaraDecision[] @relation("MashwaraDecisionTargetTeam")
+  mashwaraActionItemsTeams MashwaraActionItem[] @relation("MashwaraActionItemTeam")
 
   @@unique([cityId, code])
   @@index([cityId, isActive])
@@ -243,15 +273,15 @@ model CollaborationTeam {
 
 // Keep team responsibility history without changing canonical role or hierarchy scope.
 model StaffTeamMembership {
-  id          String    @id @default(cuid())
+  id         String   @id @default(cuid())
   staffMetaId String
-  teamId      String
-  title       String?
-  startedAt   DateTime  @default(now())
-  endedAt     DateTime?
-  isActive    Boolean   @default(true)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  teamId     String
+  title      String?
+  startedAt  DateTime @default(now())
+  endedAt    DateTime?
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   staffMeta StaffMeta         @relation(fields: [staffMetaId], references: [id], onDelete: Cascade)
   team      CollaborationTeam @relation(fields: [teamId], references: [id], onDelete: Cascade)
@@ -277,11 +307,11 @@ model ContentPlan {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  city      City                 @relation(fields: [cityId], references: [id], onDelete: Cascade)
-  batch     Batch?               @relation(fields: [batchId], references: [id], onDelete: SetNull)
-  park      Park?                @relation(fields: [parkId], references: [id], onDelete: SetNull)
-  basePlan  ContentPlan?         @relation("ContentPlanOverrides", fields: [basePlanId], references: [id], onDelete: SetNull)
-  overrides ContentPlan[]        @relation("ContentPlanOverrides")
+  city      City         @relation(fields: [cityId], references: [id], onDelete: Cascade)
+  batch     Batch?       @relation(fields: [batchId], references: [id], onDelete: SetNull)
+  park      Park?        @relation(fields: [parkId], references: [id], onDelete: SetNull)
+  basePlan  ContentPlan? @relation("ContentPlanOverrides", fields: [basePlanId], references: [id], onDelete: SetNull)
+  overrides ContentPlan[] @relation("ContentPlanOverrides")
   sessions  ContentPlanSession[]
 
   @@index([cityId, status])
@@ -324,11 +354,10 @@ model ContentPlanBlock {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  session     ContentPlanSession    @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  team        CollaborationTeam     @relation(fields: [teamId], references: [id], onDelete: Restrict)
-  resources   ContentPlanResource[]
-  activities  ActivityPlanItem[]
-  mediaBriefs MediaBrief[]
+  session   ContentPlanSession   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  team      CollaborationTeam    @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  resources ContentPlanResource[]
+  activities ActivityPlanItem[]
 
   @@unique([sessionId, category, sortOrder])
   @@index([teamId, status])
@@ -351,16 +380,16 @@ model ContentPlanResource {
 
 // Team activity planning is separate from attendance and does not grant scope.
 model ActivityPlanItem {
-  id                  String    @id @default(cuid())
+  id                  String   @id @default(cuid())
   teamId              String
   contentBlockId      String?
   assignedStaffMetaId String?
   title               String
   description         String?
-  status              String    @default("planned")
+  status              String   @default("planned")
   scheduledFor        DateTime?
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
   team          CollaborationTeam @relation(fields: [teamId], references: [id], onDelete: Cascade)
   contentBlock  ContentPlanBlock? @relation(fields: [contentBlockId], references: [id], onDelete: SetNull)
@@ -375,70 +404,70 @@ model ActivityPlanItem {
 // wellbeing data beyond the canonical Participant record. Created on demand.
 // Never duplicates Participant, Guardian, Group, Batch, Park, or City fields.
 model StudentExtendedProfile {
-  id                        String   @id @default(cuid())
-  participantId             String   @unique
+  id                    String   @id @default(cuid())
+  participantId         String   @unique
   // Education tab
-  school                    String?
-  college                   String?
-  educationSystem           String?
-  previousResults           String?
-  awardsAchievements        String?
-  averageGrade              String?
-  favouriteSubjects         String?
+  school                String?
+  college               String?
+  educationSystem       String?
+  previousResults       String?
+  awardsAchievements    String?
+  averageGrade          String?
+  favouriteSubjects     String?
   // Family & Background tab
-  fatherName                String?
-  fatherOccupation          String?
-  siblings                  String?
-  financialStatus           String?
-  nativeArea                String?
-  ethnicity                 String?
-  modeOfTransport           String?
+  fatherName            String?
+  fatherOccupation      String?
+  siblings              String?
+  financialStatus       String?
+  nativeArea            String?
+  ethnicity             String?
+  modeOfTransport       String?
   // Interests & Skills tab
-  subjectsOfInterest        String?
-  extraCurricular           String?
-  hobbies                   String?
-  sports                    String?
-  learningStyle             String?
-  curiosity                 String?
-  specialTalent             String?
-  currentSkills             String?
-  skillsWantToLearn         String?
+  subjectsOfInterest    String?
+  extraCurricular       String?
+  hobbies               String?
+  sports                String?
+  learningStyle         String?
+  curiosity             String?
+  specialTalent         String?
+  currentSkills         String?
+  skillsWantToLearn     String?
   // Goals & Development tab
-  generalGoals              String?
-  vision                    String?
-  mission                   String?
-  deenBackground            String?
-  careerAspirations         String?
-  academicInterests         String?
-  collegePlans              String?
-  futureCareerGoals         String?
-  strengths                 String?
-  weaknesses                String?
-  goodHabits                String?
-  badHabits                 String?
+  generalGoals          String?
+  vision                String?
+  mission               String?
+  deenBackground        String?
+  careerAspirations     String?
+  academicInterests     String?
+  collegePlans          String?
+  futureCareerGoals     String?
+  strengths             String?
+  weaknesses            String?
+  goodHabits            String?
+  badHabits             String?
   // Support & Wellbeing tab
-  disability                String?
-  specialNeed               String?
-  moralCharacter            String?
-  namaz                     String?
+  disability            String?
+  specialNeed           String?
+  moralCharacter        String?
+  namaz                 String?
   // Personality & Skills tab
-  leadershipSkills          String?
+  leadershipSkills      String?
   personalityResponsibility String?
-  communicationSkills       String?
-  teamworkSkills            String?
-  problemSolvingSkills      String?
-  creativity                String?
-  criticalThinking          String?
-  adaptability              String?
-  initiative                String?
-  selfMotivation            String?
-  integrity                 String?
-  empathy                   String?
-  reading                   String?
-  learningInterest          String?
+  communicationSkills   String?
+  teamworkSkills        String?
+  problemSolvingSkills  String?
+  creativity            String?
+  criticalThinking      String?
+  adaptability          String?
+  initiative            String?
+  selfMotivation        String?
+  integrity             String?
+  empathy               String?
+  reading               String?
+  learningInterest      String?
   // Metadata
-  createdAt                 DateTime @default(now())
-  updatedAt                 DateTime @updatedAt
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
 
   participant Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
 
@@ -478,33 +507,36 @@ model GuardianChild {
 }
 
 model Participant {
-  id            String    @id @default(cuid())
-  userId        String?   @unique
-  name          String
-  phone         String?
-  dateOfBirth   DateTime?
-  age           Int?
-  gradeClass    String?
-  gender        String?
-  address       String?
-  groupId       String?
-  state         String    @default("active")
-  joinedAt      DateTime  @default(now())
-  dropoutAt     DateTime?
+  id          String    @id @default(cuid())
+  userId      String?   @unique
+  name        String
+  phone       String?
+  dateOfBirth DateTime?
+  age         Int?
+  gradeClass  String?
+  gender      String?
+  address     String?
+  groupId     String?
+  state       String    @default("active")
+  dropoutAt   DateTime?
   dropoutReason String?
   dropoutSource String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  reactivatedAt DateTime?
+  joinedAt    DateTime  @default(now())
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
-  user              User?                      @relation(fields: [userId], references: [id], onDelete: SetNull)
-  group             Group?                     @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  user              User?                 @relation(fields: [userId], references: [id], onDelete: SetNull)
+  group             Group?                @relation(fields: [groupId], references: [id], onDelete: SetNull)
   guardianLinks     GuardianChild[]
   attendanceRecords AttendanceRecord[]
   payments          Payment[]
-  convertedFromApp  AdmissionApplication?      @relation("ConvertedFrom")
+  convertedFromApp  AdmissionApplication? @relation("ConvertedFrom")
   extendedProfile   StudentExtendedProfile?
-  rosterSnapshots   AttendanceRosterSnapshot[]
   eventRegistrations EventRegistration[]
+  pointTransactions PointTransaction[]
+  unlockedBadges    StudentBadge[]
+  evaluations       StudentEvaluation[]
 
   @@index([groupId, state])
   @@map("participants")
@@ -513,46 +545,48 @@ model Participant {
 // ========== ATTENDANCE ==========
 
 model BatchSettings {
-  id                      String   @id @default(cuid())
-  batchId                 String   @unique
-  warningAbsents          Int      @default(3)
-  dropoutAbsents          Int      @default(6)
-  automaticDropoutEnabled Boolean  @default(false)
-  dropoutConsecutiveWeeks Int      @default(3)
-  createdAt               DateTime @default(now())
-  updatedAt               DateTime @updatedAt
+  id             String   @id @default(cuid())
+  batchId        String   @unique
+  warningAbsents Int      @default(3)
+  dropoutAbsents Int      @default(6)
+  classWeekdays  String   @default("[0,6]")
+  automaticDropoutEnabled Boolean @default(true)
+  warningConsecutiveWeeks Int @default(2)
+  dropoutConsecutiveWeeks Int @default(3)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-  batch       Batch             @relation(fields: [batchId], references: [id], onDelete: Cascade)
-  offWeekdays BatchOffWeekday[]
-  offDates    BatchOffDate[]
+  batch Batch @relation(fields: [batchId], references: [id], onDelete: Cascade)
 
   @@map("batch_settings")
 }
 
-model BatchOffWeekday {
-  id              String        @id @default(cuid())
-  batchSettingsId String
-  weekday         Int
-  createdAt       DateTime      @default(now())
+model BatchClassDate {
+  id        String   @id @default(cuid())
+  batchId   String
+  classDate DateTime
+  createdAt DateTime @default(now())
 
-  batchSettings BatchSettings @relation(fields: [batchSettingsId], references: [id], onDelete: Cascade)
+  batch Batch @relation(fields: [batchId], references: [id], onDelete: Cascade)
 
-  @@unique([batchSettingsId, weekday])
-  @@map("batch_off_weekdays")
+  @@unique([batchId, classDate])
+  @@index([classDate])
+  @@map("batch_class_dates")
 }
 
-model BatchOffDate {
-  id              String        @id @default(cuid())
-  batchSettingsId String
-  offDate         DateTime
-  reason          String?
-  createdAt       DateTime      @default(now())
+model OperationalOffDate {
+  id        String   @id @default(cuid())
+  cityId    String
+  offDate   DateTime
+  label     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  batchSettings BatchSettings @relation(fields: [batchSettingsId], references: [id], onDelete: Cascade)
+  city City @relation(fields: [cityId], references: [id], onDelete: Cascade)
 
-  @@unique([batchSettingsId, offDate])
-  @@index([batchSettingsId, offDate])
-  @@map("batch_off_dates")
+  @@unique([cityId, offDate])
+  @@index([offDate])
+  @@map("operational_off_dates")
 }
 
 model AttendanceEvent {
@@ -560,18 +594,17 @@ model AttendanceEvent {
   groupId   String
   title     String
   eventDate DateTime
+  resetVersion Int @default(0)
   isClosed  Boolean   @default(false)
   closedAt  DateTime?
   closedBy  String?
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
-  group           Group                      @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  records         AttendanceRecord[]
-  staffRecords    StaffAttendanceRecord[]
-  rosterSnapshots AttendanceRosterSnapshot[]
+  group   Group              @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  records AttendanceRecord[]
 
-  @@index([groupId, eventDate])
+  @@unique([groupId, eventDate])
   @@index([eventDate])
   @@map("attendance_events")
 }
@@ -589,7 +622,6 @@ model AttendanceRecord {
 
   event       AttendanceEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
   participant Participant     @relation(fields: [participantId], references: [id], onDelete: Cascade)
-  eventRegistration EventRegistration?
 
   @@unique([eventId, participantId])
   @@index([eventId])
@@ -597,42 +629,45 @@ model AttendanceRecord {
   @@map("attendance_records")
 }
 
-model StaffAttendanceRecord {
-  id         String   @id @default(cuid())
-  eventId    String
-  staffId    String
-  status     String
-  markedBy   String?
-  markedAt   DateTime @default(now())
-  editReason String?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+// Separate staff/Murabbi attendance tracking, scoped to Park (not Group).
+model StaffAttendanceEvent {
+  id        String    @id @default(cuid())
+  parkId    String
+  title     String
+  eventDate DateTime
+  isClosed  Boolean   @default(false)
+  closedAt  DateTime?
+  closedBy  String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
-  event AttendanceEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  staff StaffMeta       @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  park    Park                     @relation(fields: [parkId], references: [id], onDelete: Cascade)
+  records StaffAttendanceRecord[]
 
-  @@unique([eventId, staffId])
-  @@index([eventId])
-  @@index([staffId])
-  @@map("staff_attendance_records")
+  @@unique([parkId, eventDate])
+  @@index([parkId, eventDate])
+  @@index([eventDate])
+  @@map("park_staff_attendance_events")
 }
 
-model AttendanceRosterSnapshot {
-  id            String   @id @default(cuid())
-  eventId       String
-  participantId String
-  groupId       String?
-  snapshotState String   @default("active")
-  createdAt     DateTime @default(now())
+model StaffAttendanceRecord {
+  id          String   @id @default(cuid())
+  eventId     String
+  staffMetaId String   @map("staffId")
+  status      String
+  markedBy    String?
+  markedAt    DateTime @default(now())
+  editReason  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  event       AttendanceEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  participant Participant     @relation(fields: [participantId], references: [id], onDelete: Cascade)
-  group       Group?          @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  event     StaffAttendanceEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  staffMeta StaffMeta            @relation(fields: [staffMetaId], references: [id], onDelete: Cascade)
 
-  @@unique([eventId, participantId])
+  @@unique([eventId, staffMetaId])
   @@index([eventId])
-  @@index([participantId])
-  @@map("attendance_roster_snapshots")
+  @@index([staffMetaId])
+  @@map("park_staff_attendance_records")
 }
 
 // ========== FEES ==========
@@ -656,7 +691,6 @@ model FeeEvent {
 
   batch    Batch     @relation(fields: [batchId], references: [id], onDelete: Cascade)
   payments Payment[]
-  eventFeeSchedule EventFeeSchedule?
 
   @@index([batchId, isActive, createdAt])
   @@index([isActive, createdAt])
@@ -693,6 +727,172 @@ model ReceiptSequence {
 
   @@unique([prefix, year])
   @@map("receipt_sequences")
+}
+
+model FeeDonation {
+  id            String   @id @default(cuid())
+  cityId        String
+  parkId        String?
+  donorName     String
+  donorPhone    String?
+  amount        Float
+  method        String
+  receiptNo     String?  @unique
+  purpose       String?
+  recordedBy    String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  city City  @relation(fields: [cityId], references: [id], onDelete: Cascade)
+  park Park? @relation(fields: [parkId], references: [id], onDelete: SetNull)
+
+  @@index([cityId, createdAt])
+  @@index([parkId, createdAt])
+  @@map("fee_donations")
+}
+
+model FinancialAdjustment {
+  id            String   @id @default(cuid())
+  cityId        String
+  parkId        String?
+  type          String   // "credit" | "debit"
+  amount        Float
+  category      String   // "waiver" | "write_off" | "grant" | "correction"
+  reason        String
+  approvedBy    String
+  recordedBy    String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  city City  @relation(fields: [cityId], references: [id], onDelete: Cascade)
+  park Park? @relation(fields: [parkId], references: [id], onDelete: SetNull)
+
+  @@index([cityId, createdAt])
+  @@index([parkId, createdAt])
+  @@map("financial_adjustments")
+}
+
+model ProcurementItem {
+  id           String      @id @default(cuid())
+  sku          String      @unique
+  name         String
+  category     String      // "sports_equipment" | "stationery" | "apparel" | "event_materials" | "general"
+  unit         String      // "piece" | "box" | "set" | "pack"
+  unitCost     Float       @default(0)
+  description  String?
+  isActive     Boolean     @default(true)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  parkStocks     ParkStock[]
+  stockRequests  StockRequest[]
+  purchaseOrders PurchaseOrder[]
+  stockTransfers StockTransfer[]
+  stockAuditLogs StockAuditLog[]
+
+  @@map("procurement_items")
+}
+
+model ParkStock {
+  id           String          @id @default(cuid())
+  parkId       String
+  itemId       String
+  quantity     Int             @default(0)
+  minThreshold Int             @default(5)
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  park         Park            @relation(fields: [parkId], references: [id], onDelete: Cascade)
+  item         ProcurementItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@unique([parkId, itemId])
+  @@index([parkId])
+  @@index([itemId])
+  @@map("park_stocks")
+}
+
+model StockRequest {
+  id           String          @id @default(cuid())
+  parkId       String
+  itemId       String
+  quantity     Int
+  reason       String
+  status       String          @default("pending") // "pending" | "approved" | "rejected" | "fulfilled"
+  requestedBy  String
+  reviewedBy   String?
+  reviewedAt   DateTime?
+  notes        String?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  park         Park            @relation(fields: [parkId], references: [id], onDelete: Cascade)
+  item         ProcurementItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([parkId, status])
+  @@index([itemId])
+  @@map("stock_requests")
+}
+
+model PurchaseOrder {
+  id           String          @id @default(cuid())
+  poNumber     String          @unique
+  cityId       String
+  parkId       String?
+  itemId       String
+  quantity     Int
+  unitCost     Float
+  totalCost    Float
+  supplierName String
+  status       String          @default("issued") // "issued" | "received" | "cancelled"
+  issuedBy     String
+  receivedAt   DateTime?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  city         City            @relation(fields: [cityId], references: [id], onDelete: Cascade)
+  park         Park?           @relation(fields: [parkId], references: [id], onDelete: SetNull)
+  item         ProcurementItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([cityId, createdAt])
+  @@index([parkId, createdAt])
+  @@map("purchase_orders")
+}
+
+model StockTransfer {
+  id            String          @id @default(cuid())
+  fromParkId    String
+  toParkId      String
+  itemId        String
+  quantity      Int
+  reason        String?
+  transferredBy String
+  createdAt     DateTime        @default(now())
+
+  fromPark      Park            @relation("StockTransferFrom", fields: [fromParkId], references: [id], onDelete: Cascade)
+  toPark        Park            @relation("StockTransferTo", fields: [toParkId], references: [id], onDelete: Cascade)
+  item          ProcurementItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([fromParkId, createdAt])
+  @@index([toParkId, createdAt])
+  @@map("stock_transfers")
+}
+
+model StockAuditLog {
+  id          String          @id @default(cuid())
+  parkId      String
+  itemId      String
+  systemCount Int
+  actualCount Int
+  discrepancy Int
+  reason      String
+  auditedBy   String
+  createdAt   DateTime        @default(now())
+
+  park        Park            @relation(fields: [parkId], references: [id], onDelete: Cascade)
+  item        ProcurementItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([parkId, createdAt])
+  @@map("stock_audit_logs")
 }
 
 // ========== ADMISSIONS ==========
@@ -802,81 +1002,34 @@ model ReportPreset {
 // ========== PROGRAMME EVENTS ==========
 
 model Event {
-  id              String    @id @default(cuid())
+  id              String   @id @default(cuid())
   cityId          String
   title           String
   description     String?
   eventType       String
-  status          String    @default("planned")
+  status          String   @default("planned")
   venue           String?
   venueNotes      String?
   startDate       DateTime
   endDate         DateTime?
   capacity        Int?
-  cost            Decimal?  @default(0)
-  requiresConsent Boolean   @default(false)
-  requiresMedical Boolean   @default(false)
+  cost            Decimal? @default(0)
+  requiresConsent Boolean  @default(false)
+  requiresMedical Boolean  @default(false)
   createdBy       String
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   city             City                  @relation(fields: [cityId], references: [id], onDelete: Cascade)
   teams            TemporaryEventTeam[]
   responsibilities EventResponsibility[]
   plannerItems     EventPlannerItem[]
   registrations    EventRegistration[]
-  feeSchedules     EventFeeSchedule[]
 
   @@index([cityId, status])
   @@index([cityId, startDate])
   @@index([status, startDate])
   @@map("events")
-}
-
-// Event registration is separate from regular attendance. A completed check-in
-// may link to exactly one existing group attendance record, never create a duplicate.
-model EventRegistration {
-  id                 String   @id @default(cuid())
-  eventId            String
-  participantId      String
-  status             String   @default("registered")
-  consentStatus      String   @default("not_required")
-  feeStatus          String   @default("not_required")
-  attendanceRecordId String?  @unique
-  eventFeeScheduleId String?
-  registeredAt       DateTime @default(now())
-  cancelledAt        DateTime?
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
-
-  event            Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  participant      Participant       @relation(fields: [participantId], references: [id], onDelete: Cascade)
-  attendanceRecord AttendanceRecord? @relation(fields: [attendanceRecordId], references: [id], onDelete: SetNull)
-  feeSchedule      EventFeeSchedule? @relation(fields: [eventFeeScheduleId], references: [id], onDelete: SetNull)
-
-  @@unique([eventId, participantId])
-  @@index([eventId, status])
-  @@index([participantId, status])
-  @@index([eventFeeScheduleId])
-  @@map("event_registrations")
-}
-
-model EventFeeSchedule {
-  id         String   @id @default(cuid())
-  eventId    String
-  batchId    String
-  feeEventId String   @unique
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  event         Event               @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  batch         Batch               @relation(fields: [batchId], references: [id], onDelete: Cascade)
-  feeEvent      FeeEvent            @relation(fields: [feeEventId], references: [id], onDelete: Cascade)
-  registrations EventRegistration[]
-
-  @@unique([eventId, batchId])
-  @@index([batchId])
-  @@map("event_fee_schedules")
 }
 
 model TemporaryEventTeam {
@@ -923,7 +1076,7 @@ model EventResponsibility {
   id                    String    @id @default(cuid())
   eventId               String?
   mashwaraId            String?
-  mashwaraOccurrenceId  String?
+  mashwaraOccurrenceId String?
   title                 String
   description           String?
   assignedToStaffMetaId String
@@ -938,8 +1091,8 @@ model EventResponsibility {
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
 
-  event                 Event?                 @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  assignedToStaffMeta   StaffMeta              @relation(fields: [assignedToStaffMetaId], references: [id], onDelete: Cascade)
+  event               Event?    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  assignedToStaffMeta StaffMeta @relation(fields: [assignedToStaffMetaId], references: [id], onDelete: Cascade)
   callingPOCAssignments CallingPOCAssignment[]
 
   @@index([assignedToStaffMetaId, isActive])
@@ -1127,8 +1280,8 @@ model MashwaraMeeting {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  city      City @relation(fields: [cityId], references: [id], onDelete: Cascade)
-  createdBy User @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  city      City   @relation(fields: [cityId], references: [id], onDelete: Cascade)
+  createdBy User   @relation(fields: [createdById], references: [id], onDelete: Cascade)
 
   attendees   MashwaraAttendee[]
   decisions   MashwaraDecision[]
@@ -1195,13 +1348,13 @@ model MashwaraActionItem {
 }
 
 model MashwaraMeetingShare {
-  id          String    @id @default(cuid())
+  id          String   @id @default(cuid())
   meetingId   String
   staffMetaId String
   grantedById String
-  grantedAt   DateTime  @default(now())
+  grantedAt   DateTime @default(now())
   revokedAt   DateTime?
-  isRevoked   Boolean   @default(false)
+  isRevoked   Boolean  @default(false)
 
   meeting   MashwaraMeeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
   staffMeta StaffMeta       @relation("MashwaraShareRecipient", fields: [staffMetaId], references: [id], onDelete: Cascade)
@@ -1213,44 +1366,226 @@ model MashwaraMeetingShare {
   @@map("mashwara_meeting_shares")
 }
 
-// ========== MEDIA OPERATIONS ==========
+model TeamChatMessage {
+  id         String   @id @default(cuid())
+  teamId     String
+  authorId   String
+  message    String
+  isFlagged  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
-model MediaBrief {
-  id                    String    @id @default(cuid())
-  cityId                String
-  teamId                String
-  title                 String
-  description           String?
-  mediaType             String    @default("graphic")
-  format                String?
-  status                String    @default("draft")
-  priority              String    @default("medium")
-  dueAt                 DateTime?
-  contentBlockId        String?
-  approvalState         String?
-  approvedByStaffMetaId String?
-  approvedAt            DateTime?
-  rejectionReason       String?
-  cancellationReason    String?
-  assetMetadata         String?
-  assignedToStaffMetaId String?
-  version               Int       @default(1)
-  isActive              Boolean   @default(true)
-  createdById           String
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
+  team   CollaborationTeam @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  author StaffMeta         @relation(fields: [authorId], references: [id], onDelete: Cascade)
 
-  city            City              @relation(fields: [cityId], references: [id], onDelete: Restrict)
-  team            CollaborationTeam @relation(fields: [teamId], references: [id], onDelete: Restrict)
-  contentBlock    ContentPlanBlock? @relation(fields: [contentBlockId], references: [id], onDelete: SetNull)
-  assignedToStaff StaffMeta?        @relation("MediaAssignee", fields: [assignedToStaffMetaId], references: [id], onDelete: SetNull)
-  approvedByStaff StaffMeta?        @relation("MediaApprover", fields: [approvedByStaffMetaId], references: [id], onDelete: SetNull)
-  createdBy       User              @relation("MediaBriefCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  @@index([teamId, createdAt])
+  @@index([authorId])
+  @@map("team_chat_messages")
+}
 
-  @@index([teamId, status])
-  @@index([teamId, assignedToStaffMetaId, status])
-  @@index([cityId, status])
-  @@index([mediaType, status])
-  @@index([priority, status])
-  @@map("media_briefs")
+// Team documents are vetted external links; file uploads remain out of scope.
+model TeamDocumentLink {
+  id                   String   @id @default(cuid())
+  teamId               String
+  createdByStaffMetaId String
+  label                String
+  url                  String
+  createdAt            DateTime @default(now())
+
+  team      CollaborationTeam @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  createdBy StaffMeta         @relation("TeamDocumentLinkCreator", fields: [createdByStaffMetaId], references: [id], onDelete: Restrict)
+
+  @@index([teamId, createdAt])
+  @@index([createdByStaffMetaId])
+  @@map("team_document_links")
+}
+
+// Singleton global policy, managed only by a Super Admin with settings.manage.
+model ExternalLinkPolicy {
+  id                         String   @id
+  allowedDomains             String
+  requireInterstitialWarning Boolean  @default(true)
+  updatedAt                  DateTime @updatedAt
+
+  @@map("external_link_policies")
+}
+
+model EventRegistration {
+  id            String   @id @default(cuid())
+  eventId       String
+  participantId String
+  status        String   @default("registered")
+  feeStatus     String   @default("unpaid")
+  feeAmount     Decimal? @default(0)
+  hasConsent    Boolean  @default(false)
+  hasMedical    Boolean  @default(false)
+  checkedInAt   DateTime?
+  registeredAt  DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  event       Event       @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  participant Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, participantId])
+  @@index([eventId, status])
+  @@index([participantId])
+  @@map("event_registrations")
+}
+
+// ========== GAMIFICATION ==========
+
+model PointTransaction {
+  id          String      @id @default(cuid())
+  studentId   String
+  points      Int
+  category    String      // "attendance" | "participation" | "quiz" | "conduct" | "manual_bonus"
+  reason      String
+  awardedBy   String
+  createdAt   DateTime    @default(now())
+
+  student     Participant @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId, createdAt])
+  @@index([category])
+  @@map("point_transactions")
+}
+
+model Badge {
+  id             String         @id @default(cuid())
+  code           String         @unique
+  name           String
+  description    String
+  iconUrl        String?
+  category       String         // "attendance" | "achievement" | "leadership" | "special"
+  requiredPoints Int            @default(0)
+  createdAt      DateTime       @default(now())
+
+  studentBadges  StudentBadge[]
+
+  @@map("badges")
+}
+
+model StudentBadge {
+  id          String      @id @default(cuid())
+  studentId   String
+  badgeId     String
+  unlockedAt  DateTime    @default(now())
+
+  student     Participant @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  badge       Badge       @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, badgeId])
+  @@index([studentId])
+  @@index([badgeId])
+  @@map("student_badges")
+}
+
+// ========== DIGITAL LIBRARY & KNOWLEDGE ==========
+
+model DigitalResource {
+  id           String    @id @default(cuid())
+  title        String
+  description  String?
+  fileUrl      String
+  category     String    // "curriculum" | "activity_guide" | "policy" | "media"
+  allowedRoles String    @default("all") // "all" or comma-separated roles e.g. "murabbi,park_lead"
+  targetCityId String?
+  createdById  String
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  targetCity   City?     @relation(fields: [targetCityId], references: [id], onDelete: SetNull)
+
+  @@index([category])
+  @@index([targetCityId])
+  @@map("digital_resources")
+}
+
+model KnowledgeArticle {
+  id          String   @id @default(cuid())
+  title       String
+  slug        String   @unique
+  content     String
+  category    String   // "best_practices" | "operational_guide" | "faq" | "training"
+  tags        String?  // comma-separated tags e.g. "attendance,parents"
+  isPublished Boolean  @default(true)
+  viewCount   Int      @default(0)
+  authorId    String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([category, isPublished])
+  @@map("knowledge_articles")
+}
+
+// ========== EVALUATIONS ==========
+
+model StudentEvaluation {
+  id             String   @id @default(cuid())
+  participantId  String
+  murabbiUserId  String
+  parkId         String
+  month          Int      // 1–12
+  year           Int
+  discipline     Int      // 0–10
+  farmabardari   Int      // 0–10
+  islah          Int      // 0–10
+  ibadah         Int      // 0–10
+  participation  Int      // 0–10
+  comment        String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  participant    Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+
+  @@unique([participantId, month, year])
+  @@index([parkId, month, year])
+  @@map("student_evaluations")
+}
+
+// ========== LESSONS ==========
+
+model ParkLesson {
+  id         String   @id @default(cuid())
+  parkId     String
+  title      String
+  type       String   // "Tarbiyah" | "Activity"
+  lessonDate DateTime
+  driveLink  String?
+  fileKey    String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  park       Park     @relation(fields: [parkId], references: [id], onDelete: Cascade)
+
+  @@index([parkId, lessonDate])
+  @@map("park_lessons")
+}
+
+// ========== PLANNER ==========
+
+model ParkRoutineSlot {
+  id        String @id @default(cuid())
+  parkId    String
+  timeStart String // e.g. "9:00"
+  timeEnd   String // e.g. "9:45"
+  activity  String
+  pdfLink   String?
+  sortOrder Int    @default(0)
+  isSpecialEvent Boolean @default(false)
+  createdAt DateTime @default(now())
+
+  park      Park   @relation(fields: [parkId], references: [id], onDelete: Cascade)
+
+  @@index([parkId])
+  @@map("park_routine_slots")
+}
+
+// Durable, actor-bound acknowledgements for retried writes. No personal payload is stored.
+model OperationReceipt {
+  id String @id
+  requestHash String
+  resultJson String
+  createdAt DateTime @default(now())
+  @@map("operation_receipts")
 }

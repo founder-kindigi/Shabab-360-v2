@@ -1,6 +1,13 @@
 import { z } from "zod";
 
-const cuidSchema = z.string().trim().min(1, "Identifier required");
+const cuidSchema = z.string().trim().min(1, "Identifier required").max(200);
+
+export const getCampaignsQuerySchema = z
+  .object({
+    cityId: cuidSchema.optional(),
+    status: z.enum(["draft", "active", "completed", "cancelled"]).optional(),
+  })
+  .strict();
 
 // ── Merge variable allowlist ─────────────────────────────────────────────────
 export const ALLOWED_MERGE_VARIABLES = ["parentName", "applicantName", "trackingCode"] as const;
@@ -112,7 +119,7 @@ export const useTemplateSchema = z
 export const assignLeadsSchema = z
   .object({
     campaignId: cuidSchema,
-    applicationIds: z.array(cuidSchema).min(1, "At least one application lead required"),
+    applicationIds: z.array(cuidSchema).min(1, "At least one application lead required").max(100).refine((ids) => new Set(ids).size === ids.length, "Duplicate applications are not allowed"),
     callerStaffMetaId: cuidSchema.optional().nullable(),
     callerExternalId: cuidSchema.optional().nullable(),
   })

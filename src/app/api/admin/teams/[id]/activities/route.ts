@@ -1,80 +1,203 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAuth, requireCapability } from "@/lib/auth/authorize";
+import { userHasCapability } from "@/lib/auth/capability-access";
+import { resolveActorCity } from "@/lib/auth/events-scope";
 import { db } from "@/lib/db";
 import { createAuditLogData } from "@/lib/audit";
-import { queryParamsToObject, queryValidationError } from "@/lib/api/query-params";
-import { createActivitySchema, activityListQuerySchema } from "@/lib/teams/activity-schemas";
-import { requireTeamWorkspaceAccess } from "@/lib/teams/workspace-auth";
-import { requireAuth } from "@/lib/auth/authorize";
-import { ACTIVE_MEMBERSHIP_FILTER } from "@/lib/collaboration-teams/schemas";
+import { createTeamActivitySchema } from "@/lib/validations/team";
 
-type Params = { params: Promise<{ id: string }> };
-
-export async function GET(request: NextRequest, { params }: Params) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
   const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
-  const { id: teamId } = await params;
-  const access = await requireTeamWorkspaceAccess(auth.user, teamId, "teams.workspace.view");
-  if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status });
+  const user = auth.user;
 
-  const parsed = activityListQuerySchema.safeParse(queryParamsToObject(new URL(request.url).searchParams));
-  if (!parsed.success) return NextResponse.json(queryValidationError(parsed.error), { status: 400 });
-  const { page, pageSize, status, assignedToMe } = parsed.data;
-  const where = {
-    teamId,
-    ...(status ? { status } : {}),
-    ...(assignedToMe === "true" ? { assignedStaffMetaId: access.staffMetaId } : {}),
-  };
-  const [data, total] = await Promise.all([
-    db.activityPlanItem.findMany({
-      where,
-      skip: (page - 1) * pageSize,
-      take: pageSize,
-      orderBy: [{ scheduledFor: "asc" }, { createdAt: "desc" }],
-      include: { assignedStaff: { select: { id: true, user: { select: { name: true, isActive: true } } } } },
+  const { id: teamId } = await params;
+
+  const team = await db.collaborationTeam.findUnique({
+    where: { id: teamId },
+    select: { id: true, cityId: true, name: true },
+  });
+
+  if (!team) {
+    return NextResponse.json({ error: "Team not found" }, { status: 404 });
+  }
+
+  const resolved = await resolveActorCity(user, team.cityId);
+  if (resolved.error || resolved.cityId !== team.cityId) {
+    return NextResponse.json(
+      { error: "Access denied: team is outside assigned scope" },
+      { status: 403 }
+    );
+  }
+
+  const [canView, canManage, currentMembership] = await Promise.all([
+    userHasCapability(user, "organisation.view"),
+    userHasCapability(user, "organisation.manage"),
+    db.staffTeamMembership.findFirst({
+      where: {
+        teamId,
+        isActive: true,
+        endedAt: null,
+        staffMeta: { userId: user.id, isActive: true },
+      },
+      select: { staffMetaId: true },
     }),
-    db.activityPlanItem.count({ where }),
   ]);
-  const manageAccess = await requireTeamWorkspaceAccess(auth.user, teamId, "teams.workspace.manage");
+
+  if (!canView && !currentMembership) {
+    return NextResponse.json({ error: "Forbidden: active team membership is required" }, { status: 403 });
+  }
+
+  const activities = await db.activityPlanItem.findMany({
+    where: { teamId },
+    orderBy: [{ createdAt: "desc" }],
+    include: {
+      assignedStaff: {
+        select: {
+          id: true,
+          user: { select: { name: true, email: true } },
+        },
+      },
+      contentBlock: { select: { id: true, category: true } },
+    },
+  });
+
+  const activeMemberships = await db.staffTeamMembership.findMany({
+    where: { teamId, isActive: true, endedAt: null },
+    select: { staffMetaId: true },
+  });
+  const activeMemberMetaIds = new Set(activeMemberships.map((m) => m.staffMetaId));
+
+  const formatted = activities.map((a) => {
+    const isCurrentMember = a.assignedStaff
+      ? activeMemberMetaIds.has(a.assignedStaff.id)
+      : true;
+
+    return {
+      id: a.id,
+      teamId: a.teamId,
+      title: a.title,
+      description: a.description,
+      status: a.status,
+      scheduledFor: a.scheduledFor,
+      contentBlockId: a.contentBlockId,
+      assignedStaffMetaId: a.assignedStaffMetaId,
+      assignedStaff: a.assignedStaff,
+      isCurrentMember,
+      createdAt: a.createdAt,
+      updatedAt: a.updatedAt,
+    };
+  });
+
   return NextResponse.json({
-    data,
-    total,
-    page,
-    pageSize,
+    data: formatted,
+    total: formatted.length,
     meta: {
-      canManage: manageAccess.ok,
-      currentStaffMetaId: access.staffMetaId,
+      canManage,
+      currentStaffMetaId: currentMembership?.staffMetaId || null,
     },
   });
 }
 
-export async function POST(request: NextRequest, { params }: Params) {
-  const auth = await requireAuth();
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const auth = await requireCapability("organisation.manage");
   if (auth instanceof NextResponse) return auth;
-  const { id: teamId } = await params;
-  const access = await requireTeamWorkspaceAccess(auth.user, teamId, "teams.workspace.manage");
-  if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status });
+  const user = auth.user;
 
-  let body: unknown;
-  try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON in request body" }, { status: 400 }); }
-  const parsed = createActivitySchema.safeParse(body);
-  if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten().fieldErrors }, { status: 400 });
+  const { id: teamId } = await params;
+
+  const team = await db.collaborationTeam.findUnique({
+    where: { id: teamId },
+    select: { id: true, cityId: true, isActive: true },
+  });
+
+  if (!team || !team.isActive) {
+    return NextResponse.json(
+      { error: "Collaboration team not found or archived" },
+      { status: 400 }
+    );
+  }
+
+  const resolved = await resolveActorCity(user, team.cityId);
+  if (resolved.error || resolved.cityId !== team.cityId) {
+    return NextResponse.json(
+      { error: "Access denied: team is outside assigned scope" },
+      { status: 403 }
+    );
+  }
+
+  const body = await request.json().catch(() => ({}));
+  const parsed = createTeamActivitySchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: "Validation failed", details: parsed.error.format() },
+      { status: 400 }
+    );
+  }
 
   if (parsed.data.assignedStaffMetaId) {
-    const member = await db.staffTeamMembership.findFirst({
-      where: { teamId, staffMetaId: parsed.data.assignedStaffMetaId, ...ACTIVE_MEMBERSHIP_FILTER, staffMeta: { isActive: true } },
-      select: { id: true },
+    const activeMembership = await db.staffTeamMembership.findFirst({
+      where: {
+        teamId,
+        staffMetaId: parsed.data.assignedStaffMetaId,
+        isActive: true,
+        endedAt: null,
+      },
     });
-    if (!member) return NextResponse.json({ error: "Assignee must be an active member of this team" }, { status: 400 });
-  }
-  if (parsed.data.contentBlockId) {
-    const block = await db.contentPlanBlock.findFirst({ where: { id: parsed.data.contentBlockId, teamId } , select: { id: true } });
-    if (!block) return NextResponse.json({ error: "Content block not found for this team" }, { status: 404 });
+
+    if (!activeMembership) {
+      return NextResponse.json(
+        { error: "Target staff is not an active member of this team" },
+        { status: 400 }
+      );
+    }
   }
 
   const activity = await db.$transaction(async (tx) => {
-    const created = await tx.activityPlanItem.create({ data: { teamId, ...parsed.data } });
-    await tx.auditLog.create({ data: createAuditLogData({ userId: auth.user.id, action: "create_activity", entityType: "activity_plan_item", entityId: created.id, newValues: { activityId: created.id, teamId, status: created.status, assigneeId: created.assignedStaffMetaId } }) });
+    const created = await tx.activityPlanItem.create({
+      data: {
+        teamId,
+        title: parsed.data.title,
+        description: parsed.data.description || null,
+        scheduledFor: parsed.data.scheduledFor
+          ? new Date(parsed.data.scheduledFor)
+          : null,
+        contentBlockId: parsed.data.contentBlockId || null,
+        assignedStaffMetaId: parsed.data.assignedStaffMetaId || null,
+      },
+      include: {
+        assignedStaff: {
+          select: {
+            id: true,
+            user: { select: { name: true, email: true } },
+          },
+        },
+      },
+    });
+
+    await tx.auditLog.create({
+      data: createAuditLogData({
+        userId: user.id,
+        action: "team.activity.create",
+        entityType: "team_activity",
+        entityId: created.id,
+        newValues: {
+          teamId,
+          title: created.title,
+          assignedStaffMetaId: created.assignedStaffMetaId || null,
+          status: created.status,
+        },
+      }),
+    });
+
     return created;
   });
+
   return NextResponse.json(activity, { status: 201 });
 }

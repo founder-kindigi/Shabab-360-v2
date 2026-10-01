@@ -87,6 +87,7 @@ import {
   Star,
   UserCheck,
   UserX,
+  Trash2,
   FolderInput,
   CalendarPlus,
   Copy,
@@ -99,6 +100,7 @@ import {
   ArrowRightLeft,
   Pencil,
 } from "lucide-react";
+import { autoAssignParkAndGroup } from "@/lib/pipeline/registration-flow-store";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -342,8 +344,11 @@ function getStatusBadge(status: string) {
   );
 }
 
-function getInitials(name: string) {
-  return name.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2);
+function getInitials(name?: string | null) {
+  if (!name || typeof name !== "string") return "??";
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "??";
+  return parts.map((w) => w[0]).join("").toUpperCase().slice(0, 2);
 }
 
 function getAge(dob: string | null): string {
@@ -494,23 +499,44 @@ export function AdmissionsPage() {
     },
   });
 
-  const { data: cities } = useQuery<CityOption[]>({
+  const { data: rawCities } = useQuery<any>({
     queryKey: ["cities-select"],
     queryFn: () => fetch("/api/admin/cities").then((r) => r.json()),
     staleTime: 5 * 60 * 1000,
   });
 
-  const { data: parks } = useQuery<ParkOption[]>({
+  const { data: rawParks } = useQuery<any>({
     queryKey: ["parks-select"],
     queryFn: () => fetch("/api/admin/parks").then((r) => r.json()),
     staleTime: 5 * 60 * 1000,
   });
 
-  const { data: groups } = useQuery<GroupOption[]>({
+  const { data: rawGroups } = useQuery<any>({
     queryKey: ["groups-select-all"],
-    queryFn: () => fetch("/api/admin/groups?pageSize=200").then((r) => r.json()).then((d: any) => d.data || d),
+    queryFn: () => fetch("/api/admin/groups?pageSize=200").then((r) => r.json()),
     staleTime: 5 * 60 * 1000,
   });
+
+  const cities: CityOption[] = useMemo(() => {
+    if (Array.isArray(rawCities)) return rawCities;
+    if (Array.isArray(rawCities?.data)) return rawCities.data;
+    if (Array.isArray(rawCities?.cities)) return rawCities.cities;
+    return [];
+  }, [rawCities]);
+
+  const parks: ParkOption[] = useMemo(() => {
+    if (Array.isArray(rawParks)) return rawParks;
+    if (Array.isArray(rawParks?.data)) return rawParks.data;
+    if (Array.isArray(rawParks?.parks)) return rawParks.parks;
+    return [];
+  }, [rawParks]);
+
+  const groups: GroupOption[] = useMemo(() => {
+    if (Array.isArray(rawGroups)) return rawGroups;
+    if (Array.isArray(rawGroups?.data)) return rawGroups.data;
+    if (Array.isArray(rawGroups?.groups)) return rawGroups.groups;
+    return [];
+  }, [rawGroups]);
 
   const { data: selectedDetail, isLoading: detailLoading } = useQuery<Application>({
     queryKey: ["admission-detail", selectedApp?.id],
@@ -537,10 +563,10 @@ export function AdmissionsPage() {
   });
 
   const statCards = [
-    { label: "Total Applications", value: applicationsData?.pagination.total ?? 0, icon: FileText, color: "text-[#4B0A8F] dark:text-[#8A40B0]", bg: "bg-[#F3ECF6] dark:bg-[#1F086080]" },
-    { label: "Submitted", value: submittedCount?.pagination.total ?? 0, icon: ClipboardCheck, color: "text-slate-600 dark:text-slate-400", bg: "bg-slate-100 dark:bg-slate-800" },
-    { label: "In Pipeline", value: (screeningCount?.pagination.total ?? 0), icon: Clock, color: "text-amber-600 dark:text-amber-400", bg: "bg-amber-50 dark:bg-amber-950/50" },
-    { label: "Accepted", value: acceptedCount?.pagination.total ?? 0, icon: CheckCircle2, color: "text-green-600 dark:text-green-400", bg: "bg-green-50 dark:bg-green-950/50" },
+    { label: "Total Applications", value: applicationsData?.pagination?.total ?? 0, icon: FileText, color: "text-[#4B0A8F] dark:text-[#8A40B0]", bg: "bg-[#F3ECF6] dark:bg-[#1F086080]" },
+    { label: "Submitted", value: submittedCount?.pagination?.total ?? 0, icon: ClipboardCheck, color: "text-slate-600 dark:text-slate-400", bg: "bg-slate-100 dark:bg-slate-800" },
+    { label: "In Pipeline", value: (screeningCount?.pagination?.total ?? 0), icon: Clock, color: "text-amber-600 dark:text-amber-400", bg: "bg-amber-50 dark:bg-amber-950/50" },
+    { label: "Accepted", value: acceptedCount?.pagination?.total ?? 0, icon: CheckCircle2, color: "text-green-600 dark:text-green-400", bg: "bg-green-50 dark:bg-green-950/50" },
   ];
 
   // ─── Kanban grouping ─────────────────────────────────────────────────────
@@ -604,6 +630,18 @@ export function AdmissionsPage() {
       }
     },
     onError: () => toast.error("Failed to update application"),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => fetch(`/api/admin/admissions/${id}`, { method: "DELETE" }).then((r) => r.json()),
+    onSuccess: () => {
+      toast.success("Applicant record deleted successfully");
+      setSheetOpen(false);
+      setSelectedApp(null);
+      queryClient.invalidateQueries({ queryKey: ["admissions"] });
+      queryClient.invalidateQueries({ queryKey: ["admissions-count"] });
+    },
+    onError: () => toast.error("Failed to delete application"),
   });
 
   const enrollMutation = useMutation({
@@ -728,7 +766,7 @@ export function AdmissionsPage() {
   }, [selectedApp, scoreForm, interviewResult, scoreNotes, interviewMutation]);
 
   // Detail data (must be before handlers that reference it)
-  const detail = selectedDetail || selectedApp;
+  const detail = (selectedDetail && !("error" in (selectedDetail as any)) ? selectedDetail : null) || selectedApp;
 
   const handleOpenEditAdditional = useCallback(() => {
     if (!detail) return;
@@ -828,7 +866,7 @@ export function AdmissionsPage() {
   // ─── Render ─────────────────────────────────────────────────────────────
 
   return (
-    <div className="space-y-4">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-1 pb-6 space-y-6">
       <PageHeader
         title="Admissions"
         description="Manage student admission applications and approval pipeline"
@@ -855,7 +893,7 @@ export function AdmissionsPage() {
                   <s.icon className={`size-5 ${s.color}`} />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-2xl font-bold tracking-tight">{isLoading ? <Skeleton className="h-7 w-8" /> : s.value}</p>
+                  <div className="text-2xl font-bold tracking-tight">{isLoading ? <Skeleton className="h-7 w-8" /> : s.value}</div>
                   <p className="text-xs text-muted-foreground truncate">{s.label}</p>
                 </div>
               </CardContent>
@@ -1535,6 +1573,21 @@ export function AdmissionsPage() {
                           Reject
                         </Button>
                       )}
+
+                      {/* Delete Record */}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8 text-xs text-red-600 border-red-200 hover:bg-red-50 rounded-xl font-bold"
+                        onClick={() => {
+                          if (confirm(`Are you sure you want to delete applicant ${detail.applicantName}?`)) {
+                            deleteMutation.mutate(detail.id);
+                          }
+                        }}
+                      >
+                        <Trash2 className="size-3.5 mr-1.5" />
+                        Delete Record
+                      </Button>
                     </div>
                   </div>
                 </div>

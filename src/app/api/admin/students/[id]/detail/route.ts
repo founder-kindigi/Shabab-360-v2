@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth, requireCapability, requireResourceScope, requireRole } from "@/lib/auth/authorize";
+import { requireAuth, requireResourceScope, requireRole, userHasCapability } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
+import { requireResolvedGroupScope, groupResourceScope } from "@/lib/auth/hierarchy";
 import { moneyToNumber } from "@/lib/money";
 
 export async function GET(
@@ -19,8 +20,11 @@ export async function GET(
 
   const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
-  const capabilityAuth = await requireCapability("students.manage");
-  if (capabilityAuth instanceof NextResponse) return capabilityAuth;
+  const hasManage = await userHasCapability(auth.user, "students.manage");
+  const hasProfileView = await userHasCapability(auth.user, "students.profile.view");
+  if (!hasManage && !hasProfileView) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
 
   const { id } = await params;
 
@@ -30,6 +34,7 @@ export async function GET(
     include: {
       group: {
         include: {
+          park: { include: { city: true } },
           batch: {
             include: {
               park: {
@@ -58,11 +63,7 @@ export async function GET(
     return NextResponse.json({ error: "Participant not found" }, { status: 404 });
   }
 
-  const scopeError = requireResourceScope(auth.user, {
-    cityId: participant.group?.batch.park.cityId ?? null,
-    parkId: participant.group?.batch.parkId ?? null,
-    groupId: participant.groupId,
-  });
+  const scopeError = requireResolvedGroupScope(auth.user, { ...participant.group, id: participant.groupId });
   if (scopeError) return scopeError;
 
   // ─── Attendance Summary ──────────────────────────────────────────────
@@ -113,16 +114,14 @@ export async function GET(
   }));
 
   // ─── Fee Summary ─────────────────────────────────────────────────────
-  const batchId = participant.group?.batchId;
-  const batchFeeEvents = batchId
-    ? await db.feeEvent.findMany({
-        where: {
-          batchId,
-          isActive: true,
-        },
-        select: { id: true, title: true, amount: true },
-      })
-    : [];
+  // Get all fee events for this participant's batch
+  const batchFeeEvents = await db.feeEvent.findMany({
+    where: {
+      batchId: participant.group.batchId,
+      isActive: true,
+    },
+    select: { id: true, title: true, amount: true },
+  });
 
   const totalFees = batchFeeEvents.length;
   const totalExpected = batchFeeEvents.reduce(
@@ -189,34 +188,35 @@ export async function GET(
       : "System",
   }));
 
+  const actualPark = participant.group.parkId ? participant.group.park! : participant.group.batch.park;
   return NextResponse.json({
     participant: {
       id: participant.id,
       name: participant.name,
       phone: participant.phone,
       dateOfBirth: participant.dateOfBirth?.toISOString() ?? null,
+      age: participant.age,
+      gradeClass: participant.gradeClass,
       gender: participant.gender,
       address: participant.address,
       state: participant.state,
       joinedAt: participant.joinedAt.toISOString(),
-      group: participant.group
-        ? {
-            id: participant.group.id,
-            name: participant.group.name,
-            batch: {
-              id: participant.group.batch.id,
-              name: participant.group.batch.name,
-              park: {
-                id: participant.group.batch.park.id,
-                name: participant.group.batch.park.name,
-                city: {
-                  id: participant.group.batch.park.city.id,
-                  name: participant.group.batch.park.city.name,
-                },
-              },
+      group: {
+        id: participant.group.id,
+        name: participant.group.name,
+        batch: {
+          id: participant.group.batch.id,
+          name: participant.group.batch.name,
+          park: {
+            id: actualPark.id,
+            name: actualPark.name,
+            city: {
+              id: actualPark.city.id,
+              name: actualPark.city.name,
             },
-          }
-        : null,
+          },
+        },
+      },
       user: participant.user
         ? { id: participant.user.id, email: participant.user.email }
         : null,

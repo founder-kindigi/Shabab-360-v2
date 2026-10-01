@@ -1,0 +1,120 @@
+import { NextResponse } from "next/server";
+import { createAuditLogData } from "@/lib/audit";
+import { ATTENDANCE_ROLES, requireCapability, requireResourceScope } from "@/lib/auth/authorize";
+import { attendanceDateStart, isBatchClassDate } from "@/lib/attendance/schedule";
+import { prepareAttendanceSessionsSchema } from "@/lib/attendance/schemas";
+import { listAttendanceSessions } from "@/lib/attendance/session-list";
+import { db } from "@/lib/db";
+import { groupParkWhere, groupResourceScope, groupHierarchyInclude } from "@/lib/auth/hierarchy";
+
+export async function POST(request: Request) {
+  const auth = await requireCapability("attendance.mark");
+  if (auth instanceof NextResponse) return auth;
+
+  const parsed = prepareAttendanceSessionsSchema.safeParse(await request.json().catch(() => null));
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid request" }, { status: 400 });
+  }
+
+  const { user } = auth;
+  const { date } = parsed.data;
+  let parkId = parsed.data.parkId ?? user.assignedParkId;
+  let assignedGroupId: string | undefined;
+
+  if (user.role === "murabbi") {
+    assignedGroupId = user.assignedGroupId ?? undefined;
+    const scopeError = requireResourceScope(user, { groupId: assignedGroupId }, ATTENDANCE_ROLES);
+    if (scopeError) return scopeError;
+    const assignedGroup = await db.group.findUnique({
+      where: { id: assignedGroupId! },
+      include: groupHierarchyInclude,
+    });
+    if (!assignedGroup) return NextResponse.json({ error: "Assigned group not found" }, { status: 403 });
+    const scope = groupResourceScope(assignedGroup);
+    if (!scope || (parsed.data.parkId && parsed.data.parkId !== scope.parkId)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    parkId = scope.parkId;
+  }
+
+  if (!parkId) return NextResponse.json({ error: "parkId required" }, { status: 400 });
+  const park = await db.park.findUnique({ where: { id: parkId, isActive: true }, select: { id: true, cityId: true } });
+  if (!park) return NextResponse.json({ error: "Park not found" }, { status: 404 });
+  const scopeError = requireResourceScope(user, { cityId: park.cityId, parkId, groupId: assignedGroupId }, ATTENDANCE_ROLES);
+  if (scopeError) return scopeError;
+
+  const eventDate = attendanceDateStart(date);
+  const nextDate = new Date(eventDate.getTime() + 86_400_000);
+  const offDate = await db.operationalOffDate.findFirst({
+    where: { cityId: park.cityId, offDate: { gte: eventDate, lt: nextDate } },
+    select: { label: true },
+  });
+  if (offDate) return NextResponse.json({
+    date,
+    parkId,
+    events: [],
+    preparation: { prepared: 0, eligibleGroups: 0, isOffDate: true, reason: offDate.label },
+  });
+
+  const groups = await db.group.findMany({
+    where: {
+      isActive: true,
+      ...(assignedGroupId ? { id: assignedGroupId } : {}),
+      ...groupParkWhere(parkId),
+      batch: { isActive: true },
+    },
+    select: {
+      id: true,
+      name: true,
+      batch: {
+        select: {
+          name: true,
+          startDate: true,
+          endDate: true,
+          settings: { select: { classWeekdays: true } },
+          extraClassDates: { where: { classDate: { gte: eventDate, lt: nextDate } }, select: { classDate: true } },
+        },
+      },
+    },
+  });
+
+  const eligible = groups.filter((group) => isBatchClassDate({
+    date,
+    startDate: group.batch.startDate,
+    endDate: group.batch.endDate,
+    classWeekdays: group.batch.settings?.classWeekdays,
+    extraClassDates: group.batch.extraClassDates.map((item) => item.classDate),
+  }));
+
+  const prepared = await db.$transaction(async (tx) => {
+    const existing = await tx.attendanceEvent.findMany({
+      where: { groupId: { in: eligible.map((group) => group.id) }, eventDate },
+      select: { groupId: true },
+    });
+    const existingGroupIds = new Set(existing.map((event) => event.groupId));
+    let created = 0;
+    for (const group of eligible.filter((item) => !existingGroupIds.has(item.id))) {
+      const event = await tx.attendanceEvent.create({
+        data: { groupId: group.id, eventDate, title: `${group.name} - ${group.batch.name}` },
+      });
+      await tx.auditLog.create({ data: createAuditLogData({
+        userId: user.id,
+        action: "attendance_session_prepare",
+        entityType: "attendance_events",
+        entityId: event.id,
+        newValues: { groupId: group.id, eventDate: date, source: "batch_schedule" },
+      }) });
+      created += 1;
+    }
+    return created;
+  });
+
+  const sessions = await listAttendanceSessions({
+    date,
+    eventDate,
+    groupIds: groups.map((group) => group.id),
+    parkId,
+  });
+  return NextResponse.json({
+    ...sessions,
+    preparation: { prepared, eligibleGroups: eligible.length, isOffDate: false },
+  });
+}

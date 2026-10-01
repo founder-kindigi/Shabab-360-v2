@@ -30,6 +30,7 @@ import {
   ClipboardList,
   Clock,
   UserPlus,
+  BookOpen,
   type LucideIcon,
 } from "lucide-react";
 
@@ -62,6 +63,7 @@ function getNavItemsForRole(role: string | undefined): NavItemDef[] {
       { id: "admin-access", label: "Access Provisioning", icon: UserPlus, section: "Operations" },
       { id: "admin-admissions", label: "Admissions", icon: FileText, section: "Operations" },
       { id: "admin-fees", label: "Fees", icon: DollarSign, section: "Operations" },
+      { id: "admin-content-planner", label: "Content Planner", icon: BookOpen, section: "Operations" },
       { id: "admin-announcements", label: "Announcements", icon: Megaphone, section: "Communication" },
       { id: "admin-reports", label: "Reports", icon: BarChart3, section: "Communication" },
       { id: "admin-audit-log", label: "Audit Log", icon: ScrollText, section: "System" },

@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { getNavItems } from "./sidebar";
-import { translations } from "@/lib/i18n";
 
 const translate = (key: string) => key;
 
@@ -22,14 +21,16 @@ describe("sidebar navigation access boundaries", () => {
     }
   });
 
-  it("shows collaboration teams only to Super Admin", () => {
-    expect(
-      getNavItems("super_admin", translate).some(
-        (item) => item.id === "admin-collaboration-teams"
-      )
-    ).toBe(true);
+  it("shows collaboration teams only to roles with organisation.view", () => {
+    for (const role of ["super_admin", "program_admin", "city_head", "park_lead"]) {
+      expect(
+        getNavItems(role, translate).some(
+          (item) => item.id === "admin-collaboration-teams"
+        )
+      ).toBe(true);
+    }
 
-    for (const role of ["program_admin", "city_head", "park_lead", "park_admin", "murabbi"]) {
+    for (const role of ["park_admin", "murabbi"]) {
       expect(
         getNavItems(role, translate).some(
           (item) => item.id === "admin-collaboration-teams"
@@ -38,24 +39,33 @@ describe("sidebar navigation access boundaries", () => {
     }
   });
 
-  it("shows City Heads the city-scoped staff management page", () => {
+  it("shows Content Planner to every role with its default content.view access", () => {
+    for (const role of ["super_admin", "program_admin", "city_head", "park_lead", "murabbi"]) {
+      expect(
+        getNavItems(role, translate).some((item) => item.id === "admin-content-planner")
+      ).toBe(true);
+    }
+
     expect(
-      getNavItems("city_head", translate).some((item) => item.id === "admin-users")
-    ).toBe(true);
+      getNavItems("park_admin", translate).some((item) => item.id === "admin-content-planner")
+    ).toBe(false);
   });
 
-  it("renders configured event and calling navigation labels", () => {
-    const items = getNavItems("super_admin", (key) => translations.en[key] ?? key);
+  it("exposes each released admin workspace to Super Admin", () => {
+    const visible = getNavItems("super_admin", translate).map((item) => item.id);
 
-    expect(items.find((item) => item.id === "admin-events")?.label).toBe("Events");
-    expect(items.find((item) => item.id === "admin-calling")?.label).toBe("Calling");
-    expect(items.find((item) => item.id === "admin-content-planner")?.label).toBe("Content Planner");
-  });
-
-  it("groups staff and collaboration teams under People", () => {
-    const items = getNavItems("super_admin", translate);
-
-    expect(items.find((item) => item.id === "admin-users")?.section).toBe("people");
-    expect(items.find((item) => item.id === "admin-collaboration-teams")?.section).toBe("people");
+    for (const page of [
+      "admin-content-planner",
+      "admin-events",
+      "admin-calling",
+      "admin-mashwara",
+      "admin-procurement",
+      "admin-gamification",
+      "admin-knowledge-base",
+      "admin-certificates",
+      "admin-collaboration-teams",
+    ]) {
+      expect(visible).toContain(page);
+    }
   });
 });

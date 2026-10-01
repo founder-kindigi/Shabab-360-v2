@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth, requireCapability } from "@/lib/auth/authorize";
+import { requireAuth, requireCapability, resolveRequestedCityScope } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
 import {
   optionalIdentifier,
@@ -26,12 +26,15 @@ export async function GET(request: NextRequest) {
   }
   const { cityId } = query.data;
 
-  // Scope filter
+  // Scope filter: HQ may select any city (unscoped means all cities), a City
+  // Head is always pinned to their assigned city, and every other role is
+  // denied. A requested city can only narrow an existing scope, never widen it.
+  const scope = resolveRequestedCityScope(user, cityId);
+  if (scope instanceof NextResponse) return scope;
+
   const where: Record<string, unknown> = {};
-  if (cityId) {
-    where.cityId = cityId;
-  } else if (user.role === "city_head" && user.assignedCityId) {
-    where.cityId = user.assignedCityId;
+  if (scope.cityId) {
+    where.cityId = scope.cityId;
   }
 
   const [totalApplications, statusCounts, cityCounts] = await Promise.all([

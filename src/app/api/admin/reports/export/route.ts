@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth, requireCapability } from "@/lib/auth/authorize";
+import { requireAuth, requireCapability, resolveRequestedCityScope } from "@/lib/auth/authorize";
+import { groupParkWhere, hierarchyGroupWhere } from "@/lib/auth/hierarchy";
 import { db } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
 import {
@@ -35,23 +36,32 @@ export async function POST(request: NextRequest) {
 
   const { reportType, format: _format, cityId, parkId, from, to } = parsed.data;
 
-  // Audit log the export
+  // HQ may select any city (unscoped means all cities); a City Head is pinned to
+  // their assigned city and every other role is denied. A requested park must
+  // belong to the resolved city scope and may only narrow it.
+  const scope = resolveRequestedCityScope(user, cityId);
+  if (scope instanceof NextResponse) return scope;
+
+  let parkScopeId: string | null = null;
+  if (parkId) {
+    const park = await db.park.findUnique({
+      where: { id: parkId },
+      select: { id: true, cityId: true },
+    });
+    if (!park) return NextResponse.json({ error: "Park not found" }, { status: 404 });
+    if (scope.cityId && park.cityId !== scope.cityId) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    parkScopeId = park.id;
+  }
+
+  // Audit log the export with the resolved scope, never the raw request values.
   await logAudit({
     userId: user.id,
     action: "reports.export",
     entityType: "report",
-    newValues: { reportType, format: _format, cityId, parkId, from, to },
+    newValues: { reportType, format: _format, cityId: scope.cityId, parkId: parkScopeId, from, to },
   });
-
-  // Build scope filter
-  const scopeWhere: Record<string, unknown> = {};
-  if (parkId) {
-    scopeWhere.parkId = parkId;
-  } else if (cityId) {
-    scopeWhere.cityId = cityId;
-  } else if (user.role === "city_head" && user.assignedCityId) {
-    scopeWhere.cityId = user.assignedCityId;
-  }
 
   let csvRows: string[] = [];
   let filename = `${reportType}-report.csv`;
@@ -66,13 +76,31 @@ export async function POST(request: NextRequest) {
         where: {
           event: {
             ...eventWhere,
-            group: parkId ? { batch: { parkId } } : cityId ? { batch: { park: { cityId } } } : {},
+            // A group's own park is authoritative; the batch park is only a
+            // fallback for a legacy null group park, so a group parked outside
+            // the resolved city or park is never exported through its batch.
+            group: parkScopeId
+              ? groupParkWhere(parkScopeId)
+              : scope.cityId
+                ? hierarchyGroupWhere({ kind: "city", cityId: scope.cityId, parkId: null, groupId: null })
+                : {},
           },
         },
         select: {
           status: true,
           markedAt: true,
-          participant: { select: { name: true, group: { select: { name: true, batch: { select: { name: true, park: { select: { name: true, city: { select: { name: true } } } } } } } } } },
+          participant: {
+            select: {
+              name: true,
+              group: {
+                select: {
+                  name: true,
+                  park: { select: { name: true, city: { select: { name: true } } } },
+                  batch: { select: { name: true, park: { select: { name: true, city: { select: { name: true } } } } } },
+                },
+              },
+            },
+          },
           event: { select: { title: true, eventDate: true } },
         },
         take: 10000,
@@ -80,27 +108,35 @@ export async function POST(request: NextRequest) {
 
       csvRows = [
         "City,Park,Batch,Group,Event,Date,Participant,Status,MarkedAt",
-        ...records.map((r) =>
-          [
-            r.participant.group?.batch.park.city?.name || "",
-            r.participant.group?.batch.park.name || "",
-            r.participant.group?.batch.name || "",
-            r.participant.group?.name || "Unassigned",
-            r.event.title,
-            r.event.eventDate.toISOString().split("T")[0],
-            r.participant.name,
-            r.status,
-            r.markedAt ? r.markedAt.toISOString() : "",
-          ].join(",")
-        ),
+        // Attendance rows always belong to a group; an unassigned participant
+        // has no city, park, batch or group to report.
+        ...records.flatMap((r) => {
+          const group = r.participant.group;
+          if (!group) return [];
+          // The group's own park is authoritative, so a mismatched batch park
+          // can never leak another city or park name into the export.
+          const park = group.park ?? group.batch.park;
+          return [
+            [
+              park ? park.city.name : "Unknown",
+              park ? park.name : "Unassigned",
+              group.batch.name,
+              group.name,
+              r.event.title,
+              r.event.eventDate.toISOString().split("T")[0],
+              r.participant.name,
+              r.status,
+              r.markedAt ? r.markedAt.toISOString() : "",
+            ].join(","),
+          ];
+        }),
       ];
       break;
     }
 
     case "admissions": {
       const where: Record<string, unknown> = {};
-      if (cityId) where.cityId = cityId;
-      else if (user.role === "city_head" && user.assignedCityId) where.cityId = user.assignedCityId;
+      if (scope.cityId) where.cityId = scope.cityId;
 
       const apps = await db.admissionApplication.findMany({
         where,
@@ -133,9 +169,8 @@ export async function POST(request: NextRequest) {
 
     case "fees": {
       const paymentWhere: Record<string, unknown> = {};
-      if (parkId) paymentWhere.feeEvent = { batch: { parkId } };
-      else if (cityId) paymentWhere.feeEvent = { batch: { park: { cityId } } };
-      else if (user.role === "city_head" && user.assignedCityId) paymentWhere.feeEvent = { batch: { park: { cityId: user.assignedCityId } } };
+      if (parkScopeId) paymentWhere.feeEvent = { batch: { parkId: parkScopeId } };
+      else if (scope.cityId) paymentWhere.feeEvent = { batch: { park: { cityId: scope.cityId } } };
 
       const payments = await db.payment.findMany({
         where: paymentWhere,

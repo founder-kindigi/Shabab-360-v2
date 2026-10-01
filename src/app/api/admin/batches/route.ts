@@ -5,7 +5,7 @@ import {
   requireResourceScope,
 } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
-import { logAudit } from "@/lib/audit";
+import { logAudit, createAuditLogData } from "@/lib/audit";
 import {
   optionalIdentifier,
   queryParamsToObject,
@@ -41,7 +41,8 @@ export async function GET(request: NextRequest) {
   }
   const { parkId } = parsedQuery.data;
 
-  const isHQ = ["super_admin", "program_admin"].includes(user.role || "");
+  const userRole = (user.role || "").toLowerCase().trim();
+  const isHQ = ["super_admin", "program_admin"].includes(userRole);
 
   // Build where clause based on role
   let scopeWhere: any = {};
@@ -61,7 +62,7 @@ export async function GET(request: NextRequest) {
         ],
       };
     }
-  } else if (user.role === "city_head" && user.assignedCityId) {
+  } else if (userRole === "city_head" && user.assignedCityId) {
     if (selectedPark && selectedPark.cityId !== user.assignedCityId) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
@@ -72,7 +73,7 @@ export async function GET(request: NextRequest) {
       ],
     };
   } else if (
-    ["park_admin", "park_lead", "murabbi"].includes(user.role || "") &&
+    ["park_admin", "park_lead", "murabbi"].includes(userRole) &&
     user.assignedParkId
   ) {
     scopeWhere = {
@@ -85,9 +86,17 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
+  const url = new URL(request.url);
+  const limitParam = parseInt(url.searchParams.get("limit") || "100", 10);
+  const pageParam = parseInt(url.searchParams.get("page") || "1", 10);
+  const take = Math.min(isNaN(limitParam) || limitParam <= 0 ? 100 : limitParam, 100);
+  const skip = Math.max(0, (isNaN(pageParam) || pageParam <= 0 ? 1 : pageParam) - 1) * take;
+
   const batches = await db.batch.findMany({
     where: { isActive: true, ...scopeWhere },
     orderBy: { createdAt: "desc" },
+    take,
+    skip,
     include: {
       park: {
         select: {
@@ -139,7 +148,30 @@ export async function POST(request: NextRequest) {
   });
   if (scopeError) return scopeError;
 
-  const batch = await db.batch.create({
+  // Enforce one active batch per city
+  const existingActiveBatch = await db.batch.findFirst({
+    where: {
+      isActive: true,
+      OR: [
+        { cityId: park.cityId },
+        { park: { cityId: park.cityId } },
+      ],
+    },
+    select: { id: true, name: true },
+  });
+
+  if (existingActiveBatch) {
+    return NextResponse.json(
+      {
+        error: `An active batch ("${existingActiveBatch.name}") already exists for this city. Please deactivate or conclude the existing batch before creating a new one.`,
+      },
+      { status: 400 }
+    );
+  }
+
+  try {
+  const batch = await db.$transaction(async tx => {
+    const batch = await tx.batch.create({
     data: {
       name: parsed.data.name,
       parkId: parsed.data.parkId,
@@ -151,13 +183,19 @@ export async function POST(request: NextRequest) {
     },
   });
 
-  await logAudit({
+  await tx.auditLog.create({ data: createAuditLogData({
     userId: user.id,
     action: "create",
     entityType: "batch",
     entityId: batch.id,
     newValues: parsed.data,
-  });
+  }) });
 
+    return batch;
+  });
   return NextResponse.json(batch, { status: 201 });
+  } catch (error) {
+    if ((error as { code?: string }).code === "P2002") return NextResponse.json({ error: "An active batch already exists for this city" }, { status: 409 });
+    return NextResponse.json({ error: "Batch could not be saved" }, { status: 503 });
+  }
 }

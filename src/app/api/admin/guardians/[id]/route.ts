@@ -13,6 +13,41 @@ const updateSchema = z.object({
   participantIds: z.array(z.string()).optional(),
 });
 
+export async function GET(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const authError = await requireRole(["super_admin", "program_admin"]);
+  if (authError) return authError;
+
+  const { id } = await params;
+
+  const guardian = await db.guardian.findUnique({
+    where: { id },
+    include: {
+      children: {
+        include: {
+          participant: {
+            select: {
+              id: true,
+              name: true,
+              phone: true,
+              state: true,
+              group: { select: { id: true, name: true, batch: { select: { id: true, name: true, park: { select: { id: true, name: true } } } } } },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!guardian) {
+    return NextResponse.json({ error: "Guardian not found" }, { status: 404 });
+  }
+
+  return NextResponse.json(guardian);
+}
+
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

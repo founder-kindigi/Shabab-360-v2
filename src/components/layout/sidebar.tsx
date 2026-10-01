@@ -20,6 +20,7 @@ import {
   Megaphone,
   BarChart3,
   ScrollText,
+  RefreshCw,
   Settings,
   LogOut,
   ChevronLeft,
@@ -32,7 +33,12 @@ import {
   Calendar,
   Phone,
   BookOpen,
-  Images,
+  MessageSquare,
+  Package,
+  Trophy,
+  Library,
+  Award,
+  Shield,
   type LucideIcon,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -72,21 +78,32 @@ const navConfig: Record<string, { tKey: string; section: string }> = {
   "admin-people": { tKey: "nav.people", section: "people" },
   "admin-students": { tKey: "nav.students", section: "people" },
   "admin-guardians": { tKey: "nav.guardians", section: "people" },
-  "admin-users": { tKey: "nav.users", section: "people" },
-  "admin-collaboration-teams": { tKey: "nav.collaborationTeams", section: "people" },
   "admin-attendance-events": { tKey: "nav.attendance", section: "operations" },
-  "admin-content-planner": { tKey: "nav.contentPlanner", section: "operations" },
   "admin-events": { tKey: "nav.events", section: "operations" },
   "admin-calling": { tKey: "nav.calling", section: "operations" },
   "admin-mashwara": { tKey: "nav.mashwara", section: "operations" },
-  "admin-media": { tKey: "nav.media", section: "operations" },
+  "admin-islah-mamulat": { tKey: "nav.islahMamulat", section: "operations" },
+  "admin-portal-import": { tKey: "nav.portalImport", section: "system" },
+  "admin-content-planner": { tKey: "nav.contentPlanner", section: "operations" },
+  "admin-community": { tKey: "nav.community", section: "communication" },
+  "admin-procurement": { tKey: "nav.procurement", section: "operations" },
+  "admin-gamification": { tKey: "nav.gamification", section: "people" },
+  "admin-knowledge-base": { tKey: "nav.knowledgeBase", section: "communication" },
+  "admin-security-access": { tKey: "nav.securityAccess", section: "system" },
+  "admin-certificates": { tKey: "nav.certificates", section: "people" },
+  "admin-alumni": { tKey: "nav.alumni", section: "people" },
+  "admin-murabbi-profiles": { tKey: "nav.murabbiProfiles", section: "people" },
+  "admin-users": { tKey: "nav.users", section: "operations" },
   "admin-access": { tKey: "nav.access", section: "operations" },
   "admin-access-management": { tKey: "nav.accessManagement", section: "system" },
+  "admin-collaboration-teams": { tKey: "nav.collaborationTeams", section: "system" },
   "admin-admissions": { tKey: "nav.admissions", section: "operations" },
   "admin-fees": { tKey: "nav.fees", section: "operations" },
   "admin-announcements": { tKey: "nav.announcements", section: "communication" },
   "admin-reports": { tKey: "nav.reports", section: "communication" },
+  "admin-reports-builder": { tKey: "nav.reportsBuilder", section: "communication" },
   "admin-audit-log": { tKey: "nav.auditLog", section: "system" },
+  "admin-sync-conflicts": { tKey: "nav.syncConflicts", section: "system" },
   "notifications": { tKey: "nav.notifications", section: "system" },
   "admin-settings": { tKey: "nav.settings", section: "system" },
   "city-head-dashboard": { tKey: "nav.dashboard", section: "overview" },
@@ -138,17 +155,27 @@ const iconMap: Record<string, LucideIcon> = {
   "admin-events": Calendar,
   "admin-calling": Phone,
   "admin-mashwara": ClipboardList,
-  "admin-media": Images,
+  "admin-islah-mamulat": BookOpen,
+  "admin-content-planner": BookOpen,
+  "admin-community": MessageSquare,
+  "admin-procurement": Package,
+  "admin-gamification": Trophy,
+  "admin-knowledge-base": Library,
+  "admin-security-access": Shield,
+  "admin-certificates": Award,
+  "admin-alumni": GraduationCap,
+  "admin-murabbi-profiles": UserCog,
   "admin-users": UserCog,
   "admin-access": UserPlus,
   "admin-access-management": ShieldCheck,
   "admin-collaboration-teams": Users,
-  "admin-content-planner": BookOpen,
   "admin-admissions": FileText,
   "admin-fees": DollarSign,
   "admin-announcements": Megaphone,
   "admin-reports": BarChart3,
+  "admin-reports-builder": BarChart3,
   "admin-audit-log": ScrollText,
+  "admin-sync-conflicts": RefreshCw,
   "notifications": Bell,
   "admin-settings": Settings,
   "city-head-dashboard": LayoutDashboard,
@@ -174,22 +201,20 @@ const iconMap: Record<string, LucideIcon> = {
 };
 
 const roleNavPages: Record<string, PageId[]> = {
-  super_admin: ["admin-dashboard","admin-cities","admin-parks","admin-batches","admin-groups","admin-people","admin-students","admin-guardians","admin-users","admin-collaboration-teams","admin-attendance-events","admin-content-planner","admin-events","admin-mashwara","admin-calling","admin-media","admin-admissions","admin-fees","admin-access","admin-announcements","admin-reports","notifications","admin-audit-log","admin-access-management","admin-settings"],
-  program_admin: ["admin-dashboard","admin-cities","admin-parks","admin-batches","admin-groups","admin-people","admin-students","admin-guardians","admin-users","admin-attendance-events","admin-content-planner","admin-events","admin-mashwara","admin-calling","admin-media","admin-admissions","admin-fees","admin-access","admin-announcements","admin-reports","notifications","admin-audit-log","admin-settings"],
-  city_head: ["city-head-dashboard","admin-parks","admin-batches","admin-groups","admin-people","admin-students","admin-users","admin-attendance-events","admin-content-planner","admin-events","admin-mashwara","admin-calling","admin-media","admin-access","admin-announcements","admin-reports","notifications"],
-  park_admin: ["park-dashboard","park-attendance","admin-content-planner","notifications"],
-  park_lead: ["park-dashboard","admin-groups","park-attendance","admin-content-planner","notifications"],
-  murabbi: ["murabbi-dashboard","park-attendance","admin-content-planner","notifications"],
-  guardian: ["guardian-dashboard","guardian-history","guardian-schedule","guardian-fees","guardian-announcements"],
-  student: ["student-dashboard","student-history","student-schedule","student-fees","student-announcements","student-profile"],
+  super_admin: ["admin-dashboard","admin-cities","admin-parks","admin-batches","admin-groups","admin-people","admin-students","admin-guardians","admin-murabbi-profiles","admin-alumni","admin-certificates","admin-gamification","admin-attendance-events","admin-content-planner","admin-events","admin-calling","admin-mashwara","admin-islah-mamulat","admin-procurement","admin-fees","admin-admissions","admin-community","admin-knowledge-base","admin-announcements","admin-users","admin-access","admin-reports","admin-reports-builder","notifications","admin-audit-log","admin-sync-conflicts","admin-access-management","admin-collaboration-teams","admin-security-access","admin-portal-import","admin-settings"],
+  program_admin: ["admin-dashboard","admin-cities","admin-parks","admin-batches","admin-groups","admin-people","admin-students","admin-guardians","admin-murabbi-profiles","admin-alumni","admin-certificates","admin-gamification","admin-attendance-events","admin-content-planner","admin-events","admin-calling","admin-mashwara","admin-islah-mamulat","admin-procurement","admin-fees","admin-admissions","admin-community","admin-knowledge-base","admin-announcements","admin-users","admin-access","admin-reports","admin-reports-builder","notifications","admin-audit-log","admin-sync-conflicts","admin-collaboration-teams","admin-settings"],
+  city_head: ["city-head-dashboard","admin-parks","admin-batches","admin-groups","admin-people","admin-students","admin-guardians","admin-murabbi-profiles","admin-certificates","admin-gamification","admin-attendance-events","admin-content-planner","admin-events","admin-calling","admin-mashwara","admin-islah-mamulat","admin-procurement","admin-fees","admin-admissions","admin-community","admin-knowledge-base","admin-announcements","admin-access","admin-reports","admin-reports-builder","notifications","admin-sync-conflicts","admin-collaboration-teams"],
+  park_admin: ["park-dashboard","park-attendance","park-roster","park-participants","park-guardians","park-schedule","admin-islah-mamulat","admin-community","notifications"],
+  park_lead: ["park-dashboard","admin-groups","park-attendance","park-roster","park-participants","park-guardians","park-schedule","admin-content-planner","admin-events","admin-calling","admin-mashwara","admin-islah-mamulat","admin-community","admin-collaboration-teams","notifications"],
+  murabbi: ["murabbi-dashboard","murabbi-groups","park-attendance","park-schedule","admin-content-planner","admin-islah-mamulat","admin-community","notifications"],
+  guardian: ["guardian-dashboard","guardian-history","guardian-schedule","guardian-fees","admin-community","guardian-announcements"],
+  student: ["student-dashboard","student-history","student-schedule","student-fees","admin-community","student-announcements","student-profile"],
 };
 
 // Navigation configuration per role tier
 export function getNavItems(role: string | undefined, t: (key: string) => string): NavItem[] {
-  if (!role) return [];
-
-  const pages = roleNavPages[role];
-  if (!pages) return [];
+  const normalized = role ? role.toLowerCase().trim().replace(/[\s-]/g, "_") : "super_admin";
+  const pages = roleNavPages[normalized] || roleNavPages[role || ""] || roleNavPages.super_admin;
 
   return pages.map((pageId) => {
     const config = navConfig[pageId];
@@ -303,50 +328,20 @@ function DesktopSidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
       animate={{ width: collapsed ? 64 : 256 }}
       transition={{ duration: 0.2, ease: "easeInOut" }}
       style={{ minWidth: collapsed ? 64 : 256 }}
-      className="hidden lg:flex flex-col h-full border-r bg-card/50 backdrop-blur-sm flex-none overflow-hidden relative"
+      className="hidden lg:flex flex-col h-screen border-r bg-card/50 backdrop-blur-sm flex-none overflow-hidden relative"
     >
       {/* Header / Brand */}
-      <div className="group/brand flex items-center gap-3 px-4 h-14 border-b shrink-0 transition-shadow duration-500 hover:shadow-[0_0_20px_rgba(75,10,143,0.15)]">
-        <div className="flex items-center justify-center size-8 rounded-lg bg-gradient-to-br from-[#2A0C8F] via-[#A0006B] to-[#FF0015] text-white font-bold text-sm shrink-0 shadow-sm transition-transform duration-300 group-hover/brand:scale-105">
-          S
+      <div className="group/brand flex items-center justify-start px-4 h-14 border-b shrink-0 transition-shadow duration-500 hover:shadow-[0_0_20px_rgba(75,10,143,0.15)]">
+        <div className="flex items-center justify-center size-9 rounded-xl overflow-hidden shrink-0 shadow-sm transition-transform duration-300 group-hover/brand:scale-105">
+          <img src="/logo-color.png" alt="Logo" className="size-full object-contain" />
         </div>
-        <AnimatePresence>
-          {!collapsed && (
-            <motion.div
-              initial={{ opacity: 0, width: 0 }}
-              animate={{ opacity: 1, width: "auto" }}
-              exit={{ opacity: 0, width: 0 }}
-              transition={{ duration: 0.15 }}
-              className="overflow-hidden"
-            >
-              <p className="text-sm font-bold whitespace-nowrap bg-gradient-to-r from-[#4B0A8F] to-[#A0006B] bg-clip-text text-transparent">
-                Shabab360
-              </p>
-            </motion.div>
-          )}
-        </AnimatePresence>
-        <button
-          type="button"
-          onClick={onToggle}
-          className="ml-auto inline-flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#A0006B] focus-visible:ring-offset-1"
-          aria-label={t("app.collapse")}
-          title={t("app.collapse")}
-        >
-          <motion.div
-            animate={{ rotate: collapsed ? 180 : 0 }}
-            transition={{ duration: 0.2 }}
-          >
-            <ChevronLeft className="size-4" />
-          </motion.div>
-        </button>
       </div>
 
       {/* Navigation */}
-      <div className="flex-1 min-h-0 overflow-hidden">
-        <ScrollArea className="h-full w-full">
-          <nav className="flex flex-col gap-0.5 py-3 px-2">
+      <div className="flex-1 overflow-y-auto min-h-0 py-3 px-2 space-y-1">
+        <nav className="flex flex-col gap-0.5">
           {getNavSections(navItems).map((group, gIdx) => (
-            <div key={group.section || `s-${gIdx}`}>
+            <div key={`${group.section || "sec"}-${gIdx}`}>
               {group.section && !collapsed && (
                 <div className="flex items-center gap-2 px-3 pt-4 pb-1.5">
                   <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-medium">
@@ -370,10 +365,65 @@ function DesktopSidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
               ))}
             </div>
           ))}
-          </nav>
-        </ScrollArea>
+        </nav>
       </div>
 
+      {/* Footer: User info + Sign out + Collapse toggle */}
+      <div className="border-t p-2 shrink-0 space-y-1">
+        {/* User info */}
+        <AnimatePresence>
+          {!collapsed && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.15 }}
+              className="overflow-hidden"
+            >
+              <div className="rounded-lg bg-muted/50 px-3 py-2 mb-2">
+                <div className="flex items-center gap-1.5">
+                  <p className="text-xs font-medium truncate">{user?.name || "User"}</p>
+                </div>
+                <p className="text-[10px] text-muted-foreground truncate">{user?.email}</p>
+                <span className="inline-flex items-center gap-1 mt-1 rounded-full bg-[#F3ECF6] px-2 py-0.5 text-[10px] font-medium text-[#4B0A8F] dark:bg-[#1F086080] dark:text-[#8A40B0] capitalize">
+                  {getRoleLabel(user?.role)}
+                </span>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Collapse toggle */}
+        <button
+          onClick={onToggle}
+          className={cn(
+            "flex items-center gap-3 w-full rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-muted/80 hover:text-foreground transition-colors",
+            collapsed && "justify-center px-2"
+          )}
+        >
+          <motion.div
+            animate={{ rotate: collapsed ? 180 : 0 }}
+            transition={{ duration: 0.2 }}
+          >
+            <ChevronLeft className="size-4" />
+          </motion.div>
+          {!collapsed && <span>{t("app.collapse")}</span>}
+        </button>
+
+        {/* Sign out */}
+        <button
+          onClick={() => signOut({ callbackUrl: "/" })}
+          className={cn(
+            "flex items-center gap-3 w-full rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+            "text-muted-foreground hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/50 dark:hover:text-red-400",
+            collapsed && "justify-center px-2"
+          )}
+          title={collapsed ? t("auth.signOut") : undefined}
+        >
+          <LogOut className="size-4 shrink-0" />
+          {!collapsed && <span>{t("auth.signOut")}</span>}
+        </button>
+      </div>
     </motion.aside>
   );
 }
@@ -402,13 +452,10 @@ function MobileSidebar({
       <SheetContent side="left" className="w-72 p-0">
         {/* Header */}
         <div className="group/brand flex items-center justify-between px-4 h-14 border-b transition-shadow duration-500 hover:shadow-[0_0_20px_rgba(75,10,143,0.15)]">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center size-8 rounded-lg bg-gradient-to-br from-[#2A0C8F] via-[#A0006B] to-[#FF0015] text-white font-bold text-sm shadow-sm transition-transform duration-300 group-hover/brand:scale-105">
-              S
+          <div className="flex items-center">
+            <div className="flex items-center justify-center size-9 rounded-xl overflow-hidden shadow-sm transition-transform duration-300 group-hover/brand:scale-105">
+              <img src="/logo-color.png" alt="Logo" className="size-full object-contain" />
             </div>
-            <p className="text-sm font-bold bg-gradient-to-r from-[#4B0A8F] to-[#A0006B] bg-clip-text text-transparent">
-              Shabab360
-            </p>
           </div>
           <Button
             variant="ghost"
@@ -433,10 +480,10 @@ function MobileSidebar({
         </div>
 
         {/* Nav */}
-        <ScrollArea className="flex-1 py-3 px-2" style={{ height: "calc(100vh - 140px)" }}>
+        <div className="flex-1 overflow-y-auto min-h-0 py-3 px-2">
           <nav className="flex flex-col gap-0.5">
             {getNavSections(navItems).map((group, gIdx) => (
-              <div key={group.section || `ms-${gIdx}`}>
+              <div key={`${group.section || "msec"}-${gIdx}`}>
                 {group.section && (
                   <div className="flex items-center gap-2 px-3 pt-4 pb-1.5">
                     <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-medium">
@@ -476,7 +523,7 @@ function MobileSidebar({
               </div>
             ))}
           </nav>
-        </ScrollArea>
+        </div>
 
         {/* Footer: Sign out */}
         <div className="border-t p-2">

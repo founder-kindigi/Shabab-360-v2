@@ -64,25 +64,21 @@ export async function GET(request: Request) {
     const to = toParam ? new Date(toParam) : new Date();
 
     // Fetch records with pagination
-    const whereClause = participant.groupId
-      ? {
-          participantId: participant.id,
-          event: {
-            groupId: participant.groupId,
-            eventDate: { gte: from, lte: to },
-          },
-        }
-      : {
-          participantId: participant.id,
-          event: {
-            eventDate: { gte: from, lte: to },
-          },
-        };
+    const whereClause = {
+      participantId: participant.id,
+      event: {
+        ...(participant.groupId ? { groupId: participant.groupId } : {}),
+        eventDate: { gte: from, lte: to },
+      },
+    };
 
     const [records, total] = await Promise.all([
       db.attendanceRecord.findMany({
         where: whereClause,
-        include: {
+        select: {
+          id: true,
+          status: true,
+          markedAt: true,
           event: {
             select: { id: true, title: true, eventDate: true, isClosed: true },
           },
@@ -97,7 +93,8 @@ export async function GET(request: Request) {
     // Fetch all records in the date range for monthly summary (without pagination)
     const allRecordsInRange = await db.attendanceRecord.findMany({
       where: whereClause,
-      include: {
+      select: {
+        status: true,
         event: { select: { eventDate: true } },
       },
     });
@@ -109,6 +106,7 @@ export async function GET(request: Request) {
     >();
 
     for (const r of allRecordsInRange) {
+      if (!r.event) continue;
       const monthKey = formatPKT(new Date(r.event.eventDate), "yyyy-MM");
       const monthLabel = formatPKT(new Date(r.event.eventDate), "MMMM yyyy");
       const existing = monthMap.get(monthKey) || {
@@ -133,16 +131,18 @@ export async function GET(request: Request) {
     );
 
     return NextResponse.json({
-      records: records.map((r) => ({
-        id: r.id,
-        date: formatPKT(new Date(r.event.eventDate), "dd MMM yyyy"),
-        dateKey: formatPKT(new Date(r.event.eventDate), "yyyy-MM-dd"),
-        status: r.status,
-        eventTitle: r.event.title,
-        eventId: r.event.id,
-        isClosed: r.event.isClosed,
-        markedAt: r.markedAt,
-      })),
+      records: records
+        .filter((r): r is typeof r & { event: { id: string; title: string; eventDate: Date; isClosed: boolean } } => Boolean(r.event))
+        .map((r) => ({
+          id: r.id,
+          date: formatPKT(new Date(r.event.eventDate), "dd MMM yyyy"),
+          dateKey: formatPKT(new Date(r.event.eventDate), "yyyy-MM-dd"),
+          status: r.status,
+          eventTitle: r.event.title,
+          eventId: r.event.id,
+          isClosed: r.event.isClosed,
+          markedAt: r.markedAt,
+        })),
       total,
       limit,
       offset,

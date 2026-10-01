@@ -7,7 +7,8 @@ async function main() {
   console.log("Seeding database...");
 
   // Hash password
-  const passwordHash = await bcrypt.hash("password123", 12);
+  const seedPassword = process.env.SEED_PASSWORD || "password123";
+  const passwordHash = await bcrypt.hash(seedPassword, 12);
 
   // 1. Create cities
   const karachi = await db.city.create({
@@ -487,6 +488,139 @@ async function main() {
     });
   }
   console.log(`Created 1 fee event and ${paymentParticipants.length} sample payments`);
+
+  // ---- 6. Sample Calling Campaigns & Templates ----
+  console.log("Creating calling campaigns and templates...");
+  const callingCampaign1 = await db.callingCampaign.create({
+    data: {
+      cityId: karachi.id,
+      name: "Karachi Batch 2024-D Recruitment Drive",
+      description: "Outreach campaign for prospective applicants across Karachi parks.",
+      status: "active",
+      startDate: new Date("2024-11-01"),
+      endDate: new Date("2024-12-31"),
+    },
+  });
+
+  const callingCampaign2 = await db.callingCampaign.create({
+    data: {
+      cityId: lahore.id,
+      name: "Lahore Batch 4 Admissions Follow-up",
+      description: "Follow-up calls for shortlisted candidates in Lahore.",
+      status: "active",
+      startDate: new Date("2024-10-15"),
+      endDate: new Date("2024-12-15"),
+    },
+  });
+
+  await db.callingTemplate.create({
+    data: {
+      cityId: karachi.id,
+      campaignId: callingCampaign1.id,
+      title: "Initial Contact - Welcome & Overview",
+      body: "Assalamu Alaikum {prospectName}, calling from Shabab 360 Karachi. We noticed your inquiry for {allocatedPark}. Would you like to attend this Saturday's orientation session?",
+      status: "published",
+      version: 1,
+    },
+  });
+
+  await db.callingTemplate.create({
+    data: {
+      cityId: lahore.id,
+      campaignId: callingCampaign2.id,
+      title: "Orientation Confirmation - Lahore",
+      body: "Assalamu Alaikum {prospectName}, confirming your registration for Lahore Batch 4 orientation at {allocatedPark}. Please arrive at 9:00 AM.",
+      status: "published",
+      version: 1,
+    },
+  });
+  console.log("Created 2 calling campaigns and 2 calling templates");
+
+  // ---- 7. Sample Collaboration Teams & Content Planner Curriculum Plans ----
+  console.log("Creating collaboration teams and content planner curriculum plans...");
+  const sportsTeamKarachi = await db.collaborationTeam.create({
+    data: {
+      cityId: karachi.id,
+      name: "Sports & Physical Fitness",
+      code: "SPORTS",
+      description: "Outdoor drills, martial arts, and team sports planning.",
+    },
+  });
+
+  const tadreebTeamLahore = await db.collaborationTeam.create({
+    data: {
+      cityId: lahore.id,
+      name: "Tadreeb & Tarbiyah",
+      code: "TADREEB",
+      description: "Character building, Seerah, and spiritual curriculum.",
+    },
+  });
+
+  await db.contentPlan.create({
+    data: {
+      cityId: lahore.id,
+      batchId: batch1.id,
+      name: "Lahore Batch 4 Shabab Content & Activity Syllabus 2026",
+      kind: "template",
+      status: "published",
+      sessions: {
+        create: [
+          {
+            weekLabel: "Week 1",
+            dayLabel: "Saturday",
+            sessionDate: new Date("2024-11-02"),
+            focusArea: "Spiritual Foundations & Self-Purification",
+            status: "published",
+            blocks: {
+              create: [
+                {
+                  teamId: sportsTeamKarachi.id,
+                  category: "Sports",
+                  title: "Outdoor Obstacle & Fitness Circuit",
+                  content: "Build endurance, agility, and teamwork under Park Lead supervision.",
+                  sortOrder: 1,
+                  status: "published",
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  });
+
+  await db.contentPlan.create({
+    data: {
+      cityId: lahore.id,
+      name: "Youth Leadership & Public Speaking Master Series",
+      kind: "template",
+      status: "published",
+      sessions: {
+        create: [
+          {
+            weekLabel: "Week 1",
+            dayLabel: "Sunday",
+            sessionDate: new Date("2024-11-03"),
+            focusArea: "Mindset & Public Communication",
+            status: "published",
+            blocks: {
+              create: [
+                {
+                  teamId: tadreebTeamLahore.id,
+                  category: "Tadreeb",
+                  title: "Articulation & Public Confidence",
+                  content: "Develop confidence in public speaking and structuring short presentations.",
+                  sortOrder: 1,
+                  status: "published",
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  });
+  console.log("Created collaboration teams and master content plans with sessions & blocks");
 
   console.log("\nSeed completed successfully!");
   console.log("─".repeat(50));

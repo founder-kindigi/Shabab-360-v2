@@ -1,9 +1,9 @@
+import { z } from "zod";
 import { NextRequest, NextResponse } from "next/server";
 import { requireCapability } from "@/lib/auth/authorize";
 import { verifyCallingManagerOrPoc } from "@/lib/calling/poc-auth";
 import { db } from "@/lib/db";
-import { logAudit } from "@/lib/audit";
-import { updateCampaignSchema } from "@/lib/validations/calling";
+import { logAudit, createAuditLogData } from "@/lib/audit";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -12,99 +12,94 @@ interface RouteParams {
 export async function GET(request: NextRequest, { params }: RouteParams) {
   const auth = await requireCapability("calling.view");
   if (auth instanceof NextResponse) return auth;
-  const user = auth.user as any;
+  const user = auth.user;
 
   const { id } = await params;
-  const verified = await verifyCallingManagerOrPoc(user, id);
-  if (verified.error || !verified.campaign) {
-    return NextResponse.json({ error: verified.error }, { status: verified.status });
-  }
 
-  const campaign = await db.callingCampaign.findUnique({
-    where: { id },
-    include: {
-      city: { select: { id: true, name: true, code: true } },
-      pocAssignments: {
-        where: { isActive: true },
+  try {
+    const verified = await verifyCallingManagerOrPoc(user as { id: string; role?: string | null }, id);
+    if (verified.error || !verified.campaign) return NextResponse.json({ error: verified.error || "Forbidden" }, { status: verified.status || 403 });
+    if (verified.campaign) {
+      const campaign = await db.callingCampaign.findUnique({
+        where: { id },
         include: {
-          eventResponsibility: {
+          city: { select: { id: true, name: true, code: true } },
+          pocAssignments: {
+            where: { isActive: true },
             include: {
-              assignedToStaffMeta: { include: { user: { select: { id: true, name: true, email: true } } } },
+              eventResponsibility: {
+                include: {
+                  assignedToStaffMeta: { include: { user: { select: { id: true, name: true, email: true } } } },
+                },
+              },
             },
           },
+          templates: { where: { status: "approved" } },
+          externalCallers: {
+            where: { isActive: true },
+            include: { user: { select: { id: true, name: true, email: true } } },
+          },
         },
-      },
-      templates: { where: { status: "approved" } },
-      externalCallers: {
-        where: { isActive: true },
-        include: { user: { select: { id: true, name: true, email: true } } },
-      },
-    },
-  });
+      });
 
-  return NextResponse.json(campaign);
+      if (campaign) {
+        return NextResponse.json(campaign);
+      }
+    }
+  } catch {
+    return NextResponse.json({ error: "Calling campaign data is temporarily unavailable" }, { status: 503 });
+  }
+
+  return NextResponse.json({ error: "Calling campaign not found" }, { status: 404 });
 }
 
+const patchSchema = z.object({ name: z.string().trim().min(2).max(200).optional(), description: z.string().max(2000).nullable().optional(), status: z.enum(["draft", "active", "paused", "completed", "archived"]).optional(), startDate: z.string().datetime().optional(), endDate: z.string().datetime().optional() }).strict().refine(value => Object.keys(value).length > 0);
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
+  const auth = await requireCapability("calling.poc.manage"); if (auth instanceof NextResponse) return auth;
+  const parsed = patchSchema.safeParse(await request.json().catch(() => null)); if (!parsed.success) return NextResponse.json({ error: "Invalid campaign update" }, { status: 400 });
+  const { id } = await params;
+  try {
+    return await db.$transaction(async tx => {
+      const verified = await verifyCallingManagerOrPoc(auth.user as { id: string; role?: string }, id, tx);
+      if (verified.error || !verified.campaign) return NextResponse.json({ error: verified.error || "Forbidden" }, { status: verified.status || 403 });
+      if (!verified.isManager) return NextResponse.json({ error: "Campaign changes require management authority" }, { status: 403 });
+      const startDate = parsed.data.startDate ? new Date(parsed.data.startDate) : verified.campaign.startDate;
+      const endDate = parsed.data.endDate ? new Date(parsed.data.endDate) : verified.campaign.endDate;
+      if (endDate < startDate) return NextResponse.json({ error: "Campaign end must follow start" }, { status: 400 });
+      const updated = await tx.callingCampaign.update({ where: { id, updatedAt: verified.campaign.updatedAt }, data: { ...parsed.data, startDate, endDate } });
+      await tx.auditLog.create({ data: createAuditLogData({ userId: auth.user.id, action: "calling.campaign.update", entityType: "CallingCampaign", entityId: id, oldValues: { status: verified.campaign.status }, newValues: { fields: Object.keys(parsed.data), status: updated.status } }) });
+      return NextResponse.json(updated);
+    });
+  } catch (error) {
+    if ((error as { code?: string }).code === "P2025") return NextResponse.json({ error: "Campaign changed during editing" }, { status: 409 });
+    return NextResponse.json({ error: "Calling campaign data is temporarily unavailable" }, { status: 503 });
+  }
+}
+
+export async function DELETE(request: NextRequest, { params }: RouteParams) {
   const auth = await requireCapability("calling.poc.manage");
   if (auth instanceof NextResponse) return auth;
-  const user = auth.user as any;
+  const user = auth.user;
 
   const { id } = await params;
-  const verified = await verifyCallingManagerOrPoc(user, id);
-  if (verified.error || !verified.campaign) {
-    return NextResponse.json({ error: verified.error }, { status: verified.status });
-  }
 
-  let body: any;
   try {
-    body = await request.json();
+    return await db.$transaction(async (tx) => {
+      const verified = await verifyCallingManagerOrPoc(user as { id: string; role?: string }, id, tx);
+      if (verified.error || !verified.campaign) return NextResponse.json({ error: verified.error || "Forbidden" }, { status: verified.status || 403 });
+      if (!verified.isManager) return NextResponse.json({ error: "Campaign deletion requires management authority" }, { status: 403 });
+      await tx.callingCampaign.delete({ where: { id } });
+      await tx.auditLog.create({ data: createAuditLogData({
+        userId: user.id,
+        action: "calling.campaign.delete",
+        entityType: "CallingCampaign",
+        entityId: id,
+        reason: "Campaign deleted by admin",
+      }) });
+      return NextResponse.json({ success: true });
+    });
   } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    return NextResponse.json({ error: "Calling campaign data is temporarily unavailable" }, { status: 503 });
   }
 
-  if (body.cityId !== undefined && body.cityId !== verified.campaign.cityId) {
-    return NextResponse.json({ error: "cityId is immutable" }, { status: 400 });
-  }
-
-  const parsed = updateCampaignSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json(
-      { error: "Validation failed", details: parsed.error.format() },
-      { status: 400 }
-    );
-  }
-
-  const updateData: Record<string, any> = {};
-  if (parsed.data.name !== undefined) updateData.name = parsed.data.name;
-  if (parsed.data.description !== undefined) updateData.description = parsed.data.description;
-  if (parsed.data.status !== undefined) updateData.status = parsed.data.status;
-  if (parsed.data.startDate !== undefined) updateData.startDate = new Date(parsed.data.startDate);
-  if (parsed.data.endDate !== undefined) updateData.endDate = new Date(parsed.data.endDate);
-
-  // Validate effective date integrity against existing campaign data.
-  const effectiveStart = updateData.startDate ?? verified.campaign.startDate;
-  const effectiveEnd = updateData.endDate ?? verified.campaign.endDate;
-  if (effectiveStart && effectiveEnd && new Date(effectiveStart) > new Date(effectiveEnd)) {
-    return NextResponse.json(
-      { error: "startDate must be less than or equal to endDate" },
-      { status: 400 }
-    );
-  }
-
-  const updated = await db.callingCampaign.update({
-    where: { id },
-    data: updateData,
-  });
-
-  await logAudit({
-    userId: user.id,
-    action: "calling.campaign.update",
-    entityType: "CallingCampaign",
-    entityId: id,
-    oldValues: { name: verified.campaign.name, status: verified.campaign.status },
-    newValues: { name: updated.name, status: updated.status },
-  });
-
-  return NextResponse.json(updated);
 }

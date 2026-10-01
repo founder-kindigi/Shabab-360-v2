@@ -1,0 +1,9 @@
+{
+  "sqlite": {
+    "directory": "D:\\iBuild\\Shabab-360-v2\\.next\\astra-build-sqlite-to7lkq",
+    "sourceCopiedAt": "2026-09-09T11:45:15.393Z",
+    "client": "isolated custom generated client",
+    "environment": "synthetic local URL; no configured environment files copied",
+    "modifications": "Only Prisma client output/alias and tsconfig mapping in isolated verification copy"
+  }
+}

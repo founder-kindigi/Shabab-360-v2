@@ -10,26 +10,29 @@ const mocks = vi.hoisted(() => ({
   logAudit: vi.fn(),
 }));
 
-vi.mock("@/lib/auth/authorize", () => ({
+vi.mock("@/lib/auth/authorize", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@/lib/auth/authorize")>(),
   requireRole: mocks.requireRole,
   requireAuth: mocks.requireAuth,
   requireCapability: mocks.requireCapability,
 }));
 vi.mock("@/lib/db", () => ({
   db: {
+    $transaction: async (run: any) => run({ admissionApplication: { findUnique: mocks.findUnique, update: mocks.update }, auditLog: { create: mocks.logAudit } }),
     admissionApplication: {
       findUnique: mocks.findUnique,
       update: mocks.update,
     },
   },
 }));
-vi.mock("@/lib/audit", () => ({ logAudit: mocks.logAudit }));
+vi.mock("@/lib/audit", async (importOriginal) => ({ ...await importOriginal<typeof import("@/lib/audit")>(), logAudit: mocks.logAudit }));
 
 import { GET, PATCH } from "./route";
 
 const existingApplication = {
   id: "application-1",
   status: "submitted",
+  cityId: null, preferredParkId: null, updatedAt: new Date("2026-09-01T00:00:00Z"),
   emergencyContact: "Bilal Ahmed",
   emergencyPhone: "03111234567",
   previousEducation: "Crescent School",
@@ -51,7 +54,7 @@ describe("/api/admin/admissions/[id] additional fields", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.requireRole.mockResolvedValue(null);
-    mocks.requireAuth.mockResolvedValue({ user: { id: "admin-1" } });
+    mocks.requireAuth.mockResolvedValue({ user: { id: "admin-1", role: "super_admin" } });
     mocks.requireCapability.mockResolvedValue(null);
     mocks.findUnique.mockResolvedValue(existingApplication);
     mocks.update.mockImplementation(async ({ data }) => ({
@@ -88,7 +91,7 @@ describe("/api/admin/admissions/[id] additional fields", () => {
 
     expect(response.status).toBe(200);
     expect(mocks.update).toHaveBeenCalledWith({
-      where: { id: "application-1" },
+      where: { id: "application-1", updatedAt: existingApplication.updatedAt },
       data: {
         emergencyContact: "Saad Khan",
         emergencyPhone: "03221234567",
@@ -108,7 +111,7 @@ describe("/api/admin/admissions/[id] additional fields", () => {
 
     expect(response.status).toBe(200);
     expect(mocks.update).toHaveBeenCalledWith({
-      where: { id: "application-1" },
+      where: { id: "application-1", updatedAt: existingApplication.updatedAt },
       data: {
         emergencyContact: null,
         emergencyPhone: null,
@@ -123,7 +126,7 @@ describe("/api/admin/admissions/[id] additional fields", () => {
 
     expect(response.status).toBe(200);
     expect(mocks.update).toHaveBeenCalledWith({
-      where: { id: "application-1" },
+      where: { id: "application-1", updatedAt: existingApplication.updatedAt },
       data: { reference: "Updated referral" },
     });
   });

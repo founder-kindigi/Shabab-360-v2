@@ -1,14 +1,16 @@
+import { resolveRequestedHierarchy, hierarchyGroupWhere, requireResolvedGroupScope, groupHierarchyInclude } from "@/lib/auth/hierarchy";
+import { receiptIdentity, readOperationReceipt, writeOperationReceipt } from "@/lib/api/operation-receipt";
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { requireAuth, requireCapability } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
-import { logAudit } from "@/lib/audit";
+import { createAuditLogData } from "@/lib/audit";
 import { fromCents, moneyToNumber, roundToCents, toCents } from "@/lib/money";
 import { z } from "zod";
 
 const createPaymentSchema = z.object({
-  participantId: z.string().min(1, "Participant is required"),
-  amount: z.number().finite().positive("Amount must be positive").refine(
+  participantId: z.string().min(1, "Participant is required").max(128),
+  amount: z.number().finite().positive("Amount must be positive").max(100000000).refine(
     (amount) => toCents(amount) !== null,
     "Amount can have at most two decimal places"
   ),
@@ -18,7 +20,7 @@ const createPaymentSchema = z.object({
 });
 
 class PaymentError extends Error {
-  constructor(message: string, readonly status: 400 | 404 | 409) {
+  constructor(message: string, readonly status: 400 | 403 | 404 | 409) {
     super(message);
   }
 }
@@ -56,10 +58,10 @@ export async function GET(
   if (capabilityAuth instanceof NextResponse) return capabilityAuth;
   const { id } = await params;
 
-  if (!["super_admin", "program_admin"].includes(user.role || "")) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
 
+  const scope = await resolveRequestedHierarchy(user);
+  if (scope instanceof NextResponse) return scope;
+  const groupWhere = hierarchyGroupWhere(scope);
   const feeEvent = await db.feeEvent.findUnique({
     where: { id },
     include: {
@@ -68,12 +70,13 @@ export async function GET(
           id: true,
           name: true,
           groups: {
-            where: { isActive: true },
+            where: { isActive: true, ...groupWhere },
             select: { id: true },
           },
         },
       },
       payments: {
+        where: { participant: { group: groupWhere } },
         orderBy: { createdAt: "desc" },
         include: {
           participant: {
@@ -81,7 +84,7 @@ export async function GET(
               id: true,
               name: true,
               phone: true,
-              group: { select: { name: true } },
+              group: { select: { name: true, parkId: true, park: { select: { name: true } } } },
             },
           },
         },
@@ -92,6 +95,8 @@ export async function GET(
   if (!feeEvent) {
     return NextResponse.json({ error: "Fee event not found" }, { status: 404 });
   }
+
+  if (scope.kind !== "hq" && feeEvent.batch.groups.length === 0) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   // Get all active participants in the batch
   const groupIds = feeEvent.batch.groups.map((g) => g.id);
@@ -168,9 +173,6 @@ export async function POST(
   if (capabilityAuth instanceof NextResponse) return capabilityAuth;
   const { id: feeEventId } = await params;
 
-  if (!["super_admin", "program_admin"].includes(user.role || "")) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
 
   const body = await request.json().catch(() => null);
   const parsed = createPaymentSchema.safeParse(body);
@@ -193,8 +195,12 @@ export async function POST(
     );
   }
 
+  const key = request.headers.get("idempotency-key");
+  if (!key || !/^[a-zA-Z0-9_-]{16,100}$/.test(key)) return NextResponse.json({ error: "A stable Idempotency-Key is required" }, { status: 400 });
+  const identity = receiptIdentity("fee.payment", user.id!, key, [feeEventId, parsed.data.participantId, amountCents, parsed.data.method, parsed.data.notes ?? null]);
   try {
     const result = await db.$transaction(async (tx) => {
+      await tx.feeEvent.updateMany({ where: { id: feeEventId, isActive: true }, data: { isActive: true } });
       const feeEvent = await tx.feeEvent.findUnique({
         where: { id: feeEventId, isActive: true },
         include: {
@@ -214,9 +220,18 @@ export async function POST(
           state: "active",
           group: { batchId: feeEvent.batchId },
         },
+        include: { group: { include: groupHierarchyInclude } },
       });
       if (!participant) {
         throw new PaymentError("Participant is not active in this fee event's batch", 409);
+      }
+
+      if (requireResolvedGroupScope(user, participant.group)) throw new PaymentError("Forbidden", 403);
+      const replay = await readOperationReceipt(tx, identity);
+      if (replay) {
+        const payment = await tx.payment.findUnique({ where: { id: replay.paymentId }, include: { participant: { select: { id: true, name: true, phone: true, group: { select: { name: true, parkId: true, park: { select: { name: true } } } } } } } });
+        if (!payment) throw new PaymentError("Payment receipt unavailable", 409);
+        return { feeEvent, payment, receiptNo: payment.receiptNo, isPartial: payment.isPartial, remainingCents: 0 };
       }
 
       const effectiveAmountCents = roundToCents(
@@ -259,12 +274,14 @@ export async function POST(
               id: true,
               name: true,
               phone: true,
-              group: { select: { name: true } },
+              group: { select: { name: true, parkId: true, park: { select: { name: true } } } },
             },
           },
         },
       });
 
+      await tx.auditLog.create({ data: createAuditLogData({ userId: user.id, action: "create", entityType: "payment", entityId: payment.id, newValues: { feeEventId, participantId: participant.id, amount: fromCents(amountCents), method: parsed.data.method, receiptNo } }) });
+      await writeOperationReceipt(tx, identity, { paymentId: payment.id });
       return { feeEvent, payment, receiptNo, isPartial, remainingCents };
     }, {
       isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
@@ -272,25 +289,10 @@ export async function POST(
       timeout: 10_000,
     });
 
-    await logAudit({
-      userId: user.id,
-      action: "create",
-      entityType: "payment",
-      entityId: result.payment.id,
-      newValues: {
-        feeEventId,
-        participantId: parsed.data.participantId,
-        amount: moneyToNumber(result.payment.amount),
-        isPartial: result.isPartial,
-        remainingBalance: result.isPartial ? fromCents(result.remainingCents - amountCents) : 0,
-        method: parsed.data.method,
-        receiptNo: result.receiptNo,
-      },
-    });
 
     const receiptData = {
       receiptNo: result.receiptNo,
-      date: new Date().toLocaleDateString("en-GB", {
+      date: new Date(result.payment.createdAt).toLocaleDateString("en-GB", {
         day: "numeric",
         month: "short",
         year: "numeric",
@@ -299,7 +301,7 @@ export async function POST(
       studentName: result.payment.participant.name,
       groupName: result.payment.participant.group?.name ?? "—",
       batchName: result.feeEvent.batch.name,
-      parkName: result.feeEvent.batch.park.name,
+      parkName: participantParkName(result.payment.participant.group) ?? result.feeEvent.batch.park.name,
       feeTitle: result.feeEvent.title,
       amount: moneyToNumber(result.payment.amount),
       method: result.payment.method,
@@ -317,6 +319,7 @@ export async function POST(
       { status: 201 }
     );
   } catch (error) {
+    if (error instanceof Error && error.message === "IDEMPOTENCY_CONFLICT") return NextResponse.json({ error: "Retry key already used for different payment details" }, { status: 409 });
     if (error instanceof PaymentError) {
       return NextResponse.json({ error: { amount: [error.message] } }, { status: error.status });
     }
@@ -330,3 +333,5 @@ export async function POST(
     return NextResponse.json({ error: "Unable to record payment" }, { status: 500 });
   }
 }
+
+function participantParkName(group: { parkId?: string | null; park?: { name: string } | null } | null) { return group?.parkId ? group.park?.name : null; }

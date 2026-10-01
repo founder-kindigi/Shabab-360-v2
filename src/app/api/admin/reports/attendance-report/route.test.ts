@@ -3,10 +3,14 @@ import { NextResponse } from "next/server";
 
 const mocks = vi.hoisted(() => ({ requireAuth: vi.fn(), requireCapability: vi.fn() }));
 
-vi.mock("@/lib/auth/authorize", () => ({
-  requireAuth: mocks.requireAuth,
-  requireCapability: mocks.requireCapability,
-}));
+vi.mock("@/lib/auth/authorize", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/auth/authorize")>();
+  return {
+    ...actual,
+    requireAuth: mocks.requireAuth,
+    requireCapability: mocks.requireCapability,
+  };
+});
 vi.mock("@/lib/db", () => ({ db: {} }));
 
 import { GET } from "./route";

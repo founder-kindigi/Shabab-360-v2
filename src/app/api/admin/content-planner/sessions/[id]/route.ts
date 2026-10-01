@@ -23,7 +23,7 @@ export async function GET(
   const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
 
-  const capabilityAuth = await requireCapability("content.view");
+  const capabilityAuth = await requireCapability("content.view", auth.user);
   if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
   const { id } = await params;
@@ -81,7 +81,7 @@ export async function PATCH(
   const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
 
-  const capabilityAuth = await requireCapability("content.manage");
+  const capabilityAuth = await requireCapability("content.manage", auth.user);
   if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
   const { id } = await params;
@@ -212,7 +212,7 @@ export async function DELETE(
   const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
 
-  const capabilityAuth = await requireCapability("content.manage");
+  const capabilityAuth = await requireCapability("content.manage", auth.user);
   if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
   const { id } = await params;

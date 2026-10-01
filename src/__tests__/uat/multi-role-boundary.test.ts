@@ -6,7 +6,6 @@ const mocks = vi.hoisted(() => ({
   userHasCapability: vi.fn(),
   staffMetaFindFirst: vi.fn(),
   mashwaraShareFindUnique: vi.fn(),
-  cityFindFirst: vi.fn(),
 }));
 
 vi.mock("next-auth", () => ({ getServerSession: mocks.getServerSession }));
@@ -16,9 +15,9 @@ vi.mock("@/lib/auth/capability-access", () => ({
 }));
 vi.mock("@/lib/db", () => ({
   db: {
+    park: { findUnique: async () => ({ id: "park-foreign", cityId: "city-foreign", isActive: true }) },
     staffMeta: { findFirst: mocks.staffMetaFindFirst, findUnique: mocks.staffMetaFindFirst },
     mashwaraMeetingShare: { findUnique: mocks.mashwaraShareFindUnique },
-    city: { findFirst: mocks.cityFindFirst },
   },
 }));
 
@@ -256,9 +255,8 @@ describe("UAT-002: Multi-Role Boundary Verification", () => {
       }
     });
 
-    it("grants Program Admin scoped staffing without access configuration", () => {
-      expect(resolveEffectiveCapability("program_admin", "access.scope.manage", null, null, now)).toBe(true);
-      for (const cap of ["access.role_defaults.manage", "access.user_overrides.manage"] as AccessCapability[]) {
+    it("denies program_admin access management capabilities", () => {
+      for (const cap of ["access.role_defaults.manage", "access.user_overrides.manage", "access.scope.manage"] as AccessCapability[]) {
         expect(resolveEffectiveCapability("program_admin", cap, null, null, now)).toBe(false);
       }
     });
@@ -367,31 +365,24 @@ describe("UAT-002: Multi-Role Boundary Verification", () => {
 
   /* ── 10. Mashwara share scope resolution ──────────────────────────── */
   describe("resolveMashwaraAccess — meeting share grant", () => {
-    it("resolves HQ access to a meeting in an active requested city", async () => {
+    it("resolves HQ access to any meeting with MashwaraMeetingShare check", async () => {
       mocks.getServerSession.mockResolvedValue(sessionFor("super_admin"));
-      mocks.cityFindFirst.mockResolvedValue({ id: "city-foreign" });
+      mocks.staffMetaFindFirst.mockResolvedValue({ id: "staff-super" });
+      mocks.mashwaraShareFindUnique.mockResolvedValue(null); // no share needed — HQ bypasses
 
+      // super_admin passes via HQ bypass, no DB calls needed
       const { resolveMashwaraAccess } = await import("@/lib/auth/mashwara-scope");
       const user = makeUser("super_admin");
       const result = await resolveMashwaraAccess(user, { id: "meeting-any", cityId: "city-foreign" });
       expect(result).toBe(true);
     });
 
-    it("rejects a share when actor city scope cannot be resolved", async () => {
-      mocks.staffMetaFindFirst
-        .mockResolvedValueOnce({ id: "staff-1" })
-        .mockResolvedValueOnce({
-          id: "staff-1",
-          assignedCityId: null,
-          assignedPark: null,
-          assignedGroup: null,
-        });
-      mocks.mashwaraShareFindUnique.mockResolvedValue({ isRevoked: false });
-
+    it("resolves active share for a fully assigned cross-city actor", async () => {
+      mocks.staffMetaFindFirst.mockReset();
+      mocks.staffMetaFindFirst.mockResolvedValue({ id: "staff-1", role: "park_admin", assignedParkId: "park-foreign", assignedCityId: "city-foreign", isActive: true });
+      mocks.mashwaraShareFindUnique.mockResolvedValue({ isRevoked: false, revokedAt: null });
       const { resolveMashwaraAccess } = await import("@/lib/auth/mashwara-scope");
-      const user = makeUser("park_admin", { assignedParkId: null, id: "user-park" });
-      const result = await resolveMashwaraAccess(user, { id: "meeting-shared", cityId: "city-lhr" });
-      expect(result).toBe(false);
+      expect(await resolveMashwaraAccess(makeUser("park_admin", { assignedParkId: "park-foreign" }), { id: "meeting-shared", cityId: "city-lhr" })).toBe(true);
     });
 
     it("rejects when share is revoked", async () => {

@@ -1,9 +1,15 @@
-export const dynamic = "force-dynamic";
+"use client";
 
-import nextDynamic from "next/dynamic";
+import { useEffect } from "react";
+import { useAppStore } from "@/stores/useAppStore";
+import { AppShell } from "@/components/layout/app-shell";
 
-const ContentPlannerClient = nextDynamic(() => import("./_client"));
+export default function AdminContentPlannerAppPage() {
+  const navigateTo = useAppStore((s) => s.navigateTo);
 
-export default function ContentPlannerPage() {
-  return <ContentPlannerClient />;
+  useEffect(() => {
+    navigateTo("admin-content-planner");
+  }, [navigateTo]);
+
+  return <AppShell />;
 }

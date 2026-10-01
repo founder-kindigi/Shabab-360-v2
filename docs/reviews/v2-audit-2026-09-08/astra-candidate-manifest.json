@@ -1,0 +1,205 @@
+{
+  "base": "a25260321abe28673db4337bdc2074b55ee0d836",
+  "diffIdentity": "1a0231f8c75328373c534b2e6c98ab6410fc99a0d53195c94b0ad0b085576db1",
+  "files": [
+    {
+      "file": "src/app/api/admin/admissions/[id]/route.ts",
+      "sha256": "f75e337ee46ee6a14f0664841ff359324a0c0c7e28cb032c64f3260a7af337c6"
+    },
+    {
+      "file": "src/app/api/admin/admissions/route.ts",
+      "sha256": "1f72312886aebe0d0725bda25fdddff9968c6cb8444e398ab410963de8f72302"
+    },
+    {
+      "file": "src/app/api/admin/finance/__tests__/donations.test.ts",
+      "sha256": "8d9702915336d956029956864022382d3dd6b619d2e5806a63ce4487cdf5fa23"
+    },
+    {
+      "file": "src/app/api/admin/finance/__tests__/reconciliation.test.ts",
+      "sha256": "6e1e7fc4ed6de809adffa91e9521858580ff96fbad779b3ead91841cd1c099f0"
+    },
+    {
+      "file": "src/app/api/admin/finance/adjustments/route.ts",
+      "sha256": "6d8c203765803d9abbd67f1e3afb758a25f38b5cd41ecfaca391eed3843ae349"
+    },
+    {
+      "file": "src/app/api/admin/finance/donations/route.ts",
+      "sha256": "d754432a7b0bddbd9e9660702a8d8930118e929a6739724a28d76091826ce6f4"
+    },
+    {
+      "file": "src/app/api/admin/finance/reconciliation/route.ts",
+      "sha256": "f68a3a52ad19fcf4f29c3de67c066cdbf4d3e80cae5239c74172121455802ce6"
+    },
+    {
+      "file": "src/app/api/admin/gamification/__tests__/points.test.ts",
+      "sha256": "058597febad7cfc0fb381f9f189b0e40106e3c4ddda193492ef81e1eb0c8fe9e"
+    },
+    {
+      "file": "src/app/api/admin/gamification/points/route.ts",
+      "sha256": "b524b576167df63f3fa5e2251dbb624ee21ffaaf73615e3d81b7a832c5181e71"
+    },
+    {
+      "file": "src/app/api/admin/import/portal-raw/route.ts",
+      "sha256": "4420186953906cdb81de14ac6afa63367867e212683e4eb275606b57149a5c69"
+    },
+    {
+      "file": "src/app/api/admin/procurement/__tests__/requests.test.ts",
+      "sha256": "ffbe4bfe9bec07e9489c689382e92c748d8c9e839d17442e33aae5651e7fba56"
+    },
+    {
+      "file": "src/app/api/admin/procurement/audit/route.ts",
+      "sha256": "959f272b8465fe59258522e79d101dc035fc33742f9410c80580a18de2d27f76"
+    },
+    {
+      "file": "src/app/api/admin/procurement/orders/route.ts",
+      "sha256": "3d46758573ec045af341de67cce49329a60f94589234eda39182b4ddc19479b0"
+    },
+    {
+      "file": "src/app/api/admin/procurement/requests/[id]/route.ts",
+      "sha256": "fd665285b670958c420a81efd97dc6db2ef8a775ea6805cba7a164b85aa2adca"
+    },
+    {
+      "file": "src/app/api/admin/procurement/requests/route.ts",
+      "sha256": "74662dae9d428a3f4456cabe5181cd0c236d07225b13aede39129e792926a026"
+    },
+    {
+      "file": "src/app/api/admin/procurement/stock/route.ts",
+      "sha256": "0dcbf339a2c9c6f5e6c0d1862920c14d321d17bac81b8182b18345c5e719ab05"
+    },
+    {
+      "file": "src/app/api/admin/procurement/transfers/route.ts",
+      "sha256": "af6e215b8f09cb46b9029c576dd09af5af3a8c77e5312f972ca2f8452c3417ac"
+    },
+    {
+      "file": "src/app/api/admin/students/[id]/detail/route.test.ts",
+      "sha256": "fa3e3e4b291c28ccb2852295171594be90059dab424b813a37b77f17447ea0af"
+    },
+    {
+      "file": "src/app/api/calling/campaigns/[id]/route.ts",
+      "sha256": "f4844850484f19fb8a15b0aafc9c752603157a1864850061b006f7b684a57286"
+    },
+    {
+      "file": "src/app/api/park/attendance/sync/route.test.ts",
+      "sha256": "2ca4a560ae7c8e262170d4949e1301580e4a89b21d06213e540cf03699dc6ac8"
+    },
+    {
+      "file": "src/app/api/park/attendance/sync/route.ts",
+      "sha256": "cc0cfaa2f6d2c18dca4c4afb4be9e81e12f2500ce6a3570003752f79335a08a9"
+    },
+    {
+      "file": "src/app/api/park/dashboard/route.test.ts",
+      "sha256": "d4a731e981cc2fabcbcf064eb1975d0765714da58422ca8d5d2fe97c4fc9f72e"
+    },
+    {
+      "file": "src/app/api/park/structure/route.test.ts",
+      "sha256": "94d60856c24ccbda20d09bc74e2fda0fdd3bd166e8b57265b04af779dfb18dd7"
+    },
+    {
+      "file": "src/app/api/park/structure/route.ts",
+      "sha256": "4e65c2a56cd74f8ee388d9598f1b46ff0d4f4312a21394a4e1cb61753fdbfb31"
+    },
+    {
+      "file": "src/app/api/sync/process/route.ts",
+      "sha256": "dd5a4d451cd4c0d0a83d4b63f594af09525cc4b254ef6efb5e6847b0c1218402"
+    },
+    {
+      "file": "src/components/modules/admin/client-data-boundary.test.ts",
+      "sha256": "6a4f9b0294d50081c4457cd1dfc3ec8cb01591ca02854db058fdfe4bd065e65c"
+    },
+    {
+      "file": "src/components/modules/admin/fees-page.tsx",
+      "sha256": "42725dfe7e7abd40f0316f9d3fb0f390d0a62d93fb2ae83477f075e663865492"
+    },
+    {
+      "file": "src/components/modules/admin/mobile-portal-import-page.tsx",
+      "sha256": "a523a857690806e667d8acf28fc82180a29b275254e5c56161ee740d123d696f"
+    },
+    {
+      "file": "src/components/modules/admin/portal-import-page.tsx",
+      "sha256": "bf0586466a465edc63d41b158f7fca3916a5912534bea59322374312ddd3395a"
+    },
+    {
+      "file": "src/lib/auth/authorize.test.ts",
+      "sha256": "683dc9cdc0708a4c659da910b22aa4f10133e09c21a574186f8e9aacd6d42d8f"
+    },
+    {
+      "file": "src/lib/auth/authorize.ts",
+      "sha256": "523fc36ee598ce48019d01ff1713a1e45960a7b7eb9f5f7ab6fe436be95385d2"
+    },
+    {
+      "file": "src/lib/calling/portal-store.ts",
+      "sha256": "7178f7583eb1bbf154d04667cbcd8ba59c0bdc21c0d2799afc618cacc05cd6d2"
+    },
+    {
+      "file": "src/lib/student-profile/scope-boundary.test.ts",
+      "sha256": "28bfe8052454b3aa2720ce660cc1668f25d799da3bd87d0f9e048e6c4be5117b"
+    },
+    {
+      "file": "src/lib/student-profile/scope.ts",
+      "sha256": "362efbc110a2ef17c81772829c52c82bf2af9e333b195248ac211a58c2691367"
+    }
+  ],
+  "sourceDatasetReferences": [],
+  "postgres": {
+    "modeledCount": 72,
+    "migrationFiles": 24,
+    "missingCreation": [
+      {
+        "model": "FeeDonation",
+        "table": "fee_donations"
+      },
+      {
+        "model": "FinancialAdjustment",
+        "table": "financial_adjustments"
+      },
+      {
+        "model": "ProcurementItem",
+        "table": "procurement_items"
+      },
+      {
+        "model": "ParkStock",
+        "table": "park_stocks"
+      },
+      {
+        "model": "StockRequest",
+        "table": "stock_requests"
+      },
+      {
+        "model": "PurchaseOrder",
+        "table": "purchase_orders"
+      },
+      {
+        "model": "StockTransfer",
+        "table": "stock_transfers"
+      },
+      {
+        "model": "StockAuditLog",
+        "table": "stock_audit_logs"
+      },
+      {
+        "model": "TeamChatMessage",
+        "table": "team_chat_messages"
+      },
+      {
+        "model": "PointTransaction",
+        "table": "point_transactions"
+      },
+      {
+        "model": "Badge",
+        "table": "badges"
+      },
+      {
+        "model": "StudentBadge",
+        "table": "student_badges"
+      },
+      {
+        "model": "DigitalResource",
+        "table": "digital_resources"
+      },
+      {
+        "model": "KnowledgeArticle",
+        "table": "knowledge_articles"
+      }
+    ]
+  }
+}

@@ -18,32 +18,41 @@ const createSchema = z.object({
 export async function GET() {
   const authError = await requireRole(["super_admin", "program_admin"]);
   if (authError) return authError;
-  const capabilityAuth = await requireCapability("organisation.manage");
+
+  const capabilityAuth = await requireCapability("organisation.view");
   if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
-  const cities = await db.city.findMany({
-    where: { isActive: true },
-    orderBy: { name: "asc" },
-    include: {
-      _count: { select: { parks: true } },
-      cityHeads: {
-        where: { role: "city_head", isActive: true, user: { isActive: true } },
-        orderBy: { updatedAt: "desc" },
-        select: {
-          id: true,
-          user: { select: { id: true, name: true, email: true } },
+  try {
+    const cities = await db.city.findMany({
+      where: { isActive: true },
+      orderBy: { name: "asc" },
+      take: 100,
+      include: {
+        _count: { select: { parks: true } },
+        cityHeads: {
+          select: {
+            id: true,
+            user: { select: { id: true, name: true, email: true } },
+          },
         },
       },
-    },
-  });
-  return NextResponse.json(cities);
+    });
+
+    return NextResponse.json({ data: cities });
+  } catch {
+    return NextResponse.json({ error: "Cities could not be loaded" }, { status: 503 });
+  }
 }
 
 export async function POST(request: NextRequest) {
   const authError = await requireRole(["super_admin", "program_admin"]);
   if (authError) return authError;
+
   const capabilityAuth = await requireCapability("organisation.manage");
   if (capabilityAuth instanceof NextResponse) return capabilityAuth;
+
+  const auth = await requireAuth();
+  if (!auth || auth instanceof NextResponse) return auth as NextResponse;
 
   const body = await request.json();
   const parsed = createSchema.safeParse(body);
@@ -59,21 +68,24 @@ export async function POST(request: NextRequest) {
   if (existing) {
     return NextResponse.json(
       { error: "A city with this code already exists" },
-      { status: 409 }
+      { status: 400 }
     );
   }
 
-  const city = await db.city.create({ data: parsed.data });
-  const auth = await requireAuth();
-  if (!(auth instanceof NextResponse)) {
-    await logAudit({
-      userId: auth.user.id,
-      action: "create",
-      entityType: "city",
-      entityId: city.id,
-      newValues: parsed.data,
-    });
-  }
+  const city = await db.city.create({
+    data: {
+      name: parsed.data.name,
+      code: parsed.data.code,
+    },
+  });
+
+  await logAudit({
+    userId: auth.user.id,
+    action: "create",
+    entityType: "city",
+    entityId: city.id,
+    reason: `Created city ${city.name}`,
+  });
 
   return NextResponse.json(city, { status: 201 });
 }

@@ -1,8 +1,8 @@
-@import "tailwindcss";
+@import "tailwindcss" source(none);
 @import "tw-animate-css";
 
 /* Only scan source files — never .md or other documentation */
-@source inline("src/**/*.{ts,tsx,js,jsx,css}");
+@source "../";
 @custom-variant dark (&:is(.dark *));
 
 /* ───────────────────────────────────────────────────────────────

@@ -1,0 +1,159 @@
+{
+  "engine": "PostgreSQL WASM / PGlite; not a native multi-connection deployment",
+  "migrations": [
+    {
+      "folder": "20260714200000_init_postgres",
+      "result": "passed"
+    },
+    {
+      "folder": "20260714223000_add_on_leave_participant_state",
+      "result": "passed"
+    },
+    {
+      "folder": "20260715123000_add_admission_application_details",
+      "result": "passed"
+    },
+    {
+      "folder": "20260716210000_add_access_management_overrides",
+      "result": "passed"
+    },
+    {
+      "folder": "20260720100000_add_participant_age_and_grade_class",
+      "result": "passed"
+    },
+    {
+      "folder": "20260720190000_add_collaboration_teams",
+      "result": "passed"
+    },
+    {
+      "folder": "20260720210000_add_content_planner_foundation",
+      "result": "passed"
+    },
+    {
+      "folder": "20260721090000_expand_city_batch_park_group",
+      "result": "passed"
+    },
+    {
+      "folder": "20260723160000_add_student_extended_profile",
+      "result": "passed"
+    },
+    {
+      "folder": "20260723200000_add_events_and_calling_foundation",
+      "result": "passed"
+    },
+    {
+      "folder": "20260724200000_add_mashwara_module",
+      "result": "passed"
+    },
+    {
+      "folder": "20260725120000_add_login_attempts",
+      "result": "passed"
+    },
+    {
+      "folder": "20260729081417_add_media_briefs",
+      "result": "passed"
+    },
+    {
+      "folder": "20260730060714_add_attendance_foundation",
+      "result": "passed"
+    },
+    {
+      "folder": "20260802100000_repair_participant_group_nullable",
+      "result": "passed"
+    },
+    {
+      "folder": "20260803090000_add_event_registrations",
+      "result": "passed"
+    },
+    {
+      "folder": "20260803100000_add_event_fee_schedules",
+      "result": "passed"
+    },
+    {
+      "folder": "20260803110000_add_mashwara_notification_channels",
+      "result": "passed"
+    },
+    {
+      "folder": "20260810193000_add_park_staff_attendance",
+      "result": "passed"
+    },
+    {
+      "folder": "20260811083000_add_attendance_event_uniqueness",
+      "result": "passed"
+    },
+    {
+      "folder": "20260817090000_add_attendance_schedule",
+      "result": "passed"
+    },
+    {
+      "folder": "20260817120000_add_attendance_dropout_lifecycle",
+      "result": "passed"
+    },
+    {
+      "folder": "20260827090000_add_team_document_links",
+      "result": "passed"
+    },
+    {
+      "folder": "20260907114612_add_evaluations_lessons_planner",
+      "result": "passed"
+    },
+    {
+      "folder": "20260909010000_login_throttle",
+      "result": "passed"
+    },
+    {
+      "folder": "20260909020000_operation_receipts",
+      "result": "passed"
+    },
+    {
+      "folder": "20260909030000_restore_modeled_tables",
+      "result": "passed"
+    },
+    {
+      "folder": "20260909040000_active_city_batch",
+      "result": "passed"
+    },
+    {
+      "folder": "20260909050000_align_modeled_constraints",
+      "result": "passed"
+    },
+    {
+      "folder": "20260909060000_align_modeled_indexes",
+      "result": "passed"
+    },
+    {
+      "folder": "20260909070000_attendance_reset_version",
+      "result": "passed"
+    }
+  ],
+  "checks": [
+    {
+      "name": "all modeled columns match schema",
+      "passed": true,
+      "modeledColumns": 729
+    },
+    {
+      "name": "modeled constraints present",
+      "passed": true,
+      "missing": []
+    },
+    {
+      "name": "modeled indexes present",
+      "passed": true,
+      "modeledIndexes": 212,
+      "missing": []
+    },
+    {
+      "name": "modeled enums match",
+      "passed": true,
+      "modeledEnumValues": 44
+    },
+    {
+      "name": "legacy null city normalized and duplicate active batch denied",
+      "passed": true
+    }
+  ],
+  "differences": [],
+  "error": null,
+  "success": true
+}

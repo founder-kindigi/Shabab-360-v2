@@ -3,32 +3,40 @@ import { requireCapability } from "@/lib/auth/authorize";
 import { resolveActorCity } from "@/lib/auth/events-scope";
 import { db } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
-import { createCampaignSchema } from "@/lib/validations/calling";
+import { createCampaignSchema, getCampaignsQuerySchema } from "@/lib/validations/calling";
 
 export async function GET(request: NextRequest) {
   const auth = await requireCapability("calling.view");
   if (auth instanceof NextResponse) return auth;
-  const user = auth.user as any;
+  const user = auth.user;
 
   const url = new URL(request.url);
-  const requestedCityId = url.searchParams.get("cityId");
-  const statusParam = url.searchParams.get("status");
-
-  const resolved = await resolveActorCity(user, requestedCityId);
-  if (resolved.error || !resolved.cityId) {
-    return NextResponse.json({ error: resolved.error || "City resolution failed" }, { status: resolved.status || 400 });
+  const parsed = getCampaignsQuerySchema.safeParse({
+    cityId: url.searchParams.get("cityId") || undefined,
+    status: url.searchParams.get("status") || undefined,
+  });
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: "Invalid query parameters", details: parsed.error.flatten() },
+      { status: 400 }
+    );
   }
 
-  const where: any = {
-    cityId: resolved.cityId,
-  };
-  if (statusParam) {
-    where.status = statusParam;
+  const resolved = await resolveActorCity(user, parsed.data.cityId);
+  if (resolved.error || !resolved.cityId) {
+    return NextResponse.json(
+      { error: resolved.error || "City resolution failed" },
+      { status: resolved.status || 400 }
+    );
   }
 
   const campaigns = await db.callingCampaign.findMany({
-    where,
+    where: {
+      cityId: resolved.cityId,
+      ...(parsed.data.status ? { status: parsed.data.status } : {}),
+    },
     orderBy: { createdAt: "desc" },
+    take: 100,
     include: {
       city: { select: { id: true, name: true, code: true } },
       _count: { select: { assignments: true, pocAssignments: true, templates: true } },
@@ -41,7 +49,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const auth = await requireCapability("calling.poc.manage");
   if (auth instanceof NextResponse) return auth;
-  const user = auth.user as any;
+  const user = auth.user;
 
   let body: any;
   try {

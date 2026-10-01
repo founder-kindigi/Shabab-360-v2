@@ -1,114 +1,95 @@
 import { NextResponse } from "next/server";
+import { createAuditLogData } from "@/lib/audit";
 import { requireAuth, requireCapability, requireResourceScope } from "@/lib/auth/authorize";
-import { performManualDropout } from "@/lib/attendance/policy-engine";
+import { participantDropoutActionSchema } from "@/lib/attendance/schemas";
 import { db } from "@/lib/db";
-import { z } from "zod";
 
-const dropoutRequestSchema = z.object({
-  reason: z.string().min(1, "Reason is required").max(500, "Reason too long"),
-}).strict();
+async function scopedParticipant(id: string, user: Parameters<typeof requireResourceScope>[0]) {
+  const participant = await db.participant.findUnique({
+    where: { id },
+    include: { group: { include: { batch: { include: { park: true } } } } },
+  });
+  if (!participant) return { error: NextResponse.json({ error: "Participant not found" }, { status: 404 }) };
+  if (!participant.group) {
+    return {
+      error: NextResponse.json(
+        { error: "Participant must be assigned to a group before this action" },
+        { status: 409 }
+      ),
+    };
+  }
+  const scopeError = requireResourceScope(user, {
+    cityId: participant.group.batch.cityId ?? participant.group.batch.park.cityId,
+    parkId: participant.group.batch.parkId,
+    groupId: participant.groupId,
+  });
+  if (scopeError) return { error: scopeError };
+  return { participant };
+}
 
-export async function POST(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { id } = await params;
+export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
-  const { user } = auth;
+  const capability = await requireCapability("students.profile.view");
+  if (capability instanceof NextResponse) return capability;
+  const result = await scopedParticipant((await params).id, auth.user);
+  if ("error" in result) return result.error!;
+  return NextResponse.json({
+    participantId: result.participant.id,
+    state: result.participant.state,
+    dropoutAt: result.participant.dropoutAt?.toISOString() ?? null,
+    dropoutReason: result.participant.dropoutReason,
+    dropoutSource: result.participant.dropoutSource,
+    reactivatedAt: result.participant.reactivatedAt?.toISOString() ?? null,
+  });
+}
 
-  // Dropout changes the participant lifecycle; attendance marking alone is not
-  // sufficient authority to end a student's future attendance eligibility.
-  const capAuth = await requireCapability("students.manage");
-  if (capAuth instanceof NextResponse) return capAuth;
+export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const auth = await requireAuth();
+  if (auth instanceof NextResponse) return auth;
+  const capability = await requireCapability("students.manage");
+  if (capability instanceof NextResponse) return capability;
+  const result = await scopedParticipant((await params).id, auth.user);
+  if ("error" in result) return result.error!;
+  const parsed = participantDropoutActionSchema.safeParse(await request.json().catch(() => null));
+  if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
 
-  try {
-    const body = await request.json().catch(() => ({}));
-    const parseResult = dropoutRequestSchema.safeParse(body);
-    if (!parseResult.success) {
-      return NextResponse.json(
-        { error: "Validation failed", details: parseResult.error.flatten() },
-        { status: 400 }
-      );
-    }
-    const { reason } = parseResult.data;
-
-    // Fetch participant with group scope for hierarchy authorization
-    const participant = await db.participant.findUnique({
-      where: { id },
-      include: {
-        group: {
-          include: {
-            batch: {
-              include: {
-                park: true,
-              },
-            },
-          },
-        },
-      },
-    });
-
-    if (!participant) {
-      return NextResponse.json({ error: "Participant not found" }, { status: 404 });
-    }
-
-    // Hierarchy scope check
-    const scopeError = requireResourceScope(user, {
-      cityId: participant.group?.batch.park.cityId ?? null,
-      parkId: participant.group?.batch.parkId ?? null,
-      groupId: participant.groupId,
-    });
-    if (scopeError) return scopeError;
-
-    // Check if already dropped out (idempotency conflict)
-    if (participant.state === "dropout") {
-      return NextResponse.json(
-        {
-          error: "Participant is already dropped out",
-          participant: {
-            id: participant.id,
-            name: participant.name,
-            state: participant.state,
-            dropoutAt: participant.dropoutAt,
-            dropoutReason: participant.dropoutReason,
-            dropoutSource: participant.dropoutSource,
-          },
-        },
-        { status: 409 }
-      );
-    }
-
-    // Perform manual dropout
-    const result = await performManualDropout({
-      participantId: id,
-      reason,
-      actorUserId: user.id || "system",
-    });
-
-    if (!result.success || !result.participant) {
-      if (result.notFound) {
-        return NextResponse.json({ error: "Participant not found" }, { status: 404 });
-      }
-      if (result.conflict) {
-        return NextResponse.json({ error: result.error }, { status: 409 });
-      }
-      return NextResponse.json({ error: "Failed to update dropout state" }, { status: 500 });
-    }
-
-    return NextResponse.json({
-      success: true,
-      participant: {
-        id: result.participant.id,
-        name: result.participant.name,
-        state: result.participant.state,
-        dropoutAt: result.participant.dropoutAt,
-        dropoutReason: result.participant.dropoutReason,
-        dropoutSource: result.participant.dropoutSource,
-      },
-    });
-  } catch (error) {
-    console.error("Student manual dropout error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  const { participant } = result;
+  const { action, reason, effectiveDate } = parsed.data;
+  if (action === "dropout" && participant.state === "dropout") {
+    return NextResponse.json({ error: "Participant is already marked as dropout" }, { status: 409 });
   }
+  if (action === "reactivate" && participant.state !== "dropout") {
+    return NextResponse.json({ error: "Only a dropout participant can be reactivated" }, { status: 409 });
+  }
+
+  const dropoutAt = action === "dropout"
+    ? new Date(`${effectiveDate ?? new Date().toISOString().slice(0, 10)}T00:00:00.000Z`)
+    : null;
+  const updated = await db.$transaction(async (tx) => {
+    const next = await tx.participant.update({
+      where: { id: participant.id },
+      data: action === "dropout"
+        ? { state: "dropout", dropoutAt, dropoutReason: reason, dropoutSource: "manual", reactivatedAt: null }
+        : { state: "active", dropoutAt: null, dropoutReason: null, dropoutSource: null, reactivatedAt: new Date() },
+    });
+    await tx.auditLog.create({ data: createAuditLogData({
+      userId: auth.user.id,
+      action: action === "dropout" ? "student.dropout" : "student.reactivate",
+      entityType: "participant",
+      entityId: participant.id,
+      oldValues: { state: participant.state, dropoutAt: participant.dropoutAt, dropoutSource: participant.dropoutSource },
+      newValues: { state: next.state, dropoutAt: next.dropoutAt, dropoutSource: next.dropoutSource },
+      reason,
+    }) });
+    return next;
+  });
+
+  return NextResponse.json({
+    participantId: updated.id,
+    state: updated.state,
+    dropoutAt: updated.dropoutAt?.toISOString() ?? null,
+    dropoutSource: updated.dropoutSource,
+    reactivatedAt: updated.reactivatedAt?.toISOString() ?? null,
+  });
 }

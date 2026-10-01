@@ -12,113 +12,52 @@ export async function verifyCallingManagerOrPoc(
   });
 
   if (!campaign) {
-    return {
-      error: "Campaign not found",
-      status: 404,
-      campaign: null,
-      isManager: false,
-      isPoc: false,
-      isExternalCaller: false,
-    };
+    return { error: "Campaign not found", status: 404, campaign: null };
   }
 
-  // 1. Check management capability first
-  const sessionUser = { ...user, role: user.role ?? undefined } as any;
+  // Check management capability first
+  const sessionUser = { ...user, role: user.role ?? undefined };
   const canManagePoc = await userHasCapability(sessionUser, "calling.poc.manage");
-  if (canManagePoc) {
+  if (canManagePoc && ["super_admin", "program_admin", "city_head"].includes(user.role || "")) {
     const resolved = await resolveActorCity(user, campaign.cityId, prisma);
     if (resolved.error) {
-      return {
-        error: resolved.error,
-        status: resolved.status,
-        campaign: null,
-        isManager: false,
-        isPoc: false,
-        isExternalCaller: false,
-      };
+      return { error: resolved.error, status: resolved.status, campaign: null };
     }
-    return {
-      campaign,
-      isPoc: false,
-      isManager: true,
-      isExternalCaller: false,
-      cityId: campaign.cityId,
-      error: null,
-      status: 200,
-    };
+    return { campaign, isPoc: false, isManager: true, cityId: campaign.cityId, error: null, status: 200 };
   }
 
-  const now = new Date();
-
-  // 2. Check active Calling POC assignment
+  // Check active Calling POC assignment
   const staffMeta = await prisma.staffMeta.findUnique({
     where: { userId: user.id },
   });
 
-  if (staffMeta && staffMeta.isActive) {
-    const pocAssignment = await prisma.callingPOCAssignment.findFirst({
-      where: {
-        campaignId,
-        isActive: true,
-        eventResponsibility: {
-          assignedToStaffMetaId: staffMeta.id,
-          isActive: true,
-          revokedAt: null,
-          startDate: { lte: now },
-          endDate: { gte: now },
-          cityId: campaign.cityId,
-        },
-      },
-      include: { eventResponsibility: true },
-    });
-
-    if (pocAssignment) {
-      return {
-        campaign,
-        isPoc: true,
-        isManager: false,
-        isExternalCaller: false,
-        cityId: campaign.cityId,
-        error: null,
-        status: 200,
-      };
-    }
+  if (!staffMeta || !staffMeta.isActive) {
+    return { error: "Forbidden: insufficient calling permissions", status: 403, campaign: null };
   }
 
-  // 3. Check active, non-revoked, non-expired ExternalSupportCaller in campaign's city
-  const extCaller = await prisma.externalSupportCaller.findFirst({
+  const actorCity = await resolveActorCity(user, campaign.cityId, prisma);
+  if (actorCity.error) return { error: actorCity.error, status: actorCity.status, campaign: null };
+
+  const now = new Date();
+  const pocAssignment = await prisma.callingPOCAssignment.findFirst({
     where: {
-      userId: user.id,
       campaignId,
       isActive: true,
-      revokedAt: null,
-      expiresAt: { gt: now },
+      eventResponsibility: {
+        assignedToStaffMetaId: staffMeta.id,
+        isActive: true,
+        revokedAt: null,
+        startDate: { lte: now },
+        endDate: { gte: now },
+        cityId: campaign.cityId,
+      },
     },
-    include: {
-      campaign: { select: { cityId: true } },
-    },
+    include: { eventResponsibility: true },
   });
 
-  if (extCaller && extCaller.campaign) {
-    if (extCaller.campaign.cityId === campaign.cityId) {
-      return {
-        campaign,
-        isPoc: false,
-        isManager: false,
-        isExternalCaller: true,
-        cityId: campaign.cityId,
-        error: null,
-        status: 200,
-      };
-    }
+  if (!pocAssignment) {
+    return { error: "Forbidden: no active Calling POC assignment for this campaign", status: 403, campaign: null };
   }
 
-  return {
-    error: "Forbidden: insufficient calling permissions",
-    status: 403,
-    campaign: null,
-    isManager: false,
-    isPoc: false,
-    isExternalCaller: false,
-  };
+  return { campaign, isPoc: true, isManager: false, cityId: campaign.cityId, error: null, status: 200 };
 }

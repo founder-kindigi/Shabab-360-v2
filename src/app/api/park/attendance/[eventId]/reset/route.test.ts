@@ -39,7 +39,7 @@ describe("DELETE /api/park/attendance/[eventId]/reset", () => {
       id: "event-2",
       groupId: "group-2",
       isClosed: false,
-      group: { batch: { parkId: "park-2" } },
+      group: { batch: { parkId: "park-2", park: { cityId: "city-2" } } },
     });
     mocks.requireResourceScope.mockReturnValue(
       NextResponse.json({ error: "Forbidden" }, { status: 403 })
@@ -48,14 +48,14 @@ describe("DELETE /api/park/attendance/[eventId]/reset", () => {
 
   it("denies a cross-park reset before it counts or deletes attendance records", async () => {
     const response = await DELETE(new Request("http://localhost/api/park/attendance/event-2/reset", {
-      method: "DELETE",
+      method: "DELETE", headers: { "If-Match": "0" },
     }), { params: Promise.resolve({ eventId: "event-2" }) });
 
     expect(response.status).toBe(403);
     expect(mocks.requireResourceScope).toHaveBeenCalledWith(
       expect.objectContaining({ id: "park-lead" }),
-      { parkId: "park-2", groupId: "group-2" },
-      ["park_lead"]
+      { cityId: "city-2", parkId: "park-2", groupId: "group-2" },
+      ["super_admin", "program_admin", "city_head", "park_lead"]
     );
     expect(mocks.recordCount).not.toHaveBeenCalled();
     expect(mocks.recordDeleteMany).not.toHaveBeenCalled();
@@ -63,7 +63,7 @@ describe("DELETE /api/park/attendance/[eventId]/reset", () => {
 
   it("denies a missing correction capability before reading the event", async () => {
     mocks.requireCapability.mockResolvedValue(NextResponse.json({ error: "Forbidden" }, { status: 403 }));
-    const response = await DELETE(new Request("http://localhost/api/park/attendance/event-2/reset", { method: "DELETE" }), { params: Promise.resolve({ eventId: "event-2" }) });
+    const response = await DELETE(new Request("http://localhost/api/park/attendance/event-2/reset", { method: "DELETE", headers: { "If-Match": "0" } }), { params: Promise.resolve({ eventId: "event-2" }) });
     expect(response.status).toBe(403);
     expect(mocks.eventFindUnique).not.toHaveBeenCalled();
   });

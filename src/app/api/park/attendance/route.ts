@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { ATTENDANCE_ROLES, requireAuth, requireCapability, requireResourceScope } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
+import { requireResolvedGroupScope, groupParkWhere, groupResourceScope, groupHierarchyInclude } from "@/lib/auth/hierarchy";
 import { logAudit } from "@/lib/audit";
-import { todayPKT, endOfTodayPKT, formatPKT, fromPKT } from "@/lib/timezone";
+import { todayPKT, formatPKT, fromPKT } from "@/lib/timezone";
 import { parseISO, isValid } from "date-fns";
 import {
   optionalDateOnly,
@@ -11,9 +12,9 @@ import {
   queryValidationError,
 } from "@/lib/api/query-params";
 import { z } from "zod";
-import { isScheduledAttendanceSession } from "@/lib/attendance/scheduled-sessions";
 import { createAttendanceEventSchema } from "@/lib/attendance/schemas";
-import { createRosterSnapshot } from "@/lib/attendance/summaries";
+import { isBatchClassDate } from "@/lib/attendance/schedule";
+import { listAttendanceSessions } from "@/lib/attendance/session-list";
 
 const listQuerySchema = z.object({
   parkId: optionalIdentifier(),
@@ -35,18 +36,14 @@ export async function GET(req: Request) {
     const dateParam = query.data.date;
     const statusFilter = query.data.status;
 
-    type ScheduledGroup = {
-      id: string;
-      name: string;
-      batch: {
-        name: string;
-        startDate: Date;
-        endDate: Date | null;
-        settings: { offWeekdays: { weekday: number }[]; offDates: { offDate: Date }[] } | null;
-      };
-    };
-    let groups: ScheduledGroup[];
+    let groupIds: string[];
     if (user.role === "murabbi") {
+      // Explicit denial for an unassigned Murabbi: no group context, no data.
+      // This check must happen before any DB lookup so the denial is clear and
+      // cannot be bypassed by a future change to canAccessResourceScope.
+      if (!user.assignedGroupId) {
+        return NextResponse.json({ error: "Murabbi has no assigned group" }, { status: 403 });
+      }
       const scopeError = requireResourceScope(
         user,
         { groupId: user.assignedGroupId },
@@ -55,57 +52,36 @@ export async function GET(req: Request) {
       if (scopeError) return scopeError;
 
       const group = await db.group.findUnique({
-        where: { id: user.assignedGroupId! },
-        select: {
-          id: true,
-          name: true,
-          batch: {
-            select: {
-              parkId: true,
-              name: true,
-              startDate: true,
-              endDate: true,
-              settings: { select: { offWeekdays: { select: { weekday: true } }, offDates: { select: { offDate: true } } } },
-            },
-          },
-        },
+        where: { id: user.assignedGroupId },
+        include: groupHierarchyInclude,
       });
       if (!group) {
         return NextResponse.json({ error: "Assigned group not found" }, { status: 403 });
       }
-      parkId = group.batch.parkId;
-      groups = [group];
+      const scope = groupResourceScope(group);
+      if (!scope || (query.data.parkId && query.data.parkId !== scope.parkId)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      parkId = scope.parkId;
+      groupIds = [user.assignedGroupId];
     } else {
       if (!parkId) return NextResponse.json({ error: "parkId required" }, { status: 400 });
-      const scopeError = requireResourceScope(user, { parkId }, ATTENDANCE_ROLES);
+      const park = await db.park.findUnique({
+        where: { id: parkId, isActive: true },
+        select: { id: true, cityId: true },
+      });
+      if (!park) return NextResponse.json({ error: "Park not found" }, { status: 404 });
+
+      const scopeError = requireResourceScope(user, { parkId, cityId: park.cityId }, ATTENDANCE_ROLES);
       if (scopeError) return scopeError;
 
-      const batches = await db.batch.findMany({
-        where: { parkId, isActive: true },
+      const groups = await db.group.findMany({
+        where: { ...groupParkWhere(parkId), batch: { isActive: true }, isActive: true },
         select: { id: true },
       });
-      groups = await db.group.findMany({
-        where: { batchId: { in: batches.map((batch) => batch.id) }, isActive: true },
-        select: {
-          id: true,
-          name: true,
-          batch: {
-            select: {
-              name: true,
-              startDate: true,
-              endDate: true,
-              settings: { select: { offWeekdays: { select: { weekday: true } }, offDates: { select: { offDate: true } } } },
-            },
-          },
-        },
-      });
+      groupIds = groups.map((group) => group.id);
     }
-    const groupIds = groups.map((group) => group.id);
 
     // Determine date range
     let startDate: Date;
-    let endDate: Date;
-
     if (dateParam) {
       const parsed = parseISO(dateParam);
       if (!isValid(parsed)) {
@@ -116,133 +92,17 @@ export async function GET(req: Request) {
       }
       const pktDate = fromPKT(parsed);
       startDate = new Date(pktDate.getFullYear(), pktDate.getMonth(), pktDate.getDate());
-      endDate = new Date(startDate.getTime() + 24 * 60 * 60 * 1000);
     } else {
       startDate = todayPKT();
-      endDate = endOfTodayPKT();
     }
 
-    // Build where clause
-    const where: Record<string, unknown> = {
-      groupId: { in: groupIds },
-      eventDate: { gte: startDate, lt: endDate },
-    };
-
-    if (statusFilter === "open") where.isClosed = false;
-    else if (statusFilter === "closed") where.isClosed = true;
-
-    // Get events with record counts
-    const events = await db.attendanceEvent.findMany({
-      where,
-      include: {
-        group: true,
-        records: { select: { id: true, status: true } },
-      },
-      orderBy: { eventDate: "desc" },
-    });
-
-    // Get participant counts per group
-    const groupPCounts = await db.participant.groupBy({
-      by: ["groupId"],
-      where: { groupId: { in: groupIds }, state: "active" },
-      _count: true,
-    });
-    const pCountMap = new Map(groupPCounts.map((g) => [g.groupId, g._count]));
-
-    // Resolve closedBy names from StaffMeta
-    const closedByIds = events
-      .map((e) => e.closedBy)
-      .filter((id): id is string => !!id);
-    const closedByStaff = closedByIds.length > 0
-      ? await db.staffMeta.findMany({
-          where: { id: { in: closedByIds } },
-          include: { user: { select: { name: true } } },
-        })
-      : [];
-    const closedByNameMap = new Map(
-      closedByStaff.map((s) => [s.id, s.user.name])
-    );
-
-    const persistedByGroupId = new Map(events.map((event) => [event.groupId, event]));
-    const eventList: Array<{
-      id: string | null;
-      title: string;
-      groupId: string;
-      groupName: string;
-      batchName?: string;
-      eventDate: string;
-      isClosed: boolean;
-      isScheduled?: boolean;
-      participantCount: number;
-      markedCount: number;
-      presentCount: number;
-      absentCount: number;
-      lateCount: number;
-      excusedCount: number;
-      progress: number;
-      closedAt: string | null;
-      closedByName: string | null;
-    }> = events.map((e) => {
-      const pCount = pCountMap.get(e.groupId) || 0;
-      const mCount = e.records.length;
-      const presentCount = e.records.filter((r) => r.status === "present").length;
-      const absentCount = e.records.filter((r) => r.status === "absent").length;
-      const lateCount = e.records.filter((r) => r.status === "late").length;
-      const excusedCount = e.records.filter((r) => r.status === "excused").length;
-
-      return {
-        id: e.id,
-        title: e.title,
-        groupId: e.groupId,
-        groupName: e.group.name,
-        eventDate: e.eventDate.toISOString(),
-        isClosed: e.isClosed,
-        participantCount: pCount,
-        markedCount: mCount,
-        presentCount,
-        absentCount,
-        lateCount,
-        excusedCount,
-        progress: pCount > 0 ? Math.round((mCount / pCount) * 100) : 0,
-        closedAt: e.closedAt?.toISOString() || null,
-        closedByName: e.closedBy ? closedByNameMap.get(e.closedBy) || null : null,
-      };
-    });
-
-    // A scheduled card is visible before its first mark. The actual event and
-    // roster snapshot are created only when the user begins attendance.
-    if (statusFilter !== "closed") {
-      for (const group of groups) {
-        if (persistedByGroupId.has(group.id)) continue;
-        if (!isScheduledAttendanceSession(startDate, group.batch)) continue;
-        const participantCount = pCountMap.get(group.id) || 0;
-        eventList.push({
-          id: null,
-          title: `${group.name} attendance`,
-          groupId: group.id,
-          groupName: group.name,
-          batchName: group.batch.name,
-          eventDate: startDate.toISOString(),
-          isClosed: false,
-          isScheduled: true,
-          participantCount,
-          markedCount: 0,
-          presentCount: 0,
-          absentCount: 0,
-          lateCount: 0,
-          excusedCount: 0,
-          progress: 0,
-          closedAt: null,
-          closedByName: null,
-        });
-      }
-    }
-
-    return NextResponse.json({
+    return NextResponse.json(await listAttendanceSessions({
       date: formatPKT(startDate, "yyyy-MM-dd"),
+      eventDate: startDate,
+      groupIds,
       parkId,
-      events: eventList.sort((left, right) => left.groupName.localeCompare(right.groupName)),
-    });
+      status: statusFilter,
+    }));
   } catch (error) {
     console.error("Attendance list error:", error);
     return NextResponse.json(
@@ -262,6 +122,11 @@ export async function POST(req: Request) {
   const capabilityAuth = await requireCapability("attendance.mark");
   if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
+  if (user.role === "murabbi" && !user.assignedGroupId) {
+    // Deliberate denial before any data lookup, matching the list route.
+    return NextResponse.json({ error: "Murabbi has no assigned group" }, { status: 403 });
+  }
+
   try {
     const parsedBody = createAttendanceEventSchema.safeParse(
       await req.json().catch(() => null)
@@ -274,26 +139,54 @@ export async function POST(req: Request) {
     }
     const { groupId, title, eventDate } = parsedBody.data;
 
-    // Scope check: verify group belongs to user's scope
+    // Scope check: the group must exist, be active, and belong to user's scope.
     const group = await db.group.findUnique({
-      where: { id: groupId },
-      include: { batch: { include: { park: true } } },
+      where: { id: groupId, isActive: true },
+      include: groupHierarchyInclude,
     });
 
     if (!group) {
       return NextResponse.json({ error: "Group not found" }, { status: 404 });
     }
 
-    const scopeError = requireResourceScope(
-      user,
-      { parkId: group.batch.parkId, groupId },
-      ATTENDANCE_ROLES
-    );
+    const scopeError = requireResolvedGroupScope(user, group, ATTENDANCE_ROLES);
     if (scopeError) return scopeError;
 
-    // Check if event already exists for this group+date
     const parsedDate = eventDate ? parseISO(eventDate) : null;
     const date = parsedDate ? fromPKT(parsedDate) : todayPKT();
+
+    // Owner-approved batch calendar policy: a session may only be created for a
+    // scheduled class date inside the active batch's inclusive range.
+    const batch = await db.batch.findUnique({
+      where: { id: group.batchId, isActive: true },
+      select: {
+        startDate: true,
+        endDate: true,
+        settings: { select: { classWeekdays: true } },
+        extraClassDates: {
+          where: { classDate: { gte: date, lt: new Date(date.getTime() + 24 * 60 * 60 * 1000) } },
+          select: { classDate: true },
+        },
+      },
+    });
+    if (!batch) {
+      return NextResponse.json({ error: "Active batch not found for this group" }, { status: 404 });
+    }
+    const scheduled = isBatchClassDate({
+      date: formatPKT(date, "yyyy-MM-dd"),
+      startDate: batch.startDate,
+      endDate: batch.endDate,
+      classWeekdays: batch.settings?.classWeekdays,
+      extraClassDates: batch.extraClassDates.map((item) => item.classDate),
+    });
+    if (!scheduled) {
+      return NextResponse.json(
+        { error: "Attendance can only be created for a scheduled class date inside the active batch range" },
+        { status: 400 }
+      );
+    }
+
+    // Check if event already exists for this group+date
     const existingEvent = await db.attendanceEvent.findFirst({
       where: {
         groupId,
@@ -315,8 +208,6 @@ export async function POST(req: Request) {
         eventDate: date,
       },
     });
-
-    await createRosterSnapshot(event.id);
 
     await logAudit({
       userId: user.id,

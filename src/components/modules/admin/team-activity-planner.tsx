@@ -25,7 +25,7 @@ type Activity = {
   id: string;
   title: string;
   description: string | null;
-  status: "planned" | "in_progress" | "completed" | "cancelled";
+  status: "planned" | "in_progress" | "completed" | "cancelled" | "archived";
   scheduledFor: string | null;
   assignedStaffMetaId: string | null;
   assignedStaff: { id: string; user: { name: string | null; isActive: boolean } } | null;

@@ -20,10 +20,14 @@ const mocks = vi.hoisted(() => ({
   logAudit: vi.fn(),
 }));
 
-vi.mock("@/lib/auth/authorize", () => ({
-  requireAuth: mocks.requireAuth,
-  requireCapability: mocks.requireCapability,
-}));
+vi.mock("@/lib/auth/authorize", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/auth/authorize")>();
+  return {
+    ...actual,
+    requireAuth: mocks.requireAuth,
+    requireCapability: mocks.requireCapability,
+  };
+});
 vi.mock("@/lib/db", () => ({
   db: {
     attendanceEvent: { count: mocks.attendanceEventCount, groupBy: mocks.attendanceEventGroupBy },
@@ -112,7 +116,18 @@ describe("GET /api/admin/reports/attendance", () => {
     await attendanceGET(withSearchParams("http://localhost/api/admin/reports/attendance"));
 
     expect(mocks.attendanceEventCount).toHaveBeenCalledWith(
-      expect.objectContaining({ where: expect.objectContaining({ group: expect.objectContaining({ batch: expect.objectContaining({ park: { cityId: "city-lhr" } }) }) }) })
+      expect.objectContaining({
+        where: expect.objectContaining({
+          group: {
+            AND: [{
+              OR: [
+                { park: { cityId: "city-lhr" } },
+                { parkId: null, batch: { park: { cityId: "city-lhr" } } },
+              ],
+            }],
+          },
+        }),
+      })
     );
   });
 });
@@ -286,5 +301,28 @@ describe("POST /api/admin/reports/export", () => {
 
     expect(response.status).toBe(400);
     expect(mocks.logAudit).not.toHaveBeenCalled();
+  });
+
+  it("excludes an unassigned participant from the attendance CSV", async () => {
+    mocks.attendanceRecordFindMany.mockResolvedValue([
+      {
+        status: "present", markedAt: new Date("2026-07-01T10:00:00Z"),
+        participant: { name: "Assigned", group: { name: "Group A", batch: { name: "Batch 1", park: { name: "Park 1", city: { name: "Lahore" } } } } },
+        event: { title: "Daily Class", eventDate: new Date("2026-07-01") },
+      },
+      {
+        status: "present", markedAt: null,
+        participant: { name: "Unassigned", group: null },
+        event: { title: "Daily Class", eventDate: new Date("2026-07-01") },
+      },
+    ]);
+
+    const response = await exportPOST(jsonBody({ reportType: "attendance", format: "csv" }));
+    const text = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(text).toContain("Assigned,present");
+    expect(text).not.toContain("Unassigned");
+    expect(text.trim().split("\n")).toHaveLength(2);
   });
 });

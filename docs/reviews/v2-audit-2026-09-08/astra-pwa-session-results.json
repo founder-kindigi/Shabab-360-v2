@@ -1,0 +1,55 @@
+{
+  "startedAt": "2026-09-10T05:47:58.614Z",
+  "directory": "D:\\iBuild\\Shabab-360-v2\\.next\\astra-pwa-session-VYd7pn",
+  "buildDirectory": "D:\\iBuild\\Shabab-360-v2\\.next\\astra-build-sqlite-jZXjxE",
+  "sourceCopiedAt": "2026-09-10T05:30:51.078Z",
+  "limits": "Actual compiled PWA, NextAuth and API routes against fresh schema-created SQLite and synthetic accounts. This does not test provisioning approval, live accounts or native PostgreSQL.",
+  "tests": [
+    {
+      "name": "Invalid password produces a generic mounted login failure",
+      "passed": true
+    },
+    {
+      "name": "Forced reset blocks operations, persists a password change and returns to login",
+      "passed": true
+    },
+    {
+      "name": "Reauthentication after reset opens the mounted PWA and sign-out clears it",
+      "passed": true
+    },
+    {
+      "name": "A committed payment with a lost browser acknowledgement recovers its original receipt after reload",
+      "passed": true
+    },
+    {
+      "name": "The profile directory paginates, saves only the selected profile, and returns to selectable profiles",
+      "passed": true
+    },
+    {
+      "name": "An authenticated browser attendance write survives reload and replay without duplicate rows",
+      "passed": true
+    },
+    {
+      "name": "Mounted PWA rejects a revoked identity on refreshed session",
+      "passed": true
+    },
+    {
+      "name": "Mounted PWA rejects a inactive identity on refreshed session",
+      "passed": true
+    },
+    {
+      "name": "Mounted PWA rejects a deleted identity on refreshed session",
+      "passed": true
+    },
+    {
+      "name": "Mounted PWA rejects a scope identity on refreshed session",
+      "passed": true
+    },
+    {
+      "name": "Revoked capability disappears from the mounted menu and the direct API denies it",
+      "passed": true
+    }
+  ],
+  "browser": "152.0.4191.66",
+  "finishedAt": "2026-09-10T05:50:19.513Z"
+}

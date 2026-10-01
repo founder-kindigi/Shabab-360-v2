@@ -1,6 +1,15 @@
-import { redirect } from "next/navigation";
-import type { JSX } from "react";
+"use client";
 
-export default function MashwaraPage(): JSX.Element {
-  redirect("/?page=admin-mashwara");
+import { useEffect } from "react";
+import { useAppStore } from "@/stores/useAppStore";
+import { AppShell } from "@/components/layout/app-shell";
+
+export default function AdminMashwaraAppPage() {
+  const navigateTo = useAppStore((s) => s.navigateTo);
+
+  useEffect(() => {
+    navigateTo("admin-mashwara");
+  }, [navigateTo]);
+
+  return <AppShell />;
 }

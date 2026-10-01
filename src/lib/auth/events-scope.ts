@@ -1,4 +1,7 @@
 import { db as defaultDb } from "@/lib/db";
+import type { PrismaClient } from "@prisma/client";
+
+type DbClient = PrismaClient | typeof defaultDb;
 
 export interface ResolvedActorCitySuccess {
   cityId: string;

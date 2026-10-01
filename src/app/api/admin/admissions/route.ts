@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireRole, requireAuth, requireCapability } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
+import { resolveCityParkScope } from "@/lib/auth/hierarchy";
+import { admissionAccess } from "@/lib/admissions/access";
 import { z } from "zod";
-import { logAudit } from "@/lib/audit";
+import { createAuditLogData } from "@/lib/audit";
 import { admissionAdditionalFieldsShape } from "@/lib/admissions/validation";
 import {
   optionalIdentifier,
@@ -34,9 +36,13 @@ const admissionListQuerySchema = paginatedQuerySchema({ maxPageSize: 200 }).exte
 });
 
 export async function GET(request: NextRequest) {
-  const authError = await requireRole(["super_admin", "program_admin"]);
+  const authError = await requireRole(["super_admin", "program_admin", "city_head", "park_admin", "park_lead", "murabbi"]);
   if (authError) return authError;
 
+  const capability = await requireCapability("admissions.manage");
+  if (capability instanceof NextResponse) return capability;
+  const auth = await requireAuth();
+  if (auth instanceof NextResponse) return auth;
   const { searchParams } = new URL(request.url);
   const query = admissionListQuerySchema.safeParse(queryParamsToObject(searchParams));
   if (!query.success) {
@@ -44,138 +50,121 @@ export async function GET(request: NextRequest) {
   }
   const { search, status, cityId, page, pageSize } = query.data;
 
-  const where: Record<string, unknown> = {};
+  try {
+    const scope = await resolveCityParkScope(auth.user, { cityId });
+    if (scope instanceof NextResponse) return scope;
+    {
+      const where: Record<string, unknown> = { ...(scope.cityId ? { cityId: scope.cityId } : {}), ...(scope.parkId ? { preferredParkId: scope.parkId } : {}) };
 
-  if (search) {
-    where.OR = [
-      { applicantName: { contains: search } },
-      { guardianName: { contains: search } },
-      { guardianPhone: { contains: search } },
-      { trackingCode: { contains: search } },
-    ];
-  }
+      if (search) {
+        where.OR = [
+          { applicantName: { contains: search } },
+          { guardianName: { contains: search } },
+          { guardianPhone: { contains: search } },
+          { trackingCode: { contains: search } },
+        ];
+      }
 
-  if (status && VALID_STATUSES.includes(status)) {
-    where.status = status;
-  } else if (status === "reviewing") {
-    // Legacy alias for "screening"
-    where.status = "screening";
-  }
+      if (status && VALID_STATUSES.includes(status)) {
+        where.status = status;
+      } else if (status === "reviewing") {
+        where.status = "screening";
+      }
 
-  if (cityId) {
-    where.cityId = cityId;
-  }
+      if (cityId) {
+        where.cityId = cityId;
+      }
 
-  const [applications, total] = await Promise.all([
-    db.admissionApplication.findMany({
-      where,
-      include: {
-        city: { select: { id: true, name: true } },
-        preferredPark: { select: { id: true, name: true, cityId: true } },
-        interviews: {
+      const [applications, total] = await Promise.all([
+        db.admissionApplication.findMany({
+          where,
+          include: {
+            city: { select: { id: true, name: true } },
+            preferredPark: { select: { id: true, name: true, cityId: true } },
+            interviews: { orderBy: { createdAt: "desc" } },
+            convertedParticipant: {
+              select: { id: true, name: true, group: { select: { id: true, name: true, batch: { select: { id: true, name: true } } } } },
+            },
+          },
           orderBy: { createdAt: "desc" },
-        },
-        convertedParticipant: {
-          select: { id: true, name: true, group: { select: { id: true, name: true, batch: { select: { id: true, name: true } } } } },
-        },
-      },
-      orderBy: { createdAt: "desc" },
-      skip: (page - 1) * pageSize,
-      take: pageSize,
-    }),
-    db.admissionApplication.count({ where }),
-  ]);
+          skip: (page - 1) * pageSize,
+          take: pageSize,
+        }),
+        db.admissionApplication.count({ where }),
+      ]);
 
-  return NextResponse.json({
-    data: applications,
-    pagination: {
-      page,
-      pageSize,
-      total,
-      totalPages: Math.ceil(total / pageSize),
-    },
-  });
+      return NextResponse.json({
+        data: applications,
+        pagination: {
+          page,
+          pageSize,
+          total,
+          totalPages: Math.ceil(total / pageSize),
+        },
+      });
+    }
+  } catch {
+    return NextResponse.json({ error: "Admissions are temporarily unavailable" }, { status: 503 });
+  }
+
+  return NextResponse.json({ data: [], pagination: { page, pageSize, total: 0, totalPages: 0 } });
 }
 
 export async function POST(request: NextRequest) {
   const authError = await requireRole(["super_admin", "program_admin"]);
   if (authError) return authError;
 
-  const auth = await requireAuth();
-  if (auth instanceof NextResponse) return auth;
   const capabilityAuth = await requireCapability("admissions.manage");
   if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
-  const body = await request.json();
+  const auth = await requireAuth();
+  if (!auth || auth instanceof NextResponse) return auth as NextResponse;
+
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
   const parsed = createSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json(
-      { error: parsed.error.flatten().fieldErrors },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "Invalid input data", details: parsed.error.format() }, { status: 400 });
   }
 
-  const {
-    applicantName,
-    applicantDOB,
-    gender,
-    guardianName,
-    guardianPhone,
-    guardianRelation,
-    cityId,
-    preferredParkId,
-    notes,
-    emergencyContact,
-    emergencyPhone,
-    previousEducation,
-    reference,
-  } = parsed.data;
+  const trackingCode = `APP-PORTAL-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
-  // Generate tracking code: SHB-YYYY-NNNN
-  const year = new Date().getFullYear();
-  const prefix = `SHB-${year}-`;
-
-  // Find the latest tracking code for this year to get the next number
-  const latestApp = await db.admissionApplication.findFirst({
-    where: { trackingCode: { startsWith: prefix } },
-    orderBy: { trackingCode: "desc" },
-    select: { trackingCode: true },
-  });
-
-  let nextNum = 1;
-  if (latestApp) {
-    const numStr = latestApp.trackingCode.slice(prefix.length);
-    const num = parseInt(numStr, 10);
-    if (!isNaN(num)) nextNum = num + 1;
-  }
-  const trackingCode = `${prefix}${String(nextNum).padStart(4, "0")}`;
-
-  const application = await db.admissionApplication.create({
+  try {
+  const destination = { cityId: parsed.data.cityId ?? null, preferredParkId: parsed.data.preferredParkId ?? null };
+  const denied = await admissionAccess(auth.user, destination);
+  if (denied) return denied;
+  const created = await db.$transaction(async (tx) => {
+  const created = await tx.admissionApplication.create({
     data: {
       trackingCode,
-      applicantName,
-      applicantDOB: applicantDOB ? new Date(applicantDOB) : null,
-      gender: gender || null,
-      guardianName,
-      guardianPhone,
-      guardianRelation: guardianRelation || null,
-      cityId: cityId || null,
-      preferredParkId: preferredParkId || null,
-      notes: notes || null,
-      emergencyContact: emergencyContact ?? null,
-      emergencyPhone: emergencyPhone ?? null,
-      previousEducation: previousEducation ?? null,
-      reference: reference ?? null,
+      applicantName: parsed.data.applicantName,
+      applicantDOB: parsed.data.applicantDOB ? new Date(parsed.data.applicantDOB) : null,
+      gender: parsed.data.gender,
+      guardianName: parsed.data.guardianName,
+      guardianPhone: parsed.data.guardianPhone,
+      guardianRelation: parsed.data.guardianRelation,
+      cityId: parsed.data.cityId,
+      preferredParkId: parsed.data.preferredParkId,
+      notes: parsed.data.notes,
+      emergencyContact: parsed.data.emergencyContact ?? null,
+      emergencyPhone: parsed.data.emergencyPhone ?? null,
+      previousEducation: parsed.data.previousEducation ?? null,
+      reference: parsed.data.reference ?? null,
+    },
+    include: {
+      city: { select: { id: true, name: true } },
+      preferredPark: { select: { id: true, name: true, cityId: true } },
     },
   });
 
-  await logAudit({
-    userId: auth.user.id,
-    action: "create",
-    entityType: "admission_application",
-    entityId: application.id,
-    newValues: { trackingCode, applicantName, guardianName, cityId, preferredParkId },
+  await tx.auditLog.create({ data: createAuditLogData({ userId: auth.user.id, action: "admission.create", entityType: "AdmissionApplication", entityId: created.id }) });
+  return created;
   });
 
-  return NextResponse.json(application, { status: 201 });
+  return NextResponse.json(created, { status: 201 });
+  } catch { return NextResponse.json({ error: "Admissions are temporarily unavailable" }, { status: 503 }); }
 }

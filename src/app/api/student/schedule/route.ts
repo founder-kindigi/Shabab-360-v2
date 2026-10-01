@@ -95,13 +95,15 @@ export async function GET(request: Request) {
     fourWeeksAgoMonday.setDate(weekMonday.getDate() - 28);
     fourWeeksAgoMonday.setHours(0, 0, 0, 0);
 
-    const historicalEvents = await db.attendanceEvent.findMany({
-      where: {
-        groupId,
-        eventDate: { gte: fourWeeksAgoMonday, lt: weekMonday },
-      },
-      select: { eventDate: true },
-    });
+    const historicalEvents = groupId
+      ? await db.attendanceEvent.findMany({
+          where: {
+            groupId,
+            eventDate: { gte: fourWeeksAgoMonday, lt: weekMonday },
+          },
+          select: { eventDate: true },
+        })
+      : [];
 
     const dayCounts = new Map<number, number>();
     for (const ev of historicalEvents) {
@@ -115,7 +117,9 @@ export async function GET(request: Request) {
       .map(([day]) => day);
 
     // ── Get participant count for the group ──
-    const groupParticipantCount = await db.participant.count({ where: { groupId, state: "active" } });
+    const groupParticipantCount = groupId
+      ? await db.participant.count({ where: { groupId, state: "active" } })
+      : 0;
 
     // ── Build events with student status ──
     const events = weekEvents.map((e) => {
@@ -139,17 +143,19 @@ export async function GET(request: Request) {
     });
 
     // ── Upcoming events (next 3 after this week) ──
-    const upcomingEvents = await db.attendanceEvent.findMany({
-      where: {
-        groupId,
-        eventDate: { gt: weekSunday },
-      },
-      include: {
-        _count: { select: { records: true } },
-      },
-      orderBy: { eventDate: "asc" },
-      take: 3,
-    });
+    const upcomingEvents = groupId
+      ? await db.attendanceEvent.findMany({
+          where: {
+            groupId,
+            eventDate: { gt: weekSunday },
+          },
+          include: {
+            _count: { select: { records: true } },
+          },
+          orderBy: { eventDate: "asc" },
+          take: 3,
+        })
+      : [];
 
     const upcoming = upcomingEvents.map((e) => {
       const d = toPKT(new Date(e.eventDate));
@@ -175,15 +181,13 @@ export async function GET(request: Request) {
         id: participant.id,
         name: participant.name,
       },
-      group: participant.group
-        ? {
-            id: participant.group.id,
-            name: participant.group.name,
-            batchName: participant.group.batch.name,
-            parkName: participant.group.batch.park.name,
-            cityName: participant.group.batch.park.city?.name || null,
-          }
-        : null,
+      group: participant.group ? {
+        id: participant.group.id,
+        name: participant.group.name,
+        batchName: participant.group.batch.name,
+        parkName: participant.group.batch.park.name,
+        cityName: participant.group.batch.park.city?.name || null,
+      } : null,
       events,
       typicalDays,
       upcoming,

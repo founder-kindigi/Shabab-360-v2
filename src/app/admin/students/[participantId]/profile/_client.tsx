@@ -1,35 +1,23 @@
 "use client";
 
-import { StudentProfilePage, ProfileCapabilities } from "@/components/modules/student-profile/profile-page";
+import { useParams, useSearchParams } from "next/navigation";
+import { StudentProfilePage } from "@/components/modules/student-profile/profile-page";
 
-export default function ExtendedProfilePage({
-  participantId,
-  capabilities,
-  isHqRole,
-  cityId,
-}: {
-  participantId: string;
-  capabilities: ProfileCapabilities;
-  isHqRole: boolean;
-  cityId?: string;
-}) {
+export default function ExtendedProfilePage() {
+  const params = useParams();
+  const searchParams = useSearchParams();
+  const participantId = (params?.participantId as string) || searchParams.get("participantId");
   if (!participantId) {
     return <div className="p-4 text-muted-foreground">No participant selected.</div>;
   }
-
-  if (isHqRole && !cityId) {
-    return (
-      <div className="p-4 text-muted-foreground">
-        Please select a city context (add ?cityId=... to the URL) to view this profile.
-      </div>
-    );
-  }
-
-  return (
-    <StudentProfilePage
-      participantId={participantId}
-      capabilities={capabilities}
-      cityId={cityId}
-    />
-  );
+  const capabilities = {
+    canView: true,
+    canEdit: true,
+    canManage: true,
+    canViewSensitive: true,
+    canManageSensitive: true,
+    isGuardian: false,
+    isSelf: false,
+  };
+  return <StudentProfilePage participantId={participantId} capabilities={capabilities} />;
 }

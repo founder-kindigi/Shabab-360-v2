@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
   const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
 
-  const capabilityAuth = await requireCapability("content.view");
+  const capabilityAuth = await requireCapability("content.view", auth.user);
   if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
   // Parse and validate query parameters
@@ -41,11 +41,9 @@ export async function GET(request: NextRequest) {
   const { page, pageSize, cityId, batchId, parkId, status, kind, search } =
     parsed.data;
 
-  // HQ roles see all cities, but must supply an explicit cityId to avoid
-  // returning a blind cross-city dump.
   if (isHqRole((auth.user as SessionUser).role) && !cityId) {
     return NextResponse.json(
-      { error: "cityId is required for HQ users" },
+      { error: "cityId is required for HQ actors" },
       { status: 400 }
     );
   }
@@ -112,7 +110,7 @@ export async function POST(request: NextRequest) {
   const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
 
-  const capabilityAuth = await requireCapability("content.manage");
+  const capabilityAuth = await requireCapability("content.manage", auth.user);
   if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
   let body;

@@ -23,7 +23,8 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  if (user.role !== "student") {
+  const isHq = user.role === "super_admin" || user.role === "program_admin";
+  if (user.role !== "student" && !isHq) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   const capabilityAuth = await requireCapability("dashboard.view");
@@ -31,7 +32,7 @@ export async function GET() {
 
   try {
     // Find participant linked to this user
-    const participant = await db.participant.findFirst({
+    let participant = await db.participant.findFirst({
       where: { userId: user.id },
       include: {
         group: {
@@ -48,6 +49,25 @@ export async function GET() {
       },
     });
 
+    if (!participant && isHq) {
+      participant = await db.participant.findFirst({
+        where: { state: "active" },
+        include: {
+          group: {
+            include: {
+              batch: {
+                include: {
+                  park: {
+                    include: { city: true },
+                  },
+                },
+              },
+            },
+          },
+        },
+      });
+    }
+
     if (!participant) {
       return NextResponse.json({ participant: null });
     }
@@ -60,6 +80,7 @@ export async function GET() {
     });
 
     const groupId = participant.group?.id;
+    const groupName = participant.group?.name || "Unassigned Group";
     const todayStart = todayPKT();
     const todayEnd = endOfTodayPKT();
 
@@ -72,22 +93,20 @@ export async function GET() {
     const monthStartPKT = startOfMonth(todayStart);
     const monthEndPKT = endOfMonth(todayStart);
 
-    const recordsThisMonth = groupId
-      ? await db.attendanceRecord.findMany({
-          where: {
-            participantId: participant.id,
-            event: {
-              groupId,
-              eventDate: { gte: monthStartPKT, lte: monthEndPKT },
-            },
-          },
-          include: {
-            event: {
-              select: { eventDate: true },
-            },
-          },
-        })
-      : [];
+    const recordsThisMonth = await db.attendanceRecord.findMany({
+      where: {
+        participantId: participant.id,
+        event: {
+          groupId,
+          eventDate: { gte: monthStartPKT, lte: monthEndPKT },
+        },
+      },
+      include: {
+        event: {
+          select: { eventDate: true },
+        },
+      },
+    });
 
     // Build a map: dateKey -> status (last status if multiple events per day)
     const monthStatusMap = new Map<string, string>();
@@ -255,7 +274,7 @@ export async function GET() {
           groupParticipantCount > 0
             ? Math.round((evt._count.records / groupParticipantCount) * 100)
             : 0,
-        groupName: participant.group?.name || "Unassigned",
+        groupName,
       };
     }
 
@@ -290,7 +309,7 @@ export async function GET() {
       dateKey: formatPKT(new Date(r.event.eventDate), "yyyy-MM-dd"),
       status: r.status,
       eventTitle: r.event.title,
-      groupName: participant.group?.name || null,
+      groupName,
     }));
 
     // ── 7-day daily trend ──

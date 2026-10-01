@@ -32,12 +32,12 @@ function allMigrations(base: string): string[] {
 describe("PILOT-PROD-001: Pilot Production Health", () => {
   /* ── 1. Schema health ────────────────────────────────────────────── */
   describe("Schema health", () => {
-    it("SQLITE schema has 55 models", () => {
-      expect(modelNames(SQLITE_SCHEMA).length).toBe(55);
+    it("SQLITE schema has 74 models", () => {
+      expect(modelNames(SQLITE_SCHEMA).length).toBe(74);
     });
 
-    it("POSTGRES schema has 55 models", () => {
-      expect(modelNames(PG_SCHEMA).length).toBe(55);
+    it("POSTGRES schema has 74 models", () => {
+      expect(modelNames(PG_SCHEMA).length).toBe(74);
     });
 
     it("all models present in both schemas", () => {
@@ -64,24 +64,21 @@ describe("PILOT-PROD-001: Pilot Production Health", () => {
 
   /* ── 2. Migration health ─────────────────────────────────────────── */
   describe("Migration health", () => {
-    it("POSTGRES has 17 migration folders", () => {
-      expect(allMigrations(PG_MIGRATIONS)).toHaveLength(17);
+    it("POSTGRES has 32 migration folders", () => {
+      expect(allMigrations(PG_MIGRATIONS)).toHaveLength(32);
     });
 
-    it("SQLITE includes the approved baseline and Mashwara FK repair", () => {
-      const sqlite = allMigrations(SQLITE_MIGRATIONS);
-
-      expect(sqlite).toContain("20260701000000_init_sqlite");
-      expect(sqlite).toContain("20260726100000_add_mashwara_fk_constraints");
+    it("SQLITE has 18 migration folders", () => {
+      expect(allMigrations(SQLITE_MIGRATIONS)).toHaveLength(18);
     });
 
-    it("each chain includes its required Mashwara migration", () => {
-      const pg = allMigrations(PG_MIGRATIONS);
-      const sqlite = allMigrations(SQLITE_MIGRATIONS);
-
-      expect(pg).toContain("20260724200000_add_mashwara_module");
-      expect(sqlite).toContain("20260724200000_add_mashwara_module");
-      expect(sqlite).toContain("20260726100000_add_mashwara_fk_constraints");
+    it("both chains contain mashwara and login_attempts migrations", () => {
+      const pg = allMigrations(PG_MIGRATIONS).join(",");
+      const sqlite = allMigrations(SQLITE_MIGRATIONS).join(",");
+      expect(pg).toContain("add_mashwara_module");
+      expect(sqlite).toContain("add_mashwara_module");
+      expect(pg).toContain("add_login_attempts");
+      expect(sqlite).toContain("add_login_attempts");
     });
 
     it("no POSTGRES migration drops tables", () => {
@@ -91,21 +88,22 @@ describe("PILOT-PROD-001: Pilot Production Health", () => {
       }
     });
 
-    it("allows table rebuilds only in approved SQLite migrations", () => {
+    it("allows only data-preserving SQLite table rebuilds", () => {
       for (const dir of allMigrations(SQLITE_MIGRATIONS)) {
         const sql = readFileSync(join(SQLITE_MIGRATIONS, dir, "migration.sql"), "utf-8");
-
-        if (
-          dir === "20260726100000_add_mashwara_fk_constraints" ||
-          dir === "20260730060714_add_attendance_foundation"
-        ) {
-          expect(sql).toContain("PRAGMA foreign_keys=OFF;");
-          expect(sql).toContain("PRAGMA foreign_keys=ON;");
-          expect(sql).toMatch(/INSERT INTO "new_/);
-          continue;
+        expect(sql).not.toMatch(/^\s*DROP\s+INDEX\b/im);
+        for (const match of sql.matchAll(/^\s*DROP\s+TABLE\s+"([^"]+)"\s*;/gim)) {
+          const table = match[1];
+          if (table === "_batch_scope_preflight") {
+            expect(sql).toContain('CREATE TABLE "_batch_scope_preflight" ("valid" INTEGER NOT NULL CHECK ("valid" = 1))');
+            expect(sql).not.toMatch(/INSERT INTO "_batch_scope_preflight"[\s\S]*SELECT \*/);
+            continue; // A same-migration assertion table contains no application rows.
+          }
+          const replacement = `new_${table}`;
+          expect(sql).toContain(`CREATE TABLE "${replacement}"`);
+          expect(sql).toContain(`INSERT INTO "${replacement}"`);
+          expect(sql).toContain(`ALTER TABLE "${replacement}" RENAME TO "${table}"`);
         }
-
-        expect(sql).not.toMatch(/^\s*DROP\s+(TABLE|INDEX)\b/im);
       }
     });
   });
@@ -213,7 +211,11 @@ describe("PILOT-PROD-001: Pilot Production Health", () => {
 
     it("auth.ts has role resolution (StaffMeta, Guardian, Participant)", () => {
       const auth = readFileSync(join(ROOT, "src/lib/auth.ts"), "utf-8");
-      expect(auth).toMatch(/staffMeta|StaffMeta/);
+      expect(auth).toContain("resolveActiveIdentity");
+      const identity = readFileSync(join(ROOT, "src/lib/auth/identity.ts"), "utf-8");
+      expect(identity).toMatch(/staffMeta/);
+      expect(identity).toMatch(/guardian/);
+      expect(identity).toMatch(/participant/);
     });
   });
 

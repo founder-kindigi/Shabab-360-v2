@@ -1,0 +1,11 @@
+{
+  "checkedAt": "2026-09-10T00:48:46.739Z",
+  "source": "astra_synthetic_review",
+  "restored": "astra_synthetic_restore_1789001289",
+  "passed": true,
+  "limits": "Native pg_dump/pg_restore rehearsal of synthetic databases only. No operational backup was inspected or restored.",
+  "tablesCompared": 328,
+  "rowsCompared": 185,
+  "inventorySha256": "1f6a51da7318af52299cb8a75f6529609aff5cb353551312427325b692056a56",
+  "backupSha256": "81f09c5036a69db9ff01ac6e6c2cba051544b7d745ddeff17302167edab395f5"
+}

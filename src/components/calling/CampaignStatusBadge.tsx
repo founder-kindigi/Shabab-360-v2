@@ -11,10 +11,11 @@ const STATUS_STYLES: Record<string, string> = {
   archived: "bg-muted text-muted-foreground border-muted-foreground/30",
 };
 
-export function CampaignStatusBadge({ status }: { status: string }) {
+export function CampaignStatusBadge({ status }: { status?: string }) {
+  const safeStatus = status || "draft";
   return (
-    <Badge variant="outline" className={cn("text-[10px]", STATUS_STYLES[status] || STATUS_STYLES.draft)}>
-      {status.replace(/_/g, " ")}
+    <Badge variant="outline" className={cn("text-[10px] capitalize", STATUS_STYLES[safeStatus] || STATUS_STYLES.draft)}>
+      {safeStatus.replace(/_/g, " ")}
     </Badge>
   );
 }

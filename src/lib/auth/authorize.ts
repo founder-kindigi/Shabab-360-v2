@@ -22,6 +22,7 @@ export {
   canAccessResourceScope,
   isHqRole,
   isStaffRole,
+  userHasCapability,
 };
 export type { ResourceScope, SessionUser };
 
@@ -37,7 +38,9 @@ export async function requireRole(roles: (UserRole | StaffRole)[]): Promise<Next
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  if (!user.role || !roles.includes(user.role as UserRole)) {
+  const userRole = (user.role || "").toLowerCase().trim();
+  const normalizedAllowed = roles.map((r) => r.toLowerCase());
+  if (!userRole || !normalizedAllowed.includes(userRole)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -71,9 +74,10 @@ export async function requireAuth(): Promise<{ user: SessionUser } | NextRespons
  * substitute for requireResourceScope on city, park, group, or record data.
  */
 export async function requireCapability(
-  capability: AccessCapability
+  capability: AccessCapability,
+  authenticatedUser?: SessionUser
 ): Promise<{ user: SessionUser } | NextResponse> {
-  const auth = await requireAuth();
+  const auth = authenticatedUser ? { user: authenticatedUser } : await requireAuth();
   if (auth instanceof NextResponse) return auth;
 
   if (!(await userHasCapability(auth.user, capability))) {
@@ -96,6 +100,30 @@ export function requireResourceScope(
 }
 
 /**
+ * Resolve a requested city filter without allowing it to replace a scoped
+ * actor's assignment. Headquarters may intentionally select a city; scoped
+ * staff always receive their assigned city or a denial when it is missing.
+ */
+export function resolveRequestedCityScope(
+  user: SessionUser,
+  requestedCityId?: string | null
+): { cityId: string | null } | NextResponse {
+  if (isHqRole(user.role)) return { cityId: requestedCityId || null };
+  // City-only callers must never treat a narrower assignment as city authority.
+  // Park/group consumers use resolveRequestedHierarchy instead.
+  if (user.role !== "city_head") {
+    return NextResponse.json({ error: "This operation requires city-level scope" }, { status: 403 });
+  }
+  if (!user.assignedCityId) {
+    return NextResponse.json({ error: "City scope is required" }, { status: 403 });
+  }
+  if (requestedCityId && requestedCityId !== user.assignedCityId) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  return { cityId: user.assignedCityId };
+}
+
+/**
  * Check if the user's assigned city matches the required cityId.
  */
 export function requireCityScope(user: SessionUser, cityId: string): boolean {
@@ -115,3 +143,16 @@ export function requireParkScope(user: SessionUser, parkId: string): boolean {
 export function requireGroupScope(user: SessionUser, groupId: string): boolean {
   return canAccessResourceScope(user, { groupId });
 }
+
+/**
+ * Helper to resolve city scope for the current authenticated user.
+ * Returns null if HQ role (super_admin / program_admin), or user's cityId.
+ */
+export async function resolveActorCity(): Promise<string | null> {
+  const auth = await requireAuth();
+  if (auth instanceof NextResponse) return null;
+  const { user } = auth;
+  if (isHqRole(user.role)) return null;
+  return user.assignedCityId || null;
+}
+

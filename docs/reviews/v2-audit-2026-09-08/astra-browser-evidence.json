@@ -1,0 +1,13 @@
+{
+  "date": "2026-09-08",
+  "finding": "A22",
+  "generator": "src/lib/mashwara/export-minutes.ts:103,121",
+  "fixture": "astra-minutes-fixture.html",
+  "origin": "http://127.0.0.1:4309/minutes",
+  "browser": "Codex In-app Browser",
+  "scriptPolicy": "script-src 'self' 'unsafe-inline'",
+  "probe": "document.documentElement.dataset.astraProbe = 'executed'",
+  "observedDomAttribute": { "data-astra-probe": "executed" },
+  "result": "Confirmed execution of stored title text from the actual exporter",
+  "limits": "Synthetic fixture only; no real meeting, account, private record or application session. Equivalent script policy, not authenticated full-route browser UAT."
+}

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth, requireCapability } from "@/lib/auth/authorize";
+import { requireAuth, requireCapability, resolveRequestedCityScope } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
 import {
   optionalIdentifier,
@@ -27,14 +27,26 @@ export async function GET(request: NextRequest) {
   }
   const { cityId, parkId } = query.data;
 
-  // Build fee event where clause
+  // HQ may select any city (unscoped means all cities); a City Head is pinned
+  // to their assigned city and every other role is denied.
+  const scope = resolveRequestedCityScope(user, cityId);
+  if (scope instanceof NextResponse) return scope;
+
+  // Build fee event where clause. A requested park must belong to the resolved
+  // city scope; it can only narrow the result, never widen it.
   const feeEventWhere: Record<string, unknown> = {};
   if (parkId) {
-    feeEventWhere.batch = { parkId };
-  } else if (cityId) {
-    feeEventWhere.batch = { park: { cityId } };
-  } else if (user.role === "city_head" && user.assignedCityId) {
-    feeEventWhere.batch = { park: { cityId: user.assignedCityId } };
+    const park = await db.park.findUnique({
+      where: { id: parkId },
+      select: { id: true, cityId: true },
+    });
+    if (!park) return NextResponse.json({ error: "Park not found" }, { status: 404 });
+    if (scope.cityId && park.cityId !== scope.cityId) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    feeEventWhere.batch = { parkId: park.id };
+  } else if (scope.cityId) {
+    feeEventWhere.batch = { park: { cityId: scope.cityId } };
   }
 
   const [totalFeeEvents, paymentSummary, methodBreakdown, totalPayments] = await Promise.all([

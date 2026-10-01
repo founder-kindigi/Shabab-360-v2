@@ -17,7 +17,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Menu, LogOut, User, ChevronDown, Construction, Settings, Sun, Moon, Search } from "lucide-react";
-import { useTheme } from "next-themes";
+import { useTheme } from "@/components/providers/theme-provider";
 import { useNotificationPolling } from "@/hooks/use-realtime-notifications";
 
 // ── Lazy-loaded page components (code splitting) ──────────────────────
@@ -28,6 +28,7 @@ const GroupsPage = lazy(() => import("@/components/modules/admin/groups-page").t
 const ParksPage = lazy(() => import("@/components/modules/admin/parks-page").then(m => ({ default: m.ParksPage })));
 const UsersPage = lazy(() => import("@/components/modules/admin/users-page").then(m => ({ default: m.UsersPage })));
 const AuditLogPage = lazy(() => import("@/components/modules/admin/audit-log-page").then(m => ({ default: m.AuditLogPage })));
+const SyncConflictsPage = lazy(() => import("@/components/modules/admin/sync-conflicts-page").then(m => ({ default: m.SyncConflictsPage })));
 const PeoplePage = lazy(() => import("@/components/modules/admin/people-page").then(m => ({ default: m.PeoplePage })));
 const StudentsPage = lazy(() => import("@/components/modules/admin/students-page").then(m => ({ default: m.StudentsPage })));
 const GuardiansPage = lazy(() => import("@/components/modules/admin/guardians-page").then(m => ({ default: m.GuardiansPage })));
@@ -35,21 +36,29 @@ const AdminAttendanceEvents = lazy(() => import("@/components/modules/admin/admi
 const AnnouncementsPage = lazy(() => import("@/components/modules/admin/announcements-page").then(m => ({ default: m.AnnouncementsPage })));
 const SettingsPage = lazy(() => import("@/components/modules/admin/settings-page").then(m => ({ default: m.SettingsPage })));
 const ReportsPage = lazy(() => import("@/components/modules/admin/reports-page").then(m => ({ default: m.ReportsPage })));
+const CustomReportBuilderPage = lazy(() => import("@/components/modules/admin/custom-report-builder-page").then(m => ({ default: m.CustomReportBuilderPage })));
 const AccessProvisioningPage = lazy(() => import("@/components/modules/admin/access-provisioning-page").then(m => ({ default: m.AccessProvisioningPage })));
 const AccessManagementPage = lazy(() => import("@/components/modules/admin/access-management-page").then(m => ({ default: m.AccessManagementPage })));
 const CollaborationTeamsPage = lazy(() => import("@/components/modules/admin/collaboration-teams-page").then(m => ({ default: m.CollaborationTeamsPage })));
-// Route files redirect direct URLs into the SPA shell. The shell itself must
-// render the client workspaces, otherwise opening a Mashwara tab redirects
-// again instead of displaying its content.
-const MashwaraPage = lazy(() => import("@/app/admin/mashwara/_client").then(m => ({ default: m.default })));
-const MashwaraDetailPage = lazy(() => import("@/app/admin/mashwara/[id]/_client").then(m => ({ default: m.default })));
+const MashwaraPage = lazy(() => import("@/app/admin/mashwara/page").then(m => ({ default: m.default })));
+const MashwaraDetailPage = lazy(() => import("@/app/admin/mashwara/[id]/page").then(m => ({ default: m.default })));
+const IslahMamulatPage = lazy(() => import("@/components/modules/admin/islah-mamulat-page").then(m => ({ default: m.IslahMamulatPage })));
 const CallingPage = lazy(() => import("@/app/admin/calling/page").then(m => ({ default: m.default })));
 const EventsPage = lazy(() => import("@/app/admin/events/page").then(m => ({ default: m.default })));
-const ContentPlannerPage = lazy(() => import("@/components/modules/content-planner/content-planner-page").then(m => ({ default: m.ContentPlannerPage })));
-const MediaBriefsPage = lazy(() => import("@/components/modules/media/media-briefs-page").then(m => ({ default: m.MediaBriefsPage })));
 const FeesPage = lazy(() => import("@/components/modules/admin/fees-page").then(m => ({ default: m.FeesPage })));
 const NotificationsPage = lazy(() => import("@/components/modules/admin/notifications-page").then(m => ({ default: m.NotificationsPage })));
 const AdmissionsPage = lazy(() => import("@/components/modules/admin/admissions-page").then(m => ({ default: m.AdmissionsPage })));
+const ContentPlannerPage = lazy(() => import("@/components/modules/content-planner/content-planner-page").then(m => ({ default: m.ContentPlannerPage })));
+const CommunityPage = lazy(() => import("@/components/modules/admin/community-page").then(m => ({ default: m.CommunityPage })));
+const ProcurementPage = lazy(() => import("@/components/modules/admin/procurement-page").then(m => ({ default: m.ProcurementPage })));
+const GamificationPage = lazy(() => import("@/components/modules/admin/gamification-page").then(m => ({ default: m.GamificationPage })));
+const KnowledgeBasePage = lazy(() => import("@/components/modules/admin/knowledge-base-page").then(m => ({ default: m.KnowledgeBasePage })));
+const SecurityAccessPage = lazy(() => import("@/components/modules/admin/security-access-page").then(m => ({ default: m.SecurityAccessPage })));
+const CertificatesPage = lazy(() => import("@/components/modules/admin/certificates-page").then(m => ({ default: m.CertificatesPage })));
+const PortalImportPage = lazy(() => import("@/components/modules/admin/portal-import-page").then(m => ({ default: m.PortalImportPage })));
+const AlumniPage = lazy(() => import("@/components/modules/admin/alumni-page").then(m => ({ default: m.AlumniPage })));
+const MurabbiProfilesPage = lazy(() => import("@/components/modules/admin/murabbi-profiles-page").then(m => ({ default: m.MurabbiProfilesPage })));
+const PublicProgramPage = lazy(() => import("@/components/public/public-program-page").then(m => ({ default: m.PublicProgramPage })));
 const MurabbiDashboard = lazy(() => import("@/components/modules/murabbi/murabbi-dashboard").then(m => ({ default: m.MurabbiDashboard })));
 const MurabbiGroupsPage = lazy(() => import("@/components/modules/murabbi/murabbi-groups-page").then(m => ({ default: m.MurabbiGroupsPage })));
 const ParkDashboard = lazy(() => import("@/components/modules/park/park-dashboard").then(m => ({ default: m.ParkDashboard })));
@@ -73,6 +82,7 @@ const StudentFeesPage = lazy(() => import("@/components/modules/student/student-
 const StudentProfilePage = lazy(() => import("@/components/modules/student/student-profile-page").then(m => ({ default: m.StudentProfilePage })));
 
 // Shared components (always loaded — used on every page)
+import { ScopeSelector } from "@/components/shared/scope-selector";
 import { BreadcrumbNav } from "@/components/shared/breadcrumb-nav";
 import { KeyboardShortcutsDialog } from "@/components/shared/keyboard-shortcuts-dialog";
 import { CommandPalette } from "@/components/shared/command-palette";
@@ -124,18 +134,30 @@ const pageTitles: Record<PageId, string> = {
   "admin-calling-templates": "Templates",
   "admin-settings": "Settings",
   "admin-users": "Users",
-  "admin-content-planner": "Content Planner",
-  "admin-media": "Media Workspace",
   "admin-access": "Access Provisioning",
   "admin-access-management": "Access Management",
   "admin-collaboration-teams": "Collaboration Teams",
   "admin-mashwara": "Weekly Mashwara",
   "admin-mashwara-detail": "Mashwara Detail",
+  "admin-islah-mamulat": "Islah-i-Mamulat",
   "admin-admissions": "Admissions",
   "admin-fees": "Fees",
+  "admin-content-planner": "Content Planner",
+  "admin-community": "Community & Quizzes",
+  "admin-procurement": "Procurement & Stock",
+  "admin-gamification": "Gamification & Leaderboard",
+  "admin-knowledge-base": "Knowledge Base & SOPs",
+  "admin-security-access": "Security & Access",
+  "admin-certificates": "Certificates & Graduation",
+  "admin-portal-import": "Portal Raw Import",
+  "admin-alumni": "Alumni Network & Mentorship",
+  "admin-murabbi-profiles": "Murabbi Profiles & Leadership",
+  "public-program": "Program Showcase",
   "admin-announcements": "Announcements",
   "admin-reports": "Reports",
+  "admin-reports-builder": "Custom Report Builder",
   "admin-audit-log": "Audit Log",
+  "admin-sync-conflicts": "Offline Sync Conflict Engine",
   "notifications": "Notifications",
   "murabbi-dashboard": "Dashboard",
   "murabbi-groups": "My Groups",
@@ -170,12 +192,12 @@ function isKnownPage(pageId: PageId): boolean {
     "admin-dashboard", "admin-cities", "admin-parks", "admin-batches",
     "admin-groups", "admin-people", "admin-students", "admin-guardians",
     "admin-attendance-events", "admin-settings", "admin-users",
-    "admin-admissions", "admin-fees", "admin-announcements",
+    "admin-admissions", "admin-fees", "admin-content-planner", "admin-announcements",
     "admin-events", "admin-events-detail",
-    "admin-reports", "admin-audit-log", "admin-access", "admin-access-management", "admin-collaboration-teams", "notifications",
+    "admin-reports", "admin-reports-builder", "admin-audit-log", "admin-sync-conflicts", "admin-access", "admin-access-management", "admin-collaboration-teams", "notifications",
     "admin-mashwara",
     "admin-mashwara-detail",
-    "admin-media",
+    "admin-islah-mamulat",
     "murabbi-dashboard", "murabbi-groups",
     "park-dashboard", "park-attendance", "park-attendance-roster",
     "park-roster", "park-participants", "park-guardians", "park-schedule",
@@ -250,10 +272,14 @@ function PageContentInner({ pageId }: { pageId: PageId }) {
       return <MashwaraPage />;
     case "admin-mashwara-detail":
       return <MashwaraDetailPage />;
+    case "admin-islah-mamulat":
+      return <IslahMamulatPage />;
     case "admin-calling":
       return <CallingPage />;
     case "admin-audit-log":
       return <AuditLogPage />;
+    case "admin-sync-conflicts":
+      return <SyncConflictsPage />;
     case "notifications":
       return <NotificationsPage />;
     case "admin-settings":
@@ -266,6 +292,8 @@ function PageContentInner({ pageId }: { pageId: PageId }) {
       return <AnnouncementsPage />;
     case "admin-reports":
       return <ReportsPage />;
+    case "admin-reports-builder":
+      return <CustomReportBuilderPage />;
     case "admin-students":
       return <StudentsPage />;
     case "admin-guardians":
@@ -274,12 +302,30 @@ function PageContentInner({ pageId }: { pageId: PageId }) {
       return <AdmissionsPage />;
     case "admin-fees":
       return <FeesPage />;
-    case "admin-events":
-      return <EventsPage />;
     case "admin-content-planner":
       return <ContentPlannerPage />;
-    case "admin-media":
-      return <MediaBriefsPage />;
+    case "admin-community":
+      return <CommunityPage />;
+    case "admin-procurement":
+      return <ProcurementPage />;
+    case "admin-gamification":
+      return <GamificationPage />;
+    case "admin-knowledge-base":
+      return <KnowledgeBasePage />;
+    case "admin-security-access":
+      return <SecurityAccessPage />;
+    case "admin-certificates":
+      return <CertificatesPage />;
+    case "admin-portal-import":
+      return <PortalImportPage />;
+    case "admin-alumni":
+      return <AlumniPage />;
+    case "admin-murabbi-profiles":
+      return <MurabbiProfilesPage />;
+    case "public-program":
+      return <PublicProgramPage />;
+    case "admin-events":
+      return <EventsPage />;
     case "murabbi-dashboard":
       return <MurabbiDashboard />;
     case "murabbi-groups":
@@ -385,7 +431,6 @@ export function AppShell() {
     return () => document.removeEventListener("shortcut:escape", handleEscape);
   }, []);
   const pageTitle = pageTitles[currentPage] || "Dashboard";
-  const showPageHeader = !["admin-dashboard", "city-head-dashboard", "murabbi-dashboard", "park-dashboard", "park-attendance-roster", "park-roster", "park-participants", "park-guardians", "park-schedule", "guardian-dashboard", "guardian-history", "guardian-announcements", "guardian-schedule", "guardian-fees", "student-dashboard", "student-history", "student-announcements", "student-schedule", "student-fees", "student-profile", "admin-cities", "admin-parks", "admin-batches", "admin-groups", "admin-users", "admin-access", "admin-audit-log", "admin-settings", "admin-attendance-events", "admin-people", "admin-announcements", "admin-reports", "admin-students", "admin-guardians", "admin-fees", "admin-admissions", "admin-events", "admin-events-detail", "admin-calling", "admin-calling-campaign-detail", "admin-calling-templates", "admin-collaboration-teams", "admin-mashwara", "admin-mashwara-detail", "admin-content-planner", "admin-media", "notifications"].includes(currentPage);
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
@@ -495,9 +540,7 @@ export function AppShell() {
 
         {/* Page content */}
         <main className="flex-1 overflow-y-auto pb-24 lg:pb-0">
-          <div className="p-4 md:p-6 space-y-4">
-            {showPageHeader && <PageHeader title={pageTitle} />}
-            {!showPageHeader && <div className="mb-6" />}
+          <div className="space-y-4">
             <AnimatePresence mode="wait">
               <motion.div
                 key={currentPage}

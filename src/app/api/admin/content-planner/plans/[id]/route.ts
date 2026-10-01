@@ -27,7 +27,7 @@ export async function GET(
   const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
 
-  const capabilityAuth = await requireCapability("content.view");
+  const capabilityAuth = await requireCapability("content.view", auth.user);
   if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
   const { id } = await context.params;
@@ -63,6 +63,7 @@ export async function GET(
           dayLabel: true,
           isOffDay: true,
           status: true,
+          blocks: { select: { category: true } },
           _count: { select: { blocks: true } },
         },
         orderBy: { sessionDate: "asc" },
@@ -88,7 +89,7 @@ export async function PATCH(
   const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
 
-  const capabilityAuth = await requireCapability("content.manage");
+  const capabilityAuth = await requireCapability("content.manage", auth.user);
   if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
   const { id } = await context.params;
@@ -177,7 +178,7 @@ export async function DELETE(
   const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
 
-  const capabilityAuth = await requireCapability("content.manage");
+  const capabilityAuth = await requireCapability("content.manage", auth.user);
   if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
   const { id } = await context.params;

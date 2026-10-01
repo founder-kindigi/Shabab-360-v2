@@ -1,0 +1,7 @@
+{
+  "provider": "native PostgreSQL 18.6",
+  "disposableDirectory": "D:\\iBuild\\Shabab-360-v2\\.next\\astra-corrections-db-1YGNNt",
+  "generatedFrom": "prisma/postgres/schema.prisma",
+  "source": "full 31-migration deploy into a fresh isolated schema; pool allows 16 simultaneous connections",
+  "audit": "real rows, with a failure trigger for rollback verification"
+}

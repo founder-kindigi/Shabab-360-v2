@@ -1,3 +1,6 @@
+import { applyAttendanceMutation } from "@/lib/attendance/apply-mutation";
+import { syncMutationSchema } from "@/lib/attendance/schemas";
+import { requireResolvedGroupScope, groupResourceScope } from "@/lib/auth/hierarchy";
 import { NextResponse } from "next/server";
 import { ATTENDANCE_ROLES, requireAuth, requireCapability, requireResourceScope } from "@/lib/auth/authorize";
 import { checkAttendanceAlerts } from "@/lib/attendance-alerts";
@@ -5,6 +8,7 @@ import { db } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
 import { parseISO } from "date-fns";
 import { markAttendanceSchema } from "@/lib/attendance/schemas";
+import { userHasCapability } from "@/lib/auth/capability-access";
 
 const VALID_STATUSES = ["present", "absent", "late", "excused"];
 
@@ -24,10 +28,10 @@ export async function GET(
       include: {
         group: {
           include: {
+            park: true,
             batch: { include: { park: true } },
           },
         },
-        rosterSnapshots: { select: { participantId: true } },
       },
     });
 
@@ -35,20 +39,21 @@ export async function GET(
       return NextResponse.json({ error: "Event not found" }, { status: 404 });
     }
 
-    const scopeError = requireResourceScope(
-      user,
-      { parkId: event.group.batch.parkId, groupId: event.groupId },
+    const scopeError = requireResolvedGroupScope(user, { ...event.group, id: event.groupId },
       ATTENDANCE_ROLES
     );
     if (scopeError) return scopeError;
 
-    // Prefer the immutable event roster. Older events created before snapshots
-    // fall back to the live active group roster until reconciled.
-    const snapshotParticipantIds = event.rosterSnapshots.map((snapshot) => snapshot.participantId);
+    // Keep historical rosters available while excluding students whose dropout
+    // became effective on or before this session.
     const participants = await db.participant.findMany({
-      where: snapshotParticipantIds.length > 0
-        ? { id: { in: snapshotParticipantIds } }
-        : { groupId: event.groupId, state: "active" },
+      where: {
+        groupId: event.groupId,
+        OR: [
+          { state: "active" },
+          { state: "dropout", dropoutAt: { gt: event.eventDate } },
+        ],
+      },
       orderBy: { name: "asc" },
     });
 
@@ -93,6 +98,8 @@ export async function GET(
         participantId: p.id,
         participantName: p.name,
         phone: p.phone,
+        participantState: p.state,
+        dropoutAt: p.dropoutAt?.toISOString() ?? null,
         status: record?.status || null,
         recordId: record?.recordId || null,
         markedAt: record?.markedAt || null,
@@ -111,15 +118,19 @@ export async function GET(
     }
 
     return NextResponse.json({
+      permissions: {
+        canCorrect: await userHasCapability(user, "attendance.correct"),
+      },
       event: {
         id: event.id,
         title: event.title,
         groupId: event.groupId,
         groupName: event.group.name,
         batchName: event.group.batch.name,
-        parkName: event.group.batch.park.name,
+        parkName: (event.group.parkId ? event.group.park : event.group.batch.park)?.name ?? null,
         eventDate: event.eventDate.toISOString(),
         isClosed: event.isClosed,
+        resetVersion: event.resetVersion,
         closedAt: event.closedAt?.toISOString() || null,
         closedByName: event.closedBy ? staffNameMap.get(event.closedBy) || null : null,
       },
@@ -138,175 +149,17 @@ export async function GET(
   }
 }
 
-export async function POST(
-  req: Request,
-  { params }: { params: Promise<{ eventId: string }> }
-) {
+export async function POST(req: Request, { params }: { params: Promise<{ eventId: string }> }) {
   const { eventId } = await params;
   const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
-  const { user } = auth;
-  const capabilityAuth = await requireCapability("attendance.mark");
-  if (capabilityAuth instanceof NextResponse) return capabilityAuth;
-
-  try {
-    const parsedBody = markAttendanceSchema.safeParse(
-      await req.json().catch(() => null)
-    );
-    if (!parsedBody.success) {
-      return NextResponse.json(
-        { error: parsedBody.error.issues[0]?.message || "Invalid request" },
-        { status: 400 }
-      );
-    }
-    const { participantId, status, mutationId, editReason, markedAt } = parsedBody.data;
-
-    // Fetch event with scope info
-    const event = await db.attendanceEvent.findUnique({
-      where: { id: eventId },
-      include: {
-        group: { include: { batch: true } },
-      },
-    });
-
-    if (!event) {
-      return NextResponse.json({ error: "Event not found" }, { status: 404 });
-    }
-
-    const scopeError = requireResourceScope(
-      user,
-      { parkId: event.group.batch.parkId, groupId: event.groupId },
-      ATTENDANCE_ROLES
-    );
-    if (scopeError) return scopeError;
-
-    // Check if event is closed
-    if (event.isClosed) {
-      if (
-        user.role !== "park_admin" &&
-        user.role !== "park_lead"
-      ) {
-        return NextResponse.json({ error: "Event is closed" }, { status: 403 });
-      }
-      if (!editReason) {
-        return NextResponse.json(
-          { error: "editReason required for closed events" },
-          { status: 400 }
-        );
-      }
-    }
-
-    // Verify participant belongs to the event's group and is active
-    const participant = await db.participant.findFirst({
-      where: { id: participantId, groupId: event.groupId, state: "active" },
-    });
-
-    if (!participant) {
-      return NextResponse.json(
-        { error: "Participant not in this group" },
-        { status: 409 }
-      );
-    }
-
-    // Get staff meta ID for the marker
-    const staffMeta = await db.staffMeta.findUnique({
-      where: { userId: user.id },
-      include: { user: { select: { name: true } } },
-    });
-
-    // Upsert the attendance record
-    const existingRecord = await db.attendanceRecord.findUnique({
-      where: {
-        eventId_participantId: { eventId, participantId },
-      },
-    });
-
-    let record;
-
-    if (existingRecord) {
-      // Update existing
-      if (!editReason && event.isClosed) {
-        return NextResponse.json(
-          { error: "editReason required for updates" },
-          { status: 400 }
-        );
-      }
-
-      record = await db.attendanceRecord.update({
-        where: {
-          eventId_participantId: { eventId, participantId },
-        },
-        data: {
-          status,
-          markedBy: staffMeta?.id,
-          markedAt: markedAt ? parseISO(markedAt) : new Date(),
-          editReason: editReason || null,
-        },
-      });
-
-      await logAudit({
-        userId: user.id,
-        action: "attendance_update",
-        entityType: "attendance_records",
-        entityId: record.id,
-        oldValues: {
-          status: existingRecord.status,
-        },
-        newValues: {
-          status,
-          editReason,
-          mutationId,
-        },
-      });
-    } else {
-      // Create new
-      record = await db.attendanceRecord.create({
-        data: {
-          eventId,
-          participantId,
-          status,
-          markedBy: staffMeta?.id,
-          markedAt: markedAt ? parseISO(markedAt) : new Date(),
-        },
-      });
-
-      await logAudit({
-        userId: user.id,
-        action: "attendance_mark",
-        entityType: "attendance_records",
-        entityId: record.id,
-        newValues: {
-          status,
-          mutationId,
-        },
-      });
-    }
-
-    // Alert evaluation runs in-process so it cannot fail on a relative server fetch.
-    if (status === "absent") {
-      try {
-        await checkAttendanceAlerts(participantId, eventId);
-      } catch (error) {
-        console.error("Attendance alert evaluation failed:", error);
-      }
-    }
-
-    return NextResponse.json({
-      success: true,
-      record: {
-        id: record.id,
-        eventId,
-        participantId,
-        status: record.status,
-        markedAt: record.markedAt.toISOString(),
-        markedByName: staffMeta?.user?.name || null,
-      },
-    });
-  } catch (error) {
-    console.error("Mark attendance error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
-  }
+  const capability = await requireCapability("attendance.mark");
+  if (capability instanceof NextResponse) return capability;
+  const body = await req.json().catch(() => null);
+  if (!body || !("expectedVersion" in body)) return NextResponse.json({ error: "Reload the roster before marking attendance" }, { status: 428 });
+  const parsed = syncMutationSchema.safeParse({ ...body, eventId, ownerId: auth.user.id });
+  if (!parsed.success) return NextResponse.json({ error: "Invalid attendance mark" }, { status: 400 });
+  const result = await applyAttendanceMutation(auth.user, parsed.data);
+  if (result.status === "failed") return NextResponse.json({ error: result.error, code: result.code }, { status: result.code === "FORBIDDEN" ? 403 : result.code === "EVENT_NOT_FOUND" ? 404 : result.retryable ? 503 : 409 });
+  return NextResponse.json({ success: true, record: { id: result.recordId, eventId, participantId: parsed.data.participantId, status: parsed.data.status, markedAt: result.version } });
 }

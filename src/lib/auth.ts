@@ -2,29 +2,10 @@ import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { db } from "@/lib/db";
 import bcrypt from "bcryptjs";
-
-// Simple in-memory rate limiter: email -> { count, resetAt }
-const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
-const MAX_LOGIN_ATTEMPTS = 5;
-const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
-
-function checkRateLimit(email: string): boolean {
-  const now = Date.now();
-  const entry = rateLimitMap.get(email);
-  if (!entry || now > entry.resetAt) {
-    rateLimitMap.set(email, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
-    return true;
-  }
-  if (entry.count >= MAX_LOGIN_ATTEMPTS) {
-    return false;
-  }
-  entry.count++;
-  return true;
-}
-
-function resetRateLimit(email: string) {
-  rateLimitMap.delete(email);
-}
+import { resolveActiveIdentity } from "@/lib/auth/identity";
+import { productRoleLabel } from "@/lib/auth/role-labels";
+import { consumeLoginAttempt } from "@/lib/auth/login-throttle";
+import { z } from "zod";
 
 // Augment NextAuth types to include custom user properties
 declare module "next-auth" {
@@ -43,6 +24,7 @@ declare module "next-auth" {
       email: string;
       name?: string | null;
       role?: string;
+      roleLabel?: string | null;
       mustResetPwd?: boolean;
       tokenVersion?: number;
       assignedCityId?: string | null;
@@ -73,117 +55,45 @@ export const authOptions: NextAuthOptions = {
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) {
+        const parsed = z.object({ email: z.string().trim().toLowerCase().email().max(254), password: z.string().min(1).max(1024) }).safeParse(credentials);
+        if (!parsed.success) return null;
+        try {
+          if (!(await consumeLoginAttempt(parsed.data.email))) return null;
+          const user = await db.user.findUnique({ where: { email: parsed.data.email } });
+          if (!user?.isActive || !(await bcrypt.compare(parsed.data.password, user.passwordHash))) return null;
+          const identity = await resolveActiveIdentity(user.id);
+          if (!identity) return null;
+          return { id: user.id, email: user.email, name: user.name, mustResetPwd: user.mustResetPwd, tokenVersion: user.tokenVersion, ...identity };
+        } catch {
+          // Storage or throttle failures deny login; never log submitted identities.
           return null;
         }
-
-        // Rate limiting: check before DB query
-        if (!checkRateLimit(credentials.email)) {
-          return null;
-        }
-
-        // Find active user
-        const user = await db.user.findUnique({
-          where: { email: credentials.email },
-        });
-
-        if (!user || !user.isActive) {
-          return null;
-        }
-
-        // Verify password
-        const isValid = await bcrypt.compare(credentials.password, user.passwordHash);
-        if (!isValid) {
-          return null;
-        }
-
-        // Successful login: reset rate limit
-        resetRateLimit(credentials.email);
-
-        // Resolve role
-        let role: string | null = null;
-        let assignedCityId: string | null = null;
-        let assignedParkId: string | null = null;
-        let assignedGroupId: string | null = null;
-
-        const staffMeta = await db.staffMeta.findUnique({
-          where: { userId: user.id },
-        });
-
-        if (staffMeta && staffMeta.isActive) {
-          role = staffMeta.role;
-          assignedCityId = staffMeta.assignedCityId;
-          assignedParkId = staffMeta.assignedParkId;
-          assignedGroupId = staffMeta.assignedGroupId;
-        } else {
-          // Check if guardian
-          const guardian = await db.guardian.findUnique({
-            where: { userId: user.id },
-          });
-          if (guardian && guardian.isActive) {
-            role = "guardian";
-          } else {
-            // Check if student/participant
-            const participant = await db.participant.findUnique({
-              where: { userId: user.id },
-            });
-            if (participant) {
-              role = "student";
-            }
-          }
-        }
-
-        if (!role) {
-          return null;
-        }
-
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.name || user.email.split("@")[0],
-          role,
-          mustResetPwd: user.mustResetPwd,
-          tokenVersion: user.tokenVersion,
-          assignedCityId,
-          assignedParkId,
-          assignedGroupId,
-        };
       },
     }),
   ],
-  session: {
-    strategy: "jwt",
-    maxAge: 24 * 60 * 60, // 24 hours
-  },
+  session: { strategy: "jwt", maxAge: 24 * 60 * 60 },
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        token.id = user.id;
-        token.role = user.role;
-        token.mustResetPwd = user.mustResetPwd;
-        token.tokenVersion = user.tokenVersion;
-        token.assignedCityId = user.assignedCityId;
-        token.assignedParkId = user.assignedParkId;
-        token.assignedGroupId = user.assignedGroupId;
+        Object.assign(token, { id: user.id, role: user.role, mustResetPwd: user.mustResetPwd, tokenVersion: user.tokenVersion, assignedCityId: user.assignedCityId, assignedParkId: user.assignedParkId, assignedGroupId: user.assignedGroupId });
       }
-
-      // Check if token version matches DB — invalidate if password was changed
-      if (token.id) {
-        const dbUser = await db.user.findUnique({
-          where: { id: token.id },
-          select: { tokenVersion: true },
-        });
-        if (dbUser && token.tokenVersion !== dbUser.tokenVersion) {
-          return {};
-        }
+      if (!token.id) return {};
+      try {
+        const current = await db.user.findUnique({ where: { id: token.id }, select: { tokenVersion: true, isActive: true, mustResetPwd: true } });
+        if (!current?.isActive || current.tokenVersion !== token.tokenVersion) return {};
+        const identity = await resolveActiveIdentity(token.id);
+        if (!identity) return {};
+        Object.assign(token, identity, { mustResetPwd: current.mustResetPwd });
+      } catch {
+        return {};
       }
-
       return token;
     },
     async session({ session, token }) {
       if (session.user) {
         session.user.id = token.id!;
         session.user.role = token.role;
+        session.user.roleLabel = productRoleLabel(token.role);
         session.user.mustResetPwd = token.mustResetPwd;
         session.user.tokenVersion = token.tokenVersion;
         session.user.assignedCityId = token.assignedCityId;
@@ -193,8 +103,6 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
   },
-  pages: {
-    signIn: "/",
-  },
+  pages: { signIn: "/" },
   secret: process.env.NEXTAUTH_SECRET,
 };

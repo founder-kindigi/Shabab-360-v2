@@ -1,16 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireCapability, requireCityScope } from "@/lib/auth/authorize";
+import { requireCapability } from "@/lib/auth/authorize";
+import { resolveActorCity } from "@/lib/auth/events-scope";
 import { db } from "@/lib/db";
-import { logAudit } from "@/lib/audit";
-import { ACTIVE_MEMBERSHIP_FILTER } from "@/lib/collaboration-teams/schemas";
+import { createAuditLogData } from "@/lib/audit";
 
 interface RouteParams {
   params: Promise<{ membershipId: string }>;
 }
 
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
-  const auth = await requireCapability("teams.memberships.manage");
+  const auth = await requireCapability("organisation.manage");
   if (auth instanceof NextResponse) return auth;
+  const user = auth.user;
 
   const { membershipId } = await params;
   const membership = await db.staffTeamMembership.findUnique({
@@ -24,34 +25,50 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: "Membership not found" }, { status: 404 });
   }
 
-  if (!requireCityScope(auth.user, membership.team.cityId)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!membership.isActive || membership.endedAt !== null) {
+    return NextResponse.json({ error: "Membership is already inactive" }, { status: 409 });
   }
 
-  // Only active (isActive && endedAt === null) memberships can be revoked.
-  if (!membership.isActive || membership.endedAt !== null) {
+  const resolved = await resolveActorCity(user, membership.team.cityId);
+  if (resolved.error || !resolved.cityId) {
     return NextResponse.json(
-      { error: "Membership is already inactive" },
-      { status: 409 }
+      { error: resolved.error || "City resolution failed" },
+      { status: resolved.status || 400 }
     );
   }
 
-  const updated = await db.staffTeamMembership.update({
-    where: { id: membershipId },
-    data: {
-      isActive: false,
-      endedAt: new Date(),
-    },
-  });
+  let updated;
+  try {
+    updated = await db.$transaction(async (tx) => {
+      const endedAt = new Date();
+      const result = await tx.staffTeamMembership.updateMany({
+        where: { id: membershipId, isActive: true, endedAt: null },
+        data: { isActive: false, endedAt },
+      });
 
-  await logAudit({
-    userId: auth.user.id!,
-    action: "team_membership.revoke",
-    entityType: "StaffTeamMembership",
-    entityId: membershipId,
-    oldValues: { isActive: membership.isActive, endedAt: membership.endedAt },
-    newValues: { isActive: false, endedAt: updated.endedAt },
-  });
+      if (result.count !== 1) {
+        throw new Error("MEMBERSHIP_ALREADY_INACTIVE");
+      }
+
+      await tx.auditLog.create({
+        data: createAuditLogData({
+          userId: user.id!,
+          action: "team_membership.revoke",
+          entityType: "StaffTeamMembership",
+          entityId: membershipId,
+          oldValues: { isActive: membership.isActive, endedAt: membership.endedAt },
+          newValues: { isActive: false, endedAt },
+        }),
+      });
+
+      return { ...membership, isActive: false, endedAt };
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message === "MEMBERSHIP_ALREADY_INACTIVE") {
+      return NextResponse.json({ error: "Membership is already inactive" }, { status: 409 });
+    }
+    throw error;
+  }
 
   return NextResponse.json(updated);
 }

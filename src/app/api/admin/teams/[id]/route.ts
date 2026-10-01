@@ -1,48 +1,57 @@
-/**
- * GET /api/admin/teams/[id]
- *
- * Returns team detail with active-member count.
- * Authorization: teams.memberships.manage + city scope.
- */
 import { NextRequest, NextResponse } from "next/server";
-import { requireCapability, requireCityScope } from "@/lib/auth/authorize";
+import { requireCapability } from "@/lib/auth/authorize";
+import { resolveActorCity } from "@/lib/auth/events-scope";
 import { db } from "@/lib/db";
-import { ACTIVE_MEMBERSHIP_FILTER } from "@/lib/collaboration-teams/schemas";
 
-type Params = { params: Promise<{ id: string }> };
+interface RouteParams {
+  params: Promise<{ id: string }>;
+}
 
-export async function GET(_request: NextRequest, { params }: Params) {
-  const auth = await requireCapability("teams.memberships.manage");
+export async function GET(request: NextRequest, { params }: RouteParams) {
+  const auth = await requireCapability("organisation.view");
   if (auth instanceof NextResponse) return auth;
+  const user = auth.user;
 
   const { id } = await params;
-
   const team = await db.collaborationTeam.findUnique({
     where: { id },
-    select: {
-      id: true,
-      cityId: true,
-      name: true,
-      code: true,
-      description: true,
-      isActive: true,
-      createdAt: true,
-      city: { select: { id: true, name: true } },
-      _count: {
-        select: {
-          memberships: { where: { ...ACTIVE_MEMBERSHIP_FILTER } },
-        },
-      },
-    },
   });
 
   if (!team) {
     return NextResponse.json({ error: "Team not found" }, { status: 404 });
   }
 
-  if (!requireCityScope(auth.user, team.cityId)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const resolved = await resolveActorCity(user, team.cityId);
+  if (resolved.error || !resolved.cityId) {
+    return NextResponse.json(
+      { error: resolved.error || "City resolution failed" },
+      { status: resolved.status || 400 }
+    );
   }
 
-  return NextResponse.json(team);
+  const fullTeam = await db.collaborationTeam.findUnique({
+    where: { id },
+    include: {
+      city: { select: { id: true, name: true, code: true } },
+      memberships: {
+        where: { isActive: true, endedAt: null },
+        orderBy: { createdAt: "asc" },
+        include: {
+          staffMeta: {
+            include: {
+              user: { select: { id: true, name: true, email: true, phone: true, isActive: true } },
+              assignedCity: { select: { id: true, name: true } },
+              assignedPark: { select: { id: true, name: true } },
+              assignedGroup: { select: { id: true, name: true } },
+            },
+          },
+        },
+      },
+      _count: {
+        select: { memberships: { where: { isActive: true, endedAt: null } } },
+      },
+    },
+  });
+
+  return NextResponse.json(fullTeam);
 }

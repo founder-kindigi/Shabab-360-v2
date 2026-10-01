@@ -2,7 +2,6 @@
 
 import { useState, useCallback, useRef, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useSession } from "next-auth/react";
 import { useAppStore } from "@/stores/useAppStore";
 import { useAttendanceSync } from "@/hooks/use-attendance-sync";
 import { useOnlineStatus } from "@/hooks/use-online-status";
@@ -53,7 +52,8 @@ import {
   WifiOff,
   Filter,
   X,
-  Printer,
+  LayoutGrid,
+  List,
   RotateCcw,
   Check,
   Users,
@@ -61,6 +61,7 @@ import {
   Phone,
   Send,
   Pencil,
+  Layers,
 } from "lucide-react";
 import { AttendanceEditDialog } from "@/components/shared/attendance-edit-dialog";
 import { cn } from "@/lib/utils";
@@ -87,7 +88,7 @@ type EventInfo = {
   batchName: string;
   parkName: string;
   eventDate: string;
-  isClosed: boolean;
+  isClosed: boolean; resetVersion: number;
   closedAt: string | null;
   closedByName: string | null;
 };
@@ -227,16 +228,18 @@ const QUICK_STATUSES: { status: AttendanceStatus; icon: typeof CheckCircle2; lab
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export function AttendanceRoster() {
-  const { selectedEventId, navigateTo } = useAppStore();
-  const { data: session } = useSession();
+  const { selectedEventId, setSelectedEventId, navigateTo } = useAppStore();
   const { markAttendance, pendingCount } = useAttendanceSync();
   const isOnline = useOnlineStatus();
   const queryClient = useQueryClient();
 
   const [search, setSearch] = useState("");
   const [showUnmarkedOnly, setShowUnmarkedOnly] = useState(false);
+  const [rosterView, setRosterView] = useState<"cards" | "table">("cards");
   const [closeDialogOpen, setCloseDialogOpen] = useState(false);
   const [closeReason, setCloseReason] = useState("");
+  const [reopenDialogOpen, setReopenDialogOpen] = useState(false);
+  const [reopenReason, setReopenReason] = useState("");
   const [processingIds, setProcessingIds] = useState<Set<string>>(new Set());
   const [warningDialogOpen, setWarningDialogOpen] = useState(false);
 
@@ -262,11 +265,6 @@ export function AttendanceRoster() {
     () => new Map()
   );
 
-  const userRole = (session?.user as { role?: string } | undefined)?.role;
-  const canEditRecord = userRole === "admin" || userRole === "super_admin" || userRole === "program_admin" || userRole === "park_lead";
-  const canClose = userRole === "park_lead";
-  const canReset = canClose;
-
   // ─── Fetch roster ────────────────────────────────────────────────────────
 
   const {
@@ -275,6 +273,7 @@ export function AttendanceRoster() {
     error,
     refetch,
   } = useQuery<{
+    permissions: { canCorrect: boolean };
     event: EventInfo;
     roster: RosterItem[];
     summary: Summary;
@@ -289,6 +288,10 @@ export function AttendanceRoster() {
     refetchInterval: 15000,
     staleTime: 10000,
   });
+
+  const canEditRecord = data?.permissions.canCorrect === true;
+  const canClose = canEditRecord;
+  const canReset = canEditRecord;
 
   // ─── Fetch warnings for this group ───────────────────────────────────
 
@@ -311,6 +314,27 @@ export function AttendanceRoster() {
     return map;
   }, [warningsData]);
 
+  const eventDateStr = data?.event?.eventDate ? data.event.eventDate.slice(0, 10) : "";
+
+  const { data: siblingEventsData } = useQuery<{
+    events: { id: string; groupId: string; groupName: string; participantCount: number; markedCount: number; isClosed: boolean }[];
+  }>({
+    queryKey: ["attendance-sibling-events", eventDateStr],
+    queryFn: async () => {
+      const res = await fetch("/api/park/attendance/prepare", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ date: eventDateStr }),
+      });
+      if (!res.ok) return { events: [] };
+      return res.json();
+    },
+    enabled: Boolean(eventDateStr),
+    staleTime: 30000,
+  });
+
+  const siblingEvents = siblingEventsData?.events ?? [];
+
   // ─── Mutations ───────────────────────────────────────────────────────────
 
   // Batch sync mutation
@@ -319,31 +343,17 @@ export function AttendanceRoster() {
       participantIds: string[];
       status: AttendanceStatus;
     }) => {
-      const now = new Date().toISOString();
-      const mutations = params.participantIds.map((pid) => ({
-        mutationId: uuidv4(),
-        eventId: selectedEventId,
-        participantId: pid,
-        status: params.status,
-        markedAt: now,
-      }));
-
-      const res = await fetch("/api/park/attendance/sync", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mutations }),
-      });
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: "Batch sync failed" }));
-        throw new Error(err.error || "Batch sync failed");
+      let queued = false;
+      for (const participantId of params.participantIds) {
+        const result = await markAttendance({ eventId: selectedEventId!, participantId, status: params.status, expectedResetVersion: data?.event.resetVersion ?? 0, expectedVersion: data?.roster.find(r => r.participantId === participantId)?.markedAt ?? null });
+        if (!result.success) throw new Error(result.error || "Some marks remain unacknowledged; review the queue");
+        queued ||= Boolean(result.queued);
       }
-
-      return res.json();
+      return { queued };
     },
     onSuccess: (_data, variables) => {
       toast.success(
-        `Marked ${variables.participantIds.length} as ${variables.status}`
+        _data.queued ? `Queued ${variables.participantIds.length} marks on this device` : `Marked ${variables.participantIds.length} as ${variables.status}`
       );
       queryClient.invalidateQueries({
         queryKey: ["attendance-roster", selectedEventId],
@@ -366,7 +376,7 @@ export function AttendanceRoster() {
   const resetMutation = useMutation({
     mutationFn: () =>
       fetch(`/api/park/attendance/${selectedEventId}/reset`, {
-        method: "DELETE",
+        method: "DELETE", headers: { "If-Match": String(data?.event.resetVersion ?? 0) },
       }).then((r) => {
         if (!r.ok) return r.json().then((e) => { throw new Error(e.error || "Reset failed"); });
         return r.json();
@@ -399,7 +409,7 @@ export function AttendanceRoster() {
         return r.json();
       }),
     onSuccess: () => {
-      toast.success("Event closed successfully");
+      toast.success("Attendance locked successfully");
       setCloseDialogOpen(false);
       setCloseReason("");
       queryClient.invalidateQueries({ queryKey: ["attendance-roster", selectedEventId] });
@@ -409,6 +419,27 @@ export function AttendanceRoster() {
     onError: (err: Error) => {
       toast.error(err.message || "Failed to close event");
     },
+  });
+
+  const reopenMutation = useMutation({
+    mutationFn: (reason: string) =>
+      fetch(`/api/park/attendance/${selectedEventId}/reopen`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason }),
+      }).then(async (response) => {
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(body.error || "Failed to reopen attendance");
+        return body;
+      }),
+    onSuccess: () => {
+      toast.success("Attendance reopened for correction");
+      setReopenDialogOpen(false);
+      setReopenReason("");
+      queryClient.invalidateQueries({ queryKey: ["attendance-roster", selectedEventId] });
+      queryClient.invalidateQueries({ queryKey: ["park-attendance"] });
+    },
+    onError: (error: Error) => toast.error(error.message),
   });
 
   // ─── Handlers ────────────────────────────────────────────────────────────
@@ -430,6 +461,7 @@ export function AttendanceRoster() {
           eventId: selectedEventId,
           participantId,
           status,
+          expectedResetVersion: data?.event.resetVersion ?? 0, expectedVersion: data.roster.find(r => r.participantId === participantId)?.markedAt ?? null,
         });
         if (!result.success) {
           setLocalStatusMap((previous) => {
@@ -752,9 +784,9 @@ export function AttendanceRoster() {
   // ─── Render ──────────────────────────────────────────────────────────────
 
   return (
-    <div className="space-y-3">
+    <div className="mx-auto w-full max-w-7xl space-y-4 px-3 pb-24 pt-2 sm:px-4 sm:pb-6 lg:px-6">
       {/* Back button + event info */}
-      <div className="flex items-start gap-3">
+      <div className="grid grid-cols-[44px_minmax(0,1fr)] items-start gap-2 sm:flex sm:gap-3">
         <Button
           variant="ghost"
           size="icon"
@@ -782,16 +814,57 @@ export function AttendanceRoster() {
             {event.groupName} &middot; {event.batchName}
           </p>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          className="no-print shrink-0 mt-0.5"
-          onClick={() => window.print()}
-        >
-          <Printer className="size-4 mr-1.5" />
-          Print
-        </Button>
+        {!isClosed && canClose && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="no-print col-span-2 h-11 w-full shrink-0 border-amber-300 text-amber-800 hover:bg-amber-50 sm:col-auto sm:mt-0.5 sm:h-9 sm:w-auto dark:border-amber-800 dark:text-amber-300 dark:hover:bg-amber-950/30"
+            onClick={() => setCloseDialogOpen(true)}
+          >
+            <Lock className="size-4 mr-1.5" />
+            Lock attendance
+          </Button>
+        )}
       </div>
+
+      {/* Sibling Group Switcher Bar */}
+      {siblingEvents.length > 1 && (
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar no-print" aria-label="Switch group">
+          <span className="text-xs font-bold text-muted-foreground mr-1 shrink-0 flex items-center gap-1">
+            <Layers className="size-3.5 text-[#4B0A8F]" />
+            Switch Group:
+          </span>
+          {siblingEvents.map((ev) => {
+            const isCurrent = ev.id === selectedEventId;
+            return (
+              <Button
+                key={ev.id}
+                variant={isCurrent ? "default" : "outline"}
+                size="sm"
+                type="button"
+                className={cn(
+                  "h-8 rounded-xl font-bold text-xs shrink-0 transition-all flex items-center gap-1.5 border",
+                  isCurrent
+                    ? "bg-[#4B0A8F] text-white hover:bg-[#4B0A8FE6] shadow-sm ring-2 ring-purple-400/40 font-extrabold"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+                onClick={() => setSelectedEventId(ev.id)}
+              >
+                <span>{ev.groupName}</span>
+                <span
+                  className={cn(
+                    "px-1.5 py-0.5 rounded-md text-[10px] font-black",
+                    isCurrent ? "bg-white/20 text-white" : "bg-muted text-muted-foreground"
+                  )}
+                >
+                  {ev.markedCount}/{ev.participantCount}
+                </span>
+                {ev.isClosed && <Lock className="size-3 text-amber-300 shrink-0" />}
+              </Button>
+            );
+          })}
+        </div>
+      )}
 
       {/* Offline indicator */}
       {!isOnline && (
@@ -820,12 +893,12 @@ export function AttendanceRoster() {
         <motion.div
           initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex items-center gap-2.5 px-4 py-2.5 rounded-lg bg-muted border"
+          className="flex flex-wrap items-center gap-2.5 rounded-lg border bg-muted px-3 py-3 sm:px-4 sm:py-2.5"
         >
           <Lock className="size-4 text-muted-foreground shrink-0" />
           <div className="text-sm">
             <span className="font-medium text-muted-foreground">
-              Event Closed
+              Attendance locked
             </span>
             {event.closedByName && (
               <span className="text-muted-foreground">
@@ -844,6 +917,17 @@ export function AttendanceRoster() {
               </span>
             )}
           </div>
+          {canClose && (
+            <Button
+              className="h-11 w-full shrink-0 sm:ml-auto sm:h-9 sm:w-auto"
+              onClick={() => setReopenDialogOpen(true)}
+              size="sm"
+              variant="outline"
+            >
+              <RotateCcw className="mr-1.5 size-3.5" />
+              Reopen
+            </Button>
+          )}
         </motion.div>
       )}
 
@@ -852,7 +936,7 @@ export function AttendanceRoster() {
         <motion.div
           initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex items-center gap-2.5 px-4 py-2.5 rounded-lg bg-amber-50 border border-amber-200 dark:bg-amber-950/30 dark:border-amber-800/50"
+          className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-2.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-3 sm:flex sm:px-4 sm:py-2.5 dark:border-amber-800/50 dark:bg-amber-950/30"
         >
           <AlertTriangle className="size-4 text-amber-500 dark:text-amber-400 shrink-0" />
           <p className="text-sm text-amber-800 dark:text-amber-300 flex-1">
@@ -863,7 +947,7 @@ export function AttendanceRoster() {
           <Button
             size="sm"
             variant="outline"
-            className="shrink-0 text-[11px] h-7 px-2.5 border-amber-300 text-amber-700 hover:bg-amber-100 dark:border-amber-700 dark:text-amber-300 dark:hover:bg-amber-950/50"
+            className="col-span-2 h-11 w-full shrink-0 border-amber-300 px-3 text-xs text-amber-700 hover:bg-amber-100 sm:col-auto sm:h-8 sm:w-auto sm:text-[11px] dark:border-amber-700 dark:text-amber-300 dark:hover:bg-amber-950/50"
             onClick={() => setWarningDialogOpen(true)}
           >
             View Details
@@ -876,9 +960,9 @@ export function AttendanceRoster() {
         <motion.div
           initial={{ opacity: 0, y: -4 }}
           animate={{ opacity: 1, y: 0 }}
-          className="sticky top-0 z-20 -mx-4 px-4 py-2.5 bg-background/95 backdrop-blur-sm border-b no-print"
+          className="sticky top-0 z-20 rounded-xl border bg-background/95 px-3 py-2.5 shadow-sm backdrop-blur-sm no-print sm:px-4"
         >
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="grid grid-cols-3 items-center gap-2 sm:flex sm:flex-wrap">
             <span className="text-xs font-medium text-muted-foreground mr-1 hidden sm:inline">
               Bulk:
             </span>
@@ -889,7 +973,7 @@ export function AttendanceRoster() {
                   size="sm"
                   variant="outline"
                   className={cn(
-                    "gap-1.5 text-xs",
+                    "h-11 gap-1.5 px-2 text-xs sm:h-8",
                     "border-emerald-300 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800",
                     "dark:border-emerald-700 dark:text-emerald-400 dark:hover:bg-emerald-950/30 dark:hover:text-emerald-300"
                   )}
@@ -912,7 +996,7 @@ export function AttendanceRoster() {
                   size="sm"
                   variant="outline"
                   className={cn(
-                    "gap-1.5 text-xs",
+                    "h-11 gap-1.5 px-2 text-xs sm:h-8",
                     "border-red-300 text-red-600 hover:bg-red-50 hover:text-red-700",
                     "dark:border-red-700 dark:text-red-400 dark:hover:bg-red-950/30 dark:hover:text-red-300"
                   )}
@@ -935,7 +1019,7 @@ export function AttendanceRoster() {
                   <Button
                     size="sm"
                     variant="ghost"
-                    className="gap-1.5 text-xs text-muted-foreground hover:text-destructive"
+                    className="h-11 gap-1.5 px-2 text-xs text-muted-foreground hover:text-destructive sm:h-8"
                     onClick={() =>
                       setBulkConfirm({ type: "reset", count: liveSummary.total - liveSummary.unmarked })
                     }
@@ -948,6 +1032,40 @@ export function AttendanceRoster() {
                 <TooltipContent>Clear all attendance marks</TooltipContent>
               </Tooltip>
             )}
+
+            <div className="ml-2 hidden min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1 border-l pl-3 text-xs md:flex">
+              <span className="font-semibold text-foreground">
+                Total: {liveSummary.total}
+              </span>
+              <span className="flex items-center gap-1 font-medium text-emerald-600 dark:text-emerald-400">
+                <CheckCircle2 className="size-3" />
+                Present: {liveSummary.present}
+                <span className="text-muted-foreground">
+                  ({liveSummary.total > 0 ? Math.round((liveSummary.present / liveSummary.total) * 100) : 0}%)
+                </span>
+              </span>
+              <span className="flex items-center gap-1 font-medium text-red-600 dark:text-red-400">
+                <XCircle className="size-3" />
+                Absent: {liveSummary.absent}
+                <span className="text-muted-foreground">
+                  ({liveSummary.total > 0 ? Math.round((liveSummary.absent / liveSummary.total) * 100) : 0}%)
+                </span>
+              </span>
+              <span className="flex items-center gap-1 font-medium text-amber-600 dark:text-amber-400">
+                <Clock className="size-3" />
+                Late: {liveSummary.late}
+                <span className="text-muted-foreground">
+                  ({liveSummary.total > 0 ? Math.round((liveSummary.late / liveSummary.total) * 100) : 0}%)
+                </span>
+              </span>
+              <span className="flex items-center gap-1 font-medium text-sky-600 dark:text-sky-400">
+                <ShieldCheck className="size-3" />
+                Excused: {liveSummary.excused}
+                <span className="text-muted-foreground">
+                  ({liveSummary.total > 0 ? Math.round((liveSummary.excused / liveSummary.total) * 100) : 0}%)
+                </span>
+              </span>
+            </div>
 
             {selectedIds.size > 0 && (
               <div className="flex items-center gap-1 ml-auto">
@@ -986,8 +1104,8 @@ export function AttendanceRoster() {
       </div>
 
       {/* Search + filter */}
-      <div className="flex items-center gap-2">
-        <div className="relative flex-1">
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative basis-full sm:min-w-0 sm:flex-1 sm:basis-auto">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
           <Input
             placeholder="Search participant..."
@@ -1016,10 +1134,65 @@ export function AttendanceRoster() {
           <Filter className="size-3.5 mr-1.5" />
           Unmarked
         </Button>
+        <div className="ml-auto flex rounded-lg border bg-muted/40 p-1" aria-label="Roster layout">
+          <Button
+            aria-pressed={rosterView === "cards"}
+            className={cn("h-8 px-2", rosterView === "cards" ? "bg-background shadow-sm" : "text-muted-foreground")}
+            onClick={() => setRosterView("cards")}
+            size="sm"
+            type="button"
+            variant="ghost"
+          >
+            <LayoutGrid className="size-4" />
+            <span className="sr-only">Cards</span>
+          </Button>
+          <Button
+            aria-pressed={rosterView === "table"}
+            className={cn("h-8 px-2", rosterView === "table" ? "bg-background shadow-sm" : "text-muted-foreground")}
+            onClick={() => setRosterView("table")}
+            size="sm"
+            type="button"
+            variant="ghost"
+          >
+            <List className="size-4" />
+            <span className="sr-only">Table</span>
+          </Button>
+        </div>
       </div>
 
-      {/* ─── Roster list ─────────────────────────────────────────────────── */}
-      <div className="space-y-1.5 max-h-[50vh] overflow-y-auto pr-1 custom-scrollbar">
+      {/* One document scroll only; cards are the fast-touch default. */}
+      {rosterView === "table" ? (
+        <div className="rounded-xl border bg-card">
+          <div className="overflow-x-auto">
+            <table className="min-w-[620px] w-full text-left text-sm">
+              <thead className="border-b bg-muted/40 text-xs text-muted-foreground">
+                <tr>
+                  <th className="px-3 py-3 font-medium">Participant</th>
+                  <th className="px-3 py-3 font-medium">Current status</th>
+                  <th className="px-3 py-3 font-medium">Mark attendance</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {filteredRoster.map((item) => {
+                  const status = getStatus(item);
+                  return (
+                    <tr key={item.participantId}>
+                      <td className="px-3 py-3"><p className="font-medium">{item.participantName}</p>{item.phone && <p className="text-xs text-muted-foreground">{item.phone}</p>}</td>
+                      <td className="px-3 py-3"><Badge variant="secondary">{status ? STATUS_CONFIG[status].label : "Unmarked"}</Badge></td>
+                      <td className="px-3 py-3">
+                        {isClosed ? <span className="text-xs text-muted-foreground">Locked</span> : (
+                          <div className="flex gap-1.5">{QUICK_STATUSES.map((qs) => <Button className={cn("h-8 px-2 text-xs", status === qs.status && qs.colorClass)} disabled={processingIds.has(item.participantId)} key={qs.status} onClick={() => handleMarkSingle(item.participantId, qs.status)} size="sm" variant={status === qs.status ? "default" : "outline"}>{qs.label}</Button>)}</div>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : (
+      <div className="space-y-2">
         {filteredRoster.length === 0 ? (
           <div className="py-12 text-center">
             <p className="text-sm text-muted-foreground">
@@ -1048,7 +1221,7 @@ export function AttendanceRoster() {
                   }}
                   onClick={(e) => handleRowClick(e, i, item.participantId)}
                   className={cn(
-                    "flex flex-wrap items-start justify-between gap-2 px-3 py-2 rounded-lg border transition-all duration-200 min-h-[52px] cursor-pointer group/row sm:flex-nowrap sm:items-center",
+                    "flex items-center justify-between gap-2 px-3 py-2 rounded-lg border transition-all duration-200 min-h-[52px] cursor-pointer group/row",
                     !isClosed && "hover:translate-y-[-1px] hover:shadow-md",
                     isClosed
                       ? "bg-muted/30 border-border/50"
@@ -1059,9 +1232,9 @@ export function AttendanceRoster() {
                   )}
                 >
                   {/* Name + phone */}
-                  <div className="min-w-0 flex-1 basis-[calc(100%-3.5rem)] sm:basis-auto">
+                  <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5">
-                      <p className="text-sm font-medium break-words sm:truncate">
+                      <p className="text-sm font-medium truncate">
                         {item.participantName}
                       </p>
                       {participantWarning && (
@@ -1089,7 +1262,7 @@ export function AttendanceRoster() {
 
                   {/* Quick status buttons (mobile: always visible, desktop: hover) */}
                   {!isClosed && (
-                    <div className="order-3 flex w-full items-center justify-end gap-1.5 border-t pt-2 sm:order-none sm:w-auto sm:border-0 sm:pt-0 sm:gap-1 sm:opacity-0 sm:group-hover/row:opacity-100 transition-opacity duration-150">
+                    <div className="hidden items-center gap-1 sm:flex sm:shrink-0 sm:opacity-0 sm:transition-opacity sm:duration-150 sm:group-hover/row:opacity-100">
                       {QUICK_STATUSES.map((qs) => {
                         const isCurrentStatus = status === qs.status;
                         const Icon = qs.icon;
@@ -1140,29 +1313,6 @@ export function AttendanceRoster() {
                           </Tooltip>
                         );
                       })}
-                      {/* Edit button on desktop (visible alongside quick status) */}
-                      {canEditRecord && item.recordId && (
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setEditTarget({
-                                  recordId: item.recordId!,
-                                  participantName: item.participantName,
-                                  currentStatus: status,
-                                });
-                                setEditDialogOpen(true);
-                              }}
-                              className="flex items-center justify-center w-7 h-7 rounded-full text-muted-foreground/60 hover:text-foreground hover:bg-muted/50 transition-colors"
-                              aria-label={`Edit ${item.participantName}`}
-                            >
-                              <Pencil className="size-3" />
-                            </button>
-                          </TooltipTrigger>
-                          <TooltipContent side="left">Edit record</TooltipContent>
-                        </Tooltip>
-                      )}
                     </div>
                   )}
 
@@ -1234,13 +1384,14 @@ export function AttendanceRoster() {
           </AnimatePresence>
         )}
       </div>
+      )}
 
       {/* ─── Attendance Summary Bar (sticky bottom) ──────────────────────── */}
       {roster.length > 0 && (
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          className="sticky bottom-0 z-20 -mx-4 px-4 py-3 bg-background/95 backdrop-blur-sm border-t no-print"
+          className="relative z-20 rounded-xl border bg-background/95 px-3 py-3 shadow-sm backdrop-blur-sm no-print md:hidden"
         >
           {/* Progress bar */}
           <div className="mb-2">
@@ -1251,56 +1402,13 @@ export function AttendanceRoster() {
           </div>
 
           {/* Summary counts */}
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
-            <span className="font-semibold text-foreground">
-              Total: {liveSummary.total}
-            </span>
-            <span className="text-muted-foreground">|</span>
-
-            <span className="flex items-center gap-1 font-medium text-emerald-600 dark:text-emerald-400">
-              <CheckCircle2 className="size-3" />
-              Present: {liveSummary.present}{" "}
-              <span className="text-muted-foreground">
-                ({liveSummary.total > 0 ? Math.round((liveSummary.present / liveSummary.total) * 100) : 0}%)
-              </span>
-            </span>
-
-            <span className="flex items-center gap-1 font-medium text-red-600 dark:text-red-400">
-              <XCircle className="size-3" />
-              Absent: {liveSummary.absent}{" "}
-              <span className="text-muted-foreground">
-                ({liveSummary.total > 0 ? Math.round((liveSummary.absent / liveSummary.total) * 100) : 0}%)
-              </span>
-            </span>
-
-            <span className="flex items-center gap-1 font-medium text-amber-600 dark:text-amber-400">
-              <Clock className="size-3" />
-              Late: {liveSummary.late}{" "}
-              <span className="text-muted-foreground">
-                ({liveSummary.total > 0 ? Math.round((liveSummary.late / liveSummary.total) * 100) : 0}%)
-              </span>
-            </span>
-
-            <span className="flex items-center gap-1 font-medium text-sky-600 dark:text-sky-400">
-              <ShieldCheck className="size-3" />
-              Excused: {liveSummary.excused}{" "}
-              <span className="text-muted-foreground">
-                ({liveSummary.total > 0 ? Math.round((liveSummary.excused / liveSummary.total) * 100) : 0}%)
-              </span>
-            </span>
-
-            {liveSummary.unmarked > 0 && (
-              <>
-                <span className="text-muted-foreground">|</span>
-                <span className="flex items-center gap-1 text-muted-foreground">
-                  <Circle className="size-3" />
-                  Unmarked: {liveSummary.unmarked}{" "}
-                  <span>
-                    ({Math.round((liveSummary.unmarked / liveSummary.total) * 100)}%)
-                  </span>
-                </span>
-              </>
-            )}
+          <div className="grid grid-cols-3 gap-2 text-center text-xs">
+            <span className="rounded-lg bg-muted px-2 py-2 font-semibold">Total<br />{liveSummary.total}</span>
+            <span className="rounded-lg bg-emerald-50 px-2 py-2 font-semibold text-emerald-700">Present<br />{liveSummary.present}</span>
+            <span className="rounded-lg bg-red-50 px-2 py-2 font-semibold text-red-700">Absent<br />{liveSummary.absent}</span>
+            <span className="rounded-lg bg-amber-50 px-2 py-2 font-semibold text-amber-700">Late<br />{liveSummary.late}</span>
+            <span className="rounded-lg bg-sky-50 px-2 py-2 font-semibold text-sky-700">Excused<br />{liveSummary.excused}</span>
+            <span className="rounded-lg bg-muted px-2 py-2 font-semibold text-muted-foreground">Unmarked<br />{liveSummary.unmarked}</span>
           </div>
         </motion.div>
       )}
@@ -1313,12 +1421,12 @@ export function AttendanceRoster() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
             transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 rounded-xl border bg-background shadow-xl px-3 py-2 no-print sm:bottom-8"
+            className="fixed inset-x-3 bottom-20 z-50 flex flex-col gap-2 rounded-xl border bg-background px-3 py-3 shadow-xl no-print sm:inset-x-auto sm:bottom-8 sm:left-1/2 sm:-translate-x-1/2 sm:flex-row sm:items-center sm:py-2"
           >
             <span className="text-xs font-medium text-muted-foreground whitespace-nowrap">
               Mark {selectedIds.size} as:
             </span>
-            <div className="flex items-center gap-1.5">
+            <div className="grid w-full grid-cols-4 gap-1.5 sm:flex sm:w-auto sm:items-center">
               {QUICK_STATUSES.map((qs) => {
                 const Icon = qs.icon;
                 return (
@@ -1327,14 +1435,15 @@ export function AttendanceRoster() {
                     size="sm"
                     variant="ghost"
                     className={cn(
-                      "h-8 gap-1.5 px-2.5 text-xs font-medium",
+                      "h-11 gap-1 px-1 text-xs font-medium sm:h-8 sm:gap-1.5 sm:px-2.5",
                       qs.colorClass
                     )}
                     onClick={() => handleRangeMark(qs.status)}
                     disabled={batchSyncMutation.isPending}
                   >
                     <Icon className="size-3.5" />
-                    {qs.label}
+                    <span className="hidden sm:inline">{qs.label}</span>
+                    <span className="sr-only sm:hidden">{qs.label}</span>
                   </Button>
                 );
               })}
@@ -1342,7 +1451,7 @@ export function AttendanceRoster() {
             <Button
               size="sm"
               variant="ghost"
-              className="h-8 px-2 text-xs text-muted-foreground"
+              className="absolute right-2 top-2 h-8 px-2 text-xs text-muted-foreground sm:static"
               onClick={clearSelection}
             >
               <X className="size-3.5" />
@@ -1350,20 +1459,6 @@ export function AttendanceRoster() {
           </motion.div>
         )}
       </AnimatePresence>
-
-      {/* Close event button */}
-      {!isClosed && canClose && (
-        <div className="pt-1">
-          <Button
-            variant="outline"
-            className="w-full border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 dark:border-red-800 dark:hover:bg-red-950/30 dark:text-red-400 dark:hover:text-red-300"
-            onClick={() => setCloseDialogOpen(true)}
-          >
-            <Lock className="size-4 mr-2" />
-            Close Event
-          </Button>
-        </div>
-      )}
 
       {/* Offline Queue Panel */}
       <OfflineQueuePanel />
@@ -1458,11 +1553,11 @@ export function AttendanceRoster() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* ─── Close Event Dialog ──────────────────────────────────────────── */}
+      {/* ─── Lock attendance dialog ─────────────────────────────────────── */}
       <Dialog open={closeDialogOpen} onOpenChange={setCloseDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Close Event</DialogTitle>
+            <DialogTitle>Lock attendance</DialogTitle>
             <DialogDescription>
               This will lock the event and prevent further attendance marks
               (except for park admins/leads with an edit reason).
@@ -1504,8 +1599,39 @@ export function AttendanceRoster() {
                   Closing...
                 </>
               ) : (
-                "Close Event"
+                "Lock attendance"
               )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={reopenDialogOpen} onOpenChange={setReopenDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Reopen attendance?</DialogTitle>
+            <DialogDescription>
+              Reopening permits corrections. Existing records and any completed dropout decisions remain unchanged.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-2">
+            <Label htmlFor="reopen-reason">Reason for reopening</Label>
+            <Textarea
+              id="reopen-reason"
+              onChange={(event) => setReopenReason(event.target.value)}
+              placeholder="e.g. A register correction was requested"
+              rows={3}
+              value={reopenReason}
+            />
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setReopenDialogOpen(false)} variant="outline">Cancel</Button>
+            <Button
+              disabled={!reopenReason.trim() || reopenMutation.isPending}
+              onClick={() => reopenMutation.mutate(reopenReason.trim())}
+            >
+              {reopenMutation.isPending && <Loader2 className="mr-2 size-4 animate-spin" />}
+              Reopen attendance
             </Button>
           </DialogFooter>
         </DialogContent>

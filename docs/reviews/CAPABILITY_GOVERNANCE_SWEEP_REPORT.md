@@ -1,9 +1,9 @@
 # GOV-001: System-Wide Capability Governance & Audit Enforcement Sweep
 
-**Task ID:** `GOV-001`
-**Date:** 2026-07-25
-**Target Repository:** `Shabab-360-v2`
-**Status:** Completed & Verified
+**Task ID:** `GOV-001`  
+**Date:** 2026-07-25  
+**Target Repository:** `Shabab-360-v2`  
+**Status:** Completed & Verified  
 
 ---
 
