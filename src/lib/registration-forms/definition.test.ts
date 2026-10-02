@@ -21,6 +21,12 @@ describe("registration form definition", () => {
     expect(parseFormAnswers(fields, settings, { ...answers, emergencyPhone: "123" })).toBeNull();
   });
 
+  it("requires affiliation details only when affiliation is Yes", () => {
+    expect(parseFormAnswers(fields, settings, answers)?.affiliationDetails).toBeUndefined();
+    expect(parseFormAnswers(fields, settings, { ...answers, affiliated: "Yes" })).toBeNull();
+    expect(parseFormAnswers(fields, settings, { ...answers, affiliated: "Yes", affiliationDetails: "Shabab student" })?.affiliationDetails).toBe("Shabab student");
+  });
+
   it("requires a privacy notice and a valid eligibility field before publishing", () => {
     expect(publicationError(fields, formSettingsSchema.parse(EMPTY_FORM_SETTINGS))).toMatch(/Privacy notice/);
     expect(publicationError(fields, settings)).toBeNull();

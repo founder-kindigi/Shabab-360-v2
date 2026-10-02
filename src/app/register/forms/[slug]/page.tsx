@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import { v4 as uuidv4 } from "uuid";
 import { AlertTriangle, ArrowRight, CheckCircle2, ChevronLeft, Loader2, Info } from "lucide-react";
 import type { FormField, FormSettings } from "@/lib/registration-forms/definition";
+import { isFieldVisible } from "@/lib/registration-forms/definition";
 
 interface FormResponse {
   slug: string;
@@ -126,6 +127,7 @@ export default function PublicRegistrationFormPage({ params }: { params: Promise
 
     // Comprehensive client-side validation
     for (const field of data.fields) {
+      if (!isFieldVisible(field, answers)) continue;
       const ans = answers[field.key];
 
       if (field.required && (ans === undefined || ans === "" || ans === null)) {
@@ -317,7 +319,7 @@ export default function PublicRegistrationFormPage({ params }: { params: Promise
             {step === "form" && (
               <motion.div key="form" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
                 <form id="public-form" onSubmit={handleReview} className="space-y-10">
-                  {groupFields(data?.fields || []).map((section, sectionIndex) => (
+                  {groupFields((data?.fields || []).filter((field) => isFieldVisible(field, answers))).map((section, sectionIndex) => (
                     <section key={section.title} className="space-y-6">
                       <div className="flex items-center gap-3">
                         <span className="text-sm font-bold text-[#A0006B]">{SECTION_NUMERALS[sectionIndex] || sectionIndex + 1}</span>
@@ -453,7 +455,7 @@ export default function PublicRegistrationFormPage({ params }: { params: Promise
                     <CardDescription className="text-[#766A80]">Please ensure all details are correct before submitting.</CardDescription>
                   </CardHeader>
                   <CardContent className="divide-y divide-[#E7DDED] space-y-0 p-0">
-                    {data?.fields.map((field) => {
+                    {data?.fields.filter((field) => isFieldVisible(field, answers)).map((field) => {
                       const ans = answers[field.key];
                       const displayAns = typeof ans === "object" && ans?.choice === "Other City" ? ans.other : String(ans || "");
 

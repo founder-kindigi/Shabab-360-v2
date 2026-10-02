@@ -445,6 +445,39 @@ export function RegistrationFormBuilderPage() {
                           )}
                         </div>
                       )}
+
+                      <div className="grid gap-3 rounded-md bg-muted/50 p-3 sm:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label className="text-xs">Show this question when</Label>
+                          <Select
+                            value={field.visibleWhen?.fieldKey ?? "always"}
+                            onValueChange={(value) => updateField(idx, {
+                              visibleWhen: value === "always" ? undefined : { fieldKey: value, equals: fields.find((candidate) => candidate.key === value)?.options?.[0] ?? "" },
+                            })}
+                          >
+                            <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="always">Always</SelectItem>
+                              {fields.slice(0, idx).filter((candidate) => candidate.type === "single_select").map((candidate) => (
+                                <SelectItem key={candidate.key} value={candidate.key}>{candidate.label}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        {field.visibleWhen && (
+                          <div className="space-y-2">
+                            <Label className="text-xs">Answer equals</Label>
+                            <Select value={field.visibleWhen.equals} onValueChange={(equals) => updateField(idx, { visibleWhen: { ...field.visibleWhen!, equals } })}>
+                              <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                {fields.find((candidate) => candidate.key === field.visibleWhen?.fieldKey)?.options?.map((option) => (
+                                  <SelectItem key={option} value={option}>{option}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        )}
+                      </div>
                     </div>
                     <Button variant="ghost" size="icon" className="shrink-0 text-red-500 hover:text-red-600 hover:bg-red-50" onClick={() => removeField(idx)}>
                       <Trash2 className="size-4" />

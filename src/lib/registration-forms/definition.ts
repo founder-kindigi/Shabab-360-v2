@@ -13,6 +13,7 @@ export const formFieldSchema = z.object({
   allowOther: z.boolean().optional(),
   minNumber: z.number().int().min(0).max(1000000).optional(),
   maxNumber: z.number().int().min(0).max(1000000).optional(),
+  visibleWhen: z.object({ fieldKey: key, equals: short(80) }).strict().optional(),
 }).strict().superRefine((value, ctx) => {
   const select = value.type === "single_select" || value.type === "city";
   if (select && !value.options) ctx.addIssue({ code: "custom", message: "Selection options are required" });
@@ -26,6 +27,14 @@ export const formFieldSchema = z.object({
 
 export const formFieldsSchema = z.array(formFieldSchema).min(1).max(20).superRefine((fields, ctx) => {
   if (new Set(fields.map((field) => field.key)).size !== fields.length) ctx.addIssue({ code: "custom", message: "Field keys must be unique" });
+  fields.forEach((field, index) => {
+    if (!field.visibleWhen) return;
+    const controllerIndex = fields.findIndex((candidate) => candidate.key === field.visibleWhen!.fieldKey);
+    const controller = fields[controllerIndex];
+    if (controllerIndex < 0 || controllerIndex >= index || controller?.type !== "single_select" || !controller.options?.includes(field.visibleWhen.equals)) {
+      ctx.addIssue({ code: "custom", path: [index, "visibleWhen"], message: "Conditional questions must depend on an earlier choice and one of its options" });
+    }
+  });
 });
 
 export const formSettingsSchema = z.object({
@@ -84,6 +93,10 @@ export function intakeOpen(settings: FormSettings, now = new Date()) {
 }
 
 type Answer = string | number | { choice: "Other City"; other: string };
+export function isFieldVisible(field: FormField, answers: Record<string, unknown>): boolean {
+  return !field.visibleWhen || answers[field.visibleWhen.fieldKey] === field.visibleWhen.equals;
+}
+
 export function parseFormAnswers(fields: FormField[], settings: FormSettings, candidate: unknown): Record<string, Answer> | null {
   if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) return null;
   const input = candidate as Record<string, unknown>;
@@ -91,6 +104,7 @@ export function parseFormAnswers(fields: FormField[], settings: FormSettings, ca
   if (Object.keys(input).some((item) => !keys.has(item))) return null;
   const output: Record<string, Answer> = {};
   for (const field of fields) {
+    if (!isFieldVisible(field, input)) continue;
     const answer = input[field.key];
     if (answer === undefined || answer === null || answer === "") {
       if (field.required) return null;
