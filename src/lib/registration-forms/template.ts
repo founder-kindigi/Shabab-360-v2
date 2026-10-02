@@ -18,6 +18,7 @@ export const ATFAL_STYLE_FIELDS = [
   { key: "whatsApp", label: "WhatsApp Number", type: "phone", required: true },
   { key: "emergencyPhone", label: "Emergency Contact Number", type: "phone", required: true },
   { key: "affiliated", label: "Are you affiliated with Shabab?", type: "single_select", required: true, options: ["Yes", "No"] },
+  { key: "affiliationDetails", label: "Tell us about that affiliation", type: "long_text", required: true, helpText: "e.g. Basic Ilm-e-Deen, Atfal, Shabab student", visibleWhen: { fieldKey: "affiliated", equals: "Yes" } },
   { key: "city", label: "City", type: "city", required: true, options: [...ATFAL_CITY_OPTIONS], allowOther: true },
   { key: "address", label: "Address or locality", type: "short_text", required: true },
 ] as const;
