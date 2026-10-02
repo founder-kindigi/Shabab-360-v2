@@ -99,7 +99,7 @@ const navConfig: Record<string, { tKey: string; section: string }> = {
   "admin-access-management": { tKey: "nav.accessManagement", section: "system" },
   "admin-collaboration-teams": { tKey: "nav.collaborationTeams", section: "system" },
   "admin-admissions": { tKey: "nav.admissions", section: "operations" },
-  "admin-registration-forms": { tKey: "nav.registrationForms", section: "operations" },
+  "admin-registration-forms": { tKey: "nav.registrationForms", section: "overview" },
   "admin-fees": { tKey: "nav.fees", section: "operations" },
   "admin-announcements": { tKey: "nav.announcements", section: "communication" },
   "admin-reports": { tKey: "nav.reports", section: "communication" },
@@ -172,6 +172,7 @@ const iconMap: Record<string, LucideIcon> = {
   "admin-access-management": ShieldCheck,
   "admin-collaboration-teams": Users,
   "admin-admissions": FileText,
+  "admin-registration-forms": ClipboardList,
   "admin-fees": DollarSign,
   "admin-announcements": Megaphone,
   "admin-reports": BarChart3,
@@ -203,9 +204,9 @@ const iconMap: Record<string, LucideIcon> = {
 };
 
 const roleNavPages: Record<string, PageId[]> = {
-  super_admin: ["admin-dashboard","admin-cities","admin-parks","admin-batches","admin-groups","admin-people","admin-students","admin-guardians","admin-murabbi-profiles","admin-alumni","admin-certificates","admin-gamification","admin-attendance-events","admin-content-planner","admin-events","admin-calling","admin-mashwara","admin-islah-mamulat","admin-procurement","admin-fees","admin-admissions","admin-registration-forms","admin-community","admin-knowledge-base","admin-announcements","admin-users","admin-access","admin-reports","admin-reports-builder","notifications","admin-audit-log","admin-sync-conflicts","admin-access-management","admin-collaboration-teams","admin-security-access","admin-portal-import","admin-settings"],
-  program_admin: ["admin-dashboard","admin-cities","admin-parks","admin-batches","admin-groups","admin-people","admin-students","admin-guardians","admin-murabbi-profiles","admin-alumni","admin-certificates","admin-gamification","admin-attendance-events","admin-content-planner","admin-events","admin-calling","admin-mashwara","admin-islah-mamulat","admin-procurement","admin-fees","admin-admissions","admin-registration-forms","admin-community","admin-knowledge-base","admin-announcements","admin-users","admin-access","admin-reports","admin-reports-builder","notifications","admin-audit-log","admin-sync-conflicts","admin-collaboration-teams","admin-settings"],
-  city_head: ["city-head-dashboard","admin-parks","admin-batches","admin-groups","admin-people","admin-students","admin-guardians","admin-murabbi-profiles","admin-certificates","admin-gamification","admin-attendance-events","admin-content-planner","admin-events","admin-calling","admin-mashwara","admin-islah-mamulat","admin-procurement","admin-fees","admin-admissions","admin-registration-forms","admin-community","admin-knowledge-base","admin-announcements","admin-access","admin-reports","admin-reports-builder","notifications","admin-sync-conflicts","admin-collaboration-teams"],
+  super_admin: ["admin-dashboard","admin-registration-forms","admin-cities","admin-parks","admin-batches","admin-groups","admin-people","admin-students","admin-guardians","admin-murabbi-profiles","admin-alumni","admin-certificates","admin-gamification","admin-attendance-events","admin-content-planner","admin-events","admin-calling","admin-mashwara","admin-islah-mamulat","admin-procurement","admin-fees","admin-admissions","admin-community","admin-knowledge-base","admin-announcements","admin-users","admin-access","admin-reports","admin-reports-builder","notifications","admin-audit-log","admin-sync-conflicts","admin-access-management","admin-collaboration-teams","admin-security-access","admin-portal-import","admin-settings"],
+  program_admin: ["admin-dashboard","admin-registration-forms","admin-cities","admin-parks","admin-batches","admin-groups","admin-people","admin-students","admin-guardians","admin-murabbi-profiles","admin-alumni","admin-certificates","admin-gamification","admin-attendance-events","admin-content-planner","admin-events","admin-calling","admin-mashwara","admin-islah-mamulat","admin-procurement","admin-fees","admin-admissions","admin-community","admin-knowledge-base","admin-announcements","admin-users","admin-access","admin-reports","admin-reports-builder","notifications","admin-audit-log","admin-sync-conflicts","admin-collaboration-teams","admin-settings"],
+  city_head: ["city-head-dashboard","admin-registration-forms","admin-parks","admin-batches","admin-groups","admin-people","admin-students","admin-guardians","admin-murabbi-profiles","admin-certificates","admin-gamification","admin-attendance-events","admin-content-planner","admin-events","admin-calling","admin-mashwara","admin-islah-mamulat","admin-procurement","admin-fees","admin-admissions","admin-community","admin-knowledge-base","admin-announcements","admin-access","admin-reports","admin-reports-builder","notifications","admin-sync-conflicts","admin-collaboration-teams"],
   park_admin: ["park-dashboard","park-attendance","park-roster","park-participants","park-guardians","park-schedule","admin-islah-mamulat","admin-community","notifications"],
   park_lead: ["park-dashboard","admin-groups","park-attendance","park-roster","park-participants","park-guardians","park-schedule","admin-content-planner","admin-events","admin-calling","admin-mashwara","admin-islah-mamulat","admin-community","admin-collaboration-teams","notifications"],
   murabbi: ["murabbi-dashboard","murabbi-groups","park-attendance","park-schedule","admin-content-planner","admin-islah-mamulat","admin-community","notifications"],
