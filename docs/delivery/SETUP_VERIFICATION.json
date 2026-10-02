@@ -1,0 +1,53 @@
+{
+  "date": "2026-09-11T04:42:24.956Z",
+  "checks": [
+    {
+      "name": "one-task coordination state",
+      "passed": true
+    },
+    {
+      "name": "skill shabab-module-delivery",
+      "passed": true
+    },
+    {
+      "name": "skill shabab-clean-code",
+      "passed": true
+    },
+    {
+      "name": "skill shabab-build-feature",
+      "passed": true
+    },
+    {
+      "name": "documentation links",
+      "passed": true
+    },
+    {
+      "name": "source reference coverage",
+      "passed": true
+    },
+    {
+      "name": "workflow behavior tests",
+      "passed": true
+    },
+    {
+      "name": "configured Windows SessionStart command",
+      "passed": true
+    },
+    {
+      "name": "configured Windows Stop command",
+      "passed": true
+    }
+  ],
+  "limits": [
+    "Bundled Python skill validator could not run: PyYAML is absent. Restricted plain-scalar frontmatter checks below cover these skills without installing dependencies.",
+    "Manual hook/script invocation does not prove automatic client lifecycle activation.",
+    "No fresh application build, full regression suite or live verification is implied by this tooling check."
+  ],
+  "referenceCoverage": {
+    "screens": 34,
+    "workbooks": 6,
+    "worksheets": 57
+  },
+  "workflowTestOutput": "✔ ready task and accepted completion have valid coordination metadata (4.4953ms)\n✔ two agents cannot hold simultaneous active/review tasks (1.9856ms)\n✔ incomplete dependency prevents activation (1.8956ms)\n✔ completion cannot omit evidence or accepted review (1.0665ms)\n✔ missing, directory and external packet paths are rejected (0.3529ms)\n✔ unknown owner and inconsistent active pointer are rejected (1.0282ms)\n✔ repository state and hook output are valid without forcing continuation (140.0728ms)\nℹ tests 7\nℹ suites 0\nℹ pass 7\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 247.4591",
+  "passed": true
+}

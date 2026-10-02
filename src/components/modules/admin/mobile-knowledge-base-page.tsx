@@ -1,4 +1,5 @@
 "use client";
+import Image from "next/image";
 
 import { useState } from "react";
 import { useSession } from "next-auth/react";
@@ -79,7 +80,7 @@ export function MobileKnowledgeBasePage({ onBack }: MobileKnowledgeBasePageProps
               </button>
             )}
             <div className="size-10 rounded-2xl bg-gradient-to-br from-[#D90429] via-[#4B0A8F] to-[#1F0860] border border-white/20 p-0.5 flex items-center justify-center overflow-hidden shrink-0 shadow-lg">
-              <img src="/logo-white.png" alt="Logo" className="size-full object-contain" />
+              <Image src="/logo-white.png" alt="Logo" width={160} height={160} className="size-full object-contain" />
             </div>
             <div>
               <h1 className="text-lg font-black text-white tracking-tight flex items-center gap-1.5">

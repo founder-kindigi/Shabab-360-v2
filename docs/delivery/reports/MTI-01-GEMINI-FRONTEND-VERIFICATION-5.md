@@ -1,0 +1,7 @@
+# MTI-01 Gemini frontend verification — fifth pass, 2026-09-29
+
+Current candidate: corrected registration frontend in the shared working tree. Astra inspected the City Head create handler and editor save/refetch code. The Create button and submit path now use `resolvedCityId`, which selects the authenticated `assignedCityId` after the central city-list API returns 403. The builder compares current state through a ref with the submitted snapshot after Save, preserving a later edit. Existing server endpoints still enforce role and city scope.
+
+Checks: `npm run typecheck` passed; `npm run lint` passed with zero errors and six pre-existing unused-disable script warnings; the two focused new component tests passed (2/2). The tests cover the City Head POST payload and in-flight dirty marker, but the builder test does not await a completed refetch or assert the later text remains after it. That gap is assigned to the bounded clean-code packet `docs/delivery/packets/DEEPSEEK_MTI01_CLEAN_CODE.md`.
+
+This is sufficient to prepare the DeepSeek cleanup handoff, **not** a final module or release signoff. DeepSeek is not callable through the current tools and has not run. The full suite previously stalled and was interrupted; no full-suite pass is claimed for this candidate. A prior routing build failed at the existing Google Fonts fetch before compiling application code. Desktop/mobile browser inspection, generic form API route-path coverage, and final Astra review remain. No live form, migration or deployment was performed.

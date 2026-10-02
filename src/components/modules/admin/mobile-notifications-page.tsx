@@ -148,11 +148,30 @@ export function MobileNotificationsPage({ onBack }: MobileNotificationsPageProps
     });
   }, [notifications, search, activeFilter]);
 
+  const markAllReadMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch("/api/notifications/read-all", { method: "POST" });
+      if (!res.ok) throw new Error("Failed to mark all as read");
+    },
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ["notifications"] });
+      const previous = queryClient.getQueryData(["notifications"]);
+      queryClient.setQueryData(["notifications"], (old: any) =>
+        old ? old.map((n: any) => ({ ...n, read: true })) : []
+      );
+      return { previous };
+    },
+    onError: (err, variables, context) => {
+      queryClient.setQueryData(["notifications"], context?.previous);
+      toast.error("Failed to mark all as read");
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+    }
+  });
+
   const markAllAsRead = () => {
-    // Optimistic clear locally for now
-    queryClient.setQueryData(["notifications"], (old: any) =>
-      old ? old.map((n: any) => ({ ...n, read: true })) : []
-    );
+    markAllReadMutation.mutate();
     toast.success("All notifications marked as read!");
   };
 

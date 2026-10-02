@@ -68,3 +68,26 @@ shabab360-v2/
 tool-results/
 *.pid
 upload/
+
+# Local data and private source material
+/prisma/*.db
+/prisma/*.db-journal
+/prisma/*.db-wal
+/docs/sheets/
+
+# One-off local repair and diagnostic files
+/$null
+/-
+/scratch*.py
+/scratch_secrets.json
+/fix*.py
+/patch*.py
+/clean*.py
+/debug*.py
+/rewrite.py
+/reset_test.py
+/count.py
+/add_pragma.py
+/api_analysis.json
+/diff.txt
+/knip_output.txt

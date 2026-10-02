@@ -1,4 +1,5 @@
 "use client";
+import Image from "next/image";
 
 import { useState } from "react";
 import { MobileSplashPage } from "@/components/modules/auth/mobile-splash-page";
@@ -67,7 +68,7 @@ export function MobileDesignPreview() {
         {/* Brand row */}
         <div className="flex items-center gap-3 px-4 pt-3 pb-2">
           <div className="size-8 rounded-xl overflow-hidden bg-gradient-to-br from-[#D90429] via-[#4B0A8F] to-[#1F0860] border border-white/20 p-0.5 shrink-0">
-            <img src="/logo-color.png" alt="Shabab 360" className="size-full object-contain" />
+            <Image src="/logo-color.png" alt="Shabab 360" width={160} height={160} className="size-full object-contain" />
           </div>
           <div>
             <p className="text-xs font-extrabold text-white leading-tight">Shabab 360 — PWA Preview</p>

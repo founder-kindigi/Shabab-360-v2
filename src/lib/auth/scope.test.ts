@@ -31,6 +31,7 @@ describe("authorization scope policy", () => {
     expect(isStaffRole("park_admin")).toBe(true);
     expect(isStaffRole("park_lead")).toBe(true);
     expect(isStaffRole("murabbi")).toBe(true);
+    expect(isStaffRole("muawin")).toBe(true);
     expect(isStaffRole("guardian")).toBe(false);
     expect(isStaffRole("student")).toBe(false);
     expect(isStaffRole(null)).toBe(false);
@@ -84,18 +85,21 @@ describe("authorization scope policy", () => {
     });
   });
 
-  describe("Park Admin and Park Lead Role checks", () => {
+  describe("Park-scoped staff role checks", () => {
     const parkAdmin = user({ role: "park_admin", assignedParkId: "park-alpha" });
     const parkLead = user({ role: "park_lead", assignedParkId: "park-alpha" });
+    const muawin = user({ role: "muawin", assignedParkId: "park-alpha" });
 
     it("allows access when parkId matches user's assigned park", () => {
       expect(canAccessResourceScope(parkAdmin, { parkId: "park-alpha" })).toBe(true);
       expect(canAccessResourceScope(parkLead, { parkId: "park-alpha" })).toBe(true);
+      expect(canAccessResourceScope(muawin, { parkId: "park-alpha" })).toBe(true);
     });
 
     it("denies access when parkId does not match user's assigned park", () => {
       expect(canAccessResourceScope(parkAdmin, { parkId: "park-beta" })).toBe(false);
       expect(canAccessResourceScope(parkLead, { parkId: "park-beta" })).toBe(false);
+      expect(canAccessResourceScope(muawin, { parkId: "park-beta" })).toBe(false);
     });
 
     it("denies access when scope or assignment parameters are empty or null", () => {

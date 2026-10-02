@@ -22,10 +22,10 @@ import {
 } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
 import { queryParamsToObject, queryValidationError } from "@/lib/api/query-params";
-import { teamListQuerySchema, ACTIVE_MEMBERSHIP_FILTER } from "@/lib/collaboration-teams/schemas";
+import { teamListQuerySchema } from "@/lib/collaboration-teams/schemas";
 
 export async function GET(request: NextRequest) {
-  const auth = await requireCapability("teams.memberships.manage");
+  const auth = await requireCapability("organisation.manage");
   if (auth instanceof NextResponse) return auth;
 
   const parsed = teamListQuerySchema.safeParse(
@@ -38,19 +38,13 @@ export async function GET(request: NextRequest) {
   const { page, pageSize, cityId: requestedCityId, status } = parsed.data;
 
   // ── City scope ────────────────────────────────────────────────────────────
-  // HQ must supply an explicit cityId; missing cityId returns 400.
+  // HQ: no restriction unless they explicitly supply a cityId.
   // Scoped user: derive effective city from their session assignment;
   //   a foreign cityId in the request is rejected before any DB query.
   let effectiveCityId: string | undefined;
 
   if (isHqRole(auth.user.role)) {
-    if (!requestedCityId) {
-      return NextResponse.json(
-        { error: "HQ actor must supply a valid cityId" },
-        { status: 400 }
-      );
-    }
-    effectiveCityId = requestedCityId;
+    effectiveCityId = requestedCityId ?? undefined;
   } else {
     // Non-HQ: derive city from session.
     const sessionCityId = auth.user.assignedCityId ?? null;
@@ -67,7 +61,7 @@ export async function GET(request: NextRequest) {
     status === "all" ? undefined : status === "active";
 
   const where = {
-    cityId: effectiveCityId,
+    ...(effectiveCityId && { cityId: effectiveCityId }),
     ...(isActiveFilter !== undefined && { isActive: isActiveFilter }),
   };
 
@@ -85,7 +79,7 @@ export async function GET(request: NextRequest) {
         description: true,
         isActive: true,
         city: { select: { id: true, name: true } },
-        _count: { select: { memberships: { where: { ...ACTIVE_MEMBERSHIP_FILTER } } } },
+        _count: { select: { memberships: { where: { isActive: true } } } },
       },
     }),
     db.collaborationTeam.count({ where }),

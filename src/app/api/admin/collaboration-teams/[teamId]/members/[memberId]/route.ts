@@ -9,7 +9,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireCapability, requireCityScope } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
-import { updateMembershipSchema, ACTIVE_MEMBERSHIP_FILTER } from "@/lib/collaboration-teams/schemas";
+import { updateMembershipSchema } from "@/lib/collaboration-teams/schemas";
 
 type Params = { params: Promise<{ teamId: string; memberId: string }> };
 
@@ -33,7 +33,7 @@ async function resolveMembership(teamId: string, memberId: string) {
 // ── PATCH ─────────────────────────────────────────────────────────────────────
 
 export async function PATCH(request: NextRequest, { params }: Params) {
-  const auth = await requireCapability("teams.memberships.manage");
+  const auth = await requireCapability("organisation.manage");
   if (auth instanceof NextResponse) return auth;
 
   const { teamId, memberId } = await params;
@@ -62,19 +62,22 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  if (!membership.isActive || membership.endedAt !== null) {
+  if (!membership.isActive) {
     return NextResponse.json(
       { error: "Cannot update an inactive membership" },
       { status: 409 }
     );
   }
 
-  const oldTitle = membership.title;
+  const oldValues = { title: membership.title, endedAt: membership.endedAt };
 
   const updated = await db.staffTeamMembership.update({
     where: { id: memberId },
     data: {
-      title: parsed.data.title,
+      ...(parsed.data.title !== undefined && { title: parsed.data.title }),
+      ...(parsed.data.endedAt !== undefined && {
+        endedAt: parsed.data.endedAt ? new Date(parsed.data.endedAt) : null,
+      }),
     },
     select: {
       id: true,
@@ -92,8 +95,8 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     action: "update",
     entityType: "staff_team_membership",
     entityId: memberId,
-    oldValues: { title: oldTitle },
-    newValues: { title: updated.title },
+    oldValues,
+    newValues: { title: updated.title, endedAt: updated.endedAt },
   });
 
   return NextResponse.json(updated);
@@ -102,7 +105,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 // ── DELETE ────────────────────────────────────────────────────────────────────
 
 export async function DELETE(_request: NextRequest, { params }: Params) {
-  const auth = await requireCapability("teams.memberships.manage");
+  const auth = await requireCapability("organisation.manage");
   if (auth instanceof NextResponse) return auth;
 
   const { teamId, memberId } = await params;

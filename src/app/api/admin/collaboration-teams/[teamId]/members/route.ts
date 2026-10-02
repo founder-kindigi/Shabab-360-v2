@@ -13,7 +13,6 @@ import { logAudit } from "@/lib/audit";
 import {
   memberListQuerySchema,
   createMembershipSchema,
-  ACTIVE_MEMBERSHIP_FILTER,
 } from "@/lib/collaboration-teams/schemas";
 import {
   queryParamsToObject,
@@ -50,7 +49,7 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ teamId: string }> }
 ) {
-  const auth = await requireCapability("teams.memberships.manage");
+  const auth = await requireCapability("organisation.manage");
   if (auth instanceof NextResponse) return auth;
 
   const { teamId } = await params;
@@ -61,6 +60,7 @@ export async function GET(
   });
   if (!team) return NextResponse.json({ error: "Team not found" }, { status: 404 });
 
+  // City-scope: HQ may read any city; scoped users must match the team city.
   if (!requireCityScope(auth.user, team.cityId)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
@@ -73,13 +73,12 @@ export async function GET(
   }
 
   const { page, pageSize, status } = parsed.data;
-
-  // Active membership requires both isActive=true and endedAt=null.
-  const memberWhere = status === "all" ? {} : status === "active" ? { ...ACTIVE_MEMBERSHIP_FILTER } : { isActive: false };
+  const isActiveFilter =
+    status === "all" ? undefined : status === "active";
 
   const [memberships, total] = await Promise.all([
     db.staffTeamMembership.findMany({
-      where: { teamId, ...memberWhere },
+      where: { teamId, ...(isActiveFilter !== undefined && { isActive: isActiveFilter }) },
       orderBy: { startedAt: "asc" },
       skip: (page - 1) * pageSize,
       take: pageSize,
@@ -101,7 +100,7 @@ export async function GET(
       },
     }),
     db.staffTeamMembership.count({
-      where: { teamId, ...memberWhere },
+      where: { teamId, ...(isActiveFilter !== undefined && { isActive: isActiveFilter }) },
     }),
   ]);
 
@@ -114,7 +113,7 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ teamId: string }> }
 ) {
-  const auth = await requireCapability("teams.memberships.manage");
+  const auth = await requireCapability("organisation.manage");
   if (auth instanceof NextResponse) return auth;
 
   const { teamId } = await params;
@@ -179,9 +178,9 @@ export async function POST(
     );
   }
 
-  // Duplicate check: enforce isActive && endedAt === null.
+  // Duplicate check: no two active memberships for the same person in the same team.
   const existing = await db.staffTeamMembership.findFirst({
-    where: { teamId, staffMetaId: staff.id, ...ACTIVE_MEMBERSHIP_FILTER },
+    where: { teamId, staffMetaId: staff.id, isActive: true },
     select: { id: true },
   });
   if (existing) {

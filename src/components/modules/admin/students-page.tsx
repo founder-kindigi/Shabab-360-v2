@@ -55,6 +55,7 @@ import { toast } from "sonner";
 import { useDebounce } from "@/hooks/use-debounce";
 import { formatPKT } from "@/lib/timezone";
 import { useTranslation } from "@/lib/i18n";
+import { useEffectiveCapabilities } from "@/hooks/use-effective-capabilities";
 import { cn } from "@/lib/utils";
 import { ExportButton } from "@/components/shared/export-button";
 import {
@@ -110,6 +111,7 @@ interface GroupOption {
 interface GuardianInfo {
   id: string;
   name: string;
+  phone: string;
   relation: string | null;
 }
 
@@ -117,14 +119,7 @@ interface Student {
   id: string;
   hasLogin: boolean;
   name: string;
-  phone: string | null;
-  gender: string | null;
-  dateOfBirth: string | null;
-  age: number | null;
-  gradeClass: string | null;
   state: string;
-  joinedAt: string;
-  createdAt: string;
   group: {
     id: string;
     name: string;
@@ -137,8 +132,7 @@ interface Student {
         city: { id: string; name: string };
       };
     };
-  } | null;
-  guardians: GuardianInfo[];
+  };
   attendanceRate: number | null;
   attendanceTotal: number;
   attendancePresent: number;
@@ -188,6 +182,7 @@ async function fetchArrayResponse<T>(url: string): Promise<T[]> {
 
 export function StudentsPage() {
   const { t } = useTranslation();
+  const effectiveCapabilities = useEffectiveCapabilities();
   const queryClient = useQueryClient();
 
   // Filters
@@ -196,6 +191,8 @@ export function StudentsPage() {
   const [parkId, setParkId] = useState("");
   const [groupId, setGroupId] = useState("");
   const [state, setState] = useState("all");
+
+  const canManage = effectiveCapabilities.has("organisation.manage");
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [page, setPage] = useState(1);
 
@@ -300,9 +297,9 @@ export function StudentsPage() {
   }, [allGroups, parkId, cityId, parks]);
 
   // Fetch students
-  const { data, isLoading } = useQuery<{ data: Student[]; pagination: Pagination }>({
+  const { data, isLoading, isError, error } = useQuery<{ data: Student[]; pagination: Pagination }>({
     queryKey: ["admin-students", debouncedSearch, cityId, parkId, groupId, state, page],
-    queryFn: () => {
+    queryFn: async () => {
       const params = new URLSearchParams();
       if (debouncedSearch) params.set("search", debouncedSearch);
       if (cityId) params.set("cityId", cityId);
@@ -311,7 +308,12 @@ export function StudentsPage() {
       if (state && state !== "all") params.set("state", state);
       params.set("page", String(page));
       params.set("pageSize", "20");
-      return fetch(`/api/admin/students?${params}`).then((r) => r.json());
+      const res = await fetch(`/api/admin/students?${params}`);
+      if (!res.ok) {
+        if (res.status === 403) throw new Error("Access Denied");
+        throw new Error("Failed to load students");
+      }
+      return res.json();
     },
     staleTime: 10000,
   });
@@ -484,17 +486,13 @@ export function StudentsPage() {
   function openEditDialog(student: Student) {
     setSelectedStudent(student);
     setFormName(student.name);
-    setFormPhone(student.phone || "");
-    setFormGender(student.gender || "");
-    setFormDOB(
-      student.dateOfBirth
-        ? new Date(student.dateOfBirth).toISOString().split("T")[0]
-        : ""
-    );
-    setFormAge(student.age?.toString() || "");
-    setFormGradeClass(student.gradeClass || "");
+    setFormPhone("");
+    setFormGender("");
+setFormDOB("");
+    setFormAge("");
+    setFormGradeClass("");
     setFormState(student.state);
-    setFormGroupId(student.group?.id ?? "");
+    setFormGroupId(student.group.id);
     setFormErrors({});
     setEditOpen(true);
   }
@@ -542,11 +540,11 @@ export function StudentsPage() {
     setFormErrors({});
     createMutation.mutate({
       name: formName.trim(),
-      phone: formPhone.trim() || undefined,
-      gender: formGender || undefined,
-      dateOfBirth: formDOB || undefined,
+
+
+
       age: formAge || undefined,
-      gradeClass: formGradeClass.trim() || undefined,
+
       groupId: formGroupId,
     });
   }
@@ -558,20 +556,8 @@ export function StudentsPage() {
 
     const data: Record<string, string | null> = {};
     if (formName.trim() !== selectedStudent.name) data.name = formName.trim();
-    if ((formPhone.trim() || null) !== (selectedStudent.phone || null))
-      data.phone = formPhone.trim() || "";
-    if ((formGender || null) !== (selectedStudent.gender || null))
-      data.gender = formGender || "";
     if (formState !== selectedStudent.state) data.state = formState;
-    if (formGroupId && formGroupId !== selectedStudent.group?.id) data.groupId = formGroupId;
-    if (formDOB) {
-      const current = selectedStudent.dateOfBirth
-        ? new Date(selectedStudent.dateOfBirth).toISOString().split("T")[0]
-        : "";
-      if (formDOB !== current) data.dateOfBirth = formDOB;
-    }
-    if ((formAge || null) !== (selectedStudent.age?.toString() || null)) data.age = formAge || null;
-    if ((formGradeClass.trim() || null) !== (selectedStudent.gradeClass || null)) data.gradeClass = formGradeClass.trim() || null;
+    if (formGroupId !== selectedStudent.group.id) data.groupId = formGroupId;
 
     if (Object.keys(data).length === 0) {
       closeEditDialog();
@@ -592,44 +578,29 @@ export function StudentsPage() {
             <ExportButton
               data={students.map((s) => ({
                 name: s.name,
-                phone: s.phone ?? "",
-                gender: s.gender ?? "",
-                age: s.age ?? "",
-                gradeClass: s.gradeClass ?? "",
                 group: s.group?.name ?? "",
                 park: s.group?.batch?.park?.name ?? "",
                 city: s.group?.batch?.park?.city?.name ?? "",
                 status: s.state,
-                joinDate: s.joinedAt ? new Date(s.joinedAt).toLocaleDateString("en-PK", { timeZone: "Asia/Karachi" }) : "",
               }))}
               filename="students"
               columns={[
                 { key: "name", header: "Name" },
-                { key: "phone", header: "Phone" },
-                { key: "gender", header: "Gender" },
                 { key: "group", header: "Group" },
                 { key: "park", header: "Park" },
                 { key: "city", header: "City" },
                 { key: "status", header: "Status" },
-                { key: "joinDate", header: "Join Date" },
               ]}
               disabled={isLoading}
             />
-            <Button
-              variant="outline"
-              onClick={() => setImportOpen(true)}
-              className="border-[#D4B8E3] text-[#4B0A8F] hover:bg-[#F3ECF6] dark:border-[#2A0C8F] dark:text-[#8A40B0] dark:hover:bg-[#1F086080]"
-            >
-              <FolderInput className="size-4 mr-2" />
-              Import
-            </Button>
-            <Button
+            {canManage && (<Button variant="outline" onClick={() => setImportOpen(true)} className="border-[#D4B8E3] text-[#4B0A8F] hover:bg-[#F3ECF6] dark:border-[#2A0C8F] dark:text-[#8A40B0] dark:hover:bg-[#1F086080]"><FolderInput className="size-4 mr-2" />Import</Button>)}
+            {canManage && (<Button
               onClick={openCreateDialog}
               className="bg-[#4B0A8F] hover:bg-[#4B0A8FE6] text-white"
             >
               <Plus className="size-4 mr-2" />
               {t("students.addStudent")}
-            </Button>
+            </Button>)}
           </div>
         }
       />
@@ -756,24 +727,18 @@ export function StudentsPage() {
             exportToCSV(
               selected.map((s) => ({
                 name: s.name,
-                phone: s.phone ?? "",
-                gender: s.gender ?? "",
                 group: s.group?.name ?? "",
                 park: s.group?.batch?.park?.name ?? "",
                 city: s.group?.batch?.park?.city?.name ?? "",
                 status: s.state,
-                joinDate: s.joinedAt ? new Date(s.joinedAt).toLocaleDateString("en-PK", { timeZone: "Asia/Karachi" }) : "",
               })),
               "selected-students",
               [
                 { key: "name", header: "Name" },
-                { key: "phone", header: "Phone" },
-                { key: "gender", header: "Gender" },
                 { key: "group", header: "Group" },
                 { key: "park", header: "Park" },
                 { key: "city", header: "City" },
                 { key: "status", header: "Status" },
-                { key: "joinDate", header: "Join Date" },
               ]
             );
             setSelectedIds(new Set());
@@ -786,7 +751,9 @@ export function StudentsPage() {
       />
 
       {/* Loading */}
-      {isLoading && (
+      {isError && <div className="py-20 text-center text-red-500 font-medium">{(error as any)?.message || "Failed to load students"}</div>}
+
+        {isLoading && (
         <div className="space-y-3">
           {Array.from({ length: 5 }).map((_, i) => (
             <Skeleton key={i} className="h-14 w-full rounded-lg" />
@@ -795,8 +762,8 @@ export function StudentsPage() {
       )}
 
       {/* Content */}
-      {!isLoading && (
-        <AnimatePresence mode="wait">
+      {!isLoading && !isError && (
+          <AnimatePresence mode="wait">
           {students.length > 0 ? (
             <motion.div
               key="content"
@@ -818,13 +785,13 @@ export function StudentsPage() {
                         />
                       </TableHead>
                       <TableHead className="text-xs font-medium text-muted-foreground">{t("students.student")}</TableHead>
-                      <TableHead className="text-xs font-medium text-muted-foreground">{t("common.phone")}</TableHead>
-                      <TableHead className="text-xs font-medium text-muted-foreground">{t("students.gender")}</TableHead>
+                      <TableHead className="hidden">{t("common.phone")}</TableHead>
+                      <TableHead className="hidden">{t("students.gender")}</TableHead>
                       <TableHead className="text-xs font-medium text-muted-foreground">{t("students.hierarchy")}</TableHead>
-                      <TableHead className="text-xs font-medium text-muted-foreground">{t("students.guardians")}</TableHead>
+                      <TableHead className="hidden">{t("students.guardians")}</TableHead>
                       <TableHead className="text-xs font-medium text-muted-foreground">{t("students.attendance30d")}</TableHead>
                       <TableHead className="text-xs font-medium text-muted-foreground">{t("students.state")}</TableHead>
-                      <TableHead className="text-xs font-medium text-muted-foreground">{t("students.joined")}</TableHead>
+                      <TableHead className="hidden">{t("students.joined")}</TableHead>
                       <TableHead className="w-12" />
                     </TableRow>
                   </TableHeader>
@@ -852,38 +819,20 @@ export function StudentsPage() {
                             </span>
                           </div>
                         </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {student.phone || "—"}
-                        </TableCell>
-                        <TableCell className="text-sm capitalize">
-                          {student.gender === "male" ? (
-                            <User className="size-4 text-[#2A0C8F] dark:text-[#6B3ADF]" />
-                          ) : student.gender === "female" ? (
-                            <User className="size-4 text-[#A0006B] dark:text-[#C94D99]" />
-                          ) : (
-                            "—"
-                          )}
-                        </TableCell>
+                        <TableCell className="hidden"></TableCell>
+<TableCell className="hidden"></TableCell>
                         <TableCell>
                           <div className="flex items-center gap-1 text-xs text-muted-foreground flex-wrap max-w-[200px]">
-                            {student.group ? <>
-                              <span className="font-medium text-foreground">{student.group.name}</span>
-                              <span>→</span>
-                              <span>{student.group.batch.name}</span>
-                              <span>→</span>
-                              <span>{student.group.batch.park.name}</span>
-                              <span>→</span>
-                              <span>{student.group.batch.park.city.name}</span>
-                            </> : <span>Unassigned</span>}
+                            <span className="font-medium text-foreground">{student.group.name}</span>
+                            <span>→</span>
+                            <span>{student.group.batch.name}</span>
+                            <span>→</span>
+                            <span>{student.group.batch.park.name}</span>
+                            <span>→</span>
+                            <span>{student.group.batch.park.city.name}</span>
                           </div>
                         </TableCell>
-                        <TableCell>
-                          <div className="text-sm">
-                            {student.guardians.length > 0
-                              ? student.guardians.map((g) => g.name).join(", ")
-                              : "—"}
-                          </div>
-                        </TableCell>
+<TableCell className="hidden"></TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2 min-w-[100px]">
                             <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
@@ -909,9 +858,7 @@ export function StudentsPage() {
                             {student.state === "active" ? t("common.active") : t("common.inactive")}
                           </Badge>
                         </TableCell>
-                        <TableCell className="text-xs text-muted-foreground">
-                          {formatPKT(new Date(student.joinedAt))}
-                        </TableCell>
+<TableCell className="hidden"></TableCell>
                         <TableCell>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
@@ -985,7 +932,7 @@ export function StudentsPage() {
                           </div>
                           <div className="min-w-0">
                             <p className="font-medium text-sm truncate">{student.name}</p>
-                            <p className="text-xs text-muted-foreground">{student.phone || t("students.noPhone")}</p>
+
                           </div>
                         </div>
                         <div className="flex items-center gap-1">
@@ -1031,15 +978,10 @@ export function StudentsPage() {
 
                       <div className="flex items-center gap-1.5 text-xs text-muted-foreground flex-wrap">
                         <MapPin className="size-3 shrink-0" />
-                        <span>{student.group ? `${student.group.name} → ${student.group.batch.name} → ${student.group.batch.park.name}` : "Unassigned"}</span>
+                        <span>{student.group.name} → {student.group.batch.name} → {student.group.batch.park.name}</span>
                       </div>
 
-                      {student.guardians.length > 0 && (
-                        <div className="text-xs text-muted-foreground">
-                          <span className="font-medium text-foreground">{t("students.guardian")}: </span>
-                          {student.guardians.map((g) => g.name).join(", ")}
-                        </div>
-                      )}
+
 
                       <div className="flex items-center gap-2">
                         <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
@@ -1133,7 +1075,7 @@ export function StudentsPage() {
                 </p>
               )}
             </div>
-            <div className="space-y-2">
+            <div className="hidden space-y-2">
               <Label htmlFor="create-phone">{t("common.phone")}</Label>
               <Input
                 id="create-phone"
@@ -1165,7 +1107,7 @@ export function StudentsPage() {
                 />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="hidden grid grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label htmlFor="create-age">Age</Label>
                 <Input
@@ -1283,7 +1225,7 @@ export function StudentsPage() {
                 </p>
               )}
             </div>
-            <div className="space-y-2">
+            <div className="hidden space-y-2">
               <Label htmlFor="edit-phone">Phone</Label>
               <Input
                 id="edit-phone"
@@ -1314,7 +1256,7 @@ export function StudentsPage() {
                 />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="hidden grid grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label htmlFor="edit-age">Age</Label>
                 <Input

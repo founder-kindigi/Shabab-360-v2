@@ -125,7 +125,10 @@ export async function GET(request: NextRequest) {
   ]);
 
   const data = guardians.map((g) => {
-    const children = g.children.map((c) => {
+    const children = g.children.flatMap((c) => {
+      // An unassigned participant has no group projection, so it is omitted
+      // rather than dereferenced.
+      if (!c.participant.group) return [];
       const totalEvents = c.participant.attendanceRecords.length;
       const presentCount = c.participant.attendanceRecords.filter(
         (r) => r.status === "present"
@@ -135,28 +138,26 @@ export async function GET(request: NextRequest) {
           ? Math.round((presentCount / totalEvents) * 100)
           : null;
 
-      return {
+      return [{
         id: c.participant.id,
         name: c.participant.name,
         state: c.participant.state,
         relation: c.relation,
-        group: c.participant.group
-          ? {
-              id: c.participant.group.id,
-              name: c.participant.group.name,
-              batch: {
-                id: c.participant.group.batch.id,
-                name: c.participant.group.batch.name,
-                park: {
-                  id: c.participant.group.batch.park.id,
-                  name: c.participant.group.batch.park.name,
-                  city: c.participant.group.batch.park.city,
-                },
-              },
-            }
-          : null,
+        group: {
+          id: c.participant.group.id,
+          name: c.participant.group.name,
+          batch: {
+            id: c.participant.group.batch.id,
+            name: c.participant.group.batch.name,
+            park: {
+              id: c.participant.group.batch.park.id,
+              name: c.participant.group.batch.park.name,
+              city: c.participant.group.batch.park.city,
+            },
+          },
+        },
         attendanceRate,
-      };
+      }];
     });
 
     return {

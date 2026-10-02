@@ -65,29 +65,16 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   if (data.assignedToStaffMetaId) {
     const staffMeta = await db.staffMeta.findUnique({
       where: { id: data.assignedToStaffMetaId },
-      include: {
-        assignedCity: true,
-        assignedPark: { include: { city: true } },
-        assignedGroup: { include: { park: { include: { city: true } }, batch: { include: { park: { include: { city: true } }, city: true } } } },
-      },
+      include: { assignedCity: true, assignedPark: { include: { city: true } } },
     });
-    if (!staffMeta) {
-      return NextResponse.json({ error: "Assignee staff member not found" }, { status: 404 });
+    if (!staffMeta || !staffMeta.isActive) {
+      return NextResponse.json({ error: "Assignee staff member not found or inactive" }, { status: 400 });
     }
-    if (!staffMeta.isActive) {
-      return NextResponse.json({ error: "Assignee staff member is inactive" }, { status: 403 });
-    }
-    const staffCityId =
-      staffMeta.assignedCityId ||
-      staffMeta.assignedPark?.cityId ||
-      staffMeta.assignedGroup?.park?.cityId ||
-      staffMeta.assignedGroup?.batch?.cityId ||
-      staffMeta.assignedGroup?.batch?.park?.cityId;
-
+    const staffCityId = staffMeta.assignedCityId || staffMeta.assignedPark?.cityId;
     if (staffCityId !== verified.event.cityId) {
       return NextResponse.json(
         { error: "Assignee staff member belongs to a different city than the event" },
-        { status: 403 }
+        { status: 400 }
       );
     }
   }
@@ -96,16 +83,10 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const team = await db.temporaryEventTeam.findUnique({
       where: { id: data.teamId },
     });
-    if (!team || team.eventId !== id) {
+    if (!team || team.eventId !== id || !team.isActive) {
       return NextResponse.json(
         { error: "Target temporary team not found or does not belong to this event" },
-        { status: 404 }
-      );
-    }
-    if (!team.isActive) {
-      return NextResponse.json(
-        { error: "Target temporary team is inactive" },
-        { status: 403 }
+        { status: 400 }
       );
     }
   }

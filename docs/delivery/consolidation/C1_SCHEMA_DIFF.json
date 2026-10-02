@@ -1,0 +1,3261 @@
+{
+  "sqlite": {
+    "schema": "prisma/schema.prisma",
+    "modelCounts": {
+      "main": 55,
+      "v2": 74
+    },
+    "changedBlocks": [
+      {
+        "name": "AttendanceEvent",
+        "main": {
+          "kind": "model",
+          "line": 558,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "groupId": "groupId String",
+            "title": "title String",
+            "eventDate": "eventDate DateTime",
+            "isClosed": "isClosed Boolean @default(false)",
+            "closedAt": "closedAt DateTime?",
+            "closedBy": "closedBy String?",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "group": "group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)",
+            "records": "records AttendanceRecord[]",
+            "staffRecords": "staffRecords StaffAttendanceRecord[]",
+            "rosterSnapshots": "rosterSnapshots AttendanceRosterSnapshot[]",
+            "@@index([groupId, eventDate])": "@@index([groupId, eventDate])",
+            "@@index([eventDate])": "@@index([eventDate])",
+            "@@map(\"attendance_events\")": "@@map(\"attendance_events\")"
+          }
+        },
+        "v2": {
+          "kind": "model",
+          "line": 588,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "groupId": "groupId String",
+            "title": "title String",
+            "eventDate": "eventDate DateTime",
+            "resetVersion": "resetVersion Int @default(0)",
+            "isClosed": "isClosed Boolean @default(false)",
+            "closedAt": "closedAt DateTime?",
+            "closedBy": "closedBy String?",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "group": "group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)",
+            "records": "records AttendanceRecord[]",
+            "@@unique([groupId, eventDate])": "@@unique([groupId, eventDate])",
+            "@@index([eventDate])": "@@index([eventDate])",
+            "@@map(\"attendance_events\")": "@@map(\"attendance_events\")"
+          }
+        },
+        "mappingVerified": false
+      },
+      {
+        "name": "AttendanceRecord",
+        "main": {
+          "kind": "model",
+          "line": 579,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "eventId": "eventId String",
+            "participantId": "participantId String",
+            "status": "status String",
+            "markedBy": "markedBy String?",
+            "markedAt": "markedAt DateTime @default(now())",
+            "editReason": "editReason String?",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "event": "event AttendanceEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)",
+            "participant": "participant Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)",
+            "eventRegistration": "eventRegistration EventRegistration?",
+            "@@unique([eventId, participantId])": "@@unique([eventId, participantId])",
+            "@@index([eventId])": "@@index([eventId])",
+            "@@index([participantId])": "@@index([participantId])",
+            "@@map(\"attendance_records\")": "@@map(\"attendance_records\")"
+          }
+        },
+        "v2": {
+          "kind": "model",
+          "line": 608,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "eventId": "eventId String",
+            "participantId": "participantId String",
+            "status": "status String",
+            "markedBy": "markedBy String?",
+            "markedAt": "markedAt DateTime @default(now())",
+            "editReason": "editReason String?",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "event": "event AttendanceEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)",
+            "participant": "participant Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)",
+            "@@unique([eventId, participantId])": "@@unique([eventId, participantId])",
+            "@@index([eventId])": "@@index([eventId])",
+            "@@index([participantId])": "@@index([participantId])",
+            "@@map(\"attendance_records\")": "@@map(\"attendance_records\")"
+          }
+        },
+        "mappingVerified": false
+      },
+      {
+        "name": "AttendanceRosterSnapshot",
+        "main": {
+          "kind": "model",
+          "line": 620,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "eventId": "eventId String",
+            "participantId": "participantId String",
+            "groupId": "groupId String?",
+            "snapshotState": "snapshotState String @default(\"active\")",
+            "createdAt": "createdAt DateTime @default(now())",
+            "event": "event AttendanceEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)",
+            "participant": "participant Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)",
+            "group": "group Group? @relation(fields: [groupId], references: [id], onDelete: SetNull)",
+            "@@unique([eventId, participantId])": "@@unique([eventId, participantId])",
+            "@@index([eventId])": "@@index([eventId])",
+            "@@index([participantId])": "@@index([participantId])",
+            "@@map(\"attendance_roster_snapshots\")": "@@map(\"attendance_roster_snapshots\")"
+          }
+        },
+        "v2": null,
+        "mappingVerified": false
+      },
+      {
+        "name": "Badge",
+        "main": null,
+        "v2": {
+          "kind": "model",
+          "line": 1449,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "code": "code String @unique",
+            "name": "name String",
+            "description": "description String",
+            "iconUrl": "iconUrl String?",
+            "category": "category String",
+            "requiredPoints": "requiredPoints Int @default(0)",
+            "createdAt": "createdAt DateTime @default(now())",
+            "studentBadges": "studentBadges StudentBadge[]",
+            "@@map(\"badges\")": "@@map(\"badges\")"
+          }
+        },
+        "mappingVerified": false
+      },
+      {
+        "name": "Batch",
+        "main": {
+          "kind": "model",
+          "line": 141,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "name": "name String",
+            "parkId": "parkId String",
+            "cityId": "cityId String?",
+            "startDate": "startDate DateTime",
+            "endDate": "endDate DateTime?",
+            "isActive": "isActive Boolean @default(true)",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "park": "park Park @relation(fields: [parkId], references: [id], onDelete: Cascade)",
+            "city": "city City? @relation(fields: [cityId], references: [id], onDelete: Cascade)",
+            "groups": "groups Group[]",
+            "settings": "settings BatchSettings?",
+            "feeEvents": "feeEvents FeeEvent[]",
+            "eventFeeSchedules": "eventFeeSchedules EventFeeSchedule[]",
+            "contentPlans": "contentPlans ContentPlan[]",
+            "@@index([cityId, isActive])": "@@index([cityId, isActive])",
+            "@@map(\"batches\")": "@@map(\"batches\")"
+          }
+        },
+        "v2": {
+          "kind": "model",
+          "line": 167,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "name": "name String",
+            "parkId": "parkId String",
+            "cityId": "cityId String?",
+            "startDate": "startDate DateTime",
+            "endDate": "endDate DateTime?",
+            "isActive": "isActive Boolean @default(true)",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "park": "park Park @relation(fields: [parkId], references: [id], onDelete: Cascade)",
+            "city": "city City? @relation(fields: [cityId], references: [id], onDelete: Cascade)",
+            "groups": "groups Group[]",
+            "settings": "settings BatchSettings?",
+            "feeEvents": "feeEvents FeeEvent[]",
+            "contentPlans": "contentPlans ContentPlan[]",
+            "extraClassDates": "extraClassDates BatchClassDate[]",
+            "@@index([cityId, isActive])": "@@index([cityId, isActive])",
+            "@@map(\"batches\")": "@@map(\"batches\")"
+          }
+        },
+        "mappingVerified": false
+      },
+      {
+        "name": "BatchClassDate",
+        "main": null,
+        "v2": {
+          "kind": "model",
+          "line": 560,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "batchId": "batchId String",
+            "classDate": "classDate DateTime",
+            "createdAt": "createdAt DateTime @default(now())",
+            "batch": "batch Batch @relation(fields: [batchId], references: [id], onDelete: Cascade)",
+            "@@unique([batchId, classDate])": "@@unique([batchId, classDate])",
+            "@@index([classDate])": "@@index([classDate])",
+            "@@map(\"batch_class_dates\")": "@@map(\"batch_class_dates\")"
+          }
+        },
+        "mappingVerified": false
+      },
+      {
+        "name": "BatchOffDate",
+        "main": {
+          "kind": "model",
+          "line": 544,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "batchSettingsId": "batchSettingsId String",
+            "offDate": "offDate DateTime",
+            "reason": "reason String?",
+            "createdAt": "createdAt DateTime @default(now())",
+            "batchSettings": "batchSettings BatchSettings @relation(fields: [batchSettingsId], references: [id], onDelete: Cascade)",
+            "@@unique([batchSettingsId, offDate])": "@@unique([batchSettingsId, offDate])",
+            "@@index([batchSettingsId, offDate])": "@@index([batchSettingsId, offDate])",
+            "@@map(\"batch_off_dates\")": "@@map(\"batch_off_dates\")"
+          }
+        },
+        "v2": null,
+        "mappingVerified": false
+      },
+      {
+        "name": "BatchOffWeekday",
+        "main": {
+          "kind": "model",
+          "line": 532,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "batchSettingsId": "batchSettingsId String",
+            "weekday": "weekday Int",
+            "createdAt": "createdAt DateTime @default(now())",
+            "batchSettings": "batchSettings BatchSettings @relation(fields: [batchSettingsId], references: [id], onDelete: Cascade)",
+            "@@unique([batchSettingsId, weekday])": "@@unique([batchSettingsId, weekday])",
+            "@@map(\"batch_off_weekdays\")": "@@map(\"batch_off_weekdays\")"
+          }
+        },
+        "v2": null,
+        "mappingVerified": false
+      },
+      {
+        "name": "BatchSettings",
+        "main": {
+          "kind": "model",
+          "line": 515,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "batchId": "batchId String @unique",
+            "warningAbsents": "warningAbsents Int @default(3)",
+            "dropoutAbsents": "dropoutAbsents Int @default(6)",
+            "automaticDropoutEnabled": "automaticDropoutEnabled Boolean @default(false)",
+            "dropoutConsecutiveWeeks": "dropoutConsecutiveWeeks Int @default(3)",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "batch": "batch Batch @relation(fields: [batchId], references: [id], onDelete: Cascade)",
+            "offWeekdays": "offWeekdays BatchOffWeekday[]",
+            "offDates": "offDates BatchOffDate[]",
+            "@@map(\"batch_settings\")": "@@map(\"batch_settings\")"
+          }
+        },
+        "v2": {
+          "kind": "model",
+          "line": 543,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "batchId": "batchId String @unique",
+            "warningAbsents": "warningAbsents Int @default(3)",
+            "dropoutAbsents": "dropoutAbsents Int @default(6)",
+            "classWeekdays": "classWeekdays String @default(\"[0,6]\")",
+            "automaticDropoutEnabled": "automaticDropoutEnabled Boolean @default(true)",
+            "warningConsecutiveWeeks": "warningConsecutiveWeeks Int @default(2)",
+            "dropoutConsecutiveWeeks": "dropoutConsecutiveWeeks Int @default(3)",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "batch": "batch Batch @relation(fields: [batchId], references: [id], onDelete: Cascade)",
+            "@@map(\"batch_settings\")": "@@map(\"batch_settings\")"
+          }
+        },
+        "mappingVerified": false
+      },
+      {
+        "name": "City",
+        "main": {
+          "kind": "model",
+          "line": 99,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "name": "name String",
+            "code": "code String @unique",
+            "isActive": "isActive Boolean @default(true)",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "parks": "parks Park[]",
+            "batches": "batches Batch[]",
+            "cityHeads": "cityHeads StaffMeta[] @relation(\"CityHeadAssignment\")",
+            "collaborationTeams": "collaborationTeams CollaborationTeam[]",
+            "contentPlans": "contentPlans ContentPlan[]",
+            "admissionApplications": "admissionApplications AdmissionApplication[]",
+            "events": "events Event[]",
+            "callingCampaigns": "callingCampaigns CallingCampaign[]",
+            "callingTemplates": "callingTemplates CallingTemplate[]",
+            "mashwaraMeetings": "mashwaraMeetings MashwaraMeeting[]",
+            "mediaBriefs": "mediaBriefs MediaBrief[]",
+            "@@map(\"cities\")": "@@map(\"cities\")"
+          }
+        },
+        "v2": {
+          "kind": "model",
+          "line": 108,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "name": "name String",
+            "code": "code String @unique",
+            "isActive": "isActive Boolean @default(true)",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "parks": "parks Park[]",
+            "batches": "batches Batch[]",
+            "cityHeads": "cityHeads StaffMeta[] @relation(\"CityHeadAssignment\")",
+            "collaborationTeams": "collaborationTeams CollaborationTeam[]",
+            "contentPlans": "contentPlans ContentPlan[]",
+            "admissionApplications": "admissionApplications AdmissionApplication[]",
+            "events": "events Event[]",
+            "callingCampaigns": "callingCampaigns CallingCampaign[]",
+            "callingTemplates": "callingTemplates CallingTemplate[]",
+            "mashwaraMeetings": "mashwaraMeetings MashwaraMeeting[]",
+            "feeDonations": "feeDonations FeeDonation[]",
+            "financialAdjustments": "financialAdjustments FinancialAdjustment[]",
+            "purchaseOrders": "purchaseOrders PurchaseOrder[]",
+            "digitalResources": "digitalResources DigitalResource[]",
+            "operationalOffDates": "operationalOffDates OperationalOffDate[]",
+            "@@map(\"cities\")": "@@map(\"cities\")"
+          }
+        },
+        "mappingVerified": false
+      },
+      {
+        "name": "CollaborationTeam",
+        "main": {
+          "kind": "model",
+          "line": 221,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "cityId": "cityId String",
+            "name": "name String",
+            "code": "code String",
+            "description": "description String?",
+            "isActive": "isActive Boolean @default(true)",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "city": "city City @relation(fields: [cityId], references: [id], onDelete: Cascade)",
+            "memberships": "memberships StaffTeamMembership[]",
+            "contentBlocks": "contentBlocks ContentPlanBlock[]",
+            "activityPlans": "activityPlans ActivityPlanItem[]",
+            "mashwaraDecisionTargets": "mashwaraDecisionTargets MashwaraDecision[] @relation(\"MashwaraDecisionTargetTeam\")",
+            "mashwaraActionItemsTeams": "mashwaraActionItemsTeams MashwaraActionItem[] @relation(\"MashwaraActionItemTeam\")",
+            "mediaBriefs": "mediaBriefs MediaBrief[]",
+            "@@unique([cityId, code])": "@@unique([cityId, code])",
+            "@@index([cityId, isActive])": "@@index([cityId, isActive])",
+            "@@map(\"collaboration_teams\")": "@@map(\"collaboration_teams\")"
+          }
+        },
+        "v2": {
+          "kind": "model",
+          "line": 246,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "cityId": "cityId String",
+            "name": "name String",
+            "code": "code String",
+            "description": "description String?",
+            "isActive": "isActive Boolean @default(true)",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "city": "city City @relation(fields: [cityId], references: [id], onDelete: Cascade)",
+            "memberships": "memberships StaffTeamMembership[]",
+            "contentBlocks": "contentBlocks ContentPlanBlock[]",
+            "activityPlans": "activityPlans ActivityPlanItem[]",
+            "chatMessages": "chatMessages TeamChatMessage[]",
+            "documentLinks": "documentLinks TeamDocumentLink[]",
+            "mashwaraDecisionTargets": "mashwaraDecisionTargets MashwaraDecision[] @relation(\"MashwaraDecisionTargetTeam\")",
+            "mashwaraActionItemsTeams": "mashwaraActionItemsTeams MashwaraActionItem[] @relation(\"MashwaraActionItemTeam\")",
+            "@@unique([cityId, code])": "@@unique([cityId, code])",
+            "@@index([cityId, isActive])": "@@index([cityId, isActive])",
+            "@@map(\"collaboration_teams\")": "@@map(\"collaboration_teams\")"
+          }
+        },
+        "mappingVerified": false
+      },
+      {
+        "name": "ContentPlanBlock",
+        "main": {
+          "kind": "model",
+          "line": 315,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "sessionId": "sessionId String",
+            "teamId": "teamId String",
+            "category": "category String",
+            "title": "title String?",
+            "content": "content String",
+            "sortOrder": "sortOrder Int @default(0)",
+            "status": "status String @default(\"draft\")",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "session": "session ContentPlanSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)",
+            "team": "team CollaborationTeam @relation(fields: [teamId], references: [id], onDelete: Restrict)",
+            "resources": "resources ContentPlanResource[]",
+            "activities": "activities ActivityPlanItem[]",
+            "mediaBriefs": "mediaBriefs MediaBrief[]",
+            "@@unique([sessionId, category, sortOrder])": "@@unique([sessionId, category, sortOrder])",
+            "@@index([teamId, status])": "@@index([teamId, status])",
+            "@@map(\"content_plan_blocks\")": "@@map(\"content_plan_blocks\")"
+          }
+        },
+        "v2": {
+          "kind": "model",
+          "line": 341,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "sessionId": "sessionId String",
+            "teamId": "teamId String",
+            "category": "category String",
+            "title": "title String?",
+            "content": "content String",
+            "sortOrder": "sortOrder Int @default(0)",
+            "status": "status String @default(\"draft\")",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "session": "session ContentPlanSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)",
+            "team": "team CollaborationTeam @relation(fields: [teamId], references: [id], onDelete: Restrict)",
+            "resources": "resources ContentPlanResource[]",
+            "activities": "activities ActivityPlanItem[]",
+            "@@unique([sessionId, category, sortOrder])": "@@unique([sessionId, category, sortOrder])",
+            "@@index([teamId, status])": "@@index([teamId, status])",
+            "@@map(\"content_plan_blocks\")": "@@map(\"content_plan_blocks\")"
+          }
+        },
+        "mappingVerified": false
+      },
+      {
+        "name": "DigitalResource",
+        "main": null,
+        "v2": {
+          "kind": "model",
+          "line": 1481,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "title": "title String",
+            "description": "description String?",
+            "fileUrl": "fileUrl String",
+            "category": "category String",
+            "allowedRoles": "allowedRoles String @default(\"all\")",
+            "targetCityId": "targetCityId String?",
+            "createdById": "createdById String",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "targetCity": "targetCity City? @relation(fields: [targetCityId], references: [id], onDelete: SetNull)",
+            "@@index([category])": "@@index([category])",
+            "@@index([targetCityId])": "@@index([targetCityId])",
+            "@@map(\"digital_resources\")": "@@map(\"digital_resources\")"
+          }
+        },
+        "mappingVerified": false
+      },
+      {
+        "name": "Event",
+        "main": {
+          "kind": "model",
+          "line": 804,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "cityId": "cityId String",
+            "title": "title String",
+            "description": "description String?",
+            "eventType": "eventType String",
+            "status": "status String @default(\"planned\")",
+            "venue": "venue String?",
+            "venueNotes": "venueNotes String?",
+            "startDate": "startDate DateTime",
+            "endDate": "endDate DateTime?",
+            "capacity": "capacity Int?",
+            "cost": "cost Decimal? @default(0)",
+            "requiresConsent": "requiresConsent Boolean @default(false)",
+            "requiresMedical": "requiresMedical Boolean @default(false)",
+            "createdBy": "createdBy String",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "city": "city City @relation(fields: [cityId], references: [id], onDelete: Cascade)",
+            "teams": "teams TemporaryEventTeam[]",
+            "responsibilities": "responsibilities EventResponsibility[]",
+            "plannerItems": "plannerItems EventPlannerItem[]",
+            "registrations": "registrations EventRegistration[]",
+            "feeSchedules": "feeSchedules EventFeeSchedule[]",
+            "@@index([cityId, status])": "@@index([cityId, status])",
+            "@@index([cityId, startDate])": "@@index([cityId, startDate])",
+            "@@index([status, startDate])": "@@index([status, startDate])",
+            "@@map(\"events\")": "@@map(\"events\")"
+          }
+        },
+        "v2": {
+          "kind": "model",
+          "line": 1000,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "cityId": "cityId String",
+            "title": "title String",
+            "description": "description String?",
+            "eventType": "eventType String",
+            "status": "status String @default(\"planned\")",
+            "venue": "venue String?",
+            "venueNotes": "venueNotes String?",
+            "startDate": "startDate DateTime",
+            "endDate": "endDate DateTime?",
+            "capacity": "capacity Int?",
+            "cost": "cost Decimal? @default(0)",
+            "requiresConsent": "requiresConsent Boolean @default(false)",
+            "requiresMedical": "requiresMedical Boolean @default(false)",
+            "createdBy": "createdBy String",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "city": "city City @relation(fields: [cityId], references: [id], onDelete: Cascade)",
+            "teams": "teams TemporaryEventTeam[]",
+            "responsibilities": "responsibilities EventResponsibility[]",
+            "plannerItems": "plannerItems EventPlannerItem[]",
+            "registrations": "registrations EventRegistration[]",
+            "@@index([cityId, status])": "@@index([cityId, status])",
+            "@@index([cityId, startDate])": "@@index([cityId, startDate])",
+            "@@index([status, startDate])": "@@index([status, startDate])",
+            "@@map(\"events\")": "@@map(\"events\")"
+          }
+        },
+        "mappingVerified": false
+      },
+      {
+        "name": "EventFeeSchedule",
+        "main": {
+          "kind": "model",
+          "line": 864,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "eventId": "eventId String",
+            "batchId": "batchId String",
+            "feeEventId": "feeEventId String @unique",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "event": "event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)",
+            "batch": "batch Batch @relation(fields: [batchId], references: [id], onDelete: Cascade)",
+            "feeEvent": "feeEvent FeeEvent @relation(fields: [feeEventId], references: [id], onDelete: Cascade)",
+            "registrations": "registrations EventRegistration[]",
+            "@@unique([eventId, batchId])": "@@unique([eventId, batchId])",
+            "@@index([batchId])": "@@index([batchId])",
+            "@@map(\"event_fee_schedules\")": "@@map(\"event_fee_schedules\")"
+          }
+        },
+        "v2": null,
+        "mappingVerified": false
+      },
+      {
+        "name": "EventRegistration",
+        "main": {
+          "kind": "model",
+          "line": 838,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "eventId": "eventId String",
+            "participantId": "participantId String",
+            "status": "status String @default(\"registered\")",
+            "consentStatus": "consentStatus String @default(\"not_required\")",
+            "feeStatus": "feeStatus String @default(\"not_required\")",
+            "attendanceRecordId": "attendanceRecordId String? @unique",
+            "eventFeeScheduleId": "eventFeeScheduleId String?",
+            "registeredAt": "registeredAt DateTime @default(now())",
+            "cancelledAt": "cancelledAt DateTime?",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "event": "event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)",
+            "participant": "participant Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)",
+            "attendanceRecord": "attendanceRecord AttendanceRecord? @relation(fields: [attendanceRecordId], references: [id], onDelete: SetNull)",
+            "feeSchedule": "feeSchedule EventFeeSchedule? @relation(fields: [eventFeeScheduleId], references: [id], onDelete: SetNull)",
+            "@@unique([eventId, participantId])": "@@unique([eventId, participantId])",
+            "@@index([eventId, status])": "@@index([eventId, status])",
+            "@@index([participantId, status])": "@@index([participantId, status])",
+            "@@index([eventFeeScheduleId])": "@@index([eventFeeScheduleId])",
+            "@@map(\"event_registrations\")": "@@map(\"event_registrations\")"
+          }
+        },
+        "v2": {
+          "kind": "model",
+          "line": 1409,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "eventId": "eventId String",
+            "participantId": "participantId String",
+            "status": "status String @default(\"registered\")",
+            "feeStatus": "feeStatus String @default(\"unpaid\")",
+            "feeAmount": "feeAmount Decimal? @default(0)",
+            "hasConsent": "hasConsent Boolean @default(false)",
+            "hasMedical": "hasMedical Boolean @default(false)",
+            "checkedInAt": "checkedInAt DateTime?",
+            "registeredAt": "registeredAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "event": "event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)",
+            "participant": "participant Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)",
+            "@@unique([eventId, participantId])": "@@unique([eventId, participantId])",
+            "@@index([eventId, status])": "@@index([eventId, status])",
+            "@@index([participantId])": "@@index([participantId])",
+            "@@map(\"event_registrations\")": "@@map(\"event_registrations\")"
+          }
+        },
+        "mappingVerified": false
+      },
+      {
+        "name": "ExternalLinkPolicy",
+        "main": null,
+        "v2": {
+          "kind": "model",
+          "line": 1400,
+          "fields": {
+            "id": "id String @id",
+            "allowedDomains": "allowedDomains String",
+            "requireInterstitialWarning": "requireInterstitialWarning Boolean @default(true)",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "@@map(\"external_link_policies\")": "@@map(\"external_link_policies\")"
+          }
+        },
+        "mappingVerified": false
+      },
+      {
+        "name": "FeeDonation",
+        "main": null,
+        "v2": {
+          "kind": "model",
+          "line": 728,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "cityId": "cityId String",
+            "parkId": "parkId String?",
+            "donorName": "donorName String",
+            "donorPhone": "donorPhone String?",
+            "amount": "amount Float",
+            "method": "method String",
+            "receiptNo": "receiptNo String? @unique",
+            "purpose": "purpose String?",
+            "recordedBy": "recordedBy String",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "city": "city City @relation(fields: [cityId], references: [id], onDelete: Cascade)",
+            "park": "park Park? @relation(fields: [parkId], references: [id], onDelete: SetNull)",
+            "@@index([cityId, createdAt])": "@@index([cityId, createdAt])",
+            "@@index([parkId, createdAt])": "@@index([parkId, createdAt])",
+            "@@map(\"fee_donations\")": "@@map(\"fee_donations\")"
+          }
+        },
+        "mappingVerified": false
+      },
+      {
+        "name": "FeeEvent",
+        "main": {
+          "kind": "model",
+          "line": 640,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "batchId": "batchId String",
+            "title": "title String",
+            "feeType": "feeType String",
+            "amount": "amount Float",
+            "dueDate": "dueDate DateTime?",
+            "discountAmount": "discountAmount Float @default(0)",
+            "waiverReason": "waiverReason String?",
+            "waivedBy": "waivedBy String?",
+            "waivedAt": "waivedAt DateTime?",
+            "reminderSentAt": "reminderSentAt DateTime?",
+            "reminderCount": "reminderCount Int @default(0)",
+            "isActive": "isActive Boolean @default(true)",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "batch": "batch Batch @relation(fields: [batchId], references: [id], onDelete: Cascade)",
+            "payments": "payments Payment[]",
+            "eventFeeSchedule": "eventFeeSchedule EventFeeSchedule?",
+            "@@index([batchId, isActive, createdAt])": "@@index([batchId, isActive, createdAt])",
+            "@@index([isActive, createdAt])": "@@index([isActive, createdAt])",
+            "@@map(\"fee_events\")": "@@map(\"fee_events\")"
+          }
+        },
+        "v2": {
+          "kind": "model",
+          "line": 671,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "batchId": "batchId String",
+            "title": "title String",
+            "feeType": "feeType String",
+            "amount": "amount Float",
+            "dueDate": "dueDate DateTime?",
+            "discountAmount": "discountAmount Float @default(0)",
+            "waiverReason": "waiverReason String?",
+            "waivedBy": "waivedBy String?",
+            "waivedAt": "waivedAt DateTime?",
+            "reminderSentAt": "reminderSentAt DateTime?",
+            "reminderCount": "reminderCount Int @default(0)",
+            "isActive": "isActive Boolean @default(true)",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "batch": "batch Batch @relation(fields: [batchId], references: [id], onDelete: Cascade)",
+            "payments": "payments Payment[]",
+            "@@index([batchId, isActive, createdAt])": "@@index([batchId, isActive, createdAt])",
+            "@@index([isActive, createdAt])": "@@index([isActive, createdAt])",
+            "@@map(\"fee_events\")": "@@map(\"fee_events\")"
+          }
+        },
+        "mappingVerified": false
+      },
+      {
+        "name": "FinancialAdjustment",
+        "main": null,
+        "v2": {
+          "kind": "model",
+          "line": 750,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "cityId": "cityId String",
+            "parkId": "parkId String?",
+            "type": "type String",
+            "amount": "amount Float",
+            "category": "category String",
+            "reason": "reason String",
+            "approvedBy": "approvedBy String",
+            "recordedBy": "recordedBy String",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "city": "city City @relation(fields: [cityId], references: [id], onDelete: Cascade)",
+            "park": "park Park? @relation(fields: [parkId], references: [id], onDelete: SetNull)",
+            "@@index([cityId, createdAt])": "@@index([cityId, createdAt])",
+            "@@index([parkId, createdAt])": "@@index([parkId, createdAt])",
+            "@@map(\"financial_adjustments\")": "@@map(\"financial_adjustments\")"
+          }
+        },
+        "mappingVerified": false
+      },
+      {
+        "name": "Group",
+        "main": {
+          "kind": "model",
+          "line": 164,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "name": "name String",
+            "batchId": "batchId String",
+            "parkId": "parkId String?",
+            "isActive": "isActive Boolean @default(true)",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "batch": "batch Batch @relation(fields: [batchId], references: [id], onDelete: Cascade)",
+            "park": "park Park? @relation(fields: [parkId], references: [id], onDelete: Cascade)",
+            "participants": "participants Participant[]",
+            "murabbis": "murabbis StaffMeta[] @relation(\"MurabbiAssignment\")",
+            "attendanceEvents": "attendanceEvents AttendanceEvent[]",
+            "rosterSnapshots": "rosterSnapshots AttendanceRosterSnapshot[]",
+            "@@index([batchId, isActive])": "@@index([batchId, isActive])",
+            "@@index([parkId, batchId, isActive])": "@@index([parkId, batchId, isActive])",
+            "@@map(\"groups\")": "@@map(\"groups\")"
+          }
+        },
+        "v2": {
+          "kind": "model",
+          "line": 190,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "name": "name String",
+            "batchId": "batchId String",
+            "parkId": "parkId String?",
+            "isActive": "isActive Boolean @default(true)",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "batch": "batch Batch @relation(fields: [batchId], references: [id], onDelete: Cascade)",
+            "park": "park Park? @relation(fields: [parkId], references: [id], onDelete: Cascade)",
+            "participants": "participants Participant[]",
+            "murabbis": "murabbis StaffMeta[] @relation(\"MurabbiAssignment\")",
+            "attendanceEvents": "attendanceEvents AttendanceEvent[]",
+            "@@index([batchId, isActive])": "@@index([batchId, isActive])",
+            "@@index([parkId, batchId, isActive])": "@@index([parkId, batchId, isActive])",
+            "@@map(\"groups\")": "@@map(\"groups\")"
+          }
+        },
+        "mappingVerified": false
+      },
+      {
+        "name": "KnowledgeArticle",
+        "main": null,
+        "v2": {
+          "kind": "model",
+          "line": 1500,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "title": "title String",
+            "slug": "slug String @unique",
+            "content": "content String",
+            "category": "category String",
+            "tags": "tags String?",
+            "isPublished": "isPublished Boolean @default(true)",
+            "viewCount": "viewCount Int @default(0)",
+            "authorId": "authorId String",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "@@index([category, isPublished])": "@@index([category, isPublished])",
+            "@@map(\"knowledge_articles\")": "@@map(\"knowledge_articles\")"
+          }
+        },
+        "mappingVerified": false
+      },
+      {
+        "name": "LoginAttemptWindow",
+        "main": null,
+        "v2": {
+          "kind": "model",
+          "line": 13,
+          "fields": {
+            "key": "key String @id",
+            "attempts": "attempts Int",
+            "resetAt": "resetAt BigInt",
+            "@@index([resetAt])": "@@index([resetAt])",
+            "@@map(\"login_attempt_windows\")": "@@map(\"login_attempt_windows\")"
+          }
+        },
+        "mappingVerified": false
+      },
+      {
+        "name": "MediaBrief",
+        "main": {
+          "kind": "model",
+          "line": 1218,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "cityId": "cityId String",
+            "teamId": "teamId String",
+            "title": "title String",
+            "description": "description String?",
+            "mediaType": "mediaType String @default(\"graphic\")",
+            "format": "format String?",
+            "status": "status String @default(\"draft\")",
+            "priority": "priority String @default(\"medium\")",
+            "dueAt": "dueAt DateTime?",
+            "contentBlockId": "contentBlockId String?",
+            "approvalState": "approvalState String?",
+            "approvedByStaffMetaId": "approvedByStaffMetaId String?",
+            "approvedAt": "approvedAt DateTime?",
+            "rejectionReason": "rejectionReason String?",
+            "cancellationReason": "cancellationReason String?",
+            "assetMetadata": "assetMetadata String?",
+            "assignedToStaffMetaId": "assignedToStaffMetaId String?",
+            "version": "version Int @default(1)",
+            "isActive": "isActive Boolean @default(true)",
+            "createdById": "createdById String",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "city": "city City @relation(fields: [cityId], references: [id], onDelete: Restrict)",
+            "team": "team CollaborationTeam @relation(fields: [teamId], references: [id], onDelete: Restrict)",
+            "contentBlock": "contentBlock ContentPlanBlock? @relation(fields: [contentBlockId], references: [id], onDelete: SetNull)",
+            "assignedToStaff": "assignedToStaff StaffMeta? @relation(\"MediaAssignee\", fields: [assignedToStaffMetaId], references: [id], onDelete: SetNull)",
+            "approvedByStaff": "approvedByStaff StaffMeta? @relation(\"MediaApprover\", fields: [approvedByStaffMetaId], references: [id], onDelete: SetNull)",
+            "createdBy": "createdBy User @relation(\"MediaBriefCreator\", fields: [createdById], references: [id], onDelete: Restrict)",
+            "@@index([teamId, status])": "@@index([teamId, status])",
+            "@@index([teamId, assignedToStaffMetaId, status])": "@@index([teamId, assignedToStaffMetaId, status])",
+            "@@index([cityId, status])": "@@index([cityId, status])",
+            "@@index([mediaType, status])": "@@index([mediaType, status])",
+            "@@index([priority, status])": "@@index([priority, status])",
+            "@@map(\"media_briefs\")": "@@map(\"media_briefs\")"
+          }
+        },
+        "v2": null,
+        "mappingVerified": false
+      },
+      {
+        "name": "OperationReceipt",
+        "main": null,
+        "v2": {
+          "kind": "model",
+          "line": 1581,
+          "fields": {
+            "id": "id String @id",
+            "requestHash": "requestHash String",
+            "resultJson": "resultJson String",
+            "createdAt": "createdAt DateTime @default(now())",
+            "@@map(\"operation_receipts\")": "@@map(\"operation_receipts\")"
+          }
+        },
+        "mappingVerified": false
+      },
+      {
+        "name": "OperationalOffDate",
+        "main": null,
+        "v2": {
+          "kind": "model",
+          "line": 573,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "cityId": "cityId String",
+            "offDate": "offDate DateTime",
+            "label": "label String",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "city": "city City @relation(fields: [cityId], references: [id], onDelete: Cascade)",
+            "@@unique([cityId, offDate])": "@@unique([cityId, offDate])",
+            "@@index([offDate])": "@@index([offDate])",
+            "@@map(\"operational_off_dates\")": "@@map(\"operational_off_dates\")"
+          }
+        },
+        "mappingVerified": false
+      },
+      {
+        "name": "Park",
+        "main": {
+          "kind": "model",
+          "line": 122,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "name": "name String",
+            "cityId": "cityId String",
+            "address": "address String?",
+            "isActive": "isActive Boolean @default(true)",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "city": "city City @relation(fields: [cityId], references: [id], onDelete: Cascade)",
+            "batches": "batches Batch[]",
+            "groups": "groups Group[]",
+            "contentPlans": "contentPlans ContentPlan[]",
+            "parkStaff": "parkStaff StaffMeta[] @relation(\"ParkStaffAssignment\")",
+            "admissionApplications": "admissionApplications AdmissionApplication[]",
+            "@@map(\"parks\")": "@@map(\"parks\")"
+          }
+        },
+        "v2": {
+          "kind": "model",
+          "line": 135,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "name": "name String",
+            "cityId": "cityId String",
+            "address": "address String?",
+            "isActive": "isActive Boolean @default(true)",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "city": "city City @relation(fields: [cityId], references: [id], onDelete: Cascade)",
+            "batches": "batches Batch[]",
+            "groups": "groups Group[]",
+            "contentPlans": "contentPlans ContentPlan[]",
+            "parkStaff": "parkStaff StaffMeta[] @relation(\"ParkStaffAssignment\")",
+            "admissionApplications": "admissionApplications AdmissionApplication[]",
+            "feeDonations": "feeDonations FeeDonation[]",
+            "financialAdjustments": "financialAdjustments FinancialAdjustment[]",
+            "parkStocks": "parkStocks ParkStock[]",
+            "stockRequests": "stockRequests StockRequest[]",
+            "purchaseOrders": "purchaseOrders PurchaseOrder[]",
+            "transfersFrom": "transfersFrom StockTransfer[] @relation(\"StockTransferFrom\")",
+            "transfersTo": "transfersTo StockTransfer[] @relation(\"StockTransferTo\")",
+            "stockAuditLogs": "stockAuditLogs StockAuditLog[]",
+            "staffAttendanceEvents": "staffAttendanceEvents StaffAttendanceEvent[]",
+            "lessons": "lessons ParkLesson[]",
+            "routineSlots": "routineSlots ParkRoutineSlot[]",
+            "@@map(\"parks\")": "@@map(\"parks\")"
+          }
+        },
+        "mappingVerified": false
+      },
+      {
+        "name": "ParkLesson",
+        "main": null,
+        "v2": {
+          "kind": "model",
+          "line": 1544,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "parkId": "parkId String",
+            "title": "title String",
+            "type": "type String",
+            "lessonDate": "lessonDate DateTime",
+            "driveLink": "driveLink String?",
+            "fileKey": "fileKey String?",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "park": "park Park @relation(fields: [parkId], references: [id], onDelete: Cascade)",
+            "@@index([parkId, lessonDate])": "@@index([parkId, lessonDate])",
+            "@@map(\"park_lessons\")": "@@map(\"park_lessons\")"
+          }
+        },
+        "mappingVerified": false
+      },
+      {
+        "name": "ParkRoutineSlot",
+        "main": null,
+        "v2": {
+          "kind": "model",
+          "line": 1563,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "parkId": "parkId String",
+            "timeStart": "timeStart String",
+            "timeEnd": "timeEnd String",
+            "activity": "activity String",
+            "pdfLink": "pdfLink String?",
+            "sortOrder": "sortOrder Int @default(0)",
+            "isSpecialEvent": "isSpecialEvent Boolean @default(false)",
+            "createdAt": "createdAt DateTime @default(now())",
+            "park": "park Park @relation(fields: [parkId], references: [id], onDelete: Cascade)",
+            "@@index([parkId])": "@@index([parkId])",
+            "@@map(\"park_routine_slots\")": "@@map(\"park_routine_slots\")"
+          }
+        },
+        "mappingVerified": false
+      },
+      {
+        "name": "ParkStock",
+        "main": null,
+        "v2": {
+          "kind": "model",
+          "line": 792,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "parkId": "parkId String",
+            "itemId": "itemId String",
+            "quantity": "quantity Int @default(0)",
+            "minThreshold": "minThreshold Int @default(5)",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "park": "park Park @relation(fields: [parkId], references: [id], onDelete: Cascade)",
+            "item": "item ProcurementItem @relation(fields: [itemId], references: [id], onDelete: Cascade)",
+            "@@unique([parkId, itemId])": "@@unique([parkId, itemId])",
+            "@@index([parkId])": "@@index([parkId])",
+            "@@index([itemId])": "@@index([itemId])",
+            "@@map(\"park_stocks\")": "@@map(\"park_stocks\")"
+          }
+        },
+        "mappingVerified": false
+      },
+      {
+        "name": "Participant",
+        "main": {
+          "kind": "model",
+          "line": 480,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "userId": "userId String? @unique",
+            "name": "name String",
+            "phone": "phone String?",
+            "dateOfBirth": "dateOfBirth DateTime?",
+            "age": "age Int?",
+            "gradeClass": "gradeClass String?",
+            "gender": "gender String?",
+            "address": "address String?",
+            "groupId": "groupId String?",
+            "state": "state String @default(\"active\")",
+            "joinedAt": "joinedAt DateTime @default(now())",
+            "dropoutAt": "dropoutAt DateTime?",
+            "dropoutReason": "dropoutReason String?",
+            "dropoutSource": "dropoutSource String?",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "user": "user User? @relation(fields: [userId], references: [id], onDelete: SetNull)",
+            "group": "group Group? @relation(fields: [groupId], references: [id], onDelete: SetNull)",
+            "guardianLinks": "guardianLinks GuardianChild[]",
+            "attendanceRecords": "attendanceRecords AttendanceRecord[]",
+            "payments": "payments Payment[]",
+            "convertedFromApp": "convertedFromApp AdmissionApplication? @relation(\"ConvertedFrom\")",
+            "extendedProfile": "extendedProfile StudentExtendedProfile?",
+            "rosterSnapshots": "rosterSnapshots AttendanceRosterSnapshot[]",
+            "eventRegistrations": "eventRegistrations EventRegistration[]",
+            "@@index([groupId, state])": "@@index([groupId, state])",
+            "@@map(\"participants\")": "@@map(\"participants\")"
+          }
+        },
+        "v2": {
+          "kind": "model",
+          "line": 505,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "userId": "userId String? @unique",
+            "name": "name String",
+            "phone": "phone String?",
+            "dateOfBirth": "dateOfBirth DateTime?",
+            "age": "age Int?",
+            "gradeClass": "gradeClass String?",
+            "gender": "gender String?",
+            "address": "address String?",
+            "groupId": "groupId String",
+            "state": "state String @default(\"active\")",
+            "dropoutAt": "dropoutAt DateTime?",
+            "dropoutReason": "dropoutReason String?",
+            "dropoutSource": "dropoutSource String?",
+            "reactivatedAt": "reactivatedAt DateTime?",
+            "joinedAt": "joinedAt DateTime @default(now())",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "user": "user User? @relation(fields: [userId], references: [id], onDelete: SetNull)",
+            "group": "group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)",
+            "guardianLinks": "guardianLinks GuardianChild[]",
+            "attendanceRecords": "attendanceRecords AttendanceRecord[]",
+            "payments": "payments Payment[]",
+            "convertedFromApp": "convertedFromApp AdmissionApplication? @relation(\"ConvertedFrom\")",
+            "extendedProfile": "extendedProfile StudentExtendedProfile?",
+            "eventRegistrations": "eventRegistrations EventRegistration[]",
+            "pointTransactions": "pointTransactions PointTransaction[]",
+            "unlockedBadges": "unlockedBadges StudentBadge[]",
+            "evaluations": "evaluations StudentEvaluation[]",
+            "@@index([groupId, state])": "@@index([groupId, state])",
+            "@@map(\"participants\")": "@@map(\"participants\")"
+          }
+        },
+        "mappingVerified": false
+      },
+      {
+        "name": "PointTransaction",
+        "main": null,
+        "v2": {
+          "kind": "model",
+          "line": 1433,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "studentId": "studentId String",
+            "points": "points Int",
+            "category": "category String",
+            "reason": "reason String",
+            "awardedBy": "awardedBy String",
+            "createdAt": "createdAt DateTime @default(now())",
+            "student": "student Participant @relation(fields: [studentId], references: [id], onDelete: Cascade)",
+            "@@index([studentId, createdAt])": "@@index([studentId, createdAt])",
+            "@@index([category])": "@@index([category])",
+            "@@map(\"point_transactions\")": "@@map(\"point_transactions\")"
+          }
+        },
+        "mappingVerified": false
+      },
+      {
+        "name": "ProcurementItem",
+        "main": null,
+        "v2": {
+          "kind": "model",
+          "line": 771,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "sku": "sku String @unique",
+            "name": "name String",
+            "category": "category String",
+            "unit": "unit String",
+            "unitCost": "unitCost Float @default(0)",
+            "description": "description String?",
+            "isActive": "isActive Boolean @default(true)",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "parkStocks": "parkStocks ParkStock[]",
+            "stockRequests": "stockRequests StockRequest[]",
+            "purchaseOrders": "purchaseOrders PurchaseOrder[]",
+            "stockTransfers": "stockTransfers StockTransfer[]",
+            "stockAuditLogs": "stockAuditLogs StockAuditLog[]",
+            "@@map(\"procurement_items\")": "@@map(\"procurement_items\")"
+          }
+        },
+        "mappingVerified": false
+      },
+      {
+        "name": "PurchaseOrder",
+        "main": null,
+        "v2": {
+          "kind": "model",
+          "line": 832,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "poNumber": "poNumber String @unique",
+            "cityId": "cityId String",
+            "parkId": "parkId String?",
+            "itemId": "itemId String",
+            "quantity": "quantity Int",
+            "unitCost": "unitCost Float",
+            "totalCost": "totalCost Float",
+            "supplierName": "supplierName String",
+            "status": "status String @default(\"issued\")",
+            "issuedBy": "issuedBy String",
+            "receivedAt": "receivedAt DateTime?",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "city": "city City @relation(fields: [cityId], references: [id], onDelete: Cascade)",
+            "park": "park Park? @relation(fields: [parkId], references: [id], onDelete: SetNull)",
+            "item": "item ProcurementItem @relation(fields: [itemId], references: [id], onDelete: Cascade)",
+            "@@index([cityId, createdAt])": "@@index([cityId, createdAt])",
+            "@@index([parkId, createdAt])": "@@index([parkId, createdAt])",
+            "@@map(\"purchase_orders\")": "@@map(\"purchase_orders\")"
+          }
+        },
+        "mappingVerified": false
+      },
+      {
+        "name": "StaffAttendanceEvent",
+        "main": null,
+        "v2": {
+          "kind": "model",
+          "line": 629,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "parkId": "parkId String",
+            "title": "title String",
+            "eventDate": "eventDate DateTime",
+            "isClosed": "isClosed Boolean @default(false)",
+            "closedAt": "closedAt DateTime?",
+            "closedBy": "closedBy String?",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "park": "park Park @relation(fields: [parkId], references: [id], onDelete: Cascade)",
+            "records": "records StaffAttendanceRecord[]",
+            "@@unique([parkId, eventDate])": "@@unique([parkId, eventDate])",
+            "@@index([parkId, eventDate])": "@@index([parkId, eventDate])",
+            "@@index([eventDate])": "@@index([eventDate])",
+            "@@map(\"park_staff_attendance_events\")": "@@map(\"park_staff_attendance_events\")"
+          }
+        },
+        "mappingVerified": false
+      },
+      {
+        "name": "StaffAttendanceRecord",
+        "main": {
+          "kind": "model",
+          "line": 600,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "eventId": "eventId String",
+            "staffId": "staffId String",
+            "status": "status String",
+            "markedBy": "markedBy String?",
+            "markedAt": "markedAt DateTime @default(now())",
+            "editReason": "editReason String?",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "event": "event AttendanceEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)",
+            "staff": "staff StaffMeta @relation(fields: [staffId], references: [id], onDelete: Cascade)",
+            "@@unique([eventId, staffId])": "@@unique([eventId, staffId])",
+            "@@index([eventId])": "@@index([eventId])",
+            "@@index([staffId])": "@@index([staffId])",
+            "@@map(\"staff_attendance_records\")": "@@map(\"staff_attendance_records\")"
+          }
+        },
+        "v2": {
+          "kind": "model",
+          "line": 649,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "eventId": "eventId String",
+            "staffMetaId": "staffMetaId String @map(\"staffId\")",
+            "status": "status String",
+            "markedBy": "markedBy String?",
+            "markedAt": "markedAt DateTime @default(now())",
+            "editReason": "editReason String?",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "event": "event StaffAttendanceEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)",
+            "staffMeta": "staffMeta StaffMeta @relation(fields: [staffMetaId], references: [id], onDelete: Cascade)",
+            "@@unique([eventId, staffMetaId])": "@@unique([eventId, staffMetaId])",
+            "@@index([eventId])": "@@index([eventId])",
+            "@@index([staffMetaId])": "@@index([staffMetaId])",
+            "@@map(\"park_staff_attendance_records\")": "@@map(\"park_staff_attendance_records\")"
+          }
+        },
+        "mappingVerified": false
+      },
+      {
+        "name": "StaffMeta",
+        "main": {
+          "kind": "model",
+          "line": 187,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "userId": "userId String @unique",
+            "role": "role String",
+            "assignedCityId": "assignedCityId String?",
+            "assignedParkId": "assignedParkId String?",
+            "assignedGroupId": "assignedGroupId String?",
+            "isActive": "isActive Boolean @default(true)",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "user": "user User @relation(fields: [userId], references: [id], onDelete: Cascade)",
+            "assignedCity": "assignedCity City? @relation(\"CityHeadAssignment\", fields: [assignedCityId], references: [id], onDelete: SetNull)",
+            "assignedPark": "assignedPark Park? @relation(\"ParkStaffAssignment\", fields: [assignedParkId], references: [id], onDelete: SetNull)",
+            "assignedGroup": "assignedGroup Group? @relation(\"MurabbiAssignment\", fields: [assignedGroupId], references: [id], onDelete: SetNull)",
+            "teamMemberships": "teamMemberships StaffTeamMembership[]",
+            "assignedActivityPlans": "assignedActivityPlans ActivityPlanItem[] @relation(\"ActivityAssignee\")",
+            "eventTeamMemberships": "eventTeamMemberships EventTeamMembership[]",
+            "eventResponsibilities": "eventResponsibilities EventResponsibility[]",
+            "assignedEventPlannerItems": "assignedEventPlannerItems EventPlannerItem[] @relation(\"EventPlannerAssignee\")",
+            "callingAssignments": "callingAssignments CallingAssignment[]",
+            "mashwaraAttendees": "mashwaraAttendees MashwaraAttendee[]",
+            "mashwaraDecisions": "mashwaraDecisions MashwaraDecision[]",
+            "mashwaraActionItems": "mashwaraActionItems MashwaraActionItem[]",
+            "mashwaraShares": "mashwaraShares MashwaraMeetingShare[] @relation(\"MashwaraShareRecipient\")",
+            "mashwaraGrants": "mashwaraGrants MashwaraMeetingShare[] @relation(\"MashwaraShareGranter\")",
+            "mediaAssignments": "mediaAssignments MediaBrief[] @relation(\"MediaAssignee\")",
+            "mediaApprovals": "mediaApprovals MediaBrief[] @relation(\"MediaApprover\")",
+            "staffAttendanceRecords": "staffAttendanceRecords StaffAttendanceRecord[]",
+            "@@map(\"staff_meta\")": "@@map(\"staff_meta\")"
+          }
+        },
+        "v2": {
+          "kind": "model",
+          "line": 212,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "userId": "userId String @unique",
+            "role": "role String",
+            "assignedCityId": "assignedCityId String?",
+            "assignedParkId": "assignedParkId String?",
+            "assignedGroupId": "assignedGroupId String?",
+            "isActive": "isActive Boolean @default(true)",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "user": "user User @relation(fields: [userId], references: [id], onDelete: Cascade)",
+            "assignedCity": "assignedCity City? @relation(\"CityHeadAssignment\", fields: [assignedCityId], references: [id], onDelete: SetNull)",
+            "assignedPark": "assignedPark Park? @relation(\"ParkStaffAssignment\", fields: [assignedParkId], references: [id], onDelete: SetNull)",
+            "assignedGroup": "assignedGroup Group? @relation(\"MurabbiAssignment\", fields: [assignedGroupId], references: [id], onDelete: SetNull)",
+            "teamMemberships": "teamMemberships StaffTeamMembership[]",
+            "assignedActivityPlans": "assignedActivityPlans ActivityPlanItem[] @relation(\"ActivityAssignee\")",
+            "eventTeamMemberships": "eventTeamMemberships EventTeamMembership[]",
+            "eventResponsibilities": "eventResponsibilities EventResponsibility[]",
+            "assignedEventPlannerItems": "assignedEventPlannerItems EventPlannerItem[] @relation(\"EventPlannerAssignee\")",
+            "callingAssignments": "callingAssignments CallingAssignment[]",
+            "mashwaraAttendees": "mashwaraAttendees MashwaraAttendee[]",
+            "mashwaraDecisions": "mashwaraDecisions MashwaraDecision[]",
+            "mashwaraActionItems": "mashwaraActionItems MashwaraActionItem[]",
+            "mashwaraShares": "mashwaraShares MashwaraMeetingShare[] @relation(\"MashwaraShareRecipient\")",
+            "mashwaraGrants": "mashwaraGrants MashwaraMeetingShare[] @relation(\"MashwaraShareGranter\")",
+            "chatMessages": "chatMessages TeamChatMessage[]",
+            "createdTeamDocumentLinks": "createdTeamDocumentLinks TeamDocumentLink[] @relation(\"TeamDocumentLinkCreator\")",
+            "staffAttendanceRecords": "staffAttendanceRecords StaffAttendanceRecord[]",
+            "@@map(\"staff_meta\")": "@@map(\"staff_meta\")"
+          }
+        },
+        "mappingVerified": false
+      },
+      {
+        "name": "StockAuditLog",
+        "main": null,
+        "v2": {
+          "kind": "model",
+          "line": 876,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "parkId": "parkId String",
+            "itemId": "itemId String",
+            "systemCount": "systemCount Int",
+            "actualCount": "actualCount Int",
+            "discrepancy": "discrepancy Int",
+            "reason": "reason String",
+            "auditedBy": "auditedBy String",
+            "createdAt": "createdAt DateTime @default(now())",
+            "park": "park Park @relation(fields: [parkId], references: [id], onDelete: Cascade)",
+            "item": "item ProcurementItem @relation(fields: [itemId], references: [id], onDelete: Cascade)",
+            "@@index([parkId, createdAt])": "@@index([parkId, createdAt])",
+            "@@map(\"stock_audit_logs\")": "@@map(\"stock_audit_logs\")"
+          }
+        },
+        "mappingVerified": false
+      },
+      {
+        "name": "StockRequest",
+        "main": null,
+        "v2": {
+          "kind": "model",
+          "line": 810,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "parkId": "parkId String",
+            "itemId": "itemId String",
+            "quantity": "quantity Int",
+            "reason": "reason String",
+            "status": "status String @default(\"pending\")",
+            "requestedBy": "requestedBy String",
+            "reviewedBy": "reviewedBy String?",
+            "reviewedAt": "reviewedAt DateTime?",
+            "notes": "notes String?",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "park": "park Park @relation(fields: [parkId], references: [id], onDelete: Cascade)",
+            "item": "item ProcurementItem @relation(fields: [itemId], references: [id], onDelete: Cascade)",
+            "@@index([parkId, status])": "@@index([parkId, status])",
+            "@@index([itemId])": "@@index([itemId])",
+            "@@map(\"stock_requests\")": "@@map(\"stock_requests\")"
+          }
+        },
+        "mappingVerified": false
+      },
+      {
+        "name": "StockTransfer",
+        "main": null,
+        "v2": {
+          "kind": "model",
+          "line": 857,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "fromParkId": "fromParkId String",
+            "toParkId": "toParkId String",
+            "itemId": "itemId String",
+            "quantity": "quantity Int",
+            "reason": "reason String?",
+            "transferredBy": "transferredBy String",
+            "createdAt": "createdAt DateTime @default(now())",
+            "fromPark": "fromPark Park @relation(\"StockTransferFrom\", fields: [fromParkId], references: [id], onDelete: Cascade)",
+            "toPark": "toPark Park @relation(\"StockTransferTo\", fields: [toParkId], references: [id], onDelete: Cascade)",
+            "item": "item ProcurementItem @relation(fields: [itemId], references: [id], onDelete: Cascade)",
+            "@@index([fromParkId, createdAt])": "@@index([fromParkId, createdAt])",
+            "@@index([toParkId, createdAt])": "@@index([toParkId, createdAt])",
+            "@@map(\"stock_transfers\")": "@@map(\"stock_transfers\")"
+          }
+        },
+        "mappingVerified": false
+      },
+      {
+        "name": "StudentBadge",
+        "main": null,
+        "v2": {
+          "kind": "model",
+          "line": 1464,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "studentId": "studentId String",
+            "badgeId": "badgeId String",
+            "unlockedAt": "unlockedAt DateTime @default(now())",
+            "student": "student Participant @relation(fields: [studentId], references: [id], onDelete: Cascade)",
+            "badge": "badge Badge @relation(fields: [badgeId], references: [id], onDelete: Cascade)",
+            "@@unique([studentId, badgeId])": "@@unique([studentId, badgeId])",
+            "@@index([studentId])": "@@index([studentId])",
+            "@@index([badgeId])": "@@index([badgeId])",
+            "@@map(\"student_badges\")": "@@map(\"student_badges\")"
+          }
+        },
+        "mappingVerified": false
+      },
+      {
+        "name": "StudentEvaluation",
+        "main": null,
+        "v2": {
+          "kind": "model",
+          "line": 1519,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "participantId": "participantId String",
+            "murabbiUserId": "murabbiUserId String",
+            "parkId": "parkId String",
+            "month": "month Int",
+            "year": "year Int",
+            "discipline": "discipline Int",
+            "farmabardari": "farmabardari Int",
+            "islah": "islah Int",
+            "ibadah": "ibadah Int",
+            "participation": "participation Int",
+            "comment": "comment String",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "participant": "participant Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)",
+            "@@unique([participantId, month, year])": "@@unique([participantId, month, year])",
+            "@@index([parkId, month, year])": "@@index([parkId, month, year])",
+            "@@map(\"student_evaluations\")": "@@map(\"student_evaluations\")"
+          }
+        },
+        "mappingVerified": false
+      },
+      {
+        "name": "TeamChatMessage",
+        "main": null,
+        "v2": {
+          "kind": "model",
+          "line": 1365,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "teamId": "teamId String",
+            "authorId": "authorId String",
+            "message": "message String",
+            "isFlagged": "isFlagged Boolean @default(false)",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "team": "team CollaborationTeam @relation(fields: [teamId], references: [id], onDelete: Cascade)",
+            "author": "author StaffMeta @relation(fields: [authorId], references: [id], onDelete: Cascade)",
+            "@@index([teamId, createdAt])": "@@index([teamId, createdAt])",
+            "@@index([authorId])": "@@index([authorId])",
+            "@@map(\"team_chat_messages\")": "@@map(\"team_chat_messages\")"
+          }
+        },
+        "mappingVerified": false
+      },
+      {
+        "name": "TeamDocumentLink",
+        "main": null,
+        "v2": {
+          "kind": "model",
+          "line": 1383,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "teamId": "teamId String",
+            "createdByStaffMetaId": "createdByStaffMetaId String",
+            "label": "label String",
+            "url": "url String",
+            "createdAt": "createdAt DateTime @default(now())",
+            "team": "team CollaborationTeam @relation(fields: [teamId], references: [id], onDelete: Cascade)",
+            "createdBy": "createdBy StaffMeta @relation(\"TeamDocumentLinkCreator\", fields: [createdByStaffMetaId], references: [id], onDelete: Restrict)",
+            "@@index([teamId, createdAt])": "@@index([teamId, createdAt])",
+            "@@index([createdByStaffMetaId])": "@@index([createdByStaffMetaId])",
+            "@@map(\"team_document_links\")": "@@map(\"team_document_links\")"
+          }
+        },
+        "mappingVerified": false
+      },
+      {
+        "name": "User",
+        "main": {
+          "kind": "model",
+          "line": 12,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "email": "email String @unique",
+            "passwordHash": "passwordHash String",
+            "name": "name String?",
+            "phone": "phone String?",
+            "mustResetPwd": "mustResetPwd Boolean @default(true)",
+            "tokenVersion": "tokenVersion Int @default(0)",
+            "isActive": "isActive Boolean @default(true)",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "staffMeta": "staffMeta StaffMeta?",
+            "guardian": "guardian Guardian?",
+            "participant": "participant Participant?",
+            "auditLogs": "auditLogs AuditLog[]",
+            "announcements": "announcements Announcement[]",
+            "notifications": "notifications Notification[]",
+            "capabilityOverrides": "capabilityOverrides UserCapabilityOverride[]",
+            "externalSupportCallers": "externalSupportCallers ExternalSupportCaller[]",
+            "callingTemplateUses": "callingTemplateUses CallingTemplateUse[]",
+            "callInteractions": "callInteractions CallInteraction[]",
+            "mashwaraMeetings": "mashwaraMeetings MashwaraMeeting[]",
+            "mediaBriefsCreated": "mediaBriefsCreated MediaBrief[] @relation(\"MediaBriefCreator\")",
+            "@@map(\"users\")": "@@map(\"users\")"
+          }
+        },
+        "v2": {
+          "kind": "model",
+          "line": 22,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "email": "email String @unique",
+            "passwordHash": "passwordHash String",
+            "name": "name String?",
+            "phone": "phone String?",
+            "mustResetPwd": "mustResetPwd Boolean @default(true)",
+            "tokenVersion": "tokenVersion Int @default(0)",
+            "isActive": "isActive Boolean @default(true)",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "staffMeta": "staffMeta StaffMeta?",
+            "guardian": "guardian Guardian?",
+            "participant": "participant Participant?",
+            "auditLogs": "auditLogs AuditLog[]",
+            "announcements": "announcements Announcement[]",
+            "notifications": "notifications Notification[]",
+            "capabilityOverrides": "capabilityOverrides UserCapabilityOverride[]",
+            "externalSupportCallers": "externalSupportCallers ExternalSupportCaller[]",
+            "callingTemplateUses": "callingTemplateUses CallingTemplateUse[]",
+            "callInteractions": "callInteractions CallInteraction[]",
+            "mashwaraMeetings": "mashwaraMeetings MashwaraMeeting[]",
+            "@@map(\"users\")": "@@map(\"users\")"
+          }
+        },
+        "mappingVerified": false
+      }
+    ],
+    "migrations": {
+      "main": {
+        "20260701000000_init_sqlite/migration.sql": "927d3599aa042f3d216f69d405b33053ecce1a37b627c82d93e598bd087a1b67",
+        "20260723160000_add_student_extended_profile/migration.sql": "13e87c011ffbedd6c41ba885c179795cc049aac5ec9d60e4104990adb338d69d",
+        "20260723200000_add_events_and_calling_foundation/migration.sql": "d215c00e5aa823df6788fd5f61c83785eec35f05b30508f29ed36688539812d1",
+        "20260724200000_add_mashwara_module/migration.sql": "35a2bc1a97fbeb85aa0683fa8914d02760ede25f2facb689bac01959e0f57e9f",
+        "20260726100000_add_mashwara_fk_constraints/migration.sql": "27d229e1556bde0b3484f248e8fbde6ed43a5adf2d616c50ff607319e6942e5a",
+        "20260729081417_add_media_briefs/migration.sql": "0179473402d7ad28d21591e5dfe9c64905c412720482b39ac1f0b0183627c8b0",
+        "20260730060714_add_attendance_foundation/migration.sql": "6664d3319c57d9ccc79de7aae472ed45a84a2c3ab23d50421d8af90621de2c26",
+        "20260803090000_add_event_registrations/migration.sql": "d5f866ce617ec0c91942c2bdd318b7bcfa49d01b162d8874f5ed4aa65bd80197",
+        "20260803100000_add_event_fee_schedules/migration.sql": "e25e14243bff5aa504f151c5cf473f4fda02ccdcda344cb8a1e16667f083752c"
+      },
+      "v2": {
+        "20260723160000_add_student_extended_profile/migration.sql": "13e87c011ffbedd6c41ba885c179795cc049aac5ec9d60e4104990adb338d69d",
+        "20260723200000_add_events_and_calling_foundation/migration.sql": "d215c00e5aa823df6788fd5f61c83785eec35f05b30508f29ed36688539812d1",
+        "20260724200000_add_mashwara_module/migration.sql": "35a2bc1a97fbeb85aa0683fa8914d02760ede25f2facb689bac01959e0f57e9f",
+        "20260725120000_add_login_attempts/migration.sql": "f915a3a75591aaef1eb06ecacb9182b4778e31b623c082e9a3a323d7a65299bf",
+        "20260729081417_add_media_briefs/migration.sql": "0179473402d7ad28d21591e5dfe9c64905c412720482b39ac1f0b0183627c8b0",
+        "20260730060714_add_attendance_foundation/migration.sql": "6664d3319c57d9ccc79de7aae472ed45a84a2c3ab23d50421d8af90621de2c26",
+        "20260803090000_add_event_registrations/migration.sql": "d5f866ce617ec0c91942c2bdd318b7bcfa49d01b162d8874f5ed4aa65bd80197",
+        "20260803100000_add_event_fee_schedules/migration.sql": "e25e14243bff5aa504f151c5cf473f4fda02ccdcda344cb8a1e16667f083752c",
+        "20260810193000_add_park_staff_attendance/migration.sql": "ccba48868f5af3cc570360edb776e9ac705f26edc611797da24e2f9586bef854",
+        "20260811083000_add_attendance_event_uniqueness/migration.sql": "74da8677c5f77787c9336d9d25931c1e8916231ecfca989210c623841daa9ccf",
+        "20260817090000_add_attendance_schedule/migration.sql": "cbd94f7152ab0129afc8fed5cf22b349f5523a786dbb927f8ceea9bb888a4e6d",
+        "20260817120000_add_attendance_dropout_lifecycle/migration.sql": "1dd0c9a22921fb1ee31b9e73d86ba89f68ea5c08783896bf8f26e157019785a7",
+        "20260827090000_add_team_document_links/migration.sql": "8fa59633afefa3bd435842eacab4f6ccb58c01071c1a9f12854b0e348ab74843",
+        "20260909010000_login_throttle/migration.sql": "d2f96aeac6624aa108776a3b071415dcaffced901db9bd630db45356f702de2b",
+        "20260909020000_operation_receipts/migration.sql": "540ebf95da7c8cdccfd018a409e0f3994c8493739a05386d131bccf0218a9e41",
+        "20260909040000_active_city_batch/migration.sql": "bddd41e80b6b52c03b02ad5ca43f0e7fc5d868afedd9da2aa93d9ac8511b4bf5",
+        "20260909070000_attendance_reset_version/migration.sql": "70412fedd02a9c30cf85a66494ae539ea713fa5fc1ef57c6de1c7fa677859e25"
+      }
+    },
+    "sharedMigrationHashConflicts": []
+  },
+  "postgres": {
+    "schema": "prisma/postgres/schema.prisma",
+    "modelCounts": {
+      "main": 55,
+      "v2": 74
+    },
+    "changedBlocks": [
+      {
+        "name": "AttendanceEvent",
+        "main": {
+          "kind": "model",
+          "line": 603,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "groupId": "groupId String",
+            "title": "title String",
+            "eventDate": "eventDate DateTime",
+            "isClosed": "isClosed Boolean @default(false)",
+            "closedAt": "closedAt DateTime?",
+            "closedBy": "closedBy String?",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "group": "group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)",
+            "records": "records AttendanceRecord[]",
+            "staffRecords": "staffRecords StaffAttendanceRecord[]",
+            "rosterSnapshots": "rosterSnapshots AttendanceRosterSnapshot[]",
+            "@@index([groupId, eventDate])": "@@index([groupId, eventDate])",
+            "@@index([eventDate])": "@@index([eventDate])",
+            "@@map(\"attendance_events\")": "@@map(\"attendance_events\")"
+          }
+        },
+        "v2": {
+          "kind": "model",
+          "line": 633,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "groupId": "groupId String",
+            "title": "title String",
+            "eventDate": "eventDate DateTime",
+            "resetVersion": "resetVersion Int @default(0)",
+            "isClosed": "isClosed Boolean @default(false)",
+            "closedAt": "closedAt DateTime?",
+            "closedBy": "closedBy String?",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "group": "group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)",
+            "records": "records AttendanceRecord[]",
+            "@@unique([groupId, eventDate])": "@@unique([groupId, eventDate])",
+            "@@index([eventDate])": "@@index([eventDate])",
+            "@@map(\"attendance_events\")": "@@map(\"attendance_events\")"
+          }
+        },
+        "mappingVerified": false
+      },
+      {
+        "name": "AttendanceRecord",
+        "main": {
+          "kind": "model",
+          "line": 624,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "eventId": "eventId String",
+            "participantId": "participantId String",
+            "status": "status AttendanceStatus",
+            "markedBy": "markedBy String?",
+            "markedAt": "markedAt DateTime @default(now())",
+            "editReason": "editReason String?",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "event": "event AttendanceEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)",
+            "participant": "participant Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)",
+            "eventRegistration": "eventRegistration EventRegistration?",
+            "@@unique([eventId, participantId])": "@@unique([eventId, participantId])",
+            "@@index([eventId])": "@@index([eventId])",
+            "@@index([participantId])": "@@index([participantId])",
+            "@@index([markedAt])": "@@index([markedAt])",
+            "@@map(\"attendance_records\")": "@@map(\"attendance_records\")"
+          }
+        },
+        "v2": {
+          "kind": "model",
+          "line": 653,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "eventId": "eventId String",
+            "participantId": "participantId String",
+            "status": "status AttendanceStatus",
+            "markedBy": "markedBy String?",
+            "markedAt": "markedAt DateTime @default(now())",
+            "editReason": "editReason String?",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "event": "event AttendanceEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)",
+            "participant": "participant Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)",
+            "@@unique([eventId, participantId])": "@@unique([eventId, participantId])",
+            "@@index([eventId])": "@@index([eventId])",
+            "@@index([participantId])": "@@index([participantId])",
+            "@@index([markedAt])": "@@index([markedAt])",
+            "@@map(\"attendance_records\")": "@@map(\"attendance_records\")"
+          }
+        },
+        "mappingVerified": false
+      },
+      {
+        "name": "AttendanceRosterSnapshot",
+        "main": {
+          "kind": "model",
+          "line": 666,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "eventId": "eventId String",
+            "participantId": "participantId String",
+            "groupId": "groupId String?",
+            "snapshotState": "snapshotState String @default(\"active\")",
+            "createdAt": "createdAt DateTime @default(now())",
+            "event": "event AttendanceEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)",
+            "participant": "participant Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)",
+            "group": "group Group? @relation(fields: [groupId], references: [id], onDelete: SetNull)",
+            "@@unique([eventId, participantId])": "@@unique([eventId, participantId])",
+            "@@index([eventId])": "@@index([eventId])",
+            "@@index([participantId])": "@@index([participantId])",
+            "@@map(\"attendance_roster_snapshots\")": "@@map(\"attendance_roster_snapshots\")"
+          }
+        },
+        "v2": null,
+        "mappingVerified": false
+      },
+      {
+        "name": "Badge",
+        "main": null,
+        "v2": {
+          "kind": "model",
+          "line": 1510,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "code": "code String @unique",
+            "name": "name String",
+            "description": "description String",
+            "iconUrl": "iconUrl String?",
+            "category": "category String",
+            "requiredPoints": "requiredPoints Int @default(0)",
+            "createdAt": "createdAt DateTime @default(now())",
+            "studentBadges": "studentBadges StudentBadge[]",
+            "@@map(\"badges\")": "@@map(\"badges\")"
+          }
+        },
+        "mappingVerified": false
+      },
+      {
+        "name": "Batch",
+        "main": {
+          "kind": "model",
+          "line": 189,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "name": "name String",
+            "parkId": "parkId String",
+            "cityId": "cityId String?",
+            "startDate": "startDate DateTime",
+            "endDate": "endDate DateTime?",
+            "isActive": "isActive Boolean @default(true)",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "park": "park Park @relation(fields: [parkId], references: [id], onDelete: Cascade)",
+            "city": "city City? @relation(fields: [cityId], references: [id], onDelete: Cascade)",
+            "groups": "groups Group[]",
+            "settings": "settings BatchSettings?",
+            "feeEvents": "feeEvents FeeEvent[]",
+            "eventFeeSchedules": "eventFeeSchedules EventFeeSchedule[]",
+            "contentPlans": "contentPlans ContentPlan[]",
+            "@@index([cityId, isActive])": "@@index([cityId, isActive])",
+            "@@map(\"batches\")": "@@map(\"batches\")"
+          }
+        },
+        "v2": {
+          "kind": "model",
+          "line": 215,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "name": "name String",
+            "parkId": "parkId String",
+            "cityId": "cityId String?",
+            "startDate": "startDate DateTime",
+            "endDate": "endDate DateTime?",
+            "isActive": "isActive Boolean @default(true)",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "park": "park Park @relation(fields: [parkId], references: [id], onDelete: Cascade)",
+            "city": "city City? @relation(fields: [cityId], references: [id], onDelete: Cascade)",
+            "groups": "groups Group[]",
+            "settings": "settings BatchSettings?",
+            "feeEvents": "feeEvents FeeEvent[]",
+            "contentPlans": "contentPlans ContentPlan[]",
+            "extraClassDates": "extraClassDates BatchClassDate[]",
+            "@@index([cityId, isActive])": "@@index([cityId, isActive])",
+            "@@map(\"batches\")": "@@map(\"batches\")"
+          }
+        },
+        "mappingVerified": false
+      },
+      {
+        "name": "BatchClassDate",
+        "main": null,
+        "v2": {
+          "kind": "model",
+          "line": 605,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "batchId": "batchId String",
+            "classDate": "classDate DateTime",
+            "createdAt": "createdAt DateTime @default(now())",
+            "batch": "batch Batch @relation(fields: [batchId], references: [id], onDelete: Cascade)",
+            "@@unique([batchId, classDate])": "@@unique([batchId, classDate])",
+            "@@index([classDate])": "@@index([classDate])",
+            "@@map(\"batch_class_dates\")": "@@map(\"batch_class_dates\")"
+          }
+        },
+        "mappingVerified": false
+      },
+      {
+        "name": "BatchOffDate",
+        "main": {
+          "kind": "model",
+          "line": 589,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "batchSettingsId": "batchSettingsId String",
+            "offDate": "offDate DateTime",
+            "reason": "reason String?",
+            "createdAt": "createdAt DateTime @default(now())",
+            "batchSettings": "batchSettings BatchSettings @relation(fields: [batchSettingsId], references: [id], onDelete: Cascade)",
+            "@@unique([batchSettingsId, offDate])": "@@unique([batchSettingsId, offDate])",
+            "@@index([batchSettingsId, offDate])": "@@index([batchSettingsId, offDate])",
+            "@@map(\"batch_off_dates\")": "@@map(\"batch_off_dates\")"
+          }
+        },
+        "v2": null,
+        "mappingVerified": false
+      },
+      {
+        "name": "BatchOffWeekday",
+        "main": {
+          "kind": "model",
+          "line": 577,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "batchSettingsId": "batchSettingsId String",
+            "weekday": "weekday Int",
+            "createdAt": "createdAt DateTime @default(now())",
+            "batchSettings": "batchSettings BatchSettings @relation(fields: [batchSettingsId], references: [id], onDelete: Cascade)",
+            "@@unique([batchSettingsId, weekday])": "@@unique([batchSettingsId, weekday])",
+            "@@map(\"batch_off_weekdays\")": "@@map(\"batch_off_weekdays\")"
+          }
+        },
+        "v2": null,
+        "mappingVerified": false
+      },
+      {
+        "name": "BatchSettings",
+        "main": {
+          "kind": "model",
+          "line": 560,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "batchId": "batchId String @unique",
+            "warningAbsents": "warningAbsents Int @default(3)",
+            "dropoutAbsents": "dropoutAbsents Int @default(6)",
+            "automaticDropoutEnabled": "automaticDropoutEnabled Boolean @default(false)",
+            "dropoutConsecutiveWeeks": "dropoutConsecutiveWeeks Int @default(3)",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "batch": "batch Batch @relation(fields: [batchId], references: [id], onDelete: Cascade)",
+            "offWeekdays": "offWeekdays BatchOffWeekday[]",
+            "offDates": "offDates BatchOffDate[]",
+            "@@map(\"batch_settings\")": "@@map(\"batch_settings\")"
+          }
+        },
+        "v2": {
+          "kind": "model",
+          "line": 588,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "batchId": "batchId String @unique",
+            "warningAbsents": "warningAbsents Int @default(3)",
+            "dropoutAbsents": "dropoutAbsents Int @default(6)",
+            "classWeekdays": "classWeekdays String @default(\"[0,6]\")",
+            "automaticDropoutEnabled": "automaticDropoutEnabled Boolean @default(true)",
+            "warningConsecutiveWeeks": "warningConsecutiveWeeks Int @default(2)",
+            "dropoutConsecutiveWeeks": "dropoutConsecutiveWeeks Int @default(3)",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "batch": "batch Batch @relation(fields: [batchId], references: [id], onDelete: Cascade)",
+            "@@map(\"batch_settings\")": "@@map(\"batch_settings\")"
+          }
+        },
+        "mappingVerified": false
+      },
+      {
+        "name": "City",
+        "main": {
+          "kind": "model",
+          "line": 147,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "name": "name String",
+            "code": "code String @unique",
+            "isActive": "isActive Boolean @default(true)",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "parks": "parks Park[]",
+            "batches": "batches Batch[]",
+            "cityHeads": "cityHeads StaffMeta[] @relation(\"CityHeadAssignment\")",
+            "collaborationTeams": "collaborationTeams CollaborationTeam[]",
+            "contentPlans": "contentPlans ContentPlan[]",
+            "admissionApplications": "admissionApplications AdmissionApplication[]",
+            "events": "events Event[]",
+            "callingCampaigns": "callingCampaigns CallingCampaign[]",
+            "callingTemplates": "callingTemplates CallingTemplate[]",
+            "mashwaraMeetings": "mashwaraMeetings MashwaraMeeting[]",
+            "mediaBriefs": "mediaBriefs MediaBrief[]",
+            "@@map(\"cities\")": "@@map(\"cities\")"
+          }
+        },
+        "v2": {
+          "kind": "model",
+          "line": 156,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "name": "name String",
+            "code": "code String @unique",
+            "isActive": "isActive Boolean @default(true)",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "parks": "parks Park[]",
+            "batches": "batches Batch[]",
+            "cityHeads": "cityHeads StaffMeta[] @relation(\"CityHeadAssignment\")",
+            "collaborationTeams": "collaborationTeams CollaborationTeam[]",
+            "contentPlans": "contentPlans ContentPlan[]",
+            "admissionApplications": "admissionApplications AdmissionApplication[]",
+            "events": "events Event[]",
+            "callingCampaigns": "callingCampaigns CallingCampaign[]",
+            "callingTemplates": "callingTemplates CallingTemplate[]",
+            "mashwaraMeetings": "mashwaraMeetings MashwaraMeeting[]",
+            "feeDonations": "feeDonations FeeDonation[]",
+            "financialAdjustments": "financialAdjustments FinancialAdjustment[]",
+            "purchaseOrders": "purchaseOrders PurchaseOrder[]",
+            "digitalResources": "digitalResources DigitalResource[]",
+            "operationalOffDates": "operationalOffDates OperationalOffDate[]",
+            "@@map(\"cities\")": "@@map(\"cities\")"
+          }
+        },
+        "mappingVerified": false
+      },
+      {
+        "name": "CollaborationTeam",
+        "main": {
+          "kind": "model",
+          "line": 267,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "cityId": "cityId String",
+            "name": "name String",
+            "code": "code String",
+            "description": "description String?",
+            "isActive": "isActive Boolean @default(true)",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "city": "city City @relation(fields: [cityId], references: [id], onDelete: Cascade)",
+            "memberships": "memberships StaffTeamMembership[]",
+            "contentBlocks": "contentBlocks ContentPlanBlock[]",
+            "activityPlans": "activityPlans ActivityPlanItem[]",
+            "mashwaraDecisionTargets": "mashwaraDecisionTargets MashwaraDecision[] @relation(\"MashwaraDecisionTargetTeam\")",
+            "mashwaraActionItemsTeams": "mashwaraActionItemsTeams MashwaraActionItem[] @relation(\"MashwaraActionItemTeam\")",
+            "mediaBriefs": "mediaBriefs MediaBrief[]",
+            "@@unique([cityId, code])": "@@unique([cityId, code])",
+            "@@index([cityId, isActive])": "@@index([cityId, isActive])",
+            "@@map(\"collaboration_teams\")": "@@map(\"collaboration_teams\")"
+          }
+        },
+        "v2": {
+          "kind": "model",
+          "line": 292,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "cityId": "cityId String",
+            "name": "name String",
+            "code": "code String",
+            "description": "description String?",
+            "isActive": "isActive Boolean @default(true)",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "city": "city City @relation(fields: [cityId], references: [id], onDelete: Cascade)",
+            "memberships": "memberships StaffTeamMembership[]",
+            "contentBlocks": "contentBlocks ContentPlanBlock[]",
+            "activityPlans": "activityPlans ActivityPlanItem[]",
+            "chatMessages": "chatMessages TeamChatMessage[]",
+            "documentLinks": "documentLinks TeamDocumentLink[]",
+            "mashwaraDecisionTargets": "mashwaraDecisionTargets MashwaraDecision[] @relation(\"MashwaraDecisionTargetTeam\")",
+            "mashwaraActionItemsTeams": "mashwaraActionItemsTeams MashwaraActionItem[] @relation(\"MashwaraActionItemTeam\")",
+            "@@unique([cityId, code])": "@@unique([cityId, code])",
+            "@@index([cityId, isActive])": "@@index([cityId, isActive])",
+            "@@map(\"collaboration_teams\")": "@@map(\"collaboration_teams\")"
+          }
+        },
+        "mappingVerified": false
+      },
+      {
+        "name": "ContentPlanBlock",
+        "main": {
+          "kind": "model",
+          "line": 361,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "sessionId": "sessionId String",
+            "teamId": "teamId String",
+            "category": "category String",
+            "title": "title String?",
+            "content": "content String",
+            "sortOrder": "sortOrder Int @default(0)",
+            "status": "status String @default(\"draft\")",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "session": "session ContentPlanSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)",
+            "team": "team CollaborationTeam @relation(fields: [teamId], references: [id], onDelete: Restrict)",
+            "resources": "resources ContentPlanResource[]",
+            "activities": "activities ActivityPlanItem[]",
+            "mediaBriefs": "mediaBriefs MediaBrief[]",
+            "@@unique([sessionId, category, sortOrder])": "@@unique([sessionId, category, sortOrder])",
+            "@@index([teamId, status])": "@@index([teamId, status])",
+            "@@map(\"content_plan_blocks\")": "@@map(\"content_plan_blocks\")"
+          }
+        },
+        "v2": {
+          "kind": "model",
+          "line": 387,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "sessionId": "sessionId String",
+            "teamId": "teamId String",
+            "category": "category String",
+            "title": "title String?",
+            "content": "content String",
+            "sortOrder": "sortOrder Int @default(0)",
+            "status": "status String @default(\"draft\")",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "session": "session ContentPlanSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)",
+            "team": "team CollaborationTeam @relation(fields: [teamId], references: [id], onDelete: Restrict)",
+            "resources": "resources ContentPlanResource[]",
+            "activities": "activities ActivityPlanItem[]",
+            "@@unique([sessionId, category, sortOrder])": "@@unique([sessionId, category, sortOrder])",
+            "@@index([teamId, status])": "@@index([teamId, status])",
+            "@@map(\"content_plan_blocks\")": "@@map(\"content_plan_blocks\")"
+          }
+        },
+        "mappingVerified": false
+      },
+      {
+        "name": "DigitalResource",
+        "main": null,
+        "v2": {
+          "kind": "model",
+          "line": 1540,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "title": "title String",
+            "description": "description String?",
+            "fileUrl": "fileUrl String",
+            "category": "category String",
+            "allowedRoles": "allowedRoles String @default(\"all\")",
+            "targetCityId": "targetCityId String?",
+            "createdById": "createdById String",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "targetCity": "targetCity City? @relation(fields: [targetCityId], references: [id], onDelete: SetNull)",
+            "@@index([category])": "@@index([category])",
+            "@@index([targetCityId])": "@@index([targetCityId])",
+            "@@map(\"digital_resources\")": "@@map(\"digital_resources\")"
+          }
+        },
+        "mappingVerified": false
+      },
+      {
+        "name": "Event",
+        "main": {
+          "kind": "model",
+          "line": 841,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "cityId": "cityId String",
+            "title": "title String",
+            "description": "description String?",
+            "eventType": "eventType String",
+            "status": "status String @default(\"planned\")",
+            "venue": "venue String?",
+            "venueNotes": "venueNotes String?",
+            "startDate": "startDate DateTime",
+            "endDate": "endDate DateTime?",
+            "capacity": "capacity Int?",
+            "cost": "cost Decimal? @default(0)",
+            "requiresConsent": "requiresConsent Boolean @default(false)",
+            "requiresMedical": "requiresMedical Boolean @default(false)",
+            "createdBy": "createdBy String",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "city": "city City @relation(fields: [cityId], references: [id], onDelete: Cascade)",
+            "teams": "teams TemporaryEventTeam[]",
+            "responsibilities": "responsibilities EventResponsibility[]",
+            "plannerItems": "plannerItems EventPlannerItem[]",
+            "registrations": "registrations EventRegistration[]",
+            "feeSchedules": "feeSchedules EventFeeSchedule[]",
+            "@@index([cityId, status])": "@@index([cityId, status])",
+            "@@index([cityId, startDate])": "@@index([cityId, startDate])",
+            "@@index([status, startDate])": "@@index([status, startDate])",
+            "@@map(\"events\")": "@@map(\"events\")"
+          }
+        },
+        "v2": {
+          "kind": "model",
+          "line": 1038,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "cityId": "cityId String",
+            "title": "title String",
+            "description": "description String?",
+            "eventType": "eventType String",
+            "status": "status String @default(\"planned\")",
+            "venue": "venue String?",
+            "venueNotes": "venueNotes String?",
+            "startDate": "startDate DateTime",
+            "endDate": "endDate DateTime?",
+            "capacity": "capacity Int?",
+            "cost": "cost Decimal? @default(0)",
+            "requiresConsent": "requiresConsent Boolean @default(false)",
+            "requiresMedical": "requiresMedical Boolean @default(false)",
+            "createdBy": "createdBy String",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "city": "city City @relation(fields: [cityId], references: [id], onDelete: Cascade)",
+            "teams": "teams TemporaryEventTeam[]",
+            "responsibilities": "responsibilities EventResponsibility[]",
+            "plannerItems": "plannerItems EventPlannerItem[]",
+            "registrations": "registrations EventRegistration[]",
+            "@@index([cityId, status])": "@@index([cityId, status])",
+            "@@index([cityId, startDate])": "@@index([cityId, startDate])",
+            "@@index([status, startDate])": "@@index([status, startDate])",
+            "@@map(\"events\")": "@@map(\"events\")"
+          }
+        },
+        "mappingVerified": false
+      },
+      {
+        "name": "EventFeeSchedule",
+        "main": {
+          "kind": "model",
+          "line": 901,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "eventId": "eventId String",
+            "batchId": "batchId String",
+            "feeEventId": "feeEventId String @unique",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "event": "event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)",
+            "batch": "batch Batch @relation(fields: [batchId], references: [id], onDelete: Cascade)",
+            "feeEvent": "feeEvent FeeEvent @relation(fields: [feeEventId], references: [id], onDelete: Cascade)",
+            "registrations": "registrations EventRegistration[]",
+            "@@unique([eventId, batchId])": "@@unique([eventId, batchId])",
+            "@@index([batchId])": "@@index([batchId])",
+            "@@map(\"event_fee_schedules\")": "@@map(\"event_fee_schedules\")"
+          }
+        },
+        "v2": null,
+        "mappingVerified": false
+      },
+      {
+        "name": "EventRegistration",
+        "main": {
+          "kind": "model",
+          "line": 875,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "eventId": "eventId String",
+            "participantId": "participantId String",
+            "status": "status String @default(\"registered\")",
+            "consentStatus": "consentStatus String @default(\"not_required\")",
+            "feeStatus": "feeStatus String @default(\"not_required\")",
+            "attendanceRecordId": "attendanceRecordId String? @unique",
+            "eventFeeScheduleId": "eventFeeScheduleId String?",
+            "registeredAt": "registeredAt DateTime @default(now())",
+            "cancelledAt": "cancelledAt DateTime?",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "event": "event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)",
+            "participant": "participant Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)",
+            "attendanceRecord": "attendanceRecord AttendanceRecord? @relation(fields: [attendanceRecordId], references: [id], onDelete: SetNull)",
+            "feeSchedule": "feeSchedule EventFeeSchedule? @relation(fields: [eventFeeScheduleId], references: [id], onDelete: SetNull)",
+            "@@unique([eventId, participantId])": "@@unique([eventId, participantId])",
+            "@@index([eventId, status])": "@@index([eventId, status])",
+            "@@index([participantId, status])": "@@index([participantId, status])",
+            "@@index([eventFeeScheduleId])": "@@index([eventFeeScheduleId])",
+            "@@map(\"event_registrations\")": "@@map(\"event_registrations\")"
+          }
+        },
+        "v2": {
+          "kind": "model",
+          "line": 1472,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "eventId": "eventId String",
+            "participantId": "participantId String",
+            "status": "status String @default(\"registered\")",
+            "feeStatus": "feeStatus String @default(\"unpaid\")",
+            "feeAmount": "feeAmount Decimal? @default(0)",
+            "hasConsent": "hasConsent Boolean @default(false)",
+            "hasMedical": "hasMedical Boolean @default(false)",
+            "checkedInAt": "checkedInAt DateTime?",
+            "registeredAt": "registeredAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "event": "event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)",
+            "participant": "participant Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)",
+            "@@unique([eventId, participantId])": "@@unique([eventId, participantId])",
+            "@@index([eventId, status])": "@@index([eventId, status])",
+            "@@index([participantId])": "@@index([participantId])",
+            "@@map(\"event_registrations\")": "@@map(\"event_registrations\")"
+          }
+        },
+        "mappingVerified": false
+      },
+      {
+        "name": "ExternalLinkPolicy",
+        "main": null,
+        "v2": {
+          "kind": "model",
+          "line": 1463,
+          "fields": {
+            "id": "id String @id",
+            "allowedDomains": "allowedDomains String",
+            "requireInterstitialWarning": "requireInterstitialWarning Boolean @default(true)",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "@@map(\"external_link_policies\")": "@@map(\"external_link_policies\")"
+          }
+        },
+        "mappingVerified": false
+      },
+      {
+        "name": "FeeDonation",
+        "main": null,
+        "v2": {
+          "kind": "model",
+          "line": 773,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "cityId": "cityId String",
+            "parkId": "parkId String?",
+            "donorName": "donorName String",
+            "donorPhone": "donorPhone String?",
+            "amount": "amount Decimal @db.Decimal(12, 2)",
+            "method": "method PaymentMethod",
+            "receiptNo": "receiptNo String? @unique",
+            "purpose": "purpose String?",
+            "recordedBy": "recordedBy String",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "city": "city City @relation(fields: [cityId], references: [id], onDelete: Cascade)",
+            "park": "park Park? @relation(fields: [parkId], references: [id], onDelete: SetNull)",
+            "@@index([cityId, createdAt])": "@@index([cityId, createdAt])",
+            "@@index([parkId, createdAt])": "@@index([parkId, createdAt])",
+            "@@map(\"fee_donations\")": "@@map(\"fee_donations\")"
+          }
+        },
+        "mappingVerified": false
+      },
+      {
+        "name": "FeeEvent",
+        "main": {
+          "kind": "model",
+          "line": 684,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "batchId": "batchId String",
+            "title": "title String",
+            "feeType": "feeType String",
+            "amount": "amount Decimal @db.Decimal(12, 2)",
+            "dueDate": "dueDate DateTime?",
+            "discountAmount": "discountAmount Decimal @default(0) @db.Decimal(12, 2)",
+            "waiverReason": "waiverReason String?",
+            "waivedBy": "waivedBy String?",
+            "waivedAt": "waivedAt DateTime?",
+            "reminderSentAt": "reminderSentAt DateTime?",
+            "reminderCount": "reminderCount Int @default(0)",
+            "isActive": "isActive Boolean @default(true)",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "batch": "batch Batch @relation(fields: [batchId], references: [id], onDelete: Cascade)",
+            "payments": "payments Payment[]",
+            "eventFeeSchedule": "eventFeeSchedule EventFeeSchedule?",
+            "@@index([batchId, isActive, createdAt])": "@@index([batchId, isActive, createdAt])",
+            "@@index([isActive, createdAt])": "@@index([isActive, createdAt])",
+            "@@map(\"fee_events\")": "@@map(\"fee_events\")"
+          }
+        },
+        "v2": {
+          "kind": "model",
+          "line": 716,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "batchId": "batchId String",
+            "title": "title String",
+            "feeType": "feeType String",
+            "amount": "amount Decimal @db.Decimal(12, 2)",
+            "dueDate": "dueDate DateTime?",
+            "discountAmount": "discountAmount Decimal @default(0) @db.Decimal(12, 2)",
+            "waiverReason": "waiverReason String?",
+            "waivedBy": "waivedBy String?",
+            "waivedAt": "waivedAt DateTime?",
+            "reminderSentAt": "reminderSentAt DateTime?",
+            "reminderCount": "reminderCount Int @default(0)",
+            "isActive": "isActive Boolean @default(true)",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "batch": "batch Batch @relation(fields: [batchId], references: [id], onDelete: Cascade)",
+            "payments": "payments Payment[]",
+            "@@index([batchId, isActive, createdAt])": "@@index([batchId, isActive, createdAt])",
+            "@@index([isActive, createdAt])": "@@index([isActive, createdAt])",
+            "@@map(\"fee_events\")": "@@map(\"fee_events\")"
+          }
+        },
+        "mappingVerified": false
+      },
+      {
+        "name": "FinancialAdjustment",
+        "main": null,
+        "v2": {
+          "kind": "model",
+          "line": 795,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "cityId": "cityId String",
+            "parkId": "parkId String?",
+            "type": "type String",
+            "amount": "amount Decimal @db.Decimal(12, 2)",
+            "category": "category String",
+            "reason": "reason String",
+            "approvedBy": "approvedBy String",
+            "recordedBy": "recordedBy String",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "city": "city City @relation(fields: [cityId], references: [id], onDelete: Cascade)",
+            "park": "park Park? @relation(fields: [parkId], references: [id], onDelete: SetNull)",
+            "@@index([cityId, createdAt])": "@@index([cityId, createdAt])",
+            "@@index([parkId, createdAt])": "@@index([parkId, createdAt])",
+            "@@map(\"financial_adjustments\")": "@@map(\"financial_adjustments\")"
+          }
+        },
+        "mappingVerified": false
+      },
+      {
+        "name": "Group",
+        "main": {
+          "kind": "model",
+          "line": 212,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "name": "name String",
+            "batchId": "batchId String",
+            "parkId": "parkId String?",
+            "isActive": "isActive Boolean @default(true)",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "batch": "batch Batch @relation(fields: [batchId], references: [id], onDelete: Cascade)",
+            "park": "park Park? @relation(fields: [parkId], references: [id], onDelete: Cascade)",
+            "participants": "participants Participant[]",
+            "murabbis": "murabbis StaffMeta[] @relation(\"MurabbiAssignment\")",
+            "attendanceEvents": "attendanceEvents AttendanceEvent[]",
+            "rosterSnapshots": "rosterSnapshots AttendanceRosterSnapshot[]",
+            "@@index([batchId, isActive])": "@@index([batchId, isActive])",
+            "@@index([parkId, batchId, isActive])": "@@index([parkId, batchId, isActive])",
+            "@@map(\"groups\")": "@@map(\"groups\")"
+          }
+        },
+        "v2": {
+          "kind": "model",
+          "line": 238,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "name": "name String",
+            "batchId": "batchId String",
+            "parkId": "parkId String?",
+            "isActive": "isActive Boolean @default(true)",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "batch": "batch Batch @relation(fields: [batchId], references: [id], onDelete: Cascade)",
+            "park": "park Park? @relation(fields: [parkId], references: [id], onDelete: Cascade)",
+            "participants": "participants Participant[]",
+            "murabbis": "murabbis StaffMeta[] @relation(\"MurabbiAssignment\")",
+            "attendanceEvents": "attendanceEvents AttendanceEvent[]",
+            "@@index([batchId, isActive])": "@@index([batchId, isActive])",
+            "@@index([parkId, batchId, isActive])": "@@index([parkId, batchId, isActive])",
+            "@@map(\"groups\")": "@@map(\"groups\")"
+          }
+        },
+        "mappingVerified": false
+      },
+      {
+        "name": "KnowledgeArticle",
+        "main": null,
+        "v2": {
+          "kind": "model",
+          "line": 1559,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "title": "title String",
+            "slug": "slug String @unique",
+            "content": "content String",
+            "category": "category String",
+            "tags": "tags String?",
+            "isPublished": "isPublished Boolean @default(true)",
+            "viewCount": "viewCount Int @default(0)",
+            "authorId": "authorId String",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "@@index([category, isPublished])": "@@index([category, isPublished])",
+            "@@map(\"knowledge_articles\")": "@@map(\"knowledge_articles\")"
+          }
+        },
+        "mappingVerified": false
+      },
+      {
+        "name": "LoginAttemptWindow",
+        "main": null,
+        "v2": {
+          "kind": "model",
+          "line": 63,
+          "fields": {
+            "key": "key String @id",
+            "attempts": "attempts Int",
+            "resetAt": "resetAt BigInt",
+            "@@index([resetAt])": "@@index([resetAt])",
+            "@@map(\"login_attempt_windows\")": "@@map(\"login_attempt_windows\")"
+          }
+        },
+        "mappingVerified": false
+      },
+      {
+        "name": "MediaBrief",
+        "main": {
+          "kind": "model",
+          "line": 1280,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "cityId": "cityId String",
+            "teamId": "teamId String",
+            "title": "title String",
+            "description": "description String?",
+            "mediaType": "mediaType String @default(\"graphic\")",
+            "format": "format String?",
+            "status": "status String @default(\"draft\")",
+            "priority": "priority String @default(\"medium\")",
+            "dueAt": "dueAt DateTime?",
+            "contentBlockId": "contentBlockId String?",
+            "approvalState": "approvalState String?",
+            "approvedByStaffMetaId": "approvedByStaffMetaId String?",
+            "approvedAt": "approvedAt DateTime?",
+            "rejectionReason": "rejectionReason String?",
+            "cancellationReason": "cancellationReason String?",
+            "assetMetadata": "assetMetadata String?",
+            "assignedToStaffMetaId": "assignedToStaffMetaId String?",
+            "version": "version Int @default(1)",
+            "isActive": "isActive Boolean @default(true)",
+            "createdById": "createdById String",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "city": "city City @relation(fields: [cityId], references: [id], onDelete: Restrict)",
+            "team": "team CollaborationTeam @relation(fields: [teamId], references: [id], onDelete: Restrict)",
+            "contentBlock": "contentBlock ContentPlanBlock? @relation(fields: [contentBlockId], references: [id], onDelete: SetNull)",
+            "assignedToStaff": "assignedToStaff StaffMeta? @relation(\"MediaAssignee\", fields: [assignedToStaffMetaId], references: [id], onDelete: SetNull)",
+            "approvedByStaff": "approvedByStaff StaffMeta? @relation(\"MediaApprover\", fields: [approvedByStaffMetaId], references: [id], onDelete: SetNull)",
+            "createdBy": "createdBy User @relation(\"MediaBriefCreator\", fields: [createdById], references: [id], onDelete: Restrict)",
+            "@@index([teamId, status])": "@@index([teamId, status])",
+            "@@index([teamId, assignedToStaffMetaId, status])": "@@index([teamId, assignedToStaffMetaId, status])",
+            "@@index([cityId, status])": "@@index([cityId, status])",
+            "@@index([mediaType, status])": "@@index([mediaType, status])",
+            "@@index([priority, status])": "@@index([priority, status])",
+            "@@map(\"media_briefs\")": "@@map(\"media_briefs\")"
+          }
+        },
+        "v2": null,
+        "mappingVerified": false
+      },
+      {
+        "name": "OperationReceipt",
+        "main": null,
+        "v2": {
+          "kind": "model",
+          "line": 1640,
+          "fields": {
+            "id": "id String @id",
+            "requestHash": "requestHash String",
+            "resultJson": "resultJson String",
+            "createdAt": "createdAt DateTime @default(now())",
+            "@@map(\"operation_receipts\")": "@@map(\"operation_receipts\")"
+          }
+        },
+        "mappingVerified": false
+      },
+      {
+        "name": "OperationalOffDate",
+        "main": null,
+        "v2": {
+          "kind": "model",
+          "line": 618,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "cityId": "cityId String",
+            "offDate": "offDate DateTime",
+            "label": "label String",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "city": "city City @relation(fields: [cityId], references: [id], onDelete: Cascade)",
+            "@@unique([cityId, offDate])": "@@unique([cityId, offDate])",
+            "@@index([offDate])": "@@index([offDate])",
+            "@@map(\"operational_off_dates\")": "@@map(\"operational_off_dates\")"
+          }
+        },
+        "mappingVerified": false
+      },
+      {
+        "name": "Park",
+        "main": {
+          "kind": "model",
+          "line": 170,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "name": "name String",
+            "cityId": "cityId String",
+            "address": "address String?",
+            "isActive": "isActive Boolean @default(true)",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "city": "city City @relation(fields: [cityId], references: [id], onDelete: Cascade)",
+            "batches": "batches Batch[]",
+            "groups": "groups Group[]",
+            "contentPlans": "contentPlans ContentPlan[]",
+            "parkStaff": "parkStaff StaffMeta[] @relation(\"ParkStaffAssignment\")",
+            "admissionApplications": "admissionApplications AdmissionApplication[]",
+            "@@map(\"parks\")": "@@map(\"parks\")"
+          }
+        },
+        "v2": {
+          "kind": "model",
+          "line": 183,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "name": "name String",
+            "cityId": "cityId String",
+            "address": "address String?",
+            "isActive": "isActive Boolean @default(true)",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "city": "city City @relation(fields: [cityId], references: [id], onDelete: Cascade)",
+            "batches": "batches Batch[]",
+            "groups": "groups Group[]",
+            "contentPlans": "contentPlans ContentPlan[]",
+            "parkStaff": "parkStaff StaffMeta[] @relation(\"ParkStaffAssignment\")",
+            "admissionApplications": "admissionApplications AdmissionApplication[]",
+            "feeDonations": "feeDonations FeeDonation[]",
+            "financialAdjustments": "financialAdjustments FinancialAdjustment[]",
+            "parkStocks": "parkStocks ParkStock[]",
+            "stockRequests": "stockRequests StockRequest[]",
+            "purchaseOrders": "purchaseOrders PurchaseOrder[]",
+            "transfersFrom": "transfersFrom StockTransfer[] @relation(\"StockTransferFrom\")",
+            "transfersTo": "transfersTo StockTransfer[] @relation(\"StockTransferTo\")",
+            "stockAuditLogs": "stockAuditLogs StockAuditLog[]",
+            "staffAttendanceEvents": "staffAttendanceEvents StaffAttendanceEvent[]",
+            "lessons": "lessons ParkLesson[]",
+            "routineSlots": "routineSlots ParkRoutineSlot[]",
+            "@@map(\"parks\")": "@@map(\"parks\")"
+          }
+        },
+        "mappingVerified": false
+      },
+      {
+        "name": "ParkLesson",
+        "main": null,
+        "v2": {
+          "kind": "model",
+          "line": 1603,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "parkId": "parkId String",
+            "title": "title String",
+            "type": "type String",
+            "lessonDate": "lessonDate DateTime",
+            "driveLink": "driveLink String?",
+            "fileKey": "fileKey String?",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "park": "park Park @relation(fields: [parkId], references: [id], onDelete: Cascade)",
+            "@@index([parkId, lessonDate])": "@@index([parkId, lessonDate])",
+            "@@map(\"park_lessons\")": "@@map(\"park_lessons\")"
+          }
+        },
+        "mappingVerified": false
+      },
+      {
+        "name": "ParkRoutineSlot",
+        "main": null,
+        "v2": {
+          "kind": "model",
+          "line": 1622,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "parkId": "parkId String",
+            "timeStart": "timeStart String",
+            "timeEnd": "timeEnd String",
+            "activity": "activity String",
+            "pdfLink": "pdfLink String?",
+            "sortOrder": "sortOrder Int @default(0)",
+            "isSpecialEvent": "isSpecialEvent Boolean @default(false)",
+            "createdAt": "createdAt DateTime @default(now())",
+            "park": "park Park @relation(fields: [parkId], references: [id], onDelete: Cascade)",
+            "@@index([parkId])": "@@index([parkId])",
+            "@@map(\"park_routine_slots\")": "@@map(\"park_routine_slots\")"
+          }
+        },
+        "mappingVerified": false
+      },
+      {
+        "name": "ParkStock",
+        "main": null,
+        "v2": {
+          "kind": "model",
+          "line": 837,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "parkId": "parkId String",
+            "itemId": "itemId String",
+            "quantity": "quantity Int @default(0)",
+            "minThreshold": "minThreshold Int @default(5)",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "park": "park Park @relation(fields: [parkId], references: [id], onDelete: Cascade)",
+            "item": "item ProcurementItem @relation(fields: [itemId], references: [id], onDelete: Cascade)",
+            "@@unique([parkId, itemId])": "@@unique([parkId, itemId])",
+            "@@index([parkId])": "@@index([parkId])",
+            "@@index([itemId])": "@@index([itemId])",
+            "@@map(\"park_stocks\")": "@@map(\"park_stocks\")"
+          }
+        },
+        "mappingVerified": false
+      },
+      {
+        "name": "Participant",
+        "main": {
+          "kind": "model",
+          "line": 527,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "userId": "userId String? @unique",
+            "name": "name String",
+            "phone": "phone String?",
+            "dateOfBirth": "dateOfBirth DateTime?",
+            "age": "age Int?",
+            "gradeClass": "gradeClass String?",
+            "gender": "gender String?",
+            "address": "address String?",
+            "groupId": "groupId String?",
+            "state": "state ParticipantState @default(active)",
+            "joinedAt": "joinedAt DateTime @default(now())",
+            "dropoutAt": "dropoutAt DateTime?",
+            "dropoutReason": "dropoutReason String?",
+            "dropoutSource": "dropoutSource String?",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "user": "user User? @relation(fields: [userId], references: [id], onDelete: SetNull)",
+            "group": "group Group? @relation(fields: [groupId], references: [id], onDelete: SetNull)",
+            "guardianLinks": "guardianLinks GuardianChild[]",
+            "attendanceRecords": "attendanceRecords AttendanceRecord[]",
+            "payments": "payments Payment[]",
+            "convertedFromApp": "convertedFromApp AdmissionApplication? @relation(\"ConvertedFrom\")",
+            "extendedProfile": "extendedProfile StudentExtendedProfile?",
+            "rosterSnapshots": "rosterSnapshots AttendanceRosterSnapshot[]",
+            "eventRegistrations": "eventRegistrations EventRegistration[]",
+            "@@index([groupId, state])": "@@index([groupId, state])",
+            "@@map(\"participants\")": "@@map(\"participants\")"
+          }
+        },
+        "v2": {
+          "kind": "model",
+          "line": 552,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "userId": "userId String? @unique",
+            "name": "name String",
+            "phone": "phone String?",
+            "dateOfBirth": "dateOfBirth DateTime?",
+            "age": "age Int?",
+            "gradeClass": "gradeClass String?",
+            "gender": "gender String?",
+            "address": "address String?",
+            "groupId": "groupId String",
+            "state": "state ParticipantState @default(active)",
+            "dropoutAt": "dropoutAt DateTime?",
+            "dropoutReason": "dropoutReason String?",
+            "dropoutSource": "dropoutSource String?",
+            "reactivatedAt": "reactivatedAt DateTime?",
+            "joinedAt": "joinedAt DateTime @default(now())",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "user": "user User? @relation(fields: [userId], references: [id], onDelete: SetNull)",
+            "group": "group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)",
+            "guardianLinks": "guardianLinks GuardianChild[]",
+            "attendanceRecords": "attendanceRecords AttendanceRecord[]",
+            "payments": "payments Payment[]",
+            "convertedFromApp": "convertedFromApp AdmissionApplication? @relation(\"ConvertedFrom\")",
+            "extendedProfile": "extendedProfile StudentExtendedProfile?",
+            "eventRegistrations": "eventRegistrations EventRegistration[]",
+            "pointTransactions": "pointTransactions PointTransaction[]",
+            "unlockedBadges": "unlockedBadges StudentBadge[]",
+            "evaluations": "evaluations StudentEvaluation[]",
+            "@@index([groupId, state])": "@@index([groupId, state])",
+            "@@map(\"participants\")": "@@map(\"participants\")"
+          }
+        },
+        "mappingVerified": false
+      },
+      {
+        "name": "PointTransaction",
+        "main": null,
+        "v2": {
+          "kind": "model",
+          "line": 1494,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "studentId": "studentId String",
+            "points": "points Int",
+            "category": "category String",
+            "reason": "reason String",
+            "awardedBy": "awardedBy String",
+            "createdAt": "createdAt DateTime @default(now())",
+            "student": "student Participant @relation(fields: [studentId], references: [id], onDelete: Cascade)",
+            "@@index([studentId, createdAt])": "@@index([studentId, createdAt])",
+            "@@index([category])": "@@index([category])",
+            "@@map(\"point_transactions\")": "@@map(\"point_transactions\")"
+          }
+        },
+        "mappingVerified": false
+      },
+      {
+        "name": "ProcurementItem",
+        "main": null,
+        "v2": {
+          "kind": "model",
+          "line": 816,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "sku": "sku String @unique",
+            "name": "name String",
+            "category": "category String",
+            "unit": "unit String",
+            "unitCost": "unitCost Decimal @default(0) @db.Decimal(12, 2)",
+            "description": "description String?",
+            "isActive": "isActive Boolean @default(true)",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "parkStocks": "parkStocks ParkStock[]",
+            "stockRequests": "stockRequests StockRequest[]",
+            "purchaseOrders": "purchaseOrders PurchaseOrder[]",
+            "stockTransfers": "stockTransfers StockTransfer[]",
+            "stockAuditLogs": "stockAuditLogs StockAuditLog[]",
+            "@@map(\"procurement_items\")": "@@map(\"procurement_items\")"
+          }
+        },
+        "mappingVerified": false
+      },
+      {
+        "name": "PurchaseOrder",
+        "main": null,
+        "v2": {
+          "kind": "model",
+          "line": 877,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "poNumber": "poNumber String @unique",
+            "cityId": "cityId String",
+            "parkId": "parkId String?",
+            "itemId": "itemId String",
+            "quantity": "quantity Int",
+            "unitCost": "unitCost Decimal @db.Decimal(12, 2)",
+            "totalCost": "totalCost Decimal @db.Decimal(12, 2)",
+            "supplierName": "supplierName String",
+            "status": "status String @default(\"issued\")",
+            "issuedBy": "issuedBy String",
+            "receivedAt": "receivedAt DateTime?",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "city": "city City @relation(fields: [cityId], references: [id], onDelete: Cascade)",
+            "park": "park Park? @relation(fields: [parkId], references: [id], onDelete: SetNull)",
+            "item": "item ProcurementItem @relation(fields: [itemId], references: [id], onDelete: Cascade)",
+            "@@index([cityId, createdAt])": "@@index([cityId, createdAt])",
+            "@@index([parkId, createdAt])": "@@index([parkId, createdAt])",
+            "@@map(\"purchase_orders\")": "@@map(\"purchase_orders\")"
+          }
+        },
+        "mappingVerified": false
+      },
+      {
+        "name": "StaffAttendanceEvent",
+        "main": null,
+        "v2": {
+          "kind": "model",
+          "line": 675,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "parkId": "parkId String",
+            "title": "title String",
+            "eventDate": "eventDate DateTime",
+            "isClosed": "isClosed Boolean @default(false)",
+            "closedAt": "closedAt DateTime?",
+            "closedBy": "closedBy String?",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "park": "park Park @relation(fields: [parkId], references: [id], onDelete: Cascade)",
+            "records": "records StaffAttendanceRecord[]",
+            "@@unique([parkId, eventDate])": "@@unique([parkId, eventDate])",
+            "@@index([parkId, eventDate])": "@@index([parkId, eventDate])",
+            "@@index([eventDate])": "@@index([eventDate])",
+            "@@map(\"park_staff_attendance_events\")": "@@map(\"park_staff_attendance_events\")"
+          }
+        },
+        "mappingVerified": false
+      },
+      {
+        "name": "StaffAttendanceRecord",
+        "main": {
+          "kind": "model",
+          "line": 646,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "eventId": "eventId String",
+            "staffId": "staffId String",
+            "status": "status String",
+            "markedBy": "markedBy String?",
+            "markedAt": "markedAt DateTime @default(now())",
+            "editReason": "editReason String?",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "event": "event AttendanceEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)",
+            "staff": "staff StaffMeta @relation(fields: [staffId], references: [id], onDelete: Cascade)",
+            "@@unique([eventId, staffId])": "@@unique([eventId, staffId])",
+            "@@index([eventId])": "@@index([eventId])",
+            "@@index([staffId])": "@@index([staffId])",
+            "@@map(\"staff_attendance_records\")": "@@map(\"staff_attendance_records\")"
+          }
+        },
+        "v2": {
+          "kind": "model",
+          "line": 695,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "eventId": "eventId String",
+            "staffMetaId": "staffMetaId String @map(\"staffId\")",
+            "status": "status String",
+            "markedBy": "markedBy String?",
+            "markedAt": "markedAt DateTime @default(now())",
+            "editReason": "editReason String?",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "event": "event StaffAttendanceEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)",
+            "staffMeta": "staffMeta StaffMeta @relation(fields: [staffMetaId], references: [id], onDelete: Cascade)",
+            "@@unique([eventId, staffMetaId])": "@@unique([eventId, staffMetaId])",
+            "@@index([eventId])": "@@index([eventId])",
+            "@@index([staffMetaId])": "@@index([staffMetaId])",
+            "@@index([markedAt])": "@@index([markedAt])",
+            "@@map(\"park_staff_attendance_records\")": "@@map(\"park_staff_attendance_records\")"
+          }
+        },
+        "mappingVerified": false
+      },
+      {
+        "name": "StaffMeta",
+        "main": {
+          "kind": "model",
+          "line": 233,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "userId": "userId String @unique",
+            "role": "role String",
+            "assignedCityId": "assignedCityId String?",
+            "assignedParkId": "assignedParkId String?",
+            "assignedGroupId": "assignedGroupId String?",
+            "isActive": "isActive Boolean @default(true)",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "user": "user User @relation(fields: [userId], references: [id], onDelete: Cascade)",
+            "assignedCity": "assignedCity City? @relation(\"CityHeadAssignment\", fields: [assignedCityId], references: [id], onDelete: SetNull)",
+            "assignedPark": "assignedPark Park? @relation(\"ParkStaffAssignment\", fields: [assignedParkId], references: [id], onDelete: SetNull)",
+            "assignedGroup": "assignedGroup Group? @relation(\"MurabbiAssignment\", fields: [assignedGroupId], references: [id], onDelete: SetNull)",
+            "teamMemberships": "teamMemberships StaffTeamMembership[]",
+            "assignedActivityPlans": "assignedActivityPlans ActivityPlanItem[] @relation(\"ActivityAssignee\")",
+            "eventTeamMemberships": "eventTeamMemberships EventTeamMembership[]",
+            "eventResponsibilities": "eventResponsibilities EventResponsibility[]",
+            "assignedEventPlannerItems": "assignedEventPlannerItems EventPlannerItem[] @relation(\"EventPlannerAssignee\")",
+            "callingAssignments": "callingAssignments CallingAssignment[]",
+            "mashwaraAttendees": "mashwaraAttendees MashwaraAttendee[]",
+            "mashwaraDecisions": "mashwaraDecisions MashwaraDecision[]",
+            "mashwaraActionItems": "mashwaraActionItems MashwaraActionItem[]",
+            "mashwaraShares": "mashwaraShares MashwaraMeetingShare[] @relation(\"MashwaraShareRecipient\")",
+            "mashwaraGrants": "mashwaraGrants MashwaraMeetingShare[] @relation(\"MashwaraShareGranter\")",
+            "mediaAssignments": "mediaAssignments MediaBrief[] @relation(\"MediaAssignee\")",
+            "mediaApprovals": "mediaApprovals MediaBrief[] @relation(\"MediaApprover\")",
+            "staffAttendanceRecords": "staffAttendanceRecords StaffAttendanceRecord[]",
+            "@@map(\"staff_meta\")": "@@map(\"staff_meta\")"
+          }
+        },
+        "v2": {
+          "kind": "model",
+          "line": 258,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "userId": "userId String @unique",
+            "role": "role String",
+            "assignedCityId": "assignedCityId String?",
+            "assignedParkId": "assignedParkId String?",
+            "assignedGroupId": "assignedGroupId String?",
+            "isActive": "isActive Boolean @default(true)",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "user": "user User @relation(fields: [userId], references: [id], onDelete: Cascade)",
+            "assignedCity": "assignedCity City? @relation(\"CityHeadAssignment\", fields: [assignedCityId], references: [id], onDelete: SetNull)",
+            "assignedPark": "assignedPark Park? @relation(\"ParkStaffAssignment\", fields: [assignedParkId], references: [id], onDelete: SetNull)",
+            "assignedGroup": "assignedGroup Group? @relation(\"MurabbiAssignment\", fields: [assignedGroupId], references: [id], onDelete: SetNull)",
+            "teamMemberships": "teamMemberships StaffTeamMembership[]",
+            "assignedActivityPlans": "assignedActivityPlans ActivityPlanItem[] @relation(\"ActivityAssignee\")",
+            "eventTeamMemberships": "eventTeamMemberships EventTeamMembership[]",
+            "eventResponsibilities": "eventResponsibilities EventResponsibility[]",
+            "assignedEventPlannerItems": "assignedEventPlannerItems EventPlannerItem[] @relation(\"EventPlannerAssignee\")",
+            "callingAssignments": "callingAssignments CallingAssignment[]",
+            "mashwaraAttendees": "mashwaraAttendees MashwaraAttendee[]",
+            "mashwaraDecisions": "mashwaraDecisions MashwaraDecision[]",
+            "mashwaraActionItems": "mashwaraActionItems MashwaraActionItem[]",
+            "mashwaraShares": "mashwaraShares MashwaraMeetingShare[] @relation(\"MashwaraShareRecipient\")",
+            "mashwaraGrants": "mashwaraGrants MashwaraMeetingShare[] @relation(\"MashwaraShareGranter\")",
+            "chatMessages": "chatMessages TeamChatMessage[]",
+            "createdTeamDocumentLinks": "createdTeamDocumentLinks TeamDocumentLink[] @relation(\"TeamDocumentLinkCreator\")",
+            "staffAttendanceRecords": "staffAttendanceRecords StaffAttendanceRecord[]",
+            "@@map(\"staff_meta\")": "@@map(\"staff_meta\")"
+          }
+        },
+        "mappingVerified": false
+      },
+      {
+        "name": "StockAuditLog",
+        "main": null,
+        "v2": {
+          "kind": "model",
+          "line": 921,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "parkId": "parkId String",
+            "itemId": "itemId String",
+            "systemCount": "systemCount Int",
+            "actualCount": "actualCount Int",
+            "discrepancy": "discrepancy Int",
+            "reason": "reason String",
+            "auditedBy": "auditedBy String",
+            "createdAt": "createdAt DateTime @default(now())",
+            "park": "park Park @relation(fields: [parkId], references: [id], onDelete: Cascade)",
+            "item": "item ProcurementItem @relation(fields: [itemId], references: [id], onDelete: Cascade)",
+            "@@index([parkId, createdAt])": "@@index([parkId, createdAt])",
+            "@@map(\"stock_audit_logs\")": "@@map(\"stock_audit_logs\")"
+          }
+        },
+        "mappingVerified": false
+      },
+      {
+        "name": "StockRequest",
+        "main": null,
+        "v2": {
+          "kind": "model",
+          "line": 855,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "parkId": "parkId String",
+            "itemId": "itemId String",
+            "quantity": "quantity Int",
+            "reason": "reason String",
+            "status": "status String @default(\"pending\")",
+            "requestedBy": "requestedBy String",
+            "reviewedBy": "reviewedBy String?",
+            "reviewedAt": "reviewedAt DateTime?",
+            "notes": "notes String?",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "park": "park Park @relation(fields: [parkId], references: [id], onDelete: Cascade)",
+            "item": "item ProcurementItem @relation(fields: [itemId], references: [id], onDelete: Cascade)",
+            "@@index([parkId, status])": "@@index([parkId, status])",
+            "@@index([itemId])": "@@index([itemId])",
+            "@@map(\"stock_requests\")": "@@map(\"stock_requests\")"
+          }
+        },
+        "mappingVerified": false
+      },
+      {
+        "name": "StockTransfer",
+        "main": null,
+        "v2": {
+          "kind": "model",
+          "line": 902,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "fromParkId": "fromParkId String",
+            "toParkId": "toParkId String",
+            "itemId": "itemId String",
+            "quantity": "quantity Int",
+            "reason": "reason String?",
+            "transferredBy": "transferredBy String",
+            "createdAt": "createdAt DateTime @default(now())",
+            "fromPark": "fromPark Park @relation(\"StockTransferFrom\", fields: [fromParkId], references: [id], onDelete: Cascade)",
+            "toPark": "toPark Park @relation(\"StockTransferTo\", fields: [toParkId], references: [id], onDelete: Cascade)",
+            "item": "item ProcurementItem @relation(fields: [itemId], references: [id], onDelete: Cascade)",
+            "@@index([fromParkId, createdAt])": "@@index([fromParkId, createdAt])",
+            "@@index([toParkId, createdAt])": "@@index([toParkId, createdAt])",
+            "@@map(\"stock_transfers\")": "@@map(\"stock_transfers\")"
+          }
+        },
+        "mappingVerified": false
+      },
+      {
+        "name": "StudentBadge",
+        "main": null,
+        "v2": {
+          "kind": "model",
+          "line": 1525,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "studentId": "studentId String",
+            "badgeId": "badgeId String",
+            "unlockedAt": "unlockedAt DateTime @default(now())",
+            "student": "student Participant @relation(fields: [studentId], references: [id], onDelete: Cascade)",
+            "badge": "badge Badge @relation(fields: [badgeId], references: [id], onDelete: Cascade)",
+            "@@unique([studentId, badgeId])": "@@unique([studentId, badgeId])",
+            "@@index([studentId])": "@@index([studentId])",
+            "@@index([badgeId])": "@@index([badgeId])",
+            "@@map(\"student_badges\")": "@@map(\"student_badges\")"
+          }
+        },
+        "mappingVerified": false
+      },
+      {
+        "name": "StudentEvaluation",
+        "main": null,
+        "v2": {
+          "kind": "model",
+          "line": 1578,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "participantId": "participantId String",
+            "murabbiUserId": "murabbiUserId String",
+            "parkId": "parkId String",
+            "month": "month Int",
+            "year": "year Int",
+            "discipline": "discipline Int",
+            "farmabardari": "farmabardari Int",
+            "islah": "islah Int",
+            "ibadah": "ibadah Int",
+            "participation": "participation Int",
+            "comment": "comment String",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "participant": "participant Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)",
+            "@@unique([participantId, month, year])": "@@unique([participantId, month, year])",
+            "@@index([parkId, month, year])": "@@index([parkId, month, year])",
+            "@@map(\"student_evaluations\")": "@@map(\"student_evaluations\")"
+          }
+        },
+        "mappingVerified": false
+      },
+      {
+        "name": "TeamChatMessage",
+        "main": null,
+        "v2": {
+          "kind": "model",
+          "line": 1428,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "teamId": "teamId String",
+            "authorId": "authorId String",
+            "message": "message String",
+            "isFlagged": "isFlagged Boolean @default(false)",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "team": "team CollaborationTeam @relation(fields: [teamId], references: [id], onDelete: Cascade)",
+            "author": "author StaffMeta @relation(fields: [authorId], references: [id], onDelete: Cascade)",
+            "@@index([teamId, createdAt])": "@@index([teamId, createdAt])",
+            "@@index([authorId])": "@@index([authorId])",
+            "@@map(\"team_chat_messages\")": "@@map(\"team_chat_messages\")"
+          }
+        },
+        "mappingVerified": false
+      },
+      {
+        "name": "TeamDocumentLink",
+        "main": null,
+        "v2": {
+          "kind": "model",
+          "line": 1446,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "teamId": "teamId String",
+            "createdByStaffMetaId": "createdByStaffMetaId String",
+            "label": "label String",
+            "url": "url String",
+            "createdAt": "createdAt DateTime @default(now())",
+            "team": "team CollaborationTeam @relation(fields: [teamId], references: [id], onDelete: Cascade)",
+            "createdBy": "createdBy StaffMeta @relation(\"TeamDocumentLinkCreator\", fields: [createdByStaffMetaId], references: [id], onDelete: Restrict)",
+            "@@index([teamId, createdAt])": "@@index([teamId, createdAt])",
+            "@@index([createdByStaffMetaId])": "@@index([createdByStaffMetaId])",
+            "@@map(\"team_document_links\")": "@@map(\"team_document_links\")"
+          }
+        },
+        "mappingVerified": false
+      },
+      {
+        "name": "User",
+        "main": {
+          "kind": "model",
+          "line": 62,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "email": "email String @unique",
+            "passwordHash": "passwordHash String",
+            "name": "name String?",
+            "phone": "phone String?",
+            "mustResetPwd": "mustResetPwd Boolean @default(true)",
+            "tokenVersion": "tokenVersion Int @default(0)",
+            "isActive": "isActive Boolean @default(true)",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "staffMeta": "staffMeta StaffMeta?",
+            "guardian": "guardian Guardian?",
+            "participant": "participant Participant?",
+            "auditLogs": "auditLogs AuditLog[]",
+            "announcements": "announcements Announcement[]",
+            "notifications": "notifications Notification[]",
+            "capabilityOverrides": "capabilityOverrides UserCapabilityOverride[]",
+            "externalSupportCallers": "externalSupportCallers ExternalSupportCaller[]",
+            "callingTemplateUses": "callingTemplateUses CallingTemplateUse[]",
+            "callInteractions": "callInteractions CallInteraction[]",
+            "mashwaraMeetings": "mashwaraMeetings MashwaraMeeting[]",
+            "mediaBriefsCreated": "mediaBriefsCreated MediaBrief[] @relation(\"MediaBriefCreator\")",
+            "@@map(\"users\")": "@@map(\"users\")"
+          }
+        },
+        "v2": {
+          "kind": "model",
+          "line": 72,
+          "fields": {
+            "id": "id String @id @default(cuid())",
+            "email": "email String @unique",
+            "passwordHash": "passwordHash String",
+            "name": "name String?",
+            "phone": "phone String?",
+            "mustResetPwd": "mustResetPwd Boolean @default(true)",
+            "tokenVersion": "tokenVersion Int @default(0)",
+            "isActive": "isActive Boolean @default(true)",
+            "createdAt": "createdAt DateTime @default(now())",
+            "updatedAt": "updatedAt DateTime @updatedAt",
+            "staffMeta": "staffMeta StaffMeta?",
+            "guardian": "guardian Guardian?",
+            "participant": "participant Participant?",
+            "auditLogs": "auditLogs AuditLog[]",
+            "announcements": "announcements Announcement[]",
+            "notifications": "notifications Notification[]",
+            "capabilityOverrides": "capabilityOverrides UserCapabilityOverride[]",
+            "externalSupportCallers": "externalSupportCallers ExternalSupportCaller[]",
+            "callingTemplateUses": "callingTemplateUses CallingTemplateUse[]",
+            "callInteractions": "callInteractions CallInteraction[]",
+            "mashwaraMeetings": "mashwaraMeetings MashwaraMeeting[]",
+            "@@map(\"users\")": "@@map(\"users\")"
+          }
+        },
+        "mappingVerified": false
+      }
+    ],
+    "migrations": {
+      "main": {
+        "20260714200000_init_postgres/migration.sql": "caf0312eaf04f221e3f0669133c68099aa88c7c6e1b2b3b5004e1b71ecf9f931",
+        "20260714223000_add_on_leave_participant_state/migration.sql": "819e71c50721b6751dfeb1a104dd9c5fa961a23321bf9ded8284b394bfe171eb",
+        "20260715123000_add_admission_application_details/migration.sql": "7dd0637139ef2d3e36828c1bd0e83bbb1105ad1e7847194235ca79f9df223848",
+        "20260716210000_add_access_management_overrides/migration.sql": "b9c58d0626f8a818877a34a0f239c0a086ed2d849ebb0638dbb1713ce18353ac",
+        "20260720100000_add_participant_age_and_grade_class/migration.sql": "31a8d628ce07f50eebace96807c905193c1b992b16a6db678406ccd97f05dfa7",
+        "20260720190000_add_collaboration_teams/migration.sql": "8240f8ebebaa4289e7a1722624c49661e5fa28ed81908bd7bf2138cfac368530",
+        "20260720210000_add_content_planner_foundation/migration.sql": "2b7762d07c3b100beb315b009b47991cd09d70ce496db3c3a3b55c5e1925f9d9",
+        "20260721090000_expand_city_batch_park_group/migration.sql": "59e59839ea355a0311d8d44d518ff37724d480e8a46abc21db1238dc0fdba4f6",
+        "20260723160000_add_student_extended_profile/migration.sql": "10c4fbf08896b125f69a300fcd1fb5412f4c41da3e0e47086836de887798e0ee",
+        "20260723200000_add_events_and_calling_foundation/migration.sql": "511b32a1c8f463653b1083cb2670ccd32450d1783e076d3cd4f535754a9fe584",
+        "20260724200000_add_mashwara_module/migration.sql": "401e46280a921dd7f0119e4a0eb7892cc36155998a41e5703d0122e8321aed10",
+        "20260729081417_add_media_briefs/migration.sql": "bd70faf3f35dc4149f0412590b737d621f8aab2eb99fdd2b68621d6474fbde5b",
+        "20260730060714_add_attendance_foundation/migration.sql": "e4ddeba12a4fc0b37a235e5b96fd5ef523a5a6724fbfe10cf7e00c3731c4d992",
+        "20260802100000_repair_participant_group_nullable/migration.sql": "95b9cd1253d5fb1eaebc2a0324d8047d9de506037de2e961e91ab6175fddbff6",
+        "20260803090000_add_event_registrations/migration.sql": "eea9e44b667f516e5e4b9cabc5901c42f9fd9fd5b37983a663dc4fb43a6d3fb8",
+        "20260803100000_add_event_fee_schedules/migration.sql": "bcbbc9b6e677dedbd6ebd897feb170540e9d7bbc72266c76daacfe55890ff8c6",
+        "20260803110000_add_mashwara_notification_channels/migration.sql": "131f45b8b36b5132213a6fb7c96294dfcb9ce04d1d1dc2c2be8fe3095e2fcda2"
+      },
+      "v2": {
+        "20260714200000_init_postgres/migration.sql": "caf0312eaf04f221e3f0669133c68099aa88c7c6e1b2b3b5004e1b71ecf9f931",
+        "20260714223000_add_on_leave_participant_state/migration.sql": "819e71c50721b6751dfeb1a104dd9c5fa961a23321bf9ded8284b394bfe171eb",
+        "20260715123000_add_admission_application_details/migration.sql": "7dd0637139ef2d3e36828c1bd0e83bbb1105ad1e7847194235ca79f9df223848",
+        "20260716210000_add_access_management_overrides/migration.sql": "b9c58d0626f8a818877a34a0f239c0a086ed2d849ebb0638dbb1713ce18353ac",
+        "20260720100000_add_participant_age_and_grade_class/migration.sql": "31a8d628ce07f50eebace96807c905193c1b992b16a6db678406ccd97f05dfa7",
+        "20260720190000_add_collaboration_teams/migration.sql": "8240f8ebebaa4289e7a1722624c49661e5fa28ed81908bd7bf2138cfac368530",
+        "20260720210000_add_content_planner_foundation/migration.sql": "2b7762d07c3b100beb315b009b47991cd09d70ce496db3c3a3b55c5e1925f9d9",
+        "20260721090000_expand_city_batch_park_group/migration.sql": "59e59839ea355a0311d8d44d518ff37724d480e8a46abc21db1238dc0fdba4f6",
+        "20260723160000_add_student_extended_profile/migration.sql": "10c4fbf08896b125f69a300fcd1fb5412f4c41da3e0e47086836de887798e0ee",
+        "20260723200000_add_events_and_calling_foundation/migration.sql": "511b32a1c8f463653b1083cb2670ccd32450d1783e076d3cd4f535754a9fe584",
+        "20260724200000_add_mashwara_module/migration.sql": "401e46280a921dd7f0119e4a0eb7892cc36155998a41e5703d0122e8321aed10",
+        "20260725120000_add_login_attempts/migration.sql": "a4704ddfddd1572a954966fd4507f5b7eb73e26fe426fa9905086cdde6646e7f",
+        "20260729081417_add_media_briefs/migration.sql": "bd70faf3f35dc4149f0412590b737d621f8aab2eb99fdd2b68621d6474fbde5b",
+        "20260730060714_add_attendance_foundation/migration.sql": "e4ddeba12a4fc0b37a235e5b96fd5ef523a5a6724fbfe10cf7e00c3731c4d992",
+        "20260802100000_repair_participant_group_nullable/migration.sql": "95b9cd1253d5fb1eaebc2a0324d8047d9de506037de2e961e91ab6175fddbff6",
+        "20260803090000_add_event_registrations/migration.sql": "eea9e44b667f516e5e4b9cabc5901c42f9fd9fd5b37983a663dc4fb43a6d3fb8",
+        "20260803100000_add_event_fee_schedules/migration.sql": "bcbbc9b6e677dedbd6ebd897feb170540e9d7bbc72266c76daacfe55890ff8c6",
+        "20260803110000_add_mashwara_notification_channels/migration.sql": "131f45b8b36b5132213a6fb7c96294dfcb9ce04d1d1dc2c2be8fe3095e2fcda2",
+        "20260810193000_add_park_staff_attendance/migration.sql": "22161ca49018a65235a06fdb6af69367657e57a91d034c3b7070f02b9e58955f",
+        "20260811083000_add_attendance_event_uniqueness/migration.sql": "74da8677c5f77787c9336d9d25931c1e8916231ecfca989210c623841daa9ccf",
+        "20260817090000_add_attendance_schedule/migration.sql": "194ddbd53bb6d96971b461dc36c671d79d419046e3b6ca7ce55e7266cffe5f7e",
+        "20260817120000_add_attendance_dropout_lifecycle/migration.sql": "5aab45fef75fff6eedc7a52046fa144a9eca774a6777549e20760d725c480375",
+        "20260827090000_add_team_document_links/migration.sql": "b2075a22b175f4c9796be1d255f46f0cca1851015bb634f11f420853268bdaab",
+        "20260907114612_add_evaluations_lessons_planner/migration.sql": "2a0877fe016a56ecb265701e03a2e66fe927f476f05396cfc2453dd74e74e6ee",
+        "20260909010000_login_throttle/migration.sql": "d2f96aeac6624aa108776a3b071415dcaffced901db9bd630db45356f702de2b",
+        "20260909020000_operation_receipts/migration.sql": "908ce659e416c848829380385ace1ecf5acebf07bdbc04f19c9748f8c45f67a7",
+        "20260909030000_restore_modeled_tables/migration.sql": "b9e19bfaac8fd66aafd3b718c585a8e86f6f17f8f6da87f90a825ec65ec14af8",
+        "20260909040000_active_city_batch/migration.sql": "fa5b30dfa5aa4c61b421a800212587957c6c2074588d0a3f7c84284682eebba2",
+        "20260909050000_align_modeled_constraints/migration.sql": "ea339e68d0e9f14d9233fb5254967440b88a161f169df766c8d5b72602a1aad1",
+        "20260909060000_align_modeled_indexes/migration.sql": "41f624f6019469b0f7f900319e1f190639b60fa7698abd127ab26fa34b73b273",
+        "20260909070000_attendance_reset_version/migration.sql": "70412fedd02a9c30cf85a66494ae539ea713fa5fc1ef57c6de1c7fa677859e25"
+      }
+    },
+    "sharedMigrationHashConflicts": []
+  }
+}

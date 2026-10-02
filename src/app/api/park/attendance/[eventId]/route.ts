@@ -1,13 +1,10 @@
 import { applyAttendanceMutation } from "@/lib/attendance/apply-mutation";
+import { eligibleForSession } from "@/lib/attendance/opportunities";
 import { syncMutationSchema } from "@/lib/attendance/schemas";
-import { requireResolvedGroupScope, groupResourceScope } from "@/lib/auth/hierarchy";
+import { requireResolvedGroupScope } from "@/lib/auth/hierarchy";
 import { NextResponse } from "next/server";
-import { ATTENDANCE_ROLES, requireAuth, requireCapability, requireResourceScope } from "@/lib/auth/authorize";
-import { checkAttendanceAlerts } from "@/lib/attendance-alerts";
+import { ATTENDANCE_ROLES, requireAuth, requireCapability } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
-import { logAudit } from "@/lib/audit";
-import { parseISO } from "date-fns";
-import { markAttendanceSchema } from "@/lib/attendance/schemas";
 import { userHasCapability } from "@/lib/auth/capability-access";
 
 const VALID_STATUSES = ["present", "absent", "late", "excused"];
@@ -45,17 +42,21 @@ export async function GET(
     if (scopeError) return scopeError;
 
     // Keep historical rosters available while excluding students whose dropout
-    // became effective on or before this session.
-    const participants = await db.participant.findMany({
-      where: {
-        groupId: event.groupId,
-        OR: [
-          { state: "active" },
-          { state: "dropout", dropoutAt: { gt: event.eventDate } },
-        ],
-      },
-      orderBy: { name: "asc" },
-    });
+    // became effective on or before this session, and anyone who was not yet
+    // eligible when it ran. The same predicate gates marking, so the roster and
+    // the accepted marks never disagree.
+    const participants = (
+      await db.participant.findMany({
+        where: {
+          groupId: event.groupId,
+          OR: [
+            { state: "active" },
+            { state: "dropout", dropoutAt: { gt: event.eventDate } },
+          ],
+        },
+        orderBy: { name: "asc" },
+      })
+    ).filter((participant) => eligibleForSession(participant, event.eventDate));
 
     // Get all records for this event
     const records = await db.attendanceRecord.findMany({

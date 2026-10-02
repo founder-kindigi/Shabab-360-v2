@@ -100,8 +100,8 @@ describe("ATT01 PostgreSQL connection contract", () => {
 describe("ATT01 PostgreSQL migration expectations", () => {
   it("reads the committed, sorted migration set with the ATT01 folders", () => {
     const migrations = readExpectedPostgresMigrations();
-    expect(migrations.length).toBe(32);
-    expect(new Set(migrations).size).toBe(32);
+    expect(migrations.length).toBe(35);
+    expect(new Set(migrations).size).toBe(35);
     expect(migrations).toContain("20260909020000_operation_receipts");
     expect(migrations).toContain("20260916080000_add_muawin_assistance");
     expect([...migrations].sort()).toEqual(migrations);

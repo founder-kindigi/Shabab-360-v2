@@ -83,7 +83,9 @@ export async function GET() {
     participant: participant
       ? {
           id: participant.id,
-          cityId: (participant.group.parkId ? participant.group.park : participant.group.batch.park)?.cityId ?? null,
+          cityId: participant.group
+            ? (participant.group.parkId ? participant.group.park : participant.group.batch.park)?.cityId ?? null
+            : null,
           name: participant.name,
           phone: participant.phone,
           dateOfBirth: participant.dateOfBirth
@@ -97,8 +99,12 @@ export async function GET() {
           joinedAt: formatPKT(new Date(participant.joinedAt)),
           group: participant.group?.name || null,
           batch: participant.group?.batch.name || null,
-          park: (participant.group.parkId ? participant.group.park : participant.group.batch.park)?.name || null,
-          city: (participant.group.parkId ? participant.group.park : participant.group.batch.park)?.city?.name || null,
+          park: participant.group
+            ? (participant.group.parkId ? participant.group.park : participant.group.batch.park)?.name || null
+            : null,
+          city: participant.group
+            ? (participant.group.parkId ? participant.group.park : participant.group.batch.park)?.city?.name || null
+            : null,
         }
       : null,
     attendanceSummary,

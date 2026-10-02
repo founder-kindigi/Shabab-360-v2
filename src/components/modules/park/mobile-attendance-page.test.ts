@@ -28,11 +28,17 @@ vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn() },
 }));
 
-import { MobileAttendancePage } from "./mobile-attendance-page";
+import { guardianCallHref, MobileAttendancePage } from "./mobile-attendance-page";
 
 describe("MobileAttendancePage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it("builds a device-call link only for a valid guardian phone number", () => {
+    expect(guardianCallHref("+92 300-1234567")).toBe("tel:+923001234567");
+    expect(guardianCallHref("not-a-phone")).toBeNull();
+    expect(guardianCallHref(null)).toBeNull();
   });
 
   it("renders unauthenticated sign-in prompt when session is unauthenticated", () => {
@@ -125,5 +131,62 @@ describe("MobileAttendancePage", () => {
     }) as { enabled?: boolean } | undefined;
     expect(rosterQueryConfig).toBeDefined();
     expect(rosterQueryConfig?.enabled).toBe(false);
+  });
+
+  it("shows Excuse wording while the roster payload keeps the excused status", () => {
+    mocks.useSession.mockReturnValue({
+      data: {
+        user: {
+          id: "u-park-lead-1",
+          name: "Park Lead",
+          role: "park_lead",
+          assignedParkId: "park-1",
+          assignedGroupId: "group-1",
+        },
+      },
+      status: "authenticated",
+    });
+
+    mocks.useQuery.mockImplementation((options: unknown) => {
+      const key = (options as { queryKey?: unknown[] }).queryKey?.[0];
+      if (key === "mobile-attendance-parks") {
+        return { data: [{ id: "park-1", name: "Park One" }], isLoading: false };
+      }
+      if (key === "mobile-attendance-sessions") {
+        return {
+          data: {
+            events: [{ id: "event-1", groupId: "group-1", groupName: "Group 1", markedCount: 1, participantCount: 1, isClosed: false }],
+            preparation: { isOffDate: false },
+          },
+          isLoading: false,
+        };
+      }
+      if (key === "mobile-attendance-roster") {
+        return {
+          data: {
+            permissions: { canCorrect: false },
+            event: {
+              id: "event-1", title: "Session", groupId: "group-1", groupName: "Group 1",
+              batchName: "Batch 4", parkName: "Park One", eventDate: "2026-08-16",
+              isClosed: false, resetVersion: 0, closedAt: null, closedByName: null,
+            },
+            roster: [{
+              participantId: "p1", participantName: "Alpha Student", phone: null,
+              status: "excused", recordId: "r1", markedAt: "2026-08-16T00:00:00.000Z", markedByName: null,
+            }],
+            summary: { total: 1, present: 0, absent: 0, late: 0, excused: 1, unmarked: 0 },
+          },
+          isLoading: false,
+        };
+      }
+      return { data: null, isLoading: false };
+    });
+
+    const html = renderToString(React.createElement(MobileAttendancePage));
+
+    expect(html).toContain("Excuse");
+    expect(html).not.toContain("Leave");
+    // The operator label changed, the stored/API status value did not.
+    expect(html).toContain("excused");
   });
 });

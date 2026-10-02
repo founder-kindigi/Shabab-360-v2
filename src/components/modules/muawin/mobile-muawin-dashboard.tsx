@@ -1,4 +1,5 @@
 "use client";
+import Image from "next/image";
 
 import { useSession } from "next-auth/react";
 import { BookOpen, Info, Settings, Bell, Sun, Moon } from "lucide-react";
@@ -17,7 +18,7 @@ export function MobileMuawinDashboard() {
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
             <div className="size-11 rounded-xl bg-white/10 border border-white/20 p-1.5 shadow-inner backdrop-blur-sm flex items-center justify-center shrink-0">
-              <img src="/logo-white.png" alt="Logo" className="size-full object-contain" />
+              <Image src="/logo-white.png" alt="Logo" width={160} height={160} className="size-full object-contain" />
             </div>
             <div>
               <div className="flex items-center gap-1.5">

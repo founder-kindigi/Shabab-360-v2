@@ -3,7 +3,7 @@ import { eligibleForSession } from "@/lib/attendance/opportunities";
 import { NextResponse } from "next/server";
 import { subDays } from "date-fns";
 import { z } from "zod";
-import { requireCapability, requireResourceScope } from "@/lib/auth/authorize";
+import { requireCapability } from "@/lib/auth/authorize";
 import { evaluateConsecutiveAbsenceWeeks } from "@/lib/attendance/dropout-policy";
 import { attendanceIdentifierSchema } from "@/lib/attendance/schemas";
 import { db } from "@/lib/db";
@@ -47,7 +47,7 @@ export async function GET(request: Request) {
       murabbis: { where: { isActive: true }, select: { id: true, user: { select: { name: true } } } },
       participants: {
         where: { state: { in: ["active", "dropout"] } },
-        select: { id: true, name: true, state: true, joinedAt: true, dropoutAt: true, dropoutSource: true },
+        select: { id: true, name: true, state: true, joinedAt: true, dropoutAt: true, dropoutSource: true, reactivatedAt: true },
       },
     },
     orderBy: { name: "asc" },

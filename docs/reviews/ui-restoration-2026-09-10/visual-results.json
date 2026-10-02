@@ -1,0 +1,231 @@
+{
+  "date": "2026-09-10T11:45:39.686Z",
+  "limits": "Rendered real components with real compiled Tailwind CSS and synthetic API responses; separate compiled-PWA checks verify actual routes and SQLite. Screenshots are not a pixel-diff proof against historical UI.",
+  "screens": [
+    {
+      "name": "more-light",
+      "path": "D:\\iBuild\\Shabab-360-v2\\docs\\reviews\\ui-restoration-2026-09-10\\screenshots\\more-light.png",
+      "viewport": 390,
+      "document": 390
+    },
+    {
+      "name": "fees-light",
+      "path": "D:\\iBuild\\Shabab-360-v2\\docs\\reviews\\ui-restoration-2026-09-10\\screenshots\\fees-light.png",
+      "viewport": 390,
+      "document": 390
+    },
+    {
+      "name": "fees-form-light",
+      "path": "D:\\iBuild\\Shabab-360-v2\\docs\\reviews\\ui-restoration-2026-09-10\\screenshots\\fees-form-light.png",
+      "viewport": 390,
+      "document": 390
+    },
+    {
+      "name": "calling-light",
+      "path": "D:\\iBuild\\Shabab-360-v2\\docs\\reviews\\ui-restoration-2026-09-10\\screenshots\\calling-light.png",
+      "viewport": 390,
+      "document": 390
+    },
+    {
+      "name": "calling-sheet-light",
+      "path": "D:\\iBuild\\Shabab-360-v2\\docs\\reviews\\ui-restoration-2026-09-10\\screenshots\\calling-sheet-light.png",
+      "viewport": 390,
+      "document": 390
+    },
+    {
+      "name": "procurement-light",
+      "path": "D:\\iBuild\\Shabab-360-v2\\docs\\reviews\\ui-restoration-2026-09-10\\screenshots\\procurement-light.png",
+      "viewport": 390,
+      "document": 390
+    },
+    {
+      "name": "procurement-sheet-light",
+      "path": "D:\\iBuild\\Shabab-360-v2\\docs\\reviews\\ui-restoration-2026-09-10\\screenshots\\procurement-sheet-light.png",
+      "viewport": 390,
+      "document": 390
+    },
+    {
+      "name": "certificates-light",
+      "path": "D:\\iBuild\\Shabab-360-v2\\docs\\reviews\\ui-restoration-2026-09-10\\screenshots\\certificates-light.png",
+      "viewport": 390,
+      "document": 390
+    },
+    {
+      "name": "certificates-preview-light",
+      "path": "D:\\iBuild\\Shabab-360-v2\\docs\\reviews\\ui-restoration-2026-09-10\\screenshots\\certificates-preview-light.png",
+      "viewport": 390,
+      "document": 390
+    },
+    {
+      "name": "community-light",
+      "path": "D:\\iBuild\\Shabab-360-v2\\docs\\reviews\\ui-restoration-2026-09-10\\screenshots\\community-light.png",
+      "viewport": 390,
+      "document": 390
+    },
+    {
+      "name": "islah-light",
+      "path": "D:\\iBuild\\Shabab-360-v2\\docs\\reviews\\ui-restoration-2026-09-10\\screenshots\\islah-light.png",
+      "viewport": 390,
+      "document": 390
+    },
+    {
+      "name": "reports-light",
+      "path": "D:\\iBuild\\Shabab-360-v2\\docs\\reviews\\ui-restoration-2026-09-10\\screenshots\\reports-light.png",
+      "viewport": 390,
+      "document": 390
+    },
+    {
+      "name": "sync-light",
+      "path": "D:\\iBuild\\Shabab-360-v2\\docs\\reviews\\ui-restoration-2026-09-10\\screenshots\\sync-light.png",
+      "viewport": 390,
+      "document": 390
+    },
+    {
+      "name": "profiles-light",
+      "path": "D:\\iBuild\\Shabab-360-v2\\docs\\reviews\\ui-restoration-2026-09-10\\screenshots\\profiles-light.png",
+      "viewport": 390,
+      "document": 390
+    },
+    {
+      "name": "more-dark",
+      "path": "D:\\iBuild\\Shabab-360-v2\\docs\\reviews\\ui-restoration-2026-09-10\\screenshots\\more-dark.png",
+      "viewport": 390,
+      "document": 390
+    },
+    {
+      "name": "fees-dark",
+      "path": "D:\\iBuild\\Shabab-360-v2\\docs\\reviews\\ui-restoration-2026-09-10\\screenshots\\fees-dark.png",
+      "viewport": 390,
+      "document": 390
+    },
+    {
+      "name": "fees-form-dark",
+      "path": "D:\\iBuild\\Shabab-360-v2\\docs\\reviews\\ui-restoration-2026-09-10\\screenshots\\fees-form-dark.png",
+      "viewport": 390,
+      "document": 390
+    },
+    {
+      "name": "calling-dark",
+      "path": "D:\\iBuild\\Shabab-360-v2\\docs\\reviews\\ui-restoration-2026-09-10\\screenshots\\calling-dark.png",
+      "viewport": 390,
+      "document": 390
+    },
+    {
+      "name": "calling-sheet-dark",
+      "path": "D:\\iBuild\\Shabab-360-v2\\docs\\reviews\\ui-restoration-2026-09-10\\screenshots\\calling-sheet-dark.png",
+      "viewport": 390,
+      "document": 390
+    },
+    {
+      "name": "procurement-dark",
+      "path": "D:\\iBuild\\Shabab-360-v2\\docs\\reviews\\ui-restoration-2026-09-10\\screenshots\\procurement-dark.png",
+      "viewport": 390,
+      "document": 390
+    },
+    {
+      "name": "procurement-sheet-dark",
+      "path": "D:\\iBuild\\Shabab-360-v2\\docs\\reviews\\ui-restoration-2026-09-10\\screenshots\\procurement-sheet-dark.png",
+      "viewport": 390,
+      "document": 390
+    },
+    {
+      "name": "certificates-dark",
+      "path": "D:\\iBuild\\Shabab-360-v2\\docs\\reviews\\ui-restoration-2026-09-10\\screenshots\\certificates-dark.png",
+      "viewport": 390,
+      "document": 390
+    },
+    {
+      "name": "certificates-preview-dark",
+      "path": "D:\\iBuild\\Shabab-360-v2\\docs\\reviews\\ui-restoration-2026-09-10\\screenshots\\certificates-preview-dark.png",
+      "viewport": 390,
+      "document": 390
+    },
+    {
+      "name": "community-dark",
+      "path": "D:\\iBuild\\Shabab-360-v2\\docs\\reviews\\ui-restoration-2026-09-10\\screenshots\\community-dark.png",
+      "viewport": 390,
+      "document": 390
+    },
+    {
+      "name": "islah-dark",
+      "path": "D:\\iBuild\\Shabab-360-v2\\docs\\reviews\\ui-restoration-2026-09-10\\screenshots\\islah-dark.png",
+      "viewport": 390,
+      "document": 390
+    },
+    {
+      "name": "reports-dark",
+      "path": "D:\\iBuild\\Shabab-360-v2\\docs\\reviews\\ui-restoration-2026-09-10\\screenshots\\reports-dark.png",
+      "viewport": 390,
+      "document": 390
+    },
+    {
+      "name": "sync-dark",
+      "path": "D:\\iBuild\\Shabab-360-v2\\docs\\reviews\\ui-restoration-2026-09-10\\screenshots\\sync-dark.png",
+      "viewport": 390,
+      "document": 390
+    },
+    {
+      "name": "profiles-dark",
+      "path": "D:\\iBuild\\Shabab-360-v2\\docs\\reviews\\ui-restoration-2026-09-10\\screenshots\\profiles-dark.png",
+      "viewport": 390,
+      "document": 390
+    },
+    {
+      "name": "fees-desktop",
+      "path": "D:\\iBuild\\Shabab-360-v2\\docs\\reviews\\ui-restoration-2026-09-10\\screenshots\\fees-desktop.png",
+      "viewport": 1280,
+      "document": 1280
+    },
+    {
+      "name": "procurement-desktop",
+      "path": "D:\\iBuild\\Shabab-360-v2\\docs\\reviews\\ui-restoration-2026-09-10\\screenshots\\procurement-desktop.png",
+      "viewport": 1280,
+      "document": 1280
+    },
+    {
+      "name": "certificates-desktop",
+      "path": "D:\\iBuild\\Shabab-360-v2\\docs\\reviews\\ui-restoration-2026-09-10\\screenshots\\certificates-desktop.png",
+      "viewport": 1280,
+      "document": 1280
+    },
+    {
+      "name": "community-desktop",
+      "path": "D:\\iBuild\\Shabab-360-v2\\docs\\reviews\\ui-restoration-2026-09-10\\screenshots\\community-desktop.png",
+      "viewport": 1280,
+      "document": 1280
+    },
+    {
+      "name": "reports-desktop",
+      "path": "D:\\iBuild\\Shabab-360-v2\\docs\\reviews\\ui-restoration-2026-09-10\\screenshots\\reports-desktop.png",
+      "viewport": 1280,
+      "document": 1280
+    },
+    {
+      "name": "fees-denied",
+      "path": "D:\\iBuild\\Shabab-360-v2\\docs\\reviews\\ui-restoration-2026-09-10\\screenshots\\fees-denied.png",
+      "viewport": 390,
+      "document": 390
+    },
+    {
+      "name": "fees-empty",
+      "path": "D:\\iBuild\\Shabab-360-v2\\docs\\reviews\\ui-restoration-2026-09-10\\screenshots\\fees-empty.png",
+      "viewport": 390,
+      "document": 390
+    },
+    {
+      "name": "fees-error",
+      "path": "D:\\iBuild\\Shabab-360-v2\\docs\\reviews\\ui-restoration-2026-09-10\\screenshots\\fees-error.png",
+      "viewport": 390,
+      "document": 390
+    },
+    {
+      "name": "fees-offline",
+      "path": "D:\\iBuild\\Shabab-360-v2\\docs\\reviews\\ui-restoration-2026-09-10\\screenshots\\fees-offline.png",
+      "viewport": 390,
+      "document": 390
+    }
+  ],
+  "errors": [],
+  "writes": [],
+  "passed": true
+}

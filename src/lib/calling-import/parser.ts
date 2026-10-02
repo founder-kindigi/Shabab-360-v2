@@ -72,14 +72,9 @@ export async function parseCallingWorkbook(
         headerRowNumber = rowNumber;
         row.eachCell({ includeEmpty: false }, (cell, colNumber) => {
           const norm = normalizeHeader(cell.value);
-          if (norm.includes("prospectname") || norm === "fullname" || norm === "name" || norm === "prospect") {
+          if (norm.includes("prospectname") || norm === "name" || norm === "prospect") {
             colMap["prospectName"] = colNumber;
-          } else if (
-            norm.includes("contactphone") ||
-            norm.includes("mobilenumber") ||
-            norm.includes("mobileno") ||
-            (norm.includes("phone") && !norm.includes("guardian") && !norm.includes("whatsapp"))
-          ) {
+          } else if (norm.includes("contactphone") || (norm.includes("phone") && !norm.includes("guardian"))) {
             colMap["contactPhone"] = colNumber;
           } else if (norm.includes("guardianname") || norm.includes("fathername")) {
             colMap["guardianName"] = colNumber;
@@ -93,7 +88,7 @@ export async function parseCallingWorkbook(
             colMap["callOutcome"] = colNumber;
           } else if (norm.includes("status") || norm.includes("response")) {
             colMap["prospectStatus"] = colNumber;
-          } else if (norm.includes("note") || norm.includes("remark") || norm.includes("comment")) {
+          } else if (norm.includes("note") || norm.includes("remark")) {
             colMap["callNotes"] = colNumber;
           } else if (norm.includes("date") || norm.includes("preferred") || norm.includes("interview")) {
             colMap["preferredDate"] = colNumber;

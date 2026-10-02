@@ -19,9 +19,6 @@ describe("access capability policy", () => {
     expect(isAccessCapability("calling.poc.manage")).toBe(true);
     expect(isAccessCapability("calling.templates.manage")).toBe(true);
     expect(isAccessCapability("calling.export.manage")).toBe(true);
-    expect(isAccessCapability("teams.memberships.manage")).toBe(true);
-    expect(isAccessCapability("teams.workspace.view")).toBe(true);
-    expect(isAccessCapability("teams.workspace.manage")).toBe(true);
     expect(isAccessCapability("/api/admin/users")).toBe(false);
   });
 
@@ -29,6 +26,7 @@ describe("access capability policy", () => {
     expect(Object.keys(ROLE_DEFAULT_CAPABILITIES).sort()).toEqual([
       "city_head",
       "guardian",
+      "muawin",
       "murabbi",
       "park_admin",
       "park_lead",
@@ -38,11 +36,10 @@ describe("access capability policy", () => {
     ]);
   });
 
-  it("reserves role and user override administration for Super Admin", () => {
+  it("reserves access administration for Super Admin at soft launch", () => {
     expect(roleHasDefaultCapability("super_admin", "access.role_defaults.manage")).toBe(true);
     expect(roleHasDefaultCapability("super_admin", "access.user_overrides.manage")).toBe(true);
     expect(roleHasDefaultCapability("super_admin", "access.scope.manage")).toBe(true);
-    expect(roleHasDefaultCapability("program_admin", "access.scope.manage")).toBe(true);
     expect(roleHasDefaultCapability("program_admin", "access.user_overrides.manage")).toBe(false);
     expect(roleHasDefaultCapability("city_head", "access.user_overrides.manage")).toBe(false);
     expect(roleHasDefaultCapability("city_head", "access.city_staff.manage")).toBe(true);
@@ -55,6 +52,12 @@ describe("access capability policy", () => {
     expect(roleHasDefaultCapability("park_lead", "fees.manage")).toBe(false);
     expect(roleHasDefaultCapability("park_admin", "admissions.manage")).toBe(false);
     expect(roleHasDefaultCapability("murabbi", "attendance.correct")).toBe(false);
+    // A Murabbi marks its own group's attendance but is never granted the
+    // organisation park directory, which is what blocked the attendance entry.
+    expect(roleHasDefaultCapability("murabbi", "attendance.mark")).toBe(true);
+    expect(roleHasDefaultCapability("murabbi", "organisation.view")).toBe(false);
+    expect(roleHasDefaultCapability("muawin", "content.view")).toBe(true);
+    expect(roleHasDefaultCapability("muawin", "attendance.mark")).toBe(false);
   });
 
   it("denies missing roles and unsupported capabilities by default", () => {
@@ -99,9 +102,11 @@ describe("access capability policy", () => {
     expect(
       resolveEffectiveCapability("park_admin", "attendance.mark", null, null, now)
     ).toBe(true);
+    // park_admin now has attendance.correct to allow session lifecycle management
+    // within their assigned park (F-02).
     expect(
       resolveEffectiveCapability("park_admin", "attendance.correct", null, null, now)
-    ).toBe(false);
+    ).toBe(true);
   });
 
   it("fails closed for unknown roles or invalid inputs in resolution", () => {
@@ -167,49 +172,5 @@ describe("access capability policy", () => {
     expect(USER_OVERRIDE_CAPABILITIES.includes("students.profile.manage")).toBe(true);
     expect((USER_OVERRIDE_CAPABILITIES as readonly string[]).includes("students.profile.sensitive.view")).toBe(false);
     expect((USER_OVERRIDE_CAPABILITIES as readonly string[]).includes("students.profile.sensitive.manage")).toBe(false);
-  });
-
-  // ── Team capability tests ─────────────────────────────────────────
-
-  it("grants all team capabilities to super_admin and program_admin", () => {
-    expect(roleHasDefaultCapability("super_admin", "teams.memberships.manage")).toBe(true);
-    expect(roleHasDefaultCapability("super_admin", "teams.workspace.view")).toBe(true);
-    expect(roleHasDefaultCapability("super_admin", "teams.workspace.manage")).toBe(true);
-    expect(roleHasDefaultCapability("program_admin", "teams.memberships.manage")).toBe(true);
-    expect(roleHasDefaultCapability("program_admin", "teams.workspace.view")).toBe(true);
-    expect(roleHasDefaultCapability("program_admin", "teams.workspace.manage")).toBe(true);
-  });
-
-  it("grants city_head all three team capabilities", () => {
-    expect(roleHasDefaultCapability("city_head", "teams.memberships.manage")).toBe(true);
-    expect(roleHasDefaultCapability("city_head", "teams.workspace.view")).toBe(true);
-    expect(roleHasDefaultCapability("city_head", "teams.workspace.manage")).toBe(true);
-  });
-
-  it("grants park_lead, park_admin, and murabbi only teams.workspace.view", () => {
-    expect(roleHasDefaultCapability("park_lead", "teams.workspace.view")).toBe(true);
-    expect(roleHasDefaultCapability("park_lead", "teams.memberships.manage")).toBe(false);
-    expect(roleHasDefaultCapability("park_lead", "teams.workspace.manage")).toBe(false);
-    expect(roleHasDefaultCapability("park_admin", "teams.workspace.view")).toBe(true);
-    expect(roleHasDefaultCapability("park_admin", "teams.memberships.manage")).toBe(false);
-    expect(roleHasDefaultCapability("park_admin", "teams.workspace.manage")).toBe(false);
-    expect(roleHasDefaultCapability("murabbi", "teams.workspace.view")).toBe(true);
-    expect(roleHasDefaultCapability("murabbi", "teams.memberships.manage")).toBe(false);
-    expect(roleHasDefaultCapability("murabbi", "teams.workspace.manage")).toBe(false);
-  });
-
-  it("denies guardian and student all team capabilities", () => {
-    expect(roleHasDefaultCapability("guardian", "teams.memberships.manage")).toBe(false);
-    expect(roleHasDefaultCapability("guardian", "teams.workspace.view")).toBe(false);
-    expect(roleHasDefaultCapability("guardian", "teams.workspace.manage")).toBe(false);
-    expect(roleHasDefaultCapability("student", "teams.memberships.manage")).toBe(false);
-    expect(roleHasDefaultCapability("student", "teams.workspace.view")).toBe(false);
-    expect(roleHasDefaultCapability("student", "teams.workspace.manage")).toBe(false);
-  });
-
-  it("excludes teams.memberships.manage from USER_OVERRIDE_CAPABILITIES", () => {
-    expect((USER_OVERRIDE_CAPABILITIES as readonly string[]).includes("teams.memberships.manage")).toBe(false);
-    expect((USER_OVERRIDE_CAPABILITIES as readonly string[]).includes("teams.workspace.view")).toBe(true);
-    expect((USER_OVERRIDE_CAPABILITIES as readonly string[]).includes("teams.workspace.manage")).toBe(true);
   });
 });

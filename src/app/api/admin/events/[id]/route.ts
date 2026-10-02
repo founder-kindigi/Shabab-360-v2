@@ -76,10 +76,6 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: "cityId is immutable" }, { status: 400 });
   }
 
-  if (verified.event.status === "cancelled") {
-    return NextResponse.json({ error: "Event is already cancelled" }, { status: 409 });
-  }
-
   const parsed = updateEventSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
@@ -137,10 +133,6 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
   const verified = await verifyEventCityAccess(user, id);
   if (verified.error || !verified.event) {
     return NextResponse.json({ error: verified.error }, { status: verified.status });
-  }
-
-  if (verified.event.status === "cancelled") {
-    return NextResponse.json({ error: "Event is already cancelled" }, { status: 409 });
   }
 
   const cancelledEvent = await db.event.update({

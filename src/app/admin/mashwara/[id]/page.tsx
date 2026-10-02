@@ -1,13 +1,9 @@
-import { redirect } from "next/navigation";
-import type { JSX } from "react";
+export const dynamic = "force-dynamic";
 
-export default async function MashwaraDetailPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}): Promise<JSX.Element> {
-  const { id } = await params;
-  redirect(
-    `/?page=admin-mashwara-detail&id=${encodeURIComponent(id)}`
-  );
+import nextDynamic from "next/dynamic";
+
+const MashwaraDetailClient = nextDynamic(() => import("./_client"));
+
+export default function MashwaraDetailPage() {
+  return <MashwaraDetailClient />;
 }

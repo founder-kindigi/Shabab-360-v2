@@ -18,17 +18,6 @@ interface ErrorBoundaryState {
   errorInfo: ErrorInfo | null;
 }
 
-const CHUNK_RECOVERY_KEY_PREFIX = "shabab360:chunk-recovery:";
-
-export function isChunkLoadError(error: unknown): boolean {
-  const message = error instanceof Error ? error.message : String(error ?? "");
-  return /chunkloaderror|loading chunk|failed to load chunk|failed to fetch dynamically imported module/i.test(message);
-}
-
-function chunkRecoveryKey(): string {
-  return `${CHUNK_RECOVERY_KEY_PREFIX}${window.location.pathname}`;
-}
-
 export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   constructor(props: ErrorBoundaryProps) {
     super(props);
@@ -41,26 +30,11 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error("[ErrorBoundary] Caught error:", error, errorInfo);
-    if (typeof window !== "undefined" && isChunkLoadError(error)) {
-      const key = chunkRecoveryKey();
-      if (!window.sessionStorage.getItem(key)) {
-        // Reload once to align the open shell with the active deployment manifest.
-        window.sessionStorage.setItem(key, "attempted");
-        window.location.reload();
-        return;
-      }
-    }
     this.setState({ errorInfo });
   }
 
   private handleReset = () => {
     this.setState({ hasError: false, error: null, errorInfo: null });
-  };
-
-  private handleReload = () => {
-    if (typeof window === "undefined") return;
-    window.sessionStorage.removeItem(chunkRecoveryKey());
-    window.location.reload();
   };
 
   render() {
@@ -73,7 +47,6 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
           error={this.state.error}
           errorInfo={this.state.errorInfo}
           onReset={this.handleReset}
-          onReload={this.handleReload}
         />
       );
     }
@@ -86,16 +59,13 @@ function ErrorBoundaryFallback({
   error,
   errorInfo,
   onReset,
-  onReload,
 }: {
   error: Error | null;
   errorInfo: ErrorInfo | null;
   onReset: () => void;
-  onReload: () => void;
 }) {
   const [showDetails, setShowDetails] = useState(false);
   const { navigateTo } = useAppStore();
-  const staleChunk = isChunkLoadError(error);
 
   return (
     <motion.div
@@ -115,9 +85,8 @@ function ErrorBoundaryFallback({
           Something went wrong
         </h3>
         <p className="text-sm text-muted-foreground leading-relaxed">
-          {staleChunk
-            ? "A newer version of the application is available. Reload to continue."
-            : "An unexpected error occurred while rendering this page. You can try again or navigate back to the dashboard."}
+          An unexpected error occurred while rendering this page. You can try
+          again or navigate back to the dashboard.
         </p>
       </div>
 
@@ -132,16 +101,16 @@ function ErrorBoundaryFallback({
           Go to Dashboard
         </Button>
         <Button
-          onClick={staleChunk ? onReload : onReset}
+          onClick={onReset}
           className="gap-2 bg-[#4B0A8F] hover:bg-[#3A0870] text-white"
         >
           <RotateCcw className="size-4" />
-          {staleChunk ? "Reload Application" : "Try Again"}
+          Try Again
         </Button>
       </div>
 
-      {/* Never show stack details to Preview or Production users. */}
-      {process.env.NODE_ENV === "development" && error && (
+      {/* Expandable error details (dev) */}
+      {error && (
         <div className="w-full max-w-lg">
           <button
             onClick={() => setShowDetails((s) => !s)}

@@ -216,19 +216,22 @@ export async function GET(request: NextRequest) {
     const orderBy = orderByMap[sortBy];
 
     // Fetch paginated participants
-    const participants = await db.participant.findMany({
-      where: participantWhere,
-      include: {
-        guardianLinks: {
-          include: {
-            guardian: { select: { id: true, name: true, phone: true } },
+    const participants = (
+      await db.participant.findMany({
+        where: participantWhere,
+        include: {
+          guardianLinks: {
+            include: {
+              guardian: { select: { id: true, name: true, phone: true } },
+            },
           },
         },
-      },
-      orderBy,
-      skip: (page - 1) * pageSize,
-      take: pageSize,
-    });
+        orderBy,
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      })
+    // Group-scoped directories never include an unassigned participant.
+    ).filter((p): p is typeof p & { groupId: string } => p.groupId !== null);
 
     const participantIds = participants.map((p) => p.id);
 
@@ -289,7 +292,7 @@ export async function GET(request: NextRequest) {
         present: 0, absent: 0, late: 0, excused: 0, total: 0, lastDate: null,
       };
       const rate = stats.total > 0 ? Math.round(((stats.present + stats.late) / stats.total) * 100) : 0;
-      const group = p.groupId ? groupMap.get(p.groupId) : undefined;
+      const group = groupMap.get(p.groupId);
       const guardianLink = p.guardianLinks.length > 0 ? p.guardianLinks[0] : null;
 
       return {

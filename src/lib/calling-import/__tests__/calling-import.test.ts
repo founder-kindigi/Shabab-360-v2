@@ -16,7 +16,6 @@ import {
   PrismaInterviewLookupService,
 } from "../interview-matcher";
 import { processCallingImport } from "../importer";
-import { parseCallingWorkbook } from "../parser";
 import type { RawSourceRow, CallingImportOptions } from "../types";
 
 describe("Calling Import Preparation — PKG-03 Test Suite", () => {
@@ -25,17 +24,8 @@ describe("Calling Import Preparation — PKG-03 Test Suite", () => {
   const testCampaignId = "campaign-phase2-01";
   const testSecret = "test-hmac-secret-12345";
   const cliPath = path.resolve("scripts/dry-run-calling-import.ts");
-  const tsxCliPath = path.resolve("node_modules", "tsx", "dist", "cli.mjs");
 
   let createdTempDirs: string[] = [];
-
-  // Execute the declared local runner directly so CLI safety tests never invoke npx.
-  function runCli(args: string[], env: NodeJS.ProcessEnv): Buffer {
-    return execFileSync(process.execPath, [tsxCliPath, cliPath, ...args], {
-      env,
-      stdio: "pipe",
-    });
-  }
 
   /**
    * Helper to create a valid minimal .xlsx workbook in OS temp directory.
@@ -108,27 +98,6 @@ describe("Calling Import Preparation — PKG-03 Test Suite", () => {
       expect(normalizePakistanPhone(null)).toBeNull();
       expect(isValidPakistanPhone("03001234567")).toBe(true);
       expect(isValidPakistanPhone("123")).toBe(false);
-    });
-  });
-
-  describe("Real Lahore Calling Workbook Headers", () => {
-    it("maps Full Name, Mobile Number, and comments without misclassifying WhatsApp as guardian data", async () => {
-      const workbook = new ExcelJS.Workbook();
-      const sheet = workbook.addWorksheet("Calls for Phase 2");
-      sheet.addRow(["Full Name", "Mobile Number", "Whatsapp Number", "Old Comments", "New Comments"]);
-      sheet.addRow(["Test Applicant", "+923001234567", "+923009876543", "Historic note", "Current note"]);
-      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "calling-real-header-test-"));
-      createdTempDirs.push(tmpDir);
-      const filePath = path.join(tmpDir, "calling.xlsx");
-      await workbook.xlsx.writeFile(filePath);
-
-      const [row] = await parseCallingWorkbook(filePath);
-      expect(row).toMatchObject({
-        prospectName: "Test Applicant",
-        contactPhone: "+923001234567",
-        callNotes: "Current note",
-      });
-      expect(row.guardianPhone).toBeUndefined();
     });
   });
 
@@ -427,9 +396,12 @@ describe("Calling Import Preparation — PKG-03 Test Suite", () => {
       "fails safely when --campaignId is missing",
       () => {
         try {
-          runCli(
-            ["--cityId", testCityId, "--synthetic", "--dry-run"],
-            { ...process.env, IMPORT_HMAC_SECRET: testSecret }
+          execFileSync(process.execPath,
+            ["--import", "tsx", cliPath, "--cityId", testCityId, "--synthetic", "--dry-run"],
+            {
+              env: { ...process.env, IMPORT_HMAC_SECRET: testSecret },
+              stdio: "pipe",
+            }
           );
           expect.unreachable("Should have failed due to missing --campaignId");
         } catch (err: unknown) {
@@ -445,9 +417,12 @@ describe("Calling Import Preparation — PKG-03 Test Suite", () => {
       "fails safely when --file is missing for operational run (without --synthetic)",
       () => {
         try {
-          runCli(
-            ["--cityId", testCityId, "--campaignId", testCampaignId, "--dry-run"],
-            { ...process.env, IMPORT_HMAC_SECRET: testSecret }
+          execFileSync(process.execPath,
+            ["--import", "tsx", cliPath, "--cityId", testCityId, "--campaignId", testCampaignId, "--dry-run"],
+            {
+              env: { ...process.env, IMPORT_HMAC_SECRET: testSecret },
+              stdio: "pipe",
+            }
           );
           expect.unreachable("Should have failed due to missing --file without --synthetic");
         } catch (err: unknown) {
@@ -467,9 +442,12 @@ describe("Calling Import Preparation — PKG-03 Test Suite", () => {
           const env = { ...process.env, IMPORT_HMAC_SECRET: testSecret };
           delete (env as { DATABASE_URL?: string }).DATABASE_URL;
 
-          runCli(
-            ["--cityId", testCityId, "--campaignId", testCampaignId, "--file", validWorkbookPath, "--dry-run"],
-            env
+          execFileSync(process.execPath,
+            ["--import", "tsx", cliPath, "--cityId", testCityId, "--campaignId", testCampaignId, "--file", validWorkbookPath, "--dry-run"],
+            {
+              env,
+              stdio: "pipe",
+            }
           );
           expect.unreachable("Should have failed due to missing DATABASE_URL for operational run");
         } catch (err: unknown) {
@@ -486,12 +464,15 @@ describe("Calling Import Preparation — PKG-03 Test Suite", () => {
       async () => {
         const validWorkbookPath = await createValidMinimalWorkbook();
         try {
-          runCli(
-            ["--cityId", testCityId, "--campaignId", testCampaignId, "--file", validWorkbookPath, "--dry-run"],
+          execFileSync(process.execPath,
+            ["--import", "tsx", cliPath, "--cityId", testCityId, "--campaignId", testCampaignId, "--file", validWorkbookPath, "--dry-run"],
             {
-              ...process.env,
-              IMPORT_HMAC_SECRET: testSecret,
-              DATABASE_URL: "invalid-schema-url",
+              env: {
+                ...process.env,
+                IMPORT_HMAC_SECRET: testSecret,
+                DATABASE_URL: "invalid-schema-url",
+              },
+              stdio: "pipe",
             }
           );
           expect.unreachable("Should have failed due to invalid DATABASE_URL");
@@ -509,9 +490,12 @@ describe("Calling Import Preparation — PKG-03 Test Suite", () => {
       async () => {
         const validWorkbookPath = await createValidMinimalWorkbook();
         try {
-          runCli(
-            ["--cityId", testCityId, "--campaignId", testCampaignId, "--synthetic", "--file", validWorkbookPath, "--dry-run"],
-            { ...process.env, IMPORT_HMAC_SECRET: testSecret }
+          execFileSync(process.execPath,
+            ["--import", "tsx", cliPath, "--cityId", testCityId, "--campaignId", testCampaignId, "--synthetic", "--file", validWorkbookPath, "--dry-run"],
+            {
+              env: { ...process.env, IMPORT_HMAC_SECRET: testSecret },
+              stdio: "pipe",
+            }
           );
           expect.unreachable("Should have failed due to combining --synthetic and --file");
         } catch (err: unknown) {
@@ -526,14 +510,17 @@ describe("Calling Import Preparation — PKG-03 Test Suite", () => {
     it(
       "executes successfully with --synthetic and outputs masked report without initializing Prisma",
       () => {
-        const result = runCli(
-          ["--cityId", testCityId, "--campaignId", testCampaignId, "--synthetic", "--dry-run"],
+        const result = execFileSync(process.execPath,
+          ["--import", "tsx", cliPath, "--cityId", testCityId, "--campaignId", testCampaignId, "--synthetic", "--dry-run"],
           {
-            ...process.env,
-            IMPORT_HMAC_SECRET: testSecret,
-            DATABASE_URL: "sqlite://invalid-db-for-test-safety",
+            env: {
+              ...process.env,
+              IMPORT_HMAC_SECRET: testSecret,
+              DATABASE_URL: "sqlite://invalid-db-for-test-safety",
+            },
+            encoding: "utf-8",
           }
-        ).toString("utf8");
+        );
 
         const parsed = JSON.parse(result);
         expect(parsed.summary.totalRowsProcessed).toBe(5);

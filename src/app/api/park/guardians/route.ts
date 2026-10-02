@@ -112,17 +112,20 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    const participants = await db.participant.findMany({
-      where: { groupId: { in: allGroupIds } },
-      include: {
-        guardianLinks: {
-          include: {
-            guardian: true,
+    const participants = (
+      await db.participant.findMany({
+        where: { groupId: { in: allGroupIds } },
+        include: {
+          guardianLinks: {
+            include: {
+              guardian: true,
+            },
           },
         },
-      },
-      orderBy: { name: "asc" },
-    });
+        orderBy: { name: "asc" },
+      })
+    // Group-scoped directories never include an unassigned participant.
+    ).filter((p): p is typeof p & { groupId: string } => p.groupId !== null);
 
     const guardianMap = new Map<string, {
       id: string;
@@ -142,7 +145,7 @@ export async function GET(request: NextRequest) {
     }>();
 
     for (const p of participants) {
-      const groupInfo = p.groupId ? groupMap.get(p.groupId) : undefined;
+      const groupInfo = groupMap.get(p.groupId);
       for (const link of p.guardianLinks) {
         const g = link.guardian;
         if (!g) continue;

@@ -3,7 +3,7 @@ import { requireCapability } from "@/lib/auth/authorize";
 import { resolveActorCity } from "@/lib/auth/events-scope";
 import { db } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
-import { updateTemplateStatusSchema, isValidTemplateTransition } from "@/lib/validations/calling";
+import { updateTemplateStatusSchema } from "@/lib/validations/calling";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -37,12 +37,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
   const parsed = updateTemplateStatusSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: "Validation failed", details: parsed.error.format() }, { status: 400 });
-  }
-
-  if (!isValidTemplateTransition(template.status, parsed.data.status)) {
     return NextResponse.json(
-      { error: `Cannot transition template from ${template.status} to ${parsed.data.status}` },
+      { error: "Validation failed", details: parsed.error.format() },
       { status: 400 }
     );
   }

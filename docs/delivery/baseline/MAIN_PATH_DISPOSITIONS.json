@@ -1,0 +1,650 @@
+[
+  {
+    "path": "docs/agent-prompts/DEVELOPMENT-EXECUTION-PLAN-2026-07-30.md",
+    "register": "MP14",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "docs/agent-prompts/POST-FIX-QUALITY-GATE.md",
+    "register": "MP14",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "docs/product-discovery/OWNER-REQUIREMENTS-2026-07-30.md",
+    "register": "MP14",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "docs/product-discovery/V2-DEVELOPMENT-PLAN.md",
+    "register": "MP14",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "docs/reviews/CRUD-001-MODULE-LIFECYCLE-AUDIT.md",
+    "register": "MP14",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "docs/reviews/EVENT-005-EVENT-WORKBOOK-SOURCE-AUDIT.md",
+    "register": "MP14",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "docs/reviews/LAHORE-REAL-WORKBOOK-IMPORT-ANALYSIS.md",
+    "register": "MP14",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "docs/reviews/LAHORE-UAT-003-DEPLOYMENT-READINESS-AUDIT.md",
+    "register": "MP14",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "docs/reviews/LAHORE-UAT-004-ARTIFACT-CONSISTENCY-AUDIT.md",
+    "register": "MP14",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "docs/reviews/PERF-001-PERFORMANCE-AUDIT.md",
+    "register": "MP12",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "docs/reviews/RTL-001-URDU-RTL-AUDIT.md",
+    "register": "MP14",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "docs/reviews/SEC-010-TRACKED-SECRET-EXPOSURE-AUDIT.md",
+    "register": "MP14",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "docs/reviews/TEST-QUALITY-001-TEST-ISOLATION-AUDIT.md",
+    "register": "MP13",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "docs/standards/MODULE-DATA-IMPORT-CONTRACT.md",
+    "register": "MP14",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "docs/verification/LAHORE-UAT-001-CANDIDATE-HANDOVER.md",
+    "register": "MP14",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "docs/verification/LAHORE-UAT-002-TESTER-EVIDENCE-REGISTER.md",
+    "register": "MP14",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "docs/verification/LAHORE-UAT-003-CURRENT-EXECUTION-MATRIX.md",
+    "register": "MP14",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "docs/verification/V1-SHABAB-UAT-EXECUTION-MATRIX.md",
+    "register": "MP14",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "prisma/migrations/20260701000000_init_sqlite/migration.sql",
+    "register": "MP13",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "prisma/migrations/20260726100000_add_mashwara_fk_constraints/migration.sql",
+    "register": "MP09",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "public/logo.svg",
+    "register": "MP14",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "scripts/calling-import-preview.cjs",
+    "register": "MP08",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "scripts/cp-import-batch-4-preview.cjs",
+    "register": "MP11",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "scripts/cp-import-preview.cjs",
+    "register": "MP11",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "scripts/event-import-preview.cjs",
+    "register": "MP02",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "scripts/reconcile-content-plan-batch-4-preview.cjs",
+    "register": "MP11",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "scripts/reconcile-lahore-batch-4-preview.cjs",
+    "register": "MP14",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "scripts/reconcile-preview-collaboration-teams.cjs",
+    "register": "MP10",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "scripts/seed-preview-module-fixtures.cjs",
+    "register": "MP14",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "src/__tests__/attendance/mobile-workflow-uat.test.ts",
+    "register": "MP14",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "src/__tests__/attendance/policy-engine.test.ts",
+    "register": "MP04",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "src/__tests__/attendance/summaries.test.ts",
+    "register": "MP04",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "src/__tests__/release/test-isolation-config.test.ts",
+    "register": "MP13",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "src/__tests__/rtl/mashwara-rtl.test.ts",
+    "register": "MP09",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "src/__tests__/schema/attendance-foundation.test.ts",
+    "register": "MP04",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "src/app/admin/content-planner/_client.tsx",
+    "register": "MP11",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "src/app/admin/mashwara/mashwara-refresh.test.ts",
+    "register": "MP09",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "src/app/admin/media/page.tsx",
+    "register": "MP01",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "src/app/api/admin/content-planner/content-planner-ui.test.ts",
+    "register": "MP11",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "src/app/api/admin/content-planner/permissions/route.test.ts",
+    "register": "MP11",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "src/app/api/admin/content-planner/permissions/route.ts",
+    "register": "MP11",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "src/app/api/admin/events/[id]/assignees/route.test.ts",
+    "register": "MP02",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "src/app/api/admin/events/[id]/assignees/route.ts",
+    "register": "MP02",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "src/app/api/admin/events/[id]/eligible-participants/route.ts",
+    "register": "MP02",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "src/app/api/admin/events/[id]/registrations/[registrationId]/check-in/route.ts",
+    "register": "MP02",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "src/app/api/admin/events/[id]/registrations/[registrationId]/route.ts",
+    "register": "MP02",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "src/app/api/admin/events/[id]/registrations/route.ts",
+    "register": "MP02",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "src/app/api/admin/events/events-routes.test.ts",
+    "register": "MP02",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "src/app/api/admin/events/ui-context/route.ts",
+    "register": "MP02",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "src/app/api/admin/guardians/[id]/account/route.test.ts",
+    "register": "MP07",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "src/app/api/admin/guardians/[id]/account/route.ts",
+    "register": "MP07",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "src/app/api/admin/guardians/invite/route.test.ts",
+    "register": "MP07",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "src/app/api/admin/mashwara/[id]/action-items/[itemId]/route.ts",
+    "register": "MP09",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "src/app/api/admin/mashwara/[id]/action-items/action-items-api.test.ts",
+    "register": "MP09",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "src/app/api/admin/mashwara/ui-context/route.ts",
+    "register": "MP09",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "src/app/api/admin/mashwara/ui-context/ui-context.test.ts",
+    "register": "MP09",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "src/app/api/admin/media/assignees/route.test.ts",
+    "register": "MP01",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "src/app/api/admin/media/assignees/route.ts",
+    "register": "MP01",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "src/app/api/admin/media/briefs/[id]/route.ts",
+    "register": "MP01",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "src/app/api/admin/media/briefs/route.ts",
+    "register": "MP01",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "src/app/api/admin/media/media.test.ts",
+    "register": "MP01",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "src/app/api/admin/media/ui-context.test.ts",
+    "register": "MP01",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "src/app/api/admin/media/ui-context/route.ts",
+    "register": "MP01",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "src/app/api/admin/students/[id]/account/route.test.ts",
+    "register": "MP07",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "src/app/api/admin/students/[id]/account/route.ts",
+    "register": "MP07",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "src/app/api/admin/students/[participantId]/profile/route.test.ts",
+    "register": "MP07",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "src/app/api/admin/students/[participantId]/profile/route.ts",
+    "register": "MP07",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "src/app/api/admin/teams/[id]/activities/activities-api.test.ts",
+    "register": "MP10",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "src/app/api/admin/teams/[id]/members/[memberId]/route.ts",
+    "register": "MP10",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "src/app/api/admin/teams/can-manage/route.ts",
+    "register": "MP10",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "src/app/api/calling/calling-ui-context.test.ts",
+    "register": "MP08",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "src/app/api/calling/campaigns/[id]/assignment-options/route.ts",
+    "register": "MP08",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "src/app/api/calling/ui-context/route.ts",
+    "register": "MP08",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "src/app/api/guardian/children/[participantId]/profile/route.test.ts",
+    "register": "MP07",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "src/app/api/me/profile/route.test.ts",
+    "register": "MP07",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "src/app/api/park/attendance/[eventId]/staff/route.ts",
+    "register": "MP05",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "src/app/api/reports/attendance/class-stats/route.ts",
+    "register": "MP04",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "src/app/api/reports/attendance/murabbi-summary/route.ts",
+    "register": "MP04",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "src/app/api/reports/attendance/student-summary/route.ts",
+    "register": "MP04",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "src/app/api/search/route.test.ts",
+    "register": "MP06",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "src/app/api/search/route.ts",
+    "register": "MP06",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "src/app/providers.tsx",
+    "register": "MP14",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "src/components/modules/admin/collaboration-teams-page.test.ts",
+    "register": "MP10",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "src/components/modules/media/media-briefs-page.tsx",
+    "register": "MP01",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "src/components/shared/bar-chart.test.ts",
+    "register": "MP14",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "src/components/shared/error-boundary.test.ts",
+    "register": "MP14",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "src/lib/attendance/policy-engine.ts",
+    "register": "MP04",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "src/lib/attendance/scheduled-sessions.test.ts",
+    "register": "MP03",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "src/lib/attendance/scheduled-sessions.ts",
+    "register": "MP03",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "src/lib/attendance/summaries.ts",
+    "register": "MP04",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "src/lib/auth/mashwara-scope.test.ts",
+    "register": "MP09",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "src/lib/calling-import-preview.test.ts",
+    "register": "MP08",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "src/lib/cp-import-preview.test.ts",
+    "register": "MP11",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "src/lib/event-import-preview.test.ts",
+    "register": "MP02",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "src/lib/events/attendance-projection.test.ts",
+    "register": "MP02",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "src/lib/events/attendance-projection.ts",
+    "register": "MP02",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "src/lib/lahore-batch-4-preview-reconciliation.test.ts",
+    "register": "MP14",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "src/lib/mashwara-notifications.ts",
+    "register": "MP09",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "src/lib/media/media-auth.ts",
+    "register": "MP01",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "src/lib/media/media-schemas.ts",
+    "register": "MP01",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "src/lib/schedule/batch-off-days.test.ts",
+    "register": "MP03",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "src/lib/schedule/batch-off-days.ts",
+    "register": "MP03",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "src/lib/security/sensitive-response.test.ts",
+    "register": "MP13",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "src/lib/security/sensitive-response.ts",
+    "register": "MP13",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "src/lib/student-profile/scope.test.ts",
+    "register": "MP07",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "src/lib/teams/activity-schemas.ts",
+    "register": "MP10",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "src/lib/teams/workspace-auth.ts",
+    "register": "MP10",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  },
+  {
+    "path": "src/proxy.test.ts",
+    "register": "MP13",
+    "disposition": "Preserve as comparison evidence; assess/adapt in this register before omission",
+    "finalEquivalence": "unverified"
+  }
+]

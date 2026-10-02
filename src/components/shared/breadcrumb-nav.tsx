@@ -49,8 +49,6 @@ const pageSectionMap: Partial<Record<PageId, BreadcrumbSection>> = {
   "admin-audit-log": { section: "System", sectionPage: null },
   "admin-sync-conflicts": { section: "System", sectionPage: null },
   "admin-access-management": { section: "System", sectionPage: null },
-  "admin-content-planner": { section: "Operations", sectionPage: null },
-  "admin-media": { section: "Operations", sectionPage: null },
   "admin-collaboration-teams": { section: "System", sectionPage: null },
   "admin-settings": { section: "System", sectionPage: null },
 
@@ -109,10 +107,11 @@ const pageTitles: Record<PageId, string> = {
   "admin-users": "Users",
   "admin-access": "Access Provisioning",
   "admin-access-management": "Access Management",
-  "admin-content-planner": "Content Planner",
-  "admin-media": "Media Workspace",
   "admin-collaboration-teams": "Collaboration Teams",
   "admin-admissions": "Admissions",
+  "admin-registration-forms": "Registration Forms",
+  "admin-registration-forms-edit": "Form Builder",
+  "admin-registration-forms-submissions": "Form Submissions",
   "admin-fees": "Fees",
   "admin-content-planner": "Content Planner",
   "admin-community": "Community & Quizzes",
@@ -251,3 +250,4 @@ export function BreadcrumbNav() {
     </nav>
   );
 }
+

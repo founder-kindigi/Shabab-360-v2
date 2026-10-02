@@ -1,61 +1,53 @@
 "use client";
+import Image from "next/image";
 
-import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
-import { useAppStore } from "@/stores/useAppStore";
 import { motion } from "framer-motion";
 import {
   Users,
-  CalendarCheck,
+  CalendarCheck, CalendarX,
   TrendingUp,
-  ChevronRight,
   Sun,
   Moon,
   Bell,
   CheckCircle2,
   PhoneCall,
-  MessageCircle,
   Award,
-  Sparkles,
   ArrowRight,
-  ShieldCheck,
   BookOpen,
   ClipboardCheck,
+  RefreshCw,
+  TreePine,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { useTheme } from "@/components/providers/theme-provider";
 
 export interface MobileMurabbiDashboardProps {
+  /** PWA navigation is owned by PwaApp; this dashboard never navigates by itself. */
   onNavigate?: (screen: string) => void;
+  onOpenAttendance?: (park: { parkId: string; parkName: string; murabbiCount: number; studentCount: number }) => void;
 }
 
-const FALLBACK_SHABAB = [
-  { id: "shabab-1", name: "Muhammad Umair", rate: 92, phone: "923001234567", status: "present" },
-  { id: "shabab-2", name: "Abdullah Tariq", rate: 85, phone: "923217654321", status: "present" },
-  { id: "shabab-3", name: "Hamza Farooq", rate: 78, phone: "923339876543", status: "absent" },
-  { id: "shabab-4", name: "Zaid Bin Haris", rate: 95, phone: "923125554433", status: "present" },
-  { id: "shabab-5", name: "Usman Ali", rate: 70, phone: "923451122334", status: "absent" },
-];
-
-export function MobileMurabbiDashboard({ onNavigate }: MobileMurabbiDashboardProps = {}) {
+/**
+ * Assigned Murabbi home.
+ *
+ * The attendance action is always available when the server confirms a real
+ * assigned group, so a non-class day no longer hides the only route into the
+ * scoped group attendance workspace. The park and group come only from the
+ * server-scoped dashboard response; nothing is inferred client-side.
+ */
+export function MobileMurabbiDashboard({ onNavigate, onOpenAttendance }: MobileMurabbiDashboardProps = {}) {
   const { data: session } = useSession();
-  const { navigateTo } = useAppStore();
   const { setTheme, resolvedTheme } = useTheme();
 
   const user = session?.user as any;
   const userName = user?.name || "Murabbi";
 
   const handleNav = (screen: string) => {
-    if (onNavigate) {
-      onNavigate(screen);
-    } else {
-      navigateTo(screen as any);
-    }
+    onNavigate?.(screen);
   };
 
-  // ─── Real DB API Query ─────────────────────────────────────────────────
-  const { data: parkData, isLoading } = useQuery({
+  const { data: parkData, isLoading, isError, refetch } = useQuery({
     queryKey: ["murabbi-park-data"],
     queryFn: async () => {
       const res = await fetch("/api/park/dashboard");
@@ -67,23 +59,70 @@ export function MobileMurabbiDashboard({ onNavigate }: MobileMurabbiDashboardPro
     staleTime: 30000,
   });
 
-  const totalStudents = parkData?.recentSummary?.totalParticipants ?? 14;
-  const firstGroup = parkData?.groupBreakdown?.[0];
-  const groupName = firstGroup?.name || "Group Abu Bakr (RA)";
-  const parkName = parkData?.park?.name || "Gulberg Park";
-  const cityName = parkData?.park?.cityName || "Lahore";
-  const todayRate = parkData?.recentSummary?.last7DaysAttendanceRate ?? 82;
-  const presentCount = Math.round((totalStudents * todayRate) / 100) || 11;
+  const parkId: string = parkData?.park?.id ?? "";
+  const parkName: string = parkData?.park?.name || "No Park Assigned";
+  const cityName: string = parkData?.park?.cityName || "";
+  const groups: any[] = parkData?.groupBreakdown ?? [];
+  const assignedGroup = groups[0];
+  const hasGroup = Boolean(assignedGroup);
+  const groupName: string = assignedGroup?.name || "No group assigned yet";
+  const totalStudents = parkData?.recentSummary?.totalParticipants ?? 0;
+  const presentCount = parkData?.todayAttendance?.present ?? 0;
+  const todayRate = parkData?.todayAttendance?.rate ?? 0;
+  const activeEvent = parkData?.events?.find((e: any) => !e.isClosed);
+  const hasScheduledSession = Boolean(activeEvent);
+
+  const openGroupAttendance = () => {
+    // Only ever hand PwaApp a park the server confirmed for this Murabbi.
+    if (!parkId || !hasGroup) return;
+    onOpenAttendance?.({ parkId, parkName, murabbiCount: 0, studentCount: totalStudents });
+  };
+
+  // ── Loading / failure / missing-scope states ───────────────────────────────
+  if (isLoading) {
+    return (
+      <div className="w-full max-w-[460px] mx-auto flex flex-col items-center justify-center min-h-screen bg-background text-foreground gap-4">
+        <RefreshCw className="size-8 text-muted-foreground animate-spin" />
+        <p className="text-sm text-muted-foreground font-medium">Loading your group…</p>
+      </div>
+    );
+  }
+
+  if (isError || parkData === null) {
+    return (
+      <div className="w-full max-w-[460px] mx-auto flex flex-col items-center justify-center min-h-screen bg-background text-foreground gap-4 px-8 text-center">
+        <CalendarX className="size-8 text-rose-500" />
+        <p className="text-sm font-bold text-foreground">Could not load your group</p>
+        <p className="text-xs text-muted-foreground">Check your connection or contact your Park Lead.</p>
+        <button
+          onClick={() => refetch()}
+          className="mt-2 px-4 py-2 rounded-xl bg-[#4B0A8F] text-white text-xs font-bold"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
+
+  if (!parkId) {
+    return (
+      <div className="w-full max-w-[460px] mx-auto flex flex-col items-center justify-center min-h-screen bg-background text-foreground gap-4 px-8 text-center">
+        <TreePine className="size-8 text-muted-foreground" />
+        <p className="text-sm font-bold text-foreground">No park assigned</p>
+        <p className="text-xs text-muted-foreground">You have not been assigned to a park yet. Contact your administrator.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full max-w-[460px] mx-auto flex flex-col min-h-screen bg-background text-foreground pb-24 select-none">
-      {/* ─── Top Brand Header ────────────────────────────────────────────── */}
+      {/* Top Brand Header */}
       <div className="w-full bg-gradient-to-br from-[#1F0860] via-[#4B0A8F] to-[#D90429] pt-12 pb-8 rounded-b-[2.5rem] shadow-2xl relative z-10 px-5 text-white">
         {/* Top bar */}
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
             <div className="size-11 rounded-xl bg-white/10 border border-white/20 p-1.5 shadow-inner backdrop-blur-sm flex items-center justify-center shrink-0">
-              <img src="/logo-white.png" alt="Logo" className="size-full object-contain" />
+              <Image src="/logo-white.png" alt="Logo" width={160} height={160} className="size-full object-contain" />
             </div>
             <div>
               <div className="flex items-center gap-1.5">
@@ -133,188 +172,137 @@ export function MobileMurabbiDashboard({ onNavigate }: MobileMurabbiDashboardPro
           </button>
         </div>
 
-        {/* 3 Glassmorphic KPI Pills */}
-        <div className="grid grid-cols-3 gap-2.5 w-full">
-          <div className="bg-white/10 border border-white/20 rounded-2xl p-3 backdrop-blur-sm flex flex-col items-center justify-center text-center">
-            <Users className="size-4 text-purple-200 mb-1" />
-            <span className="text-xl font-black text-white">{totalStudents}</span>
-            <span className="text-[9px] font-bold text-purple-200 uppercase tracking-wider">Shabab</span>
-          </div>
+        {hasGroup && (
+          <div className="grid grid-cols-3 gap-2.5 w-full">
+            <div className="bg-white/10 border border-white/20 rounded-2xl p-3 backdrop-blur-sm flex flex-col items-center justify-center text-center">
+              <Users className="size-4 text-purple-200 mb-1" />
+              <span className="text-xl font-black text-white">{totalStudents}</span>
+              <span className="text-[9px] font-bold text-purple-200 uppercase tracking-wider">Shabab</span>
+            </div>
 
-          <div className="bg-white/10 border border-white/20 rounded-2xl p-3 backdrop-blur-sm flex flex-col items-center justify-center text-center">
-            <CheckCircle2 className="size-4 text-emerald-300 mb-1" />
-            <span className="text-xl font-black text-white">{presentCount}</span>
-            <span className="text-[9px] font-bold text-purple-200 uppercase tracking-wider">Present</span>
-          </div>
+            <div className="bg-white/10 border border-white/20 rounded-2xl p-3 backdrop-blur-sm flex flex-col items-center justify-center text-center">
+              <CheckCircle2 className="size-4 text-emerald-300 mb-1" />
+              <span className="text-xl font-black text-white">{presentCount}</span>
+              <span className="text-[9px] font-bold text-purple-200 uppercase tracking-wider">Present</span>
+            </div>
 
-          <div className="bg-white/10 border border-white/20 rounded-2xl p-3 backdrop-blur-sm flex flex-col items-center justify-center text-center">
-            <TrendingUp className="size-4 text-amber-300 mb-1" />
-            <span className="text-xl font-black text-white">{todayRate}%</span>
-            <span className="text-[9px] font-bold text-purple-200 uppercase tracking-wider">Rate</span>
+            <div className="bg-white/10 border border-white/20 rounded-2xl p-3 backdrop-blur-sm flex flex-col items-center justify-center text-center">
+              <TrendingUp className="size-4 text-amber-300 mb-1" />
+              <span className="text-xl font-black text-white">{todayRate}%</span>
+              <span className="text-[9px] font-bold text-purple-200 uppercase tracking-wider">Rate</span>
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
-      {/* ─── Content Body ────────────────────────────────────────────────── */}
+      {/* Content Body */}
       <div className="px-5 pt-6 space-y-5">
-        {/* Primary Action Card: Mark Group Roster */}
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="p-5 rounded-3xl bg-gradient-to-br from-card via-card to-purple-50/50 dark:to-purple-950/20 border border-[#4B0A8F]/30 shadow-md space-y-3.5"
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className="size-10 rounded-2xl bg-[#4B0A8F]/15 text-[#4B0A8F] dark:text-purple-300 flex items-center justify-center font-bold">
-                <CalendarCheck className="size-5" />
+        {!hasGroup ? (
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="p-5 rounded-3xl bg-card border border-border/70 shadow-sm text-center space-y-2 flex flex-col items-center justify-center"
+          >
+            <div className="size-10 rounded-2xl bg-muted/50 text-muted-foreground flex items-center justify-center mb-1">
+              <TreePine className="size-5" />
+            </div>
+            <h3 className="text-sm font-bold text-foreground">No group assigned yet</h3>
+            <p className="text-xs text-muted-foreground font-medium">
+              Group attendance stays unavailable until a Park Lead assigns your group. {cityName || parkName} is your assigned park.
+            </p>
+          </motion.div>
+        ) : (
+          <>
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="p-5 rounded-3xl bg-gradient-to-br from-card via-card to-purple-50/50 dark:to-purple-950/20 border border-[#4B0A8F]/30 shadow-md space-y-3.5"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="size-10 rounded-2xl bg-[#4B0A8F]/15 text-[#4B0A8F] dark:text-purple-300 flex items-center justify-center font-bold">
+                    {hasScheduledSession ? <CalendarCheck className="size-5" /> : <CalendarX className="size-5" />}
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black text-foreground">
+                      {hasScheduledSession ? (activeEvent?.title || "Scheduled Session") : "No class scheduled today"}
+                    </h3>
+                    <p className="text-xs text-muted-foreground font-medium">
+                      {hasScheduledSession
+                        ? `${groupName} · mark today's Shabab attendance`
+                        : "Open your group attendance and check other dates."}
+                    </p>
+                  </div>
+                </div>
+                <span
+                  className={
+                    hasScheduledSession
+                      ? "text-[10px] font-extrabold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300"
+                      : "text-[10px] font-extrabold px-2.5 py-1 rounded-full bg-muted text-muted-foreground"
+                  }
+                >
+                  {hasScheduledSession ? "Today" : "No session today"}
+                </span>
               </div>
-              <div>
-                <h3 className="text-sm font-black text-foreground">Sunday Group Session</h3>
-                <p className="text-xs text-muted-foreground font-medium">Mark Today's Shabab Attendance</p>
+
+              <button
+                onClick={openGroupAttendance}
+                className="w-full h-12 rounded-2xl bg-gradient-to-r from-[#4B0A8F] to-[#D90429] hover:opacity-95 text-white font-extrabold text-sm shadow-md shadow-purple-900/20 flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+              >
+                <span>{hasScheduledSession ? "Mark Group Attendance" : "Open Group Attendance"}</span>
+                <ArrowRight className="size-4" />
+              </button>
+            </motion.div>
+
+            {/* Tarbiyah & Mentor Modules */}
+            <div>
+              <h2 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2.5">
+                Tarbiyah Toolkit
+              </h2>
+              <div className="grid grid-cols-4 gap-2">
+                <button
+                  onClick={() => handleNav("islah")}
+                  className="p-3 rounded-2xl bg-card border border-border/80 shadow-sm flex flex-col items-center text-center gap-1.5 active:scale-95 transition-all hover:bg-muted/40"
+                >
+                  <div className="size-9 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center">
+                    <ClipboardCheck className="size-4" />
+                  </div>
+                  <span className="text-[10px] font-bold text-foreground leading-tight">Mamulat</span>
+                </button>
+
+                <button
+                  onClick={() => handleNav("calling")}
+                  className="p-3 rounded-2xl bg-card border border-border/80 shadow-sm flex flex-col items-center text-center gap-1.5 active:scale-95 transition-all hover:bg-muted/40"
+                >
+                  <div className="size-9 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                    <PhoneCall className="size-4" />
+                  </div>
+                  <span className="text-[10px] font-bold text-foreground leading-tight">Calling</span>
+                </button>
+
+                <button
+                  onClick={() => handleNav("evaluation")}
+                  className="p-3 rounded-2xl bg-card border border-border/80 shadow-sm flex flex-col items-center text-center gap-1.5 active:scale-95 transition-all hover:bg-muted/40"
+                >
+                  <div className="size-9 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+                    <Award className="size-4" />
+                  </div>
+                  <span className="text-[10px] font-bold text-foreground leading-tight">Evaluations</span>
+                </button>
+
+                <button
+                  onClick={() => handleNav("mashwara")}
+                  className="p-3 rounded-2xl bg-card border border-border/80 shadow-sm flex flex-col items-center text-center gap-1.5 active:scale-95 transition-all hover:bg-muted/40"
+                >
+                  <div className="size-9 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+                    <BookOpen className="size-4" />
+                  </div>
+                  <span className="text-[10px] font-bold text-foreground leading-tight">Mashwara</span>
+                </button>
               </div>
             </div>
-            <span className="text-[10px] font-extrabold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300">
-              Today
-            </span>
-          </div>
-
-          <button
-            onClick={() => handleNav("parks")}
-            className="w-full h-12 rounded-2xl bg-gradient-to-r from-[#4B0A8F] to-[#D90429] hover:opacity-95 text-white font-extrabold text-sm shadow-md shadow-purple-900/20 flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
-          >
-            <span>Mark Group Attendance</span>
-            <ArrowRight className="size-4" />
-          </button>
-        </motion.div>
-
-        {/* Tarbiyah & Mentor Modules */}
-        <div>
-          <h2 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2.5">
-            Tarbiyah Toolkit
-          </h2>
-          <div className="grid grid-cols-4 gap-2">
-            <button
-              onClick={() => handleNav("islah")}
-              className="p-3 rounded-2xl bg-card border border-border/80 shadow-sm flex flex-col items-center text-center gap-1.5 active:scale-95 transition-all hover:bg-muted/40"
-            >
-              <div className="size-9 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center">
-                <ClipboardCheck className="size-4" />
-              </div>
-              <span className="text-[10px] font-bold text-foreground leading-tight">Mamulat</span>
-            </button>
-
-            <button
-              onClick={() => handleNav("calling")}
-              className="p-3 rounded-2xl bg-card border border-border/80 shadow-sm flex flex-col items-center text-center gap-1.5 active:scale-95 transition-all hover:bg-muted/40"
-            >
-              <div className="size-9 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
-                <PhoneCall className="size-4" />
-              </div>
-              <span className="text-[10px] font-bold text-foreground leading-tight">Calling</span>
-            </button>
-
-            <button
-              onClick={() => handleNav("evaluation")}
-              className="p-3 rounded-2xl bg-card border border-border/80 shadow-sm flex flex-col items-center text-center gap-1.5 active:scale-95 transition-all hover:bg-muted/40"
-            >
-              <div className="size-9 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center">
-                <Award className="size-4" />
-              </div>
-              <span className="text-[10px] font-bold text-foreground leading-tight">Evaluations</span>
-            </button>
-
-            <button
-              onClick={() => handleNav("mashwara")}
-              className="p-3 rounded-2xl bg-card border border-border/80 shadow-sm flex flex-col items-center text-center gap-1.5 active:scale-95 transition-all hover:bg-muted/40"
-            >
-              <div className="size-9 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center">
-                <BookOpen className="size-4" />
-              </div>
-              <span className="text-[10px] font-bold text-foreground leading-tight">Mashwara</span>
-            </button>
-          </div>
-        </div>
-
-        {/* ─── Assigned Shabab Roster Preview ─────────────────────────────── */}
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h3 className="text-xs font-bold text-foreground flex items-center gap-1.5 uppercase tracking-wider">
-              <Users className="size-4 text-[#4B0A8F] dark:text-purple-400" />
-              Group Shabab ({FALLBACK_SHABAB.length})
-            </h3>
-            <button
-              onClick={() => handleNav("calling")}
-              className="text-xs font-bold text-[#4B0A8F] dark:text-purple-400 hover:underline"
-            >
-              View All →
-            </button>
-          </div>
-
-          <div className="space-y-2.5">
-            {FALLBACK_SHABAB.map((shabab, index) => {
-              const isPresent = shabab.status === "present";
-              const initials = shabab.name
-                .split(" ")
-                .map((n) => n[0])
-                .slice(0, 2)
-                .join("");
-
-              return (
-                <motion.div
-                  key={shabab.id}
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.04 }}
-                  className="p-3.5 rounded-2xl bg-card border border-border/70 hover:border-purple-300 dark:hover:border-purple-800/80 shadow-sm flex items-center justify-between gap-3"
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="size-10 rounded-xl bg-purple-100 dark:bg-purple-950/60 text-[#4B0A8F] dark:text-purple-300 font-extrabold text-xs flex items-center justify-center shrink-0 border border-purple-200/50 dark:border-purple-800/40">
-                      {initials}
-                    </div>
-
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <h4 className="text-xs font-extrabold text-foreground truncate">{shabab.name}</h4>
-                        <span
-                          className={cn(
-                            "text-[9px] font-extrabold px-1.5 py-0.5 rounded-md uppercase",
-                            isPresent
-                              ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300"
-                              : "bg-rose-100 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300"
-                          )}
-                        >
-                          {isPresent ? "Present" : "Absent"}
-                        </span>
-                      </div>
-                      <p className="text-[11px] text-muted-foreground truncate">
-                        30-Day Rate: <span className="font-bold text-foreground">{shabab.rate}%</span>
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    <a
-                      href={`https://wa.me/${shabab.phone}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="size-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200/60 dark:border-emerald-800/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center active:scale-95 transition-transform"
-                      title="WhatsApp Shabab"
-                    >
-                      <MessageCircle className="size-4" />
-                    </a>
-                    <a
-                      href={`tel:${shabab.phone}`}
-                      className="size-8 rounded-xl bg-purple-50 dark:bg-purple-950/40 border border-purple-200/60 dark:border-purple-800/40 text-[#4B0A8F] dark:text-purple-300 flex items-center justify-center active:scale-95 transition-transform"
-                      title="Call Shabab"
-                    >
-                      <PhoneCall className="size-4" />
-                    </a>
-                  </div>
-                </motion.div>
-              );
-            })}
-          </div>
-        </div>
+          </>
+        )}
       </div>
     </div>
   );

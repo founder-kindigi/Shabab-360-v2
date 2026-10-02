@@ -1,11 +1,11 @@
-import { requireResolvedGroupScope, groupResourceScope } from "@/lib/auth/hierarchy";
+import { requireResolvedGroupScope } from "@/lib/auth/hierarchy";
 import { NextResponse } from "next/server";
 import { createAuditLogData } from "@/lib/audit";
-import { requireAuth, requireCapability, requireResourceScope } from "@/lib/auth/authorize";
+import { requireAuth, requireCapability } from "@/lib/auth/authorize";
 import { closeAttendanceEventSchema } from "@/lib/attendance/schemas";
 import { db } from "@/lib/db";
 
-const EVENT_SUPERVISOR_ROLES = ["super_admin", "program_admin", "city_head", "park_lead"] as const;
+const EVENT_SUPERVISOR_ROLES = ["super_admin", "program_admin", "city_head", "park_lead", "park_admin"] as const;
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ eventId: string }> }) {
   const auth = await requireAuth();

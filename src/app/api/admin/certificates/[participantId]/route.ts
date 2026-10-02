@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireCapability, requireResourceScope, requireRole } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
 import { requireResolvedGroupScope, groupResourceScope } from "@/lib/auth/hierarchy";
+import { isHqRole } from "@/lib/auth/scope";
 import { formatPKT } from "@/lib/timezone";
 
 const ADMIN_ROLES = [
@@ -52,13 +53,26 @@ export async function GET(
     );
   }
 
-  const batch = participant.group.batch;
-  const scopeError = requireResolvedGroupScope(user, { ...participant.group, id: participant.groupId });
+  if (!participant.group) {
+    // An unassigned participant has no hierarchy scope: scoped staff receive no
+    // signal about it, while central staff get a clear conflict.
+    if (!isHqRole(user.role)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    return NextResponse.json(
+      { error: "Participant must be assigned to a group before this action" },
+      { status: 409 }
+    );
+  }
+
+  const group = participant.group;
+  const batch = group.batch;
+  const scopeError = requireResolvedGroupScope(user, group);
   if (scopeError) return scopeError;
 
   // Fetch attendance events for the group
   const attendanceEvents = await db.attendanceEvent.findMany({
-    where: { groupId: participant.groupId, eventDate: { lte: new Date() } },
+    where: { groupId: group.id, eventDate: { lte: new Date() } },
     select: { id: true, eventDate: true },
   });
 

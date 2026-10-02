@@ -22,6 +22,10 @@ export async function GET() {
     take: 20,
     include: {
       author: { select: { name: true } },
+      reads: {
+        where: { userId: user.id! },
+        select: { id: true },
+      },
     },
   });
 
@@ -32,7 +36,9 @@ export async function GET() {
       if (!roles || roles.length === 0) return true;
       return roles.includes(userRole);
     } catch {
-      return true;
+      // If targetRoles is just a string and not JSON (as in feed/route.ts)
+      if (a.targetRoles === "all" || !a.targetRoles) return true;
+      return a.targetRoles === userRole;
     }
   });
 
@@ -43,9 +49,12 @@ export async function GET() {
       a.content.length > 120 ? a.content.slice(0, 120) + "…" : a.content,
     type: "announcement" as const,
     priority: a.priority,
+    read: a.reads.length > 0,
     createdAt: a.createdAt.toISOString(),
     authorName: a.author?.name || "System",
   }));
 
-  return NextResponse.json({ notifications, unreadCount: notifications.length });
+  const unreadCount = notifications.filter((n) => !n.read).length;
+
+  return NextResponse.json({ notifications, unreadCount });
 }

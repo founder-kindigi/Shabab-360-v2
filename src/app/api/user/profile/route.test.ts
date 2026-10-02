@@ -52,6 +52,40 @@ describe("GET /api/user/profile", () => {
     expect(mocks.participantFindFirst).not.toHaveBeenCalled();
   });
 
+  it("returns null group context for an unassigned participant", async () => {
+    mocks.requireAuth.mockResolvedValue({ user: { id: "user-1", role: "student" } });
+    mocks.userFindUnique.mockResolvedValue({
+      id: "user-1",
+      name: "Ali Ahmed",
+      email: "ali@example.com",
+      phone: null,
+      createdAt: new Date("2026-01-01"),
+    });
+    mocks.participantFindFirst.mockResolvedValue({
+      id: "part-1",
+      name: "Ali Ahmed",
+      phone: null,
+      dateOfBirth: null,
+      gender: null,
+      age: null,
+      gradeClass: null,
+      address: null,
+      state: "active",
+      joinedAt: new Date("2026-01-10"),
+      groupId: null,
+      group: null,
+      attendanceRecords: [],
+    });
+
+    const res = await GET();
+
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.participant).toEqual(
+      expect.objectContaining({ id: "part-1", group: null, batch: null, park: null, city: null, cityId: null })
+    );
+  });
+
   it("returns populated age and gradeClass when participant record contains enriched fields", async () => {
     mocks.requireAuth.mockResolvedValue({ user: { id: "user-1", role: "student" } });
     mocks.userFindUnique.mockResolvedValue({

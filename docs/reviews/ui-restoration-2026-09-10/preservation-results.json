@@ -1,0 +1,132 @@
+{
+  "baseline": "401ff322726c3ceab9b05db776b2b076e63bbaf5",
+  "checks": [
+    {
+      "file": "src/components/modules/admin/fees-page.tsx",
+      "expression": "payment",
+      "passed": true,
+      "exception": null
+    },
+    {
+      "file": "src/components/modules/admin/fees-page.tsx",
+      "expression": "fees",
+      "passed": true,
+      "exception": null
+    },
+    {
+      "file": "src/components/modules/admin/fees-page.tsx",
+      "expression": "detail",
+      "passed": true,
+      "exception": null
+    },
+    {
+      "file": "src/components/modules/admin/mobile-calling-page.tsx",
+      "expression": "mutation",
+      "passed": true,
+      "exception": null
+    },
+    {
+      "file": "src/components/modules/admin/mobile-calling-page.tsx",
+      "expression": "cities",
+      "passed": true,
+      "exception": null
+    },
+    {
+      "file": "src/components/modules/admin/mobile-calling-page.tsx",
+      "expression": "campaigns",
+      "passed": true,
+      "exception": null
+    },
+    {
+      "file": "src/components/modules/admin/mobile-calling-page.tsx",
+      "expression": "leads",
+      "passed": true,
+      "exception": null
+    },
+    {
+      "file": "src/components/modules/admin/mobile-calling-page.tsx",
+      "expression": "templates",
+      "passed": true,
+      "exception": null
+    },
+    {
+      "file": "src/components/modules/admin/procurement-page.tsx",
+      "expression": "mutation",
+      "passed": true,
+      "exception": "Close request sheet after acknowledged success only"
+    },
+    {
+      "file": "src/components/modules/admin/procurement-page.tsx",
+      "expression": "stocks",
+      "passed": true,
+      "exception": null
+    },
+    {
+      "file": "src/components/modules/admin/procurement-page.tsx",
+      "expression": "requests",
+      "passed": true,
+      "exception": null
+    },
+    {
+      "file": "src/components/modules/admin/procurement-page.tsx",
+      "expression": "orders",
+      "passed": true,
+      "exception": null
+    },
+    {
+      "file": "src/components/modules/admin/certificates-page.tsx",
+      "expression": "people",
+      "passed": true,
+      "exception": null
+    },
+    {
+      "file": "src/components/modules/admin/certificates-page.tsx",
+      "expression": "preview",
+      "passed": true,
+      "exception": null
+    },
+    {
+      "file": "src/components/modules/student/mobile-student-profile-view.tsx",
+      "expression": "self",
+      "passed": true,
+      "exception": null
+    },
+    {
+      "file": "src/components/modules/student/mobile-student-profile-view.tsx",
+      "expression": "context",
+      "passed": true,
+      "exception": null
+    },
+    {
+      "file": "src/components/modules/student/mobile-student-profile-view.tsx",
+      "expression": "parks",
+      "passed": true,
+      "exception": null
+    },
+    {
+      "file": "src/components/modules/student/mobile-student-profile-view.tsx",
+      "expression": "directory",
+      "passed": true,
+      "exception": null
+    }
+  ],
+  "changedApplicationFiles": [
+    "src/components/modules/admin/certificates-page.tsx",
+    "src/components/modules/admin/community-page.tsx",
+    "src/components/modules/admin/custom-report-builder-page.tsx",
+    "src/components/modules/admin/fees-page.tsx",
+    "src/components/modules/admin/islah-mamulat-page.tsx",
+    "src/components/modules/admin/mobile-calling-page.tsx",
+    "src/components/modules/admin/mobile-certificates-page.tsx",
+    "src/components/modules/admin/mobile-community-page.tsx",
+    "src/components/modules/admin/mobile-fees-page.tsx",
+    "src/components/modules/admin/mobile-more-page.tsx",
+    "src/components/modules/admin/mobile-procurement-page.tsx",
+    "src/components/modules/admin/mobile-reports-builder-page.tsx",
+    "src/components/modules/admin/procurement-page.tsx",
+    "src/components/modules/admin/sync-conflicts-page.tsx",
+    "src/components/modules/park/offline-queue-panel.tsx",
+    "src/components/modules/student/mobile-student-profile-view.tsx"
+  ],
+  "passed": true
+}

@@ -30,15 +30,25 @@ export async function GET() {
   }
   const capabilityAuth = await requireCapability("dashboard.view");
   if (capabilityAuth instanceof NextResponse) return capabilityAuth;
-  if (user.mustResetPwd || (user.role === "city_head" && !user.assignedCityId) || (["park_admin", "park_lead"].includes(user.role) && !user.assignedParkId) || (user.role === "murabbi" && !user.assignedGroupId)) {
+  if (user.mustResetPwd || (user.role === "city_head" && !user.assignedCityId) || (["park_admin", "park_lead"].includes(user.role) && !user.assignedParkId)) {
     return NextResponse.json({ error: "Required assignment or password reset is missing" }, { status: 403 });
   }
 
   try {
     let parkId = user.assignedParkId;
     let groupIds: string[] = [];
+    let batch: { id: string; name: string; startDate: Date; endDate: Date | null } | null = null;
 
-    if (user.role === "murabbi" && user.assignedGroupId) {
+    if (user.role === "murabbi" && !user.assignedGroupId) {
+      // Unassigned Murabbi: return the assigned park with a scoped empty result.
+      // Group, participant, session and roster data remain denied, and no group
+      // is ever inferred from the park.
+      if (!user.assignedParkId) {
+        return NextResponse.json({ error: "No park assigned" }, { status: 403 });
+      }
+      parkId = user.assignedParkId;
+      groupIds = [];
+    } else if (user.role === "murabbi" && user.assignedGroupId) {
       // Murabbi: get park from their group
       const group = await db.group.findUnique({
         where: { id: user.assignedGroupId },
@@ -51,18 +61,32 @@ export async function GET() {
       if (!scope) return NextResponse.json({ error: "Invalid group hierarchy" }, { status: 403 });
       parkId = scope.parkId;
       groupIds = [group.id];
+      batch = group.batch ?? null;
     } else if (user.assignedParkId) {
       // Park admin/lead: get all groups in their park
       const batches = await db.batch.findMany({
         where: { parkId: user.assignedParkId, isActive: true },
-        select: { id: true },
+        select: { id: true, name: true, startDate: true, endDate: true },
+        orderBy: { name: "asc" },
       });
-      const batchIds = batches.map((b) => b.id);
+      batch = batches[0] ?? null;
       const groups = await db.group.findMany({
         where: { ...groupParkWhere(user.assignedParkId), batch: { isActive: true }, isActive: true },
-        select: { id: true },
+        select: {
+          id: true,
+          batch: { select: { id: true, name: true, startDate: true, endDate: true } },
+        },
       });
       groupIds = groups.map((g) => g.id);
+      // Batch.parkId is a legacy anchor only. A park's operational batch is
+      // normally reached through its groups, so use that relationship when the
+      // park has no direct Batch record.
+      if (!batch) {
+        batch = groups
+          .map((group) => group.batch)
+          .filter((candidate): candidate is NonNullable<typeof candidate> => candidate !== null)
+          .sort((left, right) => left.name.localeCompare(right.name))[0] ?? null;
+      }
     } else if (!parkId && (user.role === "super_admin" || user.role === "program_admin" || user.role === "city_head")) {
       const firstPark = await db.park.findFirst({
         where: user.assignedCityId ? { cityId: user.assignedCityId, isActive: true } : { isActive: true },
@@ -70,8 +94,12 @@ export async function GET() {
       });
       if (firstPark) {
         parkId = firstPark.id;
-        const batches = await db.batch.findMany({ where: { parkId, isActive: true }, select: { id: true } });
-        const batchIds = batches.map((b) => b.id);
+        const batches = await db.batch.findMany({
+          where: { parkId, isActive: true },
+          select: { id: true, name: true, startDate: true, endDate: true },
+          orderBy: { name: "asc" },
+        });
+        batch = batches[0] ?? null;
         const groups = await db.group.findMany({ where: { ...groupParkWhere(parkId), batch: { isActive: true }, isActive: true }, select: { id: true } });
         groupIds = groups.map((g) => g.id);
       }
@@ -111,7 +139,10 @@ export async function GET() {
     });
 
     const participantCountMap = new Map(
-      groupParticipantCounts.map((g) => [g.groupId, g._count])
+      // Group-scoped counts never include an unassigned participant.
+      groupParticipantCounts
+        .filter((g): g is typeof g & { groupId: string } => g.groupId !== null)
+        .map((g) => [g.groupId, g._count])
     );
 
     // Total participants across all groups
@@ -269,25 +300,54 @@ export async function GET() {
       groupEventMap.set(ev.groupId, arr);
     }
 
+    // A Park Lead may open the dashboard on a day without class. Keep the
+    // date-accurate today fields above, and separately expose each group's
+    // latest session that has marks so the group cards do not present a false
+    // zero as their operational history.
+    const recordedEvents = await db.attendanceEvent.findMany({
+      where: {
+        groupId: { in: groupIds },
+        eventDate: { lte: todayEnd },
+        records: { some: {} },
+      },
+      include: { records: { select: { status: true } } },
+      orderBy: { eventDate: "desc" },
+    });
+    const latestGroupEvents = new Map<string, { date: string; events: (typeof recordedEvents)[number][] }>();
+    for (const event of recordedEvents) {
+      const date = formatPKT(event.eventDate, "yyyy-MM-dd");
+      const current = latestGroupEvents.get(event.groupId);
+      if (!current) {
+        latestGroupEvents.set(event.groupId, { date, events: [event] });
+      } else if (current.date === date) {
+        current.events.push(event);
+      }
+    }
+
+    const statusTotals = (events: Array<{ records: Array<{ status: string }> }>) => {
+      let marked = 0;
+      let present = 0;
+      let absent = 0;
+      let late = 0;
+      let excused = 0;
+      for (const event of events) {
+        for (const record of event.records) {
+          marked++;
+          if (record.status === "present") present++;
+          else if (record.status === "absent") absent++;
+          else if (record.status === "late") late++;
+          else if (record.status === "excused") excused++;
+        }
+      }
+      return { marked, present, absent, late, excused };
+    };
+
     const groupBreakdown = allGroups.map((g) => {
       const events = groupEventMap.get(g.id) || [];
       const totalParts = participantCountMap.get(g.id) || 0;
-
-      let markedCount = 0;
-      let presentCount = 0;
-      let absentCount = 0;
-      let lateCount = 0;
-      let excusedCount = 0;
-
-      for (const ev of events) {
-        for (const rec of ev.records) {
-          markedCount++;
-          if (rec.status === "present") presentCount++;
-          else if (rec.status === "absent") absentCount++;
-          else if (rec.status === "late") lateCount++;
-          else if (rec.status === "excused") excusedCount++;
-        }
-      }
+      const today = statusTotals(events);
+      const latest = latestGroupEvents.get(g.id);
+      const latestTotals = latest ? statusTotals(latest.events) : null;
 
       let eventStatus: "open" | "closed" | "none" = "none";
       if (events.length > 0) {
@@ -298,13 +358,20 @@ export async function GET() {
         id: g.id,
         name: g.name,
         totalParticipants: totalParts,
-        todayMarkedCount: markedCount,
-        todayPresent: presentCount,
-        todayAbsent: absentCount,
-        todayLate: lateCount,
-        todayExcused: excusedCount,
+        todayMarkedCount: today.marked,
+        todayPresent: today.present,
+        todayAbsent: today.absent,
+        todayLate: today.late,
+        todayExcused: today.excused,
         todayEventStatus: eventStatus,
-        todayProgress: totalParts > 0 ? Math.round((markedCount / totalParts) * 100) : 0,
+        todayProgress: totalParts > 0 ? Math.round((today.marked / totalParts) * 100) : 0,
+        latestSessionDate: latest?.date ?? null,
+        latestMarkedCount: latestTotals?.marked ?? 0,
+        latestPresent: latestTotals?.present ?? 0,
+        latestLate: latestTotals?.late ?? 0,
+        latestAbsent: latestTotals?.absent ?? 0,
+        latestExcused: latestTotals?.excused ?? 0,
+        latestProgress: latestTotals && totalParts > 0 ? Math.round((latestTotals.marked / totalParts) * 100) : null,
       };
     });
 
@@ -353,14 +420,17 @@ export async function GET() {
       >();
 
       for (const rec of recentRecords) {
+        const group = rec.participant.group;
+        // Group-scoped attendance never includes an unassigned participant.
+        if (!group) continue;
         const existing = participantAttendance.get(rec.participantId);
         if (existing) {
           existing.attended++;
         } else {
           participantAttendance.set(rec.participantId, {
             name: rec.participant.name,
-            groupId: rec.participant.group?.id || "",
-            groupName: rec.participant.group?.name || "",
+            groupId: group.id,
+            groupName: group.name,
             attended: 1,
           });
         }
@@ -538,10 +608,12 @@ export async function GET() {
       );
 
       // Get all active participants in the groups
-      const allParticipants = await db.participant.findMany({
-        where: { groupId: { in: groupIds }, state: "active" },
-        select: { id: true, groupId: true },
-      });
+      const allParticipants = (
+        await db.participant.findMany({
+          where: { groupId: { in: groupIds }, state: "active" },
+          select: { id: true, groupId: true },
+        })
+      ).filter((p): p is typeof p & { groupId: string } => p.groupId !== null);
 
       if (allParticipants.length > 0) {
         // Get group-to-batch mapping
@@ -597,13 +669,13 @@ export async function GET() {
 
         // Check each participant
         for (const participant of allParticipants) {
-          const batchId = participant.groupId ? groupBatchMap.get(participant.groupId) : null;
+          const batchId = groupBatchMap.get(participant.groupId);
           const settings = batchId ? batchSettingsMap.get(batchId) : null;
           const warningAbsents = settings?.warningAbsents || 3;
           const dropoutAbsents = settings?.dropoutAbsents || 6;
           const criticalThreshold = Math.ceil(warningAbsents * 0.67);
 
-          const groupEvents = participant.groupId ? eventsByGroup.get(participant.groupId) || [] : [];
+          const groupEvents = eventsByGroup.get(participant.groupId) || [];
           const participantAttended = attendedByParticipant.get(participant.id);
 
           let consecutiveAbsents = 0;
@@ -627,12 +699,40 @@ export async function GET() {
       }
     }
 
+    // Date-accurate today totals. The seven-day `recentSummary` rate must never
+    // be presented as today's; `rate` here is today's marked/eligible percentage
+    // with an explicit eligible denominator so the UI can label it truthfully.
+    const todayTotals = groupBreakdown.reduce(
+      (totals, group) => ({
+        present: totals.present + group.todayPresent,
+        late: totals.late + group.todayLate,
+        absent: totals.absent + group.todayAbsent,
+        excused: totals.excused + group.todayExcused,
+        marked: totals.marked + group.todayMarkedCount,
+        eligible: totals.eligible + group.totalParticipants,
+      }),
+      { present: 0, late: 0, absent: 0, excused: 0, marked: 0, eligible: 0 }
+    );
+    const todayAttendance = {
+      ...todayTotals,
+      total: todayTotals.marked,
+      rate: todayTotals.eligible > 0 ? Math.round((todayTotals.marked / todayTotals.eligible) * 100) : 0,
+    };
+
     return NextResponse.json({
       park: park
         ? {
             id: park.id,
             name: park.name,
             cityName: park.city?.name || "Unknown",
+          }
+        : null,
+      batch: batch
+        ? {
+            id: batch.id,
+            name: batch.name,
+            startDate: formatPKT(batch.startDate, "yyyy-MM-dd"),
+            endDate: batch.endDate ? formatPKT(batch.endDate, "yyyy-MM-dd") : null,
           }
         : null,
       userName: user.name || null,
@@ -651,14 +751,7 @@ export async function GET() {
       },
       // NEW fields
       attendanceTrend,
-      todayAttendance: attendanceTrend.length > 0
-        ? {
-            present: attendanceTrend[attendanceTrend.length - 1].present,
-            late: attendanceTrend[attendanceTrend.length - 1].late,
-            absent: attendanceTrend[attendanceTrend.length - 1].absent,
-            total: attendanceTrend[attendanceTrend.length - 1].marked,
-          }
-        : { present: 0, late: 0, absent: 0, total: 0 },
+      todayAttendance,
       groupBreakdown,
       topPerformers,
       needsAttention,

@@ -11,6 +11,7 @@ plan are approved.
 3. [Product Vision Input 02: System Flow Story](PRODUCT_VISION_INPUT_02.md)
 4. [Weekly Mashwara Module Design](WEEKLY_MASHWARA_DESIGN.md)
 5. [Calling System Source Analysis](CALLING_SYSTEM_SOURCE_ANALYSIS.md)
+6. [Murabbi Training Induction Plan](MURABBI-TRAINING-INDUCTION-PLAN.md)
 
 The vision inputs are deliberately retained as separate source documents. A
 future consolidated specification should resolve overlaps, contradictions,

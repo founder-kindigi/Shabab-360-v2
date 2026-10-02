@@ -1,9 +1,10 @@
 "use client";
+import Image from "next/image";
 import { useAttendanceSync } from "@/hooks/use-attendance-sync";
 import { OfflineQueuePanel } from "./offline-queue-panel";
 
 import { useState, useMemo, useEffect, useCallback } from "react";
-import { useSession, signIn } from "next-auth/react";
+import { useSession } from "next-auth/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Search,
@@ -13,34 +14,39 @@ import {
   ShieldCheck,
   ArrowLeft,
   RefreshCw,
-  Sparkles,
   Users,
   Calendar,
   ChevronLeft,
   ChevronRight,
   Lock,
   Unlock,
-  CheckSquare,
   AlertTriangle,
   RotateCcw,
   Send,
+  PhoneCall,
   WifiOff,
   UserCheck,
   Building2,
   Layers,
-  HelpCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { format, addDays, subDays, parseISO } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useOnlineStatus } from "@/hooks/use-online-status";
 import { generateWhatsAppDeepLink } from "@/lib/calling/whatsapp";
-import { v4 as uuidv4 } from "uuid";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 export type AttendanceStatus = "present" | "absent" | "late" | "excused";
+
+/** Builds a safe device-call link for the attendance-only guardian follow-up control. */
+export function guardianCallHref(phone: string | null): string | null {
+  if (!phone) return null;
+  const normalized = phone.trim().replace(/[\s().-]/g, "");
+  if (!/^\+?\d{7,15}$/.test(normalized)) return null;
+  return `tel:${normalized}`;
+}
 
 export interface AttendanceEventSummary {
   id: string;
@@ -605,6 +611,15 @@ export function MobileAttendancePage({ onBack, parkId }: MobileAttendancePagePro
     setWhatsAppModalStudent(null);
   };
 
+  const handleCallGuardian = (student: StudentRosterItem) => {
+    const callHref = guardianCallHref(student.phone);
+    if (!callHref) {
+      toast.error("Student has no valid guardian phone number recorded");
+      return;
+    }
+    window.location.assign(callHref);
+  };
+
   // ─── UI Render ─────────────────────────────────────────────────────────────
 
   return (
@@ -627,7 +642,7 @@ export function MobileAttendancePage({ onBack, parkId }: MobileAttendancePagePro
               </button>
             )}
             <div className="size-11 rounded-2xl bg-white/10 border border-white/20 p-1 flex items-center justify-center overflow-hidden shrink-0 shadow-lg">
-              <img src="/logo-white.png" alt="Logo" className="size-full object-contain" />
+              <Image src="/logo-white.png" alt="Logo" width={160} height={160} className="size-full object-contain" />
             </div>
             <div>
               <h1 className="text-base font-extrabold text-white tracking-tight leading-tight">Park Attendance</h1>
@@ -977,7 +992,7 @@ export function MobileAttendancePage({ onBack, parkId }: MobileAttendancePagePro
                   </div>
                   <div className="p-2 rounded-2xl bg-sky-50/70 dark:bg-sky-950/30 border border-sky-500/20 text-center">
                     <span className="text-xs font-black text-sky-700 dark:text-sky-300">{liveSummary.excused}</span>
-                    <p className="text-[10px] font-bold text-sky-600 dark:text-sky-400 uppercase">Excused</p>
+                    <p className="text-[10px] font-bold text-sky-600 dark:text-sky-400 uppercase">Excuse</p>
                   </div>
                 </div>
 
@@ -1048,7 +1063,7 @@ export function MobileAttendancePage({ onBack, parkId }: MobileAttendancePagePro
                     { id: "present", label: `Present (${liveSummary.present})` },
                     { id: "absent", label: `Absent (${liveSummary.absent})` },
                     { id: "late", label: `Late (${liveSummary.late})` },
-                    { id: "excused", label: `Excused (${liveSummary.excused})` },
+                    { id: "excused", label: `Excuse (${liveSummary.excused})` },
                   ].map((tab) => {
                     const isActive = filterStatus === tab.id;
                     return (
@@ -1123,16 +1138,25 @@ export function MobileAttendancePage({ onBack, parkId }: MobileAttendancePagePro
                           </div>
                         </div>
 
-                        {/* Status Badge + WhatsApp trigger */}
+                        {/* Status Badge + absence follow-up controls */}
                         <div className="flex items-center gap-1.5 shrink-0">
                           {isAbsent && student.phone && (
-                            <button
-                              onClick={() => setWhatsAppModalStudent(student)}
-                              aria-label={`Send WhatsApp absentee alert for ${student.participantName}`}
-                              className="size-8 rounded-xl bg-emerald-500/15 text-emerald-600 hover:bg-emerald-500/25 flex items-center justify-center transition-all active:scale-95"
-                            >
-                              <Send className="size-3.5" />
-                            </button>
+                            <>
+                              <button
+                                onClick={() => handleCallGuardian(student)}
+                                aria-label={`Call guardian for absent ${student.participantName}`}
+                                className="size-8 rounded-xl bg-sky-500/15 text-sky-700 hover:bg-sky-500/25 flex items-center justify-center transition-all active:scale-95"
+                              >
+                                <PhoneCall className="size-3.5" />
+                              </button>
+                              <button
+                                onClick={() => setWhatsAppModalStudent(student)}
+                                aria-label={`Send WhatsApp absentee alert for ${student.participantName}`}
+                                className="size-8 rounded-xl bg-emerald-500/15 text-emerald-600 hover:bg-emerald-500/25 flex items-center justify-center transition-all active:scale-95"
+                              >
+                                <Send className="size-3.5" />
+                              </button>
+                            </>
                           )}
 
                           <span
@@ -1200,7 +1224,7 @@ export function MobileAttendancePage({ onBack, parkId }: MobileAttendancePagePro
                         <button
                           onClick={() => handleMarkStudent(student.participantId, "excused")}
                           disabled={isClosed}
-                          aria-label={`Mark ${student.participantName} Excused`}
+                          aria-label={`Mark ${student.participantName} Excuse`}
                           className={cn(
                             "min-h-[44px] rounded-2xl font-black text-xs flex items-center justify-center gap-1 transition-all active:scale-95 border",
                             isExcused

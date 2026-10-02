@@ -1,0 +1,10 @@
+{
+  "checkedAt": "2026-09-10T06:24:01.771Z",
+  "scope": "Documentation/static Git comparison only; no application test/build/database/browser parity run in this planning pass.",
+  "inventoryParsed": true,
+  "baselineCount": 3,
+  "registerRows": 14,
+  "brokenLocalLinks": [],
+  "gitDiffCheckExitCode": 0,
+  "sourceEdits": false
+}

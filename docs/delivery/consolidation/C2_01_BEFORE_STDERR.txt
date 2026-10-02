@@ -1,0 +1,41 @@
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
++ actual - expected
+
++ 'postgresql://synthetic:synthetic@forbidden.invalid/app'
+- 'file::memory:'
+
+    at file:///D:/iBuild/Shabab-360-c0-20260911/c2-foundation-20260912/[eval1]:5:10
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5) {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: 'postgresql://synthetic:synthetic@forbidden.invalid/app',
+  expected: 'file::memory:',
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+
+Node.js v26.5.0
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
++ actual - expected
+
++ 'postgresql://synthetic:synthetic@forbidden.invalid/app'
+- 'file::memory:'
+
+    at file:///D:/iBuild/Shabab-360-c0-20260911/c2-foundation-20260912/[eval1]:4:10 {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: 'postgresql://synthetic:synthetic@forbidden.invalid/app',
+  expected: 'file::memory:',
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+
+Node.js v26.5.0

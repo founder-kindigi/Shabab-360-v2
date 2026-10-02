@@ -12,12 +12,17 @@ export async function resolveActiveIdentity(userId: string) {
     let cityId = staff.assignedCityId;
     let parkId = staff.assignedParkId;
     if (staff.role === "city_head" && (!cityId || !staff.assignedCity?.isActive)) return null;
-    if (["park_admin", "park_lead"].includes(staff.role)) {
+    if (["park_admin", "park_lead", "muawin"].includes(staff.role)) {
       if (!parkId || !staff.assignedPark?.isActive || (cityId && cityId !== staff.assignedPark.cityId)) return null;
       cityId = staff.assignedPark.cityId;
     }
     if (staff.role === "murabbi") {
       const group = staff.assignedGroup;
+      if (!group) {
+        if (!parkId || !staff.assignedPark?.isActive || (cityId && cityId !== staff.assignedPark.cityId)) return null;
+        cityId = staff.assignedPark.cityId;
+        return { role: staff.role, assignedCityId: cityId, assignedParkId: parkId, assignedGroupId: null };
+      }
       const park = group?.parkId ? group.park : group?.batch.park;
       if (!group?.isActive || !group.batch.isActive || !park?.isActive || (group.batch.cityId && group.batch.cityId !== park.cityId) || (cityId && cityId !== park.cityId) || (parkId && parkId !== park.id)) return null;
       cityId = park.cityId;

@@ -3,7 +3,8 @@ import { requireCapability, requireRole } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
 import { sendInviteEmail } from "@/lib/email-service";
-import { SENSITIVE_RESPONSE_HEADERS } from "@/lib/security/sensitive-response";
+import { groupHierarchyInclude, groupResourceScope } from "@/lib/auth/hierarchy";
+import { validateMuawinAssistance, type MuawinAssistanceReader } from "@/lib/auth/muawin-assistance";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
@@ -15,6 +16,7 @@ const ALL_ROLES = [
   "park_admin",
   "park_lead",
   "murabbi",
+  "muawin",
   "guardian",
   "student",
 ] as const;
@@ -27,14 +29,16 @@ const inviteSchema = z.object({
   assignedCityId: z.string().optional(),
   assignedParkId: z.string().optional(),
   assignedGroupId: z.string().optional(),
+  assistsMurabbiId: z.string().nullable().optional(),
 });
 
 // Roles that require city assignment
-const CITY_REQUIRED_ROLES = ["city_head", "park_admin", "park_lead", "murabbi"];
+const CITY_REQUIRED_ROLES = ["city_head", "park_admin", "park_lead", "murabbi", "muawin"];
 // Roles that require park assignment
-const PARK_REQUIRED_ROLES = ["park_admin", "park_lead", "murabbi"];
-// Roles that require group assignment
-const GROUP_REQUIRED_ROLES = ["murabbi"];
+const PARK_REQUIRED_ROLES = ["park_admin", "park_lead", "murabbi", "muawin"];
+// Murabbis may be provisioned before a group assignment; server scope checks deny
+// group and attendance access until the assignment is made.
+const GROUP_REQUIRED_ROLES: string[] = [];
 const CITY_HEAD_ASSIGNABLE_ROLES = ["park_admin", "park_lead", "murabbi"] as const;
 
 export async function POST(request: NextRequest) {
@@ -63,7 +67,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { name, email, phone, role, assignedCityId, assignedParkId, assignedGroupId } = parsed.data;
+  const { name, email, phone, role, assignedCityId, assignedParkId, assignedGroupId, assistsMurabbiId } = parsed.data;
 
   if (isCityHead) {
     if (!CITY_HEAD_ASSIGNABLE_ROLES.includes(role as (typeof CITY_HEAD_ASSIGNABLE_ROLES)[number])) {
@@ -122,24 +126,26 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // Validate that assigned group exists and belongs to park's batch
+  // A group may have its own park even when its batch has a city-wide anchor park.
   if (assignedGroupId && assignedParkId) {
-    const parkWithBatches = await db.park.findUnique({
-      where: { id: assignedParkId },
-      include: { batches: { where: { isActive: true }, select: { id: true } } },
-    });
-    if (parkWithBatches) {
-      const batchIds = parkWithBatches.batches.map((b) => b.id);
-      const group = await db.group.findFirst({
-        where: { id: assignedGroupId, batchId: { in: batchIds }, isActive: true },
-      });
-      if (!group) {
-        return NextResponse.json(
-          { error: { assignedGroupId: ["Selected group does not belong to the selected park"] } },
-          { status: 400 }
-        );
-      }
+    const group = await db.group.findUnique({ where: { id: assignedGroupId }, include: groupHierarchyInclude });
+    const groupScope = groupResourceScope(group);
+    if (!groupScope || groupScope.parkId !== assignedParkId || (assignedCityId && groupScope.cityId !== assignedCityId)) {
+      return NextResponse.json(
+        { error: { assignedGroupId: ["Selected group does not belong to the selected park"] } },
+        { status: 400 }
+      );
     }
+  }
+
+  const assistanceError = await validateMuawinAssistance({
+    role,
+    assignedParkId: assignedParkId || null,
+    assistsMurabbiId: assistsMurabbiId ?? null,
+    staffMeta: db.staffMeta as unknown as MuawinAssistanceReader,
+  });
+  if (assistanceError) {
+    return NextResponse.json({ error: { assistsMurabbiId: [assistanceError] } }, { status: 400 });
   }
 
   // Check email uniqueness
@@ -180,22 +186,28 @@ export async function POST(request: NextRequest) {
             assignedCityId: true,
             assignedParkId: true,
             assignedGroupId: true,
+            assistsMurabbiId: true,
             isActive: true,
             assignedCity: { select: { id: true, name: true } },
             assignedPark: { select: { id: true, name: true } },
             assignedGroup: { select: { id: true, name: true } },
+            assistsMurabbi: { select: { id: true, user: { select: { name: true } } } },
           },
-        },
+        } as never,
       },
     });
 
-    await tx.staffMeta.create({
+    const staffMeta = tx.staffMeta as unknown as {
+      create(args: { data: Record<string, unknown> }): Promise<unknown>;
+    };
+    await staffMeta.create({
       data: {
         userId: createdUser.id,
         role,
         assignedCityId: assignedCityId || null,
         assignedParkId: assignedParkId || null,
         assignedGroupId: assignedGroupId || null,
+        assistsMurabbiId: role === "muawin" ? assistsMurabbiId ?? null : null,
       },
     });
 
@@ -217,12 +229,14 @@ export async function POST(request: NextRequest) {
             assignedCityId: true,
             assignedParkId: true,
             assignedGroupId: true,
+            assistsMurabbiId: true,
             isActive: true,
             assignedCity: { select: { id: true, name: true } },
             assignedPark: { select: { id: true, name: true } },
             assignedGroup: { select: { id: true, name: true } },
+            assistsMurabbi: { select: { id: true, user: { select: { name: true } } } },
           },
-        },
+        } as never,
       },
     });
   });
@@ -233,7 +247,7 @@ export async function POST(request: NextRequest) {
     action: "create",
     entityType: "user",
     entityId: user!.id,
-    newValues: { name, email, role, assignedCityId, assignedParkId, assignedGroupId },
+    newValues: { name, email, role, assignedCityId, assignedParkId, assignedGroupId, assistsMurabbiId: role === "muawin" ? assistsMurabbiId ?? null : null },
   });
 
   // Queue an invitation notice without credentials.
@@ -242,8 +256,5 @@ export async function POST(request: NextRequest) {
     role
   ).catch(() => {});
 
-  return NextResponse.json(
-    { user, temporaryPassword },
-    { status: 201, headers: SENSITIVE_RESPONSE_HEADERS }
-  );
+  return NextResponse.json({ user, temporaryPassword }, { status: 201 });
 }

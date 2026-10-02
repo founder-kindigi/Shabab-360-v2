@@ -1,0 +1,74 @@
+{
+  "candidate": "D:\\iBuild\\Shabab-360-c0-20260911\\c2-foundation-20260912",
+  "head": "401ff322726c3ceab9b05db776b2b076e63bbaf5",
+  "modified": [
+    "src/lib/audit.ts",
+    "vitest.config.ts",
+    "vitest.setup.ts",
+    "src/app/api/admin/invite/route.ts",
+    "src/app/api/admin/guardians/invite/route.ts",
+    "src/app/api/admin/import/users/route.ts",
+    "src/app/api/admin/import/participants/route.ts"
+  ],
+  "added": [
+    "src/lib/audit-privacy.test.ts",
+    "src/lib/security/credential-responses.test.ts",
+    "src/lib/security/unit-environment.test.ts",
+    "src/lib/security/sensitive-response.ts",
+    "scripts/testing/unit-environment.mjs"
+  ],
+  "files": {
+    "scripts/testing/unit-environment.mjs": {
+      "beforeSha256": null,
+      "afterSha256": "514a62f785000089d8e975e3c426689503cec689a12f19604e55a644352690c8"
+    },
+    "src/app/api/admin/guardians/invite/route.ts": {
+      "beforeSha256": "ce563dea0e57eb2177ae9d47e55ab081c7d2f495020e94e286cbfa7612f0e456",
+      "afterSha256": "541b7f5649280ce6b293f27ca5d6c6e1e1e6e2eb064198c4eb481483fba8aae7"
+    },
+    "src/app/api/admin/import/participants/route.ts": {
+      "beforeSha256": "aba4b6ded1d96caa9d06a963d4f1e906fdd2c019cc4aea406c3946a9138b72a8",
+      "afterSha256": "63f3b7bb0fdd3e4f7eb4a14cf735d447b3f0d40ae45c9b0c34acd06a8020252e"
+    },
+    "src/app/api/admin/import/users/route.ts": {
+      "beforeSha256": "037da794facfb6683cd5d1bfd745f0b52b1c56b2012e8913c793c3953ea293e7",
+      "afterSha256": "c10284f7e5167857dd2940774eae7cfbeb875ef1ddc74b6bb2ef89114aad4cf2"
+    },
+    "src/app/api/admin/invite/route.ts": {
+      "beforeSha256": "5eea964d7b628bb70375ea5c59f6f1d118561f0faa2898d7ee17a7b37dd6063b",
+      "afterSha256": "a63ea39191878496f72761c266c184e315f62cfc6dc8ae51db211c3fed6bab58"
+    },
+    "src/lib/audit-privacy.test.ts": {
+      "beforeSha256": null,
+      "afterSha256": "a325314dfc7d9e7e6f5b6fef8fb0dba0943a85438b252b919d53087926180ce4"
+    },
+    "src/lib/audit.ts": {
+      "beforeSha256": "ff17a1674383a6f6e94485545eab5b523b23173dead6d235a1f8cff6588ba3c6",
+      "afterSha256": "0be52af0705ac42af47de2932a695ae86ef18723cf69005a902150fa780ad2e7"
+    },
+    "src/lib/security/credential-responses.test.ts": {
+      "beforeSha256": null,
+      "afterSha256": "b2826fd4237535ab40515abc589197ab6fe10458201886871f868a7916b2c7a0"
+    },
+    "src/lib/security/sensitive-response.ts": {
+      "beforeSha256": null,
+      "afterSha256": "57256cc2749febebe166cd2904d2741562f28febec4fcadcbc0d7d5cb62215e8"
+    },
+    "src/lib/security/unit-environment.test.ts": {
+      "beforeSha256": null,
+      "afterSha256": "c8ab1a7c133fa697a801bb2434d2d9701afa92285103cdf5502494c6726a8e03"
+    },
+    "vitest.config.ts": {
+      "beforeSha256": "b6c8f8ab9b59b7afdba2fed2bd8f70bc7002451f08a3efcf2ed73cecd9d5cd70",
+      "afterSha256": "4ad834f2084f8dd57d1e3ac71658afeec83377d92ed0cc282fe14c6189f9ec47"
+    },
+    "vitest.setup.ts": {
+      "beforeSha256": "7215dd291953e8dc698f06eed5492a98cf6d68783ccb1b604b9fa1d54b4387aa",
+      "afterSha256": "e10c74470a40e3d41042601ba74aa167f6caa036863125eaebe180317c20164a"
+    }
+  },
+  "patchSha256": "5e007013503e5fafb5ca19cc146f7e8c23bfefaac37abff95f99fe61aa6938d2",
+  "unexpectedBaselineChanges": [],
+  "unchangedBaselineFiles": 1274,
+  "excludedScratchFilesAbsent": true
+}

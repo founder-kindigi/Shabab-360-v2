@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, requireResourceScope, requireRole, userHasCapability } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
 import { requireResolvedGroupScope, groupResourceScope } from "@/lib/auth/hierarchy";
+import { isHqRole } from "@/lib/auth/scope";
 import { moneyToNumber } from "@/lib/money";
 
 export async function GET(
@@ -61,6 +62,18 @@ export async function GET(
 
   if (!participant) {
     return NextResponse.json({ error: "Participant not found" }, { status: 404 });
+  }
+
+  if (!participant.group) {
+    // An unassigned participant has no hierarchy scope: scoped staff receive no
+    // signal about it, while central staff get a clear conflict.
+    if (!isHqRole(auth.user.role)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    return NextResponse.json(
+      { error: "Participant must be assigned to a group before this action" },
+      { status: 409 }
+    );
   }
 
   const scopeError = requireResolvedGroupScope(auth.user, { ...participant.group, id: participant.groupId });

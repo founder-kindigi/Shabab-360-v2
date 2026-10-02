@@ -11,9 +11,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { RefreshCw, ChevronDown, AlertCircle, Loader2, WifiOff, Trash2 } from "lucide-react";
+import { ModuleEmpty, ModuleMetric } from "@/components/modules/shared/module-presentation";
+import { Cloud, ShieldCheck, Clock } from "lucide-react";
 import type { OfflineQueueItem } from "@/lib/offline/db";
 
-export function OfflineQueuePanel() {
+export function OfflineQueuePanel({ dashboard = false }: { dashboard?: boolean } = {}) {
   const {
     pendingCount,
     failedCount,
@@ -56,10 +58,12 @@ export function OfflineQueuePanel() {
 
   // Don't show if everything is clean
   if (pendingCount === 0 && failedCount === 0) {
-    return null;
+    return dashboard ? <><div className="grid grid-cols-3 gap-2"><ModuleMetric label="Pending" value={0} icon={Clock} /><ModuleMetric label="Needs review" value={0} icon={AlertCircle} tone="amber" /><ModuleMetric label="Connection" value={isOnline ? "Online" : "Offline"} icon={Cloud} tone="emerald" /></div><ModuleEmpty title="No pending attendance marks" icon={ShieldCheck}>This account has no attendance marks awaiting sync or review.</ModuleEmpty></> : null;
   }
 
   return (
+    <>
+    {dashboard && <div className="grid grid-cols-3 gap-2"><ModuleMetric label="Pending" value={pendingCount} icon={Clock} /><ModuleMetric label="Needs review" value={failedCount} icon={AlertCircle} tone="amber" /><ModuleMetric label="Connection" value={isOnline ? "Online" : "Offline"} icon={Cloud} tone="emerald" /></div>}
     <Collapsible open={open} onOpenChange={setOpen}>
       <div
         className={cn(
@@ -198,5 +202,6 @@ export function OfflineQueuePanel() {
         </CollapsibleContent>
       </div>
     </Collapsible>
+    </>
   );
 }

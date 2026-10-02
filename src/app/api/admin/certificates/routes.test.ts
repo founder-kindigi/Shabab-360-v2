@@ -99,4 +99,29 @@ describe("certificate authorization", () => {
     // Missing assigned city is rejected by the hierarchy resolver before resource lookup.
     expect(mocks.eventFindMany).not.toHaveBeenCalled();
   });
+
+  it("denies a scoped caller any signal about an unassigned participant", async () => {
+    mocks.participantFindUnique.mockResolvedValue({
+      id: "participant-1", name: "Student", groupId: null, group: null,
+      joinedAt: new Date("2026-01-01T00:00:00.000Z"),
+    });
+
+    const response = await getParticipantCertificate(participantRequest, participantParams);
+
+    expect(response.status).toBe(403);
+    expect(mocks.eventFindMany).not.toHaveBeenCalled();
+  });
+
+  it("returns a conflict for an unassigned participant to central staff", async () => {
+    mocks.requireCapability.mockResolvedValue({ user: { id: "central-1", role: "super_admin" } });
+    mocks.participantFindUnique.mockResolvedValue({
+      id: "participant-1", name: "Student", groupId: null, group: null,
+      joinedAt: new Date("2026-01-01T00:00:00.000Z"),
+    });
+
+    const response = await getParticipantCertificate(participantRequest, participantParams);
+
+    expect(response.status).toBe(409);
+    expect(mocks.eventFindMany).not.toHaveBeenCalled();
+  });
 });

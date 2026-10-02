@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { ChevronRight, Calendar, AlertTriangle } from "lucide-react";
+import { Calendar, AlertTriangle, CalendarX } from "lucide-react";
 
 interface DashboardTabProps {
   parkId: string;
@@ -12,26 +12,51 @@ export function DashboardTab({ parkId, onGoToEvaluation }: DashboardTabProps) {
   const currentMonthName = new Date().toLocaleString("default", { month: "long" }).toUpperCase();
   const currentYear = new Date().getFullYear();
 
-  // Fetch real park evaluation summary
-  const { data: evalData } = useQuery({
+  const { data: evalData, isLoading } = useQuery({
     queryKey: ["park-eval-summary", parkId],
     queryFn: async () => {
       const res = await fetch(`/api/park/evaluations?parkId=${parkId}&month=${new Date().getMonth() + 1}&year=${currentYear}`);
       if (!res.ok) return null;
       return res.json();
     },
+    enabled: !!parkId,
     staleTime: 30000,
   });
 
-  const totalStudents = evalData?.totalStudents || 69;
-  const completedCount = evalData?.completedCount || 0;
+  if (isLoading) {
+    return (
+      <div className="space-y-5 pb-10">
+        <div className="grid grid-cols-3 gap-2.5">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-20 bg-gray-100 rounded-2xl animate-pulse" />
+          ))}
+        </div>
+        <div className="h-16 bg-gray-100 rounded-2xl animate-pulse" />
+        <div className="h-32 bg-gray-100 rounded-2xl animate-pulse" />
+      </div>
+    );
+  }
 
-  // Real murabbis evaluation progress (derived or fallback)
-  const pendingMurabbis = evalData?.murabbis || [
-    { name: "Hassan Safi", pending: 12, total: 12 },
-    { name: "Bilal Tariq", pending: 11, total: 11 },
-    { name: "Usman Ghani", pending: 12, total: 12 },
-  ];
+  // No evaluation data contract available — show a truthful unavailable state
+  if (!evalData) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
+        <div className="size-10 rounded-2xl bg-muted flex items-center justify-center text-muted-foreground">
+          <CalendarX className="size-5" />
+        </div>
+        <p className="text-sm font-bold text-gray-700">Evaluation data unavailable</p>
+        <p className="text-xs text-gray-400 max-w-xs">
+          Park evaluation summary could not be loaded. Check your connection or contact support.
+        </p>
+      </div>
+    );
+  }
+
+  const totalStudents: number = evalData.totalStudents ?? 0;
+  const completedCount: number = evalData.completedCount ?? 0;
+  const presentToday: number = evalData.presentToday ?? 0;
+  const allTimeRate: number | null = evalData.allTimeRate ?? null;
+  const pendingMurabbis: Array<{ name: string; pending: number; total: number }> = evalData.murabbis ?? [];
 
   return (
     <div className="space-y-5 pb-10 select-none">
@@ -43,19 +68,19 @@ export function DashboardTab({ parkId, onGoToEvaluation }: DashboardTabProps) {
         </div>
         <div className="bg-gray-50/80 border border-gray-100 rounded-2xl p-3 flex flex-col items-center justify-center text-center">
           <span className="text-xs text-gray-500 font-medium">Present today</span>
-          <span className="text-2xl font-bold text-[#D90429] mt-1">0</span>
+          <span className="text-2xl font-bold text-[#D90429] mt-1">{presentToday}</span>
         </div>
         <div className="bg-gray-50/80 border border-gray-100 rounded-2xl p-3 flex flex-col items-center justify-center text-center">
           <span className="text-xs text-gray-500 font-medium">All-Time %</span>
-          <span className="text-2xl font-bold text-gray-900 mt-1">63%</span>
+          <span className="text-2xl font-bold text-gray-900 mt-1">
+            {allTimeRate !== null ? `${allTimeRate}%` : "—"}
+          </span>
         </div>
       </div>
 
       {/* ─── Upcoming Section ────────────────────────────────────────────── */}
       <div className="space-y-2">
-        <h3 className="text-xs font-bold text-gray-400 tracking-wider uppercase">
-          UPCOMING
-        </h3>
+        <h3 className="text-xs font-bold text-gray-400 tracking-wider uppercase">UPCOMING</h3>
         <div className="bg-white border border-gray-100 rounded-2xl p-4 text-center shadow-[0_1px_4px_rgba(0,0,0,0.02)]">
           <p className="text-xs text-gray-400 font-medium">No upcoming events.</p>
         </div>
@@ -63,9 +88,7 @@ export function DashboardTab({ parkId, onGoToEvaluation }: DashboardTabProps) {
 
       {/* ─── Evaluations Section ─────────────────────────────────────────── */}
       <div className="space-y-2">
-        <h3 className="text-xs font-bold text-gray-400 tracking-wider uppercase">
-          EVALUATIONS
-        </h3>
+        <h3 className="text-xs font-bold text-gray-400 tracking-wider uppercase">EVALUATIONS</h3>
         <div
           onClick={onGoToEvaluation}
           className="bg-white border border-gray-100 rounded-2xl p-4 flex items-center justify-between cursor-pointer active:scale-[0.99] hover:border-purple-200 transition-all shadow-[0_2px_8px_rgba(0,0,0,0.03)]"
@@ -81,31 +104,32 @@ export function DashboardTab({ parkId, onGoToEvaluation }: DashboardTabProps) {
               </p>
             </div>
           </div>
-          <ChevronRight className="size-4 text-gray-300" />
         </div>
       </div>
 
       {/* ─── Evaluation Dashboard Roster ─────────────────────────────────── */}
-      <div className="space-y-2.5">
-        <h3 className="text-xs font-bold text-gray-400 tracking-wider uppercase">
-          EVALUATION DASHBOARD · {currentMonthName} {currentYear}
-        </h3>
-        <div className="space-y-2">
-          {pendingMurabbis.map((m: any, idx: number) => (
-            <div
-              key={idx}
-              className="flex items-center justify-between p-3.5 bg-white rounded-2xl border border-gray-100 shadow-[0_1px_4px_rgba(0,0,0,0.02)]"
-            >
-              <span className="text-sm font-semibold text-gray-900">{m.name}</span>
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-600 bg-amber-50 border border-amber-200/60 px-2.5 py-1 rounded-full">
-                <span>{m.pending}/{m.total}</span>
-                <AlertTriangle className="size-3.5 stroke-[2.5]" />
-                <span>pending</span>
+      {pendingMurabbis.length > 0 && (
+        <div className="space-y-2.5">
+          <h3 className="text-xs font-bold text-gray-400 tracking-wider uppercase">
+            EVALUATION DASHBOARD · {currentMonthName} {currentYear}
+          </h3>
+          <div className="space-y-2">
+            {pendingMurabbis.map((m, idx) => (
+              <div
+                key={idx}
+                className="flex items-center justify-between p-3.5 bg-white rounded-2xl border border-gray-100 shadow-[0_1px_4px_rgba(0,0,0,0.02)]"
+              >
+                <span className="text-sm font-semibold text-gray-900">{m.name}</span>
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-600 bg-amber-50 border border-amber-200/60 px-2.5 py-1 rounded-full">
+                  <span>{m.pending}/{m.total}</span>
+                  <AlertTriangle className="size-3.5 stroke-[2.5]" />
+                  <span>pending</span>
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

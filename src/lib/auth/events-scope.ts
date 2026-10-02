@@ -49,7 +49,7 @@ export async function resolveActorCity(
     include: {
       assignedCity: true,
       assignedPark: { include: { city: true } },
-      assignedGroup: { include: { park: { include: { city: true } }, batch: { include: { park: { include: { city: true } }, city: true } } } },
+      assignedGroup: { include: { batch: { include: { city: true } }, park: { include: { city: true } } } },
     },
   });
 
@@ -62,12 +62,10 @@ export async function resolveActorCity(
     derivedCityId = staffMeta.assignedCityId;
   } else if (staffMeta.assignedPark?.cityId) {
     derivedCityId = staffMeta.assignedPark.cityId;
-  } else if (staffMeta.assignedGroup?.park?.cityId) {
-    derivedCityId = staffMeta.assignedGroup.park.cityId;
   } else if (staffMeta.assignedGroup?.batch?.cityId) {
     derivedCityId = staffMeta.assignedGroup.batch.cityId;
-  } else if (staffMeta.assignedGroup?.batch?.park?.cityId) {
-    derivedCityId = staffMeta.assignedGroup.batch.park.cityId;
+  } else if (staffMeta.assignedGroup?.park?.cityId) {
+    derivedCityId = staffMeta.assignedGroup.park.cityId;
   }
 
   if (!derivedCityId) {

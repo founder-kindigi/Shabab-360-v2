@@ -1,0 +1,13 @@
+# MTI-01 frontend packet — prepared, not dispatched
+
+Assigned to: Gemini when available. Status: pending exact approved `docs/pwa screens/` references for the new portal pages and public form. Do not claim Gemini execution.
+
+Outcome: a reusable registration-form builder inside the Shabab portal, plus a public renderer at `/register/forms/[slug]`. Murabbi Training is a starter form, not a hard-coded form type. Owner city defaults to the Lahore operational record for that first draft; authorized staff can choose another operational city. Applicant city options are independent editable choices and the Atfal-style template has all 35 observed menu options, including Other City with free text.
+
+Builder screens: scoped form list; create draft from blank or Atfal-style starter; edit title, intro, ordered field labels/types/options/required flags; edit eligibility text, fee text, privacy/consent copy, success text, age/gender rules and registration window; preview; publish/re-publish; close; paginated private submissions and detail. Use `version` for every draft update and publish/close action; on 409 reload and show a conflict message. Show public URL only for a published form. Published revisions stay immutable while staff edit a subsequent draft.
+
+Public screen: render the GET definition using Shabab's established visual language and mobile components. Show title, intro, eligibility and fee text, then configured questions. Support short/long text, phone, number, single choice and city (including Other City free text), review and consent, accessible validation, loading, closed, invalid-link, stale-version and retry states. Keep answers in memory only; never put personal answers into URLs, local storage, caches or analytics. Generate one UUID `requestKey` per attempted submission and reuse it for network retries. Success shows only the returned random receipt and configured success text. Do not claim offline success or collect payment.
+
+API contracts are in the routes under `src/app/api/admin/registration-forms/` and `src/app/api/public/forms/`. All staff reads and mutations are server-scoped; the frontend must not use applicant city as an authorization scope. Public POST requires same-origin, `publishedVersion`, `requestKey`, `answers`, and `consent: true`. Dynamic answer validation follows the published revision. No production deployment or live publication.
+
+Return exact changed files, visual comparison to approved references, focused tests, typecheck/lint result and remaining gaps for Astra review. DeepSeek clean-code remains a later bounded assignment, not currently dispatched.

@@ -1,4 +1,5 @@
 "use client";
+import Image from "next/image";
 
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -320,11 +321,7 @@ export function MurabbiProfilesPage() {
                   <Card className="rounded-2xl border-0 ring-1 ring-slate-200 dark:ring-slate-800 shadow-sm hover:shadow-md transition-all overflow-hidden h-full flex flex-col justify-between">
                     <CardContent className="p-5 space-y-4">
                       <div className="flex items-start gap-3">
-                        <img
-                          src={murabbi.avatar || "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80"}
-                          alt={murabbi.name}
-                          className="size-12 rounded-2xl object-cover ring-2 ring-purple-600/20 shrink-0"
-                        />
+                        <Image src={murabbi.avatar || "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80"} alt={murabbi.name} width={64} height={64} className="size-12 rounded-2xl object-cover ring-2 ring-purple-600/20 shrink-0" unoptimized />
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center justify-between gap-1">
                             <h3 className="font-extrabold text-base text-slate-900 dark:text-slate-100 truncate">{murabbi.name}</h3>
@@ -408,7 +405,7 @@ export function MurabbiProfilesPage() {
                     return (
                       <tr key={m.id} className="hover:bg-purple-50/30 dark:hover:bg-purple-950/10 transition-colors">
                         <td className="p-4 font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                          <img src={m.avatar} alt={m.name} className="size-8 rounded-xl object-cover" />
+                          <Image src={m.avatar ?? "/logo-color.png"} alt={m.name} width={64} height={64} className="size-8 rounded-xl object-cover" unoptimized />
                           <div>
                             <div>{m.name}</div>
                             <span className="text-[10px] text-purple-600 font-mono font-medium">{m.phone}</span>
@@ -463,7 +460,7 @@ export function MurabbiProfilesPage() {
           {selectedMurabbi && (
             <div className="space-y-6 pt-4 text-xs">
               <div className="flex items-center gap-3 p-4 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
-                <img src={selectedMurabbi.avatar} alt={selectedMurabbi.name} className="size-14 rounded-2xl object-cover ring-2 ring-purple-600/30" />
+                <Image src={selectedMurabbi.avatar ?? "/logo-color.png"} alt={selectedMurabbi.name} width={64} height={64} className="size-14 rounded-2xl object-cover ring-2 ring-purple-600/30" unoptimized />
                 <div>
                   <h2 className="text-lg font-extrabold text-slate-900 dark:text-slate-100">{selectedMurabbi.name}</h2>
                   <p className="font-bold text-purple-600 text-xs">{selectedMurabbi.primaryRole}</p>

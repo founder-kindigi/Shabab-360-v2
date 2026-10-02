@@ -168,6 +168,7 @@ export const ROLE_DEFAULT_CAPABILITIES: Readonly<Record<UserRole, readonly Acces
   park_admin: [
     "dashboard.view",
     "attendance.mark",
+    "attendance.correct",
     "attendance.staff.manage",
   ],
   murabbi: [
@@ -176,6 +177,7 @@ export const ROLE_DEFAULT_CAPABILITIES: Readonly<Record<UserRole, readonly Acces
     "content.view",
     "students.profile.view",
   ],
+  muawin: ["dashboard.view", "content.view"],
   guardian: ["dashboard.view", "people.view", "guardians.manage", "reports.view", "students.profile.view"],
   student: ["dashboard.view", "people.view", "students.manage", "reports.view", "students.profile.view"],
 };

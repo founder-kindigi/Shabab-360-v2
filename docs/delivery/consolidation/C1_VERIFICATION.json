@@ -1,0 +1,239 @@
+{
+  "date": "2026-09-12",
+  "outcome": "DISPOSITIONS_COMPLETE_CHANGES_REQUIRED_BEFORE_INTEGRATION_ACCEPTANCE",
+  "candidate": {
+    "main": "dedb91a640ea244ce9323cd1dcde2a40d74bb718",
+    "v2Head": "401ff322726c3ceab9b05db776b2b076e63bbaf5",
+    "v2WorkingIdentity": "C0_SNAPSHOT.json files; current locations in C0_RELOCATION.json",
+    "freshRemoteRefsMatch": true,
+    "remoteRefCheckDate": "2026-09-12"
+  },
+  "checks": [
+    {
+      "command": "$env:C1_VARIANT = \"main\"; npx vitest run --config scripts/delivery/c1-events.config.mjs --reporter=json --outputFile=docs/delivery/consolidation/C1_EVENTS_MAIN_TESTS.json",
+      "exitCode": 0,
+      "evidence": "C1_EVENTS_MAIN_TESTS.json",
+      "numTotalTests": 19,
+      "numPassedTests": 19,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "success": true
+    },
+    {
+      "command": "$env:C1_VARIANT = \"v2\"; npx vitest run --config scripts/delivery/c1-events.config.mjs --reporter=json --outputFile=docs/delivery/consolidation/C1_EVENTS_V2_TESTS.json",
+      "exitCode": 0,
+      "evidence": "C1_EVENTS_V2_TESTS.json",
+      "numTotalTests": 15,
+      "numPassedTests": 15,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "success": true
+    },
+    {
+      "command": "$env:C1_VARIANT = \"main\"; npx vitest run --config scripts/delivery/c1-attendance.config.mjs --reporter=json --outputFile=docs/delivery/consolidation/C1_ATTENDANCE_MAIN_TESTS.json",
+      "exitCode": 0,
+      "evidence": "C1_ATTENDANCE_MAIN_TESTS.json",
+      "numTotalTests": 9,
+      "numPassedTests": 9,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "success": true
+    },
+    {
+      "command": "$env:C1_VARIANT = \"v2\"; npx vitest run --config scripts/delivery/c1-attendance.config.mjs --reporter=json --outputFile=docs/delivery/consolidation/C1_ATTENDANCE_V2_TESTS.json",
+      "exitCode": 0,
+      "evidence": "C1_ATTENDANCE_V2_TESTS.json",
+      "numTotalTests": 7,
+      "numPassedTests": 7,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "success": true
+    },
+    {
+      "command": "$env:C1_VARIANT = \"main\"; npx vitest run --config scripts/delivery/c1-workflows.config.mjs --reporter=json --outputFile=docs/delivery/consolidation/C1_WORKFLOWS_MAIN_TESTS.json",
+      "exitCode": 0,
+      "evidence": "C1_WORKFLOWS_MAIN_TESTS.json",
+      "numTotalTests": 13,
+      "numPassedTests": 13,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "success": true
+    },
+    {
+      "command": "$env:C1_VARIANT = \"v2\"; npx vitest run --config scripts/delivery/c1-workflows.config.mjs --reporter=json --outputFile=docs/delivery/consolidation/C1_WORKFLOWS_V2_TESTS.json",
+      "exitCode": 0,
+      "evidence": "C1_WORKFLOWS_V2_TESTS.json",
+      "numTotalTests": 13,
+      "numPassedTests": 13,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "success": true
+    },
+    {
+      "command": "npm run lint",
+      "exitCode": 0,
+      "errors": 0,
+      "warnings": 6,
+      "note": "Six existing administrative-script unused eslint-disable warnings; no new warnings."
+    },
+    {
+      "command": "npm run typecheck",
+      "exitCode": 0
+    },
+    {
+      "command": "python scripts/delivery/c1-sqlite-history.py",
+      "exitCode": 0,
+      "meaning": "Earlier C1 collector: main 9/9 empty native SQLite replay; v2 fails at sixth migration. Collector success is not v2 migration success."
+    },
+    {
+      "command": "python scripts/delivery/verify-consolidation.py",
+      "exitCode": 0,
+      "checks": 17,
+      "files": 1288,
+      "evidence": "C1_PRESERVATION_CHECK.json"
+    },
+    {
+      "command": "git ls-remote origin refs/heads/main refs/heads/v2",
+      "exitCode": 0,
+      "note": "Initial sandbox connection failed (exit 1); permitted read-only retry succeeded; both pinned refs unchanged."
+    },
+    {
+      "command": "python scripts/delivery/c1-verify.py --require-complete",
+      "exitCode": 0,
+      "evidence": "C1_COVERAGE_CHECK.json",
+      "meaning": "Reconciliation disposition coverage only"
+    },
+    {
+      "command": "node scripts/delivery/check-workflow.mjs",
+      "exitCode": 0,
+      "activeTask": null,
+      "nextTask": "C2-01"
+    },
+    {
+      "command": "Python compile(source) and local Markdown link check",
+      "exitCode": 0,
+      "evidence": "C1_DOCUMENT_CHECK.json",
+      "pythonScripts": 5,
+      "markdownFiles": 12,
+      "links": 36
+    }
+  ],
+  "handlerResults": {
+    "events_main": {
+      "numTotalTests": 19,
+      "numPassedTests": 19,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "success": true
+    },
+    "events_v2": {
+      "numTotalTests": 15,
+      "numPassedTests": 15,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "success": true
+    },
+    "attendance_main": {
+      "numTotalTests": 9,
+      "numPassedTests": 9,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "success": true
+    },
+    "attendance_v2": {
+      "numTotalTests": 7,
+      "numPassedTests": 7,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "success": true
+    },
+    "workflows_main": {
+      "numTotalTests": 13,
+      "numPassedTests": 13,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "success": true
+    },
+    "workflows_v2": {
+      "numTotalTests": 13,
+      "numPassedTests": 13,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "success": true
+    }
+  },
+  "harnessSha256": {
+    "scripts/delivery/c1-assessment-ledger.py": "57abe4503fd450042c8394b2d15b608b87ed0cc9466536e05e873f9d680cc3e7",
+    "scripts/delivery/c1-attendance.config.mjs": "1fc86ba11e64ebaf997c2833ffc4624b3cbcd88268b38ebda111b52c9fbd74ce",
+    "scripts/delivery/c1-attendance.test.mjs": "a2e4baa0d7bff1f3c79e7e9f8ba1f85fbe7fb3e3dbe0199fa1ec5fe23cb87bdb",
+    "scripts/delivery/c1-browser.mjs": "4afe85b57e4616a8bfb054c42717f7c5747c8e9475c9e099d09f1f4fa39672a4",
+    "scripts/delivery/c1-events.config.mjs": "6392dc57183b7f9c5e12d01b36b90ad117af8ccda380c4b8ffbfe51738c24f8d",
+    "scripts/delivery/c1-events.test.mjs": "252c259a21e3d31238e99b856c22c15e8c2d21f918c1d1af097607974c3978f4",
+    "scripts/delivery/c1-inventory.py": "0ae34b1cf287a1b91b79d78f4fd65605f19b82f257d06594b4d8383117d95113",
+    "scripts/delivery/c1-media.test.mjs": "f42730974453de20b439248f094b7bea4e311156772362389dbd9df6f1d398f3",
+    "scripts/delivery/c1-source-index.py": "3da788d1bfe3e5a1463562e09ff967321b4d3bacfc66b88b63ff73d6d7bc147e",
+    "scripts/delivery/c1-sqlite-history.py": "8306ee4018a2ed52fb1156260a2549b5a308fc015c84e379d72e44264f15b1b8",
+    "scripts/delivery/c1-verify.py": "e31c6be9ad3f89fa7d263513e2ed773d0ac5e1757c5fe9d167101bee07e52591",
+    "scripts/delivery/c1-workflows.config.mjs": "b88d35c1085e61f7151e1bdf763fe7056292d68f9590afd949e8672f1a9b30c7",
+    "scripts/delivery/c1-workflows.test.mjs": "4a73435669da1217895bcab6b36e5d725d44f61fb72fb057b62d65fb18c7c0e7"
+  },
+  "runtimeDependencies": {
+    "vitest": "3.2.7",
+    "next": "16.2.12",
+    "zod": "4.4.3"
+  },
+  "limits": [
+    "Actual selected handlers/helpers are imported from immutable main/v2 sources; identity/capability and database boundaries are synthetic. No native concurrent-transaction or rollback guarantee follows.",
+    "Main source uses installed v2 comparison dependencies; no main-lock clean installation/build claim.",
+    "76 passing comparisons include defect characterizations. No application fix was made or verified.",
+    "All path/commit dispositions are recorded at stated evidence levels. The validator checks bookkeeping, not source-review depth. Not every historical patch was manually reviewed or inherited test executed; no replacement is marked equivalent.",
+    "Native SQLite rehearsal is empty/in-memory and checks modeled table/column existence; v2 chain failed. No populated upgrade, native PostgreSQL engine replay, rollback or operational data reconciliation in C1.",
+    "Functional browser component preview used a synthetic city_head session and three API responses. Narrow viewport covered denied state only. No production auth, full stylesheet/PWA routing, screenshot/trace archive or exact visual parity proof; see C1_BROWSER_CHECK.md.",
+    "No fresh full application suite or production build: application sources, routing, schemas, dependencies and production configuration were unchanged. Dedicated comparison harnesses, lint and typecheck were run. Prior BASE-01 tests/build evidence remains historical.",
+    "Performance load/query-plan measurements, real role-bound browser acceptance and final combined-candidate checks remain C2/C3 work.",
+    "No merge, push, deployment, live migration, real account change, private row import or external provider delivery. C2-01 prepared only; no provider delegation or independent review claimed."
+  ],
+  "remainingAssessment": {
+    "mainOnlyPaths": 0,
+    "changedSharedPaths": 0,
+    "mainUniqueCommits": 0,
+    "registers": 0,
+    "requirements": 0
+  },
+  "totalPassed": 76,
+  "totalFailed": 0,
+  "openFindings": {
+    "high": 10,
+    "medium": 17,
+    "total": 27
+  },
+  "remainingAssessmentMeaning": "No missing reconciliation dispositions; this is not proof of exhaustive semantic review or executed acceptance cases.",
+  "browserEvidence": "C1_BROWSER_CHECK.md",
+  "evidenceSha256": {
+    "C1_ATTENDANCE_MAIN_TESTS.json": "9ff84051463882617fa28e41acd4bb8e6fcf9dec5f65f2121299d0a023e1f9e8",
+    "C1_ATTENDANCE_V2_TESTS.json": "05d2fd383f228eb91e8a1be8b58189679e6b9a39b8396795cd9069de1a785afd",
+    "C1_BROWSER_CHECK.md": "cd8e9ddf0b44df4ead4bf09e64c00c5e80877b298bce20438fb3475eea9625f6",
+    "C1_BROWSER_REQUESTS.json": "f9d9f39d6fa49acea53cf59814cd5b7ce59fac281c56b0f0fcf8c0c6130679e6",
+    "C1_COMMIT_REVIEW.md": "077b218de2c1da7b156f3162543ff058717370d5911fd3eabd66c4fdb88e595c",
+    "C1_COVERAGE.json": "40e347f481e51b704479e3e12476ef6a5bc02567c41a5de38c52fc3cce7a6b9b",
+    "C1_COVERAGE_CHECK.json": "4d168652f04f58e057f69be6bb428c441031f4d15fd1da932a0e20e40179f9ad",
+    "C1_DATA_MAPPING.md": "773767d6beb1811ff1364e2588ca85a18f1ae81ff80ddd116aa94b4bc3b7cd97",
+    "C1_DOCUMENT_CHECK.json": "cc1236efa4e788c1e3bd44eb6530f9118adae03c725e526f829d0cc668cc5b3d",
+    "C1_EVENTS_MAIN_TESTS.json": "6d69bc41fe99c44ed36e347073dafe72def823c722776602cb0db1ebf29787b4",
+    "C1_EVENTS_V2_TESTS.json": "5d25cf9e4ef632df57ec7ea484e4f2074cbd1a415d9cf5f7f7d15169441f188e",
+    "C1_FINDINGS.md": "4cfd99551cb9e63635639f8b5806f9ee2b4712db492c455a4e420b86b27d9aa7",
+    "C1_INITIAL_TRANCHE.md": "06acf36525533cebb19d452971102fb5d02ae80c7de357e89903d4406334a695",
+    "C1_INVENTORY_CHECK.json": "3b538ed8e00aba428e73196b2511bbce9d36303713d03d9fc8edb093c19854cc",
+    "C1_PARITY.md": "816defc4e56c036f5905dbf53b02027515931b2b788e1a992eb206e75dc5e4bf",
+    "C1_PATCH_INDEX.json": "81a72f7d56fa0a36186ccb82d92d8b0c2305625c15d3fc0ef079db554282951d",
+    "C1_PATH_REVIEW.md": "1ea8415bbaacaa7c975b8b732b39b9f0e84a12212ca6e093cfcf303c1f0188d4",
+    "C1_PRESERVATION_CHECK.json": "0b7bf079bd0130f4e04a3c8ca757955040e49f259e60052e5dfd3237a34004b3",
+    "C1_REQUIREMENT_REVIEW.md": "08dc8246e10e110db5db2afe3f7f352c461147d11000765019a06b177fa700b5",
+    "C1_SCHEMA_DIFF.json": "f438fc1c5e89b9421f593977f8244e9746854eadb52bed7183696e765f2afdd0",
+    "C1_SOURCE_INDEX.json": "105c99d9d20ade381b06c5e60086872934e43d0421996be216757ea70d1df799",
+    "C1_SQLITE_HISTORY.json": "f6c2230391bc3f1d1cb3679b84f649d68671426eb4e3fb05cc6b1b8bc32dd3fe",
+    "C1_WORKFLOW_ASSESSMENT.md": "33dfa137a87673dc8c48586d5af466e1572e5d807cf97a534d0f757a7465f490",
+    "C1_WORKFLOWS_MAIN_TESTS.json": "ecf5db0f71e4ee2977cb3576db578c2404cb5de763352b6f325b791ca20c21bc",
+    "C1_WORKFLOWS_V2_TESTS.json": "0ce679247457350d2b17f7471194009d5b6a9bf0661075b4bca3860e7796e411"
+  }
+}

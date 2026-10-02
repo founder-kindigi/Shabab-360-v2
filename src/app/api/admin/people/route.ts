@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireRole, requireAuth, requireCapability } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
-import type { UserRole } from "@/types";
 import { z } from "zod";
 import {
   optionalIdentifier,
@@ -27,6 +26,9 @@ export async function GET(request: NextRequest) {
   if (authError) return authError;
   const capabilityAuth = await requireCapability("people.view");
   if (capabilityAuth instanceof NextResponse) return capabilityAuth;
+  const auth = await requireAuth();
+  if (auth instanceof NextResponse) return auth;
+  const canViewResetState = auth.user.role === "super_admin";
 
   const { searchParams } = new URL(request.url);
   const query = peopleQuerySchema.safeParse(queryParamsToObject(searchParams));
@@ -91,10 +93,8 @@ export async function GET(request: NextRequest) {
       select: {
         id: true,
         name: true,
-        email: true,
-        phone: true,
         isActive: true,
-        mustResetPwd: true,
+        ...(canViewResetState ? { mustResetPwd: true } : {}),
         createdAt: true,
         updatedAt: true,
         staffMeta: {

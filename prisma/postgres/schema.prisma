@@ -86,6 +86,7 @@ model User {
   participant         Participant?
   auditLogs           AuditLog[]
   announcements       Announcement[]
+  announcementReads   AnnouncementRead[]
   notifications       Notification[]
   capabilityOverrides UserCapabilityOverride[]
   externalSupportCallers ExternalSupportCaller[]
@@ -167,6 +168,8 @@ model City {
   collaborationTeams    CollaborationTeam[]
   contentPlans          ContentPlan[]
   admissionApplications AdmissionApplication[]
+  trainingCohorts       TrainingCohort[]
+  registrationForms     RegistrationForm[]
   events                Event[]
   callingCampaigns      CallingCampaign[]
   callingTemplates      CallingTemplate[]
@@ -940,6 +943,138 @@ model StockAuditLog {
   @@map("stock_audit_logs")
 }
 
+// Induction applicants remain separate from student admissions and staff accounts.
+model TrainingCohort {
+  id                String   @id @default(cuid())
+  slug              String   @unique
+  cityId            String
+  title             String
+  summary           String
+  eligibilityText   String?
+  feeText           String?
+  privacyNotice     String?
+  registrationStart DateTime?
+  registrationEnd   DateTime?
+  capacity          Int?
+  status            String   @default("draft")
+  policyVersion     Int      @default(1)
+  version           Int      @default(1)
+  createdBy         String
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  city         City                  @relation(fields: [cityId], references: [id], onDelete: Restrict)
+  applications TrainingApplication[]
+
+  @@index([cityId, status])
+  @@map("training_cohorts")
+}
+
+model TrainingApplication {
+  id             String   @id @default(cuid())
+  cohortId       String
+  reference      String   @unique
+  requestKey     String
+  requestHash    String
+  fullName       String
+  phone          String
+  email          String?
+  dateOfBirth    DateTime?
+  locality       String
+  background     String
+  connection     String
+  motivation     String
+  availability   String
+  privacyVersion Int
+  status         String   @default("submitted")
+  version        Int      @default(1)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  cohort  TrainingCohort            @relation(fields: [cohortId], references: [id], onDelete: Restrict)
+  actions TrainingApplicationAction[]
+
+  @@unique([cohortId, requestKey])
+  @@index([cohortId, status, createdAt])
+  @@map("training_applications")
+}
+
+model TrainingApplicationAction {
+  id            String   @id @default(cuid())
+  applicationId String
+  actorId       String
+  fromStatus    String
+  toStatus      String
+  reason        String?
+  createdAt     DateTime @default(now())
+
+  application TrainingApplication @relation(fields: [applicationId], references: [id], onDelete: Restrict)
+
+  @@index([applicationId, createdAt])
+  @@map("training_application_actions")
+}
+
+// Reusable, versioned public registration forms. Applicant city answers do not grant staff scope.
+model RegistrationForm {
+  id               String   @id @default(cuid())
+  slug             String   @unique
+  ownerCityId      String
+  title            String
+  intro            String
+  status           String   @default("draft")
+  version          Int      @default(1)
+  publishedVersion Int      @default(0)
+  draftSchemaJson  String
+  draftSettingsJson String
+  createdBy        String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  ownerCity   City                         @relation(fields: [ownerCityId], references: [id], onDelete: Restrict)
+  revisions   RegistrationFormRevision[]
+  submissions RegistrationFormSubmission[]
+
+  @@index([ownerCityId, status])
+  @@map("registration_forms")
+}
+
+model RegistrationFormRevision {
+  id           String   @id @default(cuid())
+  formId       String
+  version      Int
+  title        String
+  intro        String
+  schemaJson   String
+  settingsJson String
+  publishedBy  String
+  publishedAt  DateTime @default(now())
+
+  form        RegistrationForm             @relation(fields: [formId], references: [id], onDelete: Restrict)
+  submissions RegistrationFormSubmission[]
+
+  @@unique([formId, version])
+  @@map("registration_form_revisions")
+}
+
+model RegistrationFormSubmission {
+  id         String   @id @default(cuid())
+  formId     String
+  revisionId String
+  reference  String   @unique
+  requestKey String
+  requestHash String
+  answersJson String
+  status     String   @default("submitted")
+  createdAt  DateTime @default(now())
+
+  form     RegistrationForm         @relation(fields: [formId], references: [id], onDelete: Restrict)
+  revision RegistrationFormRevision @relation(fields: [revisionId], references: [id], onDelete: Restrict)
+
+  @@unique([formId, requestKey])
+  @@index([formId, createdAt])
+  @@map("registration_form_submissions")
+}
+
 model AdmissionApplication {
   id                     String    @id @default(cuid())
   trackingCode           String    @unique
@@ -997,12 +1132,27 @@ model Announcement {
   priority    String    @default("normal")
   targetRoles String
   authorId    String
-  author      User      @relation(fields: [authorId], references: [id])
+    author      User      @relation(fields: [authorId], references: [id])
+    reads       AnnouncementRead[]
   createdAt   DateTime  @default(now())
   expiresAt   DateTime?
 
   @@index([expiresAt])
   @@map("announcements")
+}
+
+model AnnouncementRead {
+  id             String   @id @default(cuid())
+  announcementId String
+  userId         String
+  createdAt      DateTime @default(now())
+
+  announcement Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([announcementId, userId])
+  @@index([userId, createdAt])
+  @@map("announcement_reads")
 }
 
 model Notification {
@@ -1016,6 +1166,7 @@ model Notification {
   data           String?
   status         NotificationStatus  @default(pending)
   sentAt         DateTime?
+    readAt         DateTime? // Marks durable in-app read state
   createdAt      DateTime            @default(now())
 
   user User? @relation(fields: [recipientId], references: [id])

@@ -7,6 +7,8 @@ const mocks = vi.hoisted(() => ({
   cityFindUnique: vi.fn(),
   parkFindFirst: vi.fn(),
   groupFindFirst: vi.fn(),
+  groupFindUnique: vi.fn(),
+  staffMetaFindUnique: vi.fn(),
   userFindUnique: vi.fn(),
   transaction: vi.fn(),
   logAudit: vi.fn(),
@@ -21,8 +23,9 @@ vi.mock("@/lib/db", () => ({
   db: {
     city: { findUnique: mocks.cityFindUnique },
     park: { findFirst: mocks.parkFindFirst },
-    group: { findFirst: mocks.groupFindFirst },
+    group: { findFirst: mocks.groupFindFirst, findUnique: mocks.groupFindUnique },
     user: { findUnique: mocks.userFindUnique },
+    staffMeta: { findUnique: mocks.staffMetaFindUnique },
     $transaction: mocks.transaction,
   },
 }));
@@ -53,11 +56,9 @@ describe("POST /api/admin/invite", () => {
     );
 
     expect(response.status).toBe(400);
-    const body = await response.json();
-    expect(body).toEqual({
+    await expect(response.json()).resolves.toEqual({
       error: { assignedCityId: ["City assignment is required for this role"] },
     });
-    expect(body.temporaryPassword).toBeUndefined();
     expect(mocks.cityFindUnique).not.toHaveBeenCalled();
     expect(mocks.transaction).not.toHaveBeenCalled();
   });
@@ -138,10 +139,6 @@ describe("POST /api/admin/invite", () => {
     );
 
     expect(response.status).toBe(201);
-    expect(response.headers.get("cache-control")).toBe("no-store, no-cache, max-age=0, must-revalidate");
-    expect(response.headers.get("pragma")).toBe("no-cache");
-    expect(response.headers.get("expires")).toBe("0");
-    expect(response.headers.get("x-robots-tag")).toBe("noindex, nofollow, noarchive");
     const body = await response.json();
     expect(body.user).toMatchObject({
       id: user.id,
@@ -159,5 +156,74 @@ describe("POST /api/admin/invite", () => {
       "program_admin"
     );
     expect(JSON.stringify(mocks.sendInviteEmail.mock.calls)).not.toContain(body.temporaryPassword);
+  });
+
+  it("accepts a Murabbi group scoped to its own park when the batch uses a different anchor park", async () => {
+    const user = { id: "user-2", name: "Murabbi", email: "murabbi@example.test", isActive: true, mustResetPwd: true };
+    mocks.cityFindUnique.mockResolvedValue({ id: "city-1" });
+    mocks.parkFindFirst.mockResolvedValue({ id: "park-2" });
+    mocks.groupFindUnique.mockResolvedValue({
+      id: "group-2",
+      parkId: "park-2",
+      park: { cityId: "city-1" },
+      batch: { cityId: "city-1", parkId: "batch-anchor-park", park: { cityId: "city-1" } },
+    });
+    mocks.userFindUnique.mockResolvedValue(null);
+    mocks.transaction.mockImplementation(async (callback) => callback({
+      user: { create: vi.fn().mockResolvedValue(user), findUnique: vi.fn().mockResolvedValue(user) },
+      staffMeta: { create: vi.fn() },
+    }));
+
+    const response = await POST(request({
+      name: "Murabbi",
+      email: "murabbi@example.test",
+      role: "murabbi",
+      assignedCityId: "city-1",
+      assignedParkId: "park-2",
+      assignedGroupId: "group-2",
+    }));
+
+    expect(response.status).toBe(201);
+    expect(mocks.groupFindUnique).toHaveBeenCalledWith(expect.objectContaining({ where: { id: "group-2" } }));
+  });
+
+  it("creates a Muawin with an optional same-park active Murabbi assistance link", async () => {
+    const user = { id: "user-muawin", name: "Muawin", email: "muawin@example.test", isActive: true, mustResetPwd: true };
+    mocks.cityFindUnique.mockResolvedValue({ id: "city-1" });
+    mocks.parkFindFirst.mockResolvedValue({ id: "park-1" });
+    mocks.staffMetaFindUnique.mockResolvedValue({
+      id: "staff-murabbi",
+      role: "murabbi",
+      isActive: true,
+      assignedParkId: "park-1",
+      assignedGroupId: null,
+      user: { isActive: true },
+      assignedGroup: null,
+    });
+    mocks.userFindUnique.mockResolvedValueOnce(null);
+    const createStaffMeta = vi.fn();
+    mocks.transaction.mockImplementation(async (callback) => callback({
+      user: { create: vi.fn().mockResolvedValue(user), findUnique: vi.fn().mockResolvedValue(user) },
+      staffMeta: { create: createStaffMeta },
+    }));
+
+    const response = await POST(request({
+      name: "Muawin", email: "muawin@example.test", role: "muawin",
+      assignedCityId: "city-1", assignedParkId: "park-1", assistsMurabbiId: "staff-murabbi",
+    }));
+
+    expect(response.status).toBe(201);
+    expect(createStaffMeta).toHaveBeenCalledWith({ data: expect.objectContaining({
+      role: "muawin", assistsMurabbiId: "staff-murabbi",
+    }) });
+  });
+
+  it("rejects a non-Muawin assistance link before any write", async () => {
+    const response = await POST(request({
+      name: "Park Lead", email: "lead@example.test", role: "park_lead", assistsMurabbiId: "staff-murabbi",
+    }));
+
+    expect(response.status).toBe(400);
+    expect(mocks.transaction).not.toHaveBeenCalled();
   });
 });

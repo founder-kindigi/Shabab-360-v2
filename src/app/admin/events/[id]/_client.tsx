@@ -3,10 +3,13 @@
 import { useState } from "react";
 import { useParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -30,11 +33,13 @@ import {
   Calendar,
   MapPin,
   Users,
+  ClipboardList,
+  Lock,
   Plus,
   Loader2,
   CheckCircle2,
   XCircle,
-  AlertTriangle,
+  Trash2,
 } from "lucide-react";
 import { EventResponsibilityCard } from "@/components/events/EventResponsibilityCard";
 import { EventTeamRoster } from "@/components/events/EventTeamRoster";
@@ -69,10 +74,6 @@ type PlannerItem = {
   teamId: string | null;
 };
 
-type UiContext = { canManage: boolean; isHq: boolean };
-type Registration = { id: string; status: string; consentStatus: string; feeStatus: string; fee: { required: number; paid: number; remaining: number } | null };
-type EligibleParticipant = { id: string; name: string; groupName: string };
-
 const STATUS_STYLES: Record<string, string> = {
   planned: "bg-muted text-muted-foreground",
   confirmed: "bg-blue-100 text-blue-700",
@@ -91,144 +92,57 @@ const PRIORITY_STYLES: Record<string, string> = {
 export default function EventDetailPage() {
   const params = useParams<{ id: string }>();
   const eventId = params.id;
+  const { data: session } = useSession();
+  const userRole = (session?.user as { role?: string } | undefined)?.role;
+  const canManage = ["super_admin", "program_admin", "city_head"].includes(userRole || "");
   const queryClient = useQueryClient();
 
   const [showPlanner, setShowPlanner] = useState(false);
   const [plannerTitle, setPlannerTitle] = useState("");
   const [plannerPriority, setPlannerPriority] = useState("medium");
   const [plannerDue, setPlannerDue] = useState("");
-  const [showRegistration, setShowRegistration] = useState(false);
-  const [participantSearch, setParticipantSearch] = useState("");
-  const [showTeam, setShowTeam] = useState(false);
-  const [teamTitle, setTeamTitle] = useState("");
-
-  // ── Server-resolved capabilities ──────────────────────────────────────
-  const { data: ctx, isError: ctxError, error: ctxErr } = useQuery<UiContext>({
-    queryKey: ["events-ui-context"],
-    queryFn: () =>
-      fetch("/api/admin/events/ui-context").then(async (r) => {
-        const json = await r.json().catch(() => ({}));
-        if (!r.ok) throw new Error((json as { error?: string }).error || "Failed to load access permissions");
-        return json as UiContext;
-      }),
-    staleTime: 60_000,
-    retry: false,
-  });
-
-  const canManage = ctx?.canManage ?? false;
-  const { data: eligibleParticipants = [] } = useQuery<EligibleParticipant[]>({
-    queryKey: ["event-eligible-participants", eventId, participantSearch],
-    queryFn: async () => {
-      const response = await fetch(`/api/admin/events/${eventId}/eligible-participants?q=${encodeURIComponent(participantSearch)}`);
-      const json = await response.json();
-      if (!response.ok) throw new Error(json.error || "Failed to search participants");
-      return json.data;
-    },
-    enabled: canManage && participantSearch.trim().length >= 2,
-  });
-  const { data: registrations = [] } = useQuery<Registration[]>({
-    queryKey: ["event-registrations", eventId],
-    queryFn: async () => {
-      const response = await fetch(`/api/admin/events/${eventId}/registrations`);
-      const json = await response.json();
-      if (!response.ok) throw new Error(json.error || "Failed to load registrations");
-      return json.data as Registration[];
-    },
-    enabled: Boolean(eventId) && Boolean(ctx) && !ctxError,
-  });
 
   const { data, isLoading, error } = useQuery<EventDetail>({
     queryKey: ["event-detail", eventId],
-    queryFn: () =>
-      fetch(`/api/admin/events/${eventId}`).then(async (r) => {
-        const json = await r.json().catch(() => ({}));
-        if (!r.ok) throw new Error((json as { error?: string }).error || "Failed to load event");
-        return json as EventDetail;
-      }),
-    enabled: Boolean(eventId) && Boolean(ctx) && !ctxError,
+    queryFn: () => fetch(`/api/admin/events/${eventId}`).then((r) => {
+      if (!r.ok) throw new Error("Failed to load event");
+      return r.json();
+    }),
   });
 
-  // DELETE /api/admin/events/[id] for cancellation
   const cancelMutation = useMutation({
     mutationFn: async () => {
-      const res = await fetch(`/api/admin/events/${eventId}`, {
-        method: "DELETE",
-      });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        throw new Error(json.error || "Failed to cancel event");
-      }
-      return json;
-    },
-    onSuccess: () => {
-      toast.success("Event cancelled successfully");
-      queryClient.invalidateQueries({ queryKey: ["event-detail", eventId] });
-      queryClient.invalidateQueries({ queryKey: ["admin-events"] });
-    },
-    onError: (err: Error) => toast.error(err.message),
-  });
-
-  // PATCH /api/admin/events/[id] with status: "completed" for completion
-  const completeMutation = useMutation({
-    mutationFn: async () => {
-      const res = await fetch(`/api/admin/events/${eventId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "completed" }),
-      });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        throw new Error(json.error || "Failed to complete event");
-      }
-      return json;
-    },
-    onSuccess: () => {
-      toast.success("Event completed");
-      queryClient.invalidateQueries({ queryKey: ["event-detail", eventId] });
-      queryClient.invalidateQueries({ queryKey: ["admin-events"] });
-    },
-    onError: (err: Error) => toast.error(err.message),
-  });
-
-  const registerMutation = useMutation({
-    mutationFn: async (participantId: string) => {
-      const response = await fetch(`/api/admin/events/${eventId}/registrations`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ participantId }) });
-      const json = await response.json();
-      if (!response.ok) throw new Error(json.error || "Failed to register participant");
-      return json;
-    },
-    onSuccess: () => { toast.success("Participant registered"); setShowRegistration(false); setParticipantSearch(""); queryClient.invalidateQueries({ queryKey: ["event-registrations", eventId] }); },
-    onError: (err: Error) => toast.error(err.message),
-  });
-  const registrationAction = useMutation({
-    mutationFn: async ({ registrationId, action }: { registrationId: string; action: "consent" | "cancel" | "checkin" }) => {
-      const url = action === "checkin" ? `/api/admin/events/${eventId}/registrations/${registrationId}/check-in` : `/api/admin/events/${eventId}/registrations/${registrationId}`;
-      const response = await fetch(url, { method: action === "checkin" ? "POST" : "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(action === "consent" ? { consentStatus: "provided" } : action === "cancel" ? { cancel: true } : { status: "present" }) });
-      const json = await response.json(); if (!response.ok) throw new Error(json.error || "Registration update failed"); return json;
-    },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["event-registrations", eventId] }),
-    onError: (error: Error) => toast.error(error.message),
-  });
-
-  // POST /api/admin/events/[id]/planner-items
-  const createPlannerMutation = useMutation({
-    mutationFn: async () => {
-      const payload: Record<string, unknown> = {
-        title: plannerTitle,
-        priority: plannerPriority,
-      };
-      if (plannerDue) {
-        payload.dueDate = new Date(plannerDue).toISOString();
-      }
-
-      const res = await fetch(`/api/admin/events/${eventId}/planner-items`, {
+      const res = await fetch(`/api/admin/events/${eventId}/cancel`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ reason: "Cancelled by manager" }),
       });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(json.error || "Failed to create task");
-      return json;
+      if (!res.ok) throw new Error("Failed to cancel");
+      return res.json();
+    },
+    onSuccess: () => { toast.success("Event cancelled"); queryClient.invalidateQueries({ queryKey: ["event-detail", eventId] }); },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const completeMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/admin/events/${eventId}/complete`, { method: "POST" });
+      if (!res.ok) throw new Error("Failed to complete");
+      return res.json();
+    },
+    onSuccess: () => { toast.success("Event completed"); queryClient.invalidateQueries({ queryKey: ["event-detail", eventId] }); },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const createPlannerMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/admin/events/${eventId}/planner`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: plannerTitle, priority: plannerPriority, dueDate: plannerDue ? new Date(plannerDue).toISOString() : undefined }),
+      });
+      if (!res.ok) throw new Error("Failed to create task");
+      return res.json();
     },
     onSuccess: () => {
       toast.success("Task created");
@@ -240,82 +154,25 @@ export default function EventDetailPage() {
     onError: (err: Error) => toast.error(err.message),
   });
 
-  // PATCH /api/admin/events/planner-items/[id]
   const updatePlannerMutation = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
-      const res = await fetch(`/api/admin/events/planner-items/${id}`, {
+      const res = await fetch(`/api/admin/events/planner/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status }),
       });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(json.error || "Failed to update task");
-      return json;
+      if (!res.ok) throw new Error("Failed to update task");
+      return res.json();
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["event-detail", eventId] }),
     onError: (err: Error) => toast.error(err.message),
   });
 
-  const createTeamMutation = useMutation({
-    mutationFn: async () => {
-      const res = await fetch(`/api/admin/events/${eventId}/teams`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: teamTitle.trim() }),
-      });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(json.error || "Failed to create team");
-      return json;
-    },
-    onSuccess: () => {
-      toast.success("Event team created");
-      setShowTeam(false);
-      setTeamTitle("");
-      queryClient.invalidateQueries({ queryKey: ["event-detail", eventId] });
-    },
-    onError: (err: Error) => toast.error(err.message),
-  });
-
-  // Safe access state on context failure
-  if (ctxError) {
-    return (
-      <div className="p-4 md:p-6 space-y-4">
-        <Button variant="ghost" size="sm" onClick={() => window.history.back()}>
-          <ArrowLeft className="size-4 mr-2" /> Back
-        </Button>
-        <div id="event-detail-context-error" role="alert" className="flex items-center gap-2 p-4 rounded-lg bg-red-50 border border-red-200 text-red-700 dark:bg-red-950/30 dark:text-red-400">
-          <AlertTriangle className="size-5 shrink-0" />
-          <div>
-            <p className="text-sm font-medium">Access Verification Failed</p>
-            <p className="text-xs opacity-90">{(ctxErr as Error)?.message || "Failed to load access permissions"}</p>
-          </div>
-        </div>
-      </div>
-    );
+  if (isLoading) {
+    return <div className="space-y-4 p-4 md:p-6">{Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-12 w-full rounded-lg" />)}</div>;
   }
-
-  if (isLoading || !ctx) {
-    return (
-      <div className="space-y-4 p-4 md:p-6" aria-busy="true">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <Skeleton key={i} className="h-12 w-full rounded-lg" />
-        ))}
-      </div>
-    );
-  }
-
   if (error || !data) {
-    return (
-      <div className="p-4 md:p-6 space-y-4">
-        <Button variant="ghost" size="sm" onClick={() => window.history.back()}>
-          <ArrowLeft className="size-4 mr-2" /> Back
-        </Button>
-        <div className="flex items-center gap-2 p-4 rounded-lg bg-red-50 border border-red-200 text-red-700">
-          <AlertTriangle className="size-5 shrink-0" />
-          <p className="text-sm font-medium">{(error as Error)?.message || "Event not found."}</p>
-        </div>
-      </div>
-    );
+    return <div className="p-4 md:p-6 text-center text-muted-foreground">Event not found.</div>;
   }
 
   const isTerminal = data.status === "completed" || data.status === "cancelled";
@@ -340,27 +197,14 @@ export default function EventDetailPage() {
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          {canManage && !isTerminal && (
-            <Button
-              id="event-cancel-btn"
-              size="sm"
-              variant="outline"
-              className="text-red-500 border-red-200 hover:bg-red-50"
-              disabled={cancelMutation.isPending}
-              onClick={() => cancelMutation.mutate()}
-            >
-
-              {cancelMutation.isPending ? <Loader2 className="size-3.5 mr-1 animate-spin" /> : <XCircle className="size-3.5 mr-1" />} Cancel
+          {canManage && !isTerminal && data.status !== "cancelled" && (
+            <Button size="sm" variant="outline" className="text-red-500 border-red-200" onClick={() => cancelMutation.mutate()}>
+              <XCircle className="size-3.5 mr-1" /> Cancel
             </Button>
           )}
           {canManage && data.status === "in_progress" && (
-            <Button
-              id="event-complete-btn"
-              size="sm"
-              disabled={completeMutation.isPending}
-              onClick={() => completeMutation.mutate()}
-            >
-              {completeMutation.isPending ? <Loader2 className="size-3.5 mr-1 animate-spin" /> : <CheckCircle2 className="size-3.5 mr-1" />} Complete
+            <Button size="sm" onClick={() => completeMutation.mutate()}>
+              <CheckCircle2 className="size-3.5 mr-1" /> Complete
             </Button>
           )}
         </div>
@@ -373,7 +217,6 @@ export default function EventDetailPage() {
           <TabsTrigger value="teams">Teams ({data.teams?.length || 0})</TabsTrigger>
           <TabsTrigger value="responsibilities">Responsibilities ({data.responsibilities?.length || 0})</TabsTrigger>
           <TabsTrigger value="planner">Planner ({data.plannerItems?.length || 0})</TabsTrigger>
-          <TabsTrigger value="registrations">Registrations ({registrations.length})</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4 pt-4">
@@ -396,17 +239,6 @@ export default function EventDetailPage() {
         </TabsContent>
 
         <TabsContent value="teams" className="space-y-4 pt-4">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <h3 className="text-sm font-medium">Event Teams</h3>
-              <p className="text-xs text-muted-foreground">Create temporary teams for this event, then add active same-city staff.</p>
-            </div>
-            {canManage && (
-              <Button size="sm" variant="outline" onClick={() => setShowTeam(true)}>
-                <Plus className="size-3.5 mr-1" /> Create Team
-              </Button>
-            )}
-          </div>
           {data.teams?.length === 0 && <p className="text-sm text-muted-foreground text-center py-8">No teams created yet.</p>}
           {data.teams?.map((team) => (
             <div key={team.id}>
@@ -456,64 +288,7 @@ export default function EventDetailPage() {
             </div>
           ))}
         </TabsContent>
-
-        <TabsContent value="registrations" className="space-y-3 pt-4">
-          {canManage && <Button className="w-full sm:w-auto" size="sm" onClick={() => setShowRegistration(true)}><Plus className="mr-1 size-4" /> Register participant</Button>}
-          {registrations.length === 0 && <p className="py-8 text-center text-sm text-muted-foreground">No registrations yet.</p>}
-          {registrations.map((registration) => (
-            <Card key={registration.id} className="p-3">
-              <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
-                <span className="font-medium">Registration</span>
-                <div className="flex gap-1"><Badge variant="outline">{registration.status}</Badge><Badge variant="outline">Consent: {registration.consentStatus}</Badge><Badge variant="outline">Fee: {registration.feeStatus}</Badge></div>
-              </div>
-              {registration.fee && <p className="mt-2 text-xs text-muted-foreground">Remaining fee: {registration.fee.remaining}</p>}
-              {canManage && registration.status !== "cancelled" && <div className="mt-3 flex flex-wrap gap-2">
-                {registration.consentStatus === "pending" && <Button size="sm" variant="outline" onClick={() => registrationAction.mutate({ registrationId: registration.id, action: "consent" })}>Confirm consent</Button>}
-                <Button size="sm" variant="outline" onClick={() => registrationAction.mutate({ registrationId: registration.id, action: "checkin" })}>Check in</Button>
-                <Button size="sm" variant="ghost" className="text-red-600" onClick={() => registrationAction.mutate({ registrationId: registration.id, action: "cancel" })}>Cancel</Button>
-              </div>}
-            </Card>
-          ))}
-        </TabsContent>
       </Tabs>
-
-      <Dialog open={showTeam} onOpenChange={(open) => !open && setShowTeam(false)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Create Event Team</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-2">
-            <label className="text-sm font-medium" htmlFor="event-team-title">Team name</label>
-            <Input
-              id="event-team-title"
-              value={teamTitle}
-              onChange={(event) => setTeamTitle(event.target.value)}
-              placeholder="For example, Registration or Transport"
-              maxLength={100}
-            />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowTeam(false)}>Cancel</Button>
-            <Button
-              onClick={() => createTeamMutation.mutate()}
-              disabled={teamTitle.trim().length < 2 || createTeamMutation.isPending}
-            >
-              {createTeamMutation.isPending ? <Loader2 className="size-4 animate-spin" /> : "Create Team"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={showRegistration} onOpenChange={setShowRegistration}>
-        <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>Register participant</DialogTitle></DialogHeader>
-          <Input value={participantSearch} onChange={(event) => setParticipantSearch(event.target.value)} placeholder="Search student name" autoFocus />
-          <div className="max-h-72 space-y-2 overflow-y-auto">
-            {participantSearch.length >= 2 && eligibleParticipants.map((participant) => <Button key={participant.id} variant="outline" className="h-auto w-full justify-between p-3 text-left" disabled={registerMutation.isPending} onClick={() => registerMutation.mutate(participant.id)}><span>{participant.name}</span><span className="text-xs text-muted-foreground">{participant.groupName}</span></Button>)}
-            {participantSearch.length >= 2 && eligibleParticipants.length === 0 && <p className="py-4 text-center text-sm text-muted-foreground">No eligible participants found.</p>}
-          </div>
-        </DialogContent>
-      </Dialog>
 
       {/* Create Planner Item Dialog */}
       <Dialog open={showPlanner} onOpenChange={(v) => !v && setShowPlanner(false)}>
@@ -534,7 +309,7 @@ export default function EventDetailPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowPlanner(false)}>Cancel</Button>
-            <Button id="planner-submit-btn" onClick={() => createPlannerMutation.mutate()} disabled={!plannerTitle || createPlannerMutation.isPending}>
+            <Button onClick={() => createPlannerMutation.mutate()} disabled={!plannerTitle || createPlannerMutation.isPending}>
               {createPlannerMutation.isPending ? <Loader2 className="size-4 animate-spin" /> : "Create"}
             </Button>
           </DialogFooter>

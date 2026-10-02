@@ -12,7 +12,6 @@ import {
   canWriteContentPlan,
 } from "@/lib/content-planner/scope";
 import type { SessionUser } from "@/lib/auth/scope";
-import { isConfiguredBatchOffDay } from "@/lib/schedule/batch-off-days";
 
 /**
  * GET /api/admin/content-planner/sessions
@@ -129,7 +128,7 @@ export async function POST(request: NextRequest) {
   // Verify plan exists and get its scope
   const plan = await db.contentPlan.findUnique({
     where: { id: planId },
-    select: { id: true, cityId: true, batchId: true, parkId: true, status: true, batch: { select: { settings: { include: { offWeekdays: true, offDates: true } } } } },
+    select: { id: true, cityId: true, batchId: true, parkId: true, status: true },
   });
 
   if (!plan) {
@@ -169,14 +168,11 @@ export async function POST(request: NextRequest) {
   }
 
   // Create the session
-  const configuredOffDay = isConfiguredBatchOffDay(plan.batch?.settings, new Date(sessionDate));
   const session = await db.contentPlanSession.create({
     data: {
       ...sessionData,
       planId,
       sessionDate: new Date(sessionDate),
-      isOffDay: configuredOffDay || sessionData.isOffDay,
-      focusArea: configuredOffDay ? null : sessionData.focusArea,
     },
     include: {
       plan: {

@@ -105,7 +105,7 @@ type Summary = {
 type WarningItem = {
   participantId: string;
   participantName: string;
-  consecutiveAbsents: number;
+  consecutiveAbsentWeeks: number;
   level: "warning" | "critical" | "dropout";
   threshold: number;
   lastAttendanceDate: string | null;
@@ -113,7 +113,7 @@ type WarningItem = {
 
 type WarningsData = {
   warnings: WarningItem[];
-  settings: { warningAbsents: number; dropoutAbsents: number };
+  settings: { warningConsecutiveWeeks: number; dropoutConsecutiveWeeks: number };
 };
 
 function warningLevelColor(level: WarningItem["level"]) {
@@ -1248,7 +1248,7 @@ export function AttendanceRoster() {
                             />
                           </TooltipTrigger>
                           <TooltipContent side="top">
-                            {participantWarning.consecutiveAbsents} consecutive absences ({participantWarning.level} threshold: {participantWarning.threshold})
+                            {participantWarning.consecutiveAbsentWeeks} consecutive absent weeks ({participantWarning.level} threshold: {participantWarning.threshold})
                           </TooltipContent>
                         </Tooltip>
                       )}
@@ -1646,10 +1646,10 @@ export function AttendanceRoster() {
               Attendance Warnings
             </DialogTitle>
             <DialogDescription>
-              Participants with consecutive absences approaching or exceeding thresholds.
+              Participants with consecutive absent weeks approaching or exceeding thresholds.
               {warningsData?.settings && (
                 <span className="block mt-1">
-                  Warning: {warningsData.settings.warningAbsents} absences &middot; Dropout: {warningsData.settings.dropoutAbsents} absences
+                  Warning: {warningsData.settings.warningConsecutiveWeeks} weeks &middot; Dropout: {warningsData.settings.dropoutConsecutiveWeeks} weeks
                 </span>
               )}
             </DialogDescription>
@@ -1660,7 +1660,7 @@ export function AttendanceRoster() {
               {warningsData.warnings
                 .sort((a, b) => {
                   const order = { dropout: 0, critical: 1, warning: 2 };
-                  return order[a.level] - order[b.level] || b.consecutiveAbsents - a.consecutiveAbsents;
+                  return order[a.level] - order[b.level] || b.consecutiveAbsentWeeks - a.consecutiveAbsentWeeks;
                 })
                 .map((w) => (
                   <div
@@ -1681,7 +1681,7 @@ export function AttendanceRoster() {
                         </Badge>
                       </div>
                       <p className="text-xs mt-0.5 opacity-80">
-                        {w.consecutiveAbsents} consecutive absence{w.consecutiveAbsents !== 1 ? "s" : ""}
+                        {w.consecutiveAbsentWeeks} consecutive absent week{w.consecutiveAbsentWeeks !== 1 ? "s" : ""}
                         {w.lastAttendanceDate && (
                           <span> &middot; Last attended: {w.lastAttendanceDate}</span>
                         )}

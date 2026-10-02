@@ -2,13 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireCapability } from "@/lib/auth/authorize";
 import { computeValuesHmac } from "@/lib/calling/template-hmac";
 import { db } from "@/lib/db";
-import { createAuditLogData } from "@/lib/audit";
 import { useTemplateSchema } from "@/lib/validations/calling";
 
 export async function POST(request: NextRequest) {
   const auth = await requireCapability("calling.view");
   if (auth instanceof NextResponse) return auth;
-  const user = auth.user as any;
+  const { user } = auth;
 
   let body: any;
   try {
@@ -27,112 +26,39 @@ export async function POST(request: NextRequest) {
 
   const { templateId, assignmentId, variablesUsed, valuesUsed } = parsed.data;
 
-  const [template, assignment] = await Promise.all([
-    db.callingTemplate.findUnique({ where: { id: templateId } }),
-    db.callingAssignment.findUnique({
-      where: { id: assignmentId },
-      include: { campaign: true },
-    }),
-  ]);
+  const template = await db.callingTemplate.findUnique({
+    where: { id: templateId },
+  });
 
-  if (!template) {
-    return NextResponse.json({ error: "Template not found" }, { status: 404 });
-  }
-
-  if (template.status !== "approved") {
+  if (!template || template.status !== "approved") {
     return NextResponse.json(
-      { error: `Template is ${template.status}; only approved templates may be used` },
+      { error: "Template not found or not in approved status" },
       { status: 400 }
     );
   }
 
+  const assignment = await db.callingAssignment.findUnique({
+    where: { id: assignmentId },
+  });
+
   if (!assignment || !assignment.isActive) {
     return NextResponse.json(
       { error: "Calling assignment not found or inactive" },
-      { status: 404 }
+      { status: 400 }
     );
   }
 
-  // Verify the template is eligible for this assignment's campaign and city.
-  // A campaign-bound template must match; a city-only template is compatible
-  // with any campaign in its city.
-  if (template.campaignId && template.campaignId !== assignment.campaignId) {
-    return NextResponse.json(
-      { error: "Template is bound to a different campaign than this lead" },
-      { status: 403 }
-    );
-  }
-  if (template.cityId !== assignment.campaign.cityId) {
-    return NextResponse.json(
-      { error: "Template city does not match lead campaign city" },
-      { status: 403 }
-    );
-  }
+  const valuesHmac = computeValuesHmac(valuesUsed || {});
 
-  // Direct-caller authorization: only the assigned staff caller or a valid
-  // external caller may record template use for this lead.
-  let isAuthorizedCaller = false;
-
-  if (assignment.callerExternalId) {
-    const extCaller = await db.externalSupportCaller.findFirst({
-      where: {
-        id: assignment.callerExternalId,
-        userId: user.id,
-        isActive: true,
-        revokedAt: null,
-        expiresAt: { gt: new Date() },
-      },
-    });
-    if (extCaller) isAuthorizedCaller = true;
-  }
-
-  if (!isAuthorizedCaller && assignment.callerStaffMetaId) {
-    const staffMeta = await db.staffMeta.findFirst({
-      where: { id: assignment.callerStaffMetaId, userId: user.id, isActive: true },
-    });
-    if (staffMeta) isAuthorizedCaller = true;
-  }
-
-  if (!isAuthorizedCaller) {
-    return NextResponse.json(
-      { error: "Forbidden: only the assigned caller may record template use" },
-      { status: 403 }
-    );
-  }
-
-  const valuesHmac = computeValuesHmac(valuesUsed);
-
-  // Atomic: create use record and capture audit evidence in one transaction.
-  // Sanitized audit payload — variable keys and HMAC only, never raw values.
-  const useRecord = await db.$transaction(async (tx) => {
-    const record = await tx.callingTemplateUse.create({
-      data: {
-        templateId,
-        templateVersion: template.version,
-        callerUserId: user.id!,
-        assignmentId,
-        variablesUsed: JSON.stringify(variablesUsed),
-        valuesHmac,
-      },
-    });
-
-    await tx.auditLog.create({
-      data: createAuditLogData({
-        userId: user.id!,
-        action: "calling.template.use",
-        entityType: "CallingTemplateUse",
-        entityId: record.id,
-        newValues: {
-          templateId,
-          templateVersion: template.version,
-          assignmentId,
-          variablesUsed,
-          valuesHmac,
-        },
-      }),
-    });
-
-    return record;
+  const useRecord = await db.callingTemplateUse.create({
+    data: {
+      templateId,
+      templateVersion: template.version,
+      callerUserId: user.id!,
+      assignmentId,
+      variablesUsed: JSON.stringify(variablesUsed),
+      valuesHmac,
+    },
   });
 
   return NextResponse.json(useRecord, { status: 201 });

@@ -1,3 +1,13 @@
 {
-  "buildCommand": "npm run build:postgres"
+  "buildCommand": "npm run build:postgres",
+  "git": {
+    "deploymentEnabled": {
+      "main": true,
+      "v2": true
+    }
+  },
+  "github": {
+    "autoAlias": false,
+    "silent": true
+  }
 }

@@ -1,0 +1,9 @@
+# Astra review — MTI-01 DeepSeek clean-code pass
+
+Date: 2026-09-29. Outcome: **accepted as a bounded behavior-preserving cleanup**, not a module or release signoff. Astra reviewed the current contents of the six allowed frontend/test files against the assignment; they are untracked on the current base, so Git cannot show a before/after diff for DeepSeek's individual changes. The pasted DeepSeek handoff is a claim; this review relies on current source and independently rerun checks.
+
+Observed changes are within the packet: unused parent imports/state and unused component imports removed; builder PATCH payload and settings update narrowed; duplicate submitted-snapshot state removed; public query's unused `refetch` removed; builder test now waits for the post-save query refresh and checks that a later in-flight edit remains visible and dirty. City Head create payload and public request-key/consent flow remain in place. No API/auth/Prisma or visual-contract changes were found in the scoped cleanup.
+
+Verification: focused builder and City Head tests 2/2 passed; `npm run typecheck` passed; `npm run lint` passed with zero errors and six pre-existing script unused-disable warnings. Scoped whitespace scan of six files passed. Repo-wide `git diff --check` fails on unrelated tracked blank-at-EOF paths and does not inspect these untracked files; no clean repository-wide diff claim is made.
+
+Remaining MTI-01 gates: generic-form API route tests for authorization, scope, invalid/closed submissions, idempotency and revision behavior; full-suite result (prior run stalled and was interrupted); routing build (prior run blocked by existing Google Fonts fetch); browser checks for staff/public desktop and mobile states; final data/security/rollback review. No live form, DB migration or deployment was performed. MTI-01 stays active.

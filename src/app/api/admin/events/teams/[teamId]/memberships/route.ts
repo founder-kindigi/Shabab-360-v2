@@ -46,67 +46,19 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
   const staffMeta = await db.staffMeta.findUnique({
     where: { id: parsed.data.staffMetaId },
-    include: {
-      assignedCity: true,
-      assignedPark: { include: { city: true } },
-      assignedGroup: { include: { park: { include: { city: true } }, batch: { include: { park: { include: { city: true } }, city: true } } } },
-    },
+    include: { assignedCity: true, assignedPark: { include: { city: true } } },
   });
 
-  if (!staffMeta) {
-    return NextResponse.json({ error: "Staff member not found" }, { status: 404 });
+  if (!staffMeta || !staffMeta.isActive) {
+    return NextResponse.json({ error: "Staff member not found or inactive" }, { status: 400 });
   }
 
-  if (!staffMeta.isActive) {
-    return NextResponse.json({ error: "Staff member is inactive" }, { status: 403 });
-  }
-
-  const staffCityId =
-    staffMeta.assignedCityId ||
-    staffMeta.assignedPark?.cityId ||
-    staffMeta.assignedGroup?.park?.cityId ||
-    staffMeta.assignedGroup?.batch?.cityId ||
-    staffMeta.assignedGroup?.batch?.park?.cityId;
-
+  const staffCityId = staffMeta.assignedCityId || staffMeta.assignedPark?.cityId;
   if (staffCityId !== team.event.cityId) {
     return NextResponse.json(
       { error: "Assignee staff member belongs to a different city than the event" },
-      { status: 403 }
+      { status: 400 }
     );
-  }
-
-  const existingMembership = await db.eventTeamMembership.findFirst({
-    where: { teamId, staffMetaId: parsed.data.staffMetaId },
-  });
-
-  if (existingMembership) {
-    if (existingMembership.isActive) {
-      return NextResponse.json(
-        { error: "Active membership already exists for this staff member" },
-        { status: 409 }
-      );
-    }
-
-    const membership = await db.eventTeamMembership.update({
-      where: { id: existingMembership.id },
-      data: {
-        isActive: true,
-        title: parsed.data.title || null,
-        assignedUntil: parsed.data.assignedUntil ? new Date(parsed.data.assignedUntil) : null,
-        revokedAt: null,
-        revokedReason: null,
-      },
-    });
-
-    await logAudit({
-      userId: user.id,
-      action: "event.team_member.reactivate",
-      entityType: "EventTeamMembership",
-      entityId: membership.id,
-      newValues: { teamId, staffMetaId: parsed.data.staffMetaId, isActive: true },
-    });
-
-    return NextResponse.json(membership, { status: 200 });
   }
 
   const membership = await db.eventTeamMembership.create({

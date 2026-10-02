@@ -123,11 +123,12 @@ export async function GET() {
     const thirtyDaysAgo = new Date(todayStart.getTime() - 29 * 24 * 60 * 60 * 1000);
     const sevenDaysAgo = new Date(todayStart.getTime() - 6 * 24 * 60 * 60 * 1000);
 
-    const groupIds: string[] = [
+    // Collect all group IDs for today's events query
+    const groupIds = [
       ...new Set(
         guardianChildren
           .map((gc) => gc.participant.groupId)
-          .filter((id): id is string => typeof id === "string")
+          .filter((groupId): groupId is string => groupId !== null)
       ),
     ];
 
@@ -137,6 +138,25 @@ export async function GET() {
     for (const gc of guardianChildren) {
       const p = gc.participant;
       const groupId = p.groupId;
+
+      // An unassigned child has no group attendance, schedule, park/city or
+      // fee-event data. Retain the child with null/empty group-derived fields.
+      if (!groupId) {
+        children.push({
+          id: p.id,
+          name: p.name,
+          groupName: null,
+          batchName: null,
+          parkName: null,
+          cityName: null,
+          groupId: null,
+          todayStatus: null,
+          sparkline7Day: [],
+          attendance: { totalEvents30: 0, present30: 0, absent30: 0, late30: 0, excused30: 0, rate30: 0, rate7: 0, last5: [] },
+          fees: { totalExpected: 0, totalPaid: 0, outstanding: 0, upcomingFees: 0, overdueFees: 0 },
+        });
+        continue;
+      }
 
       // 30-day attendance records
       const records30 = await db.attendanceRecord.findMany({
@@ -298,21 +318,19 @@ export async function GET() {
     }
 
     // Today's events for all children's groups
-    const todayEvents = groupIds.length > 0
-      ? await db.attendanceEvent.findMany({
-          where: {
-            groupId: { in: groupIds },
-            eventDate: { gte: todayStart, lte: todayEnd },
-          },
-          include: {
-            _count: { select: { records: true } },
-            group: {
-              select: { name: true, batch: { select: { park: { select: { name: true } } } } },
-            },
-          },
-          orderBy: { eventDate: "desc" },
-        })
-      : [];
+    const todayEvents = await db.attendanceEvent.findMany({
+      where: {
+        groupId: { in: groupIds },
+        eventDate: { gte: todayStart, lte: todayEnd },
+      },
+      include: {
+        _count: { select: { records: true } },
+        group: {
+          select: { name: true, batch: { select: { park: { select: { name: true } } } } },
+        },
+      },
+      orderBy: { eventDate: "desc" },
+    });
 
     // Get participant counts per group for progress calculation
     const todayEventsFormatted: GuardianDashboardTodayEvent[] = [];

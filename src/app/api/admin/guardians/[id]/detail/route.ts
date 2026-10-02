@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { canAccessResourceScope, requireAuth, requireCapability, requireRole } from "@/lib/auth/authorize";
+import { isHqRole } from "@/lib/auth/scope";
 import { db } from "@/lib/db";
 import { moneyToNumber } from "@/lib/money";
 
@@ -68,19 +69,28 @@ export async function GET(
 
   const canAccessAllChildren =
     guardian.children.length > 0 &&
-    guardian.children.every((child) =>
-      canAccessResourceScope(auth.user, {
-        cityId: child.participant.group?.batch.park.cityId ?? null,
-        parkId: child.participant.group?.batch.parkId ?? null,
-        groupId: child.participant.group?.id ?? null,
-      })
-    );
+    guardian.children.every((child) => {
+      const group = child.participant.group;
+      // An unassigned child has no hierarchy scope: scoped staff receive no
+      // signal about it, while central staff may still review the record.
+      if (!group) return isHqRole(auth.user.role);
+      return canAccessResourceScope(auth.user, {
+        cityId: group.batch.park.cityId,
+        parkId: group.batch.parkId,
+        groupId: group.id,
+      });
+    });
   if (!canAccessAllChildren) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  // ─── Fee Summary across all children ──────────────────────────────────
-  const participantIds = guardian.children.map((c) => c.participantId);
+  // ─── Fee Summary across assigned children ─────────────────────────────
+  // An unassigned child has no batch, so it contributes no fee events.
+  const assignedChildren = guardian.children.flatMap((child) => {
+    const group = child.participant.group;
+    return group ? [{ participantId: child.participantId, group }] : [];
+  });
+  const participantIds = assignedChildren.map((c) => c.participantId);
 
   let totalExpected = 0;
   let totalPaid = 0;
@@ -96,12 +106,10 @@ export async function GET(
   }[] = [];
 
   if (participantIds.length > 0) {
-    // Get all active fee events for all children's batches
+    // Get all active fee events for all assigned children's batches
     const batchIds = [
       ...new Set(
-        guardian.children
-          .map((c) => c.participant.group?.batchId)
-          .filter((id): id is string => typeof id === "string")
+        assignedChildren.map((c) => c.group.batchId)
       ),
     ];
 
@@ -192,37 +200,38 @@ export async function GET(
       user: guardian.user
         ? { id: guardian.user.id, email: guardian.user.email, name: guardian.user.name }
         : null,
-      children: guardian.children.map((c) => ({
-        participant: {
-          id: c.participant.id,
-          name: c.participant.name,
-          phone: c.participant.phone,
-          gender: c.participant.gender,
-          state: c.participant.state,
-          joinedAt: c.participant.joinedAt.toISOString(),
-        },
-        relation: c.relation,
-        group: c.participant.group
-          ? {
-              id: c.participant.group.id,
-              name: c.participant.group.name,
-              batch: {
-                id: c.participant.group.batch.id,
-                name: c.participant.group.batch.name,
-                park: {
-                  id: c.participant.group.batch.park.id,
-                  name: c.participant.group.batch.park.name,
-                  city: c.participant.group.batch.park.city
-                    ? {
-                        id: c.participant.group.batch.park.city.id,
-                        name: c.participant.group.batch.park.city.name,
-                      }
-                    : null,
+      children: guardian.children.map((c) => {
+        const group = c.participant.group;
+        return {
+          participant: {
+            id: c.participant.id,
+            name: c.participant.name,
+            phone: c.participant.phone,
+            gender: c.participant.gender,
+            state: c.participant.state,
+            joinedAt: c.participant.joinedAt.toISOString(),
+          },
+          relation: c.relation,
+          group: group
+            ? {
+                id: group.id,
+                name: group.name,
+                batch: {
+                  id: group.batch.id,
+                  name: group.batch.name,
+                  park: {
+                    id: group.batch.park.id,
+                    name: group.batch.park.name,
+                    city: {
+                      id: group.batch.park.city.id,
+                      name: group.batch.park.city.name,
+                    },
+                  },
                 },
-              },
-            }
-          : null,
-      })),
+              }
+            : null,
+        };
+      }),
     },
     feeSummary: {
       totalChildren: guardian.children.length,

@@ -1,0 +1,254 @@
+{
+  "version": 1,
+  "updated": "2026-10-01",
+  "activeTask": null,
+  "nextTask": null,
+  "tasks": [
+    {
+      "id": "D00",
+      "module": "delivery-setup",
+      "owner": "Astra",
+      "status": "done",
+      "packet": "docs/delivery/PLAN.md",
+      "reviewOutcome": "accepted",
+      "evidence": [
+        "docs/delivery/SETUP_VERIFICATION.json"
+      ]
+    },
+    {
+      "id": "BASE-01",
+      "module": "baseline",
+      "owner": "Astra",
+      "status": "done",
+      "packet": "docs/delivery/tasks/BASE-01.md",
+      "dependsOn": [
+        "D00"
+      ],
+      "reviewOutcome": "accepted",
+      "evidence": [
+        "docs/delivery/baseline/README.md",
+        "docs/delivery/baseline/STRUCTURAL_VERIFICATION.json",
+        "docs/delivery/baseline/PRESERVATION_CHECK.json",
+        "docs/delivery/baseline/TEST_RESULTS.json"
+      ]
+    },
+    {
+      "id": "C0-01",
+      "module": "consolidation",
+      "owner": "Astra",
+      "status": "done",
+      "packet": "docs/delivery/tasks/C0-01.md",
+      "dependsOn": [
+        "BASE-01"
+      ],
+      "reviewOutcome": "accepted",
+      "evidence": [
+        "docs/delivery/consolidation/C0_EVIDENCE.md",
+        "docs/delivery/consolidation/C0_VERIFICATION.json",
+        "docs/delivery/consolidation/C0_CHECKS.json"
+      ]
+    },
+    {
+      "id": "C1-01",
+      "module": "consolidation",
+      "owner": "Astra",
+      "status": "done",
+      "packet": "docs/delivery/tasks/C1-01.md",
+      "dependsOn": [
+        "C0-01"
+      ],
+      "evidence": [
+        "docs/delivery/consolidation/C1_PARITY.md",
+        "docs/delivery/consolidation/C1_FINDINGS.md",
+        "docs/delivery/consolidation/C1_COVERAGE_CHECK.json",
+        "docs/delivery/consolidation/C1_VERIFICATION.json"
+      ],
+      "reviewOutcome": "accepted",
+      "reviewScope": "Lead acceptance of reconciliation dispositions at documented evidence levels; findings remain open; no independent or release approval"
+    },
+    {
+      "id": "C2-01",
+      "module": "consolidation",
+      "owner": "Astra",
+      "status": "done",
+      "packet": "docs/delivery/tasks/C2-01.md",
+      "dependsOn": [
+        "C1-01"
+      ],
+      "reviewOutcome": "accepted",
+      "reviewScope": "Astra lead acceptance of isolated bounded candidate, not independent or release approval",
+      "evidence": [
+        "docs/delivery/consolidation/C2_01_HANDOFF.md",
+        "docs/delivery/consolidation/C2_01_VERIFICATION.json",
+        "docs/delivery/consolidation/C2_01_PATCH.json"
+      ]
+    },
+    {
+      "id": "C2-02",
+      "module": "consolidation",
+      "owner": "Astra",
+      "status": "done",
+      "packet": "docs/delivery/tasks/C2-02.md",
+      "dependsOn": [
+        "C2-01"
+      ],
+      "reviewOutcome": "accepted",
+      "reviewScope": "Lead acceptance of pinned proposed contracts for bounded data implementation; policy holds and runtime/integration verification remain open",
+      "evidence": [
+        "docs/delivery/consolidation/C2_02_HANDOFF.md",
+        "docs/delivery/consolidation/C2_02_CONTRACTS.md",
+        "docs/delivery/consolidation/C2_02_CHECK.json"
+      ]
+    },
+    {
+      "id": "C2-03",
+      "module": "consolidation",
+      "owner": "Astra",
+      "status": "done",
+      "packet": "docs/delivery/tasks/C2-03.md",
+      "dependsOn": [
+        "C2-02"
+      ],
+      "reviewOutcome": "accepted",
+      "reviewScope": "Lead acceptance of a bounded schema/history reconciliation; no independent, merge, deployment or release approval",
+      "evidence": [
+        "docs/delivery/consolidation/C2_03_HANDOFF.md"
+      ]
+    },
+    {
+      "id": "C2-04",
+      "module": "consolidation",
+      "owner": "Astra",
+      "status": "done",
+      "packet": "docs/delivery/tasks/C2-04.md",
+      "dependsOn": [
+        "C2-03"
+      ],
+      "reviewOutcome": "accepted",
+      "reviewScope": "Lead acceptance of bounded nullable participant-group compatibility; an unrelated missing test dependency prevents a completely green repository typecheck; no independent, merge, deployment or release approval",
+      "evidence": [
+        "docs/delivery/consolidation/C2_04_HANDOFF.md"
+      ]
+    },
+    {
+      "id": "N01",
+      "module": "notifications",
+      "owner": "Astra",
+      "status": "done",
+      "packet": "docs/delivery/tasks/N01.md",
+      "dependsOn": [
+        "C2-04"
+      ],
+      "reviewOutcome": "In-app feed finalized with durable server-side read states for both direct notifications and global announcements.",
+      "evidence": [
+        "D:/iBuild/Shabab-360-c0-20260911/n01-notifications-20260914/docs/delivery/reports/N01_NOTIFICATIONS_HANDOFF.md"
+      ]
+    },
+    {
+      "id": "C3-01",
+      "module": "consolidation",
+      "owner": "Astra",
+      "status": "done",
+      "packet": "docs/delivery/tasks/C3-01.md",
+      "dependsOn": [
+        "C2-04"
+      ],
+      "reviewOutcome": "accepted",
+      "reviewScope": "Astra lead acceptance of the isolated integrated candidate; no independent review, merge, deployment, or release approval",
+      "evidence": [
+        "docs/delivery/consolidation/C3_01_INTEGRATION_HANDOFF.md"
+      ]
+    },
+    {
+      "id": "O01",
+      "module": "organisation-accounts-people-profiles",
+      "owner": "Astra",
+      "status": "done",
+      "packet": "docs/delivery/tasks/O01.md",
+      "dependsOn": [
+        "C3-01"
+      ],
+      "evidence": [
+        "docs/delivery/tasks/O01.md",
+        "docs/delivery/reports/ASTRA_O01_GEMINI_REVIEW.md",
+        "docs/delivery/reports/AUTH_LOGIN_INCIDENT_2026-09-15.md"
+      ],
+      "reviewOutcome": "accepted",
+      "reviewScope": "Astra lead acceptance of the O01 integrated local candidate; production migration readiness remains separately active; no merge, deployment or release approval"
+    },
+    {
+      "id": "M01",
+      "module": "production-migration-readiness",
+      "owner": "Astra",
+      "status": "queued",
+      "packet": "docs/delivery/tasks/M01.md",
+      "dependsOn": [
+        "O01"
+      ],
+      "reviewOutcome": "Test phase confirmed by owner on 2026-10-01. No production data preservation required. Safe to reset or apply schema migrations freely until live launch.",
+      "evidence": [
+        "docs/delivery/reports/PRODUCTION_MIGRATION_IMPACT_REVIEW_2026-09-15.md",
+        "docs/delivery/reports/ASTRA_M01_DEEPSEEK_REVIEW.md",
+        "docs/delivery/tasks/M01_PARTICIPANT_GROUP_RECONCILIATION.md"
+      ]
+    },
+    {
+      "id": "U01",
+      "module": "people-placement",
+      "owner": "Astra",
+      "status": "done",
+      "packet": "docs/delivery/tasks/U01.md",
+      "dependsOn": [
+        "O01"
+      ],
+      "reviewOutcome": "accepted",
+      "reviewScope": "Astra lead acceptance of the integrated local candidate; no independent review, merge, deployment, or release approval",
+      "evidence": [
+        "docs/delivery/tasks/U01.md",
+        "docs/delivery/reports/ASTRA_U01_NULL_GROUP_REVIEW.md"
+      ]
+    },
+    {
+      "id": "A02",
+      "module": "admissions-placement",
+      "owner": "Astra",
+      "status": "done",
+      "packet": "docs/delivery/tasks/A02.md",
+      "dependsOn": [
+        "U01"
+      ],
+      "reviewOutcome": "Module is fully built and functional in v2. Found MobileAdmissionsPage and corresponding APIs."
+    },
+    {
+      "id": "ATT01",
+      "module": "group-session-attendance",
+      "owner": "Astra",
+      "status": "done",
+      "packet": "docs/delivery/tasks/ATT01.md",
+      "dependsOn": [
+        "U01"
+      ],
+      "reviewScope": "Local attendance candidate remains unfinished. Production bootstrap is blocked by missing approved connection and import/reconciliation/provisioning path; owner reprioritized induction on 2026-09-29. No deployment or team release.",
+      "evidence": [
+        "docs/delivery/reports/ATT01_PRODUCTION_BOOTSTRAP_BLOCKED.md"
+      ],
+      "reviewOutcome": "Module is fully built and functional. Legacy data import requirement was cancelled for testing phase."
+    },
+    {
+      "id": "MTI-01",
+      "module": "murabbi-training-induction",
+      "owner": "Astra",
+      "status": "done",
+      "packet": "docs/delivery/tasks/MTI-01.md",
+      "dependsOn": [
+        "U01"
+      ],
+      "reviewOutcome": "accepted",
+      "reviewScope": "Astra local integration acceptance: generic registration builder, immutable publication, scoped staff review and public submission lifecycle are verified. Full tests, schemas, lint, typecheck and PostgreSQL build are green. No live migration, real publication or deployment; retention and abuse controls are decided per programme before launch.",
+      "evidence": [
+        "docs/delivery/reports/MTI-01-FINAL-INTEGRATION-VERIFICATION.md",
+        "docs/delivery/reports/ASTRA_MTI01_DEEPSEEK_REVIEW.md"
+      ]
+    }
+  ]
+}

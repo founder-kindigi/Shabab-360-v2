@@ -35,7 +35,7 @@ export async function resolveRequestedHierarchy(user: SessionUser, requested: Se
     if (!user.assignedCityId) return forbidden();
     scope.kind = "city";
     scope.cityId = user.assignedCityId;
-  } else if (role === "park_admin" || role === "park_lead") {
+  } else if (role === "park_admin" || role === "park_lead" || role === "muawin") {
     if (!user.assignedParkId) return forbidden();
     const park = await prisma.park.findUnique({ where: { id: user.assignedParkId } });
     if (!park || park.isActive === false || (user.assignedCityId && user.assignedCityId !== park.cityId)) return forbidden();

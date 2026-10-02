@@ -5,7 +5,8 @@ export type StaffRole =
   | "city_head"
   | "park_admin"
   | "park_lead"
-  | "murabbi";
+  | "murabbi"
+  | "muawin";
 
 export type UserRole = StaffRole | "guardian" | "student";
 
@@ -18,6 +19,8 @@ export interface ShababUser {
   email: string;
   name?: string | null;
   role: UserRole | null;
+  /** Stable product-facing role label derived from `role`; never a second source of truth. */
+  roleLabel?: string | null;
   mustResetPwd?: boolean;
   assignedCityId?: string | null;
   assignedParkId?: string | null;

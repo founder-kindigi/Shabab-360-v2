@@ -1,0 +1,29 @@
+[
+  {
+    "path": "/api/admin/events",
+    "scenario": "array",
+    "status": 200,
+    "body": [
+      {
+        "id": "synthetic-event",
+        "title": "C1 SYNTHETIC API EVENT",
+        "startDate": "2026-09-12T12:00:00Z",
+        "location": "Synthetic park"
+      }
+    ]
+  },
+  {
+    "path": "/api/admin/events",
+    "scenario": "empty",
+    "status": 200,
+    "body": []
+  },
+  {
+    "path": "/api/admin/events",
+    "scenario": "denied",
+    "status": 403,
+    "body": {
+      "error": "Synthetic denial"
+    }
+  }
+]

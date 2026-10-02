@@ -1,0 +1,21 @@
+{
+  "inventoryValid": true,
+  "dispositionCoverageComplete": true,
+  "counts": {
+    "mainOnlyPaths": 108,
+    "changedSharedPaths": 233,
+    "mainUniqueCommits": 171,
+    "registers": 14,
+    "requirements": 35
+  },
+  "unassessed": {
+    "mainOnlyPaths": 0,
+    "changedSharedPaths": 0,
+    "mainUniqueCommits": 0,
+    "registers": 0,
+    "requirements": 0
+  },
+  "errors": [],
+  "outcome": "C1 reconciliation dispositions accounted for",
+  "meaning": "Checks inventory and recorded reconciliation dispositions; does not establish source-review depth, behavioral equivalence, fix verification, migration safety or release approval."
+}

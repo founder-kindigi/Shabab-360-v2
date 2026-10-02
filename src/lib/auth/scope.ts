@@ -8,6 +8,7 @@ export const STAFF_ROLES: readonly StaffRole[] = [
   "park_admin",
   "park_lead",
   "murabbi",
+  "muawin",
 ];
 
 export const ORGANIZATION_MANAGEMENT_ROLES: readonly StaffRole[] = [
@@ -80,7 +81,7 @@ export function canAccessResourceScope(
     return Boolean(scope.cityId && user.assignedCityId && scope.cityId === user.assignedCityId);
   }
 
-  if (userRole === "park_admin" || userRole === "park_lead") {
+  if (userRole === "park_admin" || userRole === "park_lead" || userRole === "muawin") {
     return Boolean(scope.parkId && user.assignedParkId && scope.parkId === user.assignedParkId);
   }
 

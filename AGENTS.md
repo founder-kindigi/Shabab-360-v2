@@ -1,6 +1,9 @@
 # Shabab 360 working agreements
 
 - Treat `docs/CODEX_SHABAB360_MASTER_BLUEPRINT.md` as the planning authority. Prefer current code plus fresh evidence when documents disagree.
+- For module delivery, use `.agents/skills/shabab-module-delivery/SKILL.md` and `docs/delivery/state.json`. Keep one active task across all agents; complete or explicitly block it before starting another.
+- Astra leads requirements, APIs, database, security, performance and final review/refactoring. Gemini implements frontend from exact `docs/pwa screens/` references and the approved API contract. DeepSeek receives bounded backend tasks and the module clean-code pass; review its actual diff. Do not substitute models or claim undispatched work ran.
+- Map `docs/sheets/` fields and source rows to reviewed database/API contracts; keep private rows out of agent packets, public documentation and bundles. Preserve the established visual design during backend work.
 - Use `.agents/memory/current.md` for the concise verified baseline. Read large plans or `worklog.md` only when the task needs their history or detail.
 - Preserve unrelated working-tree changes. Re-read a file immediately before editing and stop if it changed unexpectedly.
 - Never expose `.env`, credentials, production data, or unnecessary personal data.

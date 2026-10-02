@@ -17,8 +17,8 @@ const createSchema = z.object({
   name: z.string().trim().min(2, "Batch name must be at least 2 characters").max(120),
   parkId: z.string().min(1, "Park is required"),
   startDate: z.string().date("Start date must be a valid date"),
-  endDate: z.string().date("End date must be a valid date").optional(),
-}).refine((data) => !data.endDate || data.endDate >= data.startDate, {
+  endDate: z.string().date("End date must be a valid date"),
+}).refine((data) => data.endDate >= data.startDate, {
   message: "End date must be on or after the start date",
   path: ["endDate"],
 });
@@ -177,9 +177,7 @@ export async function POST(request: NextRequest) {
       parkId: parsed.data.parkId,
       cityId: park.cityId,
       startDate: new Date(parsed.data.startDate),
-      endDate: parsed.data.endDate
-        ? new Date(parsed.data.endDate)
-        : null,
+      endDate: new Date(parsed.data.endDate),
     },
   });
 
