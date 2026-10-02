@@ -4,12 +4,13 @@ import { useEffectiveCapabilities } from "@/hooks/use-effective-capabilities";
 import { canOpenScreen } from "@/lib/auth/screen-access";
 import { useTheme } from "@/components/providers/theme-provider";
 import { Button } from "@/components/ui/button";
-import { Sun, Moon, Monitor, Lock, LogOut, Users, TreePine, UserPlus, PhoneCall, CalendarCheck, Wallet, Award, BookOpen, RefreshCw, Calendar, Library, Package, ShieldCheck, Upload, BarChart2, ScrollText, Bell, ChevronRight, Database, Settings, type LucideIcon } from "lucide-react";
+import { Sun, Moon, Monitor, Lock, LogOut, Users, TreePine, UserPlus, PhoneCall, CalendarCheck, Wallet, Award, BookOpen, RefreshCw, Calendar, Library, Package, ShieldCheck, Upload, BarChart2, ScrollText, Bell, ChevronRight, Database, Settings, ClipboardList, type LucideIcon } from "lucide-react";
 import { moduleCard } from "@/components/modules/shared/module-presentation";
 import { cn } from "@/lib/utils";
 const links: [string, string, string, LucideIcon, string][] = [
   ["student-profile", "Student profiles", "Shabab directory", Users, "People & programme"], ["parks", "Parks", "Groups & locations", TreePine, "People & programme"],
   ["admissions", "Admissions", "Intake & cohorts", UserPlus, "People & programme"], ["calling", "Calling", "Outreach pipeline", PhoneCall, "People & programme"],
+  ["registration-forms", "Registration forms", "Build forms & review responses", ClipboardList, "People & programme"],
   ["mashwara", "Meetings", "Mashwara & actions", CalendarCheck, "People & programme"], ["content-planner", "Content planner", "Lessons & curriculum", BookOpen, "People & programme"],
   ["events", "Events", "Activities & camps", Calendar, "People & programme"], ["teams", "Teams", "Team workspaces", Users, "People & programme"], ["staff-directory", "Staff directory", "Programme staff", Users, "People & programme"],
   ["fees", "Fees", "Payments & receipts", Wallet, "Operations & records"], ["certificates", "Certificate previews", "Participant records", Award, "Operations & records"],

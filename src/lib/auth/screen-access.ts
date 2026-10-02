@@ -7,6 +7,9 @@ export function canOpenScreen(screen: string, role: string, has: (capability: Ac
   if (!["super_admin", "program_admin", "city_head", "park_lead", "park_admin", "murabbi", "muawin", "student", "guardian"].includes(role)) return false;
   if (screen === "home") return has("dashboard.view");
   if (["home", "info", "more", "login", "splash", "notifications", "community", "islah"].includes(screen)) return true;
+  if (screen === "registration-forms") {
+    return ["super_admin", "program_admin", "city_head"].includes(role) && has("admissions.manage");
+  }
   // The scoped Park workspace is only for the park roles that own it, and only
   // when the dashboard capability is actually granted. It grants no wider scope:
   // every API behind it stays server-scoped to the assignment.

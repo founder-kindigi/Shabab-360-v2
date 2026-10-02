@@ -56,6 +56,7 @@ import {
   MoreHorizontal,
   Loader2,
   MessageSquare,
+  ClipboardList,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ResetPasswordPage } from "@/components/modules/auth/reset-password-page";
@@ -69,21 +70,21 @@ export const ROLE_ALLOWED_SCREENS: Record<string, string[]> = {
     "analysis", "admissions", "calling", "mashwara", "fees", "gamification", "certificates",
     "content-planner", "islah", "sync", "events", "knowledge-base", "procurement", "security-access",
     "portal-import", "alumni", "community", "teams", "custom-reports", "staff-directory", "audit-log",
-    "notifications", "student-profile"
+    "notifications", "student-profile", "registration-forms"
   ],
   program_admin: [
     "splash", "login", "home", "parks", "info", "more", "park-detail", "inventory", "evaluation",
     "analysis", "admissions", "calling", "mashwara", "fees", "gamification", "certificates",
     "content-planner", "islah", "sync", "events", "knowledge-base", "procurement", "security-access",
     "portal-import", "alumni", "community", "teams", "custom-reports", "staff-directory", "audit-log",
-    "notifications", "student-profile"
+    "notifications", "student-profile", "registration-forms"
   ],
   city_head: [
     "splash", "login", "home", "parks", "info", "more", "park-detail", "inventory", "evaluation",
     "analysis", "admissions", "calling", "mashwara", "fees", "gamification", "certificates",
     "content-planner", "islah", "sync", "events", "knowledge-base", "procurement",
     "alumni", "community", "teams", "custom-reports", "staff-directory",
-    "notifications", "student-profile"
+    "notifications", "student-profile", "registration-forms"
   ],
   park_lead: [
     "splash", "login", "home", "parks", "info", "more", "park-detail", "inventory", "evaluation",
@@ -149,7 +150,8 @@ type ScreenId =
   | "staff-directory"
   | "audit-log"
   | "notifications"
-  | "student-profile";
+  | "student-profile"
+  | "registration-forms";
 
 export type ParkNav = {
   parkId: string;
@@ -206,6 +208,10 @@ export function PwaApp() {
   }, []);
 
   const navigateTo = useCallback((target: ScreenId) => {
+    if (target === "registration-forms") {
+      window.location.assign("/admin/registration-forms");
+      return;
+    }
     if (canOpenScreen(target, effectiveRole, capabilities.has)) {
       if (target === "student-profile") {
         setSelectedParticipantId(null);
@@ -242,6 +248,7 @@ export function PwaApp() {
   if (!canOpenScreen(screen, role, capabilities.has)) return <div className="p-6"><p>This screen is unavailable for your current permissions.</p><button onClick={() => setScreen("home")}>Return home</button></div>;
 
   const isStudentOrGuardian = effectiveRole === "student" || effectiveRole === "guardian";
+  const isFormManager = ["super_admin", "program_admin", "city_head"].includes(effectiveRole);
   const appTabs = isStudentOrGuardian
     ? [
         { id: "home" as ScreenId, label: "Home", icon: Home },
@@ -249,7 +256,14 @@ export function PwaApp() {
         { id: "info" as ScreenId, label: "Info", icon: Info },
         { id: "more" as ScreenId, label: "More", icon: MoreHorizontal },
       ]
-    : APP_TABS;
+    : isFormManager
+      ? [
+          { id: "home" as ScreenId, label: "Home", icon: Home },
+          { id: "parks" as ScreenId, label: "Parks", icon: Hexagon },
+          { id: "registration-forms" as ScreenId, label: "Forms", icon: ClipboardList },
+          { id: "more" as ScreenId, label: "More", icon: MoreHorizontal },
+        ]
+      : APP_TABS;
 
   // ─── Render the active screen ────────────────────────────────────────────
   const renderScreen = () => {

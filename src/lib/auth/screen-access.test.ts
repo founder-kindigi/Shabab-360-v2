@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { canOpenScreen } from "./screen-access";
 import type { AccessCapability } from "./capabilities";
 
-const allowAll = (capability: AccessCapability) => ["dashboard.view", "attendance.mark", "organisation.view", "students.profile.view"].includes(capability);
+const allowAll = (capability: AccessCapability) => ["dashboard.view", "attendance.mark", "organisation.view", "students.profile.view", "admissions.manage"].includes(capability);
 const allowNone = () => false;
 
 describe("canOpenScreen — scoped park workspace", () => {
@@ -31,4 +31,18 @@ describe("canOpenScreen — scoped park workspace", () => {
       expect(canOpenScreen(screen, "park_lead", allowAll)).toBe(true);
     }
   });
+});
+
+describe("canOpenScreen — registration forms", () => {
+  it.each(["super_admin", "program_admin", "city_head"])("allows %s with admissions management access", (role) => {
+    expect(canOpenScreen("registration-forms", role, allowAll)).toBe(true);
+    expect(canOpenScreen("registration-forms", role, allowNone)).toBe(false);
+  });
+
+  it.each(["park_lead", "park_admin", "murabbi", "muawin", "student", "guardian"])(
+    "does not expose registration forms to %s",
+    (role) => {
+      expect(canOpenScreen("registration-forms", role, allowAll)).toBe(false);
+    }
+  );
 });
