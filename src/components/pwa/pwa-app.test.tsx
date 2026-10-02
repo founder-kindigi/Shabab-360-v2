@@ -269,6 +269,8 @@ describe("PwaApp City Head navigation", () => {
     expect(screen.getByText("339")).toBeDefined();
     expect(screen.getByText("Batch 4")).toBeDefined();
     expect(screen.getByText("Gulberg Park")).toBeDefined();
+    expect(screen.getByRole("button", { name: "Info" })).toBeDefined();
+    expect(screen.queryByRole("button", { name: "Forms" })).toBeNull();
 
     // Home is the City Head portal, never the HQ dashboard, and never an
     // unscoped admin park list.
@@ -277,6 +279,9 @@ describe("PwaApp City Head navigation", () => {
     expect(urls).toContain("/api/city-head/dashboard");
     expect(urls.some((url) => url.startsWith("/api/admin/parks"))).toBe(false);
     expect(urls.some((url) => url.startsWith("/api/admin/home-analytics"))).toBe(false);
+
+    fireEvent.click(screen.getByRole("button", { name: "More" }));
+    expect(await screen.findByText("Registration forms")).toBeDefined();
   });
 
   it("keeps the HQ dashboard for Program Head and System Owner", async () => {
