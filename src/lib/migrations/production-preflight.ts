@@ -189,10 +189,6 @@ export const POST_DEPLOYMENT_TARGETS: readonly SchemaArtifact[] = [
 export const BATCH_PARK_CITY_CONFLICTS_SQL =
   'SELECT COUNT(*) AS "count" FROM "batches" b LEFT JOIN "parks" p ON p."id" = b."parkId" WHERE p."cityId" IS NULL OR (b."cityId" IS NOT NULL AND b."cityId" <> p."cityId")';
 
-/** Guards the 20260909040000 batches_one_active_city partial unique index. */
-export const CITIES_WITH_MULTIPLE_ACTIVE_BATCHES_SQL =
-  'SELECT COUNT(*) AS "count" FROM (SELECT "cityId" FROM "batches" WHERE "isActive" = true GROUP BY "cityId" HAVING COUNT(*) > 1) AS "duplicated_city_batches"';
-
 /** Guards the 20260909030000 student_extended_profiles primary-key addition. */
 export const STUDENT_PROFILE_NULL_ID_SQL =
   'SELECT COUNT(*) AS "count" FROM "student_extended_profiles" WHERE "id" IS NULL';
@@ -224,13 +220,6 @@ export const GUARD_CHECKS: readonly ConditionalCheckDefinition[] = [
     singular: "batch conflicts with its park city",
     plural: "batches conflict with their park cities",
     sql: BATCH_PARK_CITY_CONFLICTS_SQL,
-  },
-  {
-    name: "citiesWithMultipleActiveBatches",
-    requires: ["batches", "batches.cityId", "batches.isActive"],
-    singular: "city has more than one active batch",
-    plural: "cities have more than one active batch",
-    sql: CITIES_WITH_MULTIPLE_ACTIVE_BATCHES_SQL,
   },
 ];
 
@@ -423,7 +412,6 @@ export const COLLISION_CHECKS_BY_MIGRATION: readonly CollisionGroup[] = [
   {
     migration: "20260909040000_active_city_batch",
     checks: [
-      indexCollision("batches_one_active_city"),
       functionCollision("shabab_normalize_batch_city"),
       functionCollision("shabab_preserve_batch_city"),
       triggerCollision("batches_normalize_city"),
