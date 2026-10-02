@@ -43,10 +43,11 @@ export const ATT01_REQUIRED_CONSTRAINTS: readonly string[] = [
  * Critical unique indexes. Prisma models `@@unique` as a unique index in
  * PostgreSQL rather than a named constraint, so the reviewed business keys
  * (`attendance_events(groupId, eventDate)` and `attendance_records(eventId,
- * participantId)`) and the single-active-city-batch rule are indexes.
+ * participantId)`) are indexes. Batch lookup uses the normal city/status index;
+ * each park in a city may have its own active batch.
  */
 export const ATT01_REQUIRED_INDEXES: readonly string[] = [
-  "batches_one_active_city",
+  "batches_cityId_isActive_idx",
   "batch_class_dates_batchId_classDate_key",
   "attendance_events_groupId_eventDate_key",
   "attendance_records_eventId_participantId_key",

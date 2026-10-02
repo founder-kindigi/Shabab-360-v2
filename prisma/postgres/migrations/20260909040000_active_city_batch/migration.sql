@@ -7,7 +7,10 @@ DO $$ BEGIN
   END IF;
 END $$;
 UPDATE "batches" SET "cityId" = p."cityId" FROM "parks" p WHERE p."id" = "batches"."parkId" AND "batches"."cityId" IS NULL;
-CREATE UNIQUE INDEX "batches_one_active_city" ON "batches"("cityId") WHERE "isActive" = true;
+-- The normal (cityId, isActive) lookup index was created by
+-- 20260721090000_expand_city_batch_park_group. Multiple parks in one city may
+-- each have an active batch, so this migration must not add a city-wide unique
+-- constraint.
 CREATE FUNCTION "shabab_normalize_batch_city"() RETURNS trigger LANGUAGE plpgsql AS $$
 DECLARE park_city TEXT;
 BEGIN

@@ -5,7 +5,6 @@ import { describe, expect, it } from "vitest";
 import {
   ADMISSION_CONVERTED_PARTICIPANT_ORPHAN_SQL,
   BATCH_PARK_CITY_CONFLICTS_SQL,
-  CITIES_WITH_MULTIPLE_ACTIVE_BATCHES_SQL,
   COLLISION_CHECKS,
   COLLISION_CHECKS_BY_MIGRATION,
   FOREIGN_KEY_CHECKS,
@@ -250,7 +249,6 @@ describe("production migration readiness preflight", () => {
     expect(report.guards.filter((check) => check.checked).map((check) => check.name)).toEqual([]);
     expect(report.blockers).toContain("missing pre-deployment prerequisite: batches");
     expect(calls).not.toContain(BATCH_PARK_CITY_CONFLICTS_SQL);
-    expect(calls).not.toContain(CITIES_WITH_MULTIPLE_ACTIVE_BATCHES_SQL);
   });
 
   it("skips the profile-key checks when their table is absent", async () => {
@@ -274,7 +272,6 @@ describe("production migration readiness preflight", () => {
         "student_evaluations_participantId_month_year_key",
         "target index already exists: student_evaluations_participantId_month_year_key",
       ],
-      ["batches_one_active_city", "target index already exists: batches_one_active_city"],
       [
         "shabab_normalize_batch_city",
         "target function already exists: shabab_normalize_batch_city",
@@ -337,17 +334,13 @@ describe("production migration readiness preflight", () => {
   it("blocks the guard counts with aggregate-only wording", async () => {
     const { runner } = syntheticRunner((sql) => {
       if (sql === BATCH_PARK_CITY_CONFLICTS_SQL) return 4;
-      if (sql === CITIES_WITH_MULTIPLE_ACTIVE_BATCHES_SQL) return 2;
       return defaultResolver(sql);
     });
 
     const report = await runMigrationReadinessPreflight(runner);
 
     expect(report.ready).toBe(false);
-    expect(report.blockers).toEqual([
-      "4 batches conflict with their park cities",
-      "2 cities have more than one active batch",
-    ]);
+    expect(report.blockers).toEqual(["4 batches conflict with their park cities"]);
   });
 
   it("uses singular wording when a single count blocks", async () => {
@@ -392,14 +385,12 @@ describe("production migration readiness preflight", () => {
   it("accepts bigint and numeric-string counts from the driver", async () => {
     const { runner } = syntheticRunner((sql) => {
       if (sql === BATCH_PARK_CITY_CONFLICTS_SQL) return BigInt(12);
-      if (sql === CITIES_WITH_MULTIPLE_ACTIVE_BATCHES_SQL) return "3";
       return defaultResolver(sql);
     });
 
     const report = await runMigrationReadinessPreflight(runner);
 
     expect(report.guards.find((check) => check.name === "batchParkCityConflicts")?.count).toBe(12);
-    expect(report.guards.find((check) => check.name === "citiesWithMultipleActiveBatches")?.count).toBe(3);
   });
 
   it("fails closed when the count alias is absent from the row", async () => {
@@ -578,8 +569,6 @@ describe("production migration readiness preflight", () => {
     expect(BATCH_PARK_CITY_CONFLICTS_SQL).toContain(
       'WHERE p."cityId" IS NULL OR (b."cityId" IS NOT NULL AND b."cityId" <> p."cityId")'
     );
-    expect(conflicts).toContain('"isActive" = true');
-    expect(CITIES_WITH_MULTIPLE_ACTIVE_BATCHES_SQL).toContain('"isActive" = true');
     // U01 revised this migration: a participant may stay unassigned, so the group
     // key must remain nullable and clear on group deletion.
     expect(constraints).not.toContain('ALTER COLUMN "groupId" SET NOT NULL');
