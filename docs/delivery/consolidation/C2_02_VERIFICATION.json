@@ -1,0 +1,65 @@
+{
+  "date": "2026-09-12",
+  "outcome": "Lead contract acceptance only",
+  "checks": {
+    "coverageAndPreservation": {
+      "command": "python scripts/delivery/c2-contract-verify.py",
+      "exit": 0,
+      "checks": 16,
+      "negativeProbes": 3
+    },
+    "lint": {
+      "command": "npm run lint",
+      "exit": 0,
+      "errors": 0,
+      "existingWarnings": 6
+    },
+    "typecheck": {
+      "command": "npm run typecheck",
+      "exit": 0
+    },
+    "workflow": {
+      "command": "node scripts/delivery/check-workflow.mjs",
+      "exit": 0
+    },
+    "finalDocumentationLinks": {
+      "passed": true,
+      "documents": 9
+    },
+    "pythonHarnessSyntax": {
+      "passed": true,
+      "files": 2
+    },
+    "memoryUpdated": true
+  },
+  "freshLocalMain": {
+    "head": "dedb91a640ea244ce9323cd1dcde2a40d74bb718",
+    "clean": true,
+    "scope": "read-only command-scoped safe.directory"
+  },
+  "remoteRefresh": "Not refreshed: earlier automatic approval rejection for account usage limit; no bypass",
+  "notRun": [
+    "new application tests",
+    "browser",
+    "database",
+    "build",
+    "provider delivery",
+    "query benchmarks"
+  ],
+  "artifacts": {
+    "docs/delivery/consolidation/C2_02_CAPABILITIES.md": "039c6bd8280dce5556d46615360b9ff6e9eea8931c1f9e354b500d6c2f484885",
+    "docs/delivery/consolidation/C2_02_CHECK.json": "c06f3e2ba1685dc3868ac3e3d8a5548335f399ec39899798c355e0a86dd5a722",
+    "docs/delivery/consolidation/C2_02_CONTRACTS.md": "42554b679418a926e8897f9c3c60536f4530d3a813bd5d2d379a9543fc76faa9",
+    "docs/delivery/consolidation/C2_02_DATA_DEPENDENCIES.md": "6c0b326ebc3f48351af7e2a953f2f7cfeb3d01a2337d08ea4eb5cb80e023a13b",
+    "docs/delivery/consolidation/C2_02_ENDPOINTS.md": "7b8cffeedc6bc41d4d7f1e57c36cde5b6e5c88da447dceeab9200a02ebe9491f",
+    "docs/delivery/consolidation/C2_02_FINDINGS.md": "d3f60879443d717efe50377a3ec2b37e58c608cb9d2505798a4f6514bedb8112",
+    "docs/delivery/consolidation/C2_02_HANDOFF.md": "a5f00a1fc56719af5a61202a3f0a13bdfba4daa5811f2a97ee7e575d96833dcc",
+    "docs/delivery/consolidation/C2_02_INVENTORY.json": "2b9e0fc2cef62da4f35904c5d5281cc20acdd675d6462ef9e072ecdead85861c",
+    "docs/delivery/consolidation/C2_02_REGISTER.json": "393b36c65894b6c52235bd340378feb89bec24b20f8f4208a7dd5493ac9c5f7d",
+    "docs/delivery/tasks/C2-02.md": "9f2d174308c8a04aab8ab2abe13cf16be0e84c382665b49dcc4597a347695ba8",
+    "docs/delivery/tasks/C2-03.md": "1c20497528fbbccb3d10f7a8bc959eda9ef0717e9a8146b4d2060404100569dd",
+    "scripts/delivery/c2-contract-inventory.mjs": "91a9a2426e77b3860e4b730c5361f9fc7d5aa69b2f85036924d001164ccf498f",
+    "scripts/delivery/c2-contract-register.py": "6453ad29695614da2a5aba296ad0230c3e4a7c7728766529093a93a60a641d48",
+    "scripts/delivery/c2-contract-verify.py": "03c51b684bb3f264f7d62ca377fffb0e3ad8a4a0deed2cd0a87088f9c54fa365"
+  }
+}

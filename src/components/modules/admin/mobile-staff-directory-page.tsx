@@ -44,6 +44,8 @@ export interface StaffRecord {
   park: string;
   assignedStudents: number;
   isActive: boolean;
+  assistsMurabbiId?: string | null;
+  assistsMurabbiName?: string | null;
 }
 
 
@@ -82,17 +84,19 @@ export function MobileStaffDirectoryPage({ onBack }: MobileStaffDirectoryPagePro
     return apiData.data.map((u: any) => {
       const staffMeta = u.staffMeta || {};
       const actualRole = staffMeta.primaryRole || u.role || "muawin";
-      return {
-        id: u.id,
-        name: u.name || "Unknown",
-        phone: u.phone || staffMeta.phone || "",
-        whatsapp: u.phone || staffMeta.phone || "",
-        email: u.email || "",
-        role: actualRole,
-        park: staffMeta.assignedPark?.name || staffMeta.park || "Unassigned",
-        assignedStudents: u.assignedStudents || (actualRole === "murabbi" ? 10 : 0),
-        isActive: u.isActive ?? true,
-      };
+        return {
+          id: u.id,
+          name: u.name || "Unknown",
+          phone: u.phone || staffMeta.phone || "",
+          whatsapp: u.phone || staffMeta.phone || "",
+          email: u.email || "",
+          role: actualRole,
+          park: staffMeta.assignedPark?.name || staffMeta.park || "Unassigned",
+          assignedStudents: u.assignedStudents || (actualRole === "murabbi" ? 10 : 0),
+          isActive: u.isActive ?? true,
+          assistsMurabbiId: staffMeta.assistsMurabbiId,
+          assistsMurabbiName: staffMeta.assistsMurabbi?.user?.name,
+        };
     });
   }, [apiData]);
 
@@ -315,11 +319,15 @@ export function MobileStaffDirectoryPage({ onBack }: MobileStaffDirectoryPagePro
                   <p className="text-[11px] text-muted-foreground mt-0.5">{staff.email}</p>
                 </div>
 
-                {staff.assignedStudents > 0 && (
+                {staff.role === "muawin" ? (
+                  <p className={staff.assistsMurabbiName ? "text-xs text-slate-400 mt-0.5" : "text-xs text-red-500 mt-0.5"}>
+                    Muawin — {staff.assistsMurabbiName ? `assists ${staff.assistsMurabbiName}` : "no murabbi assigned"}
+                  </p>
+                ) : staff.assignedStudents > 0 ? (
                   <Badge className="bg-purple-50 text-[#4B0A8F] dark:bg-purple-950/40 border border-purple-200 text-[10px] font-bold">
                     {staff.assignedStudents} Shabab
                   </Badge>
-                )}
+                ) : null}
               </div>
 
               <div className="flex items-center justify-between text-xs pt-2 border-t border-slate-100 dark:border-slate-800">

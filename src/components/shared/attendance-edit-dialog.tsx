@@ -69,7 +69,7 @@ const STATUS_OPTIONS: {
   },
   {
     value: "excused",
-    label: "Excused",
+    label: "Excuse",
     letter: "E",
     icon: ShieldCheck,
     colorClass: "text-sky-600 dark:text-sky-400",

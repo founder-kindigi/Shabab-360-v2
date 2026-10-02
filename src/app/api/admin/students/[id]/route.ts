@@ -5,14 +5,18 @@ import { z } from "zod";
 import { logAudit } from "@/lib/audit";
 import { participantProfileFieldsSchema } from "@/lib/participants/profile-fields";
 
-const updateSchema = z.object({
-  name: z.string().min(2, "Name must be at least 2 characters").optional(),
-  phone: z.string().optional(),
-  gender: z.string().optional(),
-  dateOfBirth: z.string().optional(),
-  state: z.string().optional(),
-  groupId: z.string().min(1, "Group is required").optional(),
-}).merge(participantProfileFieldsSchema);
+// Group placement lives only in PATCH /api/admin/students/[id]/assignment, so a
+// group id here is rejected as an unknown field rather than silently ignored.
+const updateSchema = z
+  .object({
+    name: z.string().min(2, "Name must be at least 2 characters").optional(),
+    phone: z.string().optional(),
+    gender: z.string().optional(),
+    dateOfBirth: z.string().optional(),
+    state: z.string().optional(),
+  })
+  .merge(participantProfileFieldsSchema)
+  .strict();
 
 export async function PATCH(
   request: NextRequest,
@@ -56,18 +60,6 @@ export async function PATCH(
   const revokeUserSession = parsed.data.state === "inactive" && existing.state !== "inactive" && existing.userId;
   if (revokeUserSession) {
     data.user = { update: { tokenVersion: { increment: 1 } } };
-  }
-  if (parsed.data.groupId !== undefined) {
-    const group = await db.group.findUnique({
-      where: { id: parsed.data.groupId, isActive: true },
-    });
-    if (!group) {
-      return NextResponse.json(
-        { error: { groupId: ["Selected group not found or inactive"] } },
-        { status: 400 }
-      );
-    }
-    data.groupId = parsed.data.groupId;
   }
 
   const participant = await db.participant.update({

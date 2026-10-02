@@ -8,6 +8,7 @@ description: Implement or modify Shabab 360 product features safely. Use for Nex
 ## Establish scope
 
 1. Read `AGENTS.md` and `.agents/memory/current.md`.
+   For planned module work, read the active packet in `docs/delivery/state.json`; use `shabab-module-delivery` to coordinate Astra, Gemini and DeepSeek sequentially.
 2. Inspect current code and tests in the affected area before reading large plans.
 3. Read [references/context-map.md](references/context-map.md) and load only the documents relevant to the requested module or risk.
 4. Confirm the outcome, roles, hierarchy scope, data ownership, failure states, and out-of-scope boundary from available evidence. Ask only when a missing decision would materially change the implementation.

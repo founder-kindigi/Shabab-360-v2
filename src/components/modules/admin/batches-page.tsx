@@ -134,7 +134,7 @@ export function BatchesPage() {
       name: string;
       parkId: string;
       startDate: string;
-      endDate?: string;
+      endDate: string;
     }) =>
       fetch("/api/admin/batches", {
         method: "POST",
@@ -291,17 +291,21 @@ export function BatchesPage() {
   function handleCreateSubmit(e: React.FormEvent) {
     e.preventDefault();
     setFormErrors({});
+    if (!formEndDate) {
+      setFormErrors({ endDate: "End Date is required" });
+      return;
+    }
     const payload: {
       name: string;
       parkId: string;
       startDate: string;
-      endDate?: string;
+      endDate: string;
     } = {
       name: formName.trim(),
       parkId: formParkId,
       startDate: formStartDate,
+      endDate: formEndDate,
     };
-    if (formEndDate) payload.endDate = formEndDate;
     createMutation.mutate(payload);
   }
 
@@ -550,14 +554,22 @@ export function BatchesPage() {
               )}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="create-end">End Date (optional)</Label>
+              <Label htmlFor="create-end">End Date</Label>
               <Input
                 id="create-end"
                 type="date"
                 value={formEndDate}
                 onChange={(e) => setFormEndDate(e.target.value)}
                 min={formStartDate || undefined}
+                required
               />
+              {formErrors.endDate && (
+                <p className="text-xs text-destructive">
+                  {Array.isArray(formErrors.endDate)
+                    ? formErrors.endDate[0]
+                    : formErrors.endDate}
+                </p>
+              )}
             </div>
             <DialogFooter>
               <Button

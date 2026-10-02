@@ -30,6 +30,10 @@ export async function listAttendanceSessions({
     }),
     db.participant.groupBy({
       by: ["groupId"],
+      // NOTE: This counts participants currently in state="active" at query time.
+      // It is an approximation of the group headcount for the session date, not
+      // a per-date eligibility denominator. Joiners after this date and
+      // reactivations are excluded; recent dropouts may not yet be excluded.
       where: { groupId: { in: groupIds }, state: "active" },
       _count: true,
     }),

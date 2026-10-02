@@ -32,12 +32,12 @@ function allMigrations(base: string): string[] {
 describe("PILOT-PROD-001: Pilot Production Health", () => {
   /* ── 1. Schema health ────────────────────────────────────────────── */
   describe("Schema health", () => {
-    it("SQLITE schema has 74 models", () => {
-      expect(modelNames(SQLITE_SCHEMA).length).toBe(74);
+    it("SQLITE schema has 81 models", () => {
+      expect(modelNames(SQLITE_SCHEMA).length).toBe(81);
     });
 
-    it("POSTGRES schema has 74 models", () => {
-      expect(modelNames(PG_SCHEMA).length).toBe(74);
+    it("POSTGRES schema has 81 models", () => {
+      expect(modelNames(PG_SCHEMA).length).toBe(81);
     });
 
     it("all models present in both schemas", () => {
@@ -64,12 +64,12 @@ describe("PILOT-PROD-001: Pilot Production Health", () => {
 
   /* ── 2. Migration health ─────────────────────────────────────────── */
   describe("Migration health", () => {
-    it("POSTGRES has 32 migration folders", () => {
-      expect(allMigrations(PG_MIGRATIONS)).toHaveLength(32);
+    it("POSTGRES has 35 migration folders", () => {
+      expect(allMigrations(PG_MIGRATIONS)).toHaveLength(35);
     });
 
-    it("SQLITE has 18 migration folders", () => {
-      expect(allMigrations(SQLITE_MIGRATIONS)).toHaveLength(18);
+    it("SQLITE has 20 migration folders", () => {
+      expect(allMigrations(SQLITE_MIGRATIONS)).toHaveLength(20);
     });
 
     it("both chains contain mashwara and login_attempts migrations", () => {

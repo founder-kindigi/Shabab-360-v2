@@ -7,11 +7,17 @@ const mocks = vi.hoisted(() => ({
   requireCapability: vi.fn(),
   findUnique: vi.fn(),
   update: vi.fn(),
+  groupFindUnique: vi.fn(),
   logAudit: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/authorize", () => ({ requireRole: mocks.requireRole, requireAuth: mocks.requireAuth, requireCapability: mocks.requireCapability }));
-vi.mock("@/lib/db", () => ({ db: { participant: { findUnique: mocks.findUnique, update: mocks.update } } }));
+vi.mock("@/lib/db", () => ({
+  db: {
+    participant: { findUnique: mocks.findUnique, update: mocks.update },
+    group: { findUnique: mocks.groupFindUnique },
+  },
+}));
 vi.mock("@/lib/audit", () => ({ logAudit: mocks.logAudit }));
 
 import { DELETE, PATCH } from "./route";
@@ -80,5 +86,24 @@ describe("Shabab deactivation session revocation", () => {
     const response = await PATCH(new NextRequest("http://localhost/api/admin/students/participant-1", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ state: "inactive" }) }), params);
     expect(response.status).toBe(403);
     expect(mocks.findUnique).not.toHaveBeenCalled();
+  });
+
+  it("rejects a group id on the generic PATCH without changing placement", async () => {
+    mocks.findUnique.mockResolvedValue({
+      id: "participant-1", userId: null, state: "active", name: "Shabab", groupId: "group-1",
+    });
+
+    const response = await PATCH(
+      new NextRequest("http://localhost/api/admin/students/participant-1", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ groupId: "group-2" }),
+      }),
+      params
+    );
+
+    expect(response.status).toBe(400);
+    expect(mocks.groupFindUnique).not.toHaveBeenCalled();
+    expect(mocks.update).not.toHaveBeenCalled();
   });
 });

@@ -30,7 +30,7 @@ const request = (body: unknown) => new Request("http://localhost", {
   body: JSON.stringify(body),
 });
 
-describe("attendance close and automatic dropout", () => {
+describe("attendance close records attendance only", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.requireAuth.mockResolvedValue({ user: { id: "user-1", role: "park_lead" } });
@@ -42,6 +42,7 @@ describe("attendance close and automatic dropout", () => {
       eventDate: new Date("2026-08-16T00:00:00.000Z"),
       groupId: "group-1",
       isClosed: false,
+      // A legacy batch setting still says automatic dropout is enabled.
       group: { batch: {
         cityId: "city-1",
         parkId: "park-1",
@@ -57,42 +58,108 @@ describe("attendance close and automatic dropout", () => {
     expect(mocks.eventFindUnique).not.toHaveBeenCalled();
   });
 
-  it("atomically closes the event, drops a three-week absentee, and audits both", async () => {
-    const dates = ["2026-08-01", "2026-08-02", "2026-08-08", "2026-08-09", "2026-08-15", "2026-08-16"];
-    const closedEvents = dates.map((date, index) => ({ id: `event-${index}`, eventDate: new Date(`${date}T00:00:00.000Z`) }));
+  it("closes the session, writes only the close audit, and never writes a participant lifecycle", async () => {
     const tx = {
-      attendanceEvent: {
-        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
-        findMany: vi.fn().mockResolvedValue(closedEvents),
-      },
-      participant: {
-        findMany: vi.fn().mockResolvedValue([{ id: "participant-1", state: "active" }]),
-        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
-      },
-      attendanceRecord: {
-        findMany: vi.fn().mockResolvedValue(closedEvents.map((event) => ({ participantId: "participant-1", eventId: event.id, status: "absent" }))),
-      },
+      attendanceEvent: { updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
+      participant: { findMany: vi.fn(), updateMany: vi.fn() },
+      attendanceRecord: { findMany: vi.fn() },
       auditLog: { create: vi.fn().mockResolvedValue({}) },
     };
     mocks.transaction.mockImplementation((callback) => callback(tx));
+
     const response = await PATCH(request({ reason: "Weekly register complete" }), { params: Promise.resolve({ eventId }) });
+    const body = await response.json();
+
     expect(response.status).toBe(200);
-    expect(await response.json()).toMatchObject({ automaticDropouts: 1 });
-    expect(tx.participant.updateMany).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ state: "dropout", dropoutSource: "automatic" }) }));
-    expect(tx.auditLog.create).toHaveBeenCalledTimes(2);
+    expect(body).toMatchObject({ success: true, automaticDropouts: 0, event: { id: eventId, isClosed: true } });
+    expect(tx.attendanceEvent.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: eventId, isClosed: false },
+      data: expect.objectContaining({ isClosed: true }),
+    }));
+    expect(tx.participant.findMany).not.toHaveBeenCalled();
+    expect(tx.participant.updateMany).not.toHaveBeenCalled();
+    expect(tx.attendanceRecord.findMany).not.toHaveBeenCalled();
+    expect(tx.auditLog.create).toHaveBeenCalledTimes(1);
+    expect(tx.auditLog.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ action: "event_close", entityType: "attendance_events" }),
+    }));
   });
 
-  it("does not drop a participant when one expected mark is missing", async () => {
-    const closedEvents = ["2026-08-01", "2026-08-02", "2026-08-08", "2026-08-09", "2026-08-15", "2026-08-16"]
-      .map((date, index) => ({ id: `event-${index}`, eventDate: new Date(`${date}T00:00:00.000Z`) }));
+  it("returns 409 when another request already closed the session", async () => {
     const tx = {
-      attendanceEvent: { updateMany: vi.fn().mockResolvedValue({ count: 1 }), findMany: vi.fn().mockResolvedValue(closedEvents) },
-      participant: { findMany: vi.fn().mockResolvedValue([{ id: "participant-1", state: "active" }]), updateMany: vi.fn() },
-      attendanceRecord: { findMany: vi.fn().mockResolvedValue(closedEvents.slice(1).map((event) => ({ participantId: "participant-1", eventId: event.id, status: "absent" }))) },
+      attendanceEvent: { updateMany: vi.fn().mockResolvedValue({ count: 0 }) },
+      participant: { findMany: vi.fn(), updateMany: vi.fn() },
+      auditLog: { create: vi.fn() },
+    };
+    mocks.transaction.mockImplementation((callback) => callback(tx));
+
+    const response = await PATCH(request({ reason: "Weekly register complete" }), { params: Promise.resolve({ eventId }) });
+
+    expect(response.status).toBe(409);
+    expect(tx.participant.updateMany).not.toHaveBeenCalled();
+    expect(tx.auditLog.create).not.toHaveBeenCalled();
+  });
+});
+
+describe("attendance close — park_admin lifecycle authority (F-02)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.staffFindUnique.mockResolvedValue({ id: "staff-admin", user: { name: "Admin" } });
+    mocks.eventFindUnique.mockResolvedValue({
+      id: eventId,
+      eventDate: new Date("2026-08-16T00:00:00.000Z"),
+      groupId: "group-1",
+      isClosed: false,
+      group: { batch: { cityId: "city-1", parkId: "park-1", park: { cityId: "city-1" } } },
+    });
+  });
+
+  it("park_admin with same-park scope can close a session", async () => {
+    mocks.requireAuth.mockResolvedValue({ user: { id: "admin-1", role: "park_admin", assignedParkId: "park-1" } });
+    mocks.requireCapability.mockResolvedValue({ user: { id: "admin-1", role: "park_admin", assignedParkId: "park-1" } });
+    // Same-park scope check passes
+    mocks.requireResourceScope.mockReturnValue(null);
+    const tx = {
+      attendanceEvent: { updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
+      participant: { findMany: vi.fn(), updateMany: vi.fn() },
+      attendanceRecord: { findMany: vi.fn() },
       auditLog: { create: vi.fn().mockResolvedValue({}) },
     };
     mocks.transaction.mockImplementation((callback) => callback(tx));
-    expect((await PATCH(request({ reason: "Weekly register complete" }), { params: Promise.resolve({ eventId }) })).status).toBe(200);
-    expect(tx.participant.updateMany).not.toHaveBeenCalled();
+
+    const response = await PATCH(request({ reason: "Admin closing" }), { params: Promise.resolve({ eventId }) });
+
+    expect(response.status).toBe(200);
+    expect((await response.json()).success).toBe(true);
+  });
+
+  it("park_admin from a different park is denied", async () => {
+    mocks.requireAuth.mockResolvedValue({ user: { id: "admin-2", role: "park_admin", assignedParkId: "park-999" } });
+    mocks.requireCapability.mockResolvedValue({ user: { id: "admin-2", role: "park_admin", assignedParkId: "park-999" } });
+    // Scope check denies cross-park access
+    mocks.requireResourceScope.mockReturnValue(NextResponse.json({ error: "Forbidden" }, { status: 403 }));
+
+    const response = await PATCH(request({ reason: "Admin closing wrong park" }), { params: Promise.resolve({ eventId }) });
+
+    expect(response.status).toBe(403);
+    expect(mocks.transaction).not.toHaveBeenCalled();
+  });
+
+  it("park_lead behavior is preserved after adding park_admin", async () => {
+    mocks.requireAuth.mockResolvedValue({ user: { id: "lead-1", role: "park_lead", assignedParkId: "park-1" } });
+    mocks.requireCapability.mockResolvedValue({ user: { id: "lead-1", role: "park_lead", assignedParkId: "park-1" } });
+    mocks.requireResourceScope.mockReturnValue(null);
+    const tx = {
+      attendanceEvent: { updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
+      participant: { findMany: vi.fn(), updateMany: vi.fn() },
+      attendanceRecord: { findMany: vi.fn() },
+      auditLog: { create: vi.fn().mockResolvedValue({}) },
+    };
+    mocks.transaction.mockImplementation((callback) => callback(tx));
+
+    const response = await PATCH(request({ reason: "Lead closing" }), { params: Promise.resolve({ eventId }) });
+
+    expect(response.status).toBe(200);
   });
 });
+

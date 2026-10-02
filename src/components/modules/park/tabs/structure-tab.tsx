@@ -127,11 +127,11 @@ export function StructureTab({ parkId, onSelectStudent }: StructureTabProps) {
     },
   });
 
-  const headMurabbi = structure?.headMurabbi || { name: "Ahmed Khan", studentsCount: 0, phone: "0300-1234567" };
-  const parkAdmin = structure?.parkAdmin || { name: "Salman Ali", studentsCount: 0, phone: "0300-7654321" };
-  const murabbis = structure?.murabbis || [];
-  const students = structure?.students || [];
-  const groups = structure?.groups || [];
+  const headMurabbi = structure?.headMurabbi ?? null;
+  const parkAdmin = structure?.parkAdmin ?? null;
+  const murabbis = structure?.murabbis ?? [];
+  const students = structure?.students ?? [];
+  const groups = structure?.groups ?? [];
 
   const filteredStudents = students.filter(
     (s) =>
@@ -142,53 +142,59 @@ export function StructureTab({ parkId, onSelectStudent }: StructureTabProps) {
   return (
     <div className="space-y-6 pb-36">
       {/* Leadership Cards */}
-      <div className="grid grid-cols-2 gap-3">
-        <Card className="bg-slate-50 border-slate-100 rounded-2xl shadow-none">
-          <CardContent className="p-4 space-y-1.5">
-            <p className="text-[10px] font-bold text-slate-400 tracking-wider uppercase">HEAD MURABBI</p>
-            <p className="font-bold text-slate-900 text-sm">{headMurabbi.name}</p>
-            <div className="flex items-center justify-between text-xs text-slate-500 pt-1">
-              <span>{headMurabbi.studentsCount} students</span>
-              <button
-                onClick={() =>
-                  setEditingMurabbi({
-                    id: "head",
-                    name: headMurabbi.name,
-                    studentsCount: headMurabbi.studentsCount,
-                    phone: headMurabbi.phone,
-                  })
-                }
-                className="text-[#4B0A8F] font-semibold text-xs hover:underline"
-              >
-                edit
-              </button>
-            </div>
-          </CardContent>
-        </Card>
+      {(headMurabbi || parkAdmin) && (
+        <div className="grid grid-cols-2 gap-3">
+          {headMurabbi && (
+            <Card className="bg-slate-50 border-slate-100 rounded-2xl shadow-none">
+              <CardContent className="p-4 space-y-1.5">
+                <p className="text-[10px] font-bold text-slate-400 tracking-wider uppercase">HEAD MURABBI</p>
+                <p className="font-bold text-slate-900 text-sm">{headMurabbi.name}</p>
+                <div className="flex items-center justify-between text-xs text-slate-500 pt-1">
+                  <span>{headMurabbi.studentsCount} students</span>
+                  <button
+                    onClick={() =>
+                      setEditingMurabbi({
+                        id: "head",
+                        name: headMurabbi.name,
+                        studentsCount: headMurabbi.studentsCount,
+                        phone: headMurabbi.phone,
+                      })
+                    }
+                    className="text-[#4B0A8F] font-semibold text-xs hover:underline"
+                  >
+                    edit
+                  </button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
-        <Card className="bg-slate-50 border-slate-100 rounded-2xl shadow-none">
-          <CardContent className="p-4 space-y-1.5">
-            <p className="text-[10px] font-bold text-slate-400 tracking-wider uppercase">PARK ADMIN</p>
-            <p className="font-bold text-slate-900 text-sm">{parkAdmin.name}</p>
-            <div className="flex items-center justify-between text-xs text-slate-500 pt-1">
-              <span>{parkAdmin.studentsCount} students</span>
-              <button
-                onClick={() =>
-                  setEditingMurabbi({
-                    id: "admin",
-                    name: parkAdmin.name,
-                    studentsCount: parkAdmin.studentsCount,
-                    phone: parkAdmin.phone,
-                  })
-                }
-                className="text-[#4B0A8F] font-semibold text-xs hover:underline"
-              >
-                edit
-              </button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+          {parkAdmin && (
+            <Card className="bg-slate-50 border-slate-100 rounded-2xl shadow-none">
+              <CardContent className="p-4 space-y-1.5">
+                <p className="text-[10px] font-bold text-slate-400 tracking-wider uppercase">PARK ADMIN</p>
+                <p className="font-bold text-slate-900 text-sm">{parkAdmin.name}</p>
+                <div className="flex items-center justify-between text-xs text-slate-500 pt-1">
+                  <span>{parkAdmin.studentsCount} students</span>
+                  <button
+                    onClick={() =>
+                      setEditingMurabbi({
+                        id: "admin",
+                        name: parkAdmin.name,
+                        studentsCount: parkAdmin.studentsCount,
+                        phone: parkAdmin.phone,
+                      })
+                    }
+                    className="text-[#4B0A8F] font-semibold text-xs hover:underline"
+                  >
+                    edit
+                  </button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
 
       {/* Murabbis Roster */}
       <div className="space-y-3">

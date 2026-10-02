@@ -106,13 +106,14 @@ interface GroupOption {
 
 // ─── Constants ───────────────────────────────────────────────────
 
-const ALL_ROLES: { value: UserRole; label: string; description: string }[] = [
+const ALL_ROLES: { value: UserRole | "muawin"; label: string; description: string }[] = [
   { value: "super_admin", label: "Super Admin", description: "Full system access" },
   { value: "program_admin", label: "Program Admin", description: "Organization-wide management" },
   { value: "city_head", label: "City Head", description: "City-level oversight" },
   { value: "park_admin", label: "Park Admin", description: "Park management" },
   { value: "park_lead", label: "Park Lead", description: "Park operations lead" },
   { value: "murabbi", label: "Murabbi", description: "Group supervisor" },
+  { value: "muawin", label: "Muawin", description: "Assistant Murabbi" },
   { value: "guardian", label: "Guardian", description: "Parent/guardian access" },
   { value: "student", label: "Student", description: "Participant access" },
 ];
@@ -124,6 +125,7 @@ const ROLE_COLORS: Record<string, string> = {
   park_admin: "#8A40B0",
   park_lead: "#2A0C8F",
   murabbi: "#E0002A",
+  muawin: "#E04060",
   guardian: "#6B5A7A",
   student: "#FF0015",
 };
@@ -140,9 +142,9 @@ const ROLE_BADGE_DARK: Record<string, string> = {
 };
 
 // Roles that show city selector
-const CITY_ROLES = ["city_head", "park_admin", "park_lead", "murabbi", "guardian"];
+const CITY_ROLES = ["city_head", "park_admin", "park_lead", "murabbi", "muawin", "guardian"];
 // Roles that show park selector
-const PARK_ROLES = ["park_admin", "park_lead", "murabbi", "student"];
+const PARK_ROLES = ["park_admin", "park_lead", "murabbi", "muawin", "student"];
 // Roles that show group selector
 const GROUP_ROLES = ["murabbi"];
 
@@ -263,6 +265,7 @@ export function AccessProvisioningPage() {
   const [formCityId, setFormCityId] = useState("");
   const [formParkId, setFormParkId] = useState("");
   const [formGroupId, setFormGroupId] = useState("");
+  const [formAssistsMurabbiId, setFormAssistsMurabbiId] = useState("");
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [importOpen, setImportOpen] = useState(false);
 
@@ -316,6 +319,21 @@ export function AccessProvisioningPage() {
     enabled: !!formParkId,
   });
 
+  // Fetch eligible murabbis/park leads for assistance
+  const { data: eligibleAssistees, isError: isAssisteesError, isLoading: isAssisteesLoading } = useQuery<{ id: string; name: string; role: "murabbi" | "park_lead" }[]>({
+    queryKey: ["eligible-assistants", formParkId],
+    queryFn: async () => {
+      if (!formParkId) return [];
+      const res = await fetch(`/api/admin/parks/${formParkId}/eligible-assistants`);
+      if (!res.ok) throw new Error("Failed to fetch eligible assistants");
+      const data = await res.json();
+      return data.data || [];
+    },
+    staleTime: 60000,
+    enabled: !!formParkId && formRole === "muawin",
+    retry: false,
+  });
+
   // Fetch recent invites (last 20 users for search/filter)
   const { data: _recentData, isLoading: recentLoading } = useQuery<{ data: UserWithMeta[] }>({
     queryKey: ["admin-recent-invites"],
@@ -347,6 +365,7 @@ export function AccessProvisioningPage() {
       assignedCityId?: string;
       assignedParkId?: string;
       assignedGroupId?: string;
+      assistsMurabbiId?: string;
     }) =>
       fetch("/api/admin/invite", {
         method: "POST",
@@ -439,6 +458,7 @@ export function AccessProvisioningPage() {
     setFormCityId("");
     setFormParkId("");
     setFormGroupId("");
+    setFormAssistsMurabbiId("");
     setFormErrors({});
   }
 
@@ -448,6 +468,7 @@ export function AccessProvisioningPage() {
     setFormCityId("");
     setFormParkId("");
     setFormGroupId("");
+    setFormAssistsMurabbiId("");
     setFormErrors((prev) => {
       const next = { ...prev };
       delete next.assignedCityId;
@@ -461,6 +482,7 @@ export function AccessProvisioningPage() {
     setFormCityId(value);
     setFormParkId("");
     setFormGroupId("");
+    setFormAssistsMurabbiId("");
     setFormErrors((prev) => {
       const next = { ...prev };
       delete next.assignedParkId;
@@ -472,6 +494,7 @@ export function AccessProvisioningPage() {
   function handleParkChange(value: string) {
     setFormParkId(value);
     setFormGroupId("");
+    setFormAssistsMurabbiId("");
     setFormErrors((prev) => {
       const next = { ...prev };
       delete next.assignedGroupId;
@@ -513,6 +536,7 @@ export function AccessProvisioningPage() {
       assignedCityId: cityScopeId || undefined,
       assignedParkId: formParkId || undefined,
       assignedGroupId: formGroupId || undefined,
+      assistsMurabbiId: formRole === "muawin" && formAssistsMurabbiId && formAssistsMurabbiId !== "none" ? formAssistsMurabbiId : undefined,
     });
   }
 
@@ -730,7 +754,7 @@ export function AccessProvisioningPage() {
                 </motion.div>
               )}
 
-              {/* Group select — shown for murabbi */}
+              {/* Group select - shown for murabbi */}
               {formRole && GROUP_ROLES.includes(formRole) && (
                 <motion.div
                   initial={{ opacity: 0, height: 0 }}
@@ -768,6 +792,40 @@ export function AccessProvisioningPage() {
                   {formErrors.assignedGroupId && (
                     <p className="text-xs text-red-500 mt-1">{formErrors.assignedGroupId}</p>
                   )}
+                </motion.div>
+              )}
+
+              {/* Assists select - shown for muawin */}
+              {formRole === "muawin" && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  className="space-y-1.5"
+                >
+                  <Label className="text-xs font-medium text-slate-700 dark:text-slate-300">
+                    Assists (Murabbi)
+                  </Label>
+                  <Select
+                    value={formAssistsMurabbiId}
+                    onValueChange={setFormAssistsMurabbiId}
+                    disabled={isAssisteesError || (!isAssisteesLoading && (!eligibleAssistees || eligibleAssistees.length === 0))}
+                  >
+                    <SelectTrigger className="h-11 rounded-xl bg-slate-50/50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-sm">
+                      <SelectValue placeholder={
+                        isAssisteesError || (!isAssisteesLoading && (!eligibleAssistees || eligibleAssistees.length === 0))
+                          ? "Eligible assistants are unavailable until access setup is complete"
+                          : "Select murabbi (Optional)"
+                      } />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">None</SelectItem>
+                      {eligibleAssistees?.map((m) => (
+                        <SelectItem key={m.id} value={m.id}>
+                          {m.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </motion.div>
               )}
             </CardContent>

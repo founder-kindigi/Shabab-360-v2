@@ -1,10 +1,10 @@
 -- Align the migrated catalog with the current model without deleting historical rows.
--- Existing unassigned participants or orphaned foreign keys abort this migration.
--- Resolve those rows through a reviewed mapping before retrying; never invent a group.
+-- A participant may be created before placement, so the group relation stays
+-- optional; this matches 20260802100000_repair_participant_group_nullable.
+-- Orphaned foreign keys still abort this migration.
 BEGIN;
-ALTER TABLE "participants" ALTER COLUMN "groupId" SET NOT NULL;
 ALTER TABLE "participants" DROP CONSTRAINT "participants_groupId_fkey";
-ALTER TABLE "participants" ADD CONSTRAINT "participants_groupId_fkey" FOREIGN KEY ("groupId") REFERENCES "groups"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "participants" ADD CONSTRAINT "participants_groupId_fkey" FOREIGN KEY ("groupId") REFERENCES "groups"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 ALTER TABLE "admission_applications" DROP CONSTRAINT "admission_applications_convertedParticipantId_fkey";
 ALTER TABLE "admission_applications" ADD CONSTRAINT "admission_applications_convertedParticipantId_fkey" FOREIGN KEY ("convertedParticipantId") REFERENCES "participants"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 ALTER TABLE "park_lessons" ADD CONSTRAINT "park_lessons_parkId_fkey" FOREIGN KEY ("parkId") REFERENCES "parks"("id") ON DELETE CASCADE ON UPDATE CASCADE;

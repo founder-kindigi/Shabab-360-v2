@@ -66,7 +66,7 @@ const STATUS_LABELS: Record<AttendanceStatus, string> = {
   present: "Present",
   absent: "Absent",
   late: "Late",
-  excused: "Excused",
+  excused: "Excuse",
   unmarked: "No event",
 };
 

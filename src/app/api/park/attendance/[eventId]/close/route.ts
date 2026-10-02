@@ -1,13 +1,11 @@
-import { requireResolvedGroupScope, groupResourceScope } from "@/lib/auth/hierarchy";
+import { requireResolvedGroupScope } from "@/lib/auth/hierarchy";
 import { NextResponse } from "next/server";
 import { createAuditLogData } from "@/lib/audit";
-import { requireAuth, requireCapability, requireResourceScope } from "@/lib/auth/authorize";
-import { evaluateConsecutiveAbsenceWeeks } from "@/lib/attendance/dropout-policy";
-import { parseClassWeekdays } from "@/lib/attendance/schedule";
+import { requireAuth, requireCapability } from "@/lib/auth/authorize";
 import { closeAttendanceEventSchema } from "@/lib/attendance/schemas";
 import { db } from "@/lib/db";
 
-const EVENT_SUPERVISOR_ROLES = ["super_admin", "program_admin", "city_head", "park_lead"] as const;
+const EVENT_SUPERVISOR_ROLES = ["super_admin", "program_admin", "city_head", "park_lead", "park_admin"] as const;
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ eventId: string }> }) {
   const { eventId } = await params;
@@ -23,7 +21,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ eventI
   try {
     const event = await db.attendanceEvent.findUnique({
       where: { id: eventId },
-      include: { group: { include: { park: true, batch: { include: { park: true, settings: true } } } } },
+      include: { group: { include: { park: true, batch: { include: { park: true } } } } },
     });
     if (!event) return NextResponse.json({ error: "Event not found" }, { status: 404 });
     if (event.isClosed) return NextResponse.json({ error: "Event is already closed" }, { status: 409 });
@@ -34,85 +32,31 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ eventI
       where: { userId: auth.user.id },
       include: { user: { select: { name: true } } },
     });
-    const settings = event.group.batch.settings;
-    const classWeekdays = parseClassWeekdays(settings?.classWeekdays);
-    const eventWeekday = (event.eventDate.getUTCDay() + 6) % 7;
-    const isFinalWeeklySession = eventWeekday === Math.max(...classWeekdays.map((day) => (day + 6) % 7));
 
-    const result = await db.$transaction(async (tx) => {
+    await db.$transaction(async (tx) => {
       const closed = await tx.attendanceEvent.updateMany({
         where: { id: eventId, isClosed: false },
         data: { isClosed: true, closedAt: new Date(), closedBy: staffMeta?.id },
       });
       if (closed.count !== 1) throw new Error("ATTENDANCE_ALREADY_CLOSED");
 
-      let automaticDropouts = 0;
-      if ((settings?.automaticDropoutEnabled ?? true) && isFinalWeeklySession) {
-        const participants = await tx.participant.findMany({ where: { groupId: event.groupId, state: "active" } });
-        const closedEvents = await tx.attendanceEvent.findMany({
-          where: { groupId: event.groupId, eventDate: { lte: event.eventDate }, isClosed: true },
-          select: { id: true, eventDate: true },
-        });
-        const records = participants.length === 0 ? [] : await tx.attendanceRecord.findMany({
-          where: {
-            participantId: { in: participants.map((participant) => participant.id) },
-            eventId: { in: closedEvents.map((closedEvent) => closedEvent.id) },
-          },
-        });
-        const recordMap = new Map(records.map((record) => [`${record.participantId}:${record.eventId}`, record.status]));
-        for (const participant of participants) {
-          const evaluation = evaluateConsecutiveAbsenceWeeks(
-            closedEvents.map((closedEvent) => ({
-              eventId: closedEvent.id,
-              eventDate: closedEvent.eventDate,
-              // Missing marks make the week incomplete; they must not trigger dropout.
-              status: (recordMap.get(`${participant.id}:${closedEvent.id}`) ?? "excused") as "present" | "late" | "absent" | "excused",
-            })),
-            {
-              warningConsecutiveWeeks: settings?.warningConsecutiveWeeks ?? 2,
-              dropoutConsecutiveWeeks: settings?.dropoutConsecutiveWeeks ?? 3,
-            },
-          );
-          if (!evaluation.shouldDropout) continue;
-          const dropoutReason = `${evaluation.consecutiveAbsentWeeks} consecutive fully absent class weeks`;
-          const changed = await tx.participant.updateMany({
-            where: { id: participant.id, state: "active" },
-            data: {
-              state: "dropout",
-              dropoutAt: event.eventDate,
-              dropoutReason,
-              dropoutSource: "automatic",
-              reactivatedAt: null,
-            },
-          });
-          if (changed.count !== 1) continue;
-          automaticDropouts += 1;
-          await tx.auditLog.create({ data: createAuditLogData({
-            userId: auth.user.id,
-            action: "student.dropout.automatic",
-            entityType: "participant",
-            entityId: participant.id,
-            oldValues: { state: participant.state },
-            newValues: { state: "dropout", dropoutAt: event.eventDate, dropoutSource: "automatic" },
-            reason: dropoutReason,
-          }) });
-        }
-      }
+      // Closing records attendance only. Participant lifecycle changes are
+      // separate, authorized, audited actions and never happen here, even when a
+      // legacy batch setting still carries automaticDropoutEnabled.
       await tx.auditLog.create({ data: createAuditLogData({
         userId: auth.user.id,
         action: "event_close",
         entityType: "attendance_events",
         entityId: eventId,
-        newValues: { closedByName: staffMeta?.user?.name, automaticDropouts },
+        newValues: { closedByName: staffMeta?.user?.name, automaticDropouts: 0 },
         reason: parsedBody.data.reason,
       }) });
-      return { automaticDropouts };
     });
 
     return NextResponse.json({
       success: true,
       event: { id: eventId, isClosed: true, closedAt: new Date().toISOString(), closedByName: staffMeta?.user?.name ?? null },
-      automaticDropouts: result.automaticDropouts,
+      automaticDropouts: 0,
     });
   } catch (error) {
     if (error instanceof Error && error.message === "ATTENDANCE_ALREADY_CLOSED") {

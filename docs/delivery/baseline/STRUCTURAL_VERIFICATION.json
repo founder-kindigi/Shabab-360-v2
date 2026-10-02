@@ -1,0 +1,74 @@
+{
+  "passed": true,
+  "checks": [
+    {
+      "name": "Workbook unchanged: B4_ Shabab Content Plan (2).xlsx",
+      "passed": true
+    },
+    {
+      "name": "Workbook unchanged: Batch 2 _ Profiles (1).xlsx",
+      "passed": true
+    },
+    {
+      "name": "Workbook unchanged: Calls for Phase 2 (1).xlsx",
+      "passed": true
+    },
+    {
+      "name": "Workbook unchanged: Murabbi Training Lahore.xlsx",
+      "passed": true
+    },
+    {
+      "name": "Workbook unchanged: RegistrationRequests-06-08-2026.xls",
+      "passed": true
+    },
+    {
+      "name": "Workbook unchanged: Shabab_Batch_4_Attendance (1).xlsx",
+      "passed": true
+    },
+    {
+      "name": "Independent XML/openpyxl coverage",
+      "passed": true,
+      "worksheets": 57,
+      "mismatches": []
+    },
+    {
+      "name": "57 unique sheet dispositions",
+      "passed": true
+    },
+    {
+      "name": "35 catalogue capabilities",
+      "passed": true
+    },
+    {
+      "name": "Exact image coverage",
+      "passed": true
+    },
+    {
+      "name": "Fetched refs still match",
+      "passed": true
+    },
+    {
+      "name": "All main-only paths routed",
+      "passed": true,
+      "count": 108
+    },
+    {
+      "name": "Previous SQLite build manifest identity",
+      "passed": true,
+      "matchedFiles": 823,
+      "mismatches": [],
+      "limit": "Reuses recorded 2026-09-10 build; no fresh browser/provider build execution"
+    },
+    {
+      "name": "Fresh application tests",
+      "passed": true,
+      "passedTests": 1375,
+      "testFiles": 187
+    },
+    {
+      "name": "Baseline local links",
+      "passed": true,
+      "broken": []
+    }
+  ]
+}

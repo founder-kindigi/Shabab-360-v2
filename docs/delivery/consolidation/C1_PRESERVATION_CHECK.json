@@ -1,0 +1,51 @@
+{
+  "passed": true,
+  "date": "2026-09-11",
+  "checks": {
+    "originalPreserved": true,
+    "restoredFilesMatch": true,
+    "archiveMembersMatch": true,
+    "archiveFilesMatch": true,
+    "archiveHashMatch": true,
+    "historicalManifestUnchanged": true,
+    "indexUnchanged": true,
+    "deletionsUnchanged": true,
+    "headUnchanged": true,
+    "branchUnchanged": true,
+    "historyRefsMatch": true,
+    "historyFsck": true,
+    "bundleVerified": true,
+    "integrationClean": true,
+    "integrationHead": true,
+    "integrationBranch": true,
+    "oldLocationEmpty": true
+  },
+  "filesVerified": 1288,
+  "originalUnexpectedChanges": [],
+  "restoredMismatches": [],
+  "archiveMismatches": [],
+  "allowedCoordinationEdits": [
+    ".agents/memory/current.md",
+    "docs/delivery/README.md",
+    "docs/delivery/state.json",
+    "docs/delivery/tasks/C0-01.md"
+  ],
+  "privateRoot": "D:\\iBuild\\Shabab-360-c0-20260911",
+  "refs": {
+    "codex/c0-v2-20260911": "401ff322726c3ceab9b05db776b2b076e63bbaf5",
+    "codex/c0-main-20260911": "dedb91a640ea244ce9323cd1dcde2a40d74bb718",
+    "codex/c0-local-main-20260911": "054dbb775e630ddb153c5e9a225b4980b43b493c"
+  },
+  "archive": {
+    "bytes": 13882242,
+    "sha256": "b749e7b471ffd0803b3c12816c1aa780f258dfc1f49ee60854bccb8ee96cd1cc"
+  },
+  "bundle": {
+    "bytes": 13630617,
+    "sha256": "98e3b3e1974773a6d61cb47093f294750ce87c6813bffab18fcd1bed425931d9"
+  },
+  "bundleVerifyExit": 0,
+  "historyFsckExit": 0,
+  "rerunDate": "2026-09-12",
+  "dateMeaning": "date is inherited from the C0 verifier; rerunDate records this fresh execution."
+}

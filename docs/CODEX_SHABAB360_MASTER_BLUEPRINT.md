@@ -4,7 +4,7 @@
 
 **Status:** Consolidated working baseline, pending product-owner approval
 
-**Last updated:** 2026-07-15
+**Last updated:** 2026-09-11 (owner delivery roles and reference authority; earlier scope retained)
 
 **Purpose:** This is the single working reference for all further Shabab 360
 product, design, engineering, testing, migration, deployment, and handover
@@ -47,6 +47,55 @@ Any approved change to product scope, role permissions, data ownership,
 security, deployment, or workflow must update this file before implementation
 tasks are assigned.
 
+### Owner UI preservation decision — 2026-09-10
+
+The owner rejected the broad visual simplification introduced during v2 remediation
+and authorized restoring the earlier v2 interface while preserving repaired
+behavior. Use pre-remediation v2 commit `a252603` as the visual reference, and
+current code plus fresh evidence for API contracts, authorization and persistence.
+Restore consistent module layouts, cards, colors, tabs and sheets. Keep necessary
+unavailable states truthful; do not restore sample records or simulated success.
+
+Future backend, database, security and performance work must preserve the approved
+visual design. Frontend design work will be assigned by the owner and integrated
+against the backend contracts under technical supervision. Material visual changes
+require the owner's direction. Complete this restoration before proceeding with
+the main/v2 consolidation plan; consolidation is not authorized by this UI task.
+
+### Owner delivery model — 2026-09-11
+
+Astra leads requirements, API implementation, database management, security,
+performance, integration and final code review/refactoring. Gemini implements
+frontend from the exact references in `docs/pwa screens/` and Astra's approved
+contracts. DeepSeek may receive bounded backend tasks and receives a clean-code
+pass for each integrated module; Astra reviews the actual result. One task and
+one module are active at a time. Finish and verify the module before advancing;
+explicitly blocked work remains unfinished.
+
+The source sheets in `docs/sheets/` must be mapped, validated and imported through
+reviewed domain models and APIs. Preserve private data, provenance, historical
+meaning and repeatable imports. Source sheets do not independently define role
+permissions or approve live database changes. The newly supplied screen references
+take priority over historical v2 visuals for covered views.
+
+Use the [delivery plan](delivery/PLAN.md), compact task packets, repository skills,
+hooks and memory to minimize repeated context and work. Produce professional
+current-system documentation with every module and reconcile it after main/v2
+consolidation. The earlier canonical-main goal remains in force; this planning
+setup does not itself execute a merge, release or live import.
+
+### Owner display-mode decision — 2026-09-11
+
+**Confirmed decision:** Keep the current mobile view as the default. Design
+optional desktop and tablet views in a later phase, enabled explicitly through
+Settings. This is planning authorization only; do not change current layouts,
+default routing, breakpoints or settings controls as part of reference intake.
+Larger screen width alone must not opt users into a future alternative view.
+All views must share API contracts, data and server-enforced permissions.
+
+The deferred sequence and acceptance criteria are in the delivery plan's
+[display-mode section](delivery/PLAN.md#deferred-display-modes).
+
 ## 2. Executive Product Decision
 
 Shabab 360 should become the operational system for the Shabab Alburhan
@@ -83,9 +132,41 @@ The operating sequence is:
 5. Add the approved operational and engagement modules in controlled phases.
 6. Run complete role-based UAT before a restricted pilot.
 
-No public production handover is currently approved.
+Historical status (2026-07-15): no public production handover was approved.
+See the dated owner decisions and current evidence for subsequent state.
 
-### Current Delivery Order (Owner Decision, 2026-07-20)
+### Current Delivery Order (Owner Decision, 2026-09-10)
+
+The owner approves v2 as the product baseline and directs the next phase to
+compare it with the original main implementation, recover useful functionality
+that may be missing, consolidate into main as the canonical source, rebuild
+documentation from that combined system, and then resume development.
+
+The fetched published main and local main are different histories. The initial
+comparison confirms that local main is ancestral to v2, while published main
+contains parallel work that must be assessed. Use the pinned baselines,
+feature register and gated execution sequence in the
+[Main / v2 Consolidation Plan](reviews/main-v2-consolidation-2026-09-10/CONSOLIDATION_PLAN.md).
+
+Preserve the approved v2 interface and audit corrections. Account for each
+main-only feature as preserved, adapted, verified equivalent, intentionally
+gated or awaiting a specific owner decision. Do not replace published main
+with the v2 tree or assume that renamed routes are equivalent. Reconcile data
+models, migrate synthetic fixtures from both baselines, and verify the actual
+combined candidate before merging.
+
+After consolidation, main is the sole active product baseline; v2 remains
+historical reference. Rewrite current-system documentation against the final
+main commit while retaining audit history and approved product intent.
+Use short-lived feature branches for subsequent work.
+
+The owner's v2 approval is recorded and does not need to be requested again.
+It does not define missing safeguarding/account/receipt policies or silently
+enable their gated workflows. The current request is for this plan; merge,
+production auto-deployment and live database changes must be handled explicitly
+in the subsequent execution scope.
+
+### Previous Delivery Order (Owner Decision, 2026-07-20)
 
 The Lahore staging import is now the practical baseline for the next delivery
 phase. Before starting broad redesigns, new modules, or speculative features,

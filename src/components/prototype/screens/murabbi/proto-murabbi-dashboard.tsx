@@ -1,4 +1,5 @@
 "use client";
+import Image from "next/image";
 
 import React from "react";
 import { BookOpen, Users, Calendar, AlertTriangle, ArrowRight, PlayCircle, Book } from "lucide-react";
@@ -20,7 +21,7 @@ export function ProtoMurabbiDashboard({ onNavigate }: ProtoMurabbiDashboardProps
             </div>
           </div>
           <div className="w-12 h-12 rounded-full bg-white/20 border-2 border-white/20 shadow-inner flex items-center justify-center font-bold text-lg overflow-hidden">
-            <img src="https://ui-avatars.com/api/?name=Ali+Raza&background=random&color=fff" alt="AR" className="w-full h-full object-cover" />
+            <Image src="https://ui-avatars.com/api/?name=Ali+Raza&background=random&color=fff" alt="AR" width={64} height={64} className="w-full h-full object-cover" unoptimized />
           </div>
         </div>
         

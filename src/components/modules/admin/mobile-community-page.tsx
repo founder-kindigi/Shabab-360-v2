@@ -1,5 +1,5 @@
 "use client";
-import { UnavailableWorkflow } from "@/components/ui/unavailable-workflow";
+import { CommunityPage } from "./community-page";
 export function MobileCommunityPage({ onBack }: { onBack?: () => void } = {}) {
- return <UnavailableWorkflow title="Community" onBack={onBack} />;
+ return <CommunityPage mobile onBack={onBack} />;
 }

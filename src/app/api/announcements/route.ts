@@ -19,6 +19,7 @@ const VALID_ROLES = [
   "murabbi",
   "guardian",
   "student",
+  "all",
 ] as const;
 
 const createSchema = z.object({

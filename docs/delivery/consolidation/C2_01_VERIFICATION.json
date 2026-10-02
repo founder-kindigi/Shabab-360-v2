@@ -1,0 +1,195 @@
+{
+  "date": "2026-09-12",
+  "outcome": "LEAD_ACCEPTED_BOUNDED_CANDIDATE_FOR_LATER_INTEGRATION",
+  "candidate": "D:\\iBuild\\Shabab-360-c0-20260911\\c2-foundation-20260912",
+  "branch": "codex/c2-foundation-20260912",
+  "head": "401ff322726c3ceab9b05db776b2b076e63bbaf5",
+  "patchSha256": "5e007013503e5fafb5ca19cc146f7e8c23bfefaac37abff95f99fe61aa6938d2",
+  "applicationChangesInOriginalCheckout": false,
+  "checks": [
+    {
+      "name": "Baseline desired-behavior failures",
+      "command": "node node_modules/vitest/vitest.mjs run src/lib/audit-privacy.test.ts src/lib/security/credential-responses.test.ts src/lib/security/unit-environment.test.ts --maxWorkers=2 --reporter=json --outputFile=D:/iBuild/Shabab-360-v2/docs/delivery/consolidation/C2_01_BEFORE_TESTS.json",
+      "exitCode": 1,
+      "evidence": "C2_01_BEFORE_TESTS.json",
+      "files": 3,
+      "total": 14,
+      "passed": 5,
+      "failed": 9,
+      "pending": 0
+    },
+    {
+      "name": "Focused corrected behavior and regressions",
+      "command": "node node_modules/vitest/vitest.mjs run src/lib/audit-privacy.test.ts src/lib/audit.test.ts src/lib/security/credential-responses.test.ts src/lib/security/unit-environment.test.ts src/app/api/admin/invite/route.test.ts --maxWorkers=2 --reporter=json --outputFile=D:/iBuild/Shabab-360-v2/docs/delivery/consolidation/C2_01_FOCUSED_TESTS.json",
+      "exitCode": 0,
+      "evidence": "C2_01_FOCUSED_TESTS.json",
+      "files": 5,
+      "total": 22,
+      "passed": 22,
+      "failed": 0,
+      "pending": 0
+    },
+    {
+      "name": "Final full regression suite",
+      "command": "node node_modules/vitest/vitest.mjs run --maxWorkers=4 --reporter=json --outputFile=D:/iBuild/Shabab-360-v2/docs/delivery/consolidation/C2_01_ALL_TESTS.json",
+      "exitCode": 0,
+      "evidence": "C2_01_ALL_TESTS.json",
+      "files": 190,
+      "total": 1389,
+      "passed": 1389,
+      "failed": 0,
+      "pending": 0
+    },
+    {
+      "command": "npm run lint",
+      "exitCode": 0,
+      "errors": 0,
+      "warnings": 6
+    },
+    {
+      "command": "npm run typecheck",
+      "exitCode": 0
+    },
+    {
+      "command": "git apply --check --whitespace=error docs/delivery/consolidation/C2_01_PATCH.diff",
+      "exitCode": 0
+    },
+    {
+      "command": "npx eslint scripts/delivery/c2-build.mjs",
+      "exitCode": 0
+    },
+    {
+      "command": "python scripts/delivery/verify-consolidation.py",
+      "exitCode": 0,
+      "checks": 17,
+      "files": 1288
+    },
+    {
+      "command": "git ls-remote origin refs/heads/main refs/heads/v2",
+      "exitCode": 0,
+      "pinnedRefsMatch": true
+    },
+    {
+      "command": "node scripts/delivery/check-workflow.mjs",
+      "exitCode": 0,
+      "activeTask": null,
+      "nextTask": "C2-02"
+    },
+    {
+      "command": "Python syntax, local Markdown links and evidence hashes",
+      "exitCode": 0,
+      "evidence": "C2_01_DOCUMENT_CHECK.json",
+      "localLinks": 26
+    },
+    {
+      "command": "python scripts/delivery/c2-package.py",
+      "exitCode": 0,
+      "files": 12,
+      "unchangedBaselineFiles": 1274,
+      "patchHashUnchanged": true
+    }
+  ],
+  "builds": {
+    "SQLITE": {
+      "evidence": "C2_01_BUILD_SQLITE.json",
+      "checks": [
+        {
+          "command": "prisma/build/index.js validate --schema prisma/schema.prisma",
+          "exitCode": 0,
+          "signal": null,
+          "error": null
+        },
+        {
+          "command": "prisma/build/index.js generate --schema prisma/schema.prisma",
+          "exitCode": 0,
+          "signal": null,
+          "error": null
+        },
+        {
+          "command": "next/dist/bin/next build --webpack",
+          "exitCode": 0,
+          "signal": null,
+          "error": null
+        }
+      ],
+      "productionInputsMatchFinalCandidate": true,
+      "testOnlyDifferences": [
+        "src/lib/security/credential-responses.test.ts"
+      ],
+      "testDifferenceMeaning": "Final synthetic account/email fixture correction; the final full suite ran the current file."
+    },
+    "POSTGRES": {
+      "evidence": "C2_01_BUILD_POSTGRES.json",
+      "checks": [
+        {
+          "command": "prisma/build/index.js validate --schema prisma/postgres/schema.prisma",
+          "exitCode": 0,
+          "signal": null,
+          "error": null
+        },
+        {
+          "command": "prisma/build/index.js generate --schema prisma/postgres/schema.prisma",
+          "exitCode": 0,
+          "signal": null,
+          "error": null
+        },
+        {
+          "command": "next/dist/bin/next build --webpack",
+          "exitCode": 0,
+          "signal": null,
+          "error": null
+        }
+      ],
+      "productionInputsMatchFinalCandidate": true,
+      "testOnlyDifferences": [
+        "src/lib/security/credential-responses.test.ts"
+      ],
+      "testDifferenceMeaning": "Final synthetic account/email fixture correction; the final full suite ran the current file."
+    }
+  },
+  "runtime": {
+    "node": "26.5.0",
+    "prisma": "6.19.3",
+    "next": "16.2.12",
+    "vitest": "3.2.7"
+  },
+  "findings": {
+    "C1-F16": "Verified correction within bounded candidate",
+    "C1-F19": "Verified correction within bounded candidate",
+    "C1-F20": "Unit isolation corrected; CI/provider migration gates remain open"
+  },
+  "limits": [
+    "No independent review, release approval or combined integration performed.",
+    "Real route handlers/NextResponse with synthetic DB/auth/provider boundaries; no real accounts or sends.",
+    "Child-process setup imports the real DB module only after safe environment assertions; no operational connection or query.",
+    "No native migration/populated upgrade/rollback/browser-cache checks; schema unchanged.",
+    "Provider builds use webpack and separate generated clients; not Turbopack or deployment verification.",
+    "Three tracked workbooks and .build-env initially materialized by Git checkout were removed only from the new scratch copy; excluded from all build copies/patches.",
+    "DeepSeek cleanup prepared for integrated-module handoff, not dispatched or performed."
+  ],
+  "recoveredAttempts": [
+    "Line-ending guard interrupted initial edit; corrected before final verification.",
+    "Synthetic transaction lookup and async email fixtures corrected; initial full run 1388/1389, final 1389/1389.",
+    "Initial build harness expected an ignored next-env.d.ts; fixed to let Next generate it. Failed scratch directories preserved."
+  ],
+  "evidenceSha256": {
+    "C2_01_ALL_STDERR.txt": "b5420d1e4f6e3c9241ef45d5d608981b5ce20e09eed05192abe62a748fb892aa",
+    "C2_01_ALL_TESTS.json": "3ce770e5e2a22f3fc11f5dd8a6b5777051c0ebd23bb6fe0e60dffb16666f60a8",
+    "C2_01_BASELINE.json": "bc5dfba58e4681c689701ce4c81886e18f797a93c99d902d51a1a3d9a5b9cf1b",
+    "C2_01_BEFORE_STDERR.txt": "e15840edf1276ef2daa9526a22cdc6ab4f56e02acbd08307b673da4c1d73ab20",
+    "C2_01_BEFORE_TESTS.json": "53904c7a1f69c640272d1a7aed077562b9308153bb9cba318460f68dd7ea43b2",
+    "C2_01_BUILD_POSTGRES.json": "06b4bd2997625909f52359dd0f4ee8abd0011d03fb5ad40e82b9cf517354280e",
+    "C2_01_BUILD_POSTGRES.log": "fc71c036dedb71fcaf0156f7bf872eb1dcc3ef017a2a4c488c7db6da213e4ce2",
+    "C2_01_BUILD_SQLITE.json": "5b8c4d6e502185b6b06a32bdb88958b0736e473a49d2537a77a25a97571b8794",
+    "C2_01_BUILD_SQLITE.log": "4d73b4c01a7b54a4932adcb645a57022d315e4c90c46b6ddcf5e24340e0ee00b",
+    "C2_01_DEEPSEEK_PACKET.md": "7034ce8064cd508113a22abcf6f07f6b5d639c22dd87b0e92f6f2e6d58dfe853",
+    "C2_01_FOCUSED_STDERR.txt": "d25b9bd4464241d9497df244233b0635a946e6391c43250ff85e2e77e7fd7b03",
+    "C2_01_FOCUSED_TESTS.json": "2a43386eefdaa6c8996917789caa965f4c739daa961df3ae3191c97e3992ea7e",
+    "C2_01_HANDOFF.md": "7c71400985f31befb82e058a4766fa44d683e39e5f0d06308427bfd222372c70",
+    "C2_01_PATCH.diff": "5e007013503e5fafb5ca19cc146f7e8c23bfefaac37abff95f99fe61aa6938d2",
+    "C2_01_PATCH.json": "bd20fed09c7f9bdaaf486dc277f2b86e40e61aaa31961ff44da004aacf6369d2",
+    "C2_01_PRESERVATION.json": "25ca4ad312f7ddcee4fb0fd7c546acb8a18f33f97f100c2be9831f38fb870ec9",
+    "C2_01_DOCUMENT_CHECK.json": "888f6c002e8909beb166824e4fa78adb98c1b8fd177f97fcead783f2a29f9a2b"
+  },
+  "baselineRunMethod": "Seven changed baseline files substituted only in the disposable candidate under try/finally, then corrected bytes restored; safe parent DB/auth environment set explicitly. No C0 file modified."
+}

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import path from "node:path";
 import os from "node:os";
 import fs from "node:fs";
@@ -396,8 +396,8 @@ describe("Calling Import Preparation — PKG-03 Test Suite", () => {
       "fails safely when --campaignId is missing",
       () => {
         try {
-          execSync(
-            `npx tsx "${cliPath}" --cityId ${testCityId} --synthetic --dry-run`,
+          execFileSync(process.execPath,
+            ["--import", "tsx", cliPath, "--cityId", testCityId, "--synthetic", "--dry-run"],
             {
               env: { ...process.env, IMPORT_HMAC_SECRET: testSecret },
               stdio: "pipe",
@@ -417,8 +417,8 @@ describe("Calling Import Preparation — PKG-03 Test Suite", () => {
       "fails safely when --file is missing for operational run (without --synthetic)",
       () => {
         try {
-          execSync(
-            `npx tsx "${cliPath}" --cityId ${testCityId} --campaignId ${testCampaignId} --dry-run`,
+          execFileSync(process.execPath,
+            ["--import", "tsx", cliPath, "--cityId", testCityId, "--campaignId", testCampaignId, "--dry-run"],
             {
               env: { ...process.env, IMPORT_HMAC_SECRET: testSecret },
               stdio: "pipe",
@@ -442,8 +442,8 @@ describe("Calling Import Preparation — PKG-03 Test Suite", () => {
           const env = { ...process.env, IMPORT_HMAC_SECRET: testSecret };
           delete (env as { DATABASE_URL?: string }).DATABASE_URL;
 
-          execSync(
-            `npx tsx "${cliPath}" --cityId ${testCityId} --campaignId ${testCampaignId} --file "${validWorkbookPath}" --dry-run`,
+          execFileSync(process.execPath,
+            ["--import", "tsx", cliPath, "--cityId", testCityId, "--campaignId", testCampaignId, "--file", validWorkbookPath, "--dry-run"],
             {
               env,
               stdio: "pipe",
@@ -464,8 +464,8 @@ describe("Calling Import Preparation — PKG-03 Test Suite", () => {
       async () => {
         const validWorkbookPath = await createValidMinimalWorkbook();
         try {
-          execSync(
-            `npx tsx "${cliPath}" --cityId ${testCityId} --campaignId ${testCampaignId} --file "${validWorkbookPath}" --dry-run`,
+          execFileSync(process.execPath,
+            ["--import", "tsx", cliPath, "--cityId", testCityId, "--campaignId", testCampaignId, "--file", validWorkbookPath, "--dry-run"],
             {
               env: {
                 ...process.env,
@@ -490,8 +490,8 @@ describe("Calling Import Preparation — PKG-03 Test Suite", () => {
       async () => {
         const validWorkbookPath = await createValidMinimalWorkbook();
         try {
-          execSync(
-            `npx tsx "${cliPath}" --cityId ${testCityId} --campaignId ${testCampaignId} --synthetic --file "${validWorkbookPath}" --dry-run`,
+          execFileSync(process.execPath,
+            ["--import", "tsx", cliPath, "--cityId", testCityId, "--campaignId", testCampaignId, "--synthetic", "--file", validWorkbookPath, "--dry-run"],
             {
               env: { ...process.env, IMPORT_HMAC_SECRET: testSecret },
               stdio: "pipe",
@@ -510,8 +510,8 @@ describe("Calling Import Preparation — PKG-03 Test Suite", () => {
     it(
       "executes successfully with --synthetic and outputs masked report without initializing Prisma",
       () => {
-        const result = execSync(
-          `npx tsx "${cliPath}" --cityId ${testCityId} --campaignId ${testCampaignId} --synthetic --dry-run`,
+        const result = execFileSync(process.execPath,
+          ["--import", "tsx", cliPath, "--cityId", testCityId, "--campaignId", testCampaignId, "--synthetic", "--dry-run"],
           {
             env: {
               ...process.env,

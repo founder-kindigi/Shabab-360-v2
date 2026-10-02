@@ -20,7 +20,7 @@ describe("attendance batch transport (transaction integrity covered by disposabl
     const response = await POST(request([mark])); expect(response.status).toBe(200); expect(await response.json()).toEqual({ results: [accepted], summary: { total: 1, processed: 1, failed: 0 } });
     expect(m.apply).toHaveBeenCalledWith({ id: "actor" }, mark);
   });
-  it.each(["FORBIDDEN", "EVENT_LOCKED", "ATTENDANCE_DISCONTINUED", "VERSION_CONFLICT", "OWNER_MISMATCH", "PROCESSING_ERROR"])("retains %s failures alongside independent successes", async code => {
+  it.each(["FORBIDDEN", "EVENT_LOCKED", "ATTENDANCE_DISCONTINUED", "VERSION_CONFLICT", "OWNER_MISMATCH", "PROCESSING_ERROR", "SESSION_NOT_SCHEDULED", "GROUP_INACTIVE", "BATCH_INACTIVE"])("retains %s failures alongside independent successes", async code => {
     const denied = { ...accepted, status: "failed", recordId: null, code, error: "Review required", retryable: code === "PROCESSING_ERROR" };
     m.apply.mockResolvedValueOnce(denied).mockResolvedValueOnce({ ...accepted, mutationId: "two" });
     const response = await POST(request([mark, { ...mark, mutationId: "two" }])); const body = await response.json();

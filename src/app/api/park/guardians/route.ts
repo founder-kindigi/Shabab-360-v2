@@ -112,17 +112,20 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    const participants = await db.participant.findMany({
-      where: { groupId: { in: allGroupIds } },
-      include: {
-        guardianLinks: {
-          include: {
-            guardian: true,
+    const participants = (
+      await db.participant.findMany({
+        where: { groupId: { in: allGroupIds } },
+        include: {
+          guardianLinks: {
+            include: {
+              guardian: true,
+            },
           },
         },
-      },
-      orderBy: { name: "asc" },
-    });
+        orderBy: { name: "asc" },
+      })
+    // Group-scoped directories never include an unassigned participant.
+    ).filter((p): p is typeof p & { groupId: string } => p.groupId !== null);
 
     const guardianMap = new Map<string, {
       id: string;
@@ -325,7 +328,7 @@ export async function POST(request: NextRequest) {
       include: { group: { include: { batch: { select: { parkId: true } } } } },
     });
 
-    if (!participant || participant.group.batch.parkId !== staffMeta.assignedParkId) {
+    if (!participant || !participant.group || participant.group.batch.parkId !== staffMeta.assignedParkId) {
       return NextResponse.json({ error: "Invalid participant" }, { status: 400 });
     }
 

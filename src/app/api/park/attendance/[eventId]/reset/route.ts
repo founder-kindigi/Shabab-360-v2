@@ -3,7 +3,7 @@ import { requireAuth, requireCapability } from "@/lib/auth/authorize";
 import { requireResolvedGroupScope, groupHierarchyInclude } from "@/lib/auth/hierarchy";
 import { createAuditLogData } from "@/lib/audit";
 import { db } from "@/lib/db";
-const ROLES = ["super_admin", "program_admin", "city_head", "park_lead"] as const;
+const ROLES = ["super_admin", "program_admin", "city_head", "park_lead", "park_admin"] as const;
 export async function DELETE(req: Request, { params }: { params: Promise<{ eventId: string }> }) {
   const auth = await requireAuth(); if (auth instanceof NextResponse) return auth;
   const capability = await requireCapability("attendance.correct"); if (capability instanceof NextResponse) return capability;

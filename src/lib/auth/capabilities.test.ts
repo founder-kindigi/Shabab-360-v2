@@ -26,6 +26,7 @@ describe("access capability policy", () => {
     expect(Object.keys(ROLE_DEFAULT_CAPABILITIES).sort()).toEqual([
       "city_head",
       "guardian",
+      "muawin",
       "murabbi",
       "park_admin",
       "park_lead",
@@ -51,6 +52,12 @@ describe("access capability policy", () => {
     expect(roleHasDefaultCapability("park_lead", "fees.manage")).toBe(false);
     expect(roleHasDefaultCapability("park_admin", "admissions.manage")).toBe(false);
     expect(roleHasDefaultCapability("murabbi", "attendance.correct")).toBe(false);
+    // A Murabbi marks its own group's attendance but is never granted the
+    // organisation park directory, which is what blocked the attendance entry.
+    expect(roleHasDefaultCapability("murabbi", "attendance.mark")).toBe(true);
+    expect(roleHasDefaultCapability("murabbi", "organisation.view")).toBe(false);
+    expect(roleHasDefaultCapability("muawin", "content.view")).toBe(true);
+    expect(roleHasDefaultCapability("muawin", "attendance.mark")).toBe(false);
   });
 
   it("denies missing roles and unsupported capabilities by default", () => {
@@ -95,9 +102,11 @@ describe("access capability policy", () => {
     expect(
       resolveEffectiveCapability("park_admin", "attendance.mark", null, null, now)
     ).toBe(true);
+    // park_admin now has attendance.correct to allow session lifecycle management
+    // within their assigned park (F-02).
     expect(
       resolveEffectiveCapability("park_admin", "attendance.correct", null, null, now)
-    ).toBe(false);
+    ).toBe(true);
   });
 
   it("fails closed for unknown roles or invalid inputs in resolution", () => {

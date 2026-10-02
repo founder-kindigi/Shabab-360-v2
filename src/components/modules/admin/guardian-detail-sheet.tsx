@@ -71,7 +71,7 @@ interface ChildEntry {
         city: { id: string; name: string };
       };
     };
-  };
+  } | null;
 }
 
 interface RecentPayment {
@@ -331,11 +331,17 @@ export function GuardianDetailSheet({
                                   {child.relation}
                                 </span>
                               )}
-                              <span>{child.group.name}</span>
-                              <ChevronRight className="size-2.5 shrink-0" />
-                              <span>{child.group.batch.name}</span>
-                              <ChevronRight className="size-2.5 shrink-0" />
-                              <span>{child.group.batch.park.name}</span>
+                              {child.group ? (
+                                <>
+                                  <span>{child.group.name}</span>
+                                  <ChevronRight className="size-2.5 shrink-0" />
+                                  <span>{child.group.batch.name}</span>
+                                  <ChevronRight className="size-2.5 shrink-0" />
+                                  <span>{child.group.batch.park.name}</span>
+                                </>
+                              ) : (
+                                <span className="text-muted-foreground italic">Unassigned</span>
+                              )}
                             </div>
                           </div>
                         </div>

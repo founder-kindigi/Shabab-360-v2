@@ -4,6 +4,7 @@ import { useState, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence, type Variants } from "framer-motion";
 import { useAppStore } from "@/stores/useAppStore";
+import { useEffectiveCapabilities } from "@/hooks/use-effective-capabilities";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -68,7 +69,6 @@ interface StaffMetaInfo {
   id: string;
   role: string;
   isActive: boolean;
-  createdAt: string;
   assignedCity: { id: string; name: string } | null;
   assignedPark: { id: string; name: string } | null;
   assignedGroup: { id: string; name: string } | null;
@@ -77,12 +77,7 @@ interface StaffMetaInfo {
 interface StaffMember {
   id: string;
   name: string | null;
-  email: string;
-  phone: string | null;
   isActive: boolean;
-  mustResetPwd: boolean;
-  createdAt: string;
-  updatedAt: string;
   staffMeta: StaffMetaInfo;
 }
 
@@ -196,6 +191,9 @@ export function PeoplePage() {
   const [cityFilter, setCityFilter] = useState<string>("all");
   const [parkFilter, setParkFilter] = useState<string>("all");
   const [activeFilter, setActiveFilter] = useState<string>("all");
+
+  const effectiveCapabilities = useEffectiveCapabilities();
+  const canManage = effectiveCapabilities.has("organisation.manage");
   const [page, setPage] = useState(1);
   const [selectedStaff, setSelectedStaff] = useState<StaffMember | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
@@ -230,7 +228,7 @@ export function PeoplePage() {
   }, []);
 
   // Fetch staff
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error } = useQuery({
     queryKey: ["admin-people", debouncedSearch, roleFilter, cityFilter, parkFilter, activeFilter, page],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -242,7 +240,10 @@ export function PeoplePage() {
       params.set("page", page.toString());
 
       const res = await fetch(`/api/admin/people?${params}`);
-      if (!res.ok) throw new Error("Failed to fetch staff");
+      if (!res.ok) {
+          if (res.status === 403) throw new Error("Access Denied");
+          throw new Error("Failed to fetch staff");
+        }
       return res.json() as Promise<{
         data: StaffMember[];
         pagination: { page: number; pageSize: number; total: number; totalPages: number };
@@ -402,9 +403,9 @@ export function PeoplePage() {
             <div className="flex items-center justify-between">
               <div className="space-y-1">
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Total Staff</p>
-                <p className="text-2xl font-bold text-[#4B0A8F] dark:text-[#8A40B0]">
+                <div className="text-2xl font-bold text-[#4B0A8F] dark:text-[#8A40B0]">
                   {stats?.total ?? <Skeleton className="h-7 w-12 inline-block" />}
-                </p>
+                </div>
               </div>
               <div className="flex items-center justify-center size-10 rounded-lg bg-[#F3ECF6] dark:bg-[#1F086080]">
                 <Users className="size-5 text-[#4B0A8F] dark:text-[#8A40B0]" />
@@ -419,9 +420,9 @@ export function PeoplePage() {
             <div className="flex items-center justify-between">
               <div className="space-y-1">
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Active</p>
-                <p className="text-2xl font-bold text-[#22C55E]">
+                <div className="text-2xl font-bold text-[#22C55E]">
                   {stats?.active ?? <Skeleton className="h-7 w-12 inline-block" />}
-                </p>
+                </div>
               </div>
               <div className="flex items-center justify-center size-10 rounded-lg bg-[#22C55E]/10">
                 <ShieldCheck className="size-5 text-[#22C55E]" />
@@ -436,9 +437,9 @@ export function PeoplePage() {
             <div className="flex items-center justify-between">
               <div className="space-y-1">
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Inactive</p>
-                <p className="text-2xl font-bold text-[#ef4444]">
+                <div className="text-2xl font-bold text-[#ef4444]">
                   {stats?.inactive ?? <Skeleton className="h-7 w-12 inline-block" />}
-                </p>
+                </div>
               </div>
               <div className="flex items-center justify-center size-10 rounded-lg bg-[#ef4444]/10">
                 <ShieldX className="size-5 text-[#ef4444]" />
@@ -469,7 +470,7 @@ export function PeoplePage() {
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
             <Input
-              placeholder="Search by name or email..."
+              placeholder="Search by name..."
               value={search}
               onChange={(e) => handleSearchChange(e.target.value)}
               className="pl-9 pr-9"
@@ -585,7 +586,9 @@ export function PeoplePage() {
       </div>
 
       {/* ─── Loading Skeletons ────────────────────────────────────────────── */}
-      {isLoading && (
+      {isError && <div className="py-20 text-center text-red-500 font-medium">{(error as any)?.message || "Failed to load staff"}</div>}
+
+        {isLoading && (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {Array.from({ length: 6 }).map((_, i) => (
             <Card key={i} className="overflow-hidden">
@@ -611,7 +614,7 @@ export function PeoplePage() {
       )}
 
       {/* ─── Empty State ──────────────────────────────────────────────────── */}
-      {!isLoading && staff.length === 0 && (
+      {!isLoading && !isError && staff.length === 0 && (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -630,7 +633,7 @@ export function PeoplePage() {
       )}
 
       {/* ─── Desktop Table View ─────────────────────────────────────────── */}
-      {!isLoading && staff.length > 0 && (
+      {!isLoading && !isError && staff.length > 0 && (
         <>
           {/* Desktop Table */}
           <div className="hidden lg:block">
@@ -641,12 +644,9 @@ export function PeoplePage() {
                     <tr className="border-b bg-muted/30">
                       <th className="text-left py-3 px-4 font-medium text-muted-foreground w-10">Status</th>
                       <th className="text-left py-3 px-4 font-medium text-muted-foreground">Name</th>
-                      <th className="text-left py-3 px-4 font-medium text-muted-foreground">Email</th>
-                      <th className="text-left py-3 px-4 font-medium text-muted-foreground">Phone</th>
                       <th className="text-left py-3 px-4 font-medium text-muted-foreground">Role</th>
                       <th className="text-left py-3 px-4 font-medium text-muted-foreground">Assignment</th>
-                      <th className="text-left py-3 px-4 font-medium text-muted-foreground">Last Active</th>
-                    </tr>
+                      </tr>
                   </thead>
                   <tbody>
                     <AnimatePresence>
@@ -681,8 +681,6 @@ export function PeoplePage() {
                                 </span>
                               </div>
                             </td>
-                            <td className="py-2.5 px-4 text-muted-foreground truncate max-w-[200px]">{member.email}</td>
-                            <td className="py-2.5 px-4 text-muted-foreground">{member.phone || "—"}</td>
                             <td className="py-2.5 px-4">
                               <Badge
                                 variant="outline"
@@ -722,10 +720,7 @@ export function PeoplePage() {
                                 )}
                               </div>
                             </td>
-                            <td className="py-2.5 px-4 text-muted-foreground text-xs">
-                              {formatDateRel(member.updatedAt)}
-                            </td>
-                          </motion.tr>
+                            </motion.tr>
                         );
                       })}
                     </AnimatePresence>
@@ -777,16 +772,6 @@ export function PeoplePage() {
                                 title={isInactive ? "Inactive" : "Active"}
                               />
                             </div>
-                            <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
-                              <Mail className="size-3 shrink-0" />
-                              {member.email}
-                            </p>
-                            {member.phone && (
-                              <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
-                                <Phone className="size-3 shrink-0" />
-                                {member.phone}
-                              </p>
-                            )}
                           </div>
                         </div>
 
@@ -903,6 +888,7 @@ export function PeoplePage() {
               onViewAudit={handleViewAudit}
               isResettingPwd={resetPwdMutation.isPending}
               isToggling={toggleActiveMutation.isPending}
+                canManage={canManage}
             />
           )}
         </SheetContent>
@@ -932,6 +918,7 @@ function StaffDetailSheet({
   onViewAudit,
   isResettingPwd,
   isToggling,
+  canManage,
 }: {
   staff: StaffMember;
   onEditUser: () => void;
@@ -940,6 +927,7 @@ function StaffDetailSheet({
   onViewAudit: () => void;
   isResettingPwd: boolean;
   isToggling: boolean;
+  canManage: boolean;
 }) {
   const role = staff.staffMeta.role;
   const colors = ROLE_COLORS[role] || ROLE_COLORS.student;
@@ -958,7 +946,7 @@ function StaffDetailSheet({
           <h3 className="text-lg font-semibold text-foreground leading-tight">
             {staff.name || "No Name"}
           </h3>
-          <p className="text-sm text-muted-foreground mt-0.5">{staff.email}</p>
+          <p className="text-sm text-muted-foreground mt-0.5">{ROLE_LABELS[staff.staffMeta.role]}</p>
           <Badge
             variant="outline"
             className={`mt-2 ${colors.bg} ${colors.text} ${colors.border} border`}
@@ -970,24 +958,6 @@ function StaffDetailSheet({
 
       <Separator />
 
-      {/* ── Assignment Details ──────────────────────────────────────── */}
-      <div className="space-y-3">
-        <h4 className="text-sm font-semibold text-foreground">Assignment Details</h4>
-        <div className="space-y-2">
-          <div className="flex items-center gap-2 text-sm">
-            <Mail className="size-4 text-muted-foreground shrink-0" />
-            <span className="text-foreground">{staff.email}</span>
-          </div>
-          {staff.phone && (
-            <div className="flex items-center gap-2 text-sm">
-              <Phone className="size-4 text-muted-foreground shrink-0" />
-              <span className="text-foreground">{staff.phone}</span>
-            </div>
-          )}
-        </div>
-      </div>
-
-      <Separator />
 
       {/* Assignment Chain */}
       <div className="space-y-3">
@@ -1045,24 +1015,6 @@ function StaffDetailSheet({
               {isInactive ? "Inactive" : "Active"}
             </Badge>
           </div>
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground flex items-center gap-1.5">
-              <Clock className="size-3.5" /> Created
-            </span>
-            <span className="text-foreground">{formatDateRel(staff.createdAt)}</span>
-          </div>
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground flex items-center gap-1.5">
-              <Phone className="size-3.5" /> Phone
-            </span>
-            <span className="text-foreground">{staff.phone || "Not set"}</span>
-          </div>
-          {staff.mustResetPwd && (
-            <div className="flex items-center gap-2 text-sm text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 rounded-lg px-3 py-2">
-              <AlertTriangle className="size-4 shrink-0" />
-              <span>Must reset password on next login</span>
-            </div>
-          )}
         </div>
       </div>
 
@@ -1072,14 +1024,14 @@ function StaffDetailSheet({
       <div className="space-y-3">
         <h4 className="text-sm font-semibold text-foreground">Quick Actions</h4>
         <div className="flex flex-col gap-2">
-          <Button
+          {canManage && (<Button
             variant="outline"
             className="justify-start gap-2.5 text-sm"
             onClick={onEditUser}
           >
             <Pencil className="size-4 text-[#4B0A8F] dark:text-[#8A40B0]" />
             Edit User
-          </Button>
+          </Button>)}
           <Button
             variant="outline"
             className="justify-start gap-2.5 text-sm"
@@ -1206,7 +1158,7 @@ function EditAssignmentDialog({
         <DialogHeader>
           <DialogTitle>Edit Assignment</DialogTitle>
           <DialogDescription>
-            Update city, park, and group assignment for {staff.name || staff.email}
+            Update city, park, and group assignment for {staff.name || "this user"}
           </DialogDescription>
         </DialogHeader>
 

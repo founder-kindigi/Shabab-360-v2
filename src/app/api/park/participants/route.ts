@@ -216,19 +216,22 @@ export async function GET(request: NextRequest) {
     const orderBy = orderByMap[sortBy];
 
     // Fetch paginated participants
-    const participants = await db.participant.findMany({
-      where: participantWhere,
-      include: {
-        guardianLinks: {
-          include: {
-            guardian: { select: { id: true, name: true, phone: true } },
+    const participants = (
+      await db.participant.findMany({
+        where: participantWhere,
+        include: {
+          guardianLinks: {
+            include: {
+              guardian: { select: { id: true, name: true, phone: true } },
+            },
           },
         },
-      },
-      orderBy,
-      skip: (page - 1) * pageSize,
-      take: pageSize,
-    });
+        orderBy,
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      })
+    // Group-scoped directories never include an unassigned participant.
+    ).filter((p): p is typeof p & { groupId: string } => p.groupId !== null);
 
     const participantIds = participants.map((p) => p.id);
 

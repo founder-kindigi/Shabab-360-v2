@@ -40,8 +40,9 @@ function prismaScalarColumns(schema: string, model: string): { column: string; o
   const body = schema.slice(start.index + start[0].length).split("\n");
   const columns: { column: string; optional: boolean }[] = [];
   for (const line of body) {
-    if (line.startsWith("}")) break;
-    const match = /^\s{2}([A-Za-z][A-Za-z0-9_]*)\s+([A-Za-z][A-Za-z0-9_]*)(\?|\[\])?\s*(.*)$/.exec(line);
+    const normalizedLine = line.replace(/\r$/, "");
+    if (normalizedLine.startsWith("}")) break;
+    const match = /^\s{2}([A-Za-z][A-Za-z0-9_]*)\s+([A-Za-z][A-Za-z0-9_]*)(\?|\[\])?\s*(.*)$/.exec(normalizedLine);
     if (!match) continue;
     const [, field, type, modifier, rest] = match;
     if (!SCALAR_TYPES.has(type)) continue;

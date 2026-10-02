@@ -84,28 +84,41 @@ export async function POST(request: Request) {
     extraClassDates: group.batch.extraClassDates.map((item) => item.classDate),
   }));
 
-  const prepared = await db.$transaction(async (tx) => {
-    const existing = await tx.attendanceEvent.findMany({
-      where: { groupId: { in: eligible.map((group) => group.id) }, eventDate },
-      select: { groupId: true },
-    });
-    const existingGroupIds = new Set(existing.map((event) => event.groupId));
-    let created = 0;
-    for (const group of eligible.filter((item) => !existingGroupIds.has(item.id))) {
-      const event = await tx.attendanceEvent.create({
-        data: { groupId: group.id, eventDate, title: `${group.name} - ${group.batch.name}` },
+  // Two authorized staff can prepare the same park and date at once. The unique
+  // (groupId, eventDate) constraint keeps a single session per group, so a
+  // losing insert reports P2002: retry, which reads the winner's committed row
+  // as existing and finishes the remaining groups. Each retry commits at least
+  // one more session, so eligible.length attempts bound the loop.
+  let prepared = 0;
+  for (let attempt = 0; attempt < eligible.length; attempt += 1) {
+    try {
+      prepared = await db.$transaction(async (tx) => {
+        const existing = await tx.attendanceEvent.findMany({
+          where: { groupId: { in: eligible.map((group) => group.id) }, eventDate },
+          select: { groupId: true },
+        });
+        const existingGroupIds = new Set(existing.map((event) => event.groupId));
+        let created = 0;
+        for (const group of eligible.filter((item) => !existingGroupIds.has(item.id))) {
+          const event = await tx.attendanceEvent.create({
+            data: { groupId: group.id, eventDate, title: `${group.name} - ${group.batch.name}` },
+          });
+          await tx.auditLog.create({ data: createAuditLogData({
+            userId: user.id,
+            action: "attendance_session_prepare",
+            entityType: "attendance_events",
+            entityId: event.id,
+            newValues: { groupId: group.id, eventDate: date, source: "batch_schedule" },
+          }) });
+          created += 1;
+        }
+        return created;
       });
-      await tx.auditLog.create({ data: createAuditLogData({
-        userId: user.id,
-        action: "attendance_session_prepare",
-        entityType: "attendance_events",
-        entityId: event.id,
-        newValues: { groupId: group.id, eventDate: date, source: "batch_schedule" },
-      }) });
-      created += 1;
+      break;
+    } catch (error) {
+      if ((error as { code?: string }).code !== "P2002") throw error;
     }
-    return created;
-  });
+  }
 
   const sessions = await listAttendanceSessions({
     date,

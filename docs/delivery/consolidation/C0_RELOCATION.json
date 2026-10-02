@@ -1,0 +1,10 @@
+{
+  "date": "2026-09-11",
+  "originalPrivateRoot": "D:\\iBuild\\Shabab-360-v2\\local-consolidation-20260911",
+  "privateRoot": "D:\\iBuild\\Shabab-360-c0-20260911",
+  "integrationDirectory": "D:\\iBuild\\Shabab-360-c0-20260911\\integration",
+  "reason": "Keep restored source and integration checkout outside the original repository's TypeScript and ESLint discovery without changing application configuration.",
+  "method": "git worktree move for registered integration checkout; native PowerShell Move-Item for the five other explicitly named recovery assets.",
+  "snapshotPolicy": "C0_SNAPSHOT.json and private snapshot-manifest.json remain immutable creation-time evidence, including their original paths. Resolve current paths through this relocation record. The archive and its historical copy of the preservation script remain unchanged.",
+  "verificationCommand": "python scripts/delivery/verify-consolidation.py"
+}

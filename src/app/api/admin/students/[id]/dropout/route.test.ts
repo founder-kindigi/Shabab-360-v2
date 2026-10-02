@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextResponse } from "next/server";
+import { formatPKT } from "@/lib/timezone";
 
 const mocks = vi.hoisted(() => ({
   requireAuth: vi.fn(),
@@ -37,6 +38,8 @@ const post = (body: unknown) => POST(new Request("http://localhost", {
   headers: { "content-type": "application/json" },
   body: JSON.stringify(body),
 }), { params: Promise.resolve({ id: participantId }) });
+const dropoutParticipant = { ...participant, state: "dropout", dropoutAt: new Date("2026-08-01T00:00:00.000Z"), dropoutSource: "manual" };
+const rejoin = { action: "reactivate", reason: "Participant has formally rejoined", effectiveDate: "2026-08-20" };
 
 describe("participant dropout lifecycle", () => {
   beforeEach(() => {
@@ -76,14 +79,55 @@ describe("participant dropout lifecycle", () => {
     expect(tx.auditLog.create).toHaveBeenCalledOnce();
   });
 
-  it("reactivates only an existing dropout", async () => {
-    mocks.participantFindUnique.mockResolvedValue({ ...participant, state: "dropout", dropoutAt: new Date("2026-08-01"), dropoutSource: "manual" });
+  it("reactivates with an approved rejoin date while keeping the interruption start", async () => {
+    mocks.participantFindUnique.mockResolvedValue(dropoutParticipant);
     const tx = {
-      participant: { update: vi.fn().mockResolvedValue({ ...participant, state: "active", reactivatedAt: new Date() }) },
+      participant: { update: vi.fn().mockResolvedValue({ ...dropoutParticipant, state: "active", reactivatedAt: new Date("2026-08-20T00:00:00.000Z") }) },
       auditLog: { create: vi.fn().mockResolvedValue({}) },
     };
     mocks.transaction.mockImplementation((callback) => callback(tx));
-    expect((await post({ action: "reactivate", reason: "Participant has formally rejoined" })).status).toBe(200);
-    expect(tx.participant.update).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ state: "active", dropoutAt: null }) }));
+
+    const response = await post(rejoin);
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body).toMatchObject({ participantId, state: "active" });
+    const data = tx.participant.update.mock.calls[0][0].data;
+    expect(data.state).toBe("active");
+    expect(data.reactivatedAt).toBeInstanceOf(Date);
+    expect(formatPKT(data.reactivatedAt, "yyyy-MM-dd")).toBe("2026-08-20");
+    expect(data).not.toHaveProperty("dropoutAt");
+    expect(tx.auditLog.create).toHaveBeenCalledOnce();
+    const audit = tx.auditLog.create.mock.calls[0][0].data;
+    expect(audit.action).toBe("student.reactivate");
+    expect(JSON.parse(audit.newValues)).toMatchObject({ state: "active", reactivatedAt: expect.any(String) });
+  });
+
+  it("denies a reactivation without a rejoin date", async () => {
+    mocks.participantFindUnique.mockResolvedValue(dropoutParticipant);
+    const response = await post({ action: "reactivate", reason: "Participant has formally rejoined" });
+    expect(response.status).toBe(400);
+    expect(mocks.transaction).not.toHaveBeenCalled();
+  });
+
+  it("denies a rejoin date before the recorded dropout date", async () => {
+    mocks.participantFindUnique.mockResolvedValue(dropoutParticipant);
+    const response = await post({ ...rejoin, effectiveDate: "2026-07-15" });
+    expect(response.status).toBe(400);
+    expect(mocks.transaction).not.toHaveBeenCalled();
+  });
+
+  it("denies a rejoin date in the future", async () => {
+    mocks.participantFindUnique.mockResolvedValue(dropoutParticipant);
+    const response = await post({ ...rejoin, effectiveDate: "2099-01-01" });
+    expect(response.status).toBe(400);
+    expect(mocks.transaction).not.toHaveBeenCalled();
+  });
+
+  it("denies a reactivation when the dropout date is missing", async () => {
+    mocks.participantFindUnique.mockResolvedValue({ ...participant, state: "dropout", dropoutAt: null });
+    const response = await post(rejoin);
+    expect(response.status).toBe(409);
+    expect(mocks.transaction).not.toHaveBeenCalled();
   });
 });

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireRole, requireAuth, requireCapability } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
 import { createAuditLogData } from "@/lib/audit";
+import { groupHierarchyInclude, groupResourceScope } from "@/lib/auth/hierarchy";
+import { validateMuawinAssistance, type MuawinAssistanceReader } from "@/lib/auth/muawin-assistance";
 import { z } from "zod";
 import type { StaffRole } from "@/types";
 
@@ -12,6 +14,7 @@ const VALID_ROLES: StaffRole[] = [
   "park_admin",
   "park_lead",
   "murabbi",
+  "muawin",
 ];
 const CITY_HEAD_MANAGEABLE_ROLES: StaffRole[] = ["park_admin", "park_lead", "murabbi"];
 
@@ -26,12 +29,25 @@ const updateSchema = z.object({
   assignedCityId: z.string().nullable().optional(),
   assignedParkId: z.string().nullable().optional(),
   assignedGroupId: z.string().nullable().optional(),
+  assistsMurabbiId: z.string().nullable().optional(),
   staffMetaIsActive: z.boolean().optional(),
 });
 
 interface RouteParams {
   params: Promise<{ id: string }>;
 }
+
+type ExistingStaffMeta = {
+  id: string;
+  role: string;
+  assignedCityId: string | null;
+  assignedParkId: string | null;
+  assignedGroupId: string | null;
+  assistsMurabbiId: string | null;
+  isActive: boolean;
+  assignedPark: { cityId: string } | null;
+  assignedGroup: { batch: { park: { cityId: string } } } | null;
+};
 
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   const authError = await requireRole(["super_admin", "city_head"]);
@@ -71,10 +87,13 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
 
-  const oldMeta = await db.staffMeta.findUnique({
+  const oldMeta = await (db.staffMeta as unknown as {
+    findUnique(args: { where: { userId: string }; select: Record<string, unknown> }): Promise<ExistingStaffMeta | null>;
+  }).findUnique({
     where: { userId: id },
     select: {
-      role: true, assignedCityId: true, assignedParkId: true, assignedGroupId: true, isActive: true,
+      id: true, role: true, assignedCityId: true, assignedParkId: true, assignedGroupId: true, isActive: true,
+      assistsMurabbiId: true,
       assignedPark: { select: { cityId: true } },
       assignedGroup: { select: { batch: { select: { park: { select: { cityId: true } } } } } },
     },
@@ -98,6 +117,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     data.assignedCityId !== undefined ||
     data.assignedParkId !== undefined ||
     data.assignedGroupId !== undefined ||
+    data.assistsMurabbiId !== undefined ||
     data.staffMetaIsActive !== undefined;
   const effectiveRole = data.role ?? oldMeta?.role;
   const nextScope = {
@@ -105,6 +125,15 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     parkId: data.assignedParkId === undefined ? oldMeta?.assignedParkId ?? null : data.assignedParkId,
     groupId: data.assignedGroupId === undefined ? oldMeta?.assignedGroupId ?? null : data.assignedGroupId,
   };
+  if (data.assistsMurabbiId !== undefined && effectiveRole !== "muawin") {
+    return NextResponse.json(
+      { error: { assistsMurabbiId: ["Only Muawin staff can be linked to an assisting Murabbi"] } },
+      { status: 400 }
+    );
+  }
+  const nextAssistsMurabbiId = effectiveRole === "muawin"
+    ? (data.assistsMurabbiId === undefined ? oldMeta?.assistsMurabbiId ?? null : data.assistsMurabbiId)
+    : null;
 
   if (isCityHead) {
     const targetCityId = oldMeta?.assignedCityId
@@ -128,23 +157,16 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     );
   }
 
-  if (effectiveRole && ["city_head", "park_admin", "park_lead", "murabbi"].includes(effectiveRole) && !nextScope.cityId) {
+  if (effectiveRole && ["city_head", "park_admin", "park_lead", "murabbi", "muawin"].includes(effectiveRole) && !nextScope.cityId) {
     return NextResponse.json(
       { error: { assignedCityId: ["City assignment is required for this role"] } },
       { status: 400 }
     );
   }
 
-  if (effectiveRole && ["park_admin", "park_lead", "murabbi"].includes(effectiveRole) && !nextScope.parkId) {
+  if (effectiveRole && ["park_admin", "park_lead", "murabbi", "muawin"].includes(effectiveRole) && !nextScope.parkId) {
     return NextResponse.json(
       { error: { assignedParkId: ["Park assignment is required for this role"] } },
-      { status: 400 }
-    );
-  }
-
-  if (effectiveRole === "murabbi" && !nextScope.groupId) {
-    return NextResponse.json(
-      { error: { assignedGroupId: ["Group assignment is required for murabbi role"] } },
       { status: 400 }
     );
   }
@@ -172,17 +194,36 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   if (nextScope.groupId) {
     const group = await db.group.findUnique({
       where: { id: nextScope.groupId },
-      select: { batch: { select: { parkId: true } } },
+      include: groupHierarchyInclude,
     });
-    if (!group) {
+    const groupScope = groupResourceScope(group);
+    if (!groupScope) {
       return NextResponse.json({ error: { assignedGroupId: ["Group not found"] } }, { status: 400 });
     }
-    if (nextScope.parkId && group.batch.parkId !== nextScope.parkId) {
+    if (nextScope.parkId && groupScope.parkId !== nextScope.parkId) {
       return NextResponse.json(
         { error: { assignedGroupId: ["Group must belong to the assigned park"] } },
         { status: 400 }
       );
     }
+    if (nextScope.cityId && groupScope.cityId !== nextScope.cityId) {
+      return NextResponse.json(
+        { error: { assignedGroupId: ["Group must belong to the assigned city"] } },
+        { status: 400 }
+      );
+    }
+  }
+
+  const assistanceError = await validateMuawinAssistance({
+    role: effectiveRole,
+    assignedParkId: nextScope.parkId,
+    assistsMurabbiId: nextAssistsMurabbiId,
+    staffMetaId: oldMeta?.id,
+    // The client is intentionally not regenerated during an unexecuted migration.
+    staffMeta: db.staffMeta as unknown as MuawinAssistanceReader,
+  });
+  if (assistanceError) {
+    return NextResponse.json({ error: { assistsMurabbiId: [assistanceError] } }, { status: 400 });
   }
 
   // Prevent self-deactivation
@@ -218,13 +259,17 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
 
     if (hasStaffChanges) {
-      await tx.staffMeta.upsert({
+      const staffMeta = tx.staffMeta as unknown as {
+        upsert(args: { where: { userId: string }; update: Record<string, unknown>; create: Record<string, unknown> }): Promise<unknown>;
+      };
+      await staffMeta.upsert({
         where: { userId: id },
         update: {
           role: effectiveRole,
           assignedCityId: nextScope.cityId,
           assignedParkId: nextScope.parkId,
           assignedGroupId: nextScope.groupId,
+          assistsMurabbiId: nextAssistsMurabbiId,
           isActive: data.staffMetaIsActive ?? oldMeta?.isActive ?? true,
         },
         create: {
@@ -233,6 +278,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
           assignedCityId: nextScope.cityId,
           assignedParkId: nextScope.parkId,
           assignedGroupId: nextScope.groupId,
+          assistsMurabbiId: nextAssistsMurabbiId,
           isActive: data.staffMetaIsActive ?? true,
         },
       });
@@ -247,7 +293,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         oldValues: { ...oldUser, ...oldMeta },
         newValues: {
           ...userData,
-          ...(hasStaffChanges ? { role: effectiveRole, ...nextScope } : {}),
+          ...(hasStaffChanges ? { role: effectiveRole, ...nextScope, assistsMurabbiId: nextAssistsMurabbiId } : {}),
           ...(shouldInvalidateSessions ? { sessionInvalidated: true } : {}),
         },
       }),
@@ -272,12 +318,14 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
           assignedCityId: true,
           assignedParkId: true,
           assignedGroupId: true,
+          assistsMurabbiId: true,
           isActive: true,
           assignedCity: { select: { id: true, name: true } },
           assignedPark: { select: { id: true, name: true } },
           assignedGroup: { select: { id: true, name: true } },
+          assistsMurabbi: { select: { id: true, user: { select: { name: true } } } },
         },
-      },
+      } as never,
     },
   });
 

@@ -55,7 +55,7 @@ describe("DELETE /api/park/attendance/[eventId]/reset", () => {
     expect(mocks.requireResourceScope).toHaveBeenCalledWith(
       expect.objectContaining({ id: "park-lead" }),
       { cityId: "city-2", parkId: "park-2", groupId: "group-2" },
-      ["super_admin", "program_admin", "city_head", "park_lead"]
+      ["super_admin", "program_admin", "city_head", "park_lead", "park_admin"]
     );
     expect(mocks.recordCount).not.toHaveBeenCalled();
     expect(mocks.recordDeleteMany).not.toHaveBeenCalled();

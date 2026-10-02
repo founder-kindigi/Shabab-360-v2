@@ -1,0 +1,14 @@
+{
+  "date": "2026-09-11",
+  "scope": "C0 local preservation, relocation, documentation and coordination only; application inputs unchanged",
+  "checks": [
+    {"command": "npm run lint", "exitCode": 0, "errors": 0, "warnings": 6, "note": "Existing unused eslint-disable directives in six administrative scripts; no fixes applied"},
+    {"command": "npm run typecheck", "exitCode": 0},
+    {"command": "node scripts/delivery/check-workflow.mjs", "exitCode": 0, "activeTask": null, "nextTask": "C1-01", "errors": []},
+    {"check": "Local Markdown link existence", "exitCode": 0, "documents": 4, "links": 24, "missing": 0, "evidence": "C0_DOCUMENT_CHECK.json"},
+    {"command": "python scripts/delivery/verify-consolidation.py", "exitCode": 0, "files": 1288, "checks": 17, "mismatches": 0, "evidence": "C0_VERIFICATION.json"}
+  ],
+  "notRerun": ["Application tests", "Production builds", "Browser parity", "Database integrity or migrations"],
+  "reusedBaseline": "BASE-01: 187 test files / 1375 tests passed; unchanged source hashes. This is baseline evidence, not combined-candidate verification.",
+  "operationalLimit": "Production Git deployment trigger remains unconfirmed; no merge or release readiness claim"
+}

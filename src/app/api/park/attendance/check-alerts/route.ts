@@ -1,15 +1,13 @@
-import { requireResolvedGroupScope, resolveRequestedHierarchy, hierarchyGroupWhere } from "@/lib/auth/hierarchy";
+import { requireResolvedGroupScope } from "@/lib/auth/hierarchy";
 import { NextResponse } from "next/server";
-import { ATTENDANCE_ROLES, requireAuth, requireCapability, requireResourceScope } from "@/lib/auth/authorize";
+import { ATTENDANCE_ROLES, requireCapability } from "@/lib/auth/authorize";
 import { AttendanceAlertError, checkAttendanceAlerts } from "@/lib/attendance-alerts";
 import { db } from "@/lib/db";
 import { checkAttendanceAlertsSchema } from "@/lib/attendance/schemas";
 
 export async function POST(req: Request) {
-  const auth = await requireAuth();
+  const auth = await requireCapability("attendance.mark");
   if (auth instanceof NextResponse) return auth;
-  const capabilityAuth = await requireCapability("attendance.mark");
-  if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
   try {
     const parsedBody = checkAttendanceAlertsSchema.safeParse(

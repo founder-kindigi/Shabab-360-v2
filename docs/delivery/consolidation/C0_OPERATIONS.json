@@ -1,0 +1,29 @@
+{
+  "date": "2026-09-11",
+  "inspection": "Read-only metadata; no configuration mutations, credential or environment output saved",
+  "github": {
+    "repository": "founder-kindigi/Shabab-360-v2",
+    "defaultBranch": "main",
+    "mainSha": "dedb91a640ea244ce9323cd1dcde2a40d74bb718",
+    "branchProtected": false,
+    "repositoryRulesets": [],
+    "commands": ["gh api repos/{owner}/{repo}/branches/main", "gh api repos/{owner}/{repo}/rulesets"]
+  },
+  "vercel": {
+    "project": "shabab360",
+    "framework": "nextjs",
+    "rootDirectory": ".",
+    "nodeVersion": "24.x",
+    "buildCommand": "npm run build:postgres",
+    "productionBranchFromLink": null,
+    "gitProviderFromLink": null,
+    "gitDeploymentsEnabled": {"createDeployments": "enabled"},
+    "productionTriggerVerdict": "Unconfirmed; null link fields do not establish that auto-deploy is disabled"
+  },
+  "preMergeOpen": [
+    "Confirm production Git branch and complete deployment-trigger behavior",
+    "Reconcile CI Node 22 versus hosted Node 24 and provider verification",
+    "Exact combined-candidate validation and independent review",
+    "Operational schema/history compatibility, backup and rollback assessment"
+  ]
+}

@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { createAuditLogData } from "@/lib/audit";
 import { requireAuth, requireCapability, requireResourceScope } from "@/lib/auth/authorize";
+import { attendanceDateStart } from "@/lib/attendance/schedule";
 import { participantDropoutActionSchema } from "@/lib/attendance/schemas";
+import { formatPKT } from "@/lib/timezone";
 import { db } from "@/lib/db";
 
 async function scopedParticipant(id: string, user: Parameters<typeof requireResourceScope>[0]) {
@@ -66,20 +68,43 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const dropoutAt = action === "dropout"
     ? new Date(`${effectiveDate ?? new Date().toISOString().slice(0, 10)}T00:00:00.000Z`)
     : null;
+
+  // Reactivation needs an authorized rejoin date: present, on or after the
+  // recorded interruption start, and not in the future. Business days are
+  // compared in PKT; the prior dropoutAt stays as the interruption start.
+  let reactivatedAt: Date | null = null;
+  if (action === "reactivate") {
+    if (!effectiveDate) {
+      return NextResponse.json({ error: { effectiveDate: ["A rejoin date is required to reactivate"] } }, { status: 400 });
+    }
+    if (!participant.dropoutAt) {
+      return NextResponse.json({ error: "Participant has no recorded dropout date to reactivate from" }, { status: 409 });
+    }
+    const dropoutDay = formatPKT(participant.dropoutAt, "yyyy-MM-dd");
+    const today = formatPKT(new Date(), "yyyy-MM-dd");
+    if (effectiveDate < dropoutDay) {
+      return NextResponse.json({ error: { effectiveDate: ["Rejoin date cannot be before the dropout date"] } }, { status: 400 });
+    }
+    if (effectiveDate > today) {
+      return NextResponse.json({ error: { effectiveDate: ["Rejoin date cannot be in the future"] } }, { status: 400 });
+    }
+    reactivatedAt = attendanceDateStart(effectiveDate);
+  }
+
   const updated = await db.$transaction(async (tx) => {
     const next = await tx.participant.update({
       where: { id: participant.id },
       data: action === "dropout"
         ? { state: "dropout", dropoutAt, dropoutReason: reason, dropoutSource: "manual", reactivatedAt: null }
-        : { state: "active", dropoutAt: null, dropoutReason: null, dropoutSource: null, reactivatedAt: new Date() },
+        : { state: "active", reactivatedAt },
     });
     await tx.auditLog.create({ data: createAuditLogData({
       userId: auth.user.id,
       action: action === "dropout" ? "student.dropout" : "student.reactivate",
       entityType: "participant",
       entityId: participant.id,
-      oldValues: { state: participant.state, dropoutAt: participant.dropoutAt, dropoutSource: participant.dropoutSource },
-      newValues: { state: next.state, dropoutAt: next.dropoutAt, dropoutSource: next.dropoutSource },
+      oldValues: { state: participant.state, dropoutAt: participant.dropoutAt, dropoutSource: participant.dropoutSource, reactivatedAt: participant.reactivatedAt },
+      newValues: { state: next.state, dropoutAt: next.dropoutAt, dropoutSource: next.dropoutSource, reactivatedAt: next.reactivatedAt },
       reason,
     }) });
     return next;

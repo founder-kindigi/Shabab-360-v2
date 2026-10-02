@@ -1,0 +1,163 @@
+{
+  "date": "2026-09-11",
+  "sqliteVersion": "3.53.1",
+  "mode": "Fresh in-memory database per pinned baseline; SQLite engine executes original SQL. No files, live DB, Prisma client or operational environment used.",
+  "results": {
+    "main": {
+      "steps": [
+        {
+          "migration": "20260701000000_init_sqlite",
+          "sha256": "927d3599aa042f3d216f69d405b33053ecce1a37b627c82d93e598bd087a1b67",
+          "applied": true
+        },
+        {
+          "migration": "20260723160000_add_student_extended_profile",
+          "sha256": "13e87c011ffbedd6c41ba885c179795cc049aac5ec9d60e4104990adb338d69d",
+          "applied": true
+        },
+        {
+          "migration": "20260723200000_add_events_and_calling_foundation",
+          "sha256": "d215c00e5aa823df6788fd5f61c83785eec35f05b30508f29ed36688539812d1",
+          "applied": true
+        },
+        {
+          "migration": "20260724200000_add_mashwara_module",
+          "sha256": "35a2bc1a97fbeb85aa0683fa8914d02760ede25f2facb689bac01959e0f57e9f",
+          "applied": true
+        },
+        {
+          "migration": "20260726100000_add_mashwara_fk_constraints",
+          "sha256": "27d229e1556bde0b3484f248e8fbde6ed43a5adf2d616c50ff607319e6942e5a",
+          "applied": true
+        },
+        {
+          "migration": "20260729081417_add_media_briefs",
+          "sha256": "0179473402d7ad28d21591e5dfe9c64905c412720482b39ac1f0b0183627c8b0",
+          "applied": true
+        },
+        {
+          "migration": "20260730060714_add_attendance_foundation",
+          "sha256": "6664d3319c57d9ccc79de7aae472ed45a84a2c3ab23d50421d8af90621de2c26",
+          "applied": true
+        },
+        {
+          "migration": "20260803090000_add_event_registrations",
+          "sha256": "d5f866ce617ec0c91942c2bdd318b7bcfa49d01b162d8874f5ed4aa65bd80197",
+          "applied": true
+        },
+        {
+          "migration": "20260803100000_add_event_fee_schedules",
+          "sha256": "e25e14243bff5aa504f151c5cf473f4fda02ccdcda344cb8a1e16667f083752c",
+          "applied": true
+        }
+      ],
+      "allMigrationsApplied": true,
+      "expectedModelTables": 55,
+      "actualTables": 55,
+      "missingModeledTables": [],
+      "missingModeledColumns": {},
+      "foreignKeyViolations": 0,
+      "modeledColumnParity": true
+    },
+    "v2": {
+      "steps": [
+        {
+          "migration": "20260723160000_add_student_extended_profile",
+          "sha256": "13e87c011ffbedd6c41ba885c179795cc049aac5ec9d60e4104990adb338d69d",
+          "applied": true
+        },
+        {
+          "migration": "20260723200000_add_events_and_calling_foundation",
+          "sha256": "d215c00e5aa823df6788fd5f61c83785eec35f05b30508f29ed36688539812d1",
+          "applied": true
+        },
+        {
+          "migration": "20260724200000_add_mashwara_module",
+          "sha256": "35a2bc1a97fbeb85aa0683fa8914d02760ede25f2facb689bac01959e0f57e9f",
+          "applied": true
+        },
+        {
+          "migration": "20260725120000_add_login_attempts",
+          "sha256": "f915a3a75591aaef1eb06ecacb9182b4778e31b623c082e9a3a323d7a65299bf",
+          "applied": true
+        },
+        {
+          "migration": "20260729081417_add_media_briefs",
+          "sha256": "0179473402d7ad28d21591e5dfe9c64905c412720482b39ac1f0b0183627c8b0",
+          "applied": true
+        },
+        {
+          "migration": "20260730060714_add_attendance_foundation",
+          "sha256": "6664d3319c57d9ccc79de7aae472ed45a84a2c3ab23d50421d8af90621de2c26",
+          "applied": false,
+          "error": "no such table: batch_settings"
+        }
+      ],
+      "allMigrationsApplied": false,
+      "expectedModelTables": 74,
+      "actualTables": 20,
+      "missingModeledTables": [
+        "activity_plan_items",
+        "admission_applications",
+        "admission_interviews",
+        "announcements",
+        "attendance_events",
+        "attendance_records",
+        "audit_log",
+        "badges",
+        "batch_class_dates",
+        "batch_settings",
+        "batches",
+        "cities",
+        "collaboration_teams",
+        "content_plan_blocks",
+        "content_plan_resources",
+        "content_plan_sessions",
+        "content_plans",
+        "digital_resources",
+        "event_registrations",
+        "external_link_policies",
+        "fee_donations",
+        "fee_events",
+        "financial_adjustments",
+        "groups",
+        "guardian_children",
+        "guardians",
+        "knowledge_articles",
+        "login_attempt_windows",
+        "notifications",
+        "operation_receipts",
+        "operational_off_dates",
+        "park_lessons",
+        "park_routine_slots",
+        "park_staff_attendance_events",
+        "park_staff_attendance_records",
+        "park_stocks",
+        "parks",
+        "participants",
+        "payments",
+        "point_transactions",
+        "procurement_items",
+        "purchase_orders",
+        "receipt_sequences",
+        "report_presets",
+        "role_capability_overrides",
+        "staff_meta",
+        "staff_team_memberships",
+        "stock_audit_logs",
+        "stock_requests",
+        "stock_transfers",
+        "student_badges",
+        "student_evaluations",
+        "team_chat_messages",
+        "team_document_links",
+        "user_capability_overrides",
+        "users"
+      ],
+      "missingModeledColumns": {},
+      "foreignKeyViolations": 0,
+      "modeledColumnParity": false
+    }
+  },
+  "limits": "Models/column existence only; no data upgrade, PostgreSQL runtime, constraint/type parity or live migration compatibility claim. Script success means evidence collected, not migration chains passed."
+}

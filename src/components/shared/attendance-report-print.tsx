@@ -147,7 +147,7 @@ export function AttendanceReportPrint({ report, onClose }: AttendanceReportPrint
           </span>
           <span className="flex items-center gap-1.5">
             <span className="size-2.5 rounded-full bg-sky-500" />
-            Excused: <strong>{summary.statusCounts.excused}</strong>
+            Excuse: <strong>{summary.statusCounts.excused}</strong>
           </span>
         </div>
 

@@ -181,17 +181,20 @@ export async function GET(request: NextRequest) {
     }
 
     // Get all participants with guardian links
-    const participants = await db.participant.findMany({
-      where: participantWhere,
-      include: {
-        guardianLinks: {
-          include: {
-            guardian: { select: { id: true, name: true, phone: true } },
+    const participants = (
+      await db.participant.findMany({
+        where: participantWhere,
+        include: {
+          guardianLinks: {
+            include: {
+              guardian: { select: { id: true, name: true, phone: true } },
+            },
           },
         },
-      },
-      orderBy: { name: "asc" },
-    });
+        orderBy: { name: "asc" },
+      })
+    // Group-scoped rosters never include an unassigned participant.
+    ).filter((p): p is typeof p & { groupId: string } => p.groupId !== null);
 
     const participantIds = participants.map((p) => p.id);
 

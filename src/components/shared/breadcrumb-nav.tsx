@@ -109,6 +109,9 @@ const pageTitles: Record<PageId, string> = {
   "admin-access-management": "Access Management",
   "admin-collaboration-teams": "Collaboration Teams",
   "admin-admissions": "Admissions",
+  "admin-registration-forms": "Registration Forms",
+  "admin-registration-forms-edit": "Form Builder",
+  "admin-registration-forms-submissions": "Form Submissions",
   "admin-fees": "Fees",
   "admin-content-planner": "Content Planner",
   "admin-community": "Community & Quizzes",
@@ -247,3 +250,4 @@ export function BreadcrumbNav() {
     </nav>
   );
 }
+

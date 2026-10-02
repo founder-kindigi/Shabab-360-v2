@@ -77,10 +77,10 @@ describe("STAGING-DEPLOY-001: Staging Smoke Tests", () => {
       expect(content).toContain('provider = "postgresql"');
     });
 
-    it("POSTGRES migrations directory has 32 migration folders", () => {
+    it("POSTGRES migrations directory has 35 migration folders", () => {
       const dir = join(ROOT, "prisma/postgres/migrations");
       const dirs = readdirSync(dir).filter((d) => d.startsWith("2026"));
-      expect(dirs.length).toBe(32);
+      expect(dirs.length).toBe(35);
     });
 
     it("every POSTGRES migration has a non-empty migration.sql file", () => {
@@ -107,12 +107,12 @@ describe("STAGING-DEPLOY-001: Staging Smoke Tests", () => {
 
   /* ── 3. Schema alignment ──────────────────────────────────────────── */
   describe("Schema alignment", () => {
-    it("SQLITE has 74 models", () => {
-      expect(modelNames(SQLITE_SCHEMA).length).toBe(74);
+    it("SQLITE has 81 models", () => {
+      expect(modelNames(SQLITE_SCHEMA).length).toBe(81);
     });
 
-    it("POSTGRES has 74 models", () => {
-      expect(modelNames(PG_SCHEMA).length).toBe(74);
+    it("POSTGRES has 81 models", () => {
+      expect(modelNames(PG_SCHEMA).length).toBe(81);
     });
 
     it("all SQLITE models have matching POSTGRES models", () => {

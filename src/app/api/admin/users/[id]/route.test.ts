@@ -50,10 +50,12 @@ const oldUser = {
   mustResetPwd: false,
 };
 const oldMeta = {
+  id: "staff-1",
   role: "park_admin",
   assignedCityId: "city-1",
   assignedParkId: "park-1",
   assignedGroupId: null,
+  assistsMurabbiId: null,
   isActive: true,
 };
 
@@ -122,6 +124,87 @@ describe("user session invalidation mutations", () => {
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({
       error: { assignedParkId: ["Park assignment is required for this role"] },
+    });
+    expect(mocks.transaction).not.toHaveBeenCalled();
+  });
+
+  it("accepts a Murabbi group scoped to its own park when the batch has another anchor park", async () => {
+    const updatedUser = { id: "user-1", name: "Murabbi", staffMeta: { ...oldMeta, role: "murabbi", assignedParkId: "park-2", assignedGroupId: "group-2" } };
+    mocks.userFindUnique.mockResolvedValueOnce(oldUser).mockResolvedValueOnce(updatedUser);
+    mocks.staffMetaFindUnique.mockResolvedValue(oldMeta);
+    mocks.cityFindUnique.mockResolvedValue({ id: "city-1" });
+    mocks.parkFindUnique.mockResolvedValue({ cityId: "city-1" });
+    mocks.groupFindUnique.mockResolvedValue({
+      id: "group-2",
+      parkId: "park-2",
+      park: { cityId: "city-1" },
+      batch: { cityId: "city-1", parkId: "batch-anchor-park", park: { cityId: "city-1" } },
+    });
+
+    const response = await PATCH(
+      request("PATCH", { role: "murabbi", assignedCityId: "city-1", assignedParkId: "park-2", assignedGroupId: "group-2" }),
+      routeParams()
+    );
+
+    expect(response.status).toBe(200);
+    expect(mocks.transaction).toHaveBeenCalledTimes(1);
+    expect(mocks.txStaffMetaUpsert).toHaveBeenCalledWith(expect.objectContaining({
+      update: expect.objectContaining({ assignedParkId: "park-2", assignedGroupId: "group-2" }),
+    }));
+  });
+
+  it("persists a same-park active Murabbi assistance link without changing Muawin scope", async () => {
+    const updatedUser = { id: "user-1", name: "Muawin", staffMeta: { ...oldMeta, role: "muawin", assignedParkId: "park-1", assistsMurabbiId: "staff-murabbi" } };
+    mocks.userFindUnique.mockResolvedValueOnce(oldUser).mockResolvedValueOnce(updatedUser);
+    mocks.staffMetaFindUnique
+      .mockResolvedValueOnce({ ...oldMeta, role: "muawin" })
+      .mockResolvedValueOnce({
+        id: "staff-murabbi",
+        role: "murabbi",
+        isActive: true,
+        assignedParkId: "park-1",
+        assignedGroupId: null,
+        user: { isActive: true },
+        assignedGroup: null,
+      });
+    mocks.cityFindUnique.mockResolvedValue({ id: "city-1" });
+    mocks.parkFindUnique.mockResolvedValue({ cityId: "city-1" });
+
+    const response = await PATCH(
+      request("PATCH", { role: "muawin", assignedCityId: "city-1", assignedParkId: "park-1", assistsMurabbiId: "staff-murabbi" }),
+      routeParams()
+    );
+
+    expect(response.status).toBe(200);
+    expect(mocks.txStaffMetaUpsert).toHaveBeenCalledWith(expect.objectContaining({
+      update: expect.objectContaining({ role: "muawin", assistsMurabbiId: "staff-murabbi" }),
+    }));
+  });
+
+  it("rejects an inactive or cross-park assistance target before opening a transaction", async () => {
+    mocks.userFindUnique.mockResolvedValue(oldUser);
+    mocks.staffMetaFindUnique
+      .mockResolvedValueOnce({ ...oldMeta, role: "muawin" })
+      .mockResolvedValueOnce({
+        id: "staff-other-park",
+        role: "murabbi",
+        isActive: true,
+        assignedParkId: "park-2",
+        assignedGroupId: null,
+        user: { isActive: true },
+        assignedGroup: null,
+      });
+    mocks.cityFindUnique.mockResolvedValue({ id: "city-1" });
+    mocks.parkFindUnique.mockResolvedValue({ cityId: "city-1" });
+
+    const response = await PATCH(
+      request("PATCH", { role: "muawin", assistsMurabbiId: "staff-other-park" }),
+      routeParams()
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      error: { assistsMurabbiId: ["Selected staff member must be an active Murabbi or teaching Park Lead in the assigned park"] },
     });
     expect(mocks.transaction).not.toHaveBeenCalled();
   });

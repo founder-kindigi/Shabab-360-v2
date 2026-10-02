@@ -82,10 +82,6 @@ interface DetailData {
   participant: {
     id: string;
     name: string;
-    phone: string | null;
-    dateOfBirth: string | null;
-    gender: string | null;
-    address: string | null;
     state: string;
     joinedAt: string;
     group: {
@@ -97,11 +93,6 @@ interface DetailData {
         park: { id: string; name: string; city: { id: string; name: string } };
       };
     };
-    user: { id: string; email: string } | null;
-    guardianLinks: {
-      guardian: { id: string; name: string; phone: string; cnic: string | null };
-      relation: string | null;
-    }[];
   };
   attendanceSummary: {
     totalEvents: number;
@@ -152,14 +143,6 @@ function getInitials(name: string) {
     .slice(0, 2);
 }
 
-function calcAge(dob: string): number {
-  const birth = new Date(dob);
-  const today = new Date();
-  let age = today.getFullYear() - birth.getFullYear();
-  const m = today.getMonth() - birth.getMonth();
-  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
-  return age;
-}
 
 function getStatusVariant(state: string) {
   switch (state) {
@@ -259,20 +242,14 @@ function EditProfileDialog({
   onOpenChange,
   participantId,
   currentName,
-  currentPhone,
-  currentAddress,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   participantId: string;
   currentName: string;
-  currentPhone: string | null;
-  currentAddress: string | null;
 }) {
   const queryClient = useQueryClient();
   const [name, setName] = useState(currentName);
-  const [phone, setPhone] = useState(currentPhone || "");
-  const [address, setAddress] = useState(currentAddress || "");
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const updateMutation = useMutation({
@@ -305,8 +282,6 @@ function EditProfileDialog({
     setErrors({});
     const data: Record<string, unknown> = {};
     if (name.trim() !== currentName) data.name = name.trim();
-    if (phone.trim() !== (currentPhone || "")) data.phone = phone.trim() || null;
-    if (address.trim() !== (currentAddress || "")) data.address = address.trim() || null;
 
     if (Object.keys(data).length === 0) {
       onOpenChange(false);
@@ -319,8 +294,6 @@ function EditProfileDialog({
   function handleOpenChange(val: boolean) {
     if (val) {
       setName(currentName);
-      setPhone(currentPhone || "");
-      setAddress(currentAddress || "");
       setErrors({});
     }
     onOpenChange(val);
@@ -356,29 +329,8 @@ function EditProfileDialog({
               </p>
             )}
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="edit-part-phone" className="text-xs font-medium">Phone</Label>
-            <Input
-              id="edit-part-phone"
-              placeholder="Phone number"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-            />
-            {errors.phone && (
-              <p className="text-xs text-destructive">
-                {Array.isArray(errors.phone) ? errors.phone[0] : errors.phone}
-              </p>
-            )}
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="edit-part-address" className="text-xs font-medium">Address</Label>
-            <Input
-              id="edit-part-address"
-              placeholder="Street address"
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-            />
-          </div>
+
+
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => handleOpenChange(false)} disabled={updateMutation.isPending}>
               Cancel
@@ -471,26 +423,14 @@ export function ParticipantDetailSheet({
                 <div className="min-w-0 flex-1">
                   <h3 className="text-xl font-bold leading-tight truncate">{p.name}</h3>
                   <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                    {p.phone && (
-                      <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <Phone className="size-3" />
-                        {p.phone}
-                      </span>
-                    )}
-                    {p.user && (
-                      <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <Mail className="size-3" />
-                        {p.user.email}
-                      </span>
-                    )}
+
+
                   </div>
                   <div className="flex items-center gap-2 mt-2">
                     <Badge variant="outline" className={getStatusVariant(p.state)}>
                       {p.state}
                     </Badge>
-                    {p.gender && (
-                      <span className="text-xs text-muted-foreground capitalize">{p.gender}</span>
-                    )}
+
                   </div>
                 </div>
                 <Button
@@ -513,24 +453,9 @@ export function ParticipantDetailSheet({
                   Personal Information
                 </h4>
                 <div className="grid grid-cols-2 gap-3 text-sm">
-                  {p.dateOfBirth && (
-                    <div>
-                      <p className="text-xs text-muted-foreground">Date of Birth</p>
-                      <p className="font-medium">{formatPKT(new Date(p.dateOfBirth))}</p>
-                    </div>
-                  )}
-                  {p.dateOfBirth && (
-                    <div>
-                      <p className="text-xs text-muted-foreground">Age</p>
-                      <p className="font-medium">{calcAge(p.dateOfBirth)} years</p>
-                    </div>
-                  )}
-                  {p.address && (
-                    <div className="col-span-2">
-                      <p className="text-xs text-muted-foreground">Address</p>
-                      <p className="font-medium">{p.address}</p>
-                    </div>
-                  )}
+
+
+
                 </div>
               </div>
 
@@ -635,40 +560,7 @@ export function ParticipantDetailSheet({
                   </CardContent>
                 </Card>
 
-                {/* Guardians Card */}
-                <Card>
-                  <CardHeader className="pb-2 px-4 pt-4">
-                    <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                      <ShieldAlert className="size-3.5" />
-                      Guardians
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="px-4 pb-4">
-                    {p.guardianLinks.length > 0 ? (
-                      <div className="space-y-2.5">
-                        {p.guardianLinks.map((gl) => (
-                          <div
-                            key={gl.guardian.id}
-                            className="flex items-center gap-3 p-2 rounded-lg bg-muted/50 hover:bg-muted/80 transition-colors"
-                          >
-                            <div className="rounded-full bg-[#F3ECF6] dark:bg-[#1F086080] flex items-center justify-center size-8 text-[10px] font-semibold text-[#4B0A8F] dark:text-[#8A40B0] shrink-0">
-                              {getInitials(gl.guardian.name)}
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <p className="text-sm font-medium truncate">{gl.guardian.name}</p>
-                              <p className="text-xs text-muted-foreground">
-                                {gl.guardian.phone}
-                                {gl.relation && <span className="ml-1.5">· {gl.relation}</span>}
-                              </p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-sm text-muted-foreground">No guardians linked.</p>
-                    )}
-                  </CardContent>
-                </Card>
+                {/* Guardians Hidden */}
 
                 {/* Fee Status Card */}
                 <Card>
@@ -923,8 +815,6 @@ export function ParticipantDetailSheet({
           onOpenChange={setEditOpen}
           participantId={p.id}
           currentName={p.name}
-          currentPhone={p.phone}
-          currentAddress={p.address}
         />
       )}
     </>

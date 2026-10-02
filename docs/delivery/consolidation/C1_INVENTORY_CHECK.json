@@ -1,0 +1,37 @@
+{
+  "inventoryComplete": true,
+  "behaviorAssessmentComplete": false,
+  "counts": {
+    "mainOnlyPaths": 108,
+    "changedSharedPaths": 233,
+    "mainUniqueCommits": 171,
+    "registers": 14,
+    "requirements": 35
+  },
+  "assessed": {
+    "mainOnlyPaths": 10,
+    "changedSharedPaths": 3,
+    "mainUniqueCommits": 7,
+    "registers": 0,
+    "requirements": 0
+  },
+  "modelCounts": {
+    "sqlite": {
+      "main": 55,
+      "v2": 74
+    },
+    "postgres": {
+      "main": 55,
+      "v2": 74
+    }
+  },
+  "schemaChangedBlocks": {
+    "sqlite": 45,
+    "postgres": 45
+  },
+  "migrationConflicts": {
+    "sqlite": [],
+    "postgres": []
+  },
+  "evidenceStage": "Initial tranche, 2026-09-11; counts of assessed items are historical. Current disposition coverage is C1_COVERAGE_CHECK.json."
+}

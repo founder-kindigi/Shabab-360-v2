@@ -26,6 +26,9 @@ export type PageId =
   | "admin-settings"
   | "admin-users"
   | "admin-admissions"
+  | "admin-registration-forms"
+  | "admin-registration-forms-edit"
+  | "admin-registration-forms-submissions"
   | "admin-fees"
   | "admin-announcements"
   | "admin-reports"
@@ -110,6 +113,8 @@ interface AppState {
 
   // Attendance
   selectedEventId: string | null;
+  selectedFormId: string | null;
+  setSelectedFormId: (id: string | null) => void;
   setSelectedEventId: (id: string | null) => void;
 
   // Guardian
@@ -180,6 +185,8 @@ export const useAppStore = create<AppState>((set) => ({
   userRole: null,
   setUserRole: (role) => set({ userRole: role }),
 
+  selectedFormId: null,
+  setSelectedFormId: (id) => set({ selectedFormId: id }),
   selectedEventId: null,
   setSelectedEventId: (id) => set({ selectedEventId: id }),
 
@@ -194,3 +201,5 @@ export const useAppStore = create<AppState>((set) => ({
     set({ language: lang });
   },
 }));
+
+

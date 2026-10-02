@@ -1,0 +1,14 @@
+{
+  "passed": true,
+  "originalUnexpectedChanges": [],
+  "restoredMismatches": [],
+  "indexUnchanged": true,
+  "deletionsUnchanged": true,
+  "headUnchanged": true,
+  "allowedCoordinationEdits": [
+    ".agents/memory/current.md",
+    "docs/delivery/README.md",
+    "docs/delivery/state.json",
+    "docs/delivery/tasks/C0-01.md"
+  ]
+}

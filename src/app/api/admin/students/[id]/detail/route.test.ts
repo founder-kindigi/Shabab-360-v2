@@ -74,4 +74,29 @@ describe("GET /api/admin/students/[id]/detail", () => {
     expect(response.status).toBe(403);
     expect(mocks.participantFindUnique).not.toHaveBeenCalled();
   });
+
+  it("denies a scoped caller any signal about an unassigned participant", async () => {
+    mocks.participantFindUnique.mockResolvedValue({ id: "student-1", groupId: null, group: null });
+
+    const response = await GET(new NextRequest("http://localhost/api/admin/students/student-1/detail"), {
+      params: Promise.resolve({ id: "student-1" }),
+    });
+
+    expect(response.status).toBe(403);
+    expect(mocks.attendanceRecordFindMany).not.toHaveBeenCalled();
+    expect(mocks.paymentFindMany).not.toHaveBeenCalled();
+  });
+
+  it("returns a conflict for an unassigned participant to central staff", async () => {
+    mocks.requireAuth.mockResolvedValue({ user: { id: "central", role: "super_admin" } });
+    mocks.participantFindUnique.mockResolvedValue({ id: "student-1", groupId: null, group: null });
+
+    const response = await GET(new NextRequest("http://localhost/api/admin/students/student-1/detail"), {
+      params: Promise.resolve({ id: "student-1" }),
+    });
+
+    expect(response.status).toBe(409);
+    expect(mocks.attendanceRecordFindMany).not.toHaveBeenCalled();
+    expect(mocks.paymentFindMany).not.toHaveBeenCalled();
+  });
 });

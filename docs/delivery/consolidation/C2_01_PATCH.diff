@@ -1,0 +1,351 @@
+diff --git a/scripts/testing/unit-environment.mjs b/scripts/testing/unit-environment.mjs
+new file mode 100644
+--- /dev/null
++++ b/scripts/testing/unit-environment.mjs
+@@ -0,0 +1,17 @@
++// Unit tests must never reuse developer/provider connection settings.
++export const UNIT_TEST_ENV = Object.freeze({
++  DATABASE_URL: "file::memory:",
++  DIRECT_URL: "postgresql://test:test@127.0.0.1:1/shabab360_test",
++  NEXTAUTH_URL: "http://127.0.0.1:3000",
++  NEXTAUTH_SECRET: "vitest-test-secret-not-for-deployment",
++  IMPORT_HMAC_SECRET: "vitest-import-secret-not-for-deployment",
++});
++
++export function isolateUnitEnvironment() {
++  for (const key of Object.keys(process.env)) {
++    if (/(?:DATABASE|DIRECT_URL|POSTGRES|^PG|^PRISMA_|^NEXTAUTH_|^AUTH_|^SMTP_|^RESEND_|^SENDGRID_|^IMPORT_HMAC_SECRET$)/i.test(key)) {
++      delete process.env[key];
++    }
++  }
++  Object.assign(process.env, UNIT_TEST_ENV);
++}
+diff --git a/src/app/api/admin/guardians/invite/route.ts b/src/app/api/admin/guardians/invite/route.ts
+--- a/src/app/api/admin/guardians/invite/route.ts
++++ b/src/app/api/admin/guardians/invite/route.ts
+@@ -1,3 +1,4 @@
++import { SENSITIVE_RESPONSE_HEADERS } from "@/lib/security/sensitive-response";
+ import { NextRequest, NextResponse } from "next/server";
+ import { requireRole, requireAuth, requireCapability } from "@/lib/auth/authorize";
+ import { db } from "@/lib/db";
+@@ -111,6 +112,6 @@
+       temporaryPassword,
+       relationship,
+     },
+-    { status: 201 }
++    { status: 201, headers: SENSITIVE_RESPONSE_HEADERS }
+   );
+ }
+diff --git a/src/app/api/admin/import/participants/route.ts b/src/app/api/admin/import/participants/route.ts
+--- a/src/app/api/admin/import/participants/route.ts
++++ b/src/app/api/admin/import/participants/route.ts
+@@ -1,3 +1,4 @@
++import { SENSITIVE_RESPONSE_HEADERS } from "@/lib/security/sensitive-response";
+ import { NextRequest, NextResponse } from "next/server";
+ import { requireCapability, requireRole, requireResourceScope } from "@/lib/auth/authorize";
+ import { db } from "@/lib/db";
+@@ -291,7 +292,7 @@
+       errors,
+       total: rows.length,
+       generatedPasswords,
+-    });
++    }, { headers: SENSITIVE_RESPONSE_HEADERS });
+   } catch (err: unknown) {
+     return NextResponse.json({ error: sanitizeImportError(err) }, { status: 500 });
+   }
+diff --git a/src/app/api/admin/import/users/route.ts b/src/app/api/admin/import/users/route.ts
+--- a/src/app/api/admin/import/users/route.ts
++++ b/src/app/api/admin/import/users/route.ts
+@@ -1,3 +1,4 @@
++import { SENSITIVE_RESPONSE_HEADERS } from "@/lib/security/sensitive-response";
+ import { NextRequest, NextResponse } from "next/server";
+ import { requireCapability, requireRole } from "@/lib/auth/authorize";
+ import { db } from "@/lib/db";
+@@ -229,7 +230,7 @@
+       errors,
+       total: rows.length,
+       generatedPasswords,
+-    });
++    }, { headers: SENSITIVE_RESPONSE_HEADERS });
+   } catch (err: unknown) {
+     return NextResponse.json({ error: sanitizeImportError(err) }, { status: 500 });
+   }
+diff --git a/src/app/api/admin/invite/route.ts b/src/app/api/admin/invite/route.ts
+--- a/src/app/api/admin/invite/route.ts
++++ b/src/app/api/admin/invite/route.ts
+@@ -1,3 +1,4 @@
++import { SENSITIVE_RESPONSE_HEADERS } from "@/lib/security/sensitive-response";
+ import { NextRequest, NextResponse } from "next/server";
+ import { requireCapability, requireRole } from "@/lib/auth/authorize";
+ import { db } from "@/lib/db";
+@@ -241,5 +242,5 @@
+     role
+   ).catch(() => {});
+ 
+-  return NextResponse.json({ user, temporaryPassword }, { status: 201 });
++  return NextResponse.json({ user, temporaryPassword }, { status: 201, headers: SENSITIVE_RESPONSE_HEADERS });
+ }
+diff --git a/src/lib/audit-privacy.test.ts b/src/lib/audit-privacy.test.ts
+new file mode 100644
+--- /dev/null
++++ b/src/lib/audit-privacy.test.ts
+@@ -0,0 +1,31 @@
++import { describe, expect, it, vi } from "vitest";
++vi.mock("@/lib/db", () => ({ db: {} }));
++import { createAuditLogData } from "./audit";
++
++describe("audit privacy correction", () => {
++  it("redacts nested names, credentials and free text in old and new values", () => {
++    const values = { applicantName: "Synthetic Person", invitationCode: "synthetic",
++      entries: [{ guardianName: "Synthetic Guardian", message: "private text", reason: "private text",
++        body: "private text", content: "private text", password: "synthetic", state: "active" }] };
++    const data = createAuditLogData({ action: "update", entityType: "record", oldValues: values, newValues: values });
++    const expected = { applicantName: "[REDACTED]", invitationCode: "[REDACTED]",
++      entries: [{ guardianName: "[REDACTED]", message: "[REDACTED]", reason: "[REDACTED]",
++        body: "[REDACTED]", content: "[REDACTED]", password: "[REDACTED]", state: "active" }] };
++    expect(JSON.parse(data.newValues!)).toEqual(expected);
++    expect(JSON.parse(data.oldValues!)).toEqual(expected);
++  });
++  it("preserves safe identifiers, counts, dates and bounded operational text", () => {
++    const data = createAuditLogData({ action: "update", entityType: "content", entityId: "record-1",
++      newValues: { contentBlockId: "block-1", messageId: "message-1", count: 2, state: "active",
++        at: new Date("2026-09-12T00:00:00Z"), summary: "x".repeat(600) } });
++    expect(data.entityId).toBe("record-1");
++    expect(JSON.parse(data.newValues!)).toEqual({ contentBlockId: "block-1", messageId: "message-1",
++      count: 2, state: "active", at: "2026-09-12T00:00:00.000Z", summary: "x".repeat(500) + "... [TRUNCATED]" });
++  });
++  it("bounds recursion even for a cyclic payload without exposing nested data", () => {
++    const value: Record<string, unknown> = {}; value.child = value;
++    const data = createAuditLogData({ action: "update", entityType: "record", newValues: value });
++    expect(data.newValues!.length).toBeLessThan(500);
++    expect(data.newValues).toContain("[TRUNCATED]");
++  });
++});
+diff --git a/src/lib/audit.ts b/src/lib/audit.ts
+--- a/src/lib/audit.ts
++++ b/src/lib/audit.ts
+@@ -12,7 +12,8 @@
+ 
+ const REDACTED_VALUE = "[REDACTED]";
+ const MAX_AUDIT_TEXT_LENGTH = 500;
+-const SENSITIVE_AUDIT_FIELD = /(?:password|token|secret|email|phone|cnic|address|dateofbirth|^name$|invitationCode|temporaryPassword)/i;
++const MAX_AUDIT_DEPTH = 12;
++const SENSITIVE_AUDIT_FIELD = /(?:password|token|secret|email|phone|cnic|address|dateofbirth|name$|invitationCode|temporaryPassword)/i;
+ 
+ function sanitizeAuditText(value: string): string {
+   return value.length > MAX_AUDIT_TEXT_LENGTH
+@@ -20,10 +21,15 @@
+     : value;
+ }
+ 
+-function sanitizeAuditValue(fieldName: string, value: unknown): unknown {
+-  if (SENSITIVE_AUDIT_FIELD.test(fieldName)) {
++// Exact free-text fields are never useful audit metadata. Keep IDs such as
++// contentBlockId and messageId available for operational traceability.
++const PRIVATE_AUDIT_TEXT_FIELD = /(?:reason|message|body|content)(?:Text|Html)?$/i;
++
++function sanitizeAuditValue(fieldName: string, value: unknown, depth = 0): unknown {
++  if (SENSITIVE_AUDIT_FIELD.test(fieldName) || PRIVATE_AUDIT_TEXT_FIELD.test(fieldName)) {
+     return REDACTED_VALUE;
+   }
++  if (depth >= MAX_AUDIT_DEPTH) return "[TRUNCATED]";
+   if (value instanceof Date) {
+     return value.toISOString();
+   }
+@@ -31,13 +37,13 @@
+     return sanitizeAuditText(value);
+   }
+   if (Array.isArray(value)) {
+-    return value.map((item) => sanitizeAuditValue(fieldName, item));
++    return value.map((item) => sanitizeAuditValue(fieldName, item, depth + 1));
+   }
+   if (value && typeof value === "object") {
+     return Object.fromEntries(
+       Object.entries(value).map(([key, childValue]) => [
+         key,
+-        sanitizeAuditValue(key, childValue),
++        sanitizeAuditValue(key, childValue, depth + 1),
+       ])
+     );
+   }
+diff --git a/src/lib/security/credential-responses.test.ts b/src/lib/security/credential-responses.test.ts
+new file mode 100644
+--- /dev/null
++++ b/src/lib/security/credential-responses.test.ts
+@@ -0,0 +1,80 @@
++import { beforeEach, describe, expect, it, vi } from "vitest";
++import { NextRequest, NextResponse } from "next/server";
++const mocks = vi.hoisted(() => ({
++  role: vi.fn(), capability: vi.fn(), auth: vi.fn(), scope: vi.fn(), audit: vi.fn(), email: vi.fn(),
++  findUnique: vi.fn(), findFirst: vi.fn(), cities: vi.fn(), parks: vi.fn(), groups: vi.fn(),
++  transaction: vi.fn(),
++}));
++vi.mock("@/lib/auth/authorize", () => ({ requireRole: mocks.role, requireCapability: mocks.capability,
++  requireAuth: mocks.auth, requireResourceScope: mocks.scope }));
++vi.mock("@/lib/db", () => ({ db: { user: { findUnique: mocks.findUnique, findFirst: mocks.findFirst },
++  city: { findMany: mocks.cities }, park: { findMany: mocks.parks }, group: { findMany: mocks.groups },
++  $transaction: mocks.transaction } }));
++vi.mock("@/lib/audit", () => ({ logAudit: mocks.audit }));
++vi.mock("@/lib/email-service", () => ({ sendInviteEmail: mocks.email }));
++vi.mock("bcryptjs", () => ({ default: { hash: vi.fn().mockResolvedValue("synthetic-hash") } }));
++import { POST as invite } from "@/app/api/admin/invite/route";
++import { POST as guardian } from "@/app/api/admin/guardians/invite/route";
++import { POST as users } from "@/app/api/admin/import/users/route";
++import { POST as participants } from "@/app/api/admin/import/participants/route";
++
++function json(body: object) {
++  return new NextRequest("http://localhost/api/synthetic", { method: "POST",
++    headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
++}
++function csv(text: string) {
++  const form = new FormData(); form.set("file", new File([text], "synthetic.csv", { type: "text/csv" }));
++  return new NextRequest("http://localhost/api/synthetic", { method: "POST", body: form });
++}
++const cases = [
++  { label: "staff invite", handler: invite, request: () => json({ name: "Synthetic Staff", email: "staff@example.test", role: "program_admin" }), status: 201 },
++  { label: "guardian invite", handler: guardian, request: () => json({ name: "Synthetic Guardian", phone: "00000", relationship: "Guardian" }), status: 201 },
++  { label: "user import", handler: users, request: () => csv("name,email,role\nSynthetic Staff,staff@example.test,program_admin"), status: 200 },
++  { label: "participant import", handler: participants, request: () => csv("name,email,group\nSynthetic Student,student@example.test,Synthetic Group"), status: 200 },
++];
++describe("credential response cache protection", () => {
++  beforeEach(() => {
++    vi.resetAllMocks();
++    mocks.role.mockResolvedValue(null); mocks.email.mockResolvedValue(undefined);
++    const actor = { user: { id: "admin-1", role: "super_admin" } };
++    mocks.capability.mockResolvedValue(actor); mocks.auth.mockResolvedValue(actor); mocks.scope.mockReturnValue(null);
++    mocks.findUnique.mockResolvedValue(null); mocks.findFirst.mockResolvedValue(null);
++    mocks.cities.mockResolvedValue([]); mocks.parks.mockResolvedValue([]);
++    mocks.groups.mockResolvedValue([{ id: "group-1", name: "Synthetic Group",
++      batch: { parkId: "park-1", park: { cityId: "city-1" } } }]);
++    mocks.transaction.mockImplementation(async callback => callback({
++      user: { create: vi.fn().mockResolvedValue({ id: "user-1", mustResetPwd: true }),
++        findUnique: vi.fn().mockImplementation(({ where }) => where.id ? { id: where.id, mustResetPwd: true } : null) },
++      staffMeta: { create: vi.fn().mockResolvedValue({ id: "staff-1" }) },
++      guardian: { create: vi.fn().mockResolvedValue({ id: "guardian-1" }) },
++      participant: { create: vi.fn().mockResolvedValue({ id: "participant-1" }) },
++    }));
++  });
++  it.each(cases)("$label preserves status/body and forbids credential caching", async ({handler,request,status}) => {
++    const response = await handler(request());
++    expect(response.status).toBe(status);
++    const body = await response.json();
++    const hasSecret = status === 201 ? typeof body.temporaryPassword === "string"
++      : body.success === 1 && body.generatedPasswords.length === 1 && typeof body.generatedPasswords[0].password === "string";
++    expect(hasSecret).toBe(true);
++    expect(response.headers.get("cache-control")).toContain("no-store");
++    expect(response.headers.get("cache-control")).toContain("private");
++    expect(response.headers.get("pragma")).toBe("no-cache");
++    expect(response.headers.get("expires")).toBe("0");
++  });
++  it.each(cases)("$label preserves denial before persistence", async ({handler,request}) => {
++    mocks.role.mockResolvedValue(NextResponse.json({ error: "Forbidden" }, { status: 403 }));
++    const response = await handler(request());
++    expect(response.status).toBe(403); expect(mocks.transaction).not.toHaveBeenCalled();
++    expect(await response.json()).toEqual({ error: "Forbidden" });
++  });
++  it("keeps import failure rows free of credentials", async () => {
++    mocks.transaction.mockRejectedValue(new Error("synthetic database failure"));
++    const response = await users(cases[2].request());
++    const body = await response.json();
++    expect(response.status).toBe(200); expect(body.success).toBe(0);
++    expect(body.generatedPasswords).toEqual([]);
++    expect(body.errors).toEqual([{ row: 2, message: "Import processing failed" }]);
++    expect(response.headers.get("cache-control")).toContain("no-store");
++  });
++});
+diff --git a/src/lib/security/sensitive-response.ts b/src/lib/security/sensitive-response.ts
+new file mode 100644
+--- /dev/null
++++ b/src/lib/security/sensitive-response.ts
+@@ -0,0 +1,7 @@
++/** Prevent intentionally returned one-time credentials from being cached. */
++export const SENSITIVE_RESPONSE_HEADERS = {
++  "Cache-Control": "no-store, private, no-cache, max-age=0, must-revalidate",
++  Pragma: "no-cache",
++  Expires: "0",
++  "X-Robots-Tag": "noindex, nofollow, noarchive",
++} as const;
+diff --git a/src/lib/security/unit-environment.test.ts b/src/lib/security/unit-environment.test.ts
+new file mode 100644
+--- /dev/null
++++ b/src/lib/security/unit-environment.test.ts
+@@ -0,0 +1,44 @@
++import { execFileSync } from "node:child_process";
++import { describe, expect, it } from "vitest";
++
++// Child processes exercise initialization order; all hostile values are synthetic.
++const hostile = {
++  ...process.env, DATABASE_URL: "postgresql://synthetic:synthetic@forbidden.invalid/app",
++  DIRECT_URL: "postgresql://synthetic:synthetic@forbidden.invalid/direct",
++  NEXTAUTH_URL: "https://forbidden.invalid", NEXTAUTH_SECRET: "synthetic-hostile-secret",
++  PGHOST: "forbidden.invalid", PGPASSWORD: "synthetic", POSTGRES_URL: "synthetic",
++  PRISMA_ACCELERATE_URL: "synthetic", SMTP_HOST: "forbidden.invalid",
++  IMPORT_HMAC_SECRET: "synthetic-hostile-secret",
++};
++const assertions = `
++  assert.equal(process.env.DATABASE_URL, "file::memory:");
++  assert.equal(process.env.DIRECT_URL, "postgresql://test:test@127.0.0.1:1/shabab360_test");
++  assert.equal(process.env.NEXTAUTH_URL, "http://127.0.0.1:3000");
++  assert.equal(process.env.NEXTAUTH_SECRET, "vitest-test-secret-not-for-deployment");
++  for (const key of ["PGHOST", "PGPASSWORD", "POSTGRES_URL", "PRISMA_ACCELERATE_URL", "SMTP_HOST"])
++    assert.equal(process.env[key], undefined);
++  assert.equal(process.env.IMPORT_HMAC_SECRET, "vitest-import-secret-not-for-deployment");
++`;
++describe("ordinary test environment", () => {
++  it("overrides inherited connections during config load before test imports", () => {
++    const code = `import assert from "node:assert/strict";
++      const { loadConfigFromFile } = await import("vite");
++      await loadConfigFromFile({command:"serve",mode:"test"}, "vitest.config.ts");
++      ${assertions}
++      process.stdout.write("isolated");
++    `;
++    expect(execFileSync(process.execPath, ["--input-type=module", "-e", code],
++      { cwd: process.cwd(), env: hostile, encoding: "utf8", timeout: 20000 })).toBe("isolated");
++  });
++  it("reapplies isolation in setup before the real database module initializes", () => {
++    const code = `import assert from "node:assert/strict";
++      await import("./vitest.setup.ts");
++      ${assertions}
++      const { db } = await import("./src/lib/db.ts");
++      await db.$disconnect();
++      process.stdout.write("isolated");
++    `;
++    expect(execFileSync(process.execPath, ["--input-type=module", "-e", code],
++      { cwd: process.cwd(), env: hostile, encoding: "utf8", timeout: 20000 })).toBe("isolated");
++  });
++});
+diff --git a/vitest.config.ts b/vitest.config.ts
+--- a/vitest.config.ts
++++ b/vitest.config.ts
+@@ -1,5 +1,10 @@
+ import { fileURLToPath } from "node:url";
+ import { defineConfig } from "vitest/config";
++
++import { isolateUnitEnvironment, UNIT_TEST_ENV } from "./scripts/testing/unit-environment.mjs";
++
++// Apply before Vite loads tests or application modules. Repeat in worker setup.
++isolateUnitEnvironment();
+ 
+ export default defineConfig({
+   resolve: {
+@@ -9,6 +14,7 @@
+   },
+   test: {
+     environment: "node",
++    env: UNIT_TEST_ENV,
+     include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
+     clearMocks: true,
+     testTimeout: 30000,
+diff --git a/vitest.setup.ts b/vitest.setup.ts
+--- a/vitest.setup.ts
++++ b/vitest.setup.ts
+@@ -1,6 +1,4 @@
+-// Vitest setup — runs before each test file
+-// Provides default environment variables for test isolation
++import { isolateUnitEnvironment } from "./scripts/testing/unit-environment.mjs";
+ 
+-process.env.DATABASE_URL = process.env.DATABASE_URL || "file:../db/test.db";
+-process.env.NEXTAUTH_SECRET = process.env.NEXTAUTH_SECRET || "test-secret-that-is-at-least-20-chars";
+-process.env.NEXTAUTH_URL = process.env.NEXTAUTH_URL || "http://localhost:3000";
++// Reapply in every worker before application imports; never honor inherited URLs.
++isolateUnitEnvironment();

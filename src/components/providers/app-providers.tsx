@@ -5,6 +5,7 @@ import { SessionProvider } from "next-auth/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "sonner";
 import { ThemeProvider } from "@/components/providers/theme-provider";
+import { LanguageSync } from "@/components/providers/language-sync";
 
 function makeQueryClient() {
   return new QueryClient({
@@ -40,6 +41,7 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
           enableSystem
           disableTransitionOnChange
         >
+          <LanguageSync />
           {children}
           <Toaster position="top-right" />
         </ThemeProvider>

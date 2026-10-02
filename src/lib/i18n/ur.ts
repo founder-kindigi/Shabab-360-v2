@@ -81,6 +81,7 @@ export const ur: Record<string, string> = {
   "nav.auditLog": "آڈٹ لاگ",
   "nav.notifications": "اطلاعات",
   "nav.admissions": "داخلے",
+  "nav.registrationForms": "رجسٹریشن فارمز",
   "nav.contentPlanner": "مواد کی منصوبہ بندی",
   "nav.procurement": "خریداری اور اسٹاک",
   "nav.gamification": "گیمیفیکیشن اور لیڈر بورڈ",
@@ -584,3 +585,4 @@ export const ur: Record<string, string> = {
   // ── App ──────────────────────────────────────────────────
   "app.collapse": "سکڑائیں",
 };
+

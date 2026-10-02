@@ -1,0 +1,4978 @@
+{
+  "capabilities": [
+    {
+      "capability": "access.city_staff.manage",
+      "mainDefaults": [
+        "super_admin",
+        "city_head"
+      ],
+      "v2Defaults": [
+        "super_admin",
+        "city_head"
+      ],
+      "canonicalDefaults": [
+        "super_admin",
+        "city_head"
+      ],
+      "userOverrideAllowed": false,
+      "disposition": "retain v2 identifier/defaults/override eligibility",
+      "mainOnly": false,
+      "evidence": [
+        "main:src/lib/auth/capabilities.ts:7",
+        "v2:src/lib/auth/capabilities.ts:7"
+      ],
+      "contract": "C21",
+      "implementationVerified": false
+    },
+    {
+      "capability": "access.role_defaults.manage",
+      "mainDefaults": [
+        "super_admin"
+      ],
+      "v2Defaults": [
+        "super_admin"
+      ],
+      "canonicalDefaults": [
+        "super_admin"
+      ],
+      "userOverrideAllowed": false,
+      "disposition": "retain v2 identifier/defaults/override eligibility",
+      "mainOnly": false,
+      "evidence": [
+        "main:src/lib/auth/capabilities.ts:7",
+        "v2:src/lib/auth/capabilities.ts:7"
+      ],
+      "contract": "C21",
+      "implementationVerified": false
+    },
+    {
+      "capability": "access.scope.manage",
+      "mainDefaults": [
+        "super_admin",
+        "program_admin"
+      ],
+      "v2Defaults": [
+        "super_admin"
+      ],
+      "canonicalDefaults": [
+        "super_admin"
+      ],
+      "userOverrideAllowed": false,
+      "disposition": "retain v2 identifier/defaults/override eligibility",
+      "mainOnly": false,
+      "evidence": [
+        "main:src/lib/auth/capabilities.ts:7",
+        "v2:src/lib/auth/capabilities.ts:7"
+      ],
+      "contract": "C21",
+      "implementationVerified": false
+    },
+    {
+      "capability": "access.user_overrides.manage",
+      "mainDefaults": [
+        "super_admin"
+      ],
+      "v2Defaults": [
+        "super_admin"
+      ],
+      "canonicalDefaults": [
+        "super_admin"
+      ],
+      "userOverrideAllowed": false,
+      "disposition": "retain v2 identifier/defaults/override eligibility",
+      "mainOnly": false,
+      "evidence": [
+        "main:src/lib/auth/capabilities.ts:7",
+        "v2:src/lib/auth/capabilities.ts:7"
+      ],
+      "contract": "C21",
+      "implementationVerified": false
+    },
+    {
+      "capability": "admissions.manage",
+      "mainDefaults": [
+        "super_admin",
+        "program_admin",
+        "city_head"
+      ],
+      "v2Defaults": [
+        "super_admin",
+        "program_admin",
+        "city_head"
+      ],
+      "canonicalDefaults": [
+        "super_admin",
+        "program_admin",
+        "city_head"
+      ],
+      "userOverrideAllowed": true,
+      "disposition": "retain v2 identifier/defaults/override eligibility",
+      "mainOnly": false,
+      "evidence": [
+        "main:src/lib/auth/capabilities.ts:7",
+        "v2:src/lib/auth/capabilities.ts:7"
+      ],
+      "contract": "C21",
+      "implementationVerified": false
+    },
+    {
+      "capability": "announcements.manage",
+      "mainDefaults": [
+        "super_admin",
+        "program_admin",
+        "city_head"
+      ],
+      "v2Defaults": [
+        "super_admin",
+        "program_admin",
+        "city_head"
+      ],
+      "canonicalDefaults": [
+        "super_admin",
+        "program_admin",
+        "city_head"
+      ],
+      "userOverrideAllowed": true,
+      "disposition": "retain v2 identifier/defaults/override eligibility",
+      "mainOnly": false,
+      "evidence": [
+        "main:src/lib/auth/capabilities.ts:7",
+        "v2:src/lib/auth/capabilities.ts:7"
+      ],
+      "contract": "C21",
+      "implementationVerified": false
+    },
+    {
+      "capability": "attendance.correct",
+      "mainDefaults": [
+        "super_admin",
+        "program_admin",
+        "city_head",
+        "park_lead"
+      ],
+      "v2Defaults": [
+        "super_admin",
+        "program_admin",
+        "city_head",
+        "park_lead"
+      ],
+      "canonicalDefaults": [
+        "super_admin",
+        "program_admin",
+        "city_head",
+        "park_lead"
+      ],
+      "userOverrideAllowed": true,
+      "disposition": "retain v2 identifier/defaults/override eligibility",
+      "mainOnly": false,
+      "evidence": [
+        "main:src/lib/auth/capabilities.ts:7",
+        "v2:src/lib/auth/capabilities.ts:7"
+      ],
+      "contract": "C21",
+      "implementationVerified": false
+    },
+    {
+      "capability": "attendance.mark",
+      "mainDefaults": [
+        "super_admin",
+        "program_admin",
+        "city_head",
+        "park_lead",
+        "park_admin",
+        "murabbi"
+      ],
+      "v2Defaults": [
+        "super_admin",
+        "program_admin",
+        "city_head",
+        "park_lead",
+        "park_admin",
+        "murabbi"
+      ],
+      "canonicalDefaults": [
+        "super_admin",
+        "program_admin",
+        "city_head",
+        "park_lead",
+        "park_admin",
+        "murabbi"
+      ],
+      "userOverrideAllowed": true,
+      "disposition": "retain v2 identifier/defaults/override eligibility",
+      "mainOnly": false,
+      "evidence": [
+        "main:src/lib/auth/capabilities.ts:7",
+        "v2:src/lib/auth/capabilities.ts:7"
+      ],
+      "contract": "C21",
+      "implementationVerified": false
+    },
+    {
+      "capability": "attendance.staff.manage",
+      "mainDefaults": [],
+      "v2Defaults": [
+        "super_admin",
+        "program_admin",
+        "city_head",
+        "park_lead",
+        "park_admin"
+      ],
+      "canonicalDefaults": [
+        "super_admin",
+        "program_admin",
+        "city_head",
+        "park_lead",
+        "park_admin"
+      ],
+      "userOverrideAllowed": true,
+      "disposition": "retain v2 identifier/defaults/override eligibility",
+      "mainOnly": false,
+      "evidence": [
+        "main:src/lib/auth/capabilities.ts:7",
+        "v2:src/lib/auth/capabilities.ts:7"
+      ],
+      "contract": "C21",
+      "implementationVerified": false
+    },
+    {
+      "capability": "audit.view",
+      "mainDefaults": [
+        "super_admin",
+        "program_admin"
+      ],
+      "v2Defaults": [
+        "super_admin",
+        "program_admin"
+      ],
+      "canonicalDefaults": [
+        "super_admin",
+        "program_admin"
+      ],
+      "userOverrideAllowed": false,
+      "disposition": "retain v2 identifier/defaults/override eligibility",
+      "mainOnly": false,
+      "evidence": [
+        "main:src/lib/auth/capabilities.ts:7",
+        "v2:src/lib/auth/capabilities.ts:7"
+      ],
+      "contract": "C21",
+      "implementationVerified": false
+    },
+    {
+      "capability": "calling.export.manage",
+      "mainDefaults": [
+        "super_admin",
+        "program_admin",
+        "city_head"
+      ],
+      "v2Defaults": [
+        "super_admin",
+        "program_admin",
+        "city_head"
+      ],
+      "canonicalDefaults": [
+        "super_admin",
+        "program_admin",
+        "city_head"
+      ],
+      "userOverrideAllowed": false,
+      "disposition": "retain v2 identifier/defaults/override eligibility",
+      "mainOnly": false,
+      "evidence": [
+        "main:src/lib/auth/capabilities.ts:7",
+        "v2:src/lib/auth/capabilities.ts:7"
+      ],
+      "contract": "C21",
+      "implementationVerified": false
+    },
+    {
+      "capability": "calling.poc.manage",
+      "mainDefaults": [
+        "super_admin",
+        "program_admin",
+        "city_head"
+      ],
+      "v2Defaults": [
+        "super_admin",
+        "program_admin",
+        "city_head"
+      ],
+      "canonicalDefaults": [
+        "super_admin",
+        "program_admin",
+        "city_head"
+      ],
+      "userOverrideAllowed": false,
+      "disposition": "retain v2 identifier/defaults/override eligibility",
+      "mainOnly": false,
+      "evidence": [
+        "main:src/lib/auth/capabilities.ts:7",
+        "v2:src/lib/auth/capabilities.ts:7"
+      ],
+      "contract": "C21",
+      "implementationVerified": false
+    },
+    {
+      "capability": "calling.templates.manage",
+      "mainDefaults": [
+        "super_admin",
+        "program_admin",
+        "city_head"
+      ],
+      "v2Defaults": [
+        "super_admin",
+        "program_admin",
+        "city_head"
+      ],
+      "canonicalDefaults": [
+        "super_admin",
+        "program_admin",
+        "city_head"
+      ],
+      "userOverrideAllowed": false,
+      "disposition": "retain v2 identifier/defaults/override eligibility",
+      "mainOnly": false,
+      "evidence": [
+        "main:src/lib/auth/capabilities.ts:7",
+        "v2:src/lib/auth/capabilities.ts:7"
+      ],
+      "contract": "C21",
+      "implementationVerified": false
+    },
+    {
+      "capability": "calling.view",
+      "mainDefaults": [
+        "super_admin",
+        "program_admin",
+        "city_head",
+        "park_lead"
+      ],
+      "v2Defaults": [
+        "super_admin",
+        "program_admin",
+        "city_head",
+        "park_lead"
+      ],
+      "canonicalDefaults": [
+        "super_admin",
+        "program_admin",
+        "city_head",
+        "park_lead"
+      ],
+      "userOverrideAllowed": true,
+      "disposition": "retain v2 identifier/defaults/override eligibility",
+      "mainOnly": false,
+      "evidence": [
+        "main:src/lib/auth/capabilities.ts:7",
+        "v2:src/lib/auth/capabilities.ts:7"
+      ],
+      "contract": "C21",
+      "implementationVerified": false
+    },
+    {
+      "capability": "content.manage",
+      "mainDefaults": [
+        "super_admin",
+        "program_admin",
+        "city_head"
+      ],
+      "v2Defaults": [
+        "super_admin",
+        "program_admin",
+        "city_head"
+      ],
+      "canonicalDefaults": [
+        "super_admin",
+        "program_admin",
+        "city_head"
+      ],
+      "userOverrideAllowed": true,
+      "disposition": "retain v2 identifier/defaults/override eligibility",
+      "mainOnly": false,
+      "evidence": [
+        "main:src/lib/auth/capabilities.ts:7",
+        "v2:src/lib/auth/capabilities.ts:7"
+      ],
+      "contract": "C21",
+      "implementationVerified": false
+    },
+    {
+      "capability": "content.view",
+      "mainDefaults": [
+        "super_admin",
+        "program_admin",
+        "city_head",
+        "park_lead",
+        "murabbi"
+      ],
+      "v2Defaults": [
+        "super_admin",
+        "program_admin",
+        "city_head",
+        "park_lead",
+        "murabbi"
+      ],
+      "canonicalDefaults": [
+        "super_admin",
+        "program_admin",
+        "city_head",
+        "park_lead",
+        "murabbi"
+      ],
+      "userOverrideAllowed": true,
+      "disposition": "retain v2 identifier/defaults/override eligibility",
+      "mainOnly": false,
+      "evidence": [
+        "main:src/lib/auth/capabilities.ts:7",
+        "v2:src/lib/auth/capabilities.ts:7"
+      ],
+      "contract": "C21",
+      "implementationVerified": false
+    },
+    {
+      "capability": "dashboard.view",
+      "mainDefaults": [
+        "super_admin",
+        "program_admin",
+        "city_head",
+        "park_lead",
+        "park_admin",
+        "murabbi",
+        "guardian",
+        "student"
+      ],
+      "v2Defaults": [
+        "super_admin",
+        "program_admin",
+        "city_head",
+        "park_lead",
+        "park_admin",
+        "murabbi",
+        "guardian",
+        "student"
+      ],
+      "canonicalDefaults": [
+        "super_admin",
+        "program_admin",
+        "city_head",
+        "park_lead",
+        "park_admin",
+        "murabbi",
+        "guardian",
+        "student"
+      ],
+      "userOverrideAllowed": true,
+      "disposition": "retain v2 identifier/defaults/override eligibility",
+      "mainOnly": false,
+      "evidence": [
+        "main:src/lib/auth/capabilities.ts:7",
+        "v2:src/lib/auth/capabilities.ts:7"
+      ],
+      "contract": "C21",
+      "implementationVerified": false
+    },
+    {
+      "capability": "events.manage",
+      "mainDefaults": [
+        "super_admin",
+        "program_admin",
+        "city_head"
+      ],
+      "v2Defaults": [
+        "super_admin",
+        "program_admin",
+        "city_head"
+      ],
+      "canonicalDefaults": [
+        "super_admin",
+        "program_admin",
+        "city_head"
+      ],
+      "userOverrideAllowed": true,
+      "disposition": "retain v2 identifier/defaults/override eligibility",
+      "mainOnly": false,
+      "evidence": [
+        "main:src/lib/auth/capabilities.ts:7",
+        "v2:src/lib/auth/capabilities.ts:7"
+      ],
+      "contract": "C21",
+      "implementationVerified": false
+    },
+    {
+      "capability": "events.responsibilities.manage",
+      "mainDefaults": [
+        "super_admin",
+        "program_admin",
+        "city_head"
+      ],
+      "v2Defaults": [
+        "super_admin",
+        "program_admin",
+        "city_head"
+      ],
+      "canonicalDefaults": [
+        "super_admin",
+        "program_admin",
+        "city_head"
+      ],
+      "userOverrideAllowed": true,
+      "disposition": "retain v2 identifier/defaults/override eligibility",
+      "mainOnly": false,
+      "evidence": [
+        "main:src/lib/auth/capabilities.ts:7",
+        "v2:src/lib/auth/capabilities.ts:7"
+      ],
+      "contract": "C21",
+      "implementationVerified": false
+    },
+    {
+      "capability": "events.view",
+      "mainDefaults": [
+        "super_admin",
+        "program_admin",
+        "city_head",
+        "park_lead"
+      ],
+      "v2Defaults": [
+        "super_admin",
+        "program_admin",
+        "city_head",
+        "park_lead"
+      ],
+      "canonicalDefaults": [
+        "super_admin",
+        "program_admin",
+        "city_head",
+        "park_lead"
+      ],
+      "userOverrideAllowed": true,
+      "disposition": "retain v2 identifier/defaults/override eligibility",
+      "mainOnly": false,
+      "evidence": [
+        "main:src/lib/auth/capabilities.ts:7",
+        "v2:src/lib/auth/capabilities.ts:7"
+      ],
+      "contract": "C21",
+      "implementationVerified": false
+    },
+    {
+      "capability": "fees.manage",
+      "mainDefaults": [
+        "super_admin",
+        "program_admin",
+        "city_head"
+      ],
+      "v2Defaults": [
+        "super_admin",
+        "program_admin",
+        "city_head"
+      ],
+      "canonicalDefaults": [
+        "super_admin",
+        "program_admin",
+        "city_head"
+      ],
+      "userOverrideAllowed": true,
+      "disposition": "retain v2 identifier/defaults/override eligibility",
+      "mainOnly": false,
+      "evidence": [
+        "main:src/lib/auth/capabilities.ts:7",
+        "v2:src/lib/auth/capabilities.ts:7"
+      ],
+      "contract": "C21",
+      "implementationVerified": false
+    },
+    {
+      "capability": "guardians.manage",
+      "mainDefaults": [
+        "super_admin",
+        "program_admin",
+        "city_head",
+        "guardian"
+      ],
+      "v2Defaults": [
+        "super_admin",
+        "program_admin",
+        "city_head",
+        "guardian"
+      ],
+      "canonicalDefaults": [
+        "super_admin",
+        "program_admin",
+        "city_head",
+        "guardian"
+      ],
+      "userOverrideAllowed": true,
+      "disposition": "retain v2 identifier/defaults/override eligibility",
+      "mainOnly": false,
+      "evidence": [
+        "main:src/lib/auth/capabilities.ts:7",
+        "v2:src/lib/auth/capabilities.ts:7"
+      ],
+      "contract": "C21",
+      "implementationVerified": false
+    },
+    {
+      "capability": "mashwara.manage",
+      "mainDefaults": [
+        "super_admin",
+        "program_admin",
+        "city_head"
+      ],
+      "v2Defaults": [
+        "super_admin",
+        "program_admin",
+        "city_head"
+      ],
+      "canonicalDefaults": [
+        "super_admin",
+        "program_admin",
+        "city_head"
+      ],
+      "userOverrideAllowed": true,
+      "disposition": "retain v2 identifier/defaults/override eligibility",
+      "mainOnly": false,
+      "evidence": [
+        "main:src/lib/auth/capabilities.ts:7",
+        "v2:src/lib/auth/capabilities.ts:7"
+      ],
+      "contract": "C21",
+      "implementationVerified": false
+    },
+    {
+      "capability": "mashwara.view",
+      "mainDefaults": [
+        "super_admin",
+        "program_admin",
+        "city_head",
+        "park_lead"
+      ],
+      "v2Defaults": [
+        "super_admin",
+        "program_admin",
+        "city_head",
+        "park_lead"
+      ],
+      "canonicalDefaults": [
+        "super_admin",
+        "program_admin",
+        "city_head",
+        "park_lead"
+      ],
+      "userOverrideAllowed": true,
+      "disposition": "retain v2 identifier/defaults/override eligibility",
+      "mainOnly": false,
+      "evidence": [
+        "main:src/lib/auth/capabilities.ts:7",
+        "v2:src/lib/auth/capabilities.ts:7"
+      ],
+      "contract": "C21",
+      "implementationVerified": false
+    },
+    {
+      "capability": "media.briefs.manage",
+      "mainDefaults": [
+        "super_admin",
+        "program_admin",
+        "city_head"
+      ],
+      "v2Defaults": [],
+      "canonicalDefaults": [
+        "super_admin",
+        "program_admin",
+        "city_head"
+      ],
+      "userOverrideAllowed": false,
+      "disposition": "restore dedicated identifier; never alias to organisation.*",
+      "mainOnly": true,
+      "evidence": [
+        "main:src/lib/auth/capabilities.ts:7",
+        "v2:src/lib/auth/capabilities.ts:7"
+      ],
+      "contract": "C01",
+      "implementationVerified": false
+    },
+    {
+      "capability": "media.workspace.manage",
+      "mainDefaults": [
+        "super_admin",
+        "program_admin",
+        "city_head"
+      ],
+      "v2Defaults": [],
+      "canonicalDefaults": [
+        "super_admin",
+        "program_admin",
+        "city_head"
+      ],
+      "userOverrideAllowed": true,
+      "disposition": "restore dedicated identifier; never alias to organisation.*",
+      "mainOnly": true,
+      "evidence": [
+        "main:src/lib/auth/capabilities.ts:7",
+        "v2:src/lib/auth/capabilities.ts:7"
+      ],
+      "contract": "C01",
+      "implementationVerified": false
+    },
+    {
+      "capability": "media.workspace.view",
+      "mainDefaults": [
+        "super_admin",
+        "program_admin",
+        "city_head",
+        "park_lead",
+        "park_admin",
+        "murabbi"
+      ],
+      "v2Defaults": [],
+      "canonicalDefaults": [
+        "super_admin",
+        "program_admin",
+        "city_head",
+        "park_lead",
+        "park_admin",
+        "murabbi"
+      ],
+      "userOverrideAllowed": true,
+      "disposition": "restore dedicated identifier; never alias to organisation.*",
+      "mainOnly": true,
+      "evidence": [
+        "main:src/lib/auth/capabilities.ts:7",
+        "v2:src/lib/auth/capabilities.ts:7"
+      ],
+      "contract": "C01",
+      "implementationVerified": false
+    },
+    {
+      "capability": "organisation.manage",
+      "mainDefaults": [
+        "super_admin",
+        "program_admin",
+        "city_head"
+      ],
+      "v2Defaults": [
+        "super_admin",
+        "program_admin",
+        "city_head"
+      ],
+      "canonicalDefaults": [
+        "super_admin",
+        "program_admin",
+        "city_head"
+      ],
+      "userOverrideAllowed": true,
+      "disposition": "retain v2 identifier/defaults/override eligibility",
+      "mainOnly": false,
+      "evidence": [
+        "main:src/lib/auth/capabilities.ts:7",
+        "v2:src/lib/auth/capabilities.ts:7"
+      ],
+      "contract": "C21",
+      "implementationVerified": false
+    },
+    {
+      "capability": "organisation.view",
+      "mainDefaults": [
+        "super_admin",
+        "program_admin",
+        "city_head",
+        "park_lead"
+      ],
+      "v2Defaults": [
+        "super_admin",
+        "program_admin",
+        "city_head",
+        "park_lead"
+      ],
+      "canonicalDefaults": [
+        "super_admin",
+        "program_admin",
+        "city_head",
+        "park_lead"
+      ],
+      "userOverrideAllowed": true,
+      "disposition": "retain v2 identifier/defaults/override eligibility",
+      "mainOnly": false,
+      "evidence": [
+        "main:src/lib/auth/capabilities.ts:7",
+        "v2:src/lib/auth/capabilities.ts:7"
+      ],
+      "contract": "C21",
+      "implementationVerified": false
+    },
+    {
+      "capability": "people.view",
+      "mainDefaults": [
+        "super_admin",
+        "program_admin",
+        "city_head",
+        "guardian",
+        "student"
+      ],
+      "v2Defaults": [
+        "super_admin",
+        "program_admin",
+        "city_head",
+        "guardian",
+        "student"
+      ],
+      "canonicalDefaults": [
+        "super_admin",
+        "program_admin",
+        "city_head",
+        "guardian",
+        "student"
+      ],
+      "userOverrideAllowed": true,
+      "disposition": "retain v2 identifier/defaults/override eligibility",
+      "mainOnly": false,
+      "evidence": [
+        "main:src/lib/auth/capabilities.ts:7",
+        "v2:src/lib/auth/capabilities.ts:7"
+      ],
+      "contract": "C21",
+      "implementationVerified": false
+    },
+    {
+      "capability": "reports.export",
+      "mainDefaults": [
+        "super_admin",
+        "program_admin",
+        "city_head"
+      ],
+      "v2Defaults": [
+        "super_admin",
+        "program_admin",
+        "city_head"
+      ],
+      "canonicalDefaults": [
+        "super_admin",
+        "program_admin",
+        "city_head"
+      ],
+      "userOverrideAllowed": true,
+      "disposition": "retain v2 identifier/defaults/override eligibility",
+      "mainOnly": false,
+      "evidence": [
+        "main:src/lib/auth/capabilities.ts:7",
+        "v2:src/lib/auth/capabilities.ts:7"
+      ],
+      "contract": "C21",
+      "implementationVerified": false
+    },
+    {
+      "capability": "reports.view",
+      "mainDefaults": [
+        "super_admin",
+        "program_admin",
+        "city_head",
+        "guardian",
+        "student"
+      ],
+      "v2Defaults": [
+        "super_admin",
+        "program_admin",
+        "city_head",
+        "guardian",
+        "student"
+      ],
+      "canonicalDefaults": [
+        "super_admin",
+        "program_admin",
+        "city_head",
+        "guardian",
+        "student"
+      ],
+      "userOverrideAllowed": true,
+      "disposition": "retain v2 identifier/defaults/override eligibility",
+      "mainOnly": false,
+      "evidence": [
+        "main:src/lib/auth/capabilities.ts:7",
+        "v2:src/lib/auth/capabilities.ts:7"
+      ],
+      "contract": "C21",
+      "implementationVerified": false
+    },
+    {
+      "capability": "settings.manage",
+      "mainDefaults": [
+        "super_admin",
+        "program_admin"
+      ],
+      "v2Defaults": [
+        "super_admin",
+        "program_admin"
+      ],
+      "canonicalDefaults": [
+        "super_admin",
+        "program_admin"
+      ],
+      "userOverrideAllowed": false,
+      "disposition": "retain v2 identifier/defaults/override eligibility",
+      "mainOnly": false,
+      "evidence": [
+        "main:src/lib/auth/capabilities.ts:7",
+        "v2:src/lib/auth/capabilities.ts:7"
+      ],
+      "contract": "C21",
+      "implementationVerified": false
+    },
+    {
+      "capability": "students.manage",
+      "mainDefaults": [
+        "super_admin",
+        "program_admin",
+        "city_head",
+        "student"
+      ],
+      "v2Defaults": [
+        "super_admin",
+        "program_admin",
+        "city_head",
+        "student"
+      ],
+      "canonicalDefaults": [
+        "super_admin",
+        "program_admin",
+        "city_head",
+        "student"
+      ],
+      "userOverrideAllowed": true,
+      "disposition": "retain v2 identifier/defaults/override eligibility",
+      "mainOnly": false,
+      "evidence": [
+        "main:src/lib/auth/capabilities.ts:7",
+        "v2:src/lib/auth/capabilities.ts:7"
+      ],
+      "contract": "C21",
+      "implementationVerified": false
+    },
+    {
+      "capability": "students.profile.manage",
+      "mainDefaults": [
+        "super_admin",
+        "program_admin",
+        "city_head"
+      ],
+      "v2Defaults": [
+        "super_admin",
+        "program_admin",
+        "city_head"
+      ],
+      "canonicalDefaults": [
+        "super_admin",
+        "program_admin",
+        "city_head"
+      ],
+      "userOverrideAllowed": true,
+      "disposition": "retain v2 identifier/defaults/override eligibility",
+      "mainOnly": false,
+      "evidence": [
+        "main:src/lib/auth/capabilities.ts:7",
+        "v2:src/lib/auth/capabilities.ts:7"
+      ],
+      "contract": "C21",
+      "implementationVerified": false
+    },
+    {
+      "capability": "students.profile.sensitive.manage",
+      "mainDefaults": [
+        "super_admin",
+        "program_admin",
+        "city_head"
+      ],
+      "v2Defaults": [
+        "super_admin",
+        "program_admin",
+        "city_head"
+      ],
+      "canonicalDefaults": [
+        "super_admin",
+        "program_admin",
+        "city_head"
+      ],
+      "userOverrideAllowed": false,
+      "disposition": "retain v2 identifier/defaults/override eligibility",
+      "mainOnly": false,
+      "evidence": [
+        "main:src/lib/auth/capabilities.ts:7",
+        "v2:src/lib/auth/capabilities.ts:7"
+      ],
+      "contract": "C21",
+      "implementationVerified": false
+    },
+    {
+      "capability": "students.profile.sensitive.view",
+      "mainDefaults": [
+        "super_admin",
+        "program_admin",
+        "city_head"
+      ],
+      "v2Defaults": [
+        "super_admin",
+        "program_admin",
+        "city_head"
+      ],
+      "canonicalDefaults": [
+        "super_admin",
+        "program_admin",
+        "city_head"
+      ],
+      "userOverrideAllowed": false,
+      "disposition": "retain v2 identifier/defaults/override eligibility",
+      "mainOnly": false,
+      "evidence": [
+        "main:src/lib/auth/capabilities.ts:7",
+        "v2:src/lib/auth/capabilities.ts:7"
+      ],
+      "contract": "C21",
+      "implementationVerified": false
+    },
+    {
+      "capability": "students.profile.view",
+      "mainDefaults": [
+        "super_admin",
+        "program_admin",
+        "city_head",
+        "park_lead",
+        "murabbi",
+        "guardian",
+        "student"
+      ],
+      "v2Defaults": [
+        "super_admin",
+        "program_admin",
+        "city_head",
+        "park_lead",
+        "murabbi",
+        "guardian",
+        "student"
+      ],
+      "canonicalDefaults": [
+        "super_admin",
+        "program_admin",
+        "city_head",
+        "park_lead",
+        "murabbi",
+        "guardian",
+        "student"
+      ],
+      "userOverrideAllowed": true,
+      "disposition": "retain v2 identifier/defaults/override eligibility",
+      "mainOnly": false,
+      "evidence": [
+        "main:src/lib/auth/capabilities.ts:7",
+        "v2:src/lib/auth/capabilities.ts:7"
+      ],
+      "contract": "C21",
+      "implementationVerified": false
+    },
+    {
+      "capability": "teams.memberships.manage",
+      "mainDefaults": [
+        "super_admin",
+        "program_admin",
+        "city_head"
+      ],
+      "v2Defaults": [],
+      "canonicalDefaults": [
+        "super_admin",
+        "program_admin",
+        "city_head"
+      ],
+      "userOverrideAllowed": false,
+      "disposition": "restore dedicated identifier; never alias to organisation.*",
+      "mainOnly": true,
+      "evidence": [
+        "main:src/lib/auth/capabilities.ts:7",
+        "v2:src/lib/auth/capabilities.ts:7"
+      ],
+      "contract": "C15",
+      "implementationVerified": false
+    },
+    {
+      "capability": "teams.workspace.manage",
+      "mainDefaults": [
+        "super_admin",
+        "program_admin",
+        "city_head"
+      ],
+      "v2Defaults": [],
+      "canonicalDefaults": [
+        "super_admin",
+        "program_admin",
+        "city_head"
+      ],
+      "userOverrideAllowed": true,
+      "disposition": "restore dedicated identifier; never alias to organisation.*",
+      "mainOnly": true,
+      "evidence": [
+        "main:src/lib/auth/capabilities.ts:7",
+        "v2:src/lib/auth/capabilities.ts:7"
+      ],
+      "contract": "C15",
+      "implementationVerified": false
+    },
+    {
+      "capability": "teams.workspace.view",
+      "mainDefaults": [
+        "super_admin",
+        "program_admin",
+        "city_head",
+        "park_lead",
+        "park_admin",
+        "murabbi"
+      ],
+      "v2Defaults": [],
+      "canonicalDefaults": [
+        "super_admin",
+        "program_admin",
+        "city_head",
+        "park_lead",
+        "park_admin",
+        "murabbi"
+      ],
+      "userOverrideAllowed": true,
+      "disposition": "restore dedicated identifier; never alias to organisation.*",
+      "mainOnly": true,
+      "evidence": [
+        "main:src/lib/auth/capabilities.ts:7",
+        "v2:src/lib/auth/capabilities.ts:7"
+      ],
+      "contract": "C15",
+      "implementationVerified": false
+    }
+  ],
+  "endpoints": [
+    {
+      "sourcePath": "src/app/api/admin/access/role-overrides/route.ts",
+      "c1Conflict": false,
+      "contract": "C21",
+      "canonicalPath": "/api/admin/access/role-overrides",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "main": [
+          "GET",
+          "PUT",
+          "DELETE"
+        ],
+        "v2": [
+          "GET",
+          "PUT",
+          "DELETE"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/admin/access/role-overrides/route.ts:28 GET",
+        "main:src/app/api/admin/access/role-overrides/route.ts:35 PUT",
+        "main:src/app/api/admin/access/role-overrides/route.ts:57 DELETE",
+        "v2:src/app/api/admin/access/role-overrides/route.ts:28 GET",
+        "v2:src/app/api/admin/access/role-overrides/route.ts:35 PUT",
+        "v2:src/app/api/admin/access/role-overrides/route.ts:57 DELETE"
+      ],
+      "sourceHashes": {
+        "main": "d8bec9c524d9c2bbe90b216126929fafb1d8630f4dcf12759cb751244451b659",
+        "v2": "d8bec9c524d9c2bbe90b216126929fafb1d8630f4dcf12759cb751244451b659"
+      },
+      "literalConsumers": [
+        "main:src/components/modules/admin/access-management-page.tsx:104 (request)",
+        "main:src/components/modules/admin/access-management-page.tsx:118 (request)",
+        "main:src/components/modules/admin/access-management-page.tsx:132 (request)",
+        "v2:src/components/modules/admin/access-management-page.tsx:104 (request)",
+        "v2:src/components/modules/admin/access-management-page.tsx:118 (request)",
+        "v2:src/components/modules/admin/access-management-page.tsx:132 (request)",
+        "v2:src/components/modules/admin/mobile-security-access-page.tsx:47 (fetch)",
+        "v2:src/components/modules/admin/mobile-security-access-page.tsx:62 (fetch)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/admin/access/users/[id]/overrides/route.ts",
+      "c1Conflict": false,
+      "contract": "C21",
+      "canonicalPath": "/api/admin/access/users/[id]/overrides",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "main": [
+          "GET",
+          "PUT",
+          "DELETE"
+        ],
+        "v2": [
+          "GET",
+          "PUT",
+          "DELETE"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/admin/access/users/[id]/overrides/route.ts:42 GET",
+        "main:src/app/api/admin/access/users/[id]/overrides/route.ts:82 PUT",
+        "main:src/app/api/admin/access/users/[id]/overrides/route.ts:135 DELETE",
+        "v2:src/app/api/admin/access/users/[id]/overrides/route.ts:42 GET",
+        "v2:src/app/api/admin/access/users/[id]/overrides/route.ts:82 PUT",
+        "v2:src/app/api/admin/access/users/[id]/overrides/route.ts:135 DELETE"
+      ],
+      "sourceHashes": {
+        "main": "5f57db53f76fa5df2f723690a24dbf37506ef11f1d09ac6c3e8402e77406f52a",
+        "v2": "5f57db53f76fa5df2f723690a24dbf37506ef11f1d09ac6c3e8402e77406f52a"
+      },
+      "literalConsumers": [
+        "main:src/components/modules/admin/access-management-page.tsx:112 (request)",
+        "main:src/components/modules/admin/access-management-page.tsx:144 (request)",
+        "main:src/components/modules/admin/access-management-page.tsx:163 (request)",
+        "v2:src/components/modules/admin/access-management-page.tsx:112 (request)",
+        "v2:src/components/modules/admin/access-management-page.tsx:144 (request)",
+        "v2:src/components/modules/admin/access-management-page.tsx:163 (request)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/admin/admissions/[id]/convert/route.ts",
+      "c1Conflict": true,
+      "contract": "C05",
+      "canonicalPath": "/api/admin/admissions/[id]/convert",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "main": [
+          "POST"
+        ],
+        "v2": [
+          "POST"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/admin/admissions/[id]/convert/route.ts:14 POST",
+        "v2:src/app/api/admin/admissions/[id]/convert/route.ts:14 POST"
+      ],
+      "sourceHashes": {
+        "main": "467713444d0cba248223690bd840f238149a6e80fc583f39b3001de8be9e600e",
+        "v2": "461e43f0db725e0bd4ffc64396735181f653e1c5214c5ec5c458994cae3d0358"
+      },
+      "literalConsumers": [],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/admin/admissions/[id]/route.ts",
+      "c1Conflict": true,
+      "contract": "C05",
+      "canonicalPath": "/api/admin/admissions/[id]",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "main": [
+          "GET",
+          "PATCH"
+        ],
+        "v2": [
+          "GET",
+          "PATCH",
+          "DELETE"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/admin/admissions/[id]/route.ts:42 GET",
+        "main:src/app/api/admin/admissions/[id]/route.ts:86 PATCH",
+        "v2:src/app/api/admin/admissions/[id]/route.ts:23 GET",
+        "v2:src/app/api/admin/admissions/[id]/route.ts:78 PATCH",
+        "v2:src/app/api/admin/admissions/[id]/route.ts:136 DELETE"
+      ],
+      "sourceHashes": {
+        "main": "3d873b3ff78ca2363746f724d3e56a3cc08af099c7ece6ca78612eb596d55782",
+        "v2": "73e436a536da88e01922ddbad1eddc10e6fcbc34a468c1b1e2abc9653ef93c1b"
+      },
+      "literalConsumers": [
+        "main:src/components/modules/admin/admissions-page.tsx:517 (fetch)",
+        "main:src/components/modules/admin/admissions-page.tsx:588 (fetch)",
+        "main:src/components/modules/admin/admissions-page.tsx:610 (fetch)",
+        "v2:src/components/modules/admin/admissions-page.tsx:543 (fetch)",
+        "v2:src/components/modules/admin/admissions-page.tsx:614 (fetch)",
+        "v2:src/components/modules/admin/admissions-page.tsx:636 (fetch)",
+        "v2:src/components/modules/admin/admissions-page.tsx:648 (fetch)",
+        "v2:src/components/modules/admin/mobile-admissions-page.tsx:133 (fetch)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/admin/admissions/route.ts",
+      "c1Conflict": true,
+      "contract": "C05",
+      "canonicalPath": "/api/admin/admissions",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "main": [
+          "GET",
+          "POST"
+        ],
+        "v2": [
+          "GET",
+          "POST"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/admin/admissions/route.ts:36 GET",
+        "main:src/app/api/admin/admissions/route.ts:100 POST",
+        "v2:src/app/api/admin/admissions/route.ts:38 GET",
+        "v2:src/app/api/admin/admissions/route.ts:113 POST"
+      ],
+      "sourceHashes": {
+        "main": "3ee5ff6680cb66fb29d8d5efbfa69fb2dcccb3e43df9921a6ea2bff1c1d52693",
+        "v2": "ba345cc4088210abee44f7408549ce5bba3d72a14c9931c386d2cdf9e23000b2"
+      },
+      "literalConsumers": [
+        "main:src/components/modules/admin/admissions-page.tsx:525 (fetch)",
+        "main:src/components/modules/admin/admissions-page.tsx:530 (fetch)",
+        "main:src/components/modules/admin/admissions-page.tsx:535 (fetch)",
+        "main:src/components/modules/admin/admissions-page.tsx:567 (fetch)",
+        "v2:src/components/modules/admin/admissions-page.tsx:551 (fetch)",
+        "v2:src/components/modules/admin/admissions-page.tsx:556 (fetch)",
+        "v2:src/components/modules/admin/admissions-page.tsx:561 (fetch)",
+        "v2:src/components/modules/admin/admissions-page.tsx:593 (fetch)",
+        "v2:src/components/modules/admin/mobile-admissions-page.tsx:109 (fetch)",
+        "v2:src/components/modules/admin/mobile-admissions-page.tsx:196 (fetch)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/admin/batches/[id]/route.ts",
+      "c1Conflict": true,
+      "contract": "C17",
+      "canonicalPath": "/api/admin/batches/[id]",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "main": [
+          "GET",
+          "PATCH",
+          "DELETE"
+        ],
+        "v2": [
+          "GET",
+          "PATCH",
+          "DELETE"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/admin/batches/[id]/route.ts:18 GET",
+        "main:src/app/api/admin/batches/[id]/route.ts:57 PATCH",
+        "main:src/app/api/admin/batches/[id]/route.ts:125 DELETE",
+        "v2:src/app/api/admin/batches/[id]/route.ts:18 GET",
+        "v2:src/app/api/admin/batches/[id]/route.ts:57 PATCH",
+        "v2:src/app/api/admin/batches/[id]/route.ts:159 DELETE"
+      ],
+      "sourceHashes": {
+        "main": "8f468cb8120ffba6719e3f617152a12976ebeb82feed010b9372c6e3a8fc3c2f",
+        "v2": "dce154a33119099fa0002884a1f51dddd681d534eb1b832af2b8b46d6e95b1f5"
+      },
+      "literalConsumers": [
+        "main:src/components/modules/admin/batches-page.tsx:175 (fetch)",
+        "main:src/components/modules/admin/batches-page.tsx:205 (fetch)",
+        "v2:src/components/modules/admin/batches-page.tsx:175 (fetch)",
+        "v2:src/components/modules/admin/batches-page.tsx:205 (fetch)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/admin/batches/route.ts",
+      "c1Conflict": true,
+      "contract": "C17",
+      "canonicalPath": "/api/admin/batches",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "main": [
+          "GET",
+          "POST"
+        ],
+        "v2": [
+          "GET",
+          "POST"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/admin/batches/route.ts:30 GET",
+        "main:src/app/api/admin/batches/route.ts:107 POST",
+        "v2:src/app/api/admin/batches/route.ts:30 GET",
+        "v2:src/app/api/admin/batches/route.ts:116 POST"
+      ],
+      "sourceHashes": {
+        "main": "b375a97811beb00d5b0e8c79b1624a3ba6a9854b1085c1022ca5bd829f8b5a9e",
+        "v2": "2c44459ce45e4318712bdd6459a4f872715cb076ca097360e7943810a7b370ef"
+      },
+      "literalConsumers": [
+        "main:src/components/layout/page-header.tsx:75 (fetchJsonArray)",
+        "main:src/components/modules/admin/batches-page.tsx:127 (fetch)",
+        "main:src/components/modules/admin/batches-page.tsx:139 (fetch)",
+        "main:src/components/modules/admin/groups-page.tsx:113 (fetchJsonArray)",
+        "main:src/components/shared/scope-selector.tsx:270 (fetchJsonArray)",
+        "v2:src/components/layout/page-header.tsx:70 (fetchJsonArray)",
+        "v2:src/components/modules/admin/batches-page.tsx:127 (fetch)",
+        "v2:src/components/modules/admin/batches-page.tsx:139 (fetch)",
+        "v2:src/components/modules/admin/groups-page.tsx:113 (fetchJsonArray)",
+        "v2:src/components/shared/scope-selector.tsx:270 (fetchJsonArray)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/admin/certificates/[participantId]/route.ts",
+      "c1Conflict": true,
+      "contract": "C20",
+      "canonicalPath": "/api/admin/certificates/[participantId]",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "main": [
+          "GET"
+        ],
+        "v2": [
+          "GET"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/admin/certificates/[participantId]/route.ts:14 GET",
+        "v2:src/app/api/admin/certificates/[participantId]/route.ts:16 GET"
+      ],
+      "sourceHashes": {
+        "main": "d40e661c79d47fde990e01776f243aee8398c8449dd96a955b3f1490da4c15b2",
+        "v2": "8241772391e9f6f556c5583994e9decb07060918d91405d9f1b0f33aeb2cac06"
+      },
+      "literalConsumers": [],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/admin/certificates/batch/route.ts",
+      "c1Conflict": true,
+      "contract": "C20",
+      "canonicalPath": "/api/admin/certificates/batch",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "main": [
+          "GET"
+        ],
+        "v2": [
+          "GET"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/admin/certificates/batch/route.ts:24 GET",
+        "v2:src/app/api/admin/certificates/batch/route.ts:26 GET"
+      ],
+      "sourceHashes": {
+        "main": "dc051058c6ab25435a066a02aa7398328ad992973c088e9990d5749e94acdee4",
+        "v2": "fcde77977144bedde4991c33976461c92da6358669eac174bdd1851484bbed6b"
+      },
+      "literalConsumers": [
+        "main:src/components/modules/admin/batches-page.tsx:228 (fetch)",
+        "v2:src/components/modules/admin/batches-page.tsx:228 (fetch)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/admin/cities/route.ts",
+      "c1Conflict": true,
+      "contract": "C17",
+      "canonicalPath": "/api/admin/cities",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "main": [
+          "GET",
+          "POST"
+        ],
+        "v2": [
+          "GET",
+          "POST"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/admin/cities/route.ts:18 GET",
+        "main:src/app/api/admin/cities/route.ts:42 POST",
+        "v2:src/app/api/admin/cities/route.ts:18 GET",
+        "v2:src/app/api/admin/cities/route.ts:47 POST"
+      ],
+      "sourceHashes": {
+        "main": "0da8db50d252903a889fbf32efb77455218f4db39dc5e4f9d4c3e419842ed8e5",
+        "v2": "67b3c6fe227684adc85824436f0a8645ea0ae20841d152dc73bb9c6de5104d80"
+      },
+      "literalConsumers": [
+        "main:src/app/admin/calling/_client.tsx:110 (fetch)",
+        "main:src/app/admin/events/_client.tsx:294 (fetch)",
+        "main:src/app/admin/mashwara/_client.tsx:120 (fetch)",
+        "main:src/app/admin/mashwara/_client.tsx:335 (fetch)",
+        "main:src/components/layout/page-header.tsx:61 (fetchJsonArray)",
+        "main:src/components/modules/admin/access-provisioning-page.tsx:285 (fetch)",
+        "main:src/components/modules/admin/admin-attendance-events.tsx:181 (fetchJsonArray)",
+        "main:src/components/modules/admin/admissions-page.tsx:499 (fetch)",
+        "main:src/components/modules/admin/cities-page.tsx:84 (fetch)",
+        "main:src/components/modules/admin/cities-page.tsx:91 (fetch)",
+        "main:src/components/modules/admin/collaboration-teams-page.tsx:98 (request)",
+        "main:src/components/modules/admin/fees-page.tsx:304 (fetch)",
+        "main:src/components/modules/admin/guardians-page.tsx:336 (fetchArrayResponse)",
+        "main:src/components/modules/admin/parks-page.tsx:93 (fetchJsonArray)",
+        "main:src/components/modules/admin/people-page.tsx:267 (fetch)",
+        "main:src/components/modules/admin/reports-page.tsx:1059 (fetch)",
+        "main:src/components/modules/admin/reports-page.tsx:661 (fetch)",
+        "main:src/components/modules/admin/students-page.tsx:270 (fetchArrayResponse)",
+        "main:src/components/modules/admin/users-page.tsx:195 (fetch)",
+        "main:src/components/modules/content-planner/content-planner-page.tsx:167 (request)",
+        "main:src/components/shared/scope-selector.tsx:238 (fetchJsonArray)",
+        "v2:src/app/admin/calling/_client.tsx:84 (fetch)",
+        "v2:src/app/admin/events/_client.tsx:259 (fetch)",
+        "v2:src/app/admin/mashwara/_client.tsx:198 (fetch)",
+        "v2:src/app/admin/mashwara/_client.tsx:380 (fetch)",
+        "v2:src/components/layout/page-header.tsx:56 (fetchJsonArray)",
+        "v2:src/components/modules/admin/access-provisioning-page.tsx:285 (fetch)",
+        "v2:src/components/modules/admin/admissions-page.tsx:504 (fetch)",
+        "v2:src/components/modules/admin/cities-page.tsx:80 (fetch)",
+        "v2:src/components/modules/admin/cities-page.tsx:87 (fetch)",
+        "v2:src/components/modules/admin/collaboration-teams-page.tsx:87 (request)",
+        "v2:src/components/modules/admin/guardians-page.tsx:336 (fetchArrayResponse)",
+        "v2:src/components/modules/admin/mobile-calling-page.tsx:38 (read)",
+        "v2:src/components/modules/admin/parks-page.tsx:93 (fetchJsonArray)",
+        "v2:src/components/modules/admin/people-page.tsx:267 (fetch)",
+        "v2:src/components/modules/admin/reports-page.tsx:1059 (fetch)",
+        "v2:src/components/modules/admin/reports-page.tsx:661 (fetch)",
+        "v2:src/components/modules/admin/students-page.tsx:271 (fetchArrayResponse)",
+        "v2:src/components/modules/admin/users-page.tsx:195 (fetch)",
+        "v2:src/components/modules/content-planner/content-planner-page.tsx:197 (request)",
+        "v2:src/components/modules/content-planner/mobile-content-planner-page.tsx:165 (request)",
+        "v2:src/components/shared/scope-selector.tsx:238 (fetchJsonArray)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/admin/collaboration-teams/[teamId]/members/[memberId]/route.ts",
+      "c1Conflict": true,
+      "contract": "C15",
+      "canonicalPath": "/api/admin/teams/[id]/members/[memberId]",
+      "disposition": "legacy adapter; same Teams capability, scope and lifecycle service",
+      "sourceMethods": {
+        "main": [
+          "PATCH",
+          "DELETE"
+        ],
+        "v2": [
+          "PATCH",
+          "DELETE"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/admin/collaboration-teams/[teamId]/members/[memberId]/route.ts:35 PATCH",
+        "main:src/app/api/admin/collaboration-teams/[teamId]/members/[memberId]/route.ts:104 DELETE",
+        "v2:src/app/api/admin/collaboration-teams/[teamId]/members/[memberId]/route.ts:35 PATCH",
+        "v2:src/app/api/admin/collaboration-teams/[teamId]/members/[memberId]/route.ts:107 DELETE"
+      ],
+      "sourceHashes": {
+        "main": "8bc98bd682d08264ecf60f5e1ebdb4dbc185e5f51564a6ca0914cb7ad0f647dc",
+        "v2": "a06720fd38d9cd1e0bbdfeab8a9909d81b7f91ff19a694cd01efcafe74be6044"
+      },
+      "literalConsumers": [],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/admin/collaboration-teams/[teamId]/members/route.ts",
+      "c1Conflict": true,
+      "contract": "C15",
+      "canonicalPath": "/api/admin/teams/[id]/members",
+      "disposition": "legacy adapter; same Teams capability, scope and lifecycle service",
+      "sourceMethods": {
+        "main": [
+          "GET",
+          "POST"
+        ],
+        "v2": [
+          "GET",
+          "POST"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/admin/collaboration-teams/[teamId]/members/route.ts:49 GET",
+        "main:src/app/api/admin/collaboration-teams/[teamId]/members/route.ts:113 POST",
+        "v2:src/app/api/admin/collaboration-teams/[teamId]/members/route.ts:48 GET",
+        "v2:src/app/api/admin/collaboration-teams/[teamId]/members/route.ts:112 POST"
+      ],
+      "sourceHashes": {
+        "main": "abe7b7fc2405306ce7f03d74200ff9b401aeac82de74dc5337a9b9a27c614ff8",
+        "v2": "4f60792a89c02911963e443d2154d5fc603eab552d9a45dcc20471dcec6d0018"
+      },
+      "literalConsumers": [
+        "v2:src/components/modules/admin/mobile-collaboration-teams-page.tsx:134 (fetch)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/admin/collaboration-teams/[teamId]/route.ts",
+      "c1Conflict": true,
+      "contract": "C15",
+      "canonicalPath": "/api/admin/teams/[id]",
+      "disposition": "legacy adapter; same Teams capability, scope and lifecycle service",
+      "sourceMethods": {
+        "main": [
+          "GET"
+        ],
+        "v2": [
+          "GET"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/admin/collaboration-teams/[teamId]/route.ts:15 GET",
+        "v2:src/app/api/admin/collaboration-teams/[teamId]/route.ts:14 GET"
+      ],
+      "sourceHashes": {
+        "main": "78fdb434cb65b1caaef53bbbacdbb88dedd66304f159b6c54ab4214d622b4501",
+        "v2": "fafda8f786b1831212e8d78966ade5bbf1245a1b5916a24136d73787f2ef7380"
+      },
+      "literalConsumers": [],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/admin/collaboration-teams/route.ts",
+      "c1Conflict": true,
+      "contract": "C15",
+      "canonicalPath": "/api/admin/teams",
+      "disposition": "legacy adapter; same Teams capability, scope and lifecycle service",
+      "sourceMethods": {
+        "main": [
+          "GET"
+        ],
+        "v2": [
+          "GET"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/admin/collaboration-teams/route.ts:27 GET",
+        "v2:src/app/api/admin/collaboration-teams/route.ts:27 GET"
+      ],
+      "sourceHashes": {
+        "main": "7a58a051aa7c795a59bbab70a07e54168aa998ff66c9b69414b902a815e731af",
+        "v2": "a9bc4b10712929994a360afc204bdeded9a4c13e4e3440e3a84bfeae1768eeb7"
+      },
+      "literalConsumers": [],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/admin/content-planner/blocks/[id]/route.ts",
+      "c1Conflict": true,
+      "contract": "C16",
+      "canonicalPath": "/api/admin/content-planner/blocks/[id]",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "main": [
+          "GET",
+          "PATCH",
+          "DELETE"
+        ],
+        "v2": [
+          "GET",
+          "PATCH",
+          "DELETE"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/admin/content-planner/blocks/[id]/route.ts:19 GET",
+        "main:src/app/api/admin/content-planner/blocks/[id]/route.ts:85 PATCH",
+        "main:src/app/api/admin/content-planner/blocks/[id]/route.ts:221 DELETE",
+        "v2:src/app/api/admin/content-planner/blocks/[id]/route.ts:19 GET",
+        "v2:src/app/api/admin/content-planner/blocks/[id]/route.ts:85 PATCH",
+        "v2:src/app/api/admin/content-planner/blocks/[id]/route.ts:221 DELETE"
+      ],
+      "sourceHashes": {
+        "main": "9f2d9861a24a2f0112faea59337fc51f63fc3610ec04479b09c9048762688ef4",
+        "v2": "f365e81c1d9ac4ddc5acf09ce93ca82e09d1350c5591422d201fcd64bc96f264"
+      },
+      "literalConsumers": [
+        "main:src/components/modules/content-planner/content-planner-page.tsx:337 (request)",
+        "v2:src/components/modules/content-planner/content-planner-page.tsx:393 (request)",
+        "v2:src/components/modules/content-planner/content-planner-page.tsx:419 (request)",
+        "v2:src/components/modules/content-planner/mobile-content-planner-page.tsx:330 (request)",
+        "v2:src/components/modules/content-planner/mobile-content-planner-page.tsx:346 (request)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/admin/content-planner/blocks/route.ts",
+      "c1Conflict": true,
+      "contract": "C16",
+      "canonicalPath": "/api/admin/content-planner/blocks",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "main": [
+          "GET",
+          "POST"
+        ],
+        "v2": [
+          "GET",
+          "POST"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/admin/content-planner/blocks/route.ts:22 GET",
+        "main:src/app/api/admin/content-planner/blocks/route.ts:111 POST",
+        "v2:src/app/api/admin/content-planner/blocks/route.ts:22 GET",
+        "v2:src/app/api/admin/content-planner/blocks/route.ts:111 POST"
+      ],
+      "sourceHashes": {
+        "main": "0558bfc0228b0e262b8d97ab6ed3a1284d6a2abdc8bb492c9a16eaa30e05a5c9",
+        "v2": "e37d9578b285b8645467d115013ba95f4fbba7945d60ad0bcd1da2e3ca1bb1dc"
+      },
+      "literalConsumers": [
+        "main:src/components/modules/content-planner/content-planner-page.tsx:204 (request)",
+        "main:src/components/modules/content-planner/content-planner-page.tsx:308 (request)",
+        "v2:src/components/modules/content-planner/content-planner-page.tsx:232 (request)",
+        "v2:src/components/modules/content-planner/content-planner-page.tsx:364 (request)",
+        "v2:src/components/modules/content-planner/mobile-content-planner-page.tsx:210 (request)",
+        "v2:src/components/modules/content-planner/mobile-content-planner-page.tsx:314 (request)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/admin/content-planner/permissions/route.ts",
+      "c1Conflict": true,
+      "contract": "C16",
+      "canonicalPath": "/api/admin/content-planner/permissions",
+      "disposition": "restore main endpoint under reviewed clause",
+      "sourceMethods": {
+        "main": [
+          "GET"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/admin/content-planner/permissions/route.ts:18 GET"
+      ],
+      "sourceHashes": {
+        "main": "b536d91e7327f4631f7bbf9e7227e09141f64ebe7d600f6aff6ea4f544d3b112"
+      },
+      "literalConsumers": [
+        "main:src/components/modules/content-planner/content-planner-page.tsx:159 (request)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/admin/content-planner/plans/[id]/route.ts",
+      "c1Conflict": true,
+      "contract": "C16",
+      "canonicalPath": "/api/admin/content-planner/plans/[id]",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "main": [
+          "GET",
+          "PATCH",
+          "DELETE"
+        ],
+        "v2": [
+          "GET",
+          "PATCH",
+          "DELETE"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/admin/content-planner/plans/[id]/route.ts:23 GET",
+        "main:src/app/api/admin/content-planner/plans/[id]/route.ts:84 PATCH",
+        "main:src/app/api/admin/content-planner/plans/[id]/route.ts:173 DELETE",
+        "v2:src/app/api/admin/content-planner/plans/[id]/route.ts:23 GET",
+        "v2:src/app/api/admin/content-planner/plans/[id]/route.ts:85 PATCH",
+        "v2:src/app/api/admin/content-planner/plans/[id]/route.ts:174 DELETE"
+      ],
+      "sourceHashes": {
+        "main": "909ed27b99310ec8ce04c6f8c4329c98fd69d22baf91dd34c3c993ed3017d469",
+        "v2": "d200e9662462d7ba6226d433f25b0e722920da6a82cb751ed9db810d714839e6"
+      },
+      "literalConsumers": [
+        "main:src/components/modules/content-planner/content-planner-page.tsx:192 (request)",
+        "main:src/components/modules/content-planner/content-planner-page.tsx:250 (request)",
+        "v2:src/components/modules/content-planner/content-planner-page.tsx:220 (request)",
+        "v2:src/components/modules/content-planner/content-planner-page.tsx:278 (request)",
+        "v2:src/components/modules/content-planner/mobile-content-planner-page.tsx:192 (request)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/admin/content-planner/plans/route.ts",
+      "c1Conflict": true,
+      "contract": "C16",
+      "canonicalPath": "/api/admin/content-planner/plans",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "main": [
+          "GET",
+          "POST"
+        ],
+        "v2": [
+          "GET",
+          "POST"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/admin/content-planner/plans/route.ts:23 GET",
+        "main:src/app/api/admin/content-planner/plans/route.ts:111 POST",
+        "v2:src/app/api/admin/content-planner/plans/route.ts:21 GET",
+        "v2:src/app/api/admin/content-planner/plans/route.ts:107 POST"
+      ],
+      "sourceHashes": {
+        "main": "fe3ad7c8be4671109fe2483495ef69dfe425f5772aebb97a1cf668bfe6a03dc0",
+        "v2": "1b2f2a5f66c909b325ddb2e38dd13e5c9751174754894cb7a20e3af8b757956d"
+      },
+      "literalConsumers": [
+        "main:src/components/modules/content-planner/content-planner-page.tsx:183 (request)",
+        "main:src/components/modules/content-planner/content-planner-page.tsx:231 (request)",
+        "v2:src/components/modules/content-planner/content-planner-page.tsx:259 (request)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/admin/content-planner/sessions/[id]/route.ts",
+      "c1Conflict": true,
+      "contract": "C16",
+      "canonicalPath": "/api/admin/content-planner/sessions/[id]",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "main": [
+          "GET",
+          "PATCH",
+          "DELETE"
+        ],
+        "v2": [
+          "GET",
+          "PATCH",
+          "DELETE"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/admin/content-planner/sessions/[id]/route.ts:19 GET",
+        "main:src/app/api/admin/content-planner/sessions/[id]/route.ts:77 PATCH",
+        "main:src/app/api/admin/content-planner/sessions/[id]/route.ts:208 DELETE",
+        "v2:src/app/api/admin/content-planner/sessions/[id]/route.ts:19 GET",
+        "v2:src/app/api/admin/content-planner/sessions/[id]/route.ts:77 PATCH",
+        "v2:src/app/api/admin/content-planner/sessions/[id]/route.ts:208 DELETE"
+      ],
+      "sourceHashes": {
+        "main": "1367ba2fbca721a4bac4885134070b0d5a8255542f517d5b90f856f6ef0d4b8d",
+        "v2": "6e225877eac8d423d8a17bdf9aebb244b43055a24959f25afee04de2c36694db"
+      },
+      "literalConsumers": [
+        "main:src/components/modules/content-planner/content-planner-page.tsx:287 (request)",
+        "v2:src/components/modules/content-planner/content-planner-page.tsx:315 (request)",
+        "v2:src/components/modules/content-planner/content-planner-page.tsx:344 (request)",
+        "v2:src/components/modules/content-planner/mobile-content-planner-page.tsx:276 (request)",
+        "v2:src/components/modules/content-planner/mobile-content-planner-page.tsx:292 (request)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/admin/content-planner/sessions/route.ts",
+      "c1Conflict": true,
+      "contract": "C16",
+      "canonicalPath": "/api/admin/content-planner/sessions",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "main": [
+          "GET",
+          "POST"
+        ],
+        "v2": [
+          "GET",
+          "POST"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/admin/content-planner/sessions/route.ts:21 GET",
+        "main:src/app/api/admin/content-planner/sessions/route.ts:101 POST",
+        "v2:src/app/api/admin/content-planner/sessions/route.ts:20 GET",
+        "v2:src/app/api/admin/content-planner/sessions/route.ts:100 POST"
+      ],
+      "sourceHashes": {
+        "main": "b6d2141ff2c87580c09b05859ab00fafcd39dffcfdf6004aa59b5192a98be344",
+        "v2": "28921563a26907dff35fb353b40d0d897df983df64dde81cf2207510809103c8"
+      },
+      "literalConsumers": [
+        "main:src/components/modules/content-planner/content-planner-page.tsx:269 (request)",
+        "v2:src/components/modules/content-planner/content-planner-page.tsx:297 (request)",
+        "v2:src/components/modules/content-planner/mobile-content-planner-page.tsx:252 (request)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/admin/content-planner/ui-context/route.ts",
+      "c1Conflict": false,
+      "contract": "C16",
+      "canonicalPath": "/api/admin/content-planner/ui-context",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "v2": [
+          "GET"
+        ]
+      },
+      "sourceEvidence": [
+        "v2:src/app/api/admin/content-planner/ui-context/route.ts:7 GET"
+      ],
+      "sourceHashes": {
+        "v2": "d1a3d2a4afc66c3a3d34f866c5f1ab4e27cc31a76a6cac47261bb5abe3c95595"
+      },
+      "literalConsumers": [
+        "v2:src/components/modules/content-planner/content-planner-page.tsx:183 (request)",
+        "v2:src/components/modules/content-planner/mobile-content-planner-page.tsx:155 (request)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/admin/dashboard/route.ts",
+      "c1Conflict": true,
+      "contract": "C11",
+      "canonicalPath": "/api/admin/dashboard",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "main": [
+          "GET"
+        ],
+        "v2": [
+          "GET"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/admin/dashboard/route.ts:94 GET",
+        "v2:src/app/api/admin/dashboard/route.ts:89 GET"
+      ],
+      "sourceHashes": {
+        "main": "240766eb0f2a7aa9305612c81ae924d2bcecc7a2c6e6284e274407a88da483a6",
+        "v2": "4b04d9bd509edd0d5acd7920bad5c40505c1d13c7c72e19d824cac5ef4270a2d"
+      },
+      "literalConsumers": [
+        "main:src/components/modules/admin/settings-page.tsx:391 (fetch)",
+        "v2:src/components/modules/admin/mobile-admin-dashboard.tsx:35 (fetch)",
+        "v2:src/components/modules/admin/settings-page.tsx:391 (fetch)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/admin/events/[id]/assignees/route.ts",
+      "c1Conflict": true,
+      "contract": "C08",
+      "canonicalPath": "/api/admin/events/[id]/assignees",
+      "disposition": "restore main endpoint under reviewed clause",
+      "sourceMethods": {
+        "main": [
+          "GET"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/admin/events/[id]/assignees/route.ts:12 GET"
+      ],
+      "sourceHashes": {
+        "main": "e84ccf5880f641235221175f562e1f2666d73df6e5f04bb9bc5820a72fad0eb1"
+      },
+      "literalConsumers": [
+        "main:src/components/events/EventResponsibilityCard.tsx:68 (fetch)",
+        "main:src/components/events/EventTeamRoster.tsx:59 (fetch)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/admin/events/[id]/eligible-participants/route.ts",
+      "c1Conflict": true,
+      "contract": "C07",
+      "canonicalPath": "/api/admin/events/[id]/eligible-participants",
+      "disposition": "restore main endpoint under reviewed clause",
+      "sourceMethods": {
+        "main": [
+          "GET"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/admin/events/[id]/eligible-participants/route.ts:6 GET"
+      ],
+      "sourceHashes": {
+        "main": "84e602ffa88727a166fe7179e6f8779df89904a6b14734addaa270427a0c82a4"
+      },
+      "literalConsumers": [
+        "main:src/app/admin/events/[id]/_client.tsx:122 (fetch)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/admin/events/[id]/planner-items/route.ts",
+      "c1Conflict": true,
+      "contract": "C08",
+      "canonicalPath": "/api/admin/events/[id]/planner-items",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "main": [
+          "GET",
+          "POST"
+        ],
+        "v2": [
+          "GET",
+          "POST"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/admin/events/[id]/planner-items/route.ts:12 GET",
+        "main:src/app/api/admin/events/[id]/planner-items/route.ts:37 POST",
+        "v2:src/app/api/admin/events/[id]/planner-items/route.ts:12 GET",
+        "v2:src/app/api/admin/events/[id]/planner-items/route.ts:37 POST"
+      ],
+      "sourceHashes": {
+        "main": "eaf7e960a06f5906653092d769b3d15da55cc1baa8fba34e0f0b14b157d30d01",
+        "v2": "f1c59fcdc6b3bc2e79e555d3ef1b2228403bd2fa8716f4844a95ddf4f2b5ba57"
+      },
+      "literalConsumers": [
+        "main:src/app/admin/events/[id]/_client.tsx:224 (fetch)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/admin/events/[id]/registrations/[registrationId]/check-in/route.ts",
+      "c1Conflict": true,
+      "contract": "C07",
+      "canonicalPath": "/api/admin/events/[id]/registrations/[registrationId]/check-in",
+      "disposition": "restore main endpoint under reviewed clause",
+      "sourceMethods": {
+        "main": [
+          "POST"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/admin/events/[id]/registrations/[registrationId]/check-in/route.ts:18 POST"
+      ],
+      "sourceHashes": {
+        "main": "23af9bb41a958a7ef0691c183db6483954ebfeaaa9fb1da96e397cdb61933e3d"
+      },
+      "literalConsumers": [],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/admin/events/[id]/registrations/[registrationId]/route.ts",
+      "c1Conflict": true,
+      "contract": "C07",
+      "canonicalPath": "/api/admin/events/[id]/registrations/[registrationId]",
+      "disposition": "restore main endpoint under reviewed clause",
+      "sourceMethods": {
+        "main": [
+          "PATCH"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/admin/events/[id]/registrations/[registrationId]/route.ts:13 PATCH"
+      ],
+      "sourceHashes": {
+        "main": "c6353591a071c45173182edd4715c9e8103a2db6f85f0a8f71afbb32f645ab7d"
+      },
+      "literalConsumers": [],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/admin/events/[id]/registrations/route.ts",
+      "c1Conflict": true,
+      "contract": "C07",
+      "canonicalPath": "/api/admin/events/[id]/registrations",
+      "disposition": "restore main endpoint under reviewed clause",
+      "sourceMethods": {
+        "main": [
+          "GET",
+          "POST"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/admin/events/[id]/registrations/route.ts:20 GET",
+        "main:src/app/api/admin/events/[id]/registrations/route.ts:50 POST"
+      ],
+      "sourceHashes": {
+        "main": "d68d10e7b3e5cd823e9f5131fa3c81786e07612a37a9017b92c2ff057c676066"
+      },
+      "literalConsumers": [
+        "main:src/app/admin/events/[id]/_client.tsx:132 (fetch)",
+        "main:src/app/admin/events/[id]/_client.tsx:195 (fetch)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/admin/events/[id]/responsibilities/route.ts",
+      "c1Conflict": true,
+      "contract": "C08",
+      "canonicalPath": "/api/admin/events/[id]/responsibilities",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "main": [
+          "GET",
+          "POST"
+        ],
+        "v2": [
+          "GET",
+          "POST"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/admin/events/[id]/responsibilities/route.ts:13 GET",
+        "main:src/app/api/admin/events/[id]/responsibilities/route.ts:42 POST",
+        "v2:src/app/api/admin/events/[id]/responsibilities/route.ts:13 GET",
+        "v2:src/app/api/admin/events/[id]/responsibilities/route.ts:42 POST"
+      ],
+      "sourceHashes": {
+        "main": "d2dc7d0762101795e4adca9d175edc3f359a0bf21d7933e0f382effafd148f4d",
+        "v2": "7a1202e9bd959e5945f737a73fc5e21696c7a774bd37b05b1b408615075dc7b2"
+      },
+      "literalConsumers": [
+        "main:src/components/events/EventResponsibilityCard.tsx:61 (fetch)",
+        "main:src/components/events/EventResponsibilityCard.tsx:79 (fetch)",
+        "v2:src/components/events/EventResponsibilityCard.tsx:54 (fetch)",
+        "v2:src/components/events/EventResponsibilityCard.tsx:59 (fetch)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/admin/events/[id]/route.ts",
+      "c1Conflict": true,
+      "contract": "C06",
+      "canonicalPath": "/api/admin/events/[id]",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "main": [
+          "GET",
+          "PATCH",
+          "DELETE"
+        ],
+        "v2": [
+          "GET",
+          "PATCH",
+          "DELETE"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/admin/events/[id]/route.ts:13 GET",
+        "main:src/app/api/admin/events/[id]/route.ts:57 PATCH",
+        "main:src/app/api/admin/events/[id]/route.ts:131 DELETE",
+        "v2:src/app/api/admin/events/[id]/route.ts:13 GET",
+        "v2:src/app/api/admin/events/[id]/route.ts:57 PATCH",
+        "v2:src/app/api/admin/events/[id]/route.ts:127 DELETE"
+      ],
+      "sourceHashes": {
+        "main": "e3268257bdf00105672a939ba69fa5e2c4a73fbed310676cc19f2a398d1f86fc",
+        "v2": "190844e2df309c06a8f623f452119cb7eccf26e5b0abd7e70c03c0535ca0a068"
+      },
+      "literalConsumers": [
+        "main:src/app/admin/events/[id]/_client.tsx:143 (fetch)",
+        "main:src/app/admin/events/[id]/_client.tsx:154 (fetch)",
+        "main:src/app/admin/events/[id]/_client.tsx:174 (fetch)",
+        "v2:src/app/admin/events/[id]/_client.tsx:107 (fetch)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/admin/events/[id]/teams/route.ts",
+      "c1Conflict": false,
+      "contract": "C08",
+      "canonicalPath": "/api/admin/events/[id]/teams",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "main": [
+          "GET",
+          "POST"
+        ],
+        "v2": [
+          "GET",
+          "POST"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/admin/events/[id]/teams/route.ts:12 GET",
+        "main:src/app/api/admin/events/[id]/teams/route.ts:39 POST",
+        "v2:src/app/api/admin/events/[id]/teams/route.ts:12 GET",
+        "v2:src/app/api/admin/events/[id]/teams/route.ts:39 POST"
+      ],
+      "sourceHashes": {
+        "main": "a844e8601a6a38551b8258b4a435749de6efb48b1c4b22a29015fa8f75b34a97",
+        "v2": "a844e8601a6a38551b8258b4a435749de6efb48b1c4b22a29015fa8f75b34a97"
+      },
+      "literalConsumers": [
+        "main:src/app/admin/events/[id]/_client.tsx:261 (fetch)",
+        "main:src/components/events/EventTeamRoster.tsx:47 (fetch)",
+        "v2:src/components/events/EventTeamRoster.tsx:43 (fetch)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/admin/events/planner-items/[id]/route.ts",
+      "c1Conflict": false,
+      "contract": "C08",
+      "canonicalPath": "/api/admin/events/planner-items/[id]",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "main": [
+          "PATCH"
+        ],
+        "v2": [
+          "PATCH"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/admin/events/planner-items/[id]/route.ts:13 PATCH",
+        "v2:src/app/api/admin/events/planner-items/[id]/route.ts:13 PATCH"
+      ],
+      "sourceHashes": {
+        "main": "3c746f179817bfd4db311456c6c839b2d99248ab90c640d7b179ef47d1e351c3",
+        "v2": "3c746f179817bfd4db311456c6c839b2d99248ab90c640d7b179ef47d1e351c3"
+      },
+      "literalConsumers": [
+        "main:src/app/admin/events/[id]/_client.tsx:246 (fetch)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/admin/events/responsibilities/[id]/revoke/route.ts",
+      "c1Conflict": true,
+      "contract": "C08",
+      "canonicalPath": "/api/admin/events/responsibilities/[id]/revoke",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "main": [
+          "POST",
+          "PATCH"
+        ],
+        "v2": [
+          "POST",
+          "PATCH"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/admin/events/responsibilities/[id]/revoke/route.ts:13 POST",
+        "main:src/app/api/admin/events/responsibilities/[id]/revoke/route.ts:17 PATCH",
+        "v2:src/app/api/admin/events/responsibilities/[id]/revoke/route.ts:13 POST",
+        "v2:src/app/api/admin/events/responsibilities/[id]/revoke/route.ts:17 PATCH"
+      ],
+      "sourceHashes": {
+        "main": "9b920ab60796ca4dd3b3747d7baf5d86ee424ec3b77002860133b5c1e065ac5b",
+        "v2": "d577d87d6dcfc2fe102875d91937ad886322ecc690ba62ba6c0d16150cb45879"
+      },
+      "literalConsumers": [
+        "main:src/components/events/EventResponsibilityCard.tsx:107 (fetch)",
+        "v2:src/components/events/EventResponsibilityCard.tsx:79 (fetch)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/admin/events/route.ts",
+      "c1Conflict": true,
+      "contract": "C06",
+      "canonicalPath": "/api/admin/events",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "main": [
+          "GET",
+          "POST"
+        ],
+        "v2": [
+          "GET",
+          "POST"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/admin/events/route.ts:9 GET",
+        "main:src/app/api/admin/events/route.ts:74 POST",
+        "v2:src/app/api/admin/events/route.ts:9 GET",
+        "v2:src/app/api/admin/events/route.ts:61 POST"
+      ],
+      "sourceHashes": {
+        "main": "886ab1a5275d2abeeb492167d56eebc47671f92341df2a0b3b4c3dc64b044f2d",
+        "v2": "1d3784f67b6162e3c7955da6fcfaa08197777c7b16fd340895cab5e572193bc0"
+      },
+      "literalConsumers": [
+        "main:src/app/admin/events/_client.tsx:128 (fetch)",
+        "main:src/app/admin/events/_client.tsx:282 (fetch)",
+        "v2:src/app/admin/events/_client.tsx:250 (fetch)",
+        "v2:src/components/modules/admin/mobile-events-page.tsx:56 (fetch)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/admin/events/teams/[teamId]/memberships/route.ts",
+      "c1Conflict": true,
+      "contract": "C08",
+      "canonicalPath": "/api/admin/events/teams/[teamId]/memberships",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "main": [
+          "POST"
+        ],
+        "v2": [
+          "POST"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/admin/events/teams/[teamId]/memberships/route.ts:12 POST",
+        "v2:src/app/api/admin/events/teams/[teamId]/memberships/route.ts:12 POST"
+      ],
+      "sourceHashes": {
+        "main": "1f6d6ef62972f579e7de10bdf118a212d4df358c0e1545e35b922d75c20e4900",
+        "v2": "3b87436e7638e585afab1a7e7ab57c59427583b01314b2d1fc7df201d40e7192"
+      },
+      "literalConsumers": [
+        "main:src/components/events/EventTeamRoster.tsx:68 (fetch)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/admin/events/teams/memberships/[id]/route.ts",
+      "c1Conflict": false,
+      "contract": "C08",
+      "canonicalPath": "/api/admin/events/teams/memberships/[id]",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "main": [
+          "DELETE"
+        ],
+        "v2": [
+          "DELETE"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/admin/events/teams/memberships/[id]/route.ts:11 DELETE",
+        "v2:src/app/api/admin/events/teams/memberships/[id]/route.ts:11 DELETE"
+      ],
+      "sourceHashes": {
+        "main": "4f4d5aa790d45d1fe3b2d0b85d4d8c06cd67c3246d20ddf9d79b75c180893f33",
+        "v2": "4f4d5aa790d45d1fe3b2d0b85d4d8c06cd67c3246d20ddf9d79b75c180893f33"
+      },
+      "literalConsumers": [
+        "main:src/components/events/EventTeamRoster.tsx:89 (fetch)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/admin/events/ui-context/route.ts",
+      "c1Conflict": true,
+      "contract": "C06",
+      "canonicalPath": "/api/admin/events/ui-context",
+      "disposition": "restore main endpoint under reviewed clause",
+      "sourceMethods": {
+        "main": [
+          "GET"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/admin/events/ui-context/route.ts:12 GET"
+      ],
+      "sourceHashes": {
+        "main": "db2de3c5508957e78651afc762f13c8ff57edc47ed1641cb3c9357101a7efb5c"
+      },
+      "literalConsumers": [
+        "main:src/app/admin/events/[id]/_client.tsx:109 (fetch)",
+        "main:src/app/admin/events/[id]/_client.tsx:143 (fetch)",
+        "main:src/app/admin/events/[id]/_client.tsx:154 (fetch)",
+        "main:src/app/admin/events/[id]/_client.tsx:174 (fetch)",
+        "main:src/app/admin/events/_client.tsx:257 (fetch)",
+        "v2:src/app/admin/events/[id]/_client.tsx:107 (fetch)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/admin/fees/[id]/payments/route.ts",
+      "c1Conflict": true,
+      "contract": "C18",
+      "canonicalPath": "/api/admin/fees/[id]/payments",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "main": [
+          "GET",
+          "POST"
+        ],
+        "v2": [
+          "GET",
+          "POST"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/admin/fees/[id]/payments/route.ts:48 GET",
+        "main:src/app/api/admin/fees/[id]/payments/route.ts:160 POST",
+        "v2:src/app/api/admin/fees/[id]/payments/route.ts:50 GET",
+        "v2:src/app/api/admin/fees/[id]/payments/route.ts:165 POST"
+      ],
+      "sourceHashes": {
+        "main": "61d37977a80cddb4b8c264504aa548421039a623fbbf20ce6ccb447cebbe29cc",
+        "v2": "e09c07c263a2bb83c6fb63fc59d3f2b170e368cf658a365e894e6e57da6ea637"
+      },
+      "literalConsumers": [
+        "main:src/components/modules/admin/fees-page.tsx:535 (fetch)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/admin/fees/route.ts",
+      "c1Conflict": true,
+      "contract": "C18",
+      "canonicalPath": "/api/admin/fees",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "main": [
+          "GET",
+          "POST"
+        ],
+        "v2": [
+          "GET",
+          "POST"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/admin/fees/route.ts:50 GET",
+        "main:src/app/api/admin/fees/route.ts:232 POST",
+        "v2:src/app/api/admin/fees/route.ts:51 GET",
+        "v2:src/app/api/admin/fees/route.ts:236 POST"
+      ],
+      "sourceHashes": {
+        "main": "0eba7e4d840f5e4c553198cfc45425b3f7df8da86ea6558adb8738186a8c1b60",
+        "v2": "aea186e773060a445252b5f367babdaad10f167d77e4a93e3f6d204cac419631"
+      },
+      "literalConsumers": [
+        "main:src/components/modules/admin/fees-page.tsx:417 (fetch)",
+        "main:src/components/modules/admin/fees-page.tsx:439 (fetch)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/admin/groups/route.ts",
+      "c1Conflict": true,
+      "contract": "C17",
+      "canonicalPath": "/api/admin/groups",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "main": [
+          "GET",
+          "POST"
+        ],
+        "v2": [
+          "GET",
+          "POST"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/admin/groups/route.ts:32 GET",
+        "main:src/app/api/admin/groups/route.ts:119 POST",
+        "v2:src/app/api/admin/groups/route.ts:32 GET",
+        "v2:src/app/api/admin/groups/route.ts:128 POST"
+      ],
+      "sourceHashes": {
+        "main": "c74a9b025ed50c3e8b3d78230b7ac1af595447f46b51eb9c65d1bb7b3ab3326b",
+        "v2": "2efc73899bcf146753099a68d519d4178e1a5da9ada3f7231f37aa8ca6299fc9"
+      },
+      "literalConsumers": [
+        "main:src/components/layout/page-header.tsx:82 (fetchJsonArray)",
+        "main:src/components/modules/admin/access-provisioning-page.tsx:309 (fetch)",
+        "main:src/components/modules/admin/admissions-page.tsx:511 (fetch)",
+        "main:src/components/modules/admin/groups-page.tsx:126 (fetchJsonArray)",
+        "main:src/components/modules/admin/groups-page.tsx:133 (fetch)",
+        "main:src/components/modules/admin/people-page.tsx:1155 (fetch)",
+        "main:src/components/modules/admin/students-page.tsx:284 (fetchArrayResponse)",
+        "main:src/components/modules/admin/users-page.tsx:219 (fetch)",
+        "main:src/components/shared/scope-selector.tsx:282 (fetchJsonArray)",
+        "main:src/components/shared/scope-selector.tsx:294 (fetchJsonArray)",
+        "v2:src/components/layout/page-header.tsx:77 (fetchJsonArray)",
+        "v2:src/components/modules/admin/access-provisioning-page.tsx:309 (fetch)",
+        "v2:src/components/modules/admin/admissions-page.tsx:516 (fetch)",
+        "v2:src/components/modules/admin/groups-page.tsx:126 (fetchJsonArray)",
+        "v2:src/components/modules/admin/groups-page.tsx:133 (fetch)",
+        "v2:src/components/modules/admin/people-page.tsx:1155 (fetch)",
+        "v2:src/components/modules/admin/students-page.tsx:285 (fetchArrayResponse)",
+        "v2:src/components/modules/admin/users-page.tsx:219 (fetch)",
+        "v2:src/components/shared/scope-selector.tsx:282 (fetchJsonArray)",
+        "v2:src/components/shared/scope-selector.tsx:294 (fetchJsonArray)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/admin/guardians/[id]/account/route.ts",
+      "c1Conflict": true,
+      "contract": "C03",
+      "canonicalPath": "/api/admin/guardians/[id]/account",
+      "disposition": "restore main endpoint under reviewed clause",
+      "sourceMethods": {
+        "main": [
+          "POST"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/admin/guardians/[id]/account/route.ts:19 POST"
+      ],
+      "sourceHashes": {
+        "main": "1cd14270fc4a53bc0da7a24b831a1099426835cffe182652aee84906bb0a8904"
+      },
+      "literalConsumers": [
+        "main:src/components/modules/admin/guardians-page.tsx:471 (fetch)",
+        "v2:src/components/modules/admin/guardians-page.tsx:471 (fetch)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/admin/guardians/[id]/detail/route.ts",
+      "c1Conflict": true,
+      "contract": "C04",
+      "canonicalPath": "/api/admin/guardians/[id]/detail",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "main": [
+          "GET"
+        ],
+        "v2": [
+          "GET"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/admin/guardians/[id]/detail/route.ts:6 GET",
+        "v2:src/app/api/admin/guardians/[id]/detail/route.ts:6 GET"
+      ],
+      "sourceHashes": {
+        "main": "b0fdd6b511b499c5e72a26dba06b1c46519301ab2109034b0e1460d4746ed40d",
+        "v2": "0da9959a52c7aa0a609e69b83e5e0f7c16769feda28f64cc700d47b464650f86"
+      },
+      "literalConsumers": [
+        "main:src/components/modules/admin/guardian-detail-sheet.tsx:177 (fetch)",
+        "v2:src/components/modules/admin/guardian-detail-sheet.tsx:177 (fetch)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/admin/guardians/[id]/route.ts",
+      "c1Conflict": true,
+      "contract": "C04",
+      "canonicalPath": "/api/admin/guardians/[id]",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "main": [
+          "PATCH",
+          "DELETE"
+        ],
+        "v2": [
+          "GET",
+          "PATCH",
+          "DELETE"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/admin/guardians/[id]/route.ts:16 PATCH",
+        "main:src/app/api/admin/guardians/[id]/route.ts:104 DELETE",
+        "v2:src/app/api/admin/guardians/[id]/route.ts:16 GET",
+        "v2:src/app/api/admin/guardians/[id]/route.ts:51 PATCH",
+        "v2:src/app/api/admin/guardians/[id]/route.ts:139 DELETE"
+      ],
+      "sourceHashes": {
+        "main": "4a2d685cbe1c228eb2f9e9cfd5e73d469278372058d69c087613e90d82917157",
+        "v2": "ed3773b6a3145e7bc9d27d1b8a60f8011c30a5750f731d11ee6dcad65f158907"
+      },
+      "literalConsumers": [
+        "main:src/components/modules/admin/guardians-page.tsx:429 (fetch)",
+        "main:src/components/modules/admin/guardians-page.tsx:454 (fetch)",
+        "main:src/components/modules/admin/guardians-page.tsx:489 (fetch)",
+        "v2:src/components/modules/admin/guardians-page.tsx:429 (fetch)",
+        "v2:src/components/modules/admin/guardians-page.tsx:454 (fetch)",
+        "v2:src/components/modules/admin/guardians-page.tsx:489 (fetch)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/admin/guardians/invite/route.ts",
+      "c1Conflict": true,
+      "contract": "C03",
+      "canonicalPath": "/api/admin/guardians/invite",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "main": [
+          "POST"
+        ],
+        "v2": [
+          "POST"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/admin/guardians/invite/route.ts:24 POST",
+        "v2:src/app/api/admin/guardians/invite/route.ts:24 POST"
+      ],
+      "sourceHashes": {
+        "main": "268240b48bec087d0be288f30c66557c40db4ac3171a93f9451d798d7517432d",
+        "v2": "541b7f5649280ce6b293f27ca5d6c6e1e1e6e2eb064198c4eb481483fba8aae7"
+      },
+      "literalConsumers": [
+        "main:src/components/modules/admin/guardians-page.tsx:276 (fetch)",
+        "main:src/components/modules/admin/guardians-page.tsx:429 (fetch)",
+        "main:src/components/modules/admin/guardians-page.tsx:454 (fetch)",
+        "main:src/components/modules/admin/guardians-page.tsx:489 (fetch)",
+        "v2:src/components/modules/admin/guardians-page.tsx:276 (fetch)",
+        "v2:src/components/modules/admin/guardians-page.tsx:429 (fetch)",
+        "v2:src/components/modules/admin/guardians-page.tsx:454 (fetch)",
+        "v2:src/components/modules/admin/guardians-page.tsx:489 (fetch)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/admin/guardians/route.ts",
+      "c1Conflict": true,
+      "contract": "C04",
+      "canonicalPath": "/api/admin/guardians",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "main": [
+          "GET",
+          "POST"
+        ],
+        "v2": [
+          "GET",
+          "POST"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/admin/guardians/route.ts:31 GET",
+        "main:src/app/api/admin/guardians/route.ts:187 POST",
+        "v2:src/app/api/admin/guardians/route.ts:31 GET",
+        "v2:src/app/api/admin/guardians/route.ts:185 POST"
+      ],
+      "sourceHashes": {
+        "main": "18db2f92ba6b217f9274d260fba15c1ac70fbbadc9e353a88fa9c52152464e51",
+        "v2": "ae7b3f6ac64cad1e76365fc1693d136486a82a88b75c1a2f4903c52b0d70767e"
+      },
+      "literalConsumers": [
+        "main:src/components/modules/admin/guardians-page.tsx:349 (fetch)",
+        "main:src/components/modules/admin/guardians-page.tsx:404 (fetch)",
+        "v2:src/components/modules/admin/guardians-page.tsx:349 (fetch)",
+        "v2:src/components/modules/admin/guardians-page.tsx:404 (fetch)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/admin/import/participants/route.ts",
+      "c1Conflict": true,
+      "contract": "C03",
+      "canonicalPath": "/api/admin/import/participants",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "main": [
+          "POST"
+        ],
+        "v2": [
+          "POST"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/admin/import/participants/route.ts:12 POST",
+        "v2:src/app/api/admin/import/participants/route.ts:12 POST"
+      ],
+      "sourceHashes": {
+        "main": "7ed21f09974198e41481a10caffc59d76fe08ae1b067f31da68aea7a79c7fb02",
+        "v2": "63f3b7bb0fdd3e4f7eb4a14cf735d447b3f0d40ae45c9b0c34acd06a8020252e"
+      },
+      "literalConsumers": [],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/admin/import/users/route.ts",
+      "c1Conflict": true,
+      "contract": "C03",
+      "canonicalPath": "/api/admin/import/users",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "main": [
+          "POST"
+        ],
+        "v2": [
+          "POST"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/admin/import/users/route.ts:31 POST",
+        "v2:src/app/api/admin/import/users/route.ts:31 POST"
+      ],
+      "sourceHashes": {
+        "main": "cbe380f479f4cfd6f9c1b9b7e102ae744a40178b89fbb32e8a31ffc79bdbdb3c",
+        "v2": "c10284f7e5167857dd2940774eae7cfbeb875ef1ddc74b6bb2ef89114aad4cf2"
+      },
+      "literalConsumers": [],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/admin/invite/route.ts",
+      "c1Conflict": true,
+      "contract": "C03",
+      "canonicalPath": "/api/admin/invite",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "main": [
+          "POST"
+        ],
+        "v2": [
+          "POST"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/admin/invite/route.ts:40 POST",
+        "v2:src/app/api/admin/invite/route.ts:40 POST"
+      ],
+      "sourceHashes": {
+        "main": "8be438abefbd4df07eef9598fb00e61f5e867b7ce3a9e4da0de57f417b0fbbf6",
+        "v2": "a63ea39191878496f72761c266c184e315f62cfc6dc8ae51db211c3fed6bab58"
+      },
+      "literalConsumers": [
+        "main:src/components/modules/admin/access-provisioning-page.tsx:351 (fetch)",
+        "main:src/components/modules/admin/people-page.tsx:312 (fetch)",
+        "main:src/components/modules/admin/users-page.tsx:240 (fetch)",
+        "v2:src/components/modules/admin/access-provisioning-page.tsx:351 (fetch)",
+        "v2:src/components/modules/admin/mobile-staff-directory-page.tsx:101 (fetch)",
+        "v2:src/components/modules/admin/people-page.tsx:312 (fetch)",
+        "v2:src/components/modules/admin/users-page.tsx:240 (fetch)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/admin/mashwara/[id]/action-items/[itemId]/route.ts",
+      "c1Conflict": true,
+      "contract": "C14",
+      "canonicalPath": "/api/admin/mashwara/[id]/action-items/[itemId]",
+      "disposition": "restore main endpoint under reviewed clause",
+      "sourceMethods": {
+        "main": [
+          "PATCH"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/admin/mashwara/[id]/action-items/[itemId]/route.ts:16 PATCH"
+      ],
+      "sourceHashes": {
+        "main": "5b4e81fc3039ecbb9626b92b7e9e395572f15baa5491a6e0bd68c8e2f803ecb5"
+      },
+      "literalConsumers": [],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/admin/mashwara/[id]/decisions/route.ts",
+      "c1Conflict": true,
+      "contract": "C14",
+      "canonicalPath": "/api/admin/mashwara/[id]/decisions",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "main": [
+          "POST"
+        ],
+        "v2": [
+          "POST"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/admin/mashwara/[id]/decisions/route.ts:28 POST",
+        "v2:src/app/api/admin/mashwara/[id]/decisions/route.ts:23 POST"
+      ],
+      "sourceHashes": {
+        "main": "c272228dd253ed7683cd30c53675779bdd9ca92741bd26990d4e0f760547f98a",
+        "v2": "dc6eefdd1d0f4c7504f787361a53dea2daa04a8439082ea640a395cd96e9a6d0"
+      },
+      "literalConsumers": [
+        "main:src/components/mashwara/MashwaraDecisionModal.tsx:115 (fetch)",
+        "v2:src/components/mashwara/MashwaraDecisionModal.tsx:126 (fetch)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/admin/mashwara/[id]/minutes/route.ts",
+      "c1Conflict": false,
+      "contract": "C14",
+      "canonicalPath": "/api/admin/mashwara/[id]/minutes",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "v2": [
+          "GET"
+        ]
+      },
+      "sourceEvidence": [
+        "v2:src/app/api/admin/mashwara/[id]/minutes/route.ts:10 GET"
+      ],
+      "sourceHashes": {
+        "v2": "b523a025b8aaac6f27421c92f494dbc1020d64c28d6d5ff4428ba824d1ab232f"
+      },
+      "literalConsumers": [
+        "v2:src/app/admin/mashwara/[id]/_client.tsx:265 (fetch)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/admin/mashwara/[id]/route.ts",
+      "c1Conflict": false,
+      "contract": "C14",
+      "canonicalPath": "/api/admin/mashwara/[id]",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "main": [
+          "GET"
+        ],
+        "v2": [
+          "GET"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/admin/mashwara/[id]/route.ts:6 GET",
+        "v2:src/app/api/admin/mashwara/[id]/route.ts:6 GET"
+      ],
+      "sourceHashes": {
+        "main": "3c0f2006953c59470851ff99eacdc63e3d23f1e09201c6c2bc4a39f84206c511",
+        "v2": "3c0f2006953c59470851ff99eacdc63e3d23f1e09201c6c2bc4a39f84206c511"
+      },
+      "literalConsumers": [
+        "main:src/app/admin/mashwara/[id]/_client.tsx:124 (fetch)",
+        "v2:src/app/admin/mashwara/[id]/_client.tsx:219 (fetch)",
+        "v2:src/app/admin/mashwara/[id]/_client.tsx:248 (fetch)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/admin/mashwara/[id]/shares/[shareId]/route.ts",
+      "c1Conflict": true,
+      "contract": "C14",
+      "canonicalPath": "/api/admin/mashwara/[id]/shares/[shareId]",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "main": [
+          "DELETE"
+        ],
+        "v2": [
+          "DELETE"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/admin/mashwara/[id]/shares/[shareId]/route.ts:7 DELETE",
+        "v2:src/app/api/admin/mashwara/[id]/shares/[shareId]/route.ts:6 DELETE"
+      ],
+      "sourceHashes": {
+        "main": "78ef294134b303a7001dc844c90f3d8920cccd2548a282f27a76ef7fca9fcc30",
+        "v2": "60d9c1188703f0a1b18bf3262b3814f2e0dd8083930eb215ef6f4b564de20871"
+      },
+      "literalConsumers": [
+        "main:src/app/admin/mashwara/[id]/_client.tsx:133 (fetch)",
+        "v2:src/app/admin/mashwara/[id]/_client.tsx:230 (fetch)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/admin/mashwara/[id]/shares/route.ts",
+      "c1Conflict": true,
+      "contract": "C14",
+      "canonicalPath": "/api/admin/mashwara/[id]/shares",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "main": [
+          "POST"
+        ],
+        "v2": [
+          "POST"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/admin/mashwara/[id]/shares/route.ts:14 POST",
+        "v2:src/app/api/admin/mashwara/[id]/shares/route.ts:11 POST"
+      ],
+      "sourceHashes": {
+        "main": "1ed483e7b219e3349de2d6eb635085b3eff92ce2e6c18df0b43419d073280eef",
+        "v2": "6d93874aea4cce134554588f878804b8c44d2b373733e9376c06af068704d1c8"
+      },
+      "literalConsumers": [
+        "main:src/components/mashwara/MashwaraShareModal.tsx:67 (fetch)",
+        "v2:src/components/mashwara/MashwaraShareModal.tsx:67 (fetch)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/admin/mashwara/route.ts",
+      "c1Conflict": true,
+      "contract": "C14",
+      "canonicalPath": "/api/admin/mashwara",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "main": [
+          "GET",
+          "POST"
+        ],
+        "v2": [
+          "GET",
+          "POST"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/admin/mashwara/route.ts:27 GET",
+        "main:src/app/api/admin/mashwara/route.ts:83 POST",
+        "v2:src/app/api/admin/mashwara/route.ts:26 GET",
+        "v2:src/app/api/admin/mashwara/route.ts:82 POST"
+      ],
+      "sourceHashes": {
+        "main": "590445558fc8b0d0a854f60623cfb525b50c9354d56e0050a8405b3a42781493",
+        "v2": "36abff155683480c63b63db958011c8f9c070ee81d4142cd3809759afe6119e6"
+      },
+      "literalConsumers": [
+        "main:src/app/admin/mashwara/_client.tsx:130 (fetch)",
+        "main:src/app/admin/mashwara/_client.tsx:353 (fetch)",
+        "v2:src/app/admin/mashwara/_client.tsx:208 (fetch)",
+        "v2:src/app/admin/mashwara/_client.tsx:398 (fetch)",
+        "v2:src/components/modules/admin/mobile-mashwara-page.tsx:145 (fetch)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/admin/mashwara/ui-context/route.ts",
+      "c1Conflict": true,
+      "contract": "C14",
+      "canonicalPath": "/api/admin/mashwara/ui-context",
+      "disposition": "restore main endpoint under reviewed clause",
+      "sourceMethods": {
+        "main": [
+          "GET"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/admin/mashwara/ui-context/route.ts:19 GET"
+      ],
+      "sourceHashes": {
+        "main": "dc3f6850f5341d9863d01f72f26956c925dd908199939b2da803e3fd73cda28b"
+      },
+      "literalConsumers": [
+        "main:src/app/admin/mashwara/[id]/_client.tsx:102 (fetch)",
+        "main:src/app/admin/mashwara/[id]/_client.tsx:124 (fetch)",
+        "main:src/app/admin/mashwara/_client.tsx:310 (fetch)",
+        "v2:src/app/admin/mashwara/[id]/_client.tsx:219 (fetch)",
+        "v2:src/app/admin/mashwara/[id]/_client.tsx:248 (fetch)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/admin/media/assignees/route.ts",
+      "c1Conflict": true,
+      "contract": "C01",
+      "canonicalPath": "/api/admin/media/assignees",
+      "disposition": "restore main endpoint under reviewed clause",
+      "sourceMethods": {
+        "main": [
+          "GET"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/admin/media/assignees/route.ts:6 GET"
+      ],
+      "sourceHashes": {
+        "main": "0aee9b58fe499c2bce54558ec58453b38b98182b0646670086a22a874067624f"
+      },
+      "literalConsumers": [],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/admin/media/briefs/[id]/route.ts",
+      "c1Conflict": true,
+      "contract": "C01",
+      "canonicalPath": "/api/admin/media/briefs/[id]",
+      "disposition": "restore main endpoint under reviewed clause",
+      "sourceMethods": {
+        "main": [
+          "GET",
+          "PATCH"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/admin/media/briefs/[id]/route.ts:10 GET",
+        "main:src/app/api/admin/media/briefs/[id]/route.ts:24 PATCH"
+      ],
+      "sourceHashes": {
+        "main": "de2fc56fc3b214b7f0ae7ed68d76640528753cdbb0a51f72bd3d5621dd555912"
+      },
+      "literalConsumers": [
+        "main:src/components/modules/media/media-briefs-page.tsx:106 (api)",
+        "main:src/components/modules/media/media-briefs-page.tsx:80 (api)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/admin/media/briefs/route.ts",
+      "c1Conflict": true,
+      "contract": "C01",
+      "canonicalPath": "/api/admin/media/briefs",
+      "disposition": "restore main endpoint under reviewed clause",
+      "sourceMethods": {
+        "main": [
+          "GET",
+          "POST"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/admin/media/briefs/route.ts:11 GET",
+        "main:src/app/api/admin/media/briefs/route.ts:51 POST"
+      ],
+      "sourceHashes": {
+        "main": "a9860d2bf457cb73f8628fd7aca34fd019514f4fdb347c149d08ff85daaff507"
+      },
+      "literalConsumers": [
+        "main:src/components/modules/media/media-briefs-page.tsx:73 (api)",
+        "main:src/components/modules/media/media-briefs-page.tsx:91 (api)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/admin/media/ui-context/route.ts",
+      "c1Conflict": true,
+      "contract": "C01",
+      "canonicalPath": "/api/admin/media/ui-context",
+      "disposition": "restore main endpoint under reviewed clause",
+      "sourceMethods": {
+        "main": [
+          "GET"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/admin/media/ui-context/route.ts:8 GET"
+      ],
+      "sourceHashes": {
+        "main": "47d44fdc70de1f8624214c82b04ef4ce9506470e6ee32716b5f8a5daccd5af0c"
+      },
+      "literalConsumers": [],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/admin/parks/route.ts",
+      "c1Conflict": true,
+      "contract": "C17",
+      "canonicalPath": "/api/admin/parks",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "main": [
+          "GET"
+        ],
+        "v2": [
+          "GET"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/admin/parks/route.ts:15 GET",
+        "v2:src/app/api/admin/parks/route.ts:15 GET"
+      ],
+      "sourceHashes": {
+        "main": "adaffa7ade506ee06a67b3e66266a5987944bc0a279b3a079f55231551d31d33",
+        "v2": "192c72615de70f139191c70b7817ad1fd6bff4c9493917d0bf26e4d768a4d709"
+      },
+      "literalConsumers": [
+        "main:src/components/layout/page-header.tsx:68 (fetchJsonArray)",
+        "main:src/components/modules/admin/admissions-page.tsx:505 (fetch)",
+        "main:src/components/modules/admin/batches-page.tsx:120 (fetch)",
+        "main:src/components/modules/admin/groups-page.tsx:119 (fetchJsonArray)",
+        "main:src/components/modules/admin/parks-page.tsx:115 (fetch)",
+        "main:src/components/modules/admin/people-page.tsx:277 (fetch)",
+        "main:src/components/shared/scope-selector.tsx:250 (fetchJsonArray)",
+        "v2:src/components/layout/page-header.tsx:63 (fetchJsonArray)",
+        "v2:src/components/modules/admin/admissions-page.tsx:510 (fetch)",
+        "v2:src/components/modules/admin/batches-page.tsx:120 (fetch)",
+        "v2:src/components/modules/admin/groups-page.tsx:119 (fetchJsonArray)",
+        "v2:src/components/modules/admin/parks-page.tsx:115 (fetch)",
+        "v2:src/components/modules/admin/people-page.tsx:277 (fetch)",
+        "v2:src/components/shared/scope-selector.tsx:250 (fetchJsonArray)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/admin/reports/attendance-report/route.ts",
+      "c1Conflict": true,
+      "contract": "C11",
+      "canonicalPath": "/api/admin/reports/attendance-report",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "main": [
+          "GET"
+        ],
+        "v2": [
+          "GET"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/admin/reports/attendance-report/route.ts:49 GET",
+        "v2:src/app/api/admin/reports/attendance-report/route.ts:47 GET"
+      ],
+      "sourceHashes": {
+        "main": "c3441d21d52704a9f2ace84e9367151401ded94188dfe748b820c53ff74d0b46",
+        "v2": "88d0860159169b84c63e34f15f01306feaa68a390c53ff2e223e92d0fbf27704"
+      },
+      "literalConsumers": [
+        "main:src/components/modules/admin/admin-attendance-events.tsx:289 (fetch)",
+        "main:src/components/modules/admin/reports-page.tsx:1078 (fetch)",
+        "v2:src/components/modules/admin/reports-page.tsx:1078 (fetch)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/admin/reports/export/route.ts",
+      "c1Conflict": true,
+      "contract": "C11",
+      "canonicalPath": "/api/admin/reports/export",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "main": [
+          "POST"
+        ],
+        "v2": [
+          "POST"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/admin/reports/export/route.ts:22 POST",
+        "v2:src/app/api/admin/reports/export/route.ts:22 POST"
+      ],
+      "sourceHashes": {
+        "main": "72e6254c75b678fd22354b1b6920e8af25d064c4598e7f8b23bc474f179ee71c",
+        "v2": "26cb30fac93f434c3b4c463f058899bfff82fdcd7b49400de890e1b87b75b5bb"
+      },
+      "literalConsumers": [
+        "main:src/app/admin/reports/_client.tsx:106 (fetch)",
+        "v2:src/app/admin/reports/_client.tsx:106 (fetch)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/admin/reports/fee-report/route.ts",
+      "c1Conflict": true,
+      "contract": "C11",
+      "canonicalPath": "/api/admin/reports/fee-report",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "main": [
+          "GET"
+        ],
+        "v2": [
+          "GET"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/admin/reports/fee-report/route.ts:31 GET",
+        "v2:src/app/api/admin/reports/fee-report/route.ts:31 GET"
+      ],
+      "sourceHashes": {
+        "main": "e42953cb7ea75bd3366eec2dbb8229ff1eb2a3c98c7c5a95f968e87d4b3aedc1",
+        "v2": "93472cd0f96baa575c69d015cc2b2a07fe593033d95e852f1e1df8c43d844284"
+      },
+      "literalConsumers": [
+        "main:src/components/modules/admin/reports-page.tsx:1224 (fetch)",
+        "main:src/components/modules/admin/reports-page.tsx:1229 (fetch)",
+        "main:src/components/modules/admin/reports-page.tsx:1234 (fetch)",
+        "v2:src/components/modules/admin/reports-page.tsx:1224 (fetch)",
+        "v2:src/components/modules/admin/reports-page.tsx:1229 (fetch)",
+        "v2:src/components/modules/admin/reports-page.tsx:1234 (fetch)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/admin/students/[id]/account/route.ts",
+      "c1Conflict": true,
+      "contract": "C03",
+      "canonicalPath": "/api/admin/students/[id]/account",
+      "disposition": "restore main endpoint under reviewed clause",
+      "sourceMethods": {
+        "main": [
+          "POST"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/admin/students/[id]/account/route.ts:19 POST"
+      ],
+      "sourceHashes": {
+        "main": "46eb084154beee25fc9faf208b3557b3f984eca514a896511c67c15a21b3c3e2"
+      },
+      "literalConsumers": [
+        "main:src/components/modules/admin/students-page.tsx:448 (fetch)",
+        "v2:src/components/modules/admin/students-page.tsx:449 (fetch)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/admin/students/[id]/detail/route.ts",
+      "c1Conflict": true,
+      "contract": "C04",
+      "canonicalPath": "/api/admin/students/[id]/detail",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "main": [
+          "GET"
+        ],
+        "v2": [
+          "GET"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/admin/students/[id]/detail/route.ts:6 GET",
+        "v2:src/app/api/admin/students/[id]/detail/route.ts:7 GET"
+      ],
+      "sourceHashes": {
+        "main": "541a71c08f07cafb4383bfe2fb8caab0a314cf6ecc66142e495a09b7c6536124",
+        "v2": "52f68560b20403235f9dd964ff4352ca6916f26b3feacba7379ccff289b478f1"
+      },
+      "literalConsumers": [
+        "main:src/components/modules/admin/participant-detail-sheet.tsx:422 (fetch)",
+        "v2:src/components/modules/admin/participant-detail-sheet.tsx:422 (fetch)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/admin/students/[id]/dropout/route.ts",
+      "c1Conflict": true,
+      "contract": "C09",
+      "canonicalPath": "/api/admin/students/[id]/dropout",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "main": [
+          "POST"
+        ],
+        "v2": [
+          "GET",
+          "POST"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/admin/students/[id]/dropout/route.ts:11 POST",
+        "v2:src/app/api/admin/students/[id]/dropout/route.ts:30 GET",
+        "v2:src/app/api/admin/students/[id]/dropout/route.ts:47 POST"
+      ],
+      "sourceHashes": {
+        "main": "cf17440231acd989709c59c8d4bae19bef99e62adeab6b9a328d1b9bf1e7c1b7",
+        "v2": "521b0aec266363a84ea01f6d09a625f588157ad1f213da0d4c42f14e1131cbe1"
+      },
+      "literalConsumers": [
+        "v2:src/components/modules/student-profile/profile-page.tsx:118 (fetch)",
+        "v2:src/components/modules/student-profile/profile-page.tsx:184 (fetch)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/admin/students/[id]/profile/route.ts",
+      "c1Conflict": false,
+      "contract": "C04",
+      "canonicalPath": "/api/admin/students/[id]/profile",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "v2": [
+          "GET",
+          "PUT"
+        ]
+      },
+      "sourceEvidence": [
+        "v2:src/app/api/admin/students/[id]/profile/route.ts:20 GET",
+        "v2:src/app/api/admin/students/[id]/profile/route.ts:71 PUT"
+      ],
+      "sourceHashes": {
+        "v2": "29384f28e35961bb15a67a02162162dd2567f8721a9f1f901b078796dcf9fc14"
+      },
+      "literalConsumers": [
+        "main:src/components/modules/student-profile/profile-page.tsx:116 (fetch)",
+        "main:src/components/modules/student-profile/profile-page.tsx:144 (fetch)",
+        "v2:src/components/modules/student-profile/profile-page.tsx:133 (fetch)",
+        "v2:src/components/modules/student-profile/profile-page.tsx:161 (fetch)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/admin/students/[participantId]/profile/route.ts",
+      "c1Conflict": true,
+      "contract": "C04",
+      "canonicalPath": "/api/admin/students/[id]/profile",
+      "disposition": "one [id] filesystem route; same public URL, no duplicate dynamic segment",
+      "sourceMethods": {
+        "main": [
+          "GET",
+          "PUT"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/admin/students/[participantId]/profile/route.ts:20 GET",
+        "main:src/app/api/admin/students/[participantId]/profile/route.ts:71 PUT"
+      ],
+      "sourceHashes": {
+        "main": "7dd56f69da61780ab22ba67988c36c3f09da139db74fce540b6ec40fff3f46e3"
+      },
+      "literalConsumers": [
+        "main:src/components/modules/student-profile/profile-page.tsx:116 (fetch)",
+        "main:src/components/modules/student-profile/profile-page.tsx:144 (fetch)",
+        "v2:src/components/modules/student-profile/profile-page.tsx:133 (fetch)",
+        "v2:src/components/modules/student-profile/profile-page.tsx:161 (fetch)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/admin/students/route.ts",
+      "c1Conflict": true,
+      "contract": "C04",
+      "canonicalPath": "/api/admin/students",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "main": [
+          "GET",
+          "POST"
+        ],
+        "v2": [
+          "GET",
+          "POST"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/admin/students/route.ts:35 GET",
+        "main:src/app/api/admin/students/route.ts:209 POST",
+        "v2:src/app/api/admin/students/route.ts:36 GET",
+        "v2:src/app/api/admin/students/route.ts:168 POST"
+      ],
+      "sourceHashes": {
+        "main": "7c3ad920cd9015df9517e96a2bf6000a308eb2a91ab00abf4058411dd70c9319",
+        "v2": "b4d339d95128ee930d384c36d560442d1a6cfde94d358bc2ab7f45bb8a46bd30"
+      },
+      "literalConsumers": [
+        "main:src/components/modules/admin/guardians-page.tsx:365 (fetch)",
+        "main:src/components/modules/admin/students-page.tsx:314 (fetch)",
+        "main:src/components/modules/admin/students-page.tsx:381 (fetch)",
+        "v2:src/components/modules/admin/guardians-page.tsx:365 (fetch)",
+        "v2:src/components/modules/admin/students-page.tsx:315 (fetch)",
+        "v2:src/components/modules/admin/students-page.tsx:382 (fetch)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/admin/teams/[id]/activities/[activityId]/route.ts",
+      "c1Conflict": true,
+      "contract": "C15",
+      "canonicalPath": "/api/admin/teams/[id]/activities/[activityId]",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "main": [
+          "PATCH"
+        ],
+        "v2": [
+          "PATCH",
+          "DELETE"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/admin/teams/[id]/activities/[activityId]/route.ts:11 PATCH",
+        "v2:src/app/api/admin/teams/[id]/activities/[activityId]/route.ts:9 PATCH",
+        "v2:src/app/api/admin/teams/[id]/activities/[activityId]/route.ts:162 DELETE"
+      ],
+      "sourceHashes": {
+        "main": "01cbc4f2aa6345ac6ea59c4a8a54e3e9110fdcee46cb1f937a51955821e1b098",
+        "v2": "1ef5a8df17986dbcf211e2984a7e31fa7747d473c195c3fb4db88558fbe9c196"
+      },
+      "literalConsumers": [
+        "main:src/components/modules/admin/team-activity-planner.tsx:109 (activityRequest)",
+        "v2:src/components/modules/admin/team-activity-planner.tsx:109 (activityRequest)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/admin/teams/[id]/activities/route.ts",
+      "c1Conflict": true,
+      "contract": "C15",
+      "canonicalPath": "/api/admin/teams/[id]/activities",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "main": [
+          "GET",
+          "POST"
+        ],
+        "v2": [
+          "GET",
+          "POST"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/admin/teams/[id]/activities/route.ts:12 GET",
+        "main:src/app/api/admin/teams/[id]/activities/route.ts:50 POST",
+        "v2:src/app/api/admin/teams/[id]/activities/route.ts:9 GET",
+        "v2:src/app/api/admin/teams/[id]/activities/route.ts:105 POST"
+      ],
+      "sourceHashes": {
+        "main": "0839d4e0cd356dd084e29d3be6fb5aca8fc78d337a3daed7f578fa9c27c9176d",
+        "v2": "e857d93c2359489501ec6731b7c1e5ec54120cdb4d792a667b761179cdb2b01a"
+      },
+      "literalConsumers": [
+        "main:src/components/modules/admin/team-activity-planner.tsx:79 (activityRequest)",
+        "main:src/components/modules/admin/team-activity-planner.tsx:85 (activityRequest)",
+        "v2:src/components/modules/admin/team-activity-planner.tsx:79 (activityRequest)",
+        "v2:src/components/modules/admin/team-activity-planner.tsx:85 (activityRequest)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/admin/teams/[id]/chat/route.ts",
+      "c1Conflict": false,
+      "contract": "C15",
+      "canonicalPath": "/api/admin/teams/[id]/chat",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "v2": [
+          "GET",
+          "POST"
+        ]
+      },
+      "sourceEvidence": [
+        "v2:src/app/api/admin/teams/[id]/chat/route.ts:31 GET",
+        "v2:src/app/api/admin/teams/[id]/chat/route.ts:114 POST"
+      ],
+      "sourceHashes": {
+        "v2": "3d4a9da6cc01a5982151960f9ab15c970fefc5c4155beaf00e12bfedd12d81f9"
+      },
+      "literalConsumers": [],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/admin/teams/[id]/documents/route.ts",
+      "c1Conflict": false,
+      "contract": "C15",
+      "canonicalPath": "/api/admin/teams/[id]/documents",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "v2": [
+          "GET",
+          "POST"
+        ]
+      },
+      "sourceEvidence": [
+        "v2:src/app/api/admin/teams/[id]/documents/route.ts:22 GET",
+        "v2:src/app/api/admin/teams/[id]/documents/route.ts:38 POST"
+      ],
+      "sourceHashes": {
+        "v2": "9725bd354d34ad5dae3f3f66e104cd73acbb7dd5afffa953af1b0dd5725aea73"
+      },
+      "literalConsumers": [
+        "v2:src/components/modules/admin/collaboration-teams-page.tsx:126 (request)",
+        "v2:src/components/modules/admin/collaboration-teams-page.tsx:160 (request)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/admin/teams/[id]/members/[memberId]/route.ts",
+      "c1Conflict": true,
+      "contract": "C15",
+      "canonicalPath": "/api/admin/teams/[id]/members/[memberId]",
+      "disposition": "restore main endpoint under reviewed clause",
+      "sourceMethods": {
+        "main": [
+          "PATCH",
+          "DELETE"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/admin/teams/[id]/members/[memberId]/route.ts:35 PATCH",
+        "main:src/app/api/admin/teams/[id]/members/[memberId]/route.ts:102 DELETE"
+      ],
+      "sourceHashes": {
+        "main": "dcd5fc850af4d7118505cc9cb61d2b5daac227c71d4ff02f9197cb197e3ea990"
+      },
+      "literalConsumers": [
+        "main:src/components/modules/admin/collaboration-teams-page.tsx:156 (request)",
+        "v2:src/components/modules/admin/collaboration-teams-page.tsx:147 (request)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/admin/teams/[id]/members/route.ts",
+      "c1Conflict": true,
+      "contract": "C15",
+      "canonicalPath": "/api/admin/teams/[id]/members",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "main": [
+          "GET",
+          "POST"
+        ],
+        "v2": [
+          "GET",
+          "POST"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/admin/teams/[id]/members/route.ts:48 GET",
+        "main:src/app/api/admin/teams/[id]/members/route.ts:112 POST",
+        "v2:src/app/api/admin/teams/[id]/members/route.ts:12 GET",
+        "v2:src/app/api/admin/teams/[id]/members/route.ts:49 POST"
+      ],
+      "sourceHashes": {
+        "main": "a858ca98ec9d7e908353f3b3fe1426429cf56c71412c2a94059a4904f48c8aae",
+        "v2": "6cb01a39454ea3785df14d0725af9b0ae30a6d6977a70fe90284cff140c62bfc"
+      },
+      "literalConsumers": [
+        "main:src/components/modules/admin/collaboration-teams-page.tsx:135 (request)",
+        "main:src/components/modules/admin/collaboration-teams-page.tsx:141 (request)",
+        "v2:src/components/modules/admin/collaboration-teams-page.tsx:120 (request)",
+        "v2:src/components/modules/admin/collaboration-teams-page.tsx:132 (request)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/admin/teams/[id]/route.ts",
+      "c1Conflict": true,
+      "contract": "C15",
+      "canonicalPath": "/api/admin/teams/[id]",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "main": [
+          "GET"
+        ],
+        "v2": [
+          "GET"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/admin/teams/[id]/route.ts:14 GET",
+        "v2:src/app/api/admin/teams/[id]/route.ts:10 GET"
+      ],
+      "sourceHashes": {
+        "main": "803f5a7b2f12948252f0e4a958f2a03064187f9ebfc1cde954e4b92c82043b6b",
+        "v2": "f669b58ed5c89c28c17f88d71ed92c81127d1a1adb484bea790bcb35a072be27"
+      },
+      "literalConsumers": [],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/admin/teams/can-manage/route.ts",
+      "c1Conflict": true,
+      "contract": "C15",
+      "canonicalPath": "/api/admin/teams/can-manage",
+      "disposition": "restore main endpoint under reviewed clause",
+      "sourceMethods": {
+        "main": [
+          "GET"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/admin/teams/can-manage/route.ts:14 GET"
+      ],
+      "sourceHashes": {
+        "main": "dc030eb4b9d5b834cdc283d23f2e0f7cf04b5d38858e1875b426e29d171d03ff"
+      },
+      "literalConsumers": [
+        "main:src/components/modules/admin/collaboration-teams-page.tsx:90 (request)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/admin/teams/members/[membershipId]/route.ts",
+      "c1Conflict": true,
+      "contract": "C15",
+      "canonicalPath": "/api/admin/teams/[id]/members/[memberId]",
+      "disposition": "resolve legacy membership ID to scoped team/member; same conditional end service",
+      "sourceMethods": {
+        "main": [
+          "DELETE"
+        ],
+        "v2": [
+          "DELETE"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/admin/teams/members/[membershipId]/route.ts:11 DELETE",
+        "v2:src/app/api/admin/teams/members/[membershipId]/route.ts:11 DELETE"
+      ],
+      "sourceHashes": {
+        "main": "b5ce37b16d80b155f49d25d85d08056a73575088665e7dfc6f91a91263a573bf",
+        "v2": "0da3a006def256f76a223936d7da5318c8bd5c794afb2a160bbeb12aef92f319"
+      },
+      "literalConsumers": [],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/admin/teams/route.ts",
+      "c1Conflict": true,
+      "contract": "C15",
+      "canonicalPath": "/api/admin/teams",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "main": [
+          "GET"
+        ],
+        "v2": [
+          "GET"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/admin/teams/route.ts:26 GET",
+        "v2:src/app/api/admin/teams/route.ts:7 GET"
+      ],
+      "sourceHashes": {
+        "main": "76c589c91085bb3392854185c3d2a656dd911bbea51a7dfecd9a1074a809cda0",
+        "v2": "11252862017eb874b19fa36d1905f3da56c8626b8be68df2fa52ac0c3df5b04e"
+      },
+      "literalConsumers": [
+        "main:src/components/modules/content-planner/content-planner-page.tsx:218 (request)",
+        "v2:src/components/modules/content-planner/content-planner-page.tsx:246 (request)",
+        "v2:src/components/modules/content-planner/mobile-content-planner-page.tsx:221 (fetch)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/admin/teams/ui-context/route.ts",
+      "c1Conflict": false,
+      "contract": "C15",
+      "canonicalPath": "/api/admin/teams/ui-context",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "v2": [
+          "GET"
+        ]
+      },
+      "sourceEvidence": [
+        "v2:src/app/api/admin/teams/ui-context/route.ts:10 GET"
+      ],
+      "sourceHashes": {
+        "v2": "0f1d22101a72b3e01c8422238c8a7ebdf6a7b8a7c0d3bf56024f6c50acbacbd0"
+      },
+      "literalConsumers": [
+        "v2:src/components/modules/admin/collaboration-teams-page.tsx:77 (request)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/admin/users/[id]/route.ts",
+      "c1Conflict": true,
+      "contract": "C03",
+      "canonicalPath": "/api/admin/users/[id]",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "main": [
+          "PATCH",
+          "DELETE"
+        ],
+        "v2": [
+          "PATCH",
+          "DELETE"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/admin/users/[id]/route.ts:40 PATCH",
+        "main:src/app/api/admin/users/[id]/route.ts:313 DELETE",
+        "v2:src/app/api/admin/users/[id]/route.ts:36 PATCH",
+        "v2:src/app/api/admin/users/[id]/route.ts:287 DELETE"
+      ],
+      "sourceHashes": {
+        "main": "c6d0d2ed15356c9b4c9b00d15969cae4a77b22ce966f69efdebd1eb0d5fc9efe",
+        "v2": "b01845263facbfc59e2fa686450a45b2171de0e566ee6d4a324ec3c081ffdbce"
+      },
+      "literalConsumers": [
+        "main:src/components/modules/admin/access-provisioning-page.tsx:388 (fetch)",
+        "main:src/components/modules/admin/access-provisioning-page.tsx:413 (fetch)",
+        "main:src/components/modules/admin/people-page.tsx:1181 (fetch)",
+        "main:src/components/modules/admin/people-page.tsx:334 (fetch)",
+        "main:src/components/modules/admin/users-page.tsx:276 (fetch)",
+        "main:src/components/modules/admin/users-page.tsx:305 (fetch)",
+        "main:src/components/modules/admin/users-page.tsx:328 (fetch)",
+        "v2:src/components/modules/admin/access-provisioning-page.tsx:388 (fetch)",
+        "v2:src/components/modules/admin/access-provisioning-page.tsx:413 (fetch)",
+        "v2:src/components/modules/admin/people-page.tsx:1181 (fetch)",
+        "v2:src/components/modules/admin/people-page.tsx:334 (fetch)",
+        "v2:src/components/modules/admin/users-page.tsx:276 (fetch)",
+        "v2:src/components/modules/admin/users-page.tsx:305 (fetch)",
+        "v2:src/components/modules/admin/users-page.tsx:328 (fetch)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/announcements/route.ts",
+      "c1Conflict": true,
+      "contract": "C20",
+      "canonicalPath": "/api/announcements",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "main": [
+          "GET",
+          "POST"
+        ],
+        "v2": [
+          "GET",
+          "POST"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/announcements/route.ts:40 GET",
+        "main:src/app/api/announcements/route.ts:127 POST",
+        "v2:src/app/api/announcements/route.ts:40 GET",
+        "v2:src/app/api/announcements/route.ts:132 POST"
+      ],
+      "sourceHashes": {
+        "main": "663cad30eeaea3729e6dbbf6fe814ecdfcb3daa5abc2a29d651f5d0ee902ec52",
+        "v2": "bbb12202ac9d6a37ceed6bd7636c3c641612943b64543cd7915f00994c41b425"
+      },
+      "literalConsumers": [
+        "main:src/components/modules/admin/announcements-page.tsx:210 (fetch)",
+        "main:src/components/modules/guardian/guardian-announcements-page.tsx:163 (fetch)",
+        "main:src/components/modules/student/student-announcements-page.tsx:136 (fetch)",
+        "v2:src/components/modules/admin/announcements-page.tsx:210 (fetch)",
+        "v2:src/components/modules/admin/mobile-notifications-page.tsx:117 (fetch)",
+        "v2:src/components/modules/guardian/guardian-announcements-page.tsx:163 (fetch)",
+        "v2:src/components/modules/student/student-announcements-page.tsx:136 (fetch)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/calling/assignments/route.ts",
+      "c1Conflict": true,
+      "contract": "C13",
+      "canonicalPath": "/api/calling/assignments",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "main": [
+          "POST"
+        ],
+        "v2": [
+          "POST"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/calling/assignments/route.ts:17 POST",
+        "v2:src/app/api/calling/assignments/route.ts:8 POST"
+      ],
+      "sourceHashes": {
+        "main": "d93a0d4955304e9749870c2d3ad1e588ca18d723497aeaba598552e885307b5d",
+        "v2": "66d1b7ab8e236d921136ef0617553d066183b0a1e24b16143ade73db864e0cd7"
+      },
+      "literalConsumers": [
+        "main:src/app/admin/calling/campaigns/[id]/page.tsx:148 (fetch)",
+        "v2:src/app/admin/calling/campaigns/[id]/page.tsx:225 (fetch)",
+        "v2:src/app/admin/calling/campaigns/[id]/page.tsx:264 (fetch)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/calling/campaigns/[id]/assignment-options/route.ts",
+      "c1Conflict": true,
+      "contract": "C13",
+      "canonicalPath": "/api/calling/campaigns/[id]/assignment-options",
+      "disposition": "restore main endpoint under reviewed clause",
+      "sourceMethods": {
+        "main": [
+          "GET"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/calling/campaigns/[id]/assignment-options/route.ts:14 GET"
+      ],
+      "sourceHashes": {
+        "main": "84913b6a926af25c6fddf851656f0a34322e76e1445eff0361a90174ddcf0fae"
+      },
+      "literalConsumers": [
+        "main:src/app/admin/calling/campaigns/[id]/page.tsx:139 (fetch)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/calling/campaigns/[id]/leads/route.ts",
+      "c1Conflict": true,
+      "contract": "C13",
+      "canonicalPath": "/api/calling/campaigns/[id]/leads",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "main": [
+          "GET"
+        ],
+        "v2": [
+          "GET"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/calling/campaigns/[id]/leads/route.ts:38 GET",
+        "v2:src/app/api/calling/campaigns/[id]/leads/route.ts:11 GET"
+      ],
+      "sourceHashes": {
+        "main": "990e62dbe499372154f0abf02cbcb62e3ec02165ee3e4adf29eabca3d72d9eeb",
+        "v2": "678aaeda99fcff0c00f42b4cb46c24d7216cf817e6c2e2abf57db39b3936a4e4"
+      },
+      "literalConsumers": [
+        "v2:src/app/admin/calling/campaigns/[id]/page.tsx:160 (fetch)",
+        "v2:src/components/modules/admin/mobile-calling-page.tsx:41 (read)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/calling/campaigns/[id]/route.ts",
+      "c1Conflict": true,
+      "contract": "C13",
+      "canonicalPath": "/api/calling/campaigns/[id]",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "main": [
+          "GET",
+          "PATCH"
+        ],
+        "v2": [
+          "GET",
+          "PATCH",
+          "DELETE"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/calling/campaigns/[id]/route.ts:12 GET",
+        "main:src/app/api/calling/campaigns/[id]/route.ts:48 PATCH",
+        "v2:src/app/api/calling/campaigns/[id]/route.ts:12 GET",
+        "v2:src/app/api/calling/campaigns/[id]/route.ts:57 PATCH",
+        "v2:src/app/api/calling/campaigns/[id]/route.ts:79 DELETE"
+      ],
+      "sourceHashes": {
+        "main": "1e9e362c749e4a449725dd524a7174558dae985af28fd66637af547974377a74",
+        "v2": "ea03c5327f114978b756c0e09ca1c64cf712ad60513594981721890039af5acb"
+      },
+      "literalConsumers": [
+        "main:src/app/admin/calling/campaigns/[id]/page.tsx:119 (fetch)",
+        "v2:src/app/admin/calling/_client.tsx:119 (fetch)",
+        "v2:src/app/admin/calling/_client.tsx:145 (fetch)",
+        "v2:src/app/admin/calling/campaigns/[id]/page.tsx:152 (fetch)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/calling/campaigns/route.ts",
+      "c1Conflict": true,
+      "contract": "C13",
+      "canonicalPath": "/api/calling/campaigns",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "main": [
+          "GET",
+          "POST"
+        ],
+        "v2": [
+          "GET",
+          "POST"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/calling/campaigns/route.ts:8 GET",
+        "main:src/app/api/calling/campaigns/route.ts:41 POST",
+        "v2:src/app/api/calling/campaigns/route.ts:8 GET",
+        "v2:src/app/api/calling/campaigns/route.ts:49 POST"
+      ],
+      "sourceHashes": {
+        "main": "235d62f731b0898120c640f16062d6063901d5e5596996cab747e050884e2d25",
+        "v2": "15071b5d6885cc397b08a99d9c025726e37d06ec6a4dc50fb83e9c6c5d6c1cd9"
+      },
+      "literalConsumers": [
+        "main:src/app/admin/calling/_client.tsx:101 (fetch)",
+        "main:src/app/admin/calling/_client.tsx:123 (fetch)",
+        "v2:src/app/admin/calling/_client.tsx:76 (fetch)",
+        "v2:src/app/admin/calling/_client.tsx:98 (fetch)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/calling/export/route.ts",
+      "c1Conflict": false,
+      "contract": "C13",
+      "canonicalPath": "/api/calling/export",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "v2": [
+          "GET"
+        ]
+      },
+      "sourceEvidence": [
+        "v2:src/app/api/calling/export/route.ts:7 GET"
+      ],
+      "sourceHashes": {
+        "v2": "fd542edecb31455ca9516b4374ac0c27355372829090e89de458c6c95095c44a"
+      },
+      "literalConsumers": [],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/calling/interactions/route.ts",
+      "c1Conflict": true,
+      "contract": "C13",
+      "canonicalPath": "/api/calling/interactions",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "main": [
+          "POST"
+        ],
+        "v2": [
+          "POST"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/calling/interactions/route.ts:7 POST",
+        "v2:src/app/api/calling/interactions/route.ts:7 POST"
+      ],
+      "sourceHashes": {
+        "main": "68542b50af6dd0b5d3fc701696d9e2da53931c031a36bbca924afd3de1298e4b",
+        "v2": "ab49a27ca4e237f2f938dcbda3bb78841f3b7a5bc4294a31b235f6d15f9aeec1"
+      },
+      "literalConsumers": [
+        "main:src/components/calling/CallInteractionModal.tsx:52 (fetch)",
+        "v2:src/components/calling/CallInteractionModal.tsx:52 (fetch)",
+        "v2:src/components/modules/admin/mobile-calling-page.tsx:48 (fetch)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/calling/templates/[id]/status/route.ts",
+      "c1Conflict": true,
+      "contract": "C13",
+      "canonicalPath": "/api/calling/templates/[id]/status",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "main": [
+          "PATCH"
+        ],
+        "v2": [
+          "PATCH"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/calling/templates/[id]/status/route.ts:12 PATCH",
+        "v2:src/app/api/calling/templates/[id]/status/route.ts:12 PATCH"
+      ],
+      "sourceHashes": {
+        "main": "a374ffd64cb2192e45f2810114e8cd9cef1b4131866790d68164da1b9f475386",
+        "v2": "f2d7f82d718338119a6c0fc0e44eb70c698bee0d3bd48bf4b02432431f6d963f"
+      },
+      "literalConsumers": [
+        "main:src/app/admin/calling/templates/_client.tsx:78 (fetch)",
+        "v2:src/app/admin/calling/templates/_client.tsx:78 (fetch)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/calling/templates/route.ts",
+      "c1Conflict": true,
+      "contract": "C13",
+      "canonicalPath": "/api/calling/templates",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "main": [
+          "GET",
+          "POST"
+        ],
+        "v2": [
+          "GET",
+          "POST"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/calling/templates/route.ts:8 GET",
+        "main:src/app/api/calling/templates/route.ts:41 POST",
+        "v2:src/app/api/calling/templates/route.ts:8 GET",
+        "v2:src/app/api/calling/templates/route.ts:41 POST"
+      ],
+      "sourceHashes": {
+        "main": "e3c090b176235aadbaaba3ce64e105ef2d29d4244515ae38b6cc65fe4a086253",
+        "v2": "ceb62b9f5543a1ffdebe7587c2a58124a465c763194864484324da64e43285a6"
+      },
+      "literalConsumers": [
+        "main:src/app/admin/calling/templates/_client.tsx:53 (fetch)",
+        "main:src/app/admin/calling/templates/_client.tsx:58 (fetch)",
+        "v2:src/app/admin/calling/templates/_client.tsx:53 (fetch)",
+        "v2:src/app/admin/calling/templates/_client.tsx:58 (fetch)",
+        "v2:src/components/modules/admin/mobile-calling-page.tsx:42 (read)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/calling/templates/use/route.ts",
+      "c1Conflict": true,
+      "contract": "C13",
+      "canonicalPath": "/api/calling/templates/use",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "main": [
+          "POST"
+        ],
+        "v2": [
+          "POST"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/calling/templates/use/route.ts:8 POST",
+        "v2:src/app/api/calling/templates/use/route.ts:7 POST"
+      ],
+      "sourceHashes": {
+        "main": "4fcc5c9249836f0c620365de6194f46bbe08634384b4e052aff7832e6d96aa22",
+        "v2": "a25536081eb1f39febc7610a6dbb0e456cedc08ff7f6f10a8da48e016f8c5175"
+      },
+      "literalConsumers": [],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/calling/ui-context/route.ts",
+      "c1Conflict": true,
+      "contract": "C13",
+      "canonicalPath": "/api/calling/ui-context",
+      "disposition": "restore main endpoint under reviewed clause",
+      "sourceMethods": {
+        "main": [
+          "GET"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/calling/ui-context/route.ts:15 GET"
+      ],
+      "sourceHashes": {
+        "main": "6687f13a725a56acb859f7c1a44a0bd3ca9e20e470b3a9a22e54d66e838f9913"
+      },
+      "literalConsumers": [
+        "main:src/app/admin/calling/_client.tsx:87 (fetch)",
+        "main:src/app/admin/calling/campaigns/[id]/page.tsx:110 (fetch)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/calling/workloads/route.ts",
+      "c1Conflict": false,
+      "contract": "C13",
+      "canonicalPath": "/api/calling/workloads",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "v2": [
+          "GET"
+        ]
+      },
+      "sourceEvidence": [
+        "v2:src/app/api/calling/workloads/route.ts:7 GET"
+      ],
+      "sourceHashes": {
+        "v2": "b833cf1526ac110248f29133c5bd3d85bb50ada78c929cc79a79f5e55167529c"
+      },
+      "literalConsumers": [
+        "v2:src/app/admin/calling/campaigns/[id]/page.tsx:166 (fetch)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/city-head/dashboard/route.ts",
+      "c1Conflict": true,
+      "contract": "C11",
+      "canonicalPath": "/api/city-head/dashboard",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "main": [
+          "GET"
+        ],
+        "v2": [
+          "GET"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/city-head/dashboard/route.ts:19 GET",
+        "v2:src/app/api/city-head/dashboard/route.ts:19 GET"
+      ],
+      "sourceHashes": {
+        "main": "eb90755f5c7c9da4613963ca60191975fad99908a665e05c88557e4712eec5be",
+        "v2": "16e6bd021c5f5f36158dabd0731a9eb7d0e7ff1cdcbb0c1db5d755ed5bf3d649"
+      },
+      "literalConsumers": [
+        "main:src/components/modules/city-head/city-head-dashboard.tsx:142 (fetch)",
+        "v2:src/components/modules/city-head/city-head-dashboard.tsx:142 (fetch)",
+        "v2:src/components/modules/city-head/mobile-city-head-dashboard.tsx:64 (fetch)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/events/[id]/registrations/route.ts",
+      "c1Conflict": false,
+      "contract": "C07",
+      "canonicalPath": "/api/admin/events/[id]/registrations",
+      "disposition": "legacy adapter to canonical registration service; reject client flags/action check-in",
+      "sourceMethods": {
+        "v2": [
+          "GET",
+          "POST"
+        ]
+      },
+      "sourceEvidence": [
+        "v2:src/app/api/events/[id]/registrations/route.ts:16 GET",
+        "v2:src/app/api/events/[id]/registrations/route.ts:112 POST"
+      ],
+      "sourceHashes": {
+        "v2": "a20318d0d4e2a3c77aa093101f8e3f4c7ce8efc46c6be5ae77507e1365e7a32f"
+      },
+      "literalConsumers": [],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/guardian/dashboard/route.ts",
+      "c1Conflict": true,
+      "contract": "C19",
+      "canonicalPath": "/api/guardian/dashboard",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "main": [
+          "GET"
+        ],
+        "v2": [
+          "GET"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/guardian/dashboard/route.ts:56 GET",
+        "v2:src/app/api/guardian/dashboard/route.ts:56 GET"
+      ],
+      "sourceHashes": {
+        "main": "1798ff1c4a691aa43aff1be53284cb7f808849f8a6c5724654956d4e45756cfa",
+        "v2": "ba38cee230c1e4c171c4af47f34bbb3c978688c13572321157cc2b5cd160e474"
+      },
+      "literalConsumers": [
+        "main:src/components/modules/guardian/guardian-dashboard.tsx:168 (fetch)",
+        "main:src/components/modules/guardian/guardian-history-page.tsx:171 (fetch)",
+        "v2:src/components/modules/guardian/guardian-dashboard.tsx:99 (fetch)",
+        "v2:src/components/modules/guardian/guardian-history-page.tsx:171 (fetch)",
+        "v2:src/components/modules/guardian/mobile-guardian-dashboard.tsx:79 (fetch)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/guardian/schedule/route.ts",
+      "c1Conflict": true,
+      "contract": "C12",
+      "canonicalPath": "/api/guardian/schedule",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "main": [
+          "GET"
+        ],
+        "v2": [
+          "GET"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/guardian/schedule/route.ts:16 GET",
+        "v2:src/app/api/guardian/schedule/route.ts:16 GET"
+      ],
+      "sourceHashes": {
+        "main": "234481427ae05739e09773fe0819bddf7fe6b6567a5667b8b9bb2c32f2b7e90a",
+        "v2": "f1f1e615eb18f8f5a266ee2fc1c5d550f3fea26aff76d3913ab4432115a0cbdb"
+      },
+      "literalConsumers": [
+        "main:src/components/modules/guardian/guardian-schedule-page.tsx:92 (fetch)",
+        "v2:src/components/modules/guardian/guardian-schedule-page.tsx:92 (fetch)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/park/attendance/[eventId]/close/route.ts",
+      "c1Conflict": true,
+      "contract": "C09",
+      "canonicalPath": "/api/park/attendance/[eventId]/close",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "main": [
+          "PATCH"
+        ],
+        "v2": [
+          "PATCH"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/park/attendance/[eventId]/close/route.ts:10 PATCH",
+        "v2:src/app/api/park/attendance/[eventId]/close/route.ts:12 PATCH"
+      ],
+      "sourceHashes": {
+        "main": "a88f9b6604516609fbc0600c5485a6d62d64523b659b84101d69a205b030398e",
+        "v2": "88ab0ea56964ae3dbec396a5e331ba377279fe94ae3d6bb0ebdc7e246c4fa2a9"
+      },
+      "literalConsumers": [
+        "main:src/components/modules/park/attendance-roster.tsx:393 (fetch)",
+        "main:src/components/modules/park/park-dashboard.tsx:337 (fetch)",
+        "v2:src/components/modules/park/attendance-roster.tsx:403 (fetch)",
+        "v2:src/components/modules/park/mobile-attendance-page.tsx:366 (fetch)",
+        "v2:src/components/modules/park/park-dashboard.tsx:337 (fetch)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/park/attendance/[eventId]/records/[recordId]/route.ts",
+      "c1Conflict": true,
+      "contract": "C09",
+      "canonicalPath": "/api/park/attendance/[eventId]/records/[recordId]",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "main": [
+          "PATCH"
+        ],
+        "v2": [
+          "PATCH"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/park/attendance/[eventId]/records/[recordId]/route.ts:14 PATCH",
+        "v2:src/app/api/park/attendance/[eventId]/records/[recordId]/route.ts:10 PATCH"
+      ],
+      "sourceHashes": {
+        "main": "0cbdebc1a8960a375b4a69125eb93f3b7b1ffbd43a47b4ecb0dad341601adc60",
+        "v2": "3dae34d682fbe23b67b5918da253d6981c6b17f319530e2b6e45288f4d39eff5"
+      },
+      "literalConsumers": [
+        "main:src/components/shared/attendance-edit-dialog.tsx:123 (fetch)",
+        "v2:src/components/shared/attendance-edit-dialog.tsx:123 (fetch)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/park/attendance/[eventId]/reset/route.ts",
+      "c1Conflict": true,
+      "contract": "C09",
+      "canonicalPath": "/api/park/attendance/[eventId]/reset",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "main": [
+          "DELETE"
+        ],
+        "v2": [
+          "DELETE"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/park/attendance/[eventId]/reset/route.ts:8 DELETE",
+        "v2:src/app/api/park/attendance/[eventId]/reset/route.ts:7 DELETE"
+      ],
+      "sourceHashes": {
+        "main": "736e4041a8cdaa28507a05abc41385a1be73941a514f57585af7081f93b41e9a",
+        "v2": "f0ad6144c6d8ab436903ab699f146f6917ddd3eeaa4bafc009fb6a5fabe3a980"
+      },
+      "literalConsumers": [
+        "main:src/components/modules/park/attendance-roster.tsx:368 (fetch)",
+        "v2:src/components/modules/park/attendance-roster.tsx:378 (fetch)",
+        "v2:src/components/modules/park/mobile-attendance-page.tsx:343 (fetch)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/park/attendance/[eventId]/route.ts",
+      "c1Conflict": true,
+      "contract": "C09",
+      "canonicalPath": "/api/park/attendance/[eventId]",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "main": [
+          "GET",
+          "POST"
+        ],
+        "v2": [
+          "GET",
+          "POST"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/park/attendance/[eventId]/route.ts:11 GET",
+        "main:src/app/api/park/attendance/[eventId]/route.ts:141 POST",
+        "v2:src/app/api/park/attendance/[eventId]/route.ts:15 GET",
+        "v2:src/app/api/park/attendance/[eventId]/route.ts:152 POST"
+      ],
+      "sourceHashes": {
+        "main": "0360f365c540df6561f827d5008f4fc6379316f640391463e263fbb3ed53bcb9",
+        "v2": "5f5255e1ed5d95a38d5159e0f02eaee9b9c329cc68c5115101e0a32975fd3aac"
+      },
+      "literalConsumers": [
+        "main:src/components/modules/park/attendance-roster.tsx:284 (fetch)",
+        "main:src/hooks/use-attendance-sync.ts:56 (fetch)",
+        "v2:src/components/modules/park/attendance-roster.tsx:283 (fetch)",
+        "v2:src/components/modules/park/mobile-attendance-page.tsx:225 (fetch)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/park/attendance/[eventId]/staff/route.ts",
+      "c1Conflict": true,
+      "contract": "C10",
+      "canonicalPath": "/api/park/attendance/[eventId]/staff",
+      "disposition": "legacy historical GET adapter; POST gated until explicit canonical staff-session mapping",
+      "sourceMethods": {
+        "main": [
+          "GET",
+          "POST"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/park/attendance/[eventId]/staff/route.ts:13 GET",
+        "main:src/app/api/park/attendance/[eventId]/staff/route.ts:62 POST"
+      ],
+      "sourceHashes": {
+        "main": "3015c8af1f07c5159d41f1640fa6a124c9979c6105ac3a774a0d05b6d3227be6"
+      },
+      "literalConsumers": [],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/park/attendance/check-alerts/route.ts",
+      "c1Conflict": true,
+      "contract": "C09",
+      "canonicalPath": "/api/park/attendance/check-alerts",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "main": [
+          "POST"
+        ],
+        "v2": [
+          "POST"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/park/attendance/check-alerts/route.ts:7 POST",
+        "v2:src/app/api/park/attendance/check-alerts/route.ts:8 POST"
+      ],
+      "sourceHashes": {
+        "main": "0d78eb276cf0d166dbece21b52448c83a3c2dc4a1a9c9c5eddb67df5f472646d",
+        "v2": "1b58695f10407793f4686a67e3da3d68f03fd2f96510d6b0e5e685c0a79373ea"
+      },
+      "literalConsumers": [
+        "main:src/components/modules/park/attendance-roster.tsx:284 (fetch)",
+        "main:src/hooks/use-attendance-sync.ts:56 (fetch)",
+        "v2:src/components/modules/park/attendance-roster.tsx:283 (fetch)",
+        "v2:src/components/modules/park/mobile-attendance-page.tsx:225 (fetch)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/park/attendance/events/route.ts",
+      "c1Conflict": true,
+      "contract": "C09",
+      "canonicalPath": "/api/park/attendance/events",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "main": [
+          "POST",
+          "GET"
+        ],
+        "v2": [
+          "POST",
+          "GET"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/park/attendance/events/route.ts:11 POST",
+        "main:src/app/api/park/attendance/events/route.ts:110 GET",
+        "v2:src/app/api/park/attendance/events/route.ts:10 POST",
+        "v2:src/app/api/park/attendance/events/route.ts:91 GET"
+      ],
+      "sourceHashes": {
+        "main": "361fdeaea304c881062cbe4fa4029e318e05681fb2b01c20591f8c2a49e28e97",
+        "v2": "5cd4665c1b4060750c0e6e8c268f75804d32a9592a786840ceda3c1ff949f66d"
+      },
+      "literalConsumers": [
+        "main:src/components/modules/park/attendance-roster.tsx:284 (fetch)",
+        "main:src/components/modules/park/park-attendance-page.tsx:98 (fetch)",
+        "main:src/hooks/use-attendance-sync.ts:56 (fetch)",
+        "v2:src/components/modules/park/attendance-roster.tsx:283 (fetch)",
+        "v2:src/components/modules/park/mobile-attendance-page.tsx:225 (fetch)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/park/attendance/route.ts",
+      "c1Conflict": true,
+      "contract": "C09",
+      "canonicalPath": "/api/park/attendance",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "main": [
+          "GET",
+          "POST"
+        ],
+        "v2": [
+          "GET",
+          "POST"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/park/attendance/route.ts:24 GET",
+        "main:src/app/api/park/attendance/route.ts:258 POST",
+        "v2:src/app/api/park/attendance/route.ts:24 GET",
+        "v2:src/app/api/park/attendance/route.ts:111 POST"
+      ],
+      "sourceHashes": {
+        "main": "47f321f70add21429d8b4400595a386ab925606dcf27816a00ccafe034c28243",
+        "v2": "449c5d9d69c938649e9914888dafe083d2bd66f4d97b3a573e932b05c446848e"
+      },
+      "literalConsumers": [
+        "main:src/components/modules/park/park-attendance-page.tsx:87 (fetch)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/park/attendance/sync/route.ts",
+      "c1Conflict": true,
+      "contract": "C09",
+      "canonicalPath": "/api/park/attendance/sync",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "main": [
+          "POST"
+        ],
+        "v2": [
+          "POST"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/park/attendance/sync/route.ts:16 POST",
+        "v2:src/app/api/park/attendance/sync/route.ts:6 POST"
+      ],
+      "sourceHashes": {
+        "main": "62071c748267ca81cfaa20a0b89d02189ab394b73b8b8879fa6c46d12fe8d737",
+        "v2": "167e4700f9e4352963f3637c58c8374efc0324506218331923c61f797cdeebef"
+      },
+      "literalConsumers": [
+        "main:src/components/modules/park/attendance-roster.tsx:284 (fetch)",
+        "main:src/components/modules/park/attendance-roster.tsx:331 (fetch)",
+        "main:src/hooks/use-attendance-sync.ts:159 (fetch)",
+        "main:src/hooks/use-attendance-sync.ts:56 (fetch)",
+        "v2:src/components/modules/park/attendance-roster.tsx:283 (fetch)",
+        "v2:src/components/modules/park/mobile-attendance-page.tsx:225 (fetch)",
+        "v2:src/lib/offline/sync-attendance.ts:23 (fetch)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/park/attendance/warnings/route.ts",
+      "c1Conflict": true,
+      "contract": "C09",
+      "canonicalPath": "/api/park/attendance/warnings",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "main": [
+          "GET"
+        ],
+        "v2": [
+          "GET"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/park/attendance/warnings/route.ts:14 GET",
+        "v2:src/app/api/park/attendance/warnings/route.ts:15 GET"
+      ],
+      "sourceHashes": {
+        "main": "7f0b7c52ee0f476cfaec8a43574dfddfac264650c8a5cc83fbed66e449b4e719",
+        "v2": "aaef9cb1f157a9c489a3e86516732c6f948898a0248db3e569522584f9008233"
+      },
+      "literalConsumers": [
+        "main:src/components/modules/park/attendance-roster.tsx:284 (fetch)",
+        "main:src/components/modules/park/attendance-roster.tsx:298 (fetch)",
+        "main:src/hooks/use-attendance-sync.ts:56 (fetch)",
+        "v2:src/components/modules/park/attendance-roster.tsx:283 (fetch)",
+        "v2:src/components/modules/park/attendance-roster.tsx:301 (fetch)",
+        "v2:src/components/modules/park/mobile-attendance-page.tsx:225 (fetch)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/park/dashboard/route.ts",
+      "c1Conflict": true,
+      "contract": "C11",
+      "canonicalPath": "/api/park/dashboard",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "main": [
+          "GET"
+        ],
+        "v2": [
+          "GET"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/park/dashboard/route.ts:17 GET",
+        "v2:src/app/api/park/dashboard/route.ts:19 GET"
+      ],
+      "sourceHashes": {
+        "main": "1f790baa4dd93d22313159c230c0ebe357fef1619f6b5d7310a212d48f66b6bf",
+        "v2": "b1b01a4371f73d7c2ca9fe0f7cb8b3f9ed305cea5a4b9b34c20a1ffc37307224"
+      },
+      "literalConsumers": [
+        "main:src/components/modules/park/park-dashboard.tsx:326 (fetch)",
+        "v2:src/components/modules/murabbi/mobile-murabbi-dashboard.tsx:61 (fetch)",
+        "v2:src/components/modules/park/mobile-park-dashboard.tsx:61 (fetch)",
+        "v2:src/components/modules/park/park-dashboard.tsx:326 (fetch)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/park/guardians/route.ts",
+      "c1Conflict": true,
+      "contract": "C17",
+      "canonicalPath": "/api/park/guardians",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "main": [
+          "GET",
+          "POST"
+        ],
+        "v2": [
+          "GET",
+          "POST"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/park/guardians/route.ts:27 GET",
+        "main:src/app/api/park/guardians/route.ts:290 POST",
+        "v2:src/app/api/park/guardians/route.ts:27 GET",
+        "v2:src/app/api/park/guardians/route.ts:290 POST"
+      ],
+      "sourceHashes": {
+        "main": "1849816eb4c3c0e8b47a6dcc91d6e9479b6dad9328d5edcf2bb0ba35a8f16813",
+        "v2": "7939b5dde02ad4f189d83fcd3744bda09344a0bdad6e5af3ecc0b633b150bd95"
+      },
+      "literalConsumers": [
+        "main:src/components/modules/park/park-guardians-page.tsx:243 (fetch)",
+        "main:src/components/modules/park/park-guardians-page.tsx:709 (fetch)",
+        "v2:src/components/modules/park/park-guardians-page.tsx:243 (fetch)",
+        "v2:src/components/modules/park/park-guardians-page.tsx:709 (fetch)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/park/participants/route.ts",
+      "c1Conflict": true,
+      "contract": "C17",
+      "canonicalPath": "/api/park/participants",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "main": [
+          "GET",
+          "POST"
+        ],
+        "v2": [
+          "GET",
+          "POST"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/park/participants/route.ts:33 GET",
+        "main:src/app/api/park/participants/route.ts:347 POST",
+        "v2:src/app/api/park/participants/route.ts:33 GET",
+        "v2:src/app/api/park/participants/route.ts:347 POST"
+      ],
+      "sourceHashes": {
+        "main": "31ef10a5054f09073d1b7a8baabbd294eb3811bd557ffdefe316661b667e9b95",
+        "v2": "f1ab4f7b4dd735626d903cc64b48e4e61ac313d89b3394ceafba7ee61a2bfce4"
+      },
+      "literalConsumers": [
+        "main:src/components/modules/park/park-participants-page.tsx:356 (fetch)",
+        "main:src/components/modules/park/park-participants-page.tsx:864 (fetch)",
+        "v2:src/components/modules/park/park-participants-page.tsx:356 (fetch)",
+        "v2:src/components/modules/park/park-participants-page.tsx:864 (fetch)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/park/roster/route.ts",
+      "c1Conflict": true,
+      "contract": "C17",
+      "canonicalPath": "/api/park/roster",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "main": [
+          "GET"
+        ],
+        "v2": [
+          "GET"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/park/roster/route.ts:30 GET",
+        "v2:src/app/api/park/roster/route.ts:30 GET"
+      ],
+      "sourceHashes": {
+        "main": "5cbec35aaa5139f0f24d1d4e5b12b51770061677091613d392abd08f7967b2d1",
+        "v2": "a6383e1c8f18de763705c8eb57b90a5b8e8c90f39d73b9059ee2b02d7d1afdc1"
+      },
+      "literalConsumers": [
+        "main:src/components/modules/park/park-roster-page.tsx:797 (fetch)",
+        "v2:src/components/modules/park/park-roster-page.tsx:797 (fetch)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/park/staff-attendance/[eventId]/close/route.ts",
+      "c1Conflict": false,
+      "contract": "C10",
+      "canonicalPath": "/api/park/staff-attendance/[eventId]/close",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "v2": [
+          "PATCH"
+        ]
+      },
+      "sourceEvidence": [
+        "v2:src/app/api/park/staff-attendance/[eventId]/close/route.ts:9 PATCH"
+      ],
+      "sourceHashes": {
+        "v2": "1d329039a272f48a6961267d24ddbcce9c0e8011ff7f549a883c1e7feb582eb0"
+      },
+      "literalConsumers": [
+        "v2:src/components/modules/park/mobile-attendance-page.tsx:446 (fetch)",
+        "v2:src/components/modules/park/park-attendance-page.tsx:512 (fetch)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/park/staff-attendance/[eventId]/route.ts",
+      "c1Conflict": false,
+      "contract": "C10",
+      "canonicalPath": "/api/park/staff-attendance/[eventId]",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "v2": [
+          "GET",
+          "PATCH"
+        ]
+      },
+      "sourceEvidence": [
+        "v2:src/app/api/park/staff-attendance/[eventId]/route.ts:32 GET",
+        "v2:src/app/api/park/staff-attendance/[eventId]/route.ts:62 PATCH"
+      ],
+      "sourceHashes": {
+        "v2": "6163537c7f4e8470cba7fdf4511ec9eb7923d9cc85b0fb8e4ebe40ee0a54e36f"
+      },
+      "literalConsumers": [
+        "v2:src/components/modules/park/mobile-attendance-page.tsx:279 (fetch)",
+        "v2:src/components/modules/park/mobile-attendance-page.tsx:428 (fetch)",
+        "v2:src/components/modules/park/park-attendance-page.tsx:490 (fetch)",
+        "v2:src/components/modules/park/park-attendance-page.tsx:499 (fetch)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/park/staff-attendance/route.ts",
+      "c1Conflict": false,
+      "contract": "C10",
+      "canonicalPath": "/api/park/staff-attendance",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "v2": [
+          "GET",
+          "POST"
+        ]
+      },
+      "sourceEvidence": [
+        "v2:src/app/api/park/staff-attendance/route.ts:52 GET",
+        "v2:src/app/api/park/staff-attendance/route.ts:89 POST"
+      ],
+      "sourceHashes": {
+        "v2": "d8f137e0a67c5ac2f8fa995af071b8789bd1cca92e9e637a47a2dd062163e4d1"
+      },
+      "literalConsumers": [
+        "v2:src/components/modules/park/mobile-attendance-page.tsx:258 (fetch)",
+        "v2:src/components/modules/park/mobile-attendance-page.tsx:410 (fetch)",
+        "v2:src/components/modules/park/park-attendance-page.tsx:106 (fetch)",
+        "v2:src/components/modules/park/park-attendance-page.tsx:168 (fetch)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/reports/attendance/class-stats/route.ts",
+      "c1Conflict": true,
+      "contract": "C11",
+      "canonicalPath": "/api/reports/attendance/class-stats",
+      "disposition": "restore main endpoint under reviewed clause",
+      "sourceMethods": {
+        "main": [
+          "GET"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/reports/attendance/class-stats/route.ts:24 GET"
+      ],
+      "sourceHashes": {
+        "main": "290b53e428af7f2b468c3aa7d9c5571e27c54ac7a3d8eef2d0c01069e60e72c9"
+      },
+      "literalConsumers": [],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/reports/attendance/murabbi-summary/route.ts",
+      "c1Conflict": true,
+      "contract": "C11",
+      "canonicalPath": "/api/reports/attendance/murabbi-summary",
+      "disposition": "restore main endpoint under reviewed clause",
+      "sourceMethods": {
+        "main": [
+          "GET"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/reports/attendance/murabbi-summary/route.ts:24 GET"
+      ],
+      "sourceHashes": {
+        "main": "1f692b9a7b0728e84eff00bbca62d40da73e9fcee5822c1c63441ae819ba4a73"
+      },
+      "literalConsumers": [],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/reports/attendance/student-summary/route.ts",
+      "c1Conflict": true,
+      "contract": "C11",
+      "canonicalPath": "/api/reports/attendance/student-summary",
+      "disposition": "restore main endpoint under reviewed clause",
+      "sourceMethods": {
+        "main": [
+          "GET"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/reports/attendance/student-summary/route.ts:25 GET"
+      ],
+      "sourceHashes": {
+        "main": "ea64a4b90fff5c8836fed595e19212a2d691707aa442a40b74ac4196359b917f"
+      },
+      "literalConsumers": [],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/search/route.ts",
+      "c1Conflict": true,
+      "contract": "C02",
+      "canonicalPath": "/api/search",
+      "disposition": "restore main endpoint under reviewed clause",
+      "sourceMethods": {
+        "main": [
+          "GET"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/search/route.ts:105 GET"
+      ],
+      "sourceHashes": {
+        "main": "d04808d1beba546fe9118eda88b07b1dc1f5a49ba5d69218ccbd186acc53cf7f"
+      },
+      "literalConsumers": [],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/student/attendance-history/route.ts",
+      "c1Conflict": true,
+      "contract": "C19",
+      "canonicalPath": "/api/student/attendance-history",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "main": [
+          "GET"
+        ],
+        "v2": [
+          "GET"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/student/attendance-history/route.ts:28 GET",
+        "v2:src/app/api/student/attendance-history/route.ts:28 GET"
+      ],
+      "sourceHashes": {
+        "main": "f5d95d64bc86ac4b0854456460ca6456e31ba057c3cb8e86dc841c96380b2a48",
+        "v2": "708caa85731a0301f5753be55f7a8ffd2c91493709e4edce1618a510e4a77caa"
+      },
+      "literalConsumers": [
+        "main:src/components/modules/student/student-history-page.tsx:158 (fetch)",
+        "v2:src/components/modules/student/student-history-page.tsx:158 (fetch)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/student/dashboard/route.ts",
+      "c1Conflict": true,
+      "contract": "C19",
+      "canonicalPath": "/api/student/dashboard",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "main": [
+          "GET"
+        ],
+        "v2": [
+          "GET"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/student/dashboard/route.ts:18 GET",
+        "v2:src/app/api/student/dashboard/route.ts:18 GET"
+      ],
+      "sourceHashes": {
+        "main": "20c541a23019509d6878012834415e38899d915074b60d05d211b566e249ae8d",
+        "v2": "a800981524ddcd87b48fc40eb864f97d906cd662ea598334ead61fdf1053a936"
+      },
+      "literalConsumers": [
+        "main:src/components/modules/student/student-dashboard.tsx:238 (fetch)",
+        "v2:src/components/modules/student/mobile-student-dashboard.tsx:66 (fetch)",
+        "v2:src/components/modules/student/student-dashboard.tsx:238 (fetch)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/student/schedule/route.ts",
+      "c1Conflict": true,
+      "contract": "C12",
+      "canonicalPath": "/api/student/schedule",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "main": [
+          "GET"
+        ],
+        "v2": [
+          "GET"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/student/schedule/route.ts:16 GET",
+        "v2:src/app/api/student/schedule/route.ts:16 GET"
+      ],
+      "sourceHashes": {
+        "main": "76b6a0440f0bfbe9a830463272196074d9c01a395fa8a0bc5e2a30909b3ad688",
+        "v2": "e48246b11e6ae6b2af289038dd2860682f88144c52800a5e13ca8123a2485156"
+      },
+      "literalConsumers": [
+        "main:src/components/modules/student/student-schedule-page.tsx:146 (fetch)",
+        "v2:src/components/modules/student/student-schedule-page.tsx:146 (fetch)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    },
+    {
+      "sourcePath": "src/app/api/user/profile/route.ts",
+      "c1Conflict": true,
+      "contract": "C03",
+      "canonicalPath": "/api/user/profile",
+      "disposition": "retain v2 path/shape except explicit clause changes",
+      "sourceMethods": {
+        "main": [
+          "GET",
+          "PATCH"
+        ],
+        "v2": [
+          "GET",
+          "PATCH"
+        ]
+      },
+      "sourceEvidence": [
+        "main:src/app/api/user/profile/route.ts:31 GET",
+        "main:src/app/api/user/profile/route.ts:106 PATCH",
+        "v2:src/app/api/user/profile/route.ts:31 GET",
+        "v2:src/app/api/user/profile/route.ts:108 PATCH"
+      ],
+      "sourceHashes": {
+        "main": "3448a0e0e2274acc8b7d25de011ecf8e959aa9a9a578cc0eba7d5ed65c5fe0d7",
+        "v2": "285d10dd099d176e0f5cd80f7d334159d43d502efdfe9bb001fba647a9ac0624"
+      },
+      "literalConsumers": [
+        "main:src/components/modules/admin/settings-page.tsx:110 (fetch)",
+        "main:src/components/modules/admin/settings-page.tsx:89 (fetch)",
+        "main:src/components/modules/student/student-profile-page.tsx:110 (fetch)",
+        "main:src/components/modules/student/student-profile-page.tsx:119 (fetch)",
+        "v2:src/components/modules/admin/settings-page.tsx:110 (fetch)",
+        "v2:src/components/modules/admin/settings-page.tsx:89 (fetch)",
+        "v2:src/components/modules/student/mobile-student-profile-view.tsx:27 (readJson)"
+      ],
+      "consumerLimit": "literal-call matching, not a complete runtime call graph",
+      "implementationVerified": false
+    }
+  ],
+  "counts": {
+    "capabilities": 41,
+    "endpoints": 125,
+    "conflicts": 107
+  },
+  "meaning": "Reviewed proposed dispositions; no runtime equivalence or fix verification"
+}

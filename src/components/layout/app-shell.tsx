@@ -48,6 +48,9 @@ const EventsPage = lazy(() => import("@/app/admin/events/page").then(m => ({ def
 const FeesPage = lazy(() => import("@/components/modules/admin/fees-page").then(m => ({ default: m.FeesPage })));
 const NotificationsPage = lazy(() => import("@/components/modules/admin/notifications-page").then(m => ({ default: m.NotificationsPage })));
 const AdmissionsPage = lazy(() => import("@/components/modules/admin/admissions-page").then(m => ({ default: m.AdmissionsPage })));
+const RegistrationFormsPage = lazy(() => import("@/components/modules/admin/registration-forms-page").then(m => ({ default: m.RegistrationFormsPage })));
+const RegistrationFormBuilderPage = lazy(() => import("@/components/modules/admin/registration-form-builder-page").then(m => ({ default: m.RegistrationFormBuilderPage })));
+const RegistrationFormSubmissionsPage = lazy(() => import("@/components/modules/admin/registration-form-submissions-page").then(m => ({ default: m.RegistrationFormSubmissionsPage })));
 const ContentPlannerPage = lazy(() => import("@/components/modules/content-planner/content-planner-page").then(m => ({ default: m.ContentPlannerPage })));
 const CommunityPage = lazy(() => import("@/components/modules/admin/community-page").then(m => ({ default: m.CommunityPage })));
 const ProcurementPage = lazy(() => import("@/components/modules/admin/procurement-page").then(m => ({ default: m.ProcurementPage })));
@@ -141,6 +144,9 @@ const pageTitles: Record<PageId, string> = {
   "admin-mashwara-detail": "Mashwara Detail",
   "admin-islah-mamulat": "Islah-i-Mamulat",
   "admin-admissions": "Admissions",
+  "admin-registration-forms": "Registration Forms",
+  "admin-registration-forms-edit": "Edit Registration Form",
+  "admin-registration-forms-submissions": "Form Submissions",
   "admin-fees": "Fees",
   "admin-content-planner": "Content Planner",
   "admin-community": "Community & Quizzes",
@@ -192,7 +198,7 @@ function isKnownPage(pageId: PageId): boolean {
     "admin-dashboard", "admin-cities", "admin-parks", "admin-batches",
     "admin-groups", "admin-people", "admin-students", "admin-guardians",
     "admin-attendance-events", "admin-settings", "admin-users",
-    "admin-admissions", "admin-fees", "admin-content-planner", "admin-announcements",
+    "admin-admissions", "admin-registration-forms", "admin-registration-forms-edit", "admin-registration-forms-submissions", "admin-fees", "admin-content-planner", "admin-announcements",
     "admin-events", "admin-events-detail",
     "admin-reports", "admin-reports-builder", "admin-audit-log", "admin-sync-conflicts", "admin-access", "admin-access-management", "admin-collaboration-teams", "notifications",
     "admin-mashwara",
@@ -300,6 +306,12 @@ function PageContentInner({ pageId }: { pageId: PageId }) {
       return <GuardiansPage />;
     case "admin-admissions":
       return <AdmissionsPage />;
+    case "admin-registration-forms":
+      return <RegistrationFormsPage />;
+    case "admin-registration-forms-edit":
+      return <RegistrationFormBuilderPage />;
+    case "admin-registration-forms-submissions":
+      return <RegistrationFormSubmissionsPage />;
     case "admin-fees":
       return <FeesPage />;
     case "admin-content-planner":
@@ -574,3 +586,5 @@ export function AppShell() {
     </div>
   );
 }
+
+

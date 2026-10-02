@@ -10,7 +10,6 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { cn } from "@/lib/utils";
 
 export interface ProfileCapabilities {
   canView: boolean;
@@ -109,6 +108,7 @@ export function StudentProfilePage({
   const [draft, setDraft] = useState<ProfileData>({});
   const [editBase, setEditBase] = useState<ProfileData>({});
   const [dropoutReason, setDropoutReason] = useState("");
+  const [rejoinDate, setRejoinDate] = useState("");
 
   const canEdit = capabilities.canManage;
   const canViewSensitive = capabilities.canViewSensitive;
@@ -180,19 +180,24 @@ export function StudentProfilePage({
   });
 
   const dropoutMutation = useMutation({
-    mutationFn: async (action: "dropout" | "reactivate") => {
+    mutationFn: async ({ action, effectiveDate }: { action: "dropout" | "reactivate"; effectiveDate?: string }) => {
       const response = await fetch(`/api/admin/students/${participantId}/dropout`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action, reason: dropoutReason }),
+        body: JSON.stringify({
+          action,
+          reason: dropoutReason,
+          ...(action === "reactivate" ? { effectiveDate } : {}),
+        }),
       });
       const payload = await response.json().catch(() => ({ error: "Status update failed" }));
       if (!response.ok) throw new Error(typeof payload.error === "string" ? payload.error : "Status update failed");
       return payload;
     },
-    onSuccess: (_data, action) => {
-      toast.success(action === "dropout" ? "Attendance discontinued" : "Student reactivated");
+    onSuccess: (_data, variables) => {
+      toast.success(variables.action === "dropout" ? "Attendance discontinued" : "Student reactivated");
       setDropoutReason("");
+      setRejoinDate("");
       queryClient.invalidateQueries({ queryKey: ["student-dropout-status", participantId] });
     },
     onError: (mutationError: Error) => toast.error(mutationError.message),
@@ -310,21 +315,37 @@ export function StudentProfilePage({
             </div>
             {dropoutStatus.dropoutReason && <p className="text-sm">{dropoutStatus.dropoutReason}</p>}
             {canEdit && (
-              <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
-                <Textarea
-                  value={dropoutReason}
-                  onChange={(event) => setDropoutReason(event.target.value)}
-                  placeholder={dropoutStatus.state === "dropout" ? "Reason for reactivation (minimum 10 characters)" : "Reason for discontinuing attendance (minimum 10 characters)"}
-                  className="min-h-11"
-                />
-                <Button
-                  variant={dropoutStatus.state === "dropout" ? "default" : "destructive"}
-                  className="min-h-11"
-                  disabled={dropoutReason.trim().length < 10 || dropoutMutation.isPending}
-                  onClick={() => dropoutMutation.mutate(dropoutStatus.state === "dropout" ? "reactivate" : "dropout")}
-                >
-                  {dropoutStatus.state === "dropout" ? "Reactivate student" : "Mark as dropout"}
-                </Button>
+              <div className="space-y-2">
+                {dropoutStatus.state === "dropout" && (
+                  <div className="space-y-1">
+                    <Label htmlFor="student-rejoin-date" className="text-xs text-muted-foreground">
+                      Rejoin date
+                    </Label>
+                    <Input
+                      id="student-rejoin-date"
+                      type="date"
+                      value={rejoinDate}
+                      onChange={(event) => setRejoinDate(event.target.value)}
+                      className="min-h-11 sm:max-w-[220px]"
+                    />
+                  </div>
+                )}
+                <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+                  <Textarea
+                    value={dropoutReason}
+                    onChange={(event) => setDropoutReason(event.target.value)}
+                    placeholder={dropoutStatus.state === "dropout" ? "Reason for reactivation (minimum 10 characters)" : "Reason for discontinuing attendance (minimum 10 characters)"}
+                    className="min-h-11"
+                  />
+                  <Button
+                    variant={dropoutStatus.state === "dropout" ? "default" : "destructive"}
+                    className="min-h-11"
+                    disabled={dropoutReason.trim().length < 10 || dropoutMutation.isPending || (dropoutStatus.state === "dropout" && !rejoinDate)}
+                    onClick={() => dropoutMutation.mutate({ action: dropoutStatus.state === "dropout" ? "reactivate" : "dropout", effectiveDate: rejoinDate || undefined })}
+                  >
+                    {dropoutStatus.state === "dropout" ? "Reactivate student" : "Mark as dropout"}
+                  </Button>
+                </div>
               </div>
             )}
           </CardContent>

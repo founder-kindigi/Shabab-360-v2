@@ -76,6 +76,8 @@ export function evaluateConsecutiveAbsenceWeeks(
 
 /**
  * Checks if a given date is a configured off weekend or exception date.
+ * @deprecated No production callers. Used only by the deprecated
+ * evaluateConsecutiveAbsences helper below. Do not add new callers.
  */
 export function isOffDate(date: Date | string, settings: DropoutPolicySettings): boolean {
   const d = date instanceof Date ? date : new Date(date);
@@ -97,6 +99,8 @@ export function isOffDate(date: Date | string, settings: DropoutPolicySettings):
 
 /**
  * Evaluates consecutive absences and determines if warning or automatic dropout is triggered.
+ * @deprecated Per-session model with no production callers. The authoritative model is
+ * evaluateConsecutiveAbsenceWeeks (weekly). Do not add new callers.
  */
 export function evaluateConsecutiveAbsences(
   records: AttendanceStatusRecord[],
@@ -146,6 +150,8 @@ export function evaluateConsecutiveAbsences(
 
 /**
  * Ensures attendance recording stops after dropout unless reactivated.
+ * @deprecated No production callers. Eligibility is enforced by eligibleForSession
+ * in src/lib/attendance/opportunities.ts. Do not add new callers.
  */
 export function canMarkAttendance(participantState: string): { canMark: boolean; reason?: string } {
   if (participantState === 'dropout') {

@@ -25,10 +25,6 @@ export function LessonsTab({ parkId }: LessonsTabProps) {
       if (!res.ok) return [];
       return res.json();
     },
-    initialData: [
-      { id: "l1", title: "Importance of Discipline & Character", type: "Tarbiyah", lessonDate: "2026-09-04T00:00:00.000Z", driveLink: "https://drive.google.com" },
-      { id: "l2", title: "Football Agility & Relay Drills", type: "Activity", lessonDate: "2026-09-05T00:00:00.000Z" },
-    ],
   });
 
   // Create lesson mutation

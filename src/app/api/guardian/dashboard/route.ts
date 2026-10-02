@@ -20,7 +20,7 @@ type GuardianDashboardChild = {
   batchName: string | null;
   parkName: string | null;
   cityName: string | null;
-  groupId: string;
+  groupId: string | null;
   todayStatus: string | null;
   sparkline7Day: number[];
   attendance: {
@@ -128,7 +128,7 @@ export async function GET() {
       ...new Set(
         guardianChildren
           .map((gc) => gc.participant.groupId)
-          .filter(Boolean)
+          .filter((groupId): groupId is string => groupId !== null)
       ),
     ];
 
@@ -138,6 +138,25 @@ export async function GET() {
     for (const gc of guardianChildren) {
       const p = gc.participant;
       const groupId = p.groupId;
+
+      // An unassigned child has no group attendance, schedule, park/city or
+      // fee-event data. Retain the child with null/empty group-derived fields.
+      if (!groupId) {
+        children.push({
+          id: p.id,
+          name: p.name,
+          groupName: null,
+          batchName: null,
+          parkName: null,
+          cityName: null,
+          groupId: null,
+          todayStatus: null,
+          sparkline7Day: [],
+          attendance: { totalEvents30: 0, present30: 0, absent30: 0, late30: 0, excused30: 0, rate30: 0, rate7: 0, last5: [] },
+          fees: { totalExpected: 0, totalPaid: 0, outstanding: 0, upcomingFees: 0, overdueFees: 0 },
+        });
+        continue;
+      }
 
       // 30-day attendance records
       const records30 = await db.attendanceRecord.findMany({

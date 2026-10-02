@@ -72,7 +72,13 @@ export async function GET(request: Request) {
     weekSunday.setHours(23, 59, 59, 999);
 
     // Collect group IDs
-    const groupIds = [...new Set(guardianChildren.map((gc) => gc.participant.groupId))];
+    const groupIds = [
+      ...new Set(
+        guardianChildren
+          .map((gc) => gc.participant.groupId)
+          .filter((groupId): groupId is string => groupId !== null)
+      ),
+    ];
 
     // Get events for all groups in the week
     const weekEvents = await db.attendanceEvent.findMany({
@@ -97,34 +103,39 @@ export async function GET(request: Request) {
     // Build children data
     const children = guardianChildren.map((gc) => {
       const p = gc.participant;
-      const gid = p.groupId;
-      const events = (eventsByGroup.get(gid) || []).map((e) => {
-        const d = toPKT(new Date(e.eventDate));
-        let dow = d.getDay();
-        dow = dow === 0 ? 6 : dow - 1;
-        return {
-          id: e.id,
-          title: e.title,
-          eventDate: e.eventDate.toISOString(),
-          dayOfWeek: dow,
-          dateStr: formatPKT(d, "yyyy-MM-dd"),
-          timeStr: formatPKT(d, "hh:mm a"),
-          isClosed: e.isClosed,
-          markedCount: e._count.records,
-        };
-      });
+      const group = p.group;
+      const events = group
+        ? (eventsByGroup.get(group.id) || []).map((e) => {
+            const d = toPKT(new Date(e.eventDate));
+            let dow = d.getDay();
+            dow = dow === 0 ? 6 : dow - 1;
+            return {
+              id: e.id,
+              title: e.title,
+              eventDate: e.eventDate.toISOString(),
+              dayOfWeek: dow,
+              dateStr: formatPKT(d, "yyyy-MM-dd"),
+              timeStr: formatPKT(d, "hh:mm a"),
+              isClosed: e.isClosed,
+              markedCount: e._count.records,
+            };
+          })
+        : [];
 
       return {
         participant: {
           id: p.id,
           name: p.name,
         },
-        group: {
-          id: p.group?.id || "",
-          name: p.group?.name || "Unknown",
-          batchName: p.group?.batch?.name || null,
-          parkName: p.group?.batch?.park?.name || null,
-        },
+        // An unassigned child has no group schedule or group-derived display.
+        group: group
+          ? {
+              id: group.id,
+              name: group.name,
+              batchName: group.batch?.name || null,
+              parkName: group.batch?.park?.name || null,
+            }
+          : null,
         events,
       };
     });

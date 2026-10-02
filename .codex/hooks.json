@@ -13,6 +13,19 @@
           }
         ]
       }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$(git rev-parse --show-toplevel)/.codex/hooks/delivery-reminder.mjs\"",
+            "commandWindows": "powershell -NoProfile -Command \"$null = [Console]::In.ReadToEnd(); $deliveryRepo = git rev-parse --show-toplevel; node (Join-Path $deliveryRepo '.codex/hooks/delivery-reminder.mjs')\"",
+            "timeout": 10,
+            "statusMessage": "Checking module handoff state"
+          }
+        ]
+      }
     ]
   }
 }

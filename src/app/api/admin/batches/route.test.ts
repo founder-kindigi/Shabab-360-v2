@@ -67,7 +67,7 @@ describe("POST /api/admin/batches dynamic authorization & real scope boundary", 
       new NextRequest("http://localhost/api/admin/batches", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ name: "Lahore Batch 5", parkId: "park-1", startDate: "2026-08-01" }),
+        body: JSON.stringify({ name: "Lahore Batch 5", parkId: "park-1", startDate: "2026-08-01", endDate: "2026-12-31" }),
       })
     );
 
@@ -89,7 +89,7 @@ describe("POST /api/admin/batches dynamic authorization & real scope boundary", 
       new NextRequest("http://localhost/api/admin/batches", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ name: "Batch 5", parkId: "park-1", startDate: "2026-08-01" }),
+        body: JSON.stringify({ name: "Batch 5", parkId: "park-1", startDate: "2026-08-01", endDate: "2026-12-31" }),
       })
     );
 
@@ -107,7 +107,7 @@ describe("POST /api/admin/batches dynamic authorization & real scope boundary", 
       new NextRequest("http://localhost/api/admin/batches", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ name: "Batch 5", parkId: "park-1", startDate: "2026-08-01" }),
+        body: JSON.stringify({ name: "Batch 5", parkId: "park-1", startDate: "2026-08-01", endDate: "2026-12-31" }),
       })
     );
 
@@ -125,7 +125,7 @@ describe("POST /api/admin/batches dynamic authorization & real scope boundary", 
       new NextRequest("http://localhost/api/admin/batches", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ name: "Foreign Batch", parkId: "park-2-foreign-city", startDate: "2026-08-01" }),
+        body: JSON.stringify({ name: "Foreign Batch", parkId: "park-2-foreign-city", startDate: "2026-08-01", endDate: "2026-12-31" }),
       })
     );
 
@@ -143,7 +143,7 @@ describe("POST /api/admin/batches dynamic authorization & real scope boundary", 
       new NextRequest("http://localhost/api/admin/batches", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ name: "Batch 5", parkId: "park-1", startDate: "2026-08-01" }),
+        body: JSON.stringify({ name: "Batch 5", parkId: "park-1", startDate: "2026-08-01", endDate: "2026-12-31" }),
       })
     );
 
@@ -160,7 +160,7 @@ describe("POST /api/admin/batches dynamic authorization & real scope boundary", 
       new NextRequest("http://localhost/api/admin/batches", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ name: "Foreign Park Batch", parkId: "park-1-same-city-foreign-park", startDate: "2026-08-01" }),
+        body: JSON.stringify({ name: "Foreign Park Batch", parkId: "park-1-same-city-foreign-park", startDate: "2026-08-01", endDate: "2026-12-31" }),
       })
     );
 
@@ -177,7 +177,7 @@ describe("POST /api/admin/batches dynamic authorization & real scope boundary", 
       new NextRequest("http://localhost/api/admin/batches", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ name: "Foreign City Batch", parkId: "park-2-foreign-city", startDate: "2026-08-01" }),
+        body: JSON.stringify({ name: "Foreign City Batch", parkId: "park-2-foreign-city", startDate: "2026-08-01", endDate: "2026-12-31" }),
       })
     );
 
@@ -194,7 +194,7 @@ describe("POST /api/admin/batches dynamic authorization & real scope boundary", 
       new NextRequest("http://localhost/api/admin/batches", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ name: "Murabbi Batch", parkId: "park-1", startDate: "2026-08-01" }),
+        body: JSON.stringify({ name: "Murabbi Batch", parkId: "park-1", startDate: "2026-08-01", endDate: "2026-12-31" }),
       })
     );
 
@@ -211,7 +211,7 @@ describe("POST /api/admin/batches dynamic authorization & real scope boundary", 
       new NextRequest("http://localhost/api/admin/batches", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ name: "Target Park Batch", parkId: "park-1", startDate: "2026-08-01" }),
+        body: JSON.stringify({ name: "Target Park Batch", parkId: "park-1", startDate: "2026-08-01", endDate: "2026-12-31" }),
       })
     );
 
@@ -226,6 +226,19 @@ describe("POST /api/admin/batches dynamic authorization & real scope boundary", 
       mocks.requireAuth.mockResolvedValue({
         user: { id: "city-head", role: "city_head", assignedCityId: "city-1" },
       });
+    });
+
+    it("requires an end date for a new batch and does not write", async () => {
+      const response = await POST(
+        new NextRequest("http://localhost/api/admin/batches", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ name: "Missing End", parkId: "park-1", startDate: "2026-08-01" }),
+        })
+      );
+
+      expect(response.status).toBe(400);
+      expect(mocks.batchCreate).not.toHaveBeenCalled();
     });
 
     it("accepts equal startDate and endDate (201)", async () => {

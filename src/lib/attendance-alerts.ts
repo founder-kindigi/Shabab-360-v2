@@ -1,6 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { sendAbsenceAlert } from "@/lib/email-service";
+import { eligibleForSession } from "@/lib/attendance/opportunities";
 
 export type AttendanceAlertResult = {
   warnings: string[];
@@ -59,6 +60,8 @@ export async function checkAttendanceAlerts(
         },
       },
     },
+    // state, joinedAt, dropoutAt and reactivatedAt are always included by
+    // Prisma include — they are used by eligibleForSession below.
   });
   if (!participant) {
     throw new AttendanceAlertError("Participant not in this event group", 409);
@@ -69,7 +72,7 @@ export async function checkAttendanceAlerts(
       groupId: event.groupId,
       eventDate: { lte: event.eventDate },
     },
-    select: { id: true },
+    select: { id: true, eventDate: true },
     orderBy: { eventDate: "desc" },
   });
   const records = await db.attendanceRecord.findMany({
@@ -80,9 +83,16 @@ export async function checkAttendanceAlerts(
     select: { eventId: true, status: true },
   });
 
+  // Only count sessions where the participant was eligible. Sessions before
+  // joinedAt, inside a dropout→rejoin interruption, or after an unrecovered
+  // dropout are excluded — they must not extend or break the streak.
+  const eligibleEvents = allEvents.filter((e) =>
+    eligibleForSession(participant, e.eventDate)
+  );
+
   const recordByEvent = new Map(records.map((record) => [record.eventId, record.status]));
   let consecutiveAbsents = 0;
-  for (const attendanceEvent of allEvents) {
+  for (const attendanceEvent of eligibleEvents) {
     if (recordByEvent.get(attendanceEvent.id) !== "absent") {
       break;
     }

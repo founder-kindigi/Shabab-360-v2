@@ -1,0 +1,38 @@
+{
+  "date": "2026-09-12",
+  "passed": true,
+  "checks": {
+    "coverageAndRouteHashes": true,
+    "allNegativeProbes": true,
+    "catalogueHashes": true,
+    "consumerHashes": true,
+    "c2PatchIdentity": true,
+    "c2ChangedFiles": true,
+    "c2UnchangedBaseline": true,
+    "c2ExcludedScratchAbsent": true,
+    "originalPreserved": true,
+    "recoveryCopyPreserved": true,
+    "recoveryArchiveIdentity": true,
+    "headUnchanged": true,
+    "indexUnchanged": true,
+    "deletionsUnchanged": true,
+    "all27FindingsCarried": true,
+    "markdownLinks": true
+  },
+  "counts": {
+    "capabilities": 41,
+    "endpoints": 125,
+    "conflicts": 107
+  },
+  "originalSnapshotFiles": 1288,
+  "candidateUnchangedFiles": 1274,
+  "negativeProbes": {
+    "missingCapabilityRejected": true,
+    "missingEndpointRejected": true,
+    "changedSourceHashRejected": true
+  },
+  "errors": [],
+  "brokenLinks": [],
+  "remoteFreshness": "Refresh rejected by automatic approval review due to account usage limit; no retry/bypass. Pinned local source hashes only.",
+  "meaning": "Coverage, recorded disposition and local identity checks only; no API/browser/database behavior or release verification."
+}

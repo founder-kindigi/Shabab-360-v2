@@ -1,6 +1,6 @@
-import { requireResolvedGroupScope, resolveRequestedHierarchy, hierarchyGroupWhere } from "@/lib/auth/hierarchy";
+import { requireResolvedGroupScope } from "@/lib/auth/hierarchy";
 import { NextResponse } from "next/server";
-import { ATTENDANCE_ROLES, requireAuth, requireCapability, requireResourceScope } from "@/lib/auth/authorize";
+import { ATTENDANCE_ROLES, requireCapability } from "@/lib/auth/authorize";
 import { db } from "@/lib/db";
 import { formatPKT } from "@/lib/timezone";
 import {
@@ -9,15 +9,15 @@ import {
   queryValidationError,
 } from "@/lib/api/query-params";
 import { z } from "zod";
+import { evaluateConsecutiveAbsenceWeeks } from "@/lib/attendance/dropout-policy";
+import { eligibleForSession } from "@/lib/attendance/opportunities";
 
 const warningsQuerySchema = z.object({ groupId: optionalIdentifier() });
 
 export async function GET(req: Request) {
-  const auth = await requireAuth();
+  const auth = await requireCapability("attendance.mark");
   if (auth instanceof NextResponse) return auth;
   const { user } = auth;
-  const capabilityAuth = await requireCapability("attendance.mark");
-  if (capabilityAuth instanceof NextResponse) return capabilityAuth;
 
   const query = warningsQuerySchema.safeParse(queryParamsToObject(new URL(req.url).searchParams));
   if (!query.success) {
@@ -54,27 +54,34 @@ export async function GET(req: Request) {
     const scopeError = requireResolvedGroupScope(user, group, ATTENDANCE_ROLES);
     if (scopeError) return scopeError;
 
-    // Get batch settings for thresholds
-    const settings = group.batch.settings || {
-      warningAbsents: 3,
-      dropoutAbsents: 6,
-    };
+    // Use the authoritative weekly threshold model (same as attendance summaries).
+    const batchSettings = group.batch.settings;
+    const warningConsecutiveWeeks = batchSettings?.warningConsecutiveWeeks ?? 2;
+    const dropoutConsecutiveWeeks = batchSettings?.dropoutConsecutiveWeeks ?? 3;
+    // F-19: criticalThreshold is an undocumented sub-warning tier visible in the
+    // API response. Removing it requires an owner decision on whether it is part
+    // of the supported contract. It is preserved here pending that decision.
+    const criticalThreshold = Math.ceil(warningConsecutiveWeeks * 0.67);
 
-    const warningAbsents = settings.warningAbsents || 3;
-    const dropoutAbsents = settings.dropoutAbsents || 6;
-    const criticalThreshold = Math.ceil(warningAbsents * 0.67);
-
-    // Get all active participants in the group
+    // Get all participants in the group including lifecycle fields needed for
+    // eligibleForSession filtering (F-11 pattern applied to warnings).
     const participants = await db.participant.findMany({
       where: { groupId, state: "active" },
-      select: { id: true, name: true },
+      select: {
+        id: true,
+        name: true,
+        state: true,
+        joinedAt: true,
+        dropoutAt: true,
+        reactivatedAt: true,
+      },
       orderBy: { name: "asc" },
     });
 
     if (participants.length === 0) {
       return NextResponse.json({
         warnings: [],
-        settings: { warningAbsents, dropoutAbsents },
+        settings: { warningConsecutiveWeeks, dropoutConsecutiveWeeks },
       });
     }
 
@@ -102,63 +109,60 @@ export async function GET(req: Request) {
       },
     });
 
-    // Build a map: eventId -> Set of participant IDs with "absent" status
-    const absentByEvent = new Map<string, Set<string>>();
-    // Build a map: participantId -> Set of event IDs where they were present/late/excused
-    const attendedEvents = new Map<string, Set<string>>();
+    // Build a map: eventId → eventDate for eligibility checks
+    const eventDateById = new Map(events.map((e) => [e.id, e.eventDate]));
 
-    for (const rec of records) {
-      if (rec.status === "absent") {
-        const set = absentByEvent.get(rec.eventId) || new Set();
-        set.add(rec.participantId);
-        absentByEvent.set(rec.eventId, set);
-      } else if (rec.status === "present" || rec.status === "late") {
-        // Not absent in this event
-        const set = attendedEvents.get(rec.participantId) || new Set();
-        set.add(rec.eventId);
-        attendedEvents.set(rec.participantId, set);
-      }
-    }
-
-    // For each participant, count consecutive absences from most recent events
     const warnings: Array<{
       participantId: string;
       participantName: string;
-      consecutiveAbsents: number;
+      consecutiveAbsentWeeks: number;
       level: "warning" | "critical" | "dropout";
       threshold: number;
       lastAttendanceDate: string | null;
     }> = [];
 
     for (const participant of participants) {
-      let consecutiveAbsents = 0;
-      let lastAttendanceDate: string | null = null;
-      const participantAttended = attendedEvents.get(participant.id);
+      // Filter records to only sessions where this participant was eligible.
+      // Ineligible sessions (before joinedAt, during dropout gap) are excluded.
+      const eligibleRecords = records
+        .filter((rec) => {
+          if (rec.participantId !== participant.id) return false;
+          const eventDate = eventDateById.get(rec.eventId);
+          if (!eventDate) return false;
+          return eligibleForSession(participant, eventDate);
+        })
+        .map((rec) => ({
+          eventId: rec.eventId,
+          eventDate: eventDateById.get(rec.eventId)!,
+          status: rec.status as "present" | "absent" | "late" | "excused",
+        }));
 
-      for (const event of events) {
-        const absentSet = absentByEvent.get(event.id);
-        if (absentSet && absentSet.has(participant.id)) {
-          consecutiveAbsents++;
-        } else if (participantAttended && participantAttended.has(event.id)) {
-          // Participant attended this event — stop counting consecutive absences
-          lastAttendanceDate = formatPKT(event.eventDate, "yyyy-MM-dd");
+      const weeklyResult = evaluateConsecutiveAbsenceWeeks(eligibleRecords, {
+        warningConsecutiveWeeks,
+        dropoutConsecutiveWeeks,
+      });
+
+      // Determine last attendance date from records (most recent present/late)
+      let lastAttendanceDate: string | null = null;
+      for (const rec of eligibleRecords.sort((a, b) => b.eventDate.getTime() - a.eventDate.getTime())) {
+        if (rec.status === "present" || rec.status === "late") {
+          lastAttendanceDate = formatPKT(rec.eventDate, "yyyy-MM-dd");
           break;
         }
-        // If participant has no record for this event, we skip it (not counted as absent)
-        // unless all events have records — but we only count "absent" records
       }
 
-      // Determine warning level
+      // Determine warning level using weekly thresholds
       let level: "warning" | "critical" | "dropout" | null = null;
       let threshold = 0;
 
-      if (consecutiveAbsents >= dropoutAbsents) {
+      if (weeklyResult.shouldDropout) {
         level = "dropout";
-        threshold = dropoutAbsents;
-      } else if (consecutiveAbsents >= warningAbsents) {
+        threshold = dropoutConsecutiveWeeks;
+      } else if (weeklyResult.shouldWarn) {
         level = "warning";
-        threshold = warningAbsents;
-      } else if (consecutiveAbsents >= criticalThreshold) {
+        threshold = warningConsecutiveWeeks;
+      } else if (weeklyResult.consecutiveAbsentWeeks >= criticalThreshold) {
+        // F-19: Undocumented critical sub-tier. Requires owner decision to keep or remove.
         level = "critical";
         threshold = criticalThreshold;
       }
@@ -167,7 +171,7 @@ export async function GET(req: Request) {
         warnings.push({
           participantId: participant.id,
           participantName: participant.name,
-          consecutiveAbsents,
+          consecutiveAbsentWeeks: weeklyResult.consecutiveAbsentWeeks,
           level,
           threshold,
           lastAttendanceDate,
@@ -177,7 +181,7 @@ export async function GET(req: Request) {
 
     return NextResponse.json({
       warnings,
-      settings: { warningAbsents, dropoutAbsents },
+      settings: { warningConsecutiveWeeks, dropoutConsecutiveWeeks },
     });
   } catch (error) {
     console.error("Attendance warnings error:", error);

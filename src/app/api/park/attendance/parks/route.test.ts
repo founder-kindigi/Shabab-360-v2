@@ -61,4 +61,34 @@ describe("GET /api/park/attendance/parks", () => {
     expect(response.status).toBe(401);
     expect(mocks.parkFindMany).not.toHaveBeenCalled();
   });
+
+  it("returns only the assigned group's park for an assigned Murabbi", async () => {
+    mocks.requireAuth.mockResolvedValue({ user: { id: "m-1", role: "murabbi", assignedGroupId: "group-1" } });
+    mocks.groupFindUnique.mockResolvedValue({
+      id: "group-1",
+      parkId: "park-1",
+      park: { id: "park-1", cityId: "city-1" },
+      batch: { cityId: "city-1", park: { cityId: "city-1" } },
+    });
+    mocks.parkFindMany.mockResolvedValue([{ id: "park-1", name: "Gulberg" }]);
+
+    const response = await GET();
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual([{ id: "park-1", name: "Gulberg" }]);
+    expect(mocks.parkFindMany).toHaveBeenCalledWith({
+      where: { isActive: true, cityId: "city-1", id: "park-1" },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    });
+  });
+
+  it("fails closed for an unassigned Murabbi without reading parks", async () => {
+    mocks.requireAuth.mockResolvedValue({ user: { id: "m-2", role: "murabbi", assignedGroupId: null } });
+
+    const response = await GET();
+
+    expect(response.status).toBe(403);
+    expect(mocks.parkFindMany).not.toHaveBeenCalled();
+  });
 });

@@ -17,4 +17,14 @@ describe("eligible attendance opportunities", () => {
   it("returns an honest empty rate and excludes inactive participants", () => {
     expect(attendanceOpportunities([{ ...p, state: "inactive" }], events, [])).toMatchObject({ total: 0, rate: null });
   });
+  it("excludes the dropout-to-rejoin interruption and resumes on the rejoin date", () => {
+    const student = { ...p, dropoutAt: new Date("2026-09-02T00:00:00+05:00"), reactivatedAt: new Date("2026-09-05T00:00:00+05:00") };
+    // Sep 1 precedes the interruption; Sep 2-4 are inside it; Sep 5 is the rejoin day.
+    expect(attendanceOpportunities([student], events, [])).toMatchObject({ total: 2 });
+  });
+  it("keeps a current dropout ineligible from the dropout day onward", () => {
+    const student = { ...p, state: "dropout", dropoutAt: new Date("2026-09-03T00:00:00+05:00"), reactivatedAt: null };
+    // Sep 1 and Sep 2 precede the dropout day; Sep 3 onward are ineligible.
+    expect(attendanceOpportunities([student], events, [])).toMatchObject({ total: 2 });
+  });
 });

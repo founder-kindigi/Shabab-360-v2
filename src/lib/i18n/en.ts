@@ -81,6 +81,7 @@ export const en: Record<string, string> = {
   "nav.auditLog": "Audit Log",
   "nav.notifications": "Notifications",
   "nav.admissions": "Admissions",
+  "nav.registrationForms": "Registration Forms",
   "nav.contentPlanner": "Content Planner",
   "nav.procurement": "Procurement & Stock",
   "nav.gamification": "Gamification & Leaderboard",
@@ -584,3 +585,4 @@ export const en: Record<string, string> = {
   // ── App ──────────────────────────────────────────────────
   "app.collapse": "Collapse",
 };
+

@@ -40,7 +40,7 @@ type ChildData = {
     name: string;
     batchName: string | null;
     parkName: string | null;
-  };
+  } | null;
   events: ChildEvent[];
 };
 
@@ -146,6 +146,7 @@ export function GuardianSchedulePage() {
   for (let d = 0; d < 7; d++) {
     const dayEvents: typeof eventsByDay[0]["events"] = [];
     for (const child of children) {
+      if (!child.group) continue;
       const ev = child.events.find((e) => e.dayOfWeek === d);
       if (ev) {
         dayEvents.push({
@@ -168,7 +169,7 @@ export function GuardianSchedulePage() {
     }
   }
 
-  const totalEvents = children.reduce((s, c) => s + c.events.length, 0);
+  const totalEvents = children.reduce((s, c) => s + (c.group ? c.events.length : 0), 0);
 
   return (
     <motion.div
@@ -251,7 +252,7 @@ export function GuardianSchedulePage() {
                       {child.participant.name}
                     </p>
                     <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                      {child.group.parkName && (
+                      {child.group?.parkName && (
                         <>
                           <MapPin className="size-3" />
                           <span className="truncate">{child.group.parkName}</span>
@@ -260,7 +261,7 @@ export function GuardianSchedulePage() {
                     </div>
                   </div>
                   <Badge className="text-[10px] bg-[#F3ECF6] text-[#4B0A8F] dark:bg-[#1F086080] dark:text-[#8A40B0] shrink-0">
-                    {child.group.name}
+                    {child.group?.name || <span className="italic">Unassigned</span>}
                   </Badge>
                 </div>
 
@@ -268,9 +269,9 @@ export function GuardianSchedulePage() {
                 <div className="overflow-x-auto">
                   <div className="flex gap-1.5 min-w-[500px]">
                     {weekDays.map((day, i) => {
-                      const event = child.events.find(
+                      const event = child.group ? child.events.find(
                         (e) => e.dayOfWeek === i
-                      );
+                      ) : undefined;
                       const isToday = day.isToday;
 
                       return (
@@ -392,8 +393,12 @@ export function GuardianSchedulePage() {
                             <span className="font-medium text-foreground/80">
                               {ev.childName}
                             </span>
-                            <span>&middot;</span>
-                            <span>{ev.groupName}</span>
+                            {ev.groupName && (
+                              <>
+                                <span>&middot;</span>
+                                <span>{ev.groupName}</span>
+                              </>
+                            )}
                             {ev.parkName && (
                               <>
                                 <span>&middot;</span>

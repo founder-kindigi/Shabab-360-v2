@@ -1,4 +1,5 @@
 "use client";
+import Image from "next/image";
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSession, signOut } from "next-auth/react";
@@ -170,7 +171,7 @@ function PwaLoadingScreen() {
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-[#1F0860] via-[#4B0A8F] to-[#D90429] flex flex-col items-center justify-center gap-5">
       <div className="size-20 rounded-3xl bg-white/10 border border-white/20 p-2 shadow-2xl backdrop-blur-xl flex items-center justify-center">
-        <img src="/logo-white.png" alt="Logo" className="size-full object-contain" />
+        <Image src="/logo-white.png" alt="Logo" width={160} height={160} className="size-full object-contain" />
       </div>
       <Loader2 className="size-7 text-white/70 animate-spin" />
     </div>
