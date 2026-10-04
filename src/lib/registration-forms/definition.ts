@@ -25,7 +25,7 @@ export const formFieldSchema = z.object({
   if (value.type !== "number" && (value.minNumber !== undefined || value.maxNumber !== undefined)) ctx.addIssue({ code: "custom", message: "Number limits require a number field" });
 });
 
-export const formFieldsSchema = z.array(formFieldSchema).min(1).max(20).superRefine((fields, ctx) => {
+export const draftFormFieldsSchema = z.array(formFieldSchema).max(20).superRefine((fields, ctx) => {
   if (new Set(fields.map((field) => field.key)).size !== fields.length) ctx.addIssue({ code: "custom", message: "Field keys must be unique" });
   fields.forEach((field, index) => {
     if (!field.visibleWhen) return;
@@ -35,6 +35,10 @@ export const formFieldsSchema = z.array(formFieldSchema).min(1).max(20).superRef
       ctx.addIssue({ code: "custom", path: [index, "visibleWhen"], message: "Conditional questions must depend on an earlier choice and one of its options" });
     }
   });
+});
+
+export const formFieldsSchema = draftFormFieldsSchema.superRefine((fields, ctx) => {
+  if (fields.length === 0) ctx.addIssue({ code: "custom", message: "At least one question is required" });
 });
 
 export const formSettingsSchema = z.object({
@@ -70,11 +74,12 @@ export const formUpdateSchema = z.object({
   version: z.number().int().positive(),
   title: short(120).optional(),
   intro: z.string().trim().max(800).optional(),
-  fields: formFieldsSchema.optional(),
+  fields: draftFormFieldsSchema.optional(),
   settings: formSettingsSchema.optional(),
 }).strict().refine((value) => Object.keys(value).some((item) => item !== "version"), { message: "No changes provided" });
 
 export function publicationError(fields: FormField[], settings: FormSettings): string | null {
+  if (fields.length === 0) return "Add at least one question before publishing";
   if (!settings.privacyNotice || !settings.contactConsentText) return "Privacy notice and contact consent text are required";
   if (settings.minimumAge !== undefined) {
     const age = fields.find((field) => field.key === settings.ageFieldKey);

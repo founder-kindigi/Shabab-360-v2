@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { createAuditLogData } from "@/lib/audit";
 import { requireFormCity, requireFormManager } from "@/lib/registration-forms/access";
-import { formFieldsSchema, formSettingsSchema, formUpdateSchema } from "@/lib/registration-forms/definition";
+import { draftFormFieldsSchema, formSettingsSchema, formUpdateSchema } from "@/lib/registration-forms/definition";
 import { formError, noStore, readFormJson } from "@/lib/registration-forms/http";
 
 type Context = { params: Promise<{ id: string }> };
@@ -16,10 +16,9 @@ export async function GET(_request: Request, context: Context) {
     const form = await db.registrationForm.findUnique({ where: { id } });
     if (!form || requireFormCity(auth.user, form.ownerCityId)) return formError("Form not found", 404);
     const rawFields: unknown = JSON.parse(form.draftSchemaJson);
-    const fields = formFieldsSchema.safeParse(rawFields);
+    const fields = draftFormFieldsSchema.safeParse(rawFields);
     const settings = formSettingsSchema.safeParse(JSON.parse(form.draftSettingsJson));
-    // A blank new draft is valid until its first editor save; malformed saved data is not.
-    if ((!fields.success && !(Array.isArray(rawFields) && rawFields.length === 0)) || !settings.success) return formError("Form configuration is unavailable", 503);
+    if (!fields.success || !settings.success) return formError("Form configuration is unavailable", 503);
     return NextResponse.json({ data: {
       id: form.id, slug: form.slug, ownerCityId: form.ownerCityId, title: form.title, intro: form.intro,
       status: form.status, version: form.version, publishedVersion: form.publishedVersion,
