@@ -45,9 +45,10 @@ interface SubmissionDetail {
   fields: FormField[];
 }
 
-export function RegistrationFormSubmissionsPage() {
+export function RegistrationFormSubmissionsPage({ onBack }: { onBack?: () => void } = {}) {
   const selectedFormId = useAppStore((s) => s.selectedFormId);
-  const goBack = useAppStore((s) => s.goBack);
+  const storeGoBack = useAppStore((s) => s.goBack);
+  const goBack = onBack ?? storeGoBack;
   const [page, setPage] = useState(1);
   const [selectedSubId, setSelectedSubId] = useState<string | null>(null);
 

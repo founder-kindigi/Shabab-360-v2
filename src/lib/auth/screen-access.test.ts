@@ -36,6 +36,8 @@ describe("canOpenScreen — scoped park workspace", () => {
 describe("canOpenScreen — registration forms", () => {
   it.each(["super_admin", "program_admin", "city_head"])("allows %s with admissions management access", (role) => {
     expect(canOpenScreen("registration-forms", role, allowAll)).toBe(true);
+    expect(canOpenScreen("registration-form-edit", role, allowAll)).toBe(true);
+    expect(canOpenScreen("registration-form-submissions", role, allowAll)).toBe(true);
     expect(canOpenScreen("registration-forms", role, allowNone)).toBe(false);
   });
 

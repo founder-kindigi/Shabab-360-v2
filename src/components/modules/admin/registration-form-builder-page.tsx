@@ -25,10 +25,11 @@ interface FormDraftPayload {
   settings: FormSettings;
 }
 
-export function RegistrationFormBuilderPage() {
+export function RegistrationFormBuilderPage({ onBack }: { onBack?: () => void } = {}) {
   const queryClient = useQueryClient();
   const selectedFormId = useAppStore((s) => s.selectedFormId);
-  const goBack = useAppStore((s) => s.goBack);
+  const storeGoBack = useAppStore((s) => s.goBack);
+  const goBack = onBack ?? storeGoBack;
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["admin-registration-forms", selectedFormId],

@@ -41,6 +41,15 @@ vi.mock("@/hooks/use-attendance-sync", () => ({
 vi.mock("@/components/modules/park/offline-queue-panel", () => ({
   OfflineQueuePanel: () => <div data-testid="offline-queue-panel" />,
 }));
+vi.mock("@/components/modules/admin/registration-forms-page", () => ({
+  RegistrationFormsPage: () => <div>Mobile registration forms</div>,
+}));
+vi.mock("@/components/modules/admin/registration-form-builder-page", () => ({
+  RegistrationFormBuilderPage: () => <div>Mobile form builder</div>,
+}));
+vi.mock("@/components/modules/admin/registration-form-submissions-page", () => ({
+  RegistrationFormSubmissionsPage: () => <div>Mobile form submissions</div>,
+}));
 
 import { PwaApp } from "./pwa-app";
 
@@ -269,8 +278,8 @@ describe("PwaApp City Head navigation", () => {
     expect(screen.getByText("339")).toBeDefined();
     expect(screen.getByText("Batch 4")).toBeDefined();
     expect(screen.getByText("Gulberg Park")).toBeDefined();
-    expect(screen.getByRole("button", { name: "Info" })).toBeDefined();
-    expect(screen.queryByRole("button", { name: "Forms" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Forms" })).toBeDefined();
+    expect(screen.queryByRole("button", { name: "Info" })).toBeNull();
 
     // Home is the City Head portal, never the HQ dashboard, and never an
     // unscoped admin park list.
@@ -280,8 +289,9 @@ describe("PwaApp City Head navigation", () => {
     expect(urls.some((url) => url.startsWith("/api/admin/parks"))).toBe(false);
     expect(urls.some((url) => url.startsWith("/api/admin/home-analytics"))).toBe(false);
 
-    fireEvent.click(screen.getByRole("button", { name: "More" }));
-    expect(await screen.findByText("Registration forms")).toBeDefined();
+    fireEvent.click(screen.getByRole("button", { name: "Forms" }));
+    expect(await screen.findByText("Mobile registration forms")).toBeDefined();
+    expect(screen.getByRole("button", { name: "Forms" }).className).toContain("font-bold");
   });
 
   it("keeps the HQ dashboard for Program Head and System Owner", async () => {
