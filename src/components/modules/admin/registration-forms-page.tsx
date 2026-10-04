@@ -52,7 +52,11 @@ const STATUS_COLORS: Record<string, string> = {
   closed: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
 };
 
-export function RegistrationFormsPage() {
+type RegistrationFormsPageProps = {
+  onOpenForm?: (id: string, view: "edit" | "submissions") => void;
+};
+
+export function RegistrationFormsPage({ onOpenForm }: RegistrationFormsPageProps = {}) {
   const selectedCityId = useAppStore((s) => s.selectedCityId);
   const navigateTo = useAppStore((s) => s.navigateTo);
   const setSelectedFormId = useAppStore((s) => s.setSelectedFormId);
@@ -77,6 +81,10 @@ export function RegistrationFormsPage() {
 
   const navigateToForm = (id: string, view: "edit" | "submissions") => {
     setSelectedFormId(id);
+    if (onOpenForm) {
+      onOpenForm(id, view);
+      return;
+    }
     navigateTo(view === "edit" ? "admin-registration-forms-edit" : "admin-registration-forms-submissions");
   };
 
@@ -182,12 +190,12 @@ export function RegistrationFormsPage() {
         )}
       </div>
 
-      <CreateFormDialog open={showCreate} onClose={() => setShowCreate(false)} />
+      <CreateFormDialog open={showCreate} onClose={() => setShowCreate(false)} onCreated={onOpenForm} />
     </div>
   );
 }
 
-function CreateFormDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+function CreateFormDialog({ open, onClose, onCreated }: { open: boolean; onClose: () => void; onCreated?: (id: string, view: "edit") => void }) {
   const queryClient = useQueryClient();
   const selectedCityId = useAppStore((s) => s.selectedCityId);
   const { data: session } = useSession();
@@ -238,6 +246,10 @@ function CreateFormDialog({ open, onClose }: { open: boolean; onClose: () => voi
       onClose();
       // Navigate to builder
       setSelectedFormId(data.id);
+      if (onCreated) {
+        onCreated(data.id, "edit");
+        return;
+      }
       navigateTo("admin-registration-forms-edit");
     },
     onError: (err: Error) => {
