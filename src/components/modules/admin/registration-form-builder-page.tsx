@@ -25,7 +25,7 @@ interface FormDraftPayload {
   settings: FormSettings;
 }
 
-export function RegistrationFormBuilderPage({ onBack }: { onBack?: () => void } = {}) {
+export function RegistrationFormBuilderPage({ onBack, mobile = false }: { onBack?: () => void; mobile?: boolean } = {}) {
   const queryClient = useQueryClient();
   const selectedFormId = useAppStore((s) => s.selectedFormId);
   const storeGoBack = useAppStore((s) => s.goBack);
@@ -258,37 +258,39 @@ export function RegistrationFormBuilderPage({ onBack }: { onBack?: () => void } 
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-slate-50/50 dark:bg-background">
-      <div className="flex items-center gap-4 px-6 py-4 border-b bg-background">
+      <div className={mobile ? "border-b bg-background px-4 py-4" : "flex items-center gap-4 px-6 py-4 border-b bg-background"}>
+        <div className={mobile ? "flex items-start gap-2" : "contents"}>
         <Button variant="ghost" size="icon" onClick={goBack}>
           <ArrowLeft className="size-4" />
         </Button>
-        <div>
-          <h1 className="text-xl font-semibold">{data.title}</h1>
-          <div className="text-sm text-muted-foreground flex items-center gap-2">
+        <div className="min-w-0">
+          <h1 className={mobile ? "break-words text-lg font-bold leading-6" : "text-xl font-semibold"}>{data.title}</h1>
+          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground sm:text-sm">
             Status: <span className="font-medium text-foreground">{data.status}</span>
             {data.publishedVersion && <span>(Live Version: {data.publishedVersion})</span>}
           </div>
         </div>
-        <div className="ml-auto flex items-center gap-2">
+        </div>
+        <div className={mobile ? "mt-3 grid grid-cols-2 gap-2" : "ml-auto flex items-center gap-2"}>
 
-          <Button variant={hasUnsavedChanges ? "default" : "outline"} onClick={handleSave} disabled={patchMutation.isPending || (!hasUnsavedChanges && data.status !== "draft")}>
-            <Save className="mr-2 h-4 w-4" /> Save Draft {hasUnsavedChanges && "*"}
+          <Button size={mobile ? "sm" : "default"} className={mobile ? "min-w-0 text-xs" : undefined} variant={hasUnsavedChanges ? "default" : "outline"} onClick={handleSave} disabled={patchMutation.isPending || (!hasUnsavedChanges && data.status !== "draft")}>
+            <Save className="mr-1.5 h-4 w-4" /> {mobile ? "Save" : "Save Draft"} {hasUnsavedChanges && "*"}
           </Button>
-          <Button onClick={handlePublish} disabled={publishMutation.isPending}>
-            <Globe className="mr-2 h-4 w-4" /> Publish
+          <Button size={mobile ? "sm" : "default"} className={mobile ? "min-w-0 text-xs" : undefined} onClick={handlePublish} disabled={publishMutation.isPending}>
+            <Globe className="mr-1.5 h-4 w-4" /> Publish
           </Button>
           {data.status === "published" && (
-            <Button variant="destructive" onClick={() => confirm("Close this form?") && closeMutation.mutate(data.version)}>
+            <Button size={mobile ? "sm" : "default"} className={mobile ? "col-span-2 text-xs" : undefined} variant="destructive" onClick={() => confirm("Close this form?") && closeMutation.mutate(data.version)}>
               Close Form
             </Button>
           )}
         </div>
       </div>
 
-      <ScrollArea className="flex-1 p-6">
+      <ScrollArea className={mobile ? "flex-1 p-4" : "flex-1 p-6"}>
         <div className="max-w-4xl mx-auto space-y-8 pb-20">
           <Tabs defaultValue="general" className="w-full">
-            <TabsList className="grid w-full grid-cols-4">
+            <TabsList className={mobile ? "grid h-auto w-full grid-cols-2 gap-1 p-1" : "grid w-full grid-cols-4"}>
               <TabsTrigger value="general">General</TabsTrigger>
               <TabsTrigger value="rules">Rules & Fees</TabsTrigger>
               <TabsTrigger value="questions">Questions</TabsTrigger>

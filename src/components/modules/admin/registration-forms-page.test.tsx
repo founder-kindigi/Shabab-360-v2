@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { cleanup, render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { RegistrationFormsPage } from "./registration-forms-page";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
@@ -132,6 +132,45 @@ describe("RegistrationFormsPage - City Head Create Form Fallback", () => {
         "http://localhost:3000/register/forms/murabbi-training-lahore"
       );
     });
+  });
+
+  afterEach(() => cleanup());
+
+  it("uses compact mobile controls without horizontal desktop actions", async () => {
+    (useSession as any).mockReturnValue({
+      data: { user: { assignedCityId: "city-123", role: "city_head" } },
+    });
+    (global.fetch as any).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        data: [{
+          id: "form-1",
+          slug: "murabbi-training-lahore",
+          ownerCityId: "city-123",
+          title: "Murabbi Training Lahore",
+          status: "published",
+          version: 1,
+          publishedVersion: 1,
+          createdAt: "2026-10-01T00:00:00.000Z",
+        }],
+        total: 1,
+        page: 1,
+        pageSize: 20,
+      }),
+    });
+
+    render(
+      <TestWrapper>
+        <RegistrationFormsPage mobile />
+      </TestWrapper>
+    );
+
+    expect(await screen.findByRole("heading", { name: "Registration Forms" })).toBeDefined();
+    expect(screen.getByRole("button", { name: "Create" })).toBeDefined();
+    expect(await screen.findByRole("button", { name: "Copy" }, { timeout: 3000 })).toBeDefined();
+    expect(screen.getByRole("button", { name: "Responses" })).toBeDefined();
+    expect(screen.getByRole("button", { name: "Manage" })).toBeDefined();
+    expect(screen.queryByRole("button", { name: "Copy Link" })).toBeNull();
   });
 });
 

@@ -447,6 +447,7 @@ export function PwaApp() {
                 {screen === "notifications" && <MobileNotificationsPage onBack={() => navigateTo("more")} />}
                 {screen === "registration-forms" && (
                   <RegistrationFormsPage
+                    mobile
                     onOpenForm={(id, view) => {
                       setSelectedFormId(id);
                       setScreen(view === "edit" ? "registration-form-edit" : "registration-form-submissions");
@@ -454,10 +455,10 @@ export function PwaApp() {
                   />
                 )}
                 {screen === "registration-form-edit" && (
-                  <RegistrationFormBuilderPage onBack={() => setScreen("registration-forms")} />
+                  <RegistrationFormBuilderPage mobile onBack={() => setScreen("registration-forms")} />
                 )}
                 {screen === "registration-form-submissions" && (
-                  <RegistrationFormSubmissionsPage onBack={() => setScreen("registration-forms")} />
+                  <RegistrationFormSubmissionsPage mobile onBack={() => setScreen("registration-forms")} />
                 )}
               </motion.div>
             </AnimatePresence>

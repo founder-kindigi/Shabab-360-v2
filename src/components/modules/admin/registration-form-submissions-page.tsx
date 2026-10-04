@@ -45,7 +45,7 @@ interface SubmissionDetail {
   fields: FormField[];
 }
 
-export function RegistrationFormSubmissionsPage({ onBack }: { onBack?: () => void } = {}) {
+export function RegistrationFormSubmissionsPage({ onBack, mobile = false }: { onBack?: () => void; mobile?: boolean } = {}) {
   const selectedFormId = useAppStore((s) => s.selectedFormId);
   const storeGoBack = useAppStore((s) => s.goBack);
   const goBack = onBack ?? storeGoBack;
@@ -67,7 +67,7 @@ export function RegistrationFormSubmissionsPage({ onBack }: { onBack?: () => voi
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-slate-50/50 dark:bg-background">
-      <div className="flex items-center gap-4 px-6 py-4 border-b bg-background">
+      <div className={mobile ? "flex items-center gap-3 border-b bg-background px-4 py-4" : "flex items-center gap-4 px-6 py-4 border-b bg-background"}>
         <Button variant="ghost" size="icon" onClick={goBack}>
           <ArrowLeft className="size-4" />
         </Button>
@@ -79,7 +79,7 @@ export function RegistrationFormSubmissionsPage({ onBack }: { onBack?: () => voi
         </div>
       </div>
 
-      <ScrollArea className="flex-1 p-6">
+      <ScrollArea className={mobile ? "flex-1 p-4" : "flex-1 p-6"}>
         <div className="max-w-5xl mx-auto space-y-6">
           {isLoading && (
             <div className="space-y-4">
@@ -103,7 +103,27 @@ export function RegistrationFormSubmissionsPage({ onBack }: { onBack?: () => voi
             </div>
           )}
 
-          {data && data.data.length > 0 && (
+          {data && data.data.length > 0 && mobile && (
+            <div className="space-y-3">
+              {data.data.map((sub) => (
+                <button key={sub.id} onClick={() => setSelectedSubId(sub.id)} className="w-full rounded-2xl border bg-background p-4 text-left shadow-sm transition-colors hover:bg-slate-50 dark:hover:bg-white/5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate font-mono text-sm font-semibold">{sub.reference}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">{format(new Date(sub.createdAt), "MMM d, yyyy HH:mm")}</p>
+                    </div>
+                    <Badge variant="secondary" className="shrink-0">{sub.status}</Badge>
+                  </div>
+                  <div className="mt-3 flex items-center justify-between border-t pt-3 text-xs">
+                    <span className="text-muted-foreground">Form version v{sub.revision.version}</span>
+                    <span className="flex items-center gap-1 font-semibold text-primary"><Eye className="size-3.5" /> View</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {data && data.data.length > 0 && !mobile && (
             <div className="rounded-md border bg-background overflow-hidden">
               <Table>
                 <TableHeader>

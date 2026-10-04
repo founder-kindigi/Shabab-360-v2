@@ -54,9 +54,10 @@ const STATUS_COLORS: Record<string, string> = {
 
 type RegistrationFormsPageProps = {
   onOpenForm?: (id: string, view: "edit" | "submissions") => void;
+  mobile?: boolean;
 };
 
-export function RegistrationFormsPage({ onOpenForm }: RegistrationFormsPageProps = {}) {
+export function RegistrationFormsPage({ onOpenForm, mobile = false }: RegistrationFormsPageProps = {}) {
   const selectedCityId = useAppStore((s) => s.selectedCityId);
   const navigateTo = useAppStore((s) => s.navigateTo);
   const setSelectedFormId = useAppStore((s) => s.setSelectedFormId);
@@ -100,10 +101,24 @@ export function RegistrationFormsPage({ onOpenForm }: RegistrationFormsPageProps
   };
 
   return (
-    <div className="flex-1 overflow-y-auto bg-slate-50/50 dark:bg-background">
-      <PageHeader title="Registration Forms" description="Build and manage registration forms for programs and events." actions={<Button onClick={() => setShowCreate(true)}><Plus className="mr-2 h-4 w-4" /> Create Form</Button>} />
+    <div className={mobile ? "min-h-screen w-full bg-slate-50 pb-24 text-slate-900 dark:bg-[#120B24] dark:text-slate-100" : "flex-1 overflow-y-auto bg-slate-50/50 dark:bg-background"}>
+      {mobile ? (
+        <header className="sticky top-0 z-20 border-b border-slate-100 bg-white px-4 pb-4 pt-5 shadow-sm dark:border-white/10 dark:bg-[#120B24]">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <h1 className="text-xl font-black tracking-tight text-[#1F0860] dark:text-white">Registration Forms</h1>
+              <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">Build forms and review responses.</p>
+            </div>
+            <Button onClick={() => setShowCreate(true)} size="sm" className="h-9 shrink-0 rounded-xl bg-[#4B0A8F] px-3 text-xs font-bold text-white hover:bg-[#3d0875]">
+              <Plus className="mr-1.5 size-4" /> Create
+            </Button>
+          </div>
+        </header>
+      ) : (
+        <PageHeader title="Registration Forms" description="Build and manage registration forms for programs and events." actions={<Button onClick={() => setShowCreate(true)}><Plus className="mr-2 h-4 w-4" /> Create Form</Button>} />
+      )}
 
-      <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
+      <div className={mobile ? "space-y-4 p-4" : "p-4 md:p-6 lg:p-8 max-w-7xl mx-auto space-y-6"}>
         {isLoading && (
           <div className="space-y-4">
             {Array.from({ length: 4 }).map((_, i) => (
@@ -130,42 +145,44 @@ export function RegistrationFormsPage({ onOpenForm }: RegistrationFormsPageProps
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
             >
-              <Card className="hover:shadow-md transition-shadow">
+              <Card className={mobile ? "overflow-hidden rounded-2xl border-slate-200 shadow-sm dark:border-white/10" : "hover:shadow-md transition-shadow"}>
                 <CardContent className="p-0">
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center p-5 gap-4">
-                    <div className="flex items-center justify-center size-12 rounded-full bg-primary/10 shrink-0">
-                      <FileText className="size-6 text-primary" />
-                    </div>
+                  <div className={mobile ? "p-4" : "flex flex-col sm:flex-row items-start sm:items-center p-5 gap-4"}>
+                    <div className={mobile ? "flex items-start gap-3" : "contents"}>
+                      <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-purple-50 dark:bg-purple-950/40">
+                        <FileText className="size-5 text-[#4B0A8F] dark:text-purple-300" />
+                      </div>
 
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h3 className="font-semibold text-lg truncate">{formItem.title}</h3>
+                      <div className="min-w-0 flex-1">
+                      <div className={mobile ? "mb-1 flex flex-wrap items-center gap-2" : "flex items-center gap-2 mb-1"}>
+                        <h3 className={mobile ? "min-w-0 break-words text-base font-bold leading-5" : "font-semibold text-lg truncate"}>{formItem.title}</h3>
                         <Badge variant="outline" className={STATUS_COLORS[formItem.status]}>
                           {formItem.status.charAt(0).toUpperCase() + formItem.status.slice(1)}
                         </Badge>
                       </div>
-                      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground">
-                        <span className="truncate">/{formItem.slug}</span>
+                      <div className={mobile ? "space-y-1 text-xs text-slate-500 dark:text-slate-400" : "flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground"}>
+                        <span className="block truncate">/{formItem.slug}</span>
                         <span>Created {format(new Date(formItem.createdAt), "MMM d, yyyy")}</span>
                         {formItem.status === "published" && (
-                          <span className="text-primary font-medium flex items-center gap-1">
+                          <span className="flex items-center gap-1 font-medium text-[#4B0A8F] dark:text-purple-300">
                             <Eye className="size-3" /> Live (v{formItem.publishedVersion})
                           </span>
                         )}
                       </div>
+                      </div>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto pt-4 sm:pt-0 border-t sm:border-0 border-border">
+                    <div className={mobile ? "mt-4 grid w-full grid-cols-3 gap-2 border-t border-slate-100 pt-3 dark:border-white/10" : "flex flex-wrap items-center gap-2 w-full sm:w-auto pt-4 sm:pt-0 border-t sm:border-0 border-border"}>
                       {formItem.status === "published" && (
-                        <Button variant="outline" size="sm" onClick={() => copyPublicLink(formItem.slug)}>
-                          <Clipboard className="size-4 mr-2" /> Copy Link
+                        <Button variant="outline" size="sm" className={mobile ? "min-w-0 px-2 text-xs" : undefined} onClick={() => copyPublicLink(formItem.slug)}>
+                          <Clipboard className="mr-1.5 size-4" /> {mobile ? "Copy" : "Copy Link"}
                         </Button>
                       )}
-                      <Button variant="outline" size="sm" onClick={() => navigateToForm(formItem.id, "submissions")}>
-                        <BarChart3 className="size-4 mr-2" /> Submissions
+                      <Button variant="outline" size="sm" className={mobile ? "min-w-0 px-2 text-xs" : undefined} onClick={() => navigateToForm(formItem.id, "submissions")}>
+                        <BarChart3 className="mr-1.5 size-4" /> {mobile ? "Responses" : "Submissions"}
                       </Button>
-                      <Button variant="default" size="sm" onClick={() => navigateToForm(formItem.id, "edit")}>
-                        <Settings className="size-4 mr-2" /> Manage
+                      <Button variant="default" size="sm" className={mobile ? "min-w-0 bg-[#4B0A8F] px-2 text-xs hover:bg-[#3d0875]" : undefined} onClick={() => navigateToForm(formItem.id, "edit")}>
+                        <Settings className="mr-1.5 size-4" /> Manage
                       </Button>
                     </div>
                   </div>
