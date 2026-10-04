@@ -122,6 +122,15 @@ describe("admin registration form detail", () => {
     expect(mocks.audit).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ action: "registration_form_draft_update" }) }));
   });
 
+  it("saves an unfinished blank draft without requiring a question", async () => {
+    mocks.findUnique.mockResolvedValue({ ownerCityId: "city-1", version: 2, status: "draft" });
+    const response = await PATCH(patchRequest({ version: 2, title: "Blank Draft", fields: [], settings }), context);
+    expect(response.status).toBe(200);
+    expect(mocks.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ draftSchemaJson: "[]" }),
+    }));
+  });
+
   it("returns a conflict if the row changed between read and write", async () => {
     mocks.findUnique.mockResolvedValue({ ownerCityId: "city-1", version: 2, status: "draft" });
     mocks.updateMany.mockResolvedValue({ count: 0 });

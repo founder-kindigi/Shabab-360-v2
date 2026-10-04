@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formFieldsSchema, formSettingsSchema, parseFormAnswers, publicationError } from "./definition";
+import { draftFormFieldsSchema, formFieldsSchema, formSettingsSchema, parseFormAnswers, publicationError } from "./definition";
 import { ATFAL_CITY_OPTIONS, ATFAL_STYLE_FIELDS, EMPTY_FORM_SETTINGS } from "./template";
 
 const fields = formFieldsSchema.parse(ATFAL_STYLE_FIELDS);
@@ -7,6 +7,12 @@ const settings = formSettingsSchema.parse({ ...EMPTY_FORM_SETTINGS, privacyNotic
 const answers = { fullName: "Test Applicant", gender: "Male", age: 20, currentRole: "Student", whatsApp: "0300 1234567", emergencyPhone: "0301 1234567", affiliated: "No", city: "Lahore", address: "Lahore" };
 
 describe("registration form definition", () => {
+  it("allows an empty draft but requires a question before publication", () => {
+    expect(draftFormFieldsSchema.safeParse([]).success).toBe(true);
+    expect(formFieldsSchema.safeParse([]).success).toBe(false);
+    expect(publicationError([], formSettingsSchema.parse(EMPTY_FORM_SETTINGS))).toMatch(/one question/);
+  });
+
   it("includes all observed Atfal cities and an Other City answer", () => {
     expect(ATFAL_CITY_OPTIONS).toHaveLength(35);
     expect(ATFAL_CITY_OPTIONS).toContain("Lahore");
