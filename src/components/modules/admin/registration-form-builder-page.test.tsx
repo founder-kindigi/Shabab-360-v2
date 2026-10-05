@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
 import { RegistrationFormBuilderPage } from "./registration-form-builder-page";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useAppStore } from "@/stores/useAppStore";
@@ -16,6 +16,7 @@ function TestWrapper({ children }: { children: React.ReactNode }) {
 }
 
 describe("RegistrationFormBuilderPage - Editor State", () => {
+  afterEach(cleanup);
   beforeEach(() => {
     queryClient.clear();
     vi.clearAllMocks();
@@ -38,14 +39,14 @@ describe("RegistrationFormBuilderPage - Editor State", () => {
         await saveGate;
         return {
           ok: true,
-          json: async () => ({ data: { id: "form-123", version: 2, title: "Edited Title", intro: "", fields: [], settings: {}, status: "draft" } }),
+          json: async () => ({ data: { id: "form-123", version: 2, title: "Edited Title", intro: "", fields: [], settings: { eligibilityText: "", feeText: "", privacyNotice: "", contactConsentText: "", successText: "Received" }, status: "draft" } }),
         };
       }
       getCount += 1;
       const serverData =
         getCount === 1
-          ? { id: "form-123", version: 1, title: "Initial Title", intro: "", fields: [], settings: {}, status: "draft" }
-          : { id: "form-123", version: 2, title: "Server Title", intro: "", fields: [], settings: {}, status: "draft" };
+          ? { id: "form-123", version: 1, title: "Initial Title", intro: "", fields: [], settings: { eligibilityText: "", feeText: "", privacyNotice: "", contactConsentText: "", successText: "Received" }, status: "draft" }
+          : { id: "form-123", version: 2, title: "Server Title", intro: "", fields: [], settings: { eligibilityText: "", feeText: "", privacyNotice: "", contactConsentText: "", successText: "Received" }, status: "draft" };
       return { ok: true, json: async () => ({ data: serverData }) };
     });
 
@@ -85,9 +86,50 @@ describe("RegistrationFormBuilderPage - Editor State", () => {
     expect(screen.queryByDisplayValue("Server Title")).toBeNull();
     expect(screen.getByRole("button", { name: /Save Draft/ }).textContent).toContain("*");
   });
+
+  it("generates API-valid keys when adding the first question to a blank form", async () => {
+    let savedBody: any = null;
+    (global.fetch as any).mockImplementation(async (_url: string, options?: { method?: string; body?: string }) => {
+      if (options?.method === "PATCH") {
+        savedBody = JSON.parse(options.body || "{}");
+        return { ok: true, json: async () => ({ version: 2, status: "draft" }) };
+      }
+      return {
+        ok: true,
+        json: async () => ({
+          data: {
+            id: "form-123",
+            version: 1,
+            title: "Blank Form",
+            intro: "",
+            fields: [],
+            settings: {
+              eligibilityText: "",
+              feeText: "",
+              privacyNotice: "",
+              contactConsentText: "",
+              successText: "Received",
+            },
+            status: "draft",
+          },
+        }),
+      };
+    });
+
+    render(
+      <TestWrapper>
+        <RegistrationFormBuilderPage />
+      </TestWrapper>
+    );
+
+    await screen.findByDisplayValue("Blank Form");
+    fireEvent.mouseDown(screen.getByRole("tab", { name: "Questions" }), { button: 0, ctrlKey: false });
+    fireEvent.click(await screen.findByRole("button", { name: "Add Question" }));
+    fireEvent.click(screen.getByRole("button", { name: /Save Draft/ }));
+
+    await waitFor(() => expect(savedBody).not.toBeNull());
+    expect(savedBody.fields).toHaveLength(1);
+    expect(savedBody.fields[0].key).toMatch(/^[a-z][a-zA-Z0-9]{0,39}$/);
+    expect(savedBody.fields[0].key).not.toContain("_");
+  });
 });
-
-
-
-
-

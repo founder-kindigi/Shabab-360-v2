@@ -15,7 +15,7 @@ import { toast } from "sonner";
 import { useAppStore } from "@/stores/useAppStore";
 import { ArrowLeft, Plus, Trash2, Save, Globe, AlertTriangle, ArrowUp, ArrowDown } from "lucide-react";
 import type { FormField, FormSettings } from "@/lib/registration-forms/definition";
-import { publicationError } from "@/lib/registration-forms/definition";
+import { formUpdateSchema, publicationError } from "@/lib/registration-forms/definition";
 
 interface FormDraftPayload {
   version: number;
@@ -188,7 +188,15 @@ export function RegistrationFormBuilderPage({ onBack, mobile = false }: { onBack
       fields: trimmedFields,
       settings: trimmedSettings,
     });
-    patchMutation.mutate({ version: data.version, title, intro, fields: trimmedFields, settings: trimmedSettings });
+    const payload = { version: data.version, title, intro, fields: trimmedFields, settings: trimmedSettings };
+    const validation = formUpdateSchema.safeParse(payload);
+    if (!validation.success) {
+      const issue = validation.error.issues[0];
+      const location = issue.path.length ? `${issue.path.join(" → ")}: ` : "";
+      toast.error(`${location}${issue.message}`);
+      return;
+    }
+    patchMutation.mutate(validation.data as FormDraftPayload);
   };
 
   const handlePublish = () => {
@@ -206,7 +214,7 @@ export function RegistrationFormBuilderPage({ onBack, mobile = false }: { onBack
   };
 
   const addField = () => {
-    const key = "q_" + Math.random().toString(36).substr(2, 6);
+    const key = "q" + Math.random().toString(36).slice(2, 9);
     setFields([...fields, { key, label: "New Question", type: "short_text", required: false }]);
     setHasUnsavedChanges(true);
   };
